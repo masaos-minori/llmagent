@@ -177,7 +177,7 @@ class TestCompleteTurnExecution:
 
     @pytest.mark.asyncio
     async def test_handle_turn_saves_assistant_message_on_success(self) -> None:
-        """Successful turns save assistant messages via session.save()."""
+        """Successful turns save assistant messages via the turn boundary."""
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
         ctx.services_required.llm.stream = AsyncMock(
@@ -189,7 +189,15 @@ class TestCompleteTurnExecution:
 
         await orch.handle_turn("question")
 
-        ctx.session.save.assert_called_with("assistant", "response")
+        # SEQ-09: persist routes through the turn boundary, not ctx.session.save.
+        # The boundary also persists the user row first; assert the assistant
+        # row is among its saves.
+        assistant_calls = [
+            c
+            for c in ctx.turn.persistence_boundary.save.call_args_list
+            if c.args == ("assistant", "response")
+        ]
+        assert len(assistant_calls) == 1
 
     @pytest.mark.asyncio
     async def test_handle_turn_appends_user_message_to_history(self) -> None:

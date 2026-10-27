@@ -355,7 +355,12 @@ class WorkflowEngineAdapter:
             ):
                 is_partial = True
         elif result.persist_as_assistant:
-            ctx.session.save("assistant", answer)
+            # Persist the final answer through the turn's atomic boundary (SEQ-09)
+            # instead of a standalone commit; a later failure compensates it with
+            # every other turn write (AC-001, AC-002).
+            boundary = ctx.turn.persistence_boundary
+            assert boundary is not None, "persistence boundary not set for this turn"  # noqa: B101 — boundary required inside a turn; None means writes bypass the atomic boundary
+            await boundary.save("assistant", answer)
 
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
         audit_stage_completed(

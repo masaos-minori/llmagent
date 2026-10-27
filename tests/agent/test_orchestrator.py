@@ -1223,7 +1223,15 @@ class TestHandleTurnLLMTransportError:
         ):
             await orch.handle_turn("hello")
 
-        ctx.session.save.assert_called_with("assistant", "hello")
+        # SEQ-09: the final-answer persist routes through the turn boundary, not
+        # a standalone ctx.session.save (AC-001). The boundary also persists the
+        # user row first; assert the assistant row is among its saves.
+        assistant_calls = [
+            c
+            for c in ctx.turn.persistence_boundary.save.call_args_list
+            if c.args == ("assistant", "hello")
+        ]
+        assert len(assistant_calls) == 1
 
     @pytest.mark.asyncio
     async def test_turn_end_partial_completion_true_on_partial_error(self) -> None:

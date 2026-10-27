@@ -14,7 +14,7 @@ Route the final-assistant persistence in `scripts/agent/workflow_engine_adapter.
 
 ## Assumptions
 
-- The turn's boundary handle (seq 05) is reachable from the adapter as `self._ctx.turn.persistence_boundary`.
+- The turn's boundary handle (seq 05) is reachable from the adapter as `ctx.turn.persistence_boundary` (`_run_execute_stage` takes `ctx` as a parameter, not `self`).
 - Only the turn path writes `messages` rows during a turn (`AC-001`).
 
 ## Design decisions
@@ -33,20 +33,20 @@ Route the final-assistant persistence in `scripts/agent/workflow_engine_adapter.
 
 ### Procedure
 
-1. In `_run_execute_stage` (workflow_engine_adapter.py:326), locate the final-assistant persist at workflow_engine_adapter.py:357-358 (`elif result.persist_as_assistant:` then `ctx.session.save("assistant", answer)`).
-2. Replace `ctx.session.save("assistant", answer)` (workflow_engine_adapter.py:358) with a boundary-routed persist through the turn boundary handle (seq 05).
+1. In `_run_execute_stage` (workflow_engine_adapter.py:326), locate the final-assistant persist at workflow_engine_adapter.py:357-362 (`elif result.persist_as_assistant:` then the boundary-routed save).
+2. Replace `ctx.session.save("assistant", answer)` (workflow_engine_adapter.py:359, original) with `await ctx.turn.persistence_boundary.save("assistant", answer)` guarded by `assert boundary is not None` (seq 05).
 3. Run the validation sequence.
 
 ### Method
 
-`WorkflowEngineAdapter` (workflow_engine_adapter.py:65) adapts the workflow engine to turn execution. `execute_turn` (workflow_engine_adapter.py:148) plans/executes/verifies via staged functions; `_run_execute_stage` (workflow_engine_adapter.py:326) runs one execute-stage attempt, classifies the result, and at workflow_engine_adapter.py:357-358 does `elif result.persist_as_assistant: ctx.session.save("assistant", answer)` before returning `(answer, error_kind, is_partial)`. The boundary handle (seq 05) provides the same insert with turn-level all-or-nothing semantics.
+`WorkflowEngineAdapter` (workflow_engine_adapter.py:65) adapts the workflow engine to turn execution. `execute_turn` (workflow_engine_adapter.py:148) plans/executes/verifies via staged functions; `_run_execute_stage` (workflow_engine_adapter.py:326) runs one execute-stage attempt, classifies the result, and at workflow_engine_adapter.py:357-362 does `elif result.persist_as_assistant:` then persists via the turn boundary before returning `(answer, error_kind, is_partial)`. The boundary handle (seq 05) provides the same insert with turn-level all-or-nothing semantics.
 
 ```python
 # workflow_engine_adapter.py — routed final-assistant persist (REQ-005)  (new)
 elif result.persist_as_assistant:
-    await self._ctx.turn.persistence_boundary.persist_final_answer(   # seq 05, 01
-        answer
-    )
+    boundary = ctx.turn.persistence_boundary   # TurnPersistence | None
+    assert boundary is not None, "persistence boundary not set for this turn"  # noqa: B101
+    await boundary.save("assistant", answer)
 ```
 
 ### Details
@@ -71,9 +71,9 @@ elif result.persist_as_assistant:
 
 | Target | Strategy | Command | Expected |
 |---|---|---|---|
-| final answer routed | Unit: answer persisted via boundary | `uv run pytest tests/agent/test_llm_turn_runner.py` | Row present; no standalone save |
-| turn atomicity | Failure injection: final answer compensated | `uv run pytest tests/agent/test_llm_turn_runner.py` | Compensated (`AC-002`) |
-| backward compat | Regression: existing workflow cases | `uv run pytest tests/agent/test_llm_turn_runner.py` | Unchanged |
+| final answer routed | Unit: answer persisted via boundary | `uv run pytest tests/agent/test_orchestrator.py::TestHandleTurnLLMTransportError::test_success_still_saved_as_assistant_message` | Assistant row present on `ctx.turn.persistence_boundary.save`; no standalone save |
+| turn atomicity | Failure injection: final answer compensated | `uv run pytest tests/integration/test_orchestrator_integration.py::TestCompleteTurnExecution::test_handle_turn_saves_assistant_message_on_success` | Compensated (`AC-002`) |
+| backward compat | Regression: existing workflow cases | `uv run pytest tests/agent/test_orchestrator.py tests/integration/test_orchestrator_integration.py` | Unchanged |
 | static | ruff / mypy / bandit / vulture | `uv run ruff check scripts/`; `uv run mypy scripts/`; `uv run bandit -r scripts/ -c pyproject.toml`; `uv run vulture scripts/` | Clean |
 
 ## Completion criteria
@@ -93,10 +93,10 @@ elif result.persist_as_assistant:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route final-assistant persist through boundary in `scripts/agent/workflow_engine_adapter.py` | Pending | — | — | Replaces save at L358 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Extend workflow coverage via test_llm_turn_runner.py |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Route final-assistant persist through boundary in `scripts/agent/workflow_engine_adapter.py` | Complete | 2026-10-27 | 2026-10-27 | `ctx.session.save("assistant", answer)` -> `await ctx.turn.persistence_boundary.save("assistant", answer)` + assert guard; L359->L362 |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | Updated `test_success_still_saved_as_assistant_message` (test_orchestrator.py) and `test_handle_turn_saves_assistant_message_on_success` (test_orchestrator_integration.py) to assert the assistant row on `ctx.turn.persistence_boundary.save` (the boundary also persists the user row first) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | ruff check/format clean, mypy clean, bandit full gate exit 0 (High=0), vulture @80 clean; 3871 agent+integration tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | Corrected handle (`self._ctx` -> `ctx.turn`), method (`persist_final_answer` -> `save`), pseudocode, Validation plan, Execution Status to match implementation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
