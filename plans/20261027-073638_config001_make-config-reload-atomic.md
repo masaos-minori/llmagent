@@ -322,3 +322,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Required Changes 3 | Re-sync tied to whole-config success | scripts/agent/services/config_reload.py | Phase 2 | AC-001 | T-001 | Confirmed (L111-117) |
 | REQ-006 | Constraints 2; AI Instruction | No new validators / registry change | scripts/agent/services/config_section_reload.py | Phase 1 | AC-005 | — | Confirmed (registry/validator signature review) |
 | REQ-007 | Acceptance Criteria 2 | Valid reload still applies everything | scripts/agent/services/config_reload.py | Phase 2 | AC-002 | T-004 | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-113958 -->
