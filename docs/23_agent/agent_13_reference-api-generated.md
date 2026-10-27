@@ -197,6 +197,8 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `ScheduledBatch` | `class ScheduledBatch` | One or more ScheduledGroups that run concurrently with each other. |
 |  | `ExecutionPlan` | `class ExecutionPlan` | The full scheduling result for one batch of tool calls. |
 |  | `build_execution_groups` | `def build_execution_groups(tool_calls, call_specs, *, force_serial) -> ExecutionPlan` | Build the single-engine DAG execution plan for *tool_calls*. |
+| `scripts/agent/turn_persistence.py` | `ConversationPersistenceError` | `class ConversationPersistenceError` | Raised when a turn's session-DB persistence fails and is compensated. |
+|  | `TurnPersistence` | `class TurnPersistence` | Owns all session-DB writes of one agent turn (all-or-nothing). |
 | `scripts/agent/turn_result.py` | `TurnResult` | `class TurnResult` | Typed result of one LLM turn. |
 | `scripts/agent/wal_checkpoint_manager.py` | `WalCheckpointManager` | `class WalCheckpointManager` | WAL checkpoint and backup manager. |
 | `scripts/agent/workflow_engine_adapter.py` | `WorkflowEngineAdapter` | `class WorkflowEngineAdapter` | Wires workflow engine lifecycle around an LLM turn. |

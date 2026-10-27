@@ -1,5 +1,6 @@
 import pytest
-from agent.context import AgentContext, AppServices
+from agent.context import AgentContext, AppServices, ConversationState
+from shared.types import LLMMessage
 
 
 class TestServicesRequired:
@@ -182,3 +183,80 @@ class TestAppServicesValidation:
             memory=None,
         )
         assert svc.memory is None
+
+
+class TestSnapshotMessages:
+    """Tests for ConversationState.snapshot_messages — the turn-persistence
+    boundary's stable turn-start memory image (REQ-001, AC-004)."""
+
+    async def test_returns_defensive_copy_independent_of_mutation(self) -> None:
+        conv = ConversationState()
+        await conv.append_message({"role": "user", "content": "start"})
+
+        snapshot = await conv.snapshot_messages()
+        await conv.append_message({"role": "assistant", "content": "during"})
+
+        # The snapshot must not observe the later append.
+        assert snapshot == [{"role": "user", "content": "start"}]
+
+    async def test_snapshot_is_a_shallow_copy_per_message(self) -> None:
+        conv = ConversationState()
+        msg: LLMMessage = {"role": "user", "content": "start"}
+        await conv.append_message(msg)
+
+        snapshot = await conv.snapshot_messages()
+
+        # Mutating the live history dict must not mutate the snapshot's copy.
+        msg["content"] = "mutated"
+        assert snapshot == [{"role": "user", "content": "start"}]
+
+    async def test_snapshot_empty_history(self) -> None:
+        conv = ConversationState()
+        assert await conv.snapshot_messages() == []
+
+
+class TestRestoreMessages:
+    """Tests for ConversationState.restore_messages — memory rollback on a
+    compensated turn failure (REQ-004, AC-004)."""
+
+    async def test_restores_history_to_snapshot_element_wise(self) -> None:
+        conv = ConversationState()
+        await conv.append_message({"role": "user", "content": "start"})
+        snapshot = await conv.snapshot_messages()
+
+        await conv.append_message({"role": "assistant", "content": "partial"})
+        await conv.append_message({"role": "tool", "content": "result"})
+
+        await conv.restore_messages(snapshot)
+
+        assert conv.history == [{"role": "user", "content": "start"}]
+
+    async def test_restore_replaces_current_history(self) -> None:
+        conv = ConversationState()
+        await conv.append_message({"role": "user", "content": "old"})
+
+        await conv.restore_messages([{"role": "system", "content": "restored"}])
+
+        assert conv.history == [{"role": "system", "content": "restored"}]
+
+    async def test_restore_to_empty_snapshot_clears_history(self) -> None:
+        conv = ConversationState()
+        await conv.append_message({"role": "user", "content": "x"})
+        snapshot = await conv.snapshot_messages()
+        assert snapshot == [{"role": "user", "content": "x"}]
+
+        await conv.restore_messages([])
+
+        assert conv.history == []
+
+    async def test_restore_matches_snapshot_exactly(self) -> None:
+        """AC-004: restored history equals the boundary's own snapshot exactly."""
+        conv = ConversationState()
+        await conv.append_message({"role": "user", "content": "a"})
+        await conv.append_message({"role": "assistant", "content": "b"})
+        snapshot = await conv.snapshot_messages()
+
+        await conv.append_message({"role": "tool", "content": "c"})
+        await conv.restore_messages(snapshot)
+
+        assert conv.history == snapshot

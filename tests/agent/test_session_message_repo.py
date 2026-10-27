@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Generator
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
@@ -40,10 +41,21 @@ CREATE TABLE IF NOT EXISTS messages (
 
 
 class _FakeSQLiteHelper:
-    """Minimal SQLiteHelper drop-in backed by a real in-memory SQLite connection."""
+    """Minimal SQLiteHelper drop-in backed by a real in-memory SQLite connection.
+
+    ``_state`` is an optional shared holder whose ``fail_next`` counter injects
+    exactly one ``sqlite3.DatabaseError`` (to exercise atomicity/error paths);
+    it defaults to ``None``, leaving execution unchanged.
+    """
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
+        self._state: dict[str, int] | None = None
+
+    def _guard(self) -> None:
+        if self._state is not None and self._state["fail_next"] > 0:
+            self._state["fail_next"] -= 1
+            raise sqlite3.DatabaseError("injected session-repo failure")
 
     def open(
         self, *, write_mode: bool = False, row_factory: bool = False
@@ -52,9 +64,11 @@ class _FakeSQLiteHelper:
         return self
 
     def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        self._guard()
         return self._conn.execute(sql, params)
 
     def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
+        self._guard()
         return self._conn.executemany(sql, params_seq)
 
     def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
@@ -65,6 +79,20 @@ class _FakeSQLiteHelper:
 
     def close(self) -> None:
         pass
+
+    @contextmanager
+    def begin_immediate(self) -> Generator[None]:
+        self._guard()
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            self._conn.execute("COMMIT")
+        except Exception:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.OperationalError:
+                pass
+            raise
 
     def __enter__(self) -> _FakeSQLiteHelper:
         return self
@@ -670,3 +698,129 @@ class TestCustomRoles:
         )
         with pytest.raises(RuntimeError, match="Cannot save message"):
             repo.save("invalid_role", "content")
+
+
+@pytest.fixture
+def grouped_repo() -> Generator[
+    tuple[SessionMessageRepository, sqlite3.Connection, dict[str, int]]
+]:
+    """Repo bound to a fresh in-memory DB with a single fail-injection point."""
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(_SCHEMA_SQL)
+    conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+    conn.commit()
+
+    state: dict[str, int] = {"fail_next": 0}
+
+    def _make(target: str = "session") -> _FakeSQLiteHelper:  # noqa: ARG001 — target selects the fake's backing store but is unused in the body
+        fake = _FakeSQLiteHelper(conn)
+        fake._state = state
+        return fake
+
+    with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+        yield SessionMessageRepository(session_id=1), conn, state
+
+
+class TestTurnStartMarker:
+    def test_returns_max_message_id(self, repo: SessionMessageRepository) -> None:
+        repo.save_many(
+            [
+                ("user", "a", None, None),
+                ("assistant", "b", None, None),
+                ("tool", "c", None, "x"),
+            ]
+        )
+        assert SessionMessageRepository.turn_start_marker(1) == 3
+
+    def test_returns_zero_when_no_messages(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        assert SessionMessageRepository.turn_start_marker(1) == 0
+
+    def test_returns_zero_when_session_none(self) -> None:
+        assert SessionMessageRepository.turn_start_marker(None) == 0
+
+
+class TestDeleteMessagesFrom:
+    def test_deletes_rows_after_marker_and_returns_count(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        repo.save_many(
+            [
+                ("user", "a", None, None),
+                ("assistant", "b", None, None),
+                ("tool", "c", None, "x"),
+                ("user", "d", None, None),
+            ]
+        )
+        deleted = repo.delete_messages_from(1, 2)
+        assert deleted == 2  # rows 3 and 4 removed (strictly after marker 2)
+        contents = [m["content"] for m in _msgs(repo.fetch_messages(1))]
+        assert contents == ["a", "b"]  # rows 1 and 2 preserved
+
+    def test_deletes_only_turn_rows_not_prior(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        # Rows 1 and 2 exist; marker=2 is the last prior row. ``> 2`` deletes
+        # nothing, so neither prior row is removed (AC-002 off-by-one guard).
+        repo.save_many([("user", "a", None, None), ("assistant", "b", None, None)])
+        deleted = repo.delete_messages_from(1, 2)
+        assert deleted == 0
+        assert len(_msgs(repo.fetch_messages(1))) == 2
+
+    def test_returns_zero_when_session_none(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        assert repo.delete_messages_from(None, 1) == 0
+
+
+class TestSavePhaseGrouped:
+    def test_writes_all_rows_in_one_call(self, repo: SessionMessageRepository) -> None:
+        repo.save_phase_grouped(
+            [
+                ("assistant", "a", None, None),
+                ("tool", "t", None, "x"),
+                ("tool", "u", None, "y"),
+            ]
+        )
+        msgs = _msgs(repo.fetch_messages(1))
+        assert [m["role"] for m in msgs] == ["assistant", "tool", "tool"]
+
+    def test_skips_invalid_roles(self, repo: SessionMessageRepository) -> None:
+        repo.save_phase_grouped(
+            [("assistant", "a", None, None), ("bogus", "b", None, None)]
+        )
+        assert len(_msgs(repo.fetch_messages(1))) == 1
+
+    def test_noop_when_session_id_none(self) -> None:
+        r = SessionMessageRepository(session_id=None)
+        with patch("agent.session_message_repo.SQLiteHelper") as mock:
+            r.save_phase_grouped([("assistant", "a", None, None)])
+            mock.assert_not_called()
+
+    def test_all_invalid_roles_returns_without_write(self, repo) -> None:
+        """Every role invalid → no rows after filtering → no DB connection opened."""
+        with patch("agent.session_message_repo.SQLiteHelper") as mock:
+            repo.save_phase_grouped([("bogus", "b", None, None)])
+            mock.assert_not_called()
+
+    def test_atomic_on_failure_leaves_prior_rows_untouched(self, grouped_repo) -> None:
+        repo, conn, state = grouped_repo
+        repo.save("user", "prior")  # message_id 1, committed before the round
+        state["fail_next"] = 1
+        with pytest.raises(sqlite3.Error):
+            repo.save_phase_grouped(
+                [("assistant", "a", None, None), ("tool", "t", None, "x")]
+            )
+        # All-or-none (AC-005): the failed round writes nothing; the prior row
+        # (id 1) is untouched.
+        rows = conn.execute(
+            "SELECT message_id, role FROM messages ORDER BY message_id"
+        ).fetchall()
+        assert [(mid, role) for mid, role in rows] == [(1, "user")]
+
+    def test_propagates_raw_sqlite_error(self, grouped_repo) -> None:
+        repo, _conn, state = grouped_repo
+        state["fail_next"] = 1
+        with pytest.raises(sqlite3.Error):
+            repo.save_phase_grouped([("assistant", "a", None, None)])

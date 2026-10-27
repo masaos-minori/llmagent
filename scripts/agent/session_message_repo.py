@@ -173,6 +173,79 @@ class SessionMessageRepository:
             db.commit()
         return int(boundary)
 
+    @staticmethod
+    def turn_start_marker(session_id: int | None) -> int:
+        """Return the largest ``message_id`` for a session (``0`` when none yet).
+
+        Used as the turn-start marker: compensation deletes rows strictly after
+        this id, so a fresh session (no rows) yields ``0``. Raises ``sqlite3.Error``
+        on DB failure.
+        """
+        if session_id is None:
+            return 0
+        with SQLiteHelper("session").open() as db:
+            row = db.execute(
+                "SELECT COALESCE(MAX(message_id), 0) FROM messages WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        return int(row[0])
+
+    def delete_messages_from(self, session_id: int, marker: int) -> int:
+        """Compensation delete: remove every message strictly after ``marker`` for a session.
+
+        One transaction. Returns the number of rows deleted. Used by the
+        turn-persistence boundary to roll back a failed turn; earlier rows
+        (at/below ``marker``, i.e. prior turns) are left intact (AC-002). The
+        marker is ``MAX(message_id)`` at turn start, so ``> marker`` deletes
+        exactly this turn's rows and never a prior turn's row. Raises
+        ``sqlite3.Error`` on DB failure; the boundary wraps it into
+        ``ConversationPersistenceError`` and compensates (REQ-002).
+        """
+        if session_id is None:
+            return 0
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            deleted = db.execute(
+                "DELETE FROM messages WHERE session_id = ? AND message_id > ?",
+                (session_id, marker),
+            ).rowcount
+            db.commit()
+        # sqlite3.Error propagates to the boundary, which wraps and compensates
+        return int(deleted)
+
+    def save_phase_grouped(
+        self,
+        messages: list[tuple[str, str | None, list[dict] | None, str | None]],
+    ) -> None:
+        """Persist a phase-group of messages in one BEGIN IMMEDIATE transaction.
+
+        Unlike :meth:`save_many` (implicit autocommit per call), this runs the
+        whole group in a single ``begin_immediate`` transaction on a single
+        connection, so a single injected failure leaves either all or none of
+        the round's rows (REQ-005, AC-005). Invalid roles are skipped. The
+        ``begin_immediate`` block rolls back on failure and re-raises
+        ``sqlite3.Error``; the boundary wraps it into
+        ``ConversationPersistenceError`` and compensates (REQ-002).
+        """
+        if self.session_id is None or not messages:
+            return
+        rows = [
+            (
+                self.session_id,
+                role,
+                content if content is not None else "",
+                _tool_calls_json(tc),
+                tc_id,
+            )
+            for role, content, tc, tc_id in messages
+            if role in self._valid_roles
+        ]
+        if not rows:
+            return
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            with db.begin_immediate():
+                db.executemany(_INSERT_MESSAGE_SQL, rows)
+        # sqlite3.Error propagates to the boundary, which wraps and compensates
+
     def get_valid_roles(self) -> frozenset[str]:
         """Return the currently active valid roles set."""
         return self._valid_roles

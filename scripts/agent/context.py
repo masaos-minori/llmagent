@@ -189,6 +189,26 @@ class ConversationState:
             for msg in msgs:
                 await self._append_message_locked(msg, source=_UNTRUSTED_RESTORE_SOURCE)
 
+    async def snapshot_messages(self) -> list[LLMMessage]:
+        """Return a defensive copy of history, independent of later mutations.
+
+        Used by the turn-persistence boundary to capture a stable turn-start
+        memory image that survives the LLM/tool awaits of the turn.
+        """
+        async with self._ensure_lock:
+            return [cast(LLMMessage, dict(msg)) for msg in self.history]
+
+    async def restore_messages(self, snapshot: list[LLMMessage]) -> None:
+        """Restore history to a previously captured snapshot, element-wise.
+
+        Trusts its argument (the boundary's own turn-start snapshot) and does not
+        re-validate, so the restored history equals the snapshot exactly
+        (REQ-004, AC-004). Untrusted DB restores keep using ``replace_history``.
+        """
+        async with self._ensure_lock:
+            self.history.clear()
+            self.history.extend(snapshot)
+
 
 @dataclass
 class TurnState:

@@ -18,7 +18,9 @@ from threading import Lock
 from unittest.mock import patch
 
 import pytest
+from agent.context import ConversationState
 from agent.session import AgentSession, SchemaMissingError
+from agent.turn_persistence import TurnPersistence
 
 
 def _msgs(result):
@@ -767,3 +769,47 @@ class TestSaveDiagnosticIsolation:
         assert (
             "llm_transport_error" in args or kwargs.get("kind") == "llm_transport_error"
         )
+
+
+# ── turn_boundary() ───────────────────────────────────────────────────────────
+
+
+class TestTurnBoundary:
+    async def test_returns_turn_persistence_bound_to_session(
+        self, session: AgentSession
+    ) -> None:
+        conv = ConversationState()
+        boundary = await session.turn_boundary(conv)
+        assert isinstance(boundary, TurnPersistence)
+        assert boundary.session is session
+        assert boundary.conv is conv
+
+    async def test_marker_is_max_message_id(self, session: AgentSession) -> None:
+        session.session_id = 1
+        session.save_many([("user", "a", None, None), ("assistant", "b", None, None)])
+        conv = ConversationState()
+        boundary = await session.turn_boundary(conv)
+        assert boundary.turn_start_message_id == 2
+
+    async def test_marker_zero_for_fresh_session(self, session: AgentSession) -> None:
+        conv = ConversationState()
+        boundary = await session.turn_boundary(conv)
+        assert boundary.turn_start_message_id == 0
+
+    async def test_snapshot_captured_at_turn_start(self, session: AgentSession) -> None:
+        session.session_id = 1
+        conv = ConversationState()
+        await conv.append_message({"role": "user", "content": "hi"})
+        boundary = await session.turn_boundary(conv)
+        assert boundary._snapshot == [{"role": "user", "content": "hi"}]
+
+    async def test_snapshot_stable_across_turn_writes(
+        self, session: AgentSession
+    ) -> None:
+        session.session_id = 1
+        conv = ConversationState()
+        await conv.append_message({"role": "user", "content": "start"})
+        boundary = await session.turn_boundary(conv)
+        # History mutates during the turn; the snapshot must not change.
+        await conv.append_message({"role": "assistant", "content": "during"})
+        assert boundary._snapshot == [{"role": "user", "content": "start"}]

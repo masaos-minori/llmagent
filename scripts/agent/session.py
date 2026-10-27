@@ -4,14 +4,21 @@
 AgentSession facade — delegates to domain-specific repository modules.
 """
 
+from __future__ import annotations
+
 import logging
 import sqlite3
+from typing import TYPE_CHECKING
 
 from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
 from agent.diagnostic_store import DiagnosticStore
 from agent.session_message_repo import SessionMessageRepository
+from agent.turn_persistence import TurnPersistence
+
+if TYPE_CHECKING:
+    from agent.context import ConversationState
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +127,19 @@ class AgentSession:
     def count_messages_up_to(self, session_id: int, message_id: int) -> int:
         """Delegate to the message repo (row 10): snapshot count at the boundary."""
         return self._message_repo.count_messages_up_to(session_id, message_id)
+
+    async def turn_boundary(self, conv: ConversationState) -> TurnPersistence:
+        """Materialize the turn-persistence boundary for the turn about to run.
+
+        Captures the turn-start ``message_id`` marker (``MAX(message_id)``,
+        ``0`` when the session has no rows yet) and takes a memory snapshot via
+        :meth:`ConversationState.snapshot_messages`, then returns the
+        :class:`TurnPersistence` boundary that owns every write of the turn
+        (REQ-001).
+        """
+        marker = SessionMessageRepository.turn_start_marker(self.session_id)
+        snapshot = await conv.snapshot_messages()
+        return TurnPersistence(self, conv, marker, snapshot)
 
     # ── Session lifecycle ────────────────────────────────────────────────────
 
