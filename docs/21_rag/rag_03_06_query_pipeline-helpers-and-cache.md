@@ -61,6 +61,10 @@ Merges multiple search result lists using RRF (Reciprocal Rank Fusion) via `rrf_
 
 `RagLLM` provides MQE query expansion (`expand_queries`), Cross-Encoder reranking (`cross_encoder_rerank`), tool output summarization (`summarize_tool_result`), and context refining (`refine_context`); the module also provides `get_embedding`. Prompt templates and `MqeParseError` live in `scripts/rag/llm_prompts.py`; `RagExpansionError` and `RagRerankError` live in `scripts/rag/exceptions.py` (see [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md)).
 
+Every query-time path that embeds retrieved chunk content into an LLM prompt sanitizes it with `sanitize_document` at the formatting site: `refine_context` (refiner prompt) and `_build_rerank_prompt` (rerank previews) in this module — both import `sanitize_document` from `rag.utils` — in addition to the augment stage's `_format_chunks` (see [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md)). `summarize_tool_result` is a different trust boundary (agent tool output, not corpus chunks) and is not covered by this invariant.
+
+The in-process HTTP calls in this module (`RagLLM._call_llm`, `get_embedding`) pass `timeout=client.timeout` explicitly at each POST, inheriting the injected client's configured timeout; the delegate path (`call_rag_service`, see [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)) uses a fixed per-attempt timeout instead.
+
 ### 7.4 PipelineRunResult (`scripts/rag/types.py`)
 
 Returned by `RagPipeline.run()`. Its fields are defined by the dataclass in `scripts/rag/types.py` (summary in [rag_04_dto-models-types.md](rag_04_dto-models-types.md)); the result origin (`result_source`) is carried by `SearchDiagnostics`, described in [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md).

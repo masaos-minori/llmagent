@@ -35,9 +35,13 @@
 `docs/21_rag/rag_03_06_query_pipeline-helpers-and-cache.md`
 
 ### Procedure
-1. Locate the paragraph beginning "`RagLLM` provides MQE query expansion (`expand_queries`)".
-2. Insert the invariant paragraph (Design decisions) directly after it, before the
-   `RagExpansionError`/`RagRerankError` sentence.
+1. Locate the paragraph beginning "`RagLLM` provides MQE query expansion (`expand_queries`)"
+   (page line 62). Verification note: the `RagExpansionError`/`RagRerankError` clause is the second
+   semicolon-joined clause *of the same paragraph*, so the procedure's original "insert before the
+   RagExpansionError/RagRerankError sentence" is not achievable without splitting that sentence;
+   the invariant paragraph is inserted after the whole RagLLM paragraph instead (both original
+   clauses stay byte-identical, satisfying the Compatibility section).
+2. Insert the invariant paragraph (Design decisions) as a new paragraph directly after it.
 
 ### Method
 - N/A: covered by Procedure.
@@ -73,8 +77,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert the invariant paragraph per Implementation > Procedure/Details | Pending | — | — | |
-| 2 | Run the `rules/toolchain.md` documentation checkers for the `21_rag` domain | Pending | — | — | |
+| 1 | Insert the invariant paragraph per Implementation > Procedure/Details | Completed | 20261027-201844 | 20261027-201844 | — |
+| 2 | Run the `rules/toolchain.md` documentation checkers for the `21_rag` domain | Completed | 20261027-201844 | 20261027-201844 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

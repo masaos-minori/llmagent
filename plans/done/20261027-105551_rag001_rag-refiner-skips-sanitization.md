@@ -286,10 +286,10 @@ Medium
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization baseline | Pending | — | — |  |
-| 2 | Phase 2: apply the control at both sites | In Progress | — | — |  |
-| 3 | Phase 3: tests | In Progress | — | — |  |
-| 4 | Phase 4: docs, deployment check, verification | In Progress | — | — |  |
+| 1 | Phase 1: characterization baseline | Completed | 20261027-201844 | 20261027-201844 |  |
+| 2 | Phase 2: apply the control at both sites | Completed | 20261027-201844 | 20261027-201844 |  |
+| 3 | Phase 3: tests | Completed | 20261027-201844 | 20261027-201844 |  |
+| 4 | Phase 4: docs, deployment check, verification | Completed | 20261027-201844 | 20261027-201844 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

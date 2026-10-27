@@ -43,8 +43,8 @@
    unchanged.
 
 ### Method
-- Add after the `shared.types` import block:
-  `from rag.utils import sanitize_document` (new)
+- Add `from rag.utils import sanitize_document` (new) as its own first-party block before the
+  `shared.types` import block, matching ruff isort ordering (`rag.*` sorts before `shared.*`).
 - Replace the single line
   `preview = chunk.content[:300].replace("\n", " ")`
   with
@@ -94,8 +94,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261027-201844 | 20261027-201844 | — |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261027-201844 | 20261027-201844 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

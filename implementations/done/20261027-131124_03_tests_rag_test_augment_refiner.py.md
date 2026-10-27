@@ -17,8 +17,9 @@
   first, keep using `_make_cfg` as renamed.
 - `RagLLM.__init__(client, llm_url, cfg=None)` accepts an injected client, so no network is needed;
   `refine_context` posts via `self._client.post` and parses with `extract_llm_content(parse_http_json(resp))`.
-- Mock response contract: an object whose `raise_for_status()` returns `None` and whose `json()`
-  returns `{"choices": [{"message": {"content": "refined summary"}}]}` satisfies both calls.
+- Mock response contract: `parse_http_json` reads `orjson.loads(resp.content)` (not `resp.json()`),
+  so the mock object's `raise_for_status()` must return `None` and its `content` attribute must be
+  `orjson.dumps({"choices": [{"message": {"content": "refined summary"}}]})` (bytes).
 
 ## Design decisions
 - Capture the exact JSON body passed to `client.post` (the Plan Background notes the client is
@@ -48,7 +49,8 @@
   `from shared.types import RagHit` (new)
 - Add `_make_capture_llm()` (new): creates `httpx.AsyncClient`-shaped `MagicMock` whose `post` is an
   `AsyncMock` recording `(url, kwargs)` and returning the mock response described in Assumptions;
-  returns `(RagLLM(mock, _make_cfg().llm_url), captured)`.
+  returns `(RagLLM(mock, _make_cfg().llm_url), captured)`. Import `_REFINER_TEMPERATURE` from
+  `rag.llm_prompts` for the AC-3 pin assertion.
 - Add `TestRefinerPromptSanitization` (new) with:
   - `test_refiner_prompt_sanitizes_injection_phrase` (new): one `RagHit` whose `content` contains
     "ignore previous instructions"; call `refine_context(chunks, "query", max_tokens=256,
@@ -97,8 +99,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the new tests and helper per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the new tests and helper per Implementation > Procedure/Method/Details | Completed | 20261027-201844 | 20261027-201844 | — |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261027-201844 | 20261027-201844 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

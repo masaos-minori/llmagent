@@ -35,6 +35,8 @@ from shared.types import (
     RankedHit,
 )
 
+from rag.utils import sanitize_document
+
 logger = logging.getLogger(__name__)
 
 
@@ -158,7 +160,7 @@ def _build_rerank_prompt(query: str, candidates: list[RagHit], cfg: RagConfig) -
     """Build the Cross-Encoder scoring prompt from the configured template."""
     items_text = ""
     for i, chunk in enumerate(candidates, start=1):
-        preview = chunk.content[:300].replace("\n", " ")
+        preview = sanitize_document(chunk.content)[:300].replace("\n", " ")
         items_text += f"\n{i}. {preview}"
     template = cfg.rerank_prompt_template
     if not isinstance(template, str):

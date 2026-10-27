@@ -42,12 +42,14 @@ functions, so a future call site added here sees the rule (REQ-005, AC-5).
 
 ### Procedure
 
-1. After the section 7.3 `RagLLM` methods paragraph (L62, verified), add one sentence: the
+1. After the section 7.3 `RagLLM` methods paragraph (L60-62, verified), add one paragraph: the
    in-process HTTP calls in this module (`RagLLM._call_llm`, `get_embedding`) pass
    `timeout=client.timeout` explicitly, inheriting the injected client's configured timeout;
    the delegate path (`call_rag_service`, see `rag_05_01-configuration-reference.md`) uses a
-   fixed per-attempt timeout instead. `refine_context` already takes an explicit `timeout`
-   parameter.
+   fixed per-attempt timeout instead. Verified 2026-10-27: the Plan's claim that
+   `refine_context` "already takes an explicit `timeout` parameter" is stale against the
+   current code (it routes through `_call_llm` and inherits the client timeout); do NOT state
+   it in the docs.
 2. Keep the existing exception-module text and the link to
    `rag_05_04-error-handling-reference.md` unchanged.
 
@@ -58,8 +60,10 @@ the doc describes actual code.
 
 ### Details
 
-- If the rag001 sanitization sentence has already landed on this page, insert the timeout
-  sentence after it; both coexist in section 7.3.
+- The rag001 sanitization paragraph HAS landed (verified 2026-10-27, §7.3, after the RagLLM
+  methods paragraph at L60-62). Insert the timeout paragraph after the sanitization paragraph
+  (currently L64-69), before the "Errors from this module raise `rag.exceptions.*`" paragraph;
+  all three coexist in section 7.3.
 
 ## Compatibility considerations
 
@@ -96,8 +100,8 @@ the doc describes actual code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`routing.md` Tools: docs quality/structure/content-policy/consistency --domain rag) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261027-202638 | 20261027-202638 | — |
+| 2 | Run the documentation checkers (`routing.md` Tools: docs quality/structure/content-policy/consistency --domain rag) | Completed | 20261027-202638 | 20261027-202638 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -77,7 +77,7 @@ The following values are **hardcoded** and cannot be changed via
 | `http_timeout` | `rag_pipeline_service.py` |
 | Fallback `timeout` | `scripts/rag/pipeline_service.py::call_rag_service()` |
 
-`http_timeout` is the HTTP client timeout of the MCP server itself, while a separate, shorter fixed per-attempt timeout is used for fallback calls to external RAG services (`call_rag_service()`); neither is loaded from configuration or `RagPipelineConfig`.
+`http_timeout` is the HTTP client timeout of the MCP server itself, while a separate, shorter fixed per-attempt timeout is used for fallback calls to external RAG services (`call_rag_service()`); neither is loaded from configuration or `RagPipelineConfig`. The in-process RAG query-path calls (`RagLLM._call_llm`, `get_embedding` in `scripts/rag/llm_client.py`) pass `timeout=client.timeout` explicitly at each POST, inheriting the injected `httpx.AsyncClient`'s configured timeout (120.0s in both production client paths: the agent's `llm.http_timeout`, and the rag_pipeline server's process-level client), while the delegate path `call_rag_service()` keeps its fixed per-attempt 10.0s.
 
 > **Warning:** Hardcoded values listed above cannot be changed by editing
 > `config/rag_pipeline_mcp_server.toml`. Any modification must be made in the

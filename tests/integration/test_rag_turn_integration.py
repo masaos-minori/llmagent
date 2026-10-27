@@ -16,7 +16,9 @@ ctx.conv.history -> next LLM stream round-trip is exercised in one test
 process.
 
 Sanitization boundary (see test_f04): sanitize_document() (rag/utils.py) is
-called exactly once, inside rag/stages/augment.py's chunk-formatting step --
+applied at each query-path chunk-to-prompt formatting site --
+rag/stages/augment.py's chunk-formatting step, RagLLM.refine_context, and
+_build_rerank_prompt --
 inside the RAG MCP server process, before its HTTP tool response is ever
 formed (confirmed by direct read). agent/tool_runner.py, which is what these
 tests actually drive, does no sanitization of its own.
@@ -263,8 +265,9 @@ async def test_f04_rag_injection_pattern_sanitization_boundary() -> None:
     ctx.conv.history verbatim -- agent/tool_runner.py does not sanitize.
 
     This does NOT prove tool_runner.py is missing sanitization it should
-    have: sanitize_document() belongs to and is only ever called from
-    rag/stages/augment.py's chunk-formatting step, inside the RAG MCP
+    have: sanitize_document() is applied at each query-path chunk-to-prompt
+    formatting site -- rag/stages/augment.py's chunk-formatting step,
+    RagLLM.refine_context, and _build_rerank_prompt -- inside the RAG MCP
     server's own process, before the HTTP response this test mocks is ever
     formed (see module docstring).
     """

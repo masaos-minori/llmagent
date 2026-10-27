@@ -39,6 +39,9 @@
 ### Details
 - Add a cross-link to `docs/21_rag/rag_03_06_query_pipeline-helpers-and-cache.md` where the refiner
   and rerank helper methods are described, so the two pages present one invariant.
+- Verification note: the target sentence sits in the `sanitize_document()` Contract paragraph
+  immediately after the `sanitize_document` vs `sanitize_document_full` distinction sentence
+  (page line 53); the invariant wording is one replacement sentence, not a new paragraph.
 
 ## Compatibility considerations
 - The preceding contract paragraph (five pattern categories, `[REMOVED]` substitution, plain `str`
@@ -68,8 +71,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the paragraph rewrite per Implementation > Procedure/Details | Pending | — | — | |
-| 2 | Run the `rules/toolchain.md` documentation checkers for the `21_rag` domain | Pending | — | — | |
+| 1 | Apply the paragraph rewrite per Implementation > Procedure/Details | Completed | 20261027-201844 | 20261027-201844 | — |
+| 2 | Run the `rules/toolchain.md` documentation checkers for the `21_rag` domain | Completed | 20261027-201844 | 20261027-201844 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

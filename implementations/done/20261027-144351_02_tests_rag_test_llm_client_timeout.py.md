@@ -113,10 +113,10 @@ small builders.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | This document is the test file itself |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document is the tests themselves |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc change from this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261027-202638 | 20261027-202638 | This document is the test file itself |
+| 2 | Add or update tests per Validation plan | Completed | 20261027-202638 | 20261027-202638 | This document is the tests themselves |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261027-202638 | 20261027-202638 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261027-202638 | 20261027-202638 | N/A: no doc change from this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

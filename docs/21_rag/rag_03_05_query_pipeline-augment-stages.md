@@ -50,7 +50,7 @@ AugmentStage formats `ctx.reranked` for the LLM. `_format_chunks` (`scripts/rag/
 
 **sanitize_document() Contract:** Content sanitization applied before formatting. The function removes known prompt-injection patterns from retrieved chunk content. It covers five pattern categories: "ignore instructions" variants, a "system:" prefix, a "[SYSTEM OVERRIDE]" directive, "disregard instructions" variants, and a "new instructions:" directive. Each matched pattern is replaced with the literal string `[REMOVED]` (not deleted entirely). The function returns a plain `str` containing the sanitized text.
 
-This differs from `sanitize_document_full()`, which also returns a `SanitizeResult` audit trail. `AugmentStage` uses `sanitize_document()` exclusively and does not consume the audit trail.
+This differs from `sanitize_document_full()`, which also returns a `SanitizeResult` audit trail. Every query-time path that embeds retrieved chunk content into an LLM prompt sanitizes it with `sanitize_document` at the formatting site — `scripts/rag/stages/augment.py::_format_chunks`, `scripts/rag/llm_client.py::RagLLM.refine_context`, and `scripts/rag/llm_prompts.py::_build_rerank_prompt` (the refiner and rerank helpers are described in [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md)). `AugmentStage` does not consume the audit trail.
 
 **Limitations:** Pattern-based matching only catches the five specific phrasings above. Matching is case-insensitive but not semantic — it cannot detect novel or paraphrased injection attempts outside its pattern list.
 

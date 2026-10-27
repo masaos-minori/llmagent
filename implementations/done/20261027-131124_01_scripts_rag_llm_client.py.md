@@ -41,8 +41,9 @@
    leave the item formatting, prompt template, request body, timeout, and response parsing as-is.
 
 ### Method
-- Add, in the `rag` import block (after `from rag.exceptions import ...`):
-  `from rag.utils import sanitize_document` (new)
+- Add `from rag.utils import sanitize_document` (new) inside the `rag` import block, keeping ruff
+  isort ordering satisfied (`rag.*` imports run after the `shared.*` block; `rag.utils` sorts last
+  among the existing `rag.*` imports).
 - Replace the single line
   `text = c.content[:per_chunk_chars]`
   with
@@ -100,8 +101,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261027-201844 | 20261027-201844 | — |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261027-201844 | 20261027-201844 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

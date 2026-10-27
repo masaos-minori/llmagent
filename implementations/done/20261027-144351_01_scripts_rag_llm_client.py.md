@@ -19,8 +19,9 @@ REQ-003, REQ-004).
   `post(timeout=...)` accepts the same type, so forwarding the attribute is type-safe (Plan
   Assumptions; httpx 0.28).
 - Overlap with the rag001 Plan procedures on this file (its `refine_context` sanitize edit)
-  is disjoint from `_call_llm`/`get_embedding`; whichever implements second rebases (Plan
-  Dependencies).
+  is disjoint from `_call_llm`/`get_embedding`. Verified 2026-10-27: the rag001 edits have
+  already landed (`rag.utils` import + `sanitize_document` in `refine_context`), so all line
+  references below are against the post-rag001 file state.
 - Non-blocking caveat (UNK-01 analog in the Plan Risks): if a future caller builds a client
   with `timeout=None`, forwarding yields no timeout; no `scripts/` caller does this today
   (Plan-verified) and the new tests pin derived values.
@@ -50,9 +51,10 @@ REQ-003, REQ-004).
 
 ### Procedure
 
-1. In `RagLLM._call_llm` (verified at L107-123), add `timeout=self._client.timeout` to the
+1. In `RagLLM._call_llm` (verified at L108-125 post-rag001; current signature is
+   `(self, messages, temperature, max_tokens)`), add `timeout=self._client.timeout` to the
    `self._client.post(self._llm_url, json={...})` call.
-2. In `get_embedding` (verified at L258-269), add `timeout=client.timeout` to the
+2. In `get_embedding` (verified at L259-271 post-rag001), add `timeout=client.timeout` to the
    `client.post(embed_url, json={"content": text})` call.
 3. Extend both functions' docstrings to state that the in-process per-request timeout is the
    injected client's configured timeout, and name the delegate path
@@ -70,8 +72,15 @@ byte-identical.
 - Only `expand_queries`, `cross_encoder_rerank`, and `summarize_tool_result` route through
   `_call_llm`, and `scripts/rag/stages/search.py` (L41) is the `get_embedding` caller — all
   inherit the change with no edit (REQ-001 coverage assumption verified).
-- `refine_context` (L223-250) already passes an explicit `timeout` parameter; it must remain
-  untouched (REQ-003, AC-3).
+- Production values verified 2026-10-27: `config/agent.toml` L28 `http_timeout = 120.0` →
+  `scripts/agent/factory.py` L95; `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`
+  L110-111 fixed 120.0; `scripts/rag/pipeline_service.py` L21 `_REQUEST_TIMEOUT_SECONDS =
+  10.0` (used at L147).
+- `refine_context` (L223-250) must remain untouched (REQ-003, AC-3). Verified 2026-10-27: the
+  Plan's claim that it "already passes an explicit `timeout` parameter" is stale against the
+  current code — the current `_call_llm` signature is `(self, messages, temperature,
+  max_tokens)` (no `client`/`timeout` kwargs) and `refine_context` passes neither; it routes
+  through `_call_llm` and inherits the client timeout like the other callers. No edit needed.
 - Type note for mypy: `httpx.AsyncClient.post` accepts `timeout: httpx._types.TimeoutTypes`,
   the same type `AsyncClient.timeout` returns; no cast needed.
 
@@ -121,10 +130,10 @@ byte-identical.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Run Phase 1 characterization baseline first (`tests/rag/test_rag_http_mode.py`, `test_rag_pipeline.py`, `test_rag_stages.py`) per the Plan |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests live in the sibling procedure `implementations/20261027-144351_02_tests_rag_test_llm_client_timeout.py.md` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs covered by `implementations/20261027-144351_03_*`/`_04_*` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261027-202638 | 20261027-202638 | Run Phase 1 characterization baseline first (`tests/rag/test_rag_http_mode.py`, `test_rag_pipeline.py`, `test_rag_stages.py`) per the Plan |
+| 2 | Add or update tests per Validation plan | Completed | 20261027-202638 | 20261027-202638 | Tests live in the sibling procedure `implementations/20261027-144351_02_tests_rag_test_llm_client_timeout.py.md` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261027-202638 | 20261027-202638 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261027-202638 | 20261027-202638 | Docs covered by `implementations/20261027-144351_03_*`/`_04_*` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -66,8 +66,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the two docstring corrections per Implementation > Procedure | Pending | — | — | |
-| 2 | Run `uv run pytest tests/integration/test_rag_turn_integration.py` and the AC-5 grep check | Pending | — | — | |
+| 1 | Apply the two docstring corrections per Implementation > Procedure | Completed | 20261027-201844 | 20261027-201844 | — |
+| 2 | Run `uv run pytest tests/integration/test_rag_turn_integration.py` and the AC-5 grep check | Completed | 20261027-201844 | 20261027-201844 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

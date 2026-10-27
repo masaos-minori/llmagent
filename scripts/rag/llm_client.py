@@ -51,6 +51,7 @@ from rag.llm_prompts import (
     _mqe_prompt,
     _parse_mqe_response,
 )
+from rag.utils import sanitize_document
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,13 @@ class RagLLM:
         temperature: float,
         max_tokens: int,
     ) -> str:
-        """Call the chat LLM endpoint and return the response content string."""
+        """Call the chat LLM endpoint and return the response content string.
+
+        The in-process per-request timeout is the injected client's configured
+        timeout, declared explicitly at the call site. Contrast: the delegate
+        path ``scripts/rag/pipeline_service.py::call_rag_service`` uses a fixed
+        per-attempt timeout (``_REQUEST_TIMEOUT_SECONDS``).
+        """
         resp = await self._client.post(
             self._llm_url,
             json={
@@ -118,6 +125,7 @@ class RagLLM:
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             },
+            timeout=self._client.timeout,
         )
         resp.raise_for_status()
         chat_content: str = extract_llm_content(parse_http_json(resp))
@@ -232,7 +240,7 @@ class RagLLM:
         items = []
         for i, c in enumerate(chunks, 1):
             title = c.title if c.title else c.url
-            text = c.content[:per_chunk_chars]
+            text = sanitize_document(c.content)[:per_chunk_chars]
             items.append(f"[{i}] {title}\n{text}")
         items_text = "\n\n".join(items)
         prompt = _REFINER_PROMPT_TEMPLATE.format(query=query, items_text=items_text)
@@ -258,10 +266,17 @@ class RagLLM:
 async def get_embedding(
     text: str, client: httpx.AsyncClient, embed_url: str
 ) -> list[float]:
-    """Convert text to a float embedding vector."""
+    """Convert text to a float embedding vector.
+
+    The in-process per-request timeout is the injected client's configured
+    timeout, declared explicitly at the call site. Contrast: the delegate
+    path ``scripts/rag/pipeline_service.py::call_rag_service`` uses a fixed
+    per-attempt timeout (``_REQUEST_TIMEOUT_SECONDS``).
+    """
     resp = await client.post(
         embed_url,
         json={"content": text},
+        timeout=client.timeout,
     )
     resp.raise_for_status()
     embedding = parse_http_json(resp).get("embedding")
