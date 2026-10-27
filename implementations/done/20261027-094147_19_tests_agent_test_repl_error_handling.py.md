@@ -91,10 +91,10 @@ async def test_loop_continues_after_persistence_error():
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend test_repl_error_handling.py with persistence-error cases | Pending | — | — | Extend existing module |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This module |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Extend test_repl_error_handling.py with persistence-error cases | Done | 2026-10-27 | 2026-10-27 | Test added under seq 10 commit 223fd7766 (surface ConversationPersistenceError distinctly in REPL loop) |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-27 | 2026-10-27 | `test_repl_surfaces_persistence_error_distinctly` asserts distinct message + loop continuation |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-27 | 2026-10-27 | All 3 tests in test_repl_error_handling.py pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-27 | 2026-10-27 | This doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

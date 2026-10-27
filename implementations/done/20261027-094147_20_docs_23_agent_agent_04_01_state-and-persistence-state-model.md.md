@@ -7,7 +7,7 @@ Update the existing architectural contract `docs/23_agent/agent_04_01_state-and-
 - **In-Scope** (`docs/23_agent/agent_04_01_state-and-persistence-state-model.md` only):
   - Add a "Turn Persistence Boundary" subsection under the Session Persistence area describing the all-or-nothing turn write unit (`REQ-001`).
   - Document the dedicated persistence error type and its propagation (`REQ-003`).
-  - Document compensation semantics: delete only the turn's rows (`message_id >= marker`) and restore memory to the turn-start snapshot (`REQ-004`).
+  - Document compensation semantics: delete only the turn's rows (`message_id > marker`) and restore memory to the turn-start snapshot (`REQ-004`).
   - Cross-reference the existing `/undo` and compression sections without altering their meaning.
 - **Out-of-Scope** (handled by sibling documents this Plan generates):
   - The boundary body (`scripts/agent/turn_persistence.py`, seq 01).
@@ -43,7 +43,7 @@ Update the existing architectural contract `docs/23_agent/agent_04_01_state-and-
 1. Under the Session Persistence area, add a "Turn Persistence Boundary" subsection after the existing Message Saving Rules section.
 2. State the all-or-nothing turn write contract: one boundary materialized per turn owns every `messages` write; a failure anywhere in the turn rolls the whole turn back (`REQ-001`, `AC-001`).
 3. Document the dedicated persistence error type (`REQ-003`) and that it propagates from the boundary to the orchestrator and then to the REPL for distinct surfacing.
-4. Document compensation semantics: only the turn's rows (`message_id >= marker`) are deleted, earlier rows are retained, and `ctx.conv.history` is restored element-wise to the turn-start snapshot (`REQ-004`, `AC-002`, `AC-004`).
+4. Document compensation semantics: only the turn's rows (`message_id > marker`) are deleted, earlier rows are retained, and `ctx.conv.history` is restored element-wise to the turn-start snapshot (`REQ-004`, `AC-002`, `AC-004`).
 5. Cross-reference the existing `/undo` and compression sections without changing them.
 6. Run the doc validation sequence (`routing.md`).
 
@@ -63,7 +63,7 @@ session_message_repo (session.sqlite: messages)
 
 - **`REQ-001` / `AC-001` (one writer per turn):** the boundary (seq 01) is materialized once per turn via the factory (seq 03); every turn-path write routes through it, so the turn commits atomically or not at all.
 - **`REQ-003` / `AC-003` (dedicated error type):** a DB failure inside the turn is surfaced as the dedicated persistence error type, never a raw DB error; it propagates to the orchestrator (seq 05) and the REPL (seq 10).
-- **`REQ-004` / `AC-002` / `AC-004` (compensation + rollback):** compensation deletes only `message_id >= marker` rows (retaining earlier rows) and restores `ctx.conv.history` element-wise to the turn-start snapshot.
+- **`REQ-004` / `AC-002` / `AC-004` (compensation + rollback):** compensation deletes only `message_id > marker` rows (retaining the marker row and all earlier rows) and restores `ctx.conv.history` element-wise to the turn-start snapshot.
 - **Backward compatibility:** the existing `/undo`, save-rules, and session/memory responsibility sections are unchanged; the new subsection is purely additive.
 
 ## Compatibility considerations
@@ -89,7 +89,7 @@ session_message_repo (session.sqlite: messages)
 
 ## Completion criteria
 
-- The doc has an additive "Turn Persistence Boundary" subsection covering the all-or-nothing turn write, the dedicated persistence error type, compensation (`message_id >= marker` delete + memory rollback), and cross-references to `/undo`/compression.
+- The doc has an additive "Turn Persistence Boundary" subsection covering the all-or-nothing turn write, the dedicated persistence error type, compensation (`message_id > marker` delete + memory rollback), and cross-references to `/undo`/compression.
 - `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py --strict`, and `check_docs_consistency.py --domain agent` all pass clean.
 
 ## Out of Scope
@@ -105,10 +105,10 @@ session_message_repo (session.sqlite: messages)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the state/persistence doc with the turn-persistence boundary contract | Pending | — | — | Additive subsection |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Doc checkers |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This doc |
+| 1 | Update the state/persistence doc with the turn-persistence boundary contract | Done | 2026-10-27 | 2026-10-27 | Additive "Turn Persistence Boundary" subsection inserted after Message Saving Rules |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-27 | 2026-10-27 | N/A: documentation only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-27 | 2026-10-27 | check_docs_quality, check_docs_structure, check_docs_content_policy --strict, check_docs_consistency --domain agent all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-27 | 2026-10-27 | This doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
