@@ -103,9 +103,9 @@ Baseline (2026-10-28, before implementation):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the two all-roles tests (REQ-001) | Pending | — | — | |
-| 2 | Run EventBus suite, confirm collection delta (REQ-001, REQ-002) | Pending | — | — | |
-| 3 | ruff on the changed file (REQ-001) | Pending | — | — | |
+| 1 | Delete the two all-roles tests (REQ-001) | In Progress | — | — |  |
+| 2 | Run EventBus suite, confirm collection delta (REQ-001, REQ-002) | Pending | — | — |  |
+| 3 | ruff on the changed file (REQ-001) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -115,7 +115,7 @@ Baseline (2026-10-28, before implementation):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-072757_01_tests_eventbus_test_eventbus_auth.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -132,3 +132,5 @@ Baseline (2026-10-28, before implementation):
 |---|---|---|---|---|---|---|
 | REQ-001 | Issue Background bullet 1-2 (test wording at lines 874/902) | tests/eventbus/test_eventbus_auth.py | Phase 1 | AC-1 | Suite run with collection-count delta | Explicit in issue |
 | REQ-002 | Issue Background (ADR/config/docs model); repo read of line 1618 pin | tests/eventbus/test_eventbus_auth.py | Phase 2 | AC-2 | Surviving pinning tests green | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-072757 -->
