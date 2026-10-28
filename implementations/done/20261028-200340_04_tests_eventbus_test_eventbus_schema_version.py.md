@@ -105,10 +105,10 @@ matches the reverted version 1 automatically.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's change IS the tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Run red before seq 01, green after |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs handled by seq 06-08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-210500 | 20261028-210600 | 3 pinned/index/refusal tests added; docstring extended |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-210500 | 20261028-210600 | This document's change IS the tests This document's change IS the tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-210600 | 20261028-210630 | Run red before seq 01, green after Phase-1 red as planned: 3 new tests fail before seq 01, existing 5 pass; ruff+format+mypy clean. Green re-run after seq 01 lands |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Docs handled by seq 06-08 Out of scope: docs handled by seq 06-08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

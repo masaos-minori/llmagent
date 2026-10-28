@@ -40,7 +40,7 @@ GET /dlq
 POST /dlq/{event_id}/requeue
 ```
 
-This operation creates a new event row with `redelivered_from` pointing to the original `event_id`. The original row's `dlq_at` is intentionally left set so only one redelivery succeeds per original event (concurrency guard).
+This operation creates a new event row with `redelivered_from` pointing to the original `event_id`. The original row's `dlq_at` is intentionally left set so only one redelivery succeeds per original event; the database enforces this with the partial unique index `idx_events_redelivered_from` on `events(redelivered_from)` (see [Persistence, Schema, and Replay](eventbus_06_persistence_schema_and_replay.md)).
 
 ### Success Response
 
@@ -53,7 +53,7 @@ HTTP 200 with `event_id` (the original), `requeued: true`, `new_event_id` and `n
 
 ### Concurrency guarantee
 
-Concurrent requeue attempts on the same event produce exactly one successful redelivery. The `redelivered_from` existence check in `redeliver_event()` serves as a concurrency guard: if another request has already redelivered this event (a row exists with `redelivered_from = event_id`), subsequent requests return HTTP 409.
+Concurrent requeue attempts on the same event produce exactly one successful redelivery. The partial unique index `idx_events_redelivered_from` enforces at most one descendant row per `redelivered_from` source, so a racing second request fails the insert and is reported as HTTP 409; the `redelivered_from` existence check in `redeliver_event()` classifies the already-redelivered case before the insert for sequential requests.
 
 ## Keywords
 

@@ -91,10 +91,10 @@ any Invariant/Decision/Verification edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Checker-gated, no new tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document's change IS the doc |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-220000 | 20261028-220100 | one bullet inserted after the DLQ requeue bullet; the '(new)' procedure marker is omitted in the doc bullet per docs conventions |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Checker-gated, no new tests Checker-gated, no new tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-220100 | 20261028-220200 | check_adr_preservation/structure/reference: no issues; stale_detector: not stale |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | This document's change IS the doc This document's change IS the doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

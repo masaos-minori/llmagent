@@ -134,6 +134,7 @@ CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
 CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
 CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
 CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_events_redelivered_from ON events(redelivered_from) WHERE redelivered_from IS NOT NULL;
 
 -- Per-consumer delivery state: tracks ACK state per (consumer_id, event_id)
 CREATE TABLE IF NOT EXISTS consumer_delivery (
@@ -1136,6 +1137,21 @@ class TestEventbusSchemaFingerprint:
         try:
             with pytest.raises(RuntimeError, match="events: indexes differ"):
                 assert_matches(conn, label="test-missing-index")
+        finally:
+            conn.close()
+
+    def test_missing_redelivered_from_index_raises(self) -> None:
+        """The fingerprint layer sees the redelivery-uniqueness index: removing it
+        from the canonical DDL fails the shape gate (REQ-004)."""
+        ddl = _CANONICAL_EVENTBUS_DDL.replace(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_events_redelivered_from "
+            "ON events(redelivered_from) WHERE redelivered_from IS NOT NULL;",
+            "",
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(RuntimeError, match="events: indexes differ"):
+                assert_matches(conn, label="test-missing-redelivered-index")
         finally:
             conn.close()
 

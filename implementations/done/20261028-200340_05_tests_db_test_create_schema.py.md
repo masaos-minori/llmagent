@@ -114,10 +114,10 @@ tracks the reverted `schema.sql` automatically.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land after seq 01 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's change IS the tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs handled by seq 06-08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-213500 | 20261028-213600 | Land after seq 01 index line added to _EVENTBUS_SCHEMA_NO_VEC0; test_missing_redelivered_from_index_raises added |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-213600 | 20261028-213700 | This document's change IS the tests This document's change IS the tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-213600 | 20261028-213700 | seq 01 already landed: 68/68 green including the new fingerprint test; ruff+format clean; check_db_separation ran green in the seq 01 cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Docs handled by seq 06-08 Out of scope: docs handled by seq 06-08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

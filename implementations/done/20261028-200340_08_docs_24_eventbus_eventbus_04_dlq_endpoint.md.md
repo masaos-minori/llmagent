@@ -91,10 +91,10 @@ carries the code-side reword), response contract changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Checker-gated, no new tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document's change IS the doc |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-28 | 2026-10-28 | Requeue sentence and Concurrency guarantee paragraph re-attributed to the index; link to the schema doc added. `(new)` marker omitted: docs describe current state and carry no such markers (consistent with seq 06/07). |
+| 2 | Add or update tests per Validation plan | Completed | — | 2026-10-28 | Checker-gated, no new tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-28 | 2026-10-28 | check_docs_consistency --domain eventbus, check_docs_structure, check_docs_quality, stale_detector: all clean. Success/Error Response contract text untouched. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-10-28 | This document's change IS the doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

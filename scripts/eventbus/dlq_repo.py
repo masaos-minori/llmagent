@@ -45,11 +45,16 @@ def redeliver_event(
 ) -> RequeueResult:
     """Redeliver a dead-lettered event by inserting a new row with lineage.
 
-    Uses a `redelivered_from`-existence check as a concurrency guard: if another
-    request has already redelivered this event (i.e., a row exists with
-    redelivered_from = event_id), return status "already_redelivered" to prevent
-    duplicate redeliveries. This prevents the race condition where two concurrent
-    requests could both see dlq_at IS NOT NULL and both insert new rows.
+    Redelivery uniqueness ("one descendant per original") is enforced by the
+    database: the partial unique index idx_events_redelivered_from in
+    schema.sql makes any second INSERT with the same redelivered_from fail.
+    The `redelivered_from`-existence pre-check in front of the transaction is
+    the fast classification path: a sequential re-request sees the existing
+    descendant (redelivered_from = event_id) and returns status
+    "already_redelivered" without touching the write path. A race that slips
+    between the pre-check and the INSERT surfaces as an IntegrityError on the
+    index and is mapped to the same "already_redelivered" status after a
+    rollback, so callers cannot produce duplicate descendants either way.
 
     Performs a conditional-update guard on the original row
     (WHERE event_id = ? AND dlq_at IS NOT NULL), then inserts a new row with a
@@ -58,13 +63,16 @@ def redeliver_event(
     The requeue timestamp is computed in Python (now_iso()) and bound as a SQL
     parameter. Update + insert + seq lookup run in one transaction: every failure
     path calls conn.rollback() so no partial state can be committed by a later
-    request on the shared connection; sqlite3.Error is rolled back and re-raised.
+    request on the shared connection; an IntegrityError naming the
+    events.redelivered_from index is rolled back and returned as
+    "already_redelivered", every other sqlite3.Error is rolled back and re-raised.
 
     Returns a RequeueResult whose status classifies the outcome (the caller
     needs no follow-up SQL to distinguish 404 from 409).
     """
-    # Concurrency guard: check if this event has already been redelivered
-    # by looking for an existing row with redelivered_from = event_id
+    # Fast classification path (the enforcement layer is the unique index
+    # idx_events_redelivered_from): look for an existing row with
+    # redelivered_from = event_id before opening the write transaction.
     existing_redelivery = conn.execute(
         "SELECT 1 FROM events WHERE redelivered_from = ?",
         (event_id,),
@@ -100,6 +108,15 @@ def redeliver_event(
         )
         new_seq = get_seq(conn, new_event_id)
         conn.commit()
+    except sqlite3.IntegrityError as exc:
+        conn.rollback()
+        # Map only the redelivery-uniqueness violation (the message names the
+        # violated index, e.g. "UNIQUE constraint failed: events.redelivered_from");
+        # any other integrity error keeps the raise path so the existing
+        # event_id-collision and injected-failure regression anchors hold.
+        if "events.redelivered_from" in str(exc):
+            return RequeueResult("already_redelivered", True, True, None, None)
+        raise
     except sqlite3.Error:
         conn.rollback()
         raise

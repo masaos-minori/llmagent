@@ -2,7 +2,9 @@
 Edge case tests for POST /dlq/{event_id}/requeue endpoint.
 
 Tests requeue behavior: unknown event, non-DLQ event, repeated requeue,
-and re-promotion after requeue when the per-consumer failure count >= max_retry.
+re-promotion after requeue when the per-consumer failure count >= max_retry,
+the events.redelivered_from uniqueness violation mapping to already_redelivered,
+and exactly-once redelivery under two racing connections.
 """
 
 from __future__ import annotations
@@ -343,6 +345,41 @@ class _FailingConn:
         self._real.rollback()
 
 
+class _RacingConn:
+    """Delegate connection wrapper that injects a competing redelivery INSERT.
+
+    On the first UPDATE the delegate would run (the point where redeliver_event
+    opens its transaction), a second open_db connection to the same file inserts
+    a descendant row with redelivered_from = original_event_id and commits. The
+    wrapped connection's own redelivery INSERT then hits the
+    idx_events_redelivered_from unique index — the deterministic form of the
+    concurrent double-redelivery race the index is designed to close.
+    """
+
+    def __init__(self, real: Any, *, racer: Any, original_event_id: str) -> None:
+        self._real = real
+        self._racer = racer
+        self._original_event_id = original_event_id
+        self._injected = False
+
+    def execute(self, sql: Any, *args: Any, **kwargs: Any) -> Any:
+        if not self._injected and str(sql).strip().upper().startswith("UPDATE"):
+            self._injected = True
+            self._racer.execute(
+                "INSERT INTO events (event_id, topic, payload, producer, redelivered_from) "
+                "SELECT ?, topic, payload, producer, ? FROM events WHERE event_id = ?",
+                (uuid.uuid4().hex, self._original_event_id, self._original_event_id),
+            )
+            self._racer.commit()
+        return self._real.execute(sql, *args, **kwargs)
+
+    def commit(self) -> None:
+        self._real.commit()
+
+    def rollback(self) -> None:
+        self._real.rollback()
+
+
 class TestRequeueFailureInjection:
     """Failure-injection tests proving every failed requeue path rolls back and
     leaves the shared connection usable (REQ-002)."""
@@ -448,8 +485,6 @@ class TestRequeueFailureInjection:
         monkeypatch.undo()
 
         assert shared.in_transaction is False
-        # No partial state: UPDATE increment rolled back, no descendant row.
-        assert _get_field(client, event_id, "dlq_requeue_count") == 0
         n = shared.execute(
             "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
             (event_id,),
@@ -459,3 +494,117 @@ class TestRequeueFailureInjection:
         # Connection reuse: a normal requeue on the same connection succeeds.
         resp = client.post(f"/dlq/{event_id}/requeue")
         assert resp.status_code == 200
+
+
+def _seed_dlq_event(conn: Any, topic: str) -> str:
+    """Insert one event with dlq_at set directly into the events table.
+
+    Satisfies the NOT NULL columns (published_at has a schema default) so the
+    redeliver_event UPDATE guard (dlq_at IS NOT NULL) matches without any
+    sweep or nack choreography. Returns the event_id.
+    """
+    event_id = uuid.uuid4().hex
+    conn.execute(
+        "INSERT INTO events (event_id, topic, payload, producer, dlq_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (event_id, topic, '{"key": "value"}', "test-producer", "2026-01-01T00:00:00Z"),
+    )
+    conn.commit()
+    return event_id
+
+
+def test_redelivered_from_violation_maps_to_already_redelivered(tmp_path: Path) -> None:
+    """A competing descendant INSERT makes the redelivery INSERT violate the
+    events.redelivered_from unique index: redeliver_event must return status
+    already_redelivered with a clean rollback, not raise (REQ-002)."""
+    import eventbus.dlq_repo as dlq_repo
+    from eventbus.db import open_db
+
+    db_path = str(tmp_path / "redeliver_race.sqlite")
+    conn = open_db(db_path)
+    racer = open_db(db_path)
+    try:
+        event_id = _seed_dlq_event(conn, "race_test")
+
+        wrapper: Any = _RacingConn(conn, racer=racer, original_event_id=event_id)
+        result = dlq_repo.redeliver_event(wrapper, event_id)
+
+        assert result.status == "already_redelivered"
+        assert result.already_redelivered is True
+        assert result.new_event_id is None
+        assert result.new_seq is None
+        # Clean rollback: no transaction left open, UPDATE increment undone.
+        assert conn.in_transaction is False
+        count = conn.execute(
+            "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()[0]
+        assert count == 0
+        # Exactly one descendant: the competitor's row.
+        n = conn.execute(
+            "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
+            (event_id,),
+        ).fetchone()[0]
+        assert n == 1
+
+        # Connection stays usable: a follow-up call is classified by the
+        # pre-check without any injection.
+        again = dlq_repo.redeliver_event(conn, event_id)
+        assert again.status == "already_redelivered"
+    finally:
+        conn.close()
+        racer.close()
+
+
+def test_two_connections_requeue_same_original_exactly_once(tmp_path: Path) -> None:
+    """Two racing connections redeliver the same original: exactly one success
+    and one already_redelivered, with exactly one descendant row (REQ-005).
+
+    Outcome-only assertions by design: the loser either sees the competitor in
+    the pre-check or loses at the unique index, and both paths return
+    already_redelivered.
+    """
+    import threading
+
+    import eventbus.dlq_repo as dlq_repo
+    from eventbus.db import open_db
+
+    db_path = str(tmp_path / "two_conn_race.sqlite")
+    seed = open_db(db_path)
+    try:
+        event_id = _seed_dlq_event(seed, "two_conn_race")
+    finally:
+        seed.close()
+
+    results: list[Any] = []
+
+    def _worker() -> None:
+        conn = open_db(db_path)
+        try:
+            results.append(dlq_repo.redeliver_event(conn, event_id))
+        finally:
+            conn.close()
+
+    threads = [threading.Thread(target=_worker) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=60)
+    assert all(not t.is_alive() for t in threads)
+
+    assert sorted(r.status for r in results) == ["already_redelivered", "success"]
+
+    check = open_db(db_path)
+    try:
+        n = check.execute(
+            "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
+            (event_id,),
+        ).fetchone()[0]
+        assert n == 1
+        count = check.execute(
+            "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()[0]
+        assert count == 1
+    finally:
+        check.close()

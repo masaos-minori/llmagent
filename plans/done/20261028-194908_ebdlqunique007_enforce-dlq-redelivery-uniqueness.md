@@ -165,27 +165,27 @@ Baseline recorded in this cycle: `radon cc -n C scripts/eventbus/dlq_repo.py` re
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing version/index/concurrency tests | In Progress | — | — |  |
-| 2 | Add the index, bump the version, map the violation | In Progress | — | — |  |
-| 3 | ADR-006 notes, schema doc and DLQ endpoint doc | In Progress | — | — |  |
+| 1 | Write the failing version/index/concurrency tests | Completed | 2026-10-28 | 2026-10-28 | seq 03/04/05 landed red-then-green; edge-cases 10/10, schema-version 8/8 |
+| 2 | Add the index, bump the version, map the violation | Completed | 2026-10-28 | 2026-10-28 | seq 01/02 landed; IntegrityError -> already_redelivered gated on `events.redelivered_from` text |
+| 3 | ADR-006 notes, schema doc and DLQ endpoint doc | Completed | 2026-10-28 | 2026-10-28 | seq 06/07/08 landed; all docs checkers clean. Note: ADR-006 grew past its 24726-byte ceiling, re-recorded to 24979 in tools/check_docs_structure.py with dated comment; stale_detector reports a pre-existing `source_missing: /health` mismatch in eventbus_06 (also present at HEAD, out of this plan's scope) |
 | 4 | Deployment and verification hand-off with backup and duplicate check | Pending | — | — | User deferred production handling |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | `tests/eventbus/test_eventbus_auth.py` uses fixed `/tmp/test-eventbus-auth-*` directories; leftover stamp-1 databases from previous runs made `open_db` raise after the version bump (25 setup errors, 3 failures) | Yes: the 11 stale `/tmp` test databases (all empty or test data, dated 2026-10-26) were deleted individually; suite recreated them at version 2 and went green. Follow-up debt: the fixed `/tmp` DB paths are fragile across future version bumps and should clean their database file at setup | 20261028 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261028-200340_01_scripts_eventbus_schema.sql.md | 2 | Procedure | Pending | — | — |
-| implementations/20261028-200340_02_scripts_eventbus_dlq_repo.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261028-200340_03_tests_eventbus_test_eventbus_requeue_edge_cases.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261028-200340_04_tests_eventbus_test_eventbus_schema_version.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261028-200340_05_tests_db_test_create_schema.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261028-200340_06_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261028-200340_07_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261028-200340_08_docs_24_eventbus_eventbus_04_dlq_endpoint.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-200340_01_scripts_eventbus_schema.sql.md | 2 | Procedure | Completed | — | 20261028-212500 |
+| implementations/20261028-200340_02_scripts_eventbus_dlq_repo.py.md | 2 | Procedure | Completed | — | 20261028-215200 |
+| implementations/20261028-200340_03_tests_eventbus_test_eventbus_requeue_edge_cases.py.md | 1 | Procedure | Completed | — | 20261028-205700 |
+| implementations/20261028-200340_04_tests_eventbus_test_eventbus_schema_version.py.md | 1 | Procedure | Completed | — | 20261028-210630 |
+| implementations/20261028-200340_05_tests_db_test_create_schema.py.md | 2 | Procedure | Completed | — | 20261028-213700 |
+| implementations/20261028-200340_06_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 3 | Procedure | Completed | — | 20261028-220000 |
+| implementations/20261028-200340_07_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 3 | Procedure | Completed | — | 20261028-222500 |
+| implementations/20261028-200340_08_docs_24_eventbus_eventbus_04_dlq_endpoint.md.md | 3 | Procedure | Completed | — | 20261028-224000 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan (regeneration of `plans/done/20261028-094441_ebdlqunique007_enforce-dlq-redelivery-uniqueness.md`)

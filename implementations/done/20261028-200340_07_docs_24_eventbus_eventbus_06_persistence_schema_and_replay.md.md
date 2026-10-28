@@ -96,10 +96,10 @@ migration content (Plan Out-of-Scope).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Checker-gated, no new tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document's change IS the doc |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-28 | 2026-10-28 | Index sentence added to the Schema paragraph; version-2 stamp, 1-stamped refusal, and the 3-step backup -> duplicate query -> `deploy/init_db.sh` recreate list added. `(new)` marker omitted: docs describe current state and carry no such markers (consistent with seq 06). |
+| 2 | Add or update tests per Validation plan | Completed | — | 2026-10-28 | Checker-gated, no new tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-28 | 2026-10-28 | check_docs_consistency --domain eventbus, check_docs_structure, check_docs_quality, check_adr_reference: all clean. stale_detector reports one pre-existing `source_missing: /health` mismatch also present in the HEAD version of this file (out of this procedure's scope). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-10-28 | This document's change IS the doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -17,6 +17,8 @@ CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
 CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
 CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
 CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
+-- One redelivery descendant per original: enforced at the database level.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_events_redelivered_from ON events(redelivered_from) WHERE redelivered_from IS NOT NULL;
 
 -- Per-consumer delivery state: tracks ACK state per (consumer_id, event_id)
 CREATE TABLE IF NOT EXISTS consumer_delivery (
@@ -40,4 +42,4 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
 
 -- Schema version of this DDL. Bump it whenever the schema changes in a way that
 -- requires recreating the database; open_db() refuses a database stamped otherwise.
-PRAGMA user_version = 1;
+PRAGMA user_version = 2;

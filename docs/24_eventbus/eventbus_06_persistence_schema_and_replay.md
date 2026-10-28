@@ -27,9 +27,13 @@ Primary store for all events. WAL mode is enabled to allow concurrent reads. DB 
 
 ## Schema
 
-`events` holds one row per event, keyed by a monotonic `seq` with a UNIQUE `event_id`. The per-consumer failure count and last NACK attempt live in `consumer_delivery`, not in `events`. `scripts/eventbus/schema.sql` is the only DDL definition; `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py` reads it.
+`events` holds one row per event, keyed by a monotonic `seq` with a UNIQUE `event_id`. The per-consumer failure count and last NACK attempt live in `consumer_delivery`, not in `events`. `scripts/eventbus/schema.sql` is the only DDL definition; `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py` reads it. `events` carries a partial unique index `idx_events_redelivered_from` on `events(redelivered_from) WHERE redelivered_from IS NOT NULL`, so at most one redelivery descendant per original event is allowed — the database, not application code, enforces this.
 
-The schema is created from `schema.sql` when the database is new; an existing database at the current schema version (`PRAGMA user_version` in `schema.sql`) is left unchanged, and a database with another version or a different table shape is refused at startup and must be recreated.
+The schema is created from `schema.sql` when the database is new; an existing database at the current schema version (`PRAGMA user_version = 2` in `schema.sql`) is left unchanged, and a database with another version or a different table shape is refused at startup and by `create_eventbus_schema()` with an error asking the operator to recreate the database. A database still stamped version 1 (the pre-index era) is one such refused database. Recreate procedure (the policy is ADR-008: no migration mechanism):
+
+1. Stop the eventbus service and back up `eventbus.sqlite`.
+2. On the backup, run the read-only duplicate query: `SELECT redelivered_from, COUNT(*) AS n FROM events WHERE redelivered_from IS NOT NULL GROUP BY redelivered_from HAVING n > 1;` If it returns any row, stop and escalate instead of recreating — duplicates predate the constraint and recreation would hide them.
+3. Re-create via `deploy/init_db.sh`, which validates the resulting shape against the shared canonical fingerprint, then restart the service.
 
 ### Per-consumer delivery state
 

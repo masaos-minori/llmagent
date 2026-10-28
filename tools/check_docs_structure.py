@@ -103,7 +103,8 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # the empty-mapping gap was resolved to deny-all and the superuser residual deviation
     # documented; base size was already 38 bytes under MAX_SIZE, so this necessary content
     # pushes it over. The ceiling equals the accepted size, so further growth fails.
-    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 24726,
+    # Re-recorded after the ebdlqunique007 redelivery-uniqueness note (2026-10-28): 24979.
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 24979,
     # The generated agent-class reference table was already 24961 bytes (2026-10-24), over
     # MAX_SIZE before any new plan touched it. `plans/20261023-072425_plan.md` REQ-005
     # regenerates it with a longer `mask_args` summary row, which lands at 24972 bytes. The

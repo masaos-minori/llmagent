@@ -33,7 +33,9 @@ Reuse the file's existing repo-level pattern (seed via `open_db` + direct INSERT
 
 ### Details
 - Seed INSERT must satisfy the `events` NOT NULL columns (`event_id`, `topic`, `payload`, `producer`; `published_at` has a schema default) and set `dlq_at` to a timestamp string so the UPDATE's `dlq_at IS NOT NULL` matches.
-- New imports inside the new functions (local-import style used by the existing tests): `threading` (new), `uuid`, `db_conn.open_db`, `eventbus.dlq_repo`.
+- New imports inside the new functions (local-import style used by the existing tests): `threading` (new), `uuid`, `from eventbus.db import open_db` (the facade, same import the existing tests use), `eventbus.dlq_repo`.
+- `open_db()` applies `busy_timeout=30000` via `_apply_eventbus_pragmas` (verified in `scripts/eventbus/schema.py`), so the concurrent test's writers wait instead of raising `SQLITE_BUSY`.
+- Assertions about `in_transaction` are made against the real `open_db` connection the wrapper delegates to, not on the wrapper.
 - The racer connection and the loser connection must be separate `open_db` connections to one file; close both at test end.
 
 ## Compatibility considerations
@@ -51,7 +53,7 @@ N/A: delete the added tests and wrapper; revert the commit.
 - Re-run the new tests 3 consecutive times to confirm no flakiness (Plan Risk mitigation).
 
 ## Completion criteria
-- Both new tests pass deterministically, the existing 7 tests in the file are untouched and green, and the concurrent test's assertions name only outcome invariants.
+- Both new tests pass deterministically, the existing 8 tests in the file are untouched and green, and the concurrent test's assertions name only outcome invariants.
 
 ## Out of Scope
 Any change to production code (seq 01/02), other test files (seq 04/05), docs (seq 06-08).
@@ -61,10 +63,10 @@ Any change to production code (seq 01/02), other test files (seq 04/05), docs (s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document's change IS the tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Run red before seq 01/02, green after |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs handled by seq 06-08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-204500 | 20261028-205631 | _RacingConn + 2 new tests + _seed_dlq_event helper added; docstring updated |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-204500 | 20261028-205631 | This document's change IS the tests This document's change IS the tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-205631 | 20261028-205700 | Run red before seq 01/02, green after Phase-1 red validation as planned: 2 new tests fail ('success' != 'already_redelivered') before seq 01/02, existing 8 pass; ruff+ruff format+mypy clean. Green re-run after seq 02 lands |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Docs handled by seq 06-08 Out of scope: docs handled by seq 06-08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

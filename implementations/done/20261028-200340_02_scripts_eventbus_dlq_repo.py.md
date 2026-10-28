@@ -61,10 +61,10 @@ Revert the commit: removing the except clause restores "every sqlite3.Error rais
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Confirm the sqlite3 violation text first (Assumptions) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests authored by seq 03 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs handled by seq 06-08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-214500 | 20261028-214600 | Confirm the sqlite3 violation text first (Assumptions) except sqlite3.IntegrityError clause added before except sqlite3.Error; docstring and pre-check comment reworded (index = enforcement layer) |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests authored by seq 03 Tests authored by seq 03 (already in place) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-214600 | 20261028-215200 | sqlite3 message confirmed verbatim ('UNIQUE constraint failed: events.redelivered_from') in the pre-mapping red run; edge-cases file 10/10 green; 3 consecutive re-runs of the 2 new tests stable; full eventbus+db+deploy: 770 passed 1 skipped; ruff/mypy clean; bandit unchanged (3 Low findings, High severity 0) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Docs handled by seq 06-08 Docs handled by seq 06-08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

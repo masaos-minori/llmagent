@@ -62,10 +62,10 @@ Revert the two lines and recreate (or re-stamp) any database created by the new 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-211000 | 20261028-211100 | partial unique index added after idx_events_dlq_seq; PRAGMA user_version = 2 |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Test-side updates carried by seq 04/05 (already authored) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-211100 | 20261028-212500 | seq 04 tests 8/8 green; check_db_separation clean; full eventbus+db+deploy run: only the 2 seq 03 tests red (await seq 02); stale /tmp stamp-1 auth DBs removed (see Plan Blocker Log) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Docs handled by seq 06-08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
