@@ -103,7 +103,8 @@ class TestHttpTransportRetry:
             cfg=MagicMock(auth_token=""),
         )
         with patch("asyncio.sleep", return_value=None):
-            result = await transport.call("write_file", {"path": "a"})
+            # read tool: ambiguous statuses are retried only for non-write tools
+            result = await transport.call("read_text_file", {"path": "a"})
         assert result.output == "ok"
         assert call_count == 3
 
@@ -131,7 +132,8 @@ class TestHttpTransportRetry:
             cfg=MagicMock(auth_token=""),
         )
         with patch("asyncio.sleep", return_value=None):
-            result = await transport.call("write_file", {"path": "a"})
+            # read tool: ambiguous statuses are retried only for non-write tools
+            result = await transport.call("read_text_file", {"path": "a"})
         assert result.output == "ok"
         assert call_count == 3
 
@@ -159,7 +161,8 @@ class TestHttpTransportRetry:
             cfg=MagicMock(auth_token=""),
         )
         with patch("asyncio.sleep", return_value=None):
-            result = await transport.call("write_file", {"path": "a"})
+            # read tool: ambiguous statuses are retried only for non-write tools
+            result = await transport.call("read_text_file", {"path": "a"})
         assert result.output == "ok"
         assert call_count == 3
 

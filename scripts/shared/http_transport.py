@@ -29,8 +29,9 @@ attach_redaction_filter(logger)
 
 
 # Write/state-mutating tools. Mirrors scripts/mcp_servers/dispatch.py's
-# `_write_tools` so the idempotency retry gate in `call()` covers exactly the
-# tools the dispatch layer deduplicates. See ADR-004 (fail-closed on writes).
+# `_write_tools` so the fail-closed failure-classification gate in `call()`
+# covers exactly the tools the dispatch layer deduplicates. See ADR-004
+# (fail-closed on writes).
 _WRITE_TOOLS: frozenset[str] = frozenset(
     WRITE_TOOLS
     | DELETE_TOOLS
@@ -41,6 +42,20 @@ _WRITE_TOOLS: frozenset[str] = frozenset(
     | GITHUB_DANGEROUS_TOOLS
     | SHELL_TOOLS
 )
+
+# Pre-send httpx errors: the connection was never established, so nothing can
+# have executed server-side and retry is safe for every tool, writes included.
+# A tuple (not frozenset) so the gate can use isinstance() directly.
+_PRESEND_SAFE_ERRORS: tuple[type[BaseException], ...] = (
+    httpx.ConnectError,
+    httpx.ProxyError,
+)
+
+# Retryable statuses whose server-side outcome is ambiguous for write tools
+# (post-dispatch handlers emit 502/503; 504 is gateway-class). 429 precedes
+# fulfillment and has no post-dispatch emitter in this repo, so it stays
+# retryable for all tools.
+_AMBIGUOUS_RETRY_STATUSES: frozenset[int] = frozenset({502, 503, 504})
 
 
 class TransportError(Exception):
@@ -181,6 +196,15 @@ class HttpTransport:
                     timeout=timeout,
                 )
                 if resp.status_code in self._RETRYABLE_STATUS:
+                    if (
+                        name in _WRITE_TOOLS
+                        and resp.status_code in _AMBIGUOUS_RETRY_STATUSES
+                    ):
+                        raise TransportError(
+                            f"Transport returned {resp.status_code} for write tool '{name}' "
+                            f"on attempt {attempt}; dispatch may already have executed, "
+                            "retry suppressed (fail-closed, ADR-004)"
+                        )
                     last_retryable_status = resp.status_code
                     wait_sec = 2**attempt  # 1, 2 (increasing)
                     logger.warning(
@@ -216,14 +240,22 @@ class HttpTransport:
                     name, f"[{type(e).__name__}]", str(e), break_flag=True
                 )
             except httpx.RequestError as e:
-                # REQ-006: writes and reads alike are retried on a non-timeout
-                # httpx.RequestError via the explicit continue below. Safety against
-                # double execution rests on the always-active server-side
-                # _duplicate_cache (dispatch.py), which deduplicates every write
-                # keyed on the X-Idempotency-Key emitted once per logical call
-                # (lines 153/159). The last request-error cause is recorded in
-                # last_request_error and surfaces in the exhaustion message as
-                # last_error=<class>: <message>.
+                # REQ-006 classification gate (ADR-004): for write tools, only
+                # pre-send errors (_PRESEND_SAFE_ERRORS) keep the retry path —
+                # the connection was never established, so nothing executed
+                # server-side. Any other RequestError is post-send ambiguous
+                # and raises immediately; the server-side _duplicate_cache
+                # (dispatch.py) cannot cover that window because dispatch never
+                # caches errors. Reads keep the current retry path unchanged.
+                # Retried errors record their cause in last_request_error,
+                # surfaced in the exhaustion message as last_error=<class>:
+                # <message>.
+                if name in _WRITE_TOOLS and not isinstance(e, _PRESEND_SAFE_ERRORS):
+                    raise TransportError(
+                        f"Transport failed for write tool '{name}' after attempt {attempt} "
+                        f"({type(e).__name__}: {e}); server-side execution outcome is ambiguous "
+                        "and client-side retry is suppressed (fail-closed, ADR-004)"
+                    ) from e
                 self._transport_error(name, f"[{type(e).__name__}]", str(e))
                 last_request_error = f"{type(e).__name__}: {e}"
                 continue

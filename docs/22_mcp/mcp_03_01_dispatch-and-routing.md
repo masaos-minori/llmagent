@@ -63,7 +63,13 @@ The `X-Idempotency-Key` request header gives a logical call a stable identity on
 - **Cache keying:** a successful result is stored keyed by the idempotency key plus the resolved tool name plus a normalized hash of the arguments. Reusing a key with different tool or argument content is rejected as an error rather than served.
 - **TTL and eviction:** cached results carry a fixed time-to-live; the cache is bounded to a maximum entry count and evicts oldest-first past that bound, dropping expired entries first.
 - **Error and dry-run results are never cached**, so a failed or dry-run call always re-executes.
-- **Write-tool retry:** a write-tool post-send retry is gated on idempotency-key presence (a blind write retry without a dedup key risks double execution); read-tool retry is unchanged. `call()` always emits a per-call key, so write retries carry a stable key.
+- **Write-tool retry:** side-effecting tools (the transport's `_WRITE_TOOLS`, mirroring the
+  dispatch layer's write set) are retried only on pre-send connection failures
+  (`httpx.ConnectError`, `httpx.ProxyError`) and on `429`; post-send ambiguous request errors
+  and ambiguous statuses `502`/`503`/`504` raise `TransportError` immediately
+  (fail-closed, ADR-004) because the server may already have executed the write. Read-tool
+  retry is unchanged. Timeouts are never retried for any tool. `call()` always emits a
+  per-call key, so retried writes keep a stable identity.
 
 Enforcement points: `dispatch_tool()` in `scripts/mcp_servers/dispatch.py` (server-side dedup) and `HttpTransport.call()` (key generation and retry).
 
