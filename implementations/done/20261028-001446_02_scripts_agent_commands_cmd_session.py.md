@@ -116,10 +116,10 @@ return
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After document _01 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Test authoring is owned by document _03 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: Plan has no docs row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-075014 | 20261028-080550 | After document _01 rename branch captures persisted; per Details snippet |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261028-080550 | Test authoring is owned by document _03 Regression-only; new cases owned by document _03 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261028-080550 | Shared _02/_03 validation pass: full suite 10255 passed, diff-cover 100% (7 changed lines); no new mypy/ruff findings |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261028-080550 | N/A: Plan has no docs row N/A: Plan has no docs row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

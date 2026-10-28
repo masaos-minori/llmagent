@@ -95,10 +95,10 @@ Regression-verify boundary usage against the offloaded implementation.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-085037 | 20261028-085037 | verification-only: zero direct session.save*/replace_messages call sites confirmed post-offload (grep 0); no code edit |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-085037 | 20261028-085037 | uv run pytest tests/agent/test_tool_round_completion -q green (8 passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-085037 | 20261028-085037 | full suite 10261 passed 8 skipped; diff-cover 100% (shared with ..._02_) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-085037 | 20261028-085037 | out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

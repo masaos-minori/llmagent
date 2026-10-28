@@ -7,17 +7,26 @@ the single ``ConversationPersistenceError`` type on failure, compensation that
 deletes exactly the failed turn's rows, and memory restore to the turn-start
 snapshot (REQ-001..REQ-004).
 
+Also covers the REQ-005 offload (REQ-001 off-loop-thread proof: boundary
+writes run on a worker thread) and the REQ-006 contention acceptance (a held
+write lock must not stall the event loop; the write completes within
+``busy_timeout``) — both file-backed via ``TestOffloadedWrites``.
+
 Uses the same in-memory SQLite pattern as test_agent_session.py: a real
 in-memory connection wrapped by a fake ``SQLiteHelper`` so no real DB file or
-sqlite-vec extension is required.
+sqlite-vec extension is required. The contention tests need a real DB file
+because cross-connection ``busy_timeout`` waiting cannot be expressed on one
+shared in-memory connection.
 """
 
 from __future__ import annotations
 
+import asyncio
 import sqlite3
 import threading
 from collections.abc import Generator
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -25,6 +34,7 @@ from agent.context import ConversationState
 from agent.session import AgentSession
 from agent.session_message_repo import SessionMessageRepository
 from agent.turn_persistence import ConversationPersistenceError, TurnPersistence
+from db.helper import SQLiteHelper
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -125,7 +135,8 @@ def reset_fake_helper() -> Generator[None]:
 @pytest.fixture
 def wired() -> Generator[tuple[sqlite3.Connection, dict[str, int]]]:
     """AgentSession + repo + in-memory DB; yields (connection, injector state)."""
-    conn = sqlite3.connect(":memory:")
+    # check_same_thread=False: boundary writes now run on worker threads (REQ-005).
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(_SCHEMA_SQL)
     conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
@@ -305,3 +316,137 @@ class TestSnapshotRestore:
 
         # AC-004: memory equals the turn-start snapshot element-wise.
         assert conv.history == [{"role": "user", "content": "start"}]
+
+
+# ── Offloaded writes (REQ-005 off-thread proof, REQ-006 contention) ───────────
+
+
+@pytest.fixture
+def file_wired(tmp_path: Path) -> Generator[str]:
+    """File-backed DB with the real ``SQLiteHelper`` (2000 ms busy_timeout).
+
+    Yields the DB path. Cross-connection ``busy_timeout`` waiting needs a real
+    DB file, so these tests bypass the shared in-memory fake helper. The
+    explicit-path branch of ``SQLiteHelper`` bypasses ``build_db_config()``.
+    """
+    db_path = str(tmp_path / "turn.db")
+    seed = sqlite3.connect(db_path)
+    # WAL must be pre-enabled in the file: a journal_mode change under another
+    # connection's held lock returns SQLITE_BUSY without invoking busy_timeout.
+    seed.execute("PRAGMA journal_mode=WAL")
+    seed.executescript(_SCHEMA_SQL)
+    seed.execute("INSERT INTO sessions (session_id) VALUES (1)")
+    seed.commit()
+    seed.close()
+
+    def _make(target: str = "session") -> SQLiteHelper:  # noqa: ARG001 — repo passes target positionally
+        return SQLiteHelper(db_path=db_path, sqlite_busy_timeout_ms=2000)
+
+    with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+        yield db_path
+
+
+class TestOffloadedWrites:
+    """Boundary writes run off the event loop and survive a held write lock."""
+
+    async def test_phase_write_runs_off_loop_thread(self, file_wired: str) -> None:
+        """REQ-001/REQ-005: the repository write runs on a worker thread.
+
+        The spy wraps (not replaces) the real ``save_phase_grouped`` so the
+        per-call connection pattern inside ``asyncio.to_thread`` is what gets
+        proven: the recorded thread identity differs from the loop thread's.
+        """
+        loop_thread = threading.get_ident()
+        real = SessionMessageRepository.save_phase_grouped
+        seen: list[int] = []
+
+        def _spy(self: SessionMessageRepository, messages: list) -> None:
+            seen.append(threading.get_ident())
+            real(self, messages)
+
+        session = AgentSession()
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        with patch.object(SessionMessageRepository, "save_phase_grouped", _spy):
+            await boundary.save_phase_grouped([("assistant", "off-thread", None, None)])
+
+        assert seen and seen[0] != loop_thread
+        conn = sqlite3.connect(file_wired)
+        try:
+            rows = conn.execute("SELECT role, content FROM messages").fetchall()
+        finally:
+            conn.close()
+        assert rows == [("assistant", "off-thread")]
+
+    async def test_locked_write_does_not_stall_event_loop(
+        self, file_wired: str
+    ) -> None:
+        """REQ-006: a held write lock must not block the loop; write lands within busy_timeout.
+
+        A dedicated locker thread holds the write lock with ``BEGIN IMMEDIATE``
+        until released. While the boundary write waits on ``busy_timeout``
+        (2000 ms), a 50 ms heartbeat keeps ticking on the loop; the write then
+        completes after the locker commits. Tick counts are asserted with lower
+        bounds, not exact timing.
+        """
+        release = threading.Event()
+        locked = threading.Event()
+
+        def _locker() -> None:
+            conn = sqlite3.connect(file_wired, isolation_level=None)
+            try:
+                conn.execute("BEGIN IMMEDIATE")
+                conn.execute(
+                    "INSERT INTO messages (session_id, role, content) VALUES (1, 'locker', 'held')"
+                )
+                locked.set()
+                release.wait(timeout=5)
+                conn.execute("COMMIT")
+            finally:
+                conn.close()
+
+        locker = threading.Thread(target=_locker, daemon=True)
+        locker.start()
+        assert locked.wait(timeout=2)  # lock held before the boundary write starts
+
+        session = AgentSession()
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        ticks = 0
+
+        async def _heartbeat() -> None:
+            nonlocal ticks
+            while True:
+                ticks += 1
+                await asyncio.sleep(0.05)
+
+        heartbeat = asyncio.ensure_future(_heartbeat())
+        try:
+            task = asyncio.ensure_future(
+                boundary.save_phase_grouped([("assistant", "waiting", None, None)])
+            )
+            await asyncio.sleep(0.15)
+            assert not task.done()  # write still waiting on the held lock
+            ticks_at_pause = ticks
+            await asyncio.sleep(0.15)
+            assert not task.done()
+            assert ticks > ticks_at_pause  # loop kept ticking while the write waited
+        finally:
+            heartbeat.cancel()
+            release.set()
+            locker.join(timeout=5)
+
+        await task  # completes well within the 2000 ms busy_timeout
+        assert ticks >= 2
+        conn = sqlite3.connect(file_wired)
+        try:
+            rows = conn.execute(
+                "SELECT role, content FROM messages ORDER BY message_id"
+            ).fetchall()
+        finally:
+            conn.close()
+        assert ("assistant", "waiting") in rows

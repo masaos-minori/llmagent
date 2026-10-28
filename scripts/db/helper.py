@@ -53,7 +53,11 @@ class DbTarget(StrEnum):
 
 
 class SQLiteHelper:
-    """SQLite connection manager with optional sqlite-vec extension; WAL/synchronous=NORMAL/busy_timeout applied to every connection."""
+    """SQLite connection manager with optional sqlite-vec extension; WAL/synchronous=NORMAL/busy_timeout applied to every connection.
+
+    Connections default to sqlite3 check_same_thread=True; False is only for
+    sequential cross-thread reuse (see open/_connect).
+    """
 
     _CHECKPOINT_MODES: frozenset[str] = frozenset(
         {"PASSIVE", "FULL", "RESTART", "TRUNCATE"},
@@ -67,15 +71,20 @@ class SQLiteHelper:
         sqlite_vec_so: str = "",
         sqlite_timeout: int = 30,
         sqlite_busy_timeout_ms: int = 30000,
+        check_same_thread: bool = True,
     ) -> None:
         """Accepts DbTarget enum members or string literals ('rag', 'session', 'workflow', 'eventbus').
 
         When db_path is provided, bypasses build_db_config() and uses the supplied path and
         connection settings directly. This allows callers (e.g. MCP servers) to self-contain
         their DB config without loading agent.toml.
+
+        check_same_thread: sqlite3 same-thread assertion (default True). Set False only
+        for connections reused sequentially across threads (see open/_connect).
         """
         self.conn: sqlite3.Connection | None = None
         self._reuse_connection: bool = False
+        self._check_same_thread = check_same_thread
 
         if db_path is not None:
             self._target = "explicit"
@@ -126,13 +135,21 @@ class SQLiteHelper:
         return self.conn
 
     def _connect(self) -> sqlite3.Connection:
-        """Open a raw SQLite connection; raise on DB_PATH misconfiguration."""
+        """Open a raw SQLite connection; raise on DB_PATH misconfiguration.
+
+        check_same_thread is passed from the instance default; False connections are
+        only legal for sequential cross-thread use, never concurrent.
+        """
         if not self._db_path:
             raise ValueError(
                 f"{self._target}_db_path is not configured in agent.toml or DB config"
             )
         try:
-            return sqlite3.connect(self._db_path, timeout=self._sqlite_timeout)
+            return sqlite3.connect(
+                self._db_path,
+                timeout=self._sqlite_timeout,
+                check_same_thread=self._check_same_thread,
+            )
         except sqlite3.OperationalError as e:
             logger.error("Failed to connect to '%s': %s", self._db_path, e)
             raise
@@ -170,6 +187,7 @@ class SQLiteHelper:
         row_factory: bool = False,
         load_vec: bool | None = None,
         reuse_connection: bool = False,
+        check_same_thread: bool | None = None,
     ) -> "SQLiteHelper":
         """Open a connection with optional vec extension and WAL pragmas.
 
@@ -178,10 +196,17 @@ class SQLiteHelper:
         write_mode: enforce FK constraints.
         row_factory: enable column-name access on result rows.
         reuse_connection: skip reconnect if already connected; skip close in __exit__.
+        check_same_thread: None = use instance default (True); an explicit value
+            applies to this open and becomes the instance default for subsequent
+            opens (mirrors how the override feeds _connect). False is legal only for
+            sequential cross-thread use, never concurrent. An override cannot
+            re-configure a connection already opened via reuse_connection.
         """
         self._reuse_connection = reuse_connection
         if reuse_connection and self.conn is not None:
             return self
+        if check_same_thread is not None:
+            self._check_same_thread = check_same_thread
         use_vec = self._default_load_vec if load_vec is None else load_vec
         conn = self._connect()
         if use_vec and self._vec_so:

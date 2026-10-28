@@ -14,6 +14,11 @@ phase P1 before P2/P3).
   2. A `check_same_thread=False` (new knob, from `..._01_...`) connection created on
      one thread used sequentially from another thread succeeds.
   3. Default `True` connection used cross-thread raises `sqlite3.ProgrammingError`.
+- Implementation extension (this pass, coverage-driven): probe 4
+  `test_open_check_same_thread_override_applies_to_that_open` (new) added — diff-cover
+  showed the `open(check_same_thread=...)` override line untested by probes 1-3; the
+  4th probe validates `..._01_...`'s per-open override contract (same file, same
+  row — no new target file).
 
 ## Assumptions
 
@@ -115,10 +120,10 @@ Write three focused probe tests against `SQLiteHelper` with a tmp-path DB.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-080912 | 20261028-082618 | 4 probes green (frozen 3 + open-override extension); REQ-005 evidence before offload wiring |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-28 | 2026-10-28 | 4 probes in tests/db/test_helper_thread_safety.py green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261028-082618 | Shared _01/_08 validation pass: full suite 10259 passed, diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261028-082618 | N/A: docs row is document _15 (executed last) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

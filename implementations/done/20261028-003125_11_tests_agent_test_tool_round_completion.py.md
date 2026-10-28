@@ -88,10 +88,10 @@ Run the file after the offload lands; fix only genuine await-contract breaks.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-085136 | 20261028-085136 | minimal sanctioned test-side fix only: fake in-memory conn made thread-agnostic (check_same_thread=False, 1 line) because the offloaded boundary reuses the shared fake conn across threads; production code untouched |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-085136 | 20261028-085136 | uv run pytest tests/agent/test_tool_round_completion.py -q green (8 passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-085136 | 20261028-085136 | full suite 10261 passed 8 skipped; diff-cover 100% (shared with ..._02_) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-085136 | 20261028-085136 | out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

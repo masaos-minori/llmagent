@@ -206,7 +206,10 @@ class _SessionMixin(MixinBase):
                 return
             from agent.commands.session_title import SESSION_TITLE_MAX_CHARS
 
-            self._ctx.session.set_title(title)
+            persisted = self._ctx.session.set_title(title)
+            if not persisted:
+                self._out.write_validation_error("/session rename <title>")
+                return
             self._out.write_success(
                 f"Session renamed: {title[:SESSION_TITLE_MAX_CHARS]!r}"
             )

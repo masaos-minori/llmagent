@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.commands.cmd_session import _SessionMixin
+from agent.session import AgentSession
 
 
 def _make_session(
@@ -251,6 +252,19 @@ class TestCmdSessionRename:
         await cmd._cmd_session("rename My New Title")
         cmd._ctx.session.set_title.assert_called_once_with("My New Title")
         assert "renamed" in capsys.readouterr().out.lower()
+
+    @pytest.mark.asyncio
+    async def test_rename_without_active_session_prints_validation_error(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cmd = _make_cmd(session_id=None)
+        cmd._ctx.session.set_title.return_value = False
+        await cmd._cmd_session("rename Should Fail")
+        out = capsys.readouterr().out
+        cmd._ctx.session.set_title.assert_called_once_with("Should Fail")
+        assert "[usage]" in out
+        assert "/session rename <title>" in out
+        assert "renamed" not in out.lower()
 
 
 class TestCmdSessionUsage:
@@ -1009,3 +1023,21 @@ class TestCmdSessionExport:
         finally:
             if tmpfile.exists():
                 tmpfile.unlink()
+
+
+class TestSetTitleContract:
+    def test_set_title_returns_false_without_session_id(self) -> None:
+        session = AgentSession()
+        session.session_id = None
+        with patch("agent.session.SQLiteHelper") as helper:
+            assert session.set_title("Title") is False
+        helper.assert_not_called()
+
+    def test_set_title_returns_true_after_update(self) -> None:
+        session = AgentSession()
+        session.session_id = 7
+        with patch("agent.session.SQLiteHelper") as helper:
+            assert session.set_title("Title") is True
+        db = helper.return_value.open.return_value.__enter__.return_value
+        db.execute.assert_called_once()
+        db.commit.assert_called_once_with()

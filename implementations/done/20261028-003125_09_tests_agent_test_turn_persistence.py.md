@@ -128,10 +128,10 @@ Add a file-backed test class with two acceptance tests.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-085037 | 20261028-085037 | file_wired fixture (real SQLiteHelper, db_path branch, busy_timeout 2000ms, WAL pre-enabled in seed) + TestOffloadedWrites: off-loop thread identity proof + held-write-lock heartbeat contention test |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-085037 | 20261028-085037 | 2 new tests green; 6 pre-existing turn001 tests unchanged and green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-085037 | 20261028-085037 | whole file 8 passed (3 random-seed reruns stable); full suite 10261 passed shared with ..._02_; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-085037 | 20261028-085037 | out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

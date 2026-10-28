@@ -217,7 +217,8 @@ class TestCompleteRoundRoundAtomicity:
 
     @pytest.mark.asyncio
     async def test_later_failure_leaves_no_partial_rows(self) -> None:
-        conn = sqlite3.connect(":memory:")
+        # check_same_thread=False: boundary writes run on worker threads (REQ-005).
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
         conn.executescript(_ROUND_SCHEMA_SQL)
         conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
         conn.commit()

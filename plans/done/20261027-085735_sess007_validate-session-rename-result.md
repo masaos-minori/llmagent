@@ -226,9 +226,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | `scripts/agent/session.py` `set_title` bool return contract (REQ-1) | In Progress | — | — | P1: return contract |
-| 2 | `scripts/agent/commands/cmd_session.py` rename branch output mapping (REQ-2, REQ-4) | In Progress | — | — | P2: command mapping; after step 1 |
-| 3 | `tests/agent/commands/test_agent_cmd_session.py` regression cases + static gate (REQ-3, REQ-4) | In Progress | — | — | P3: tests + static gate |
+| 1 | `scripts/agent/session.py` `set_title` bool return contract (REQ-1) | Completed | 20261028-074133 | 20261028-080707 | P1: return contract |
+| 2 | `scripts/agent/commands/cmd_session.py` rename branch output mapping (REQ-2, REQ-4) | Completed | 20261028-074133 | 20261028-080707 | P2: command mapping; after step 1 |
+| 3 | `tests/agent/commands/test_agent_cmd_session.py` regression cases + static gate (REQ-3, REQ-4) | Completed | 20261028-074133 | 20261028-080707 | P3: tests + static gate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -238,9 +238,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261028-001446_01_scripts_agent_session.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261028-001446_02_scripts_agent_commands_cmd_session.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261028-001446_03_tests_agent_commands_test_agent_cmd_session.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-001446_01_scripts_agent_session.py.md | 1 | Procedure | Completed | — | 20261028-080550 |
+| implementations/20261028-001446_02_scripts_agent_commands_cmd_session.py.md | 2 | Procedure | Completed | — | 20261028-080550 |
+| implementations/20261028-001446_03_tests_agent_commands_test_agent_cmd_session.py.md | 3 | Procedure | Completed | — | 20261028-080550 |
 
 ## Traceability
 

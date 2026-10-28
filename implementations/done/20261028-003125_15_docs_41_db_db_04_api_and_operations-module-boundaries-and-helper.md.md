@@ -112,10 +112,10 @@ Add the threading-boundary subsection and extend the connection-options sentence
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-085550 | 20261028-085550 | Threading boundary subsection + check_same_thread option added to db_04 section 2; wording aligned with shipped per-call-in-worker-thread shape; cross-link to agent_04_03 added |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-085550 | 20261028-085550 | N/A: documentation-only row (frozen table Related Tests = N/A) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-085550 | 20261028-085550 | check_docs_quality/structure/content-policy(--strict)/consistency --domain db/check_docs_japanese all clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-085550 | 20261028-085550 | English per skills/DESIGN.md output language; db_01 territory left untouched per Out of Scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

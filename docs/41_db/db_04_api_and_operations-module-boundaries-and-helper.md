@@ -32,7 +32,28 @@ Add the `Protocol` to `db/store_protocols.py`, implement it in `db/store_impl.py
 
 ## 2. `SQLiteHelper` (`db/helper.py`)
 
-`SQLiteHelper` resolves its DB file from `target` (`DbTarget` member or string; an invalid target raises `ValueError`). Path and settings come from `build_db_config()` unless `db_path` is passed explicitly, in which case `build_db_config()` is bypassed entirely and `sqlite_vec_so` / `sqlite_timeout` / `sqlite_busy_timeout_ms` are taken from the arguments, so MCP servers can self-contain DB configuration without reading `agent.toml`. Connection options (`write_mode`, `row_factory`, `load_vec`, `reuse_connection`) and the PRAGMAs applied on every open are specified in [db_01 section 4](db_01_architecture_and_schema-overview-and-config.md#4-db-file-structure-and-sqlitehelper); the `load_vec` default depends on the target and `sqlite_vec_so`.
+`SQLiteHelper` resolves its DB file from `target` (`DbTarget` member or string; an invalid target raises `ValueError`). Path and settings come from `build_db_config()` unless `db_path` is passed explicitly, in which case `build_db_config()` is bypassed entirely and `sqlite_vec_so` / `sqlite_timeout` / `sqlite_busy_timeout_ms` are taken from the arguments, so MCP servers can self-contain DB configuration without reading `agent.toml`. Connection options (`write_mode`, `row_factory`, `load_vec`, `reuse_connection`, `check_same_thread`) and the PRAGMAs applied on every open are specified in [db_01 section 4](db_01_architecture_and_schema-overview-and-config.md#4-db-file-structure-and-sqlitehelper); the `load_vec` default depends on the target and `sqlite_vec_so`. `check_same_thread` can be set per instance (`__init__`) and per open (`open()`); an explicit value passed to `open()` also carries over as the instance setting for subsequent opens.
+
+### Threading boundary
+
+- Default rule: a helper connection is opened, used, and closed on one thread
+  (connection-per-call). `check_same_thread=True` enforcement stays in force
+  for all non-turn paths; touching a connection from a thread other than its
+  creating thread raises `sqlite3.ProgrammingError`.
+- Turn-boundary writes (`agent/turn_persistence.py` delegating to
+  `agent/session_message_repo.py`) execute on worker threads via
+  `asyncio.to_thread`. Each repository call opens its own short-lived
+  connection and uses it inside the same worker thread; sequential awaits in
+  the boundary preserve within-turn write ordering. The event loop never
+  executes turn-path SQLite calls.
+- Single authorized exception: a connection intentionally reused across
+  threads must be opened with `check_same_thread=False` and used
+  sequentially only, never concurrently. No turn-boundary connection is reused
+  across threads today; the per-call pattern inside the worker thread is what
+  ships.
+
+The session persistence boundary these rules apply to is described in
+[agent_04_03](../23_agent/agent_04_03_state-and-persistence-platform-databases.md).
 
 Error semantics:
 - `execute()` raises `RuntimeError` when no connection is open and `ValueError` for an empty `sql`.

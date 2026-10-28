@@ -98,7 +98,8 @@ def repo() -> Generator[SessionMessageRepository]:
 
 @pytest.fixture
 def session_and_conn() -> Generator[tuple[AgentSession, sqlite3.Connection]]:
-    conn = sqlite3.connect(":memory:")
+    # check_same_thread=False: boundary writes run on worker threads (REQ-005).
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.executescript(_SCHEMA_SQL)
     conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()

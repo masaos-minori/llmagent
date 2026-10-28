@@ -149,10 +149,10 @@ error semantics, and signatures identical.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-085037 | 20261028-085037 | asyncio.to_thread wired for save/save_many/save_phase_grouped/replace_messages and _compensate (now async); module docstring updated; helper check_same_thread knob deliberately NOT wired here (repo opens per-call connections used inside the same worker thread) |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-085037 | 20261028-085037 | offload proof + contention tests land in ..._09_ (TestOffloadedWrites); fake-helper tests kept green via test-side check_same_thread=False in 4 test files |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-085037 | 20261028-085037 | full suite 10261 passed 8 skipped; diff-cover 100% (19 changed lines); ruff/mypy(441 files)/lint-imports 6 kept clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-085037 | 20261028-085037 | docs update owned by ..._15_ |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

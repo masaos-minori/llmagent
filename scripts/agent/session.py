@@ -187,17 +187,22 @@ class AgentSession:
         """Set title generation pending state."""
         self._title_pending = pending
 
-    def set_title(self, title: str) -> None:
-        """Set the session title using the first user input (truncated to 32 chars). Raises sqlite3.Error on failure."""
+    def set_title(self, title: str) -> bool:
+        """Set the session title (truncated to SESSION_TITLE_MAX_CHARS).
+
+        Returns True when the title was persisted, False when there is no active
+        session (session_id is None). Raises sqlite3.Error on DB failure.
+        """
         self._title_pending = False
         if self.session_id is None:
-            return
+            return False
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute(
                 "UPDATE sessions SET title = ? WHERE session_id = ?",
                 (title[:SESSION_TITLE_MAX_CHARS], self.session_id),
             )
             db.commit()
+        return True
 
     def list_sessions(self, limit: int = 20) -> list[dict]:
         """Return the most recent sessions from DB as structured data.

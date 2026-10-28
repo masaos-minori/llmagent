@@ -14,10 +14,17 @@ tool round's assistant + tool-result messages) is persisted in a single
 :meth:`SessionMessageRepository.save_phase_grouped`. The boundary delegates its
 writes to the repository so every turn write flows through one object; no
 turn-path component may call ``ctx.session.save*`` directly (AC-001).
+
+The boundary itself never touches SQLite: it offloads every repository write
+(and the compensation delete) to a worker thread with :func:`asyncio.to_thread`
+(REQ-005). Each repository call opens its own short-lived connection, so the
+connection is used exclusively inside one worker thread; the loop-thread SQLite
+usage (``session_message_repo.read*``, snapshot queries) is unaffected.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sqlite3
 from typing import TYPE_CHECKING, NoReturn
@@ -86,9 +93,15 @@ class TurnPersistence:
         tool_calls: list[dict] | None = None,
         tool_call_id: str | None = None,
     ) -> None:
-        """Persist a single turn message (one phase transaction)."""
+        """Persist a single turn message (one phase transaction).
+
+        The repository call runs on a worker thread (REQ-005); its
+        ``sqlite3.Error`` propagates back to the caller unchanged.
+        """
         try:
-            self.session._message_repo.save(role, content, tool_calls, tool_call_id)
+            await asyncio.to_thread(
+                self.session._message_repo.save, role, content, tool_calls, tool_call_id
+            )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
 
@@ -96,9 +109,13 @@ class TurnPersistence:
         self,
         messages: list[tuple[str, str | None, list[dict] | None, str | None]],
     ) -> None:
-        """Persist several turn messages in one repository transaction."""
+        """Persist several turn messages in one repository transaction.
+
+        The repository call runs on a worker thread (REQ-005); its
+        ``sqlite3.Error`` propagates back to the caller unchanged.
+        """
         try:
-            self.session._message_repo.save_many(messages)
+            await asyncio.to_thread(self.session._message_repo.save_many, messages)
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
 
@@ -110,31 +127,43 @@ class TurnPersistence:
 
         Runs in a single ``begin_immediate`` transaction on a single connection,
         so a single injected failure leaves either all or none of the round's
-        rows (REQ-005, AC-005).
+        rows (REQ-005, AC-005). The repository call runs on a worker thread
+        (REQ-005); its ``sqlite3.Error`` propagates back to the caller unchanged.
         """
         try:
-            self.session._message_repo.save_phase_grouped(messages)
+            await asyncio.to_thread(
+                self.session._message_repo.save_phase_grouped, messages
+            )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
 
     async def replace_messages(self, messages: list[LLMMessage]) -> int | None:
-        """Persist a compressed snapshot back to DB (REQ-006)."""
+        """Persist a compressed snapshot back to DB (REQ-006).
+
+        The repository call runs on a worker thread (REQ-005); its
+        ``sqlite3.Error`` propagates back to the caller unchanged.
+        """
         if self.session_id is None:
             return None
         try:
-            return self.session._message_repo.replace_messages(
-                self.session_id, messages
+            return await asyncio.to_thread(
+                self.session._message_repo.replace_messages, self.session_id, messages
             )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
             return None  # unreachable: _fail_from_error always raises
 
-    def _compensate(self) -> int:
-        """Delete the turn's rows (``message_id > marker``) in one txn."""
+    async def _compensate(self) -> int:
+        """Delete the turn's rows (``message_id > marker``) in one txn.
+
+        Offloaded to a worker thread like the writes (REQ-005).
+        """
         if self.session_id is None:
             return 0
-        return self.session._message_repo.delete_messages_from(
-            self.session_id, self.turn_start_message_id
+        return await asyncio.to_thread(
+            self.session._message_repo.delete_messages_from,
+            self.session_id,
+            self.turn_start_message_id,
         )
 
     async def _fail_from_error(self, exc: sqlite3.Error) -> NoReturn:
@@ -147,7 +176,7 @@ class TurnPersistence:
         original error.
         """
         try:
-            self._compensate()
+            await self._compensate()
         except sqlite3.Error as comp_exc:
             logger.error(
                 "Turn compensation failed after persistence error: %s", comp_exc

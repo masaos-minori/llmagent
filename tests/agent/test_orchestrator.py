@@ -3404,7 +3404,7 @@ class _RealTurnDB:
     resolve to :class:`_InjectingSQLiteHelper` backed by one shared connection."""
 
     def __init__(self, prior: list[tuple[str, str]] | None = None) -> None:
-        self.conn = sqlite3.connect(":memory:")
+        self.conn = sqlite3.connect(":memory:", check_same_thread=False)
         self.conn.execute("PRAGMA foreign_keys=ON")
         self.conn.executescript(_SCHEMA_SQL)
         self.conn.execute("INSERT INTO sessions (session_id) VALUES (1)")

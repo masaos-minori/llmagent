@@ -1374,6 +1374,7 @@ def _create_eventbus_schema_at(tmp_path: Path, db_name: str) -> str:
         self._vec_so = None
         self._sqlite_timeout = 5000
         self._busy_timeout_ms = 5000
+        self._check_same_thread = True
 
     with patch.object(cs.SQLiteHelper, "__init__", capture_init):
         with patch(
@@ -1455,6 +1456,7 @@ class TestEventBusSchemaNewColumns:
             self._vec_so = None
             self._sqlite_timeout = 5000
             self._busy_timeout_ms = 5000
+            self._check_same_thread = True
             if target == "eventbus":
                 captured_path["path"] = self._db_path
 

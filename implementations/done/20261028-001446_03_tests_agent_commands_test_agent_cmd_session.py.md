@@ -149,10 +149,10 @@ class TestSetTitleContract:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document is the test procedure |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: Plan has no docs row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-075014 | 20261028-080550 | Failure case added to TestCmdSessionRename; TestSetTitleContract appended |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261028-080550 | This document is the test procedure This document is the test procedure |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261028-080550 | Shared _02/_03 validation pass: full suite 10255 passed, diff-cover 100%; targeted rename+contract+session-regression green |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261028-080550 | N/A: Plan has no docs row N/A: Plan has no docs row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
