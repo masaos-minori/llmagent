@@ -198,10 +198,10 @@ Direct in-file edit; no new imports (`httpx` already imported); existing frozens
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | In Progress | 2026-10-28 | — | Sequence before 20261028-004925_01 |
-| 2 | Add or update tests per Validation plan | In Progress | 2026-10-28 | — | See 20261028-010601_02 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | In Progress | 2026-10-28 | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | In Progress | 2026-10-28 | — | See 20261028-010601_03/_04 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-28 | 20261028-100140 | Sequence before 20261028-004925_01 |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-28 | 20261028-100140 | See 20261028-010601_02 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-28 | 20261028-100140 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-28 | 20261028-100140 | See 20261028-010601_03/_04 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
