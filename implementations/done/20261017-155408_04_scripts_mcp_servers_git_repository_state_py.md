@@ -101,10 +101,10 @@ Other servers' postconditions, and any redesign of the five-layer model.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fill postcondition gaps in repository_state.py | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: git doc is a separate row |
+| 1 | Fill postcondition gaps in repository_state.py | Completed | 20261017-180818 | 20261017-180818 | replaced no-op Stage 5b with real in-flight TOCTOU re-check (two fresh live-repo reads, skip git_checkout); checkout landing already verified in format_checkout; 382 git tests pass; functional-verified reject/fail-open/no-drift; Step4 N/A git doc separate row |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-180818 | 20261017-180818 | replaced no-op Stage 5b with real in-flight TOCTOU re-check (two fresh live-repo reads, skip git_checkout); checkout landing already verified in format_checkout; 382 git tests pass; functional-verified reject/fail-open/no-drift; Step4 N/A git doc separate row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-180818 | 20261017-180818 | replaced no-op Stage 5b with real in-flight TOCTOU re-check (two fresh live-repo reads, skip git_checkout); checkout landing already verified in format_checkout; 382 git tests pass; functional-verified reject/fail-open/no-drift; Step4 N/A git doc separate row |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-180818 | 20261017-180818 | N/A: git doc is a separate row replaced no-op Stage 5b with real in-flight TOCTOU re-check (two fresh live-repo reads, skip git_checkout); checkout landing already verified in format_checkout; 382 git tests pass; functional-verified reject/fail-open/no-drift; Step4 N/A git doc separate row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -24,11 +24,13 @@ of service_security.py were previously unexercised by the existing suite):
 from __future__ import annotations
 
 from http import HTTPStatus
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from github import GithubException
 from mcp_servers.github.github_models import (
+    CreateOrUpdateFileRequest,
     GitHubAuthorizationError,
     GitHubConfig,
     GitHubValidationError,
@@ -150,3 +152,140 @@ class TestRunGithubDirect:
 
         with pytest.raises(GitHubNotFoundError, match="Resource not found"):
             await svc._run_github(_raise)
+
+
+# ── Audit before/after + correlation (REQ-004) ────────────────────────────────
+
+
+class TestGithubAuditLog:
+    """A successful github operation emits an audit record carrying the
+    before/after target identity and an approval-correlation flag. Only
+    identifiers are recorded — never issue/pr/body payloads."""
+
+    @pytest.mark.asyncio
+    async def test_create_or_update_file_emits_audit_with_before_after_and_approved(
+        self, tmp_path: Path
+    ) -> None:
+        audit_path = tmp_path / "audit.log"
+        gh = MagicMock()
+        repo_mock = MagicMock()
+        repo_mock.create_file.return_value = {
+            "commit": MagicMock(sha="abcdef1234567890")
+        }
+        gh.get_repo.return_value = repo_mock
+        svc = GitHubService(
+            gh=gh,
+            cfg=GitHubConfig.from_dict(
+                {
+                    "allowed_repos": ["org/repo"],
+                    "audit_log_path": str(audit_path),
+                    "protected_branches": [],
+                }
+            ),
+        )
+        req = CreateOrUpdateFileRequest(
+            owner="org",
+            repo="repo",
+            path="src/app.py",
+            content="hello world",
+            message="test",
+            branch="main",
+        )
+        result = await svc.create_or_update_file(req)
+        assert result.operation == "created"
+        record = audit_path.read_text(encoding="utf-8")
+        assert "op=create_or_update_file" in record
+        assert "before=org/repo|" in record
+        assert "after=org/repo|" in record
+        assert "approved=true" in record
+
+
+# ── Guard sufficiency (REQ-002, REQ-004) ──────────────────────────────────────
+
+
+class TestGuardSufficiency:
+    """Each existing guard rejects disallowed input (fail-closed); the clamp
+    still bounds per_page above the configured maximum."""
+
+    def test_assert_allowed_repo_denies_when_allowlist_empty(self) -> None:
+        svc = _make_service({"allowed_repos": []})
+        with pytest.raises(GitHubAuthorizationError):
+            svc._assert_allowed_repo("org", "repo")
+
+    def test_assert_allowed_repo_denies_unknown_repo(self) -> None:
+        svc = _make_service({"allowed_repos": ["org/allowed"]})
+        with pytest.raises(GitHubAuthorizationError):
+            svc._assert_allowed_repo("org", "other")
+
+    def test_assert_allowed_repo_allows_known_repo(self) -> None:
+        svc = _make_service({"allowed_repos": ["org/allowed"]})
+        svc._assert_allowed_repo("org", "allowed")
+
+    def test_assert_allowed_path_denies_matched_glob(self) -> None:
+        svc = _make_service(
+            {"allowed_repos": ["org/repo"], "path_denylist": ["*.secret"]}
+        )
+        with pytest.raises(GitHubAuthorizationError):
+            svc._assert_allowed_path("config.secret")
+
+    def test_assert_allowed_path_allows_unmatched(self) -> None:
+        svc = _make_service(
+            {"allowed_repos": ["org/repo"], "path_denylist": ["*.secret"]}
+        )
+        svc._assert_allowed_path("src/app.py")
+
+    def test_assert_allowed_branch_denies_protected(self) -> None:
+        svc = _make_service(
+            {"allowed_repos": ["org/repo"], "protected_branches": ["main"]}
+        )
+        with pytest.raises(GitHubAuthorizationError):
+            svc._assert_allowed_branch("org", "repo", "main")
+
+    def test_assert_allowed_branch_allows_unprotected(self) -> None:
+        svc = _make_service(
+            {"allowed_repos": ["org/repo"], "protected_branches": ["main"]}
+        )
+        svc._assert_allowed_branch("org", "repo", "feature/x")
+
+    def test_clamp_per_page_bounds_above_max(self) -> None:
+        svc = _make_service({"allowed_repos": ["org/repo"], "max_per_page": 25})
+        assert svc._clamp_per_page(1000) == 25
+
+
+# ── Legitimate-call regression ────────────────────────────────────────────────
+
+
+class TestLegitimateCallRegression:
+    @pytest.mark.asyncio
+    async def test_create_or_update_file_succeeds_and_returns_response(
+        self, tmp_path: Path
+    ) -> None:
+        audit_path = tmp_path / "audit.log"
+        gh = MagicMock()
+        repo_mock = MagicMock()
+        repo_mock.create_file.return_value = {
+            "commit": MagicMock(sha="deadbeef00001111")
+        }
+        gh.get_repo.return_value = repo_mock
+        svc = GitHubService(
+            gh=gh,
+            cfg=GitHubConfig.from_dict(
+                {
+                    "allowed_repos": ["org/repo"],
+                    "audit_log_path": str(audit_path),
+                    "protected_branches": [],
+                }
+            ),
+        )
+        req = CreateOrUpdateFileRequest(
+            owner="org",
+            repo="repo",
+            path="README.md",
+            content="hi",
+            message="init",
+            branch="main",
+        )
+        result = await svc.create_or_update_file(req)
+        assert result.path == "README.md"
+        assert result.operation == "created"
+        assert result.commit_sha == "deadbeef00001111"

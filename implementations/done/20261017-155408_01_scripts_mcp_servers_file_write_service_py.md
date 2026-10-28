@@ -110,10 +110,10 @@ Any change to `delete_service.py`, read services, dispatch, or the audit schema 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the audit-record change in write_service.py | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: schema doc is a separate row |
+| 1 | Implement the audit-record change in write_service.py | Completed | 20261017-173154 | 20261017-173154 | audit record emitted per mutating call; regression suite green (395 passed) |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-173154 | 20261017-173154 | audit record emitted per mutating call; regression suite green (395 passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-173154 | 20261017-173154 | audit record emitted per mutating call; regression suite green (395 passed) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-173154 | 20261017-173154 | N/A: schema doc is a separate row audit record emitted per mutating call; regression suite green (395 passed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

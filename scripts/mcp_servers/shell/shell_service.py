@@ -177,17 +177,25 @@ class ShellService:
         exit_code: int,
         elapsed: float,
         truncated: bool,
+        op: str = "run_command",
     ) -> None:
         """Append a single audit record to the shell audit log.
 
-        Writing errors are logged but never propagated — audit failure must not
-        block the caller from receiving the command result.
+        Format: {ts} cmd=... argv=... cwd=... uid=... exit=...
+                elapsed=... truncated=... op=<operation>
+        The leading fields capture pre-execution context (command identity,
+        working directory, uid) and the trailing fields capture the
+        post-execution result (exit code, elapsed, truncation); op is the
+        approval-correlation identity. Writing errors are logged but never
+        propagated — audit failure must not block the caller from receiving
+        the command result.
         """
         ts = now_iso_raw()
         record = (
             f"{ts} cmd={command!r} argv={argv!r} cwd={cwd!r}"
             f" uid={os.getuid()} exit={exit_code}"
-            f" elapsed={elapsed:.2f}s truncated={truncated}\n"
+            f" elapsed={elapsed:.2f}s truncated={truncated}"
+            f" op={op}\n"
         )
         try:
             with open(self._audit_log_path, "a", encoding="utf-8") as fh:
@@ -293,6 +301,7 @@ class ShellService:
             self._resolve_exit_code(proc),
             elapsed,
             truncated,
+            op="run_command",
         )
 
         return self._build_run_response(

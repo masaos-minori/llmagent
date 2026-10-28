@@ -316,6 +316,7 @@ class TestDeleteDirectory:
                     )()
                 )
         assert dpath.exists()
+
     def test_delete_directory_dry_run_scan_error(self, service: tuple):
         svc, tmp_path = service
         dpath = tmp_path / "dry_scan_error_dir"
@@ -556,6 +557,9 @@ class TestPostDeleteVerification:
                     type("Request", (), {"path": str(fpath), "dry_run": False})()
                 )
         assert fpath.exists()
+        assert not audit_path.exists()
+
+
 # ── Audit before/after + correlation (REQ-003, REQ-004) ───────────────────────
 
 

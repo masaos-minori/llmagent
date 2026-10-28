@@ -76,10 +76,10 @@ Audit-content and regression tests exist and pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the test changes in test_shell_mcp_service.py | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the test changes in test_shell_mcp_service.py | Completed | 20261017-183816 | 20261017-183816 | added TestRunCommandAuditLog(successful run_command emits cmd/argv/cwd/uid pre-context + exit/elapsed/truncated post-result + op=run_command correlation; no stdout/stderr leak) + TestWriteAuditLog.test_write_audit_log_honors_custom_op(op param(row3) propagated) + TestRunCommandRegression(legitimate success + audit written); ruff format/check+mypy clean; 3 new tests pass; full shell suite 109 pass |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-183816 | 20261017-183816 | added TestRunCommandAuditLog(successful run_command emits cmd/argv/cwd/uid pre-context + exit/elapsed/truncated post-result + op=run_command correlation; no stdout/stderr leak) + TestWriteAuditLog.test_write_audit_log_honors_custom_op(op param(row3) propagated) + TestRunCommandRegression(legitimate success + audit written); ruff format/check+mypy clean; 3 new tests pass; full shell suite 109 pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-183816 | 20261017-183816 | added TestRunCommandAuditLog(successful run_command emits cmd/argv/cwd/uid pre-context + exit/elapsed/truncated post-result + op=run_command correlation; no stdout/stderr leak) + TestWriteAuditLog.test_write_audit_log_honors_custom_op(op param(row3) propagated) + TestRunCommandRegression(legitimate success + audit written); ruff format/check+mypy clean; 3 new tests pass; full shell suite 109 pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-183816 | 20261017-183816 | N/A added TestRunCommandAuditLog(successful run_command emits cmd/argv/cwd/uid pre-context + exit/elapsed/truncated post-result + op=run_command correlation; no stdout/stderr leak) + TestWriteAuditLog.test_write_audit_log_honors_custom_op(op param(row3) propagated) + TestRunCommandRegression(legitimate success + audit written); ruff format/check+mypy clean; 3 new tests pass; full shell suite 109 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

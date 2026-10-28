@@ -94,10 +94,10 @@ Other servers' guards, the audit schema doc.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend github audit log; assess guards | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: tool doc is a separate row |
+| 1 | Extend github audit log; assess guards | Completed | 20261017-181602 | 20261017-181602 | extended _write_github_audit_log with REQ-004 before/after target identity + approved=true correlation (derived from available kwargs; legacy op=/repo=/branch=/commit= substrings preserved); assessed 4 guards (_clamp_per_page/_assert_allowed_repo fail-closed/_assert_allowed_path denylist glob/_assert_allowed_branch) plus _assert_max_file_size - all present, no gap; 302 github tests pass; functional-verified record format |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-181602 | 20261017-181602 | extended _write_github_audit_log with REQ-004 before/after target identity + approved=true correlation (derived from available kwargs; legacy op=/repo=/branch=/commit= substrings preserved); assessed 4 guards (_clamp_per_page/_assert_allowed_repo fail-closed/_assert_allowed_path denylist glob/_assert_allowed_branch) plus _assert_max_file_size - all present, no gap; 302 github tests pass; functional-verified record format |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-181602 | 20261017-181602 | extended _write_github_audit_log with REQ-004 before/after target identity + approved=true correlation (derived from available kwargs; legacy op=/repo=/branch=/commit= substrings preserved); assessed 4 guards (_clamp_per_page/_assert_allowed_repo fail-closed/_assert_allowed_path denylist glob/_assert_allowed_branch) plus _assert_max_file_size - all present, no gap; 302 github tests pass; functional-verified record format |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-181602 | 20261017-181602 | N/A: tool doc is a separate row extended _write_github_audit_log with REQ-004 before/after target identity + approved=true correlation (derived from available kwargs; legacy op=/repo=/branch=/commit= substrings preserved); assessed 4 guards (_clamp_per_page/_assert_allowed_repo fail-closed/_assert_allowed_path denylist glob/_assert_allowed_branch) plus _assert_max_file_size - all present, no gap; 302 github tests pass; functional-verified record format |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

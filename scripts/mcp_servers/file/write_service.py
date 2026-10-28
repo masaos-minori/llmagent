@@ -339,6 +339,7 @@ class WriteFileService(FileSecurityMixin):
             raise FileValidationError(str(e))
 
         self._verify_moved(src, dest)
+
         after_state = self._fs_state(dest)
         self._write_audit_log("move_file", before_state, after_state)
         return MoveFileResponse(source=str(src), destination=str(dest), dry_run_info="")

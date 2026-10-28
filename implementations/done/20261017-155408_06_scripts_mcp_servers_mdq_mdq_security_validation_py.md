@@ -87,10 +87,10 @@ Other servers' validation, the audit schema doc.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm/extend mdq guards + postcondition | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: tool doc is a separate row |
+| 1 | Confirm/extend mdq guards + postcondition | Completed | 20261017-181829 | 20261017-181829 | verify-and-document row; authorize_path guard confirmed present/fail-closed(empty allowlist denies)/resolves symlinks via .resolve()/enforced at all entry points(indexer index_paths+refresh_paths, mdq_service x5, search.py); comprehensively tested incl symlink-escape denial and both resolve-failure branches; REQ-003 postcondition N/A for mdq model(separate doc row); NO code change; 387 mdq tests pass |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-181829 | 20261017-181829 | verify-and-document row; authorize_path guard confirmed present/fail-closed(empty allowlist denies)/resolves symlinks via .resolve()/enforced at all entry points(indexer index_paths+refresh_paths, mdq_service x5, search.py); comprehensively tested incl symlink-escape denial and both resolve-failure branches; REQ-003 postcondition N/A for mdq model(separate doc row); NO code change; 387 mdq tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-181829 | 20261017-181829 | verify-and-document row; authorize_path guard confirmed present/fail-closed(empty allowlist denies)/resolves symlinks via .resolve()/enforced at all entry points(indexer index_paths+refresh_paths, mdq_service x5, search.py); comprehensively tested incl symlink-escape denial and both resolve-failure branches; REQ-003 postcondition N/A for mdq model(separate doc row); NO code change; 387 mdq tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-181829 | 20261017-181829 | N/A: tool doc is a separate row verify-and-document row; authorize_path guard confirmed present/fail-closed(empty allowlist denies)/resolves symlinks via .resolve()/enforced at all entry points(indexer index_paths+refresh_paths, mdq_service x5, search.py); comprehensively tested incl symlink-escape denial and both resolve-failure branches; REQ-003 postcondition N/A for mdq model(separate doc row); NO code change; 387 mdq tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

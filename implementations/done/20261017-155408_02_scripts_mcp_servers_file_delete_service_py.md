@@ -96,10 +96,10 @@ applicable.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the audit record in delete_service.py | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: tool doc is a separate row |
+| 1 | Extend the audit record in delete_service.py | Completed | 20261017-174136 | 20261017-174136 | extended _write_audit_log with optional before/after; backward-compatible with legacy 2-arg callers; 395 file tests pass |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-174136 | 20261017-174136 | extended _write_audit_log with optional before/after; backward-compatible with legacy 2-arg callers; 395 file tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-174136 | 20261017-174136 | extended _write_audit_log with optional before/after; backward-compatible with legacy 2-arg callers; 395 file tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-174136 | 20261017-174136 | N/A: tool doc is a separate row extended _write_audit_log with optional before/after; backward-compatible with legacy 2-arg callers; 395 file tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

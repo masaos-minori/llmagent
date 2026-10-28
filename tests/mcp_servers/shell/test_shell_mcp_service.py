@@ -307,6 +307,80 @@ class TestWriteAuditLog:
         # Must not raise
         svc._write_audit_log("ls", ["ls"], None, 0, 0.1, False)
 
+    def test_write_audit_log_honors_custom_op(self, tmp_path: Path) -> None:
+        """The op approval-correlation identity (row 3) is written verbatim."""
+        svc = _make_service(tmp_path)
+        svc._write_audit_log("ls", ["ls"], None, 0, 0.1, False, op="custom_op")
+        content = (tmp_path / "audit.log").read_text(encoding="utf-8")
+        assert "op=custom_op" in content
+
+
+# ── run_command audit record (REQ-004) ────────────────────────────────────────
+
+
+class TestRunCommandAuditLog:
+    """A successful run_command emits an audit record capturing the pre-execution
+    context (cmd/argv/cwd/uid), the post-execution result (exit/elapsed/truncated),
+    and the op approval-correlation identity. Command stdout/stderr is never recorded."""
+
+    @pytest.mark.asyncio
+    async def test_run_command_emits_audit_record_with_context_result_and_op(
+        self, tmp_path: Path
+    ) -> None:
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        svc = _make_service(tmp_path)
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.pid = 4242
+        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
+
+        req = ShellRunRequest(command="echo hi", argv=["echo", "hi"])
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            result = await svc.run_command(req)
+
+        assert result.exit_code == 0
+        content = (tmp_path / "audit.log").read_text(encoding="utf-8")
+        # Pre-execution context (before)
+        assert "cmd='echo hi'" in content
+        assert "argv=['echo', 'hi']" in content
+        assert "cwd=" in content
+        assert "uid=" in content
+        # Post-execution result (after)
+        assert "exit=0" in content
+        assert "elapsed=" in content
+        assert "truncated=" in content
+        # Approval-correlation identity
+        assert "op=run_command" in content
+        # Never records command stdout/stderr contents
+        assert "hello" not in content
+
+
+class TestRunCommandRegression:
+    """Legitimate shell calls still succeed with unchanged response semantics while
+    emitting their audit record (the audit extension must not alter behavior)."""
+
+    @pytest.mark.asyncio
+    async def test_legitimate_run_command_succeeds_with_audit_written(
+        self, tmp_path: Path
+    ) -> None:
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        svc = _make_service(tmp_path)
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.pid = 4243
+        mock_proc.communicate = AsyncMock(return_value=(b"ok\n", b""))
+
+        req = ShellRunRequest(command="echo hi", argv=["echo", "hi"])
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            result = await svc.run_command(req)
+
+        assert result.exit_code == 0
+        assert result.stdout == "ok\n"
+        assert result.truncated is False
+        assert (tmp_path / "audit.log").exists()
+
 
 # ── output truncation ─────────────────────────────────────────────────────────
 

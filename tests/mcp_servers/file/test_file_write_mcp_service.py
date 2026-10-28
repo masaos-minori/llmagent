@@ -791,6 +791,8 @@ class TestPostMoveVerification:
             service.move_file(MoveFileRequest(source=str(src), destination=str(dest)))
         assert src.exists()
         assert dest.exists()
+
+
 # ── audit log (REQ-004: before/after target state + approval correlation) ─────
 
 

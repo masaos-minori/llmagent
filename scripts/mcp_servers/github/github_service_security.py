@@ -118,7 +118,21 @@ class GitHubSecurityGuards:
             return
         ts = now_iso_raw()
         fields = " ".join(f"{k}={v!r}" for k, v in kwargs.items())
-        record = f"{ts} op={op} {fields}\n"
+        # REQ-004 before/after + approval correlation. GitHub operations are API
+        # calls, so the target identity (repo plus any operation-specific
+        # identifier) is known both before and after the operation; emit it once
+        # as before/after and flag the record as an approved operation (it
+        # reached the audit step only after passing every guard). Identifiers
+        # only — never log sensitive payloads (issue/pr/body contents).
+        ident_parts: list[str] = []
+        if kwargs.get("repo"):
+            ident_parts.append(str(kwargs["repo"]))
+        for key in ("path", "branch"):
+            val = kwargs.get(key)
+            if val:
+                ident_parts.append(f"{key}:{val}")
+        target = "|".join(ident_parts) if ident_parts else "-"
+        record = f"{ts} op={op} {fields} before={target} after={target} approved=true\n"
         try:
             with open(self._cfg.audit_log_path, "a", encoding="utf-8") as fh:
                 fh.write(record)
