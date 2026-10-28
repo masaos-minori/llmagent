@@ -736,3 +736,70 @@ class TestPostMoveVerification:
             service.move_file(MoveFileRequest(source=str(src), destination=str(dest)))
         assert src.exists()
         assert dest.exists()
+# ── audit log (REQ-004: before/after target state + approval correlation) ─────
+
+
+class TestWriteFileAuditLog:
+    """A successful mutating write emits a dedicated audit record carrying the
+    before/after target state and an approval-correlation user field. The record
+    carries path+existence+size only — never file contents."""
+
+    def _svc(self, tmp_path: Path) -> WriteFileService:
+        return WriteFileService(
+            allowed_dirs=[tmp_path],
+            max_write_bytes=1024 * 1024,
+            audit_log_path=str(tmp_path / "write_audit.log"),
+        )
+
+    def test_successful_write_emits_audit_record_with_before_after_and_user(
+        self, tmp_path: Path
+    ) -> None:
+        svc = self._svc(tmp_path)
+        target = tmp_path / "audited.txt"
+        req = WriteFileRequest(path=str(target), content="hello", dry_run=False)
+        result = svc.write_file(req)
+        assert result.applied is True
+        record = (tmp_path / "write_audit.log").read_text(encoding="utf-8")
+        assert "op=write_file" in record
+        assert "before=" in record
+        assert "after=" in record
+        assert "user=llm-agent" in record
+        # New file: before-state absent, after-state exists with the byte size.
+        assert "absent" in record
+        assert "exists" in record
+        assert "size=5" in record
+
+    def test_edit_emits_audit_record(self, tmp_path: Path) -> None:
+        svc = self._svc(tmp_path)
+        target = tmp_path / "edited.txt"
+        target.write_text("foo bar", encoding="utf-8")
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="foo", new_text="baz")],
+        )
+        result = svc.edit_file(req)
+        assert result.applied is True
+        record = (tmp_path / "write_audit.log").read_text(encoding="utf-8")
+        assert "op=edit_file" in record
+        assert "before=" in record
+        assert "after=" in record
+        assert "user=llm-agent" in record
+
+
+class TestRejectedWriteNoSuccessAudit:
+    """A write rejected by the path allowlist must raise the expected error and
+    must not emit a success audit record (the guard fires before auditing)."""
+
+    def test_write_outside_allowed_dir_rejected_without_audit(
+        self, tmp_path: Path
+    ) -> None:
+        audit_path = tmp_path / "write_audit.log"
+        svc = WriteFileService(
+            allowed_dirs=[tmp_path],
+            max_write_bytes=1024 * 1024,
+            audit_log_path=str(audit_path),
+        )
+        req = WriteFileRequest(path="/etc/passwd", content="x", dry_run=False)
+        with pytest.raises(FileAuthorizationError):
+            svc.write_file(req)
+        assert not audit_path.exists()

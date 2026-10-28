@@ -16,6 +16,8 @@ import shutil
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
+from shared.json_utils import now_iso_raw
+
 from mcp_servers.file.common import (
     FileAuthorizationError,
     FileSecurityMixin,
@@ -39,6 +41,9 @@ from mcp_servers.server import ToolArgs
 # Standard library logger; log path is owned by mcp/file/write_server.py
 logger = logging.getLogger(__name__)
 
+# Audit log destination. Not configuration: a deployment path, not a Secret.
+AUDIT_LOG_PATH = "/opt/llm/logs/write_audit.log"
+
 
 class WriteFileService(FileSecurityMixin):
     """Encapsulates write/create/move filesystem operations with security boundaries."""
@@ -47,10 +52,12 @@ class WriteFileService(FileSecurityMixin):
         self,
         allowed_dirs: list[Path],
         max_write_bytes: int,
+        audit_log_path: str = AUDIT_LOG_PATH,
     ) -> None:
-        """Initialize with allowed directories and maximum write byte limit."""
+        """Initialize with allowed directories, maximum write byte limit, and audit log path."""
         self._allowed_dirs = allowed_dirs
         self._max_write_bytes = max_write_bytes
+        self._audit_log_path = audit_log_path
 
     # ── Static helpers ──
 
@@ -109,6 +116,38 @@ class WriteFileService(FileSecurityMixin):
             applied = True
         return diff, applied
 
+    # ── Audit log ──
+
+    @staticmethod
+    def _fs_state(target: Path) -> str:
+        """Return a lightweight identifier for a target: its path plus existence+size.
+
+        Never raises: returns 'path=<p>,absent' on any stat failure so audit logging
+        stays non-fatal even when the target cannot be stat-ed.
+        """
+        try:
+            st = target.stat()
+        except OSError:
+            return f"path={target},absent"
+        return f"path={target},exists,size={st.st_size}"
+
+    def _write_audit_log(self, op: str, before_state: str, after_state: str) -> None:
+        """Append a single audit record to the audit log file.
+
+        Format: {ISO8601} op=<op> before=<before-state> after=<after-state> user=llm-agent
+        Writing errors are logged but never propagated — audit failure must not
+        block the actual write operation from returning a result to the caller.
+        """
+        ts = now_iso_raw()
+        record = (
+            f"{ts} op={op} before={before_state} after={after_state} user=llm-agent\n"
+        )
+        try:
+            with open(self._audit_log_path, "a", encoding="utf-8") as fh:
+                fh.write(record)
+        except OSError as e:
+            logger.error("_write_audit_log: failed to write audit log: %s", e)
+
     # ── Business operation methods ──
 
     def write_file(self, req: WriteFileRequest) -> WriteFileResponse:
@@ -122,8 +161,11 @@ class WriteFileService(FileSecurityMixin):
             )
         if req.dry_run:
             return self._write_file_dry_run(target, req.content, size)
+        before_state = self._fs_state(target)
         self._atomic_write(target, req.content)
         self._verify_written_size(target, size)
+        after_state = self._fs_state(target)
+        self._write_audit_log("write_file", before_state, after_state)
         return WriteFileResponse(path=str(target), size=size, applied=True, diff="")
 
     @staticmethod
@@ -208,6 +250,7 @@ class WriteFileService(FileSecurityMixin):
         """Apply string replacements to a file; dry_run returns only the diff."""
         target = self._resolve_safe(req.path)
         self._require_file(target, req.path)
+        before_state = self._fs_state(target)
         try:
             original = target.read_text(encoding="utf-8")
         except UnicodeDecodeError:
@@ -230,6 +273,8 @@ class WriteFileService(FileSecurityMixin):
         )
         if applied:
             self._verify_written_size(target, modified_bytes)
+            after_state = self._fs_state(target)
+            self._write_audit_log("edit_file", before_state, after_state)
         return EditFileResponse(path=str(target), diff=diff, applied=applied)
 
     def create_directory(self, req: CreateDirectoryRequest) -> CreateDirectoryResponse:
@@ -244,6 +289,7 @@ class WriteFileService(FileSecurityMixin):
 
         # Capture existence before mkdir to determine the 'created' flag
         already_exists = target.exists()
+        before_state = self._fs_state(target)
         try:
             target.mkdir(parents=True, exist_ok=True)
         except PermissionError as e:
@@ -253,6 +299,9 @@ class WriteFileService(FileSecurityMixin):
             raise FileValidationError(str(e))
 
         created = not already_exists
+        if created:
+            after_state = self._fs_state(target)
+            self._write_audit_log("create_directory", before_state, after_state)
         return CreateDirectoryResponse(path=str(target), created=created)
 
     def move_file(self, req: MoveFileRequest) -> MoveFileResponse:
@@ -279,6 +328,7 @@ class WriteFileService(FileSecurityMixin):
                 f"Source does not exist: {req.source}",
             )
 
+        before_state = self._fs_state(src)
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(dest))
@@ -289,7 +339,8 @@ class WriteFileService(FileSecurityMixin):
             raise FileValidationError(str(e))
 
         self._verify_moved(src, dest)
-
+        after_state = self._fs_state(dest)
+        self._write_audit_log("move_file", before_state, after_state)
         return MoveFileResponse(source=str(src), destination=str(dest), dry_run_info="")
 
     # ── Dispatch handlers: format service results as plain text for the LLM ──
@@ -369,4 +420,5 @@ def build_service(cfg: FileWriteConfig) -> WriteFileService:
     return WriteFileService(
         allowed_dirs=allowed_dirs,
         max_write_bytes=cfg.max_write_bytes,
+        audit_log_path=AUDIT_LOG_PATH,
     )

@@ -519,4 +519,82 @@ class TestPostDeleteVerification:
                     type("Request", (), {"path": str(fpath), "dry_run": False})()
                 )
         assert fpath.exists()
+# ── Audit before/after + correlation (REQ-003, REQ-004) ───────────────────────
+
+
+class TestDeleteAuditLog:
+    """A successful delete emits an audit record carrying the before/after target
+    state and an approval-correlation user field. The record carries
+    existence+size only — never file contents."""
+
+    def test_delete_file_emits_audit_record_with_before_after_and_user(
+        self, service: tuple
+    ) -> None:
+        svc, tmp_path = service
+        fpath = tmp_path / "del.txt"
+        fpath.write_text("hello")
+        result = svc.delete_file(
+            type("R", (), {"path": str(fpath), "dry_run": False})()
+        )
+        assert result.deleted is True
+        assert not fpath.exists()
+        record = (tmp_path / "audit.log").read_text(encoding="utf-8")
+        assert "op=delete_file" in record
+        assert "before=" in record
+        assert "after=absent" in record
+        assert "user=llm-agent" in record
+        # Before-state reflects the pre-delete existence+size; contents are absent.
+        assert "exists,size=5" in record
+
+    def test_delete_directory_emits_audit_record_with_before_after_and_user(
+        self, service: tuple
+    ) -> None:
+        svc, tmp_path = service
+        dpath = tmp_path / "deldir"
+        dpath.mkdir()
+        (dpath / "a.txt").write_text("content")
+        result = svc.delete_directory(
+            type("R", (), {"path": str(dpath), "recursive": True, "dry_run": False})()
+        )
+        assert result.deleted is True
+        assert not dpath.exists()
+        record = (tmp_path / "audit.log").read_text(encoding="utf-8")
+        assert "op=delete_directory" in record
+        assert "before=" in record
+        assert "after=absent" in record
+        assert "user=llm-agent" in record
+        assert "exists,size=" in record
+
+
+class TestDeleteRegression:
+    """Legitimate deletes still succeed with unchanged response semantics while
+    emitting their audit record (the audit extension must not alter behavior)."""
+
+    def test_legitimate_delete_succeeds_with_audit_written(
+        self, service: tuple
+    ) -> None:
+        svc, tmp_path = service
+        fpath = tmp_path / "reg.txt"
+        fpath.write_text("data")
+        result = svc.delete_file(
+            type("R", (), {"path": str(fpath), "dry_run": False})()
+        )
+        assert result.deleted is True
+        assert result.path == str(fpath)
+        assert result.file_info == ""
+        assert not fpath.exists()
+        assert (tmp_path / "audit.log").exists()
+
+
+class TestDeleteRejectedNoAudit:
+    """A delete rejected by the path allowlist must raise the expected error and
+    must not emit an audit record (the guard fires before auditing)."""
+
+    def test_delete_outside_allowed_dir_rejected_without_audit(
+        self, service: tuple
+    ) -> None:
+        svc, tmp_path = service
+        audit_path = tmp_path / "audit.log"
+        with pytest.raises(FileAuthorizationError):
+            svc.delete_file(type("R", (), {"path": "/etc/passwd", "dry_run": False})())
         assert not audit_path.exists()

@@ -73,15 +73,43 @@ class DeleteFileService(FileSecurityMixin):
 
     # ── Audit log ──
 
-    def _write_audit_log(self, op: str, path: str) -> None:
+    @staticmethod
+    def _fs_state(target: Path) -> str:
+        """Return a lightweight existence+size identifier for a target.
+
+        Never raises: returns 'absent' on any stat failure so audit logging stays
+        non-fatal even when the target cannot be stat-ed.
+        """
+        try:
+            st = target.stat()
+        except OSError:
+            return "absent"
+        return f"exists,size={st.st_size}"
+
+    def _write_audit_log(
+        self,
+        op: str,
+        path: str,
+        before_state: str | None = None,
+        after_state: str | None = None,
+    ) -> None:
         """Append a single audit record to the audit log file.
 
-        Format: {ISO8601} op={op} path={path} user=llm-agent
-        Writing errors are logged but never propagated — audit failure must not
-        block the actual delete operation from returning a result to the caller.
+        Format: {ISO8601} op={op} path={path} [before=<before-state>]
+                [after=<after-state>] user=llm-agent
+        before/after are appended only when provided, so legacy two-argument
+        callers keep emitting the original line shape. Writing errors are logged
+        but never propagated — audit failure must not block the actual delete
+        operation from returning a result to the caller.
         """
         ts = now_iso_raw()
-        record = f"{ts} op={op} path={path} user=llm-agent\n"
+        parts = [f"{ts} op={op} path={path}"]
+        if before_state is not None:
+            parts.append(f"before={before_state}")
+        if after_state is not None:
+            parts.append(f"after={after_state}")
+        parts.append("user=llm-agent")
+        record = " ".join(parts) + "\n"
         try:
             with open(self._audit_log_path, "a", encoding="utf-8") as fh:
                 fh.write(record)
@@ -110,6 +138,7 @@ class DeleteFileService(FileSecurityMixin):
                 deleted=False,
                 file_info=self._stat_info_for_dry_run(target),
             )
+        before_state = self._fs_state(target)
         try:
             target.unlink()
         except PermissionError as e:
@@ -121,7 +150,7 @@ class DeleteFileService(FileSecurityMixin):
         self._verify_deleted(target)
 
         # Audit log written after successful deletion
-        self._write_audit_log("delete_file", str(target))
+        self._write_audit_log("delete_file", str(target), before_state, "absent")
         return DeleteFileResponse(path=str(target), deleted=True, file_info="")
 
     def _scan_directory_for_dry_run(self, target: Path) -> tuple[int, int, bool]:
@@ -192,6 +221,7 @@ class DeleteFileService(FileSecurityMixin):
 
         self._check_not_deleting_allowed_root(target)
 
+        before_state = self._fs_state(target)
         try:
             if req.recursive:
                 shutil.rmtree(str(target))
@@ -207,7 +237,7 @@ class DeleteFileService(FileSecurityMixin):
         self._verify_deleted(target)
 
         # Audit log written after successful deletion
-        self._write_audit_log("delete_directory", str(target))
+        self._write_audit_log("delete_directory", str(target), before_state, "absent")
         return DeleteDirectoryResponse(path=str(target), deleted=True, dir_info="")
 
     # ── Dispatch handlers: format service results as plain text for the LLM ──
