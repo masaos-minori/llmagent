@@ -125,15 +125,15 @@ and must not be touched here.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Phase-1 rg gate is step 1 of Procedure |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no test changes required |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | See 20261028-005859_02/_03 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-110204 | 20261028-111441 | Phase-1 rg gate passed (definition-only hit); 3 deletions applied |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261028-111441 | N/A: no test changes required; zero test-file diffs confirmed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-110204 | 20261028-111441 | tests/shared 1069 passed; full suite 10286 passed / 10 skipped; ruff/mypy/bandit/lint-imports clean; rg gate zero hits |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-110204 | 20261028-111441 | See 20261028-005859_02/_03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | `uv run ruff format --check scripts/` flags `scripts/agent/services/config_reload.py` — pre-existing drift in committed code (present since before this batch, verified against `0f382a11b` blob), unrelated to this procedure's single-file diff; left untouched per AGENTS.md Global Rule 5 | Yes (out-of-scope, not fixed) | 20261028-110204 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
