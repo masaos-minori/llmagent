@@ -178,15 +178,15 @@ already-present `httpx`; keep insertion points compatible with the mcpinv003-app
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After mcpinv003 transport edits |
-| 2 | Add or update tests per Validation plan | Pending | — | — | See 20261028-004925_02 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | See 20261028-004925_03 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-103200 | 20261028-110204 | Both gates present; REQ-006 comment rewritten; `_PRESEND_SAFE_ERRORS` realized as a tuple (deviation: `isinstance()` arg-2 must be a class tuple, not a frozenset — documented in code comment) |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-103200 | 20261028-110204 | See 20261028-004925_02 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-103400 | 20261028-110204 | ruff/mypy/bandit/lint-imports green; targeted suites green; full suite rerun after legacy-test fix |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-103200 | 20261028-110204 | See 20261028-004925_03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Procedure prescribed `_PRESEND_SAFE_ERRORS` as `frozenset`; `isinstance(exc, frozenset)` raises TypeError | Yes — implemented as `tuple[type[BaseException], ...]` with in-code comment; gate semantics identical | 20261028-103400 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
