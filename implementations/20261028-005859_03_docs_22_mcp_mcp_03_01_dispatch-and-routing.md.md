@@ -103,15 +103,15 @@ One clause edit inside one paragraph.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After 20261028-005859_01; rebase on 20261028-004925_03 if it landed |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation file (plan row) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | 22_mcp docs consistency check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document is the docs row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-110204 | 20261028-111441 | Rebased on 20261028-004925_03 (its "Idempotency and retry" bullet landed first; untouched here) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261028-111441 | N/A: documentation file (plan row) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-110204 | 20261028-111441 | 22_mcp docs consistency check passed; see Blocker Log for the grep-gate nuance |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261028-111441 | This document is the docs row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | The prescribed AC-4 grep (`tool_executor.py.*startup-mode`) still matches the corrected paragraph because the sentence legitimately names `shared/tool_executor.py` as the attribute's home on the same line; the check itself is attributed to `ToolTransportInvoker._run_precall_gates()` per the Procedure's mandated wording, so the Completion criterion ("no text presents `tool_executor.py` as a startup-mode-check location") is satisfied — the raw regex is a false positive on the mandated text | Yes | 20261028-110204 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
