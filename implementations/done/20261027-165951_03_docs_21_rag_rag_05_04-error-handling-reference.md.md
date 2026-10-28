@@ -58,10 +58,10 @@ Single Markdown table row in the existing style; no reflow of neighboring rows.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-072300 | 20261028-072330 | Row appended to RagIngester table |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-072330 | 20261028-072330 | N/A: docs-only change, no tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-072330 | 20261028-072404 | 21_rag (rag domain) docs consistency check: No issues found |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-072404 | 20261028-072404 | The doc row is the deliverable |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

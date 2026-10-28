@@ -9,6 +9,7 @@ Pipeline position: Crawler.py -> ChunkSplitter.py -> RagIngester.py
 """
 
 import argparse
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -374,7 +375,7 @@ class RagIngester:
                 results.append(
                     self.ingest_url_group(doc_mgr, db, doc_store, url, paths, force)
                 )
-            except (OSError, RuntimeError, ValueError):
+            except (OSError, RuntimeError, ValueError, sqlite3.Error):
                 logger.exception("ingest_url_group failed: %s", url)
                 results.append(IngestUrlResult.unexpected_failure(url))
         return results

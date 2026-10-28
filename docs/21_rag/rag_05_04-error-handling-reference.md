@@ -87,6 +87,7 @@ The RAG-layer error classes, including `RagRerankError` and `RagPipelineError`, 
 | Retry limit reached (single chunk) | `WARNING`; skip chunk; continue |
 | Invalid `lang` value | `ValueError`; skip URL group; `ERROR` (with traceback) |
 | Invalid `fetched_at` (incoming or stored) | `ETagManager._is_stale_update()` raises `InvalidIncomingTimestampError` (invalid incoming `fetched_at`) or `InvalidStoredTimestampError` (invalid stored `fetched_at`) — both subclass `ValueError`; the message text (`Invalid incoming timestamp: {value}` vs `Invalid stored timestamp: {value}`) distinguishes the two at the call site. Uncaught at the call site (`RagIngester.ingest_url_group()`), it propagates to the same catch-all as "Invalid `lang` value" above: skip URL group; `ERROR` (with traceback). See [rag_02_06_ingestion_pipeline-supporting-components.md section 4.9.1](rag_02_06_ingestion_pipeline-supporting-components.md#491-freshness-comparison-edge-cases-and-error-handling). |
+| `sqlite3.Error` during URL group processing (caught by `_process_url_groups()`) | Skip URL group; `ERROR` (with traceback); continue with remaining groups; `check_consistency` still runs after the batch |
 
 ## RagPipeline
 

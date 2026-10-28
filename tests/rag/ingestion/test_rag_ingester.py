@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -7,6 +8,8 @@ from unittest.mock import MagicMock, patch
 import orjson
 import pytest
 from db.helper import SQLiteHelper
+from rag.exceptions import IngestionFailureReason
+from rag.ingestion import ingester as ingester_module
 from rag.ingestion.chunk_preparation import ChunkFactory
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.document_persistence import DocumentStore
@@ -74,6 +77,17 @@ def _make_ingester(
         "rag_pipeline_service_url": "",
     }
     return RagIngester(config=cfg)
+
+
+class _ListHandler(logging.Handler):
+    """Capture LogRecords on a logger that propagates=False, without caplog."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
 
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
@@ -360,3 +374,51 @@ class TestAtomicity:
                 assert result.n_success == 1
                 assert mock_db.begin_immediate.called
                 assert mock_batch.called
+
+
+class TestBatchContinuation:
+    def test_sqlite_error_first_group_continues(self, tmp_path, mock_db, mock_doc_mgr):
+        """A sqlite3 error in the first URL group must not abort the batch (AC-2, REQ-002)."""
+        ingester = _make_ingester(tmp_path)
+        doc_store = DocumentStore(mock_db, mock_doc_mgr)
+
+        # First group raises sqlite3.OperationalError; later groups succeed.
+        state = {"calls": 0}
+
+        def fake_ingest_url_group(doc_mgr, db, doc_store, url, chunk_files, force):
+            state["calls"] += 1
+            if state["calls"] == 1:
+                raise sqlite3.OperationalError("database is locked")
+            return IngestUrlResult(url=url, n_success=1, n_failed=0, skipped=False)
+
+        # Instance attribute shadows the class method; _process_url_groups calls
+        # self.ingest_url_group(...) unbound, so no implicit self is passed.
+        ingester.ingest_url_group = fake_ingest_url_group
+
+        url_groups = {"http://a.com": [], "http://b.com": []}
+
+        captured = _ListHandler()
+        ingester_module.logger.addHandler(captured)
+        try:
+            results = ingester._process_url_groups(
+                mock_doc_mgr, mock_db, doc_store, url_groups, force=False
+            )
+        finally:
+            ingester_module.logger.removeHandler(captured)
+
+        assert len(results) == 2
+        assert results[0].url == "http://a.com"
+        assert results[0].failure_reason == IngestionFailureReason.UNEXPECTED_FAILURE
+        assert results[0].n_success == 0
+        assert results[1].url == "http://b.com"
+        assert results[1].n_success == 1
+
+        error_records = [r for r in captured.records if r.levelno == logging.ERROR]
+        assert error_records
+        assert error_records[0].exc_info
+
+
+def test_sqlite_error_hierarchy_boundary():
+    """Guard the error-hierarchy claim inside the widened except tuple (Plan Tests)."""
+    assert issubclass(sqlite3.OperationalError, sqlite3.Error)
+    assert not issubclass(sqlite3.Error, (OSError, RuntimeError, ValueError))

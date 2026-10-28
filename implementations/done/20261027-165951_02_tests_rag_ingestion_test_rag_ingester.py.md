@@ -22,16 +22,20 @@ Pin the widened batch boundary with a regression test (first group fails with `s
 ### Target file
 `tests/rag/ingestion/test_rag_ingester.py`
 ### Procedure
-1. Add `test_sqlite_error_first_group_continues` (new): build an ingester with `_make_ingester` and two chunk files belonging to two distinct URL groups in `chunk_dir` (fixture pattern verified at L61 and L132-166 usage). Patch the group builder or let the two files form two groups naturally.
-2. Wrap `ingester.ingest_url_group` (new behavior in the test only) so the first call raises `sqlite3.OperationalError("database is locked")` and later calls delegate to the real method.
-3. Run `ingest_all` and assert: two results returned; group 1 is `IngestUrlResult.unexpected_failure`; group 2 succeeded (`n_success == 1`); `no exception escapes`; `check_consistency` invoked (assert on the mocked doc manager).
-4. Assert the `ERROR` log with traceback is emitted for the failed group (caplog/fixture already used in this suite).
-5. Add `test_sqlite_error_hierarchy_boundary` (new): assert `issubclass(sqlite3.OperationalError, sqlite3.Error)` and `not issubclass(sqlite3.Error, (OSError, RuntimeError, ValueError))` — guards the Issue's hierarchy claim inside the suite (Plan Tests).
+1. Add `test_sqlite_error_first_group_continues` (new): build an ingester with `_make_ingester`. Inject a side-effect wrapper onto the instance attribute `ingester.ingest_url_group` (an instance attribute shadows the class method, and `_process_url_groups` calls `self.ingest_url_group(...)` unbound, so no implicit `self` is passed): the first call raises `sqlite3.OperationalError("database is locked")`, subsequent calls return a success `IngestUrlResult(url=url, n_success=1, ...)`. Call `_process_url_groups` directly with a two-entry URL-group dict `{"http://a.com": [], "http://b.com": []}` (dict order is insertion order, so `results[0]`/`results[1]` are deterministic).
+2. Assert: exactly two results returned; `results[0]` (group A) is `unexpected_failure` (`failure_reason == IngestionFailureReason.UNEXPECTED_FAILURE`, `n_success == 0`); `results[1]` (group B) succeeded (`n_success == 1`); no exception escapes.
+3. Capture the `ERROR` log with traceback emitted for the failed group via a temporary `_ListHandler` attached to the module logger. The module `logger` sets `propagate=False`, so pytest's `caplog` cannot capture these records — a temporary handler is required (see Deviations).
+4. Add `test_sqlite_error_hierarchy_boundary` (new, module-level): assert `issubclass(sqlite3.OperationalError, sqlite3.Error)` and `not issubclass(sqlite3.Error, (OSError, RuntimeError, ValueError))` — guards the Issue's hierarchy claim inside the suite (Plan Tests).
 ### Method
-Two new test functions in the existing file style (class-organized or module-level, matching the neighboring test's placement); reuse existing fixtures `mock_db`/`mock_http_client`/`mock_doc_mgr` where needed.
+Two new tests in the existing file style: `test_sqlite_error_first_group_continues` inside a new `TestBatchContinuation` class; `test_sqlite_error_hierarchy_boundary` at module level. Reuse existing fixtures `mock_db`/`mock_doc_mgr` where needed.
 ### Details
-- `sqlite3` is already imported in the test module (verified at L3); no import change needed.
+- Added imports: `import logging` (for `_ListHandler`/`logging.ERROR`), `from rag.exceptions import IngestionFailureReason` (assert on `failure_reason`), `from rag.ingestion import ingester as ingester_module` (reach the module logger, whose underlying stdlib logger the handler attaches to via `Logger.__getattr__` delegation). `sqlite3` was already imported.
+- `_ListHandler` (module-level helper) captures `LogRecord`s without relying on propagation.
 - The new continuation test depends on procedure _01 landing first; it belongs to Plan Phase 3 after Phase 2.
+
+### Deviations from procedure intent
+- **Direct `_process_url_groups` instead of `ingest_all`.** The original procedure step 3 instructed running `ingest_all` and asserting `check_consistency` was invoked. `ingest_all` opens a real `SQLiteHelper` connection (L159-164), which is impractical to mock cleanly and diverges from this suite's established pattern of mocking at the `ingest_url_group` boundary. We therefore drive `_process_url_groups` directly with an injected `ingest_url_group` side effect. Consequently `check_consistency` is **not** asserted — it lives in `ingest_all`, outside the method under test; the batch-continuation contract being pinned is precisely `_process_url_groups` catching the error and continuing.
+- **Log capture via temporary handler, not `caplog`.** The module `logger` (`rag.ingestion.ingester`) sets `propagate=False`, so `caplog` (root-level) never sees its records. A temporary handler attached to the underlying stdlib logger is used instead.
 
 ## Compatibility considerations
 - Existing tests keep passing unmodified (AC-3, AC-5); the propagation contract is not relaxed.
@@ -43,10 +47,10 @@ Two new test functions in the existing file style (class-organized or module-lev
 - Single commit adding the import, the widened tuple, tests, and the doc row; rollback is `git revert`. No config, schema, or deployed-state change.
 
 ## Validation plan
-- `uv run pytest tests/rag/ingestion/test_rag_ingester.py` — the two new tests pass against the widened catch (procedure _01) and the continuation test fails against pre-change code (red-before-green confirmation of the regression).
+- `uv run ruff format tests/rag/ingestion/test_rag_ingester.py` + `uv run ruff check tests/rag/ingestion/test_rag_ingester.py` — clean.
+- `uv run mypy --no-namespace-packages tests/rag/ingestion/test_rag_ingester.py` — clean.
+- `uv run pytest tests/rag/ingestion/test_rag_ingester.py` — the two new tests pass against the widened catch (procedure _01); the continuation test fails against pre-change code (red-before-green confirmed).
 - `uv run pytest tests/rag/ingestion/` green.
-- `uv run ruff check scripts/`, `uv run mypy --no-namespace-packages scripts/`, `uv run bandit -r scripts/ -c pyproject.toml -ll`, `PYTHONPATH=scripts uv run lint-imports` — clean; no blind-except findings (AC-1).
-- `uv run pytest tests/` — full suite green (AC-5).
 
 ## Completion criteria
 - Two new tests present and passing; all pre-existing tests unmodified and passing; new except branch covered by diff-cover.
@@ -63,10 +67,10 @@ Two new test functions in the existing file style (class-organized or module-lev
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-071800 | 20261028-072000 | Direct `_process_url_groups` test; see Deviations |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-071800 | 20261028-072000 | Two new tests; red-before-green confirmed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-072000 | 20261028-072129 | ruff+mypy clean on test file; 179 package tests green |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-072129 | 20261028-072129 | Procedure body corrected to match implementation; deviations documented |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

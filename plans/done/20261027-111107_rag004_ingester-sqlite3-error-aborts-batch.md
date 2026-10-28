@@ -225,10 +225,10 @@ Medium
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization baseline | Pending | — | — |  |
-| 2 | Phase 2: widen the catch | In Progress | — | — |  |
-| 3 | Phase 3: tests | In Progress | — | — |  |
-| 4 | Phase 4: docs, deployment check, verification | In Progress | — | — |  |
+| 1 | Phase 1: characterization baseline | Completed | — | — | Suite green; red-before-green confirmed for the regression |
+| 2 | Phase 2: widen the catch | Completed | 20261028-071115 | 20261028-071116 | Procedure _01 archived |
+| 3 | Phase 3: tests | Completed | 20261028-071800 | 20261028-072129 | Procedure _02 archived; direct `_process_url_groups` test |
+| 4 | Phase 4: docs, deployment check, verification | Completed | 20261028-072300 | 20261028-073709 | Procedure _03 archived; docs check + full suite + diff-cover green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -238,9 +238,9 @@ Medium
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261027-165951_01_scripts_rag_ingestion_ingester.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261027-165951_02_tests_rag_ingestion_test_rag_ingester.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-165951_03_docs_21_rag_rag_05_04-error-handling-reference.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261027-165951_01_scripts_rag_ingestion_ingester.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261027-165951_02_tests_rag_ingestion_test_rag_ingester.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-165951_03_docs_21_rag_rag_05_04-error-handling-reference.md.md | 4 | Procedure | Completed | — | — |
 | — | — | — | — | — | — |
 
 ## Traceability
