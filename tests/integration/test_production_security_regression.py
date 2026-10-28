@@ -25,6 +25,8 @@ import types
 import httpx
 import pytest
 
+from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
+
 # ---------------------------------------------------------------------------
 # REQ-001: Production-only policy rejects Local-mode / retired-key config
 # ---------------------------------------------------------------------------
@@ -261,13 +263,12 @@ def test_disabled_tool_excluded_from_llm_visibility() -> None:
     """`RuntimeToolRegistry.llm_tool_definitions()` excludes tools from an
     unavailable server while keeping other servers' tools -- real registry
     behavior, no mocking involved."""
-    from shared.runtime_tool import build_runtime_tool
     from shared.runtime_tool_registry import RuntimeToolRegistry
 
-    kept = build_runtime_tool(
+    kept = build_fixture_runtime_tool(
         name="kept_tool", server_key="healthy_server", enabled_for_llm=True
     )
-    excluded = build_runtime_tool(
+    excluded = build_fixture_runtime_tool(
         name="excluded_tool", server_key="unavailable_server", enabled_for_llm=True
     )
     registry = RuntimeToolRegistry(

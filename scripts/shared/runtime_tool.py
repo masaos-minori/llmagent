@@ -3,11 +3,11 @@
 
 Normalized runtime tool-metadata shape.
 
-`RuntimeTool` is the foundational data type that a future `RuntimeToolRegistry`
-(separate module) will store and operate on. This module defines the shape and
-its safe-default construction logic only; it has no consumer yet — MCP tool
-discovery, registry storage, and dispatch-side wiring are handled by later
-implementation steps.
+`RuntimeTool` is the shape stored by `RuntimeToolRegistry` and built by MCP tool
+discovery. `build_runtime_tool()` is the single construction point and enforces
+the schema-2.0 execution metadata — `is_write`, `requires_serial`,
+`resource_scope_kind` and `resource_scope_keys` are required arguments; the
+remaining annotation fields keep conservative defaults.
 
 `AgentSafetyTier`'s literal values intentionally duplicate (not import)
 `agent.tool_policy`'s tier vocabulary (`_TIER_TO_RISK` dict keys) to respect the
@@ -80,41 +80,47 @@ class RuntimeTool:
 def build_runtime_tool(
     name: str,
     server_key: str,
+    *,
+    is_write: bool,
+    requires_serial: bool,
+    resource_scope_kind: str,
+    resource_scope_keys: tuple[str, ...],
     server_url: str = "",
     description: str = "",
     input_schema: dict[str, Any] | None = None,
     raw_definition: dict[str, Any] | None = None,
     status: str = "active",
-    is_write: bool | None = None,
-    requires_serial: bool | None = None,
-    resource_scope_kind: str = "",
-    resource_scope_keys: tuple[str, ...] | None = None,
     agent_safety_tier: AgentSafetyTier | None = None,
     enabled_for_llm: bool | None = None,
     capabilities: tuple[str, ...] | None = None,
     allow_extra_fields: bool | None = None,
     llm_visibility_base: bool | None = None,
 ) -> RuntimeTool:
-    """Build a `RuntimeTool`, applying safe defaults for omitted annotation fields.
+    """Build a `RuntimeTool`, requiring the execution-metadata fields.
 
-    Safe-default rules:
-        - `is_write` defaults to `False` when not explicitly supplied.
-        - `requires_serial` defaults to `True` whenever `is_write` was not explicitly
-          supplied (unannotated write status is treated as unsafe to parallelize),
-          otherwise `False`.
+    Required fields (fail-closed, schema 2.0): `is_write`, `requires_serial`,
+    `resource_scope_kind`, `resource_scope_keys`. Omitting one raises `TypeError`
+    via the keyword-only signature; passing `None` explicitly raises `ValueError`.
+
+    Safe-default rules for the remaining annotation fields:
         - `agent_safety_tier` defaults to `"WRITE_DANGEROUS"` (most conservative tier).
         - `enabled_for_llm` defaults to `False`.
         - `capabilities` defaults to an empty tuple when not explicitly supplied.
-        - `resource_scope_keys` defaults to an empty tuple when not explicitly supplied.
         - `allow_extra_fields` defaults to False — extra/unschemad fields are rejected
           unless a tool explicitly opts in.
         - `llm_visibility_base` defaults to mirroring ``enabled_for_llm`` when not
           explicitly supplied.
     """
+    for field, value in (
+        ("is_write", is_write),
+        ("requires_serial", requires_serial),
+        ("resource_scope_kind", resource_scope_kind),
+        ("resource_scope_keys", resource_scope_keys),
+    ):
+        if value is None:
+            raise ValueError(f"{field} is required")
     resolved_input_schema = _or_default(input_schema, {})
     resolved_raw_definition = _or_default(raw_definition, {})
-    resolved_is_write = _or_default(is_write, False)
-    resolved_requires_serial = _or_default(requires_serial, is_write is None)
     # Kept as an explicit ternary (not routed through `_or_default`): pyright widens a
     # `Literal[...]`-typed TypeVar argument to `str`, which would break the
     # `AgentSafetyTier` return type below even though mypy accepts it.
@@ -123,7 +129,6 @@ def build_runtime_tool(
     )
     resolved_enabled_for_llm = _or_default(enabled_for_llm, False)
     resolved_capabilities = _or_default(capabilities, ())
-    resolved_resource_scope_keys = _or_default(resource_scope_keys, ())
     resolved_allow_extra_fields = _or_default(allow_extra_fields, False)
     resolved_llm_visibility_base = _or_default(
         llm_visibility_base, resolved_enabled_for_llm
@@ -137,10 +142,10 @@ def build_runtime_tool(
         input_schema=resolved_input_schema,
         raw_definition=resolved_raw_definition,
         status=status,
-        is_write=resolved_is_write,
-        requires_serial=resolved_requires_serial,
+        is_write=is_write,
+        requires_serial=requires_serial,
         resource_scope_kind=resource_scope_kind,
-        resource_scope_keys=resolved_resource_scope_keys,
+        resource_scope_keys=resource_scope_keys,
         agent_safety_tier=resolved_agent_safety_tier,
         enabled_for_llm=resolved_enabled_for_llm,
         capabilities=resolved_capabilities,

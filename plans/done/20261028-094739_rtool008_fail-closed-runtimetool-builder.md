@@ -159,10 +159,10 @@ Baseline recorded in Step 5: `radon cc` reports no function at B or above in `ru
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the fixture builder and confirm cross-directory import | In Progress | — | — |  |
-| 2 | Move the 103 default-reliant test calls to the fixture builder | In Progress | — | — |  |
-| 3 | Make the production builder strict, add rejection and guard tests | In Progress | — | — |  |
-| 4 | Align the shared types doc | In Progress | — | — |  |
+| 1 | Create the fixture builder and confirm cross-directory import | Completed | — | 2026-10-28 | rows 02+03 landed; factory in tests/shared/runtime_tool_factory.py; guard test added |
+| 2 | Move the 103 default-reliant test calls to the fixture builder | Completed | — | 2026-10-28 | 109 omissions across 7 files migrated (04:56, 05:29, 06:2, 07:2, 08:1, 03:19, factory); recount vs 103 baseline |
+| 3 | Make the production builder strict, add rejection and guard tests | Completed | — | 2026-10-28 | row 01 landed: strict signature + ValueError checks; full suite 10404 passed; diff-cover 100% |
+| 4 | Align the shared types doc | Completed | — | 2026-10-28 | row 09 landed; docs checkers clean |
 | 5 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log

@@ -16,6 +16,8 @@ from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_spec import ToolSpec
 
+from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
+
 
 def _registry_with(*tools: RuntimeTool) -> RuntimeToolRegistry:
     return RuntimeToolRegistry({tool.name: tool for tool in tools})
@@ -23,7 +25,9 @@ def _registry_with(*tools: RuntimeTool) -> RuntimeToolRegistry:
 
 class TestRuntimeToolRegistry:
     def test_resolve_returns_server_key_for_known_tool(self) -> None:
-        reg = _registry_with(build_runtime_tool(name="write_file", server_key="fs"))
+        reg = _registry_with(
+            build_fixture_runtime_tool(name="write_file", server_key="fs")
+        )
         assert reg.resolve("write_file") == "fs"
 
     def test_resolve_returns_none_for_unknown_tool(self) -> None:
@@ -31,7 +35,7 @@ class TestRuntimeToolRegistry:
         assert reg.resolve("nope") is None
 
     def test_get_returns_runtime_tool_for_known_name(self) -> None:
-        tool = build_runtime_tool(name="t", server_key="s")
+        tool = build_fixture_runtime_tool(name="t", server_key="s")
         reg = _registry_with(tool)
         assert reg.get("t") is tool
 
@@ -42,21 +46,23 @@ class TestRuntimeToolRegistry:
 
     def test_all_tools_returns_every_registered_tool(self) -> None:
         reg = _registry_with(
-            build_runtime_tool(name="a", server_key="s"),
-            build_runtime_tool(name="b", server_key="s"),
+            build_fixture_runtime_tool(name="a", server_key="s"),
+            build_fixture_runtime_tool(name="b", server_key="s"),
         )
         names = {tool.name for tool in reg.all_tools()}
         assert names == {"a", "b"}
 
     def test_llm_tool_definitions_filters_enabled_and_rekeys_parameters(self) -> None:
-        visible = build_runtime_tool(
+        visible = build_fixture_runtime_tool(
             name="a",
             server_key="s",
             description="d",
             input_schema={"type": "object"},
             enabled_for_llm=True,
         )
-        hidden = build_runtime_tool(name="b", server_key="s", enabled_for_llm=False)
+        hidden = build_fixture_runtime_tool(
+            name="b", server_key="s", enabled_for_llm=False
+        )
         reg = _registry_with(visible, hidden)
         defs = reg.llm_tool_definitions()
         assert len(defs) == 1
@@ -87,7 +93,9 @@ class TestRuntimeToolRegistry:
         assert spec.call_id == ""
 
     def test_tool_spec_for_call_fills_call_specific_fields(self) -> None:
-        tool = build_runtime_tool(name="write_file", server_key="fs", is_write=True)
+        tool = build_fixture_runtime_tool(
+            name="write_file", server_key="fs", is_write=True
+        )
         reg = _registry_with(tool)
         spec = reg.tool_spec_for_call(
             call_id="call-1", name="write_file", args={"path": "x"}
@@ -97,7 +105,7 @@ class TestRuntimeToolRegistry:
         assert spec.is_write is True
 
     def test_tool_spec_for_call_resolves_scope_from_call_args(self) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="write_file",
             server_key="fs",
             is_write=True,
@@ -113,7 +121,7 @@ class TestRuntimeToolRegistry:
     def test_tool_spec_for_call_falls_back_to_global_write_when_scope_key_missing(
         self,
     ) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="write_file",
             server_key="fs",
             is_write=True,
@@ -130,7 +138,7 @@ class TestRuntimeToolRegistry:
             reg.tool_spec_for_call(call_id="call-1", name="nope", args={})
 
     def test_apply_policy_updates_tier_and_llm_visibility(self) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="shell_run", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
@@ -140,7 +148,7 @@ class TestRuntimeToolRegistry:
         assert updated.enabled_for_llm is True
 
     def test_apply_policy_disables_tools_not_in_allowed_list(self) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="search_web", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
@@ -148,7 +156,7 @@ class TestRuntimeToolRegistry:
         assert reg.get("search_web").enabled_for_llm is False
 
     def test_apply_policy_empty_allowed_tools_keeps_all_enabled(self) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="search_web", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
@@ -156,7 +164,7 @@ class TestRuntimeToolRegistry:
         assert reg.get("search_web").enabled_for_llm is True
 
     def test_apply_policy_keeps_hidden_tool_disabled_when_allowed(self) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="hidden_tool",
             server_key="s",
             enabled_for_llm=True,
@@ -169,7 +177,7 @@ class TestRuntimeToolRegistry:
     def test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled(
         self, caplog: Any
     ) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="hidden_tool",
             server_key="s",
             enabled_for_llm=True,
@@ -183,7 +191,7 @@ class TestRuntimeToolRegistry:
     def test_apply_policy_does_not_log_warning_for_visible_tool(
         self, caplog: Any
     ) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="visible_tool", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
@@ -192,7 +200,7 @@ class TestRuntimeToolRegistry:
         assert "visible_tool" not in caplog.text
 
     def test_apply_policy_updates_tier_to_read_only(self) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="read_file", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
@@ -201,7 +209,7 @@ class TestRuntimeToolRegistry:
         assert updated.agent_safety_tier == "READ_ONLY"
 
     def test_apply_policy_keeps_current_tier_when_absent_from_tier_map(self) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="read_file", server_key="s", agent_safety_tier="READ_ONLY"
         )
         reg = _registry_with(tool)
@@ -209,7 +217,7 @@ class TestRuntimeToolRegistry:
         assert reg.get("read_file").agent_safety_tier == "READ_ONLY"
 
     def test_diagnostics_uses_raw_definition_disabled_reason_when_present(self) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="quota_tool",
             server_key="s",
             status="inactive",
@@ -223,7 +231,7 @@ class TestRuntimeToolRegistry:
     def test_diagnostics_falls_back_to_status_when_raw_definition_lacks_disabled_reason(
         self,
     ) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="inactive_tool", server_key="s", status="inactive", raw_definition={}
         )
         reg = _registry_with(tool)
@@ -234,7 +242,7 @@ class TestRuntimeToolRegistry:
     def test_diagnostics_active_status_with_no_raw_reason_yields_empty_string(
         self,
     ) -> None:
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="active_tool", server_key="s", status="active", raw_definition={}
         )
         reg = _registry_with(tool)
@@ -245,8 +253,10 @@ class TestRuntimeToolRegistry:
         assert row["server_key"] == "s"
 
     def test_unavailable_servers_excludes_tools_from_unavailable_server(self) -> None:
-        tool_a = build_runtime_tool(name="tool_a", server_key="unreachable_server")
-        tool_b = build_runtime_tool(name="tool_b", server_key="healthy_server")
+        tool_a = build_fixture_runtime_tool(
+            name="tool_a", server_key="unreachable_server"
+        )
+        tool_b = build_fixture_runtime_tool(name="tool_b", server_key="healthy_server")
         reg = RuntimeToolRegistry(
             tools={"tool_a": tool_a, "tool_b": tool_b},
             unavailable_servers=frozenset(["unreachable_server"]),
@@ -257,10 +267,10 @@ class TestRuntimeToolRegistry:
         assert reg.all_tools()[0].name == "tool_b"
 
     def test_llm_tool_definitions_excludes_tools_from_unavailable_servers(self) -> None:
-        tool_a = build_runtime_tool(
+        tool_a = build_fixture_runtime_tool(
             name="tool_a", server_key="unavailable", enabled_for_llm=True
         )
-        tool_b = build_runtime_tool(
+        tool_b = build_fixture_runtime_tool(
             name="tool_b", server_key="healthy", enabled_for_llm=True
         )
         reg = RuntimeToolRegistry(
@@ -272,10 +282,10 @@ class TestRuntimeToolRegistry:
         assert defs[0]["name"] == "tool_b"
 
     def test_diagnostics_excludes_tools_from_unavailable_servers(self) -> None:
-        tool_a = build_runtime_tool(
+        tool_a = build_fixture_runtime_tool(
             name="tool_a", server_key="unavailable", status="inactive"
         )
-        tool_b = build_runtime_tool(
+        tool_b = build_fixture_runtime_tool(
             name="tool_b", server_key="healthy", status="active"
         )
         reg = RuntimeToolRegistry(
@@ -289,11 +299,15 @@ class TestRuntimeToolRegistry:
     def test_exclusion_reason_reports_the_drop_reason_and_none_for_known_or_unknown(
         self,
     ) -> None:
-        unavailable_tool = build_runtime_tool(
+        unavailable_tool = build_fixture_runtime_tool(
             name="unavailable_tool", server_key="unreachable"
         )
-        posture_tool = build_runtime_tool(name="posture_tool", server_key="postured")
-        healthy_tool = build_runtime_tool(name="healthy_tool", server_key="healthy")
+        posture_tool = build_fixture_runtime_tool(
+            name="posture_tool", server_key="postured"
+        )
+        healthy_tool = build_fixture_runtime_tool(
+            name="healthy_tool", server_key="healthy"
+        )
         reg = RuntimeToolRegistry(
             tools={
                 "unavailable_tool": unavailable_tool,
@@ -309,7 +323,7 @@ class TestRuntimeToolRegistry:
         assert reg.exclusion_reason("never_seen") is None
 
     def test_exclusion_reason_unavailable_server(self) -> None:
-        tool = build_runtime_tool(name="down_tool", server_key="down_srv")
+        tool = build_fixture_runtime_tool(name="down_tool", server_key="down_srv")
         reg = RuntimeToolRegistry(
             {"down_tool": tool},
             unavailable_servers=frozenset(["down_srv"]),
@@ -321,7 +335,9 @@ class TestRuntimeToolRegistry:
 
         cfg = MagicMock()
         cfg.is_disabled = True
-        tool = build_runtime_tool(name="disabled_tool", server_key="disabled_srv")
+        tool = build_fixture_runtime_tool(
+            name="disabled_tool", server_key="disabled_srv"
+        )
         reg = RuntimeToolRegistry(
             {"disabled_tool": tool},
             server_configs={"disabled_srv": cfg},
@@ -329,7 +345,7 @@ class TestRuntimeToolRegistry:
         assert reg.exclusion_reason("disabled_tool") == "disabled"
 
     def test_exclusion_reason_posture_in_posture_gate(self) -> None:
-        tool = build_runtime_tool(name="gated_tool", server_key="git")
+        tool = build_fixture_runtime_tool(name="gated_tool", server_key="git")
         reg = RuntimeToolRegistry(
             {"gated_tool": tool},
             allowed_servers=frozenset(["mdq"]),
@@ -337,7 +353,9 @@ class TestRuntimeToolRegistry:
         assert reg.exclusion_reason("gated_tool") == "posture"
 
     def test_disable_then_re_enable_returns_true(self) -> None:
-        tool = build_runtime_tool(name="t", server_key="s", enabled_for_llm=True)
+        tool = build_fixture_runtime_tool(
+            name="t", server_key="s", enabled_for_llm=True
+        )
         reg = _registry_with(tool)
         # First call: disable the tool
         reg.apply_policy(tier_map={}, allowed_tools=["other"])
@@ -347,7 +365,9 @@ class TestRuntimeToolRegistry:
         assert reg.get("t").enabled_for_llm is True
 
     def test_atomic_single_swap_identity_change(self) -> None:
-        tool = build_runtime_tool(name="t", server_key="s", enabled_for_llm=True)
+        tool = build_fixture_runtime_tool(
+            name="t", server_key="s", enabled_for_llm=True
+        )
         reg = _registry_with(tool)
         old_id = id(reg._tools)
         reg.apply_policy(tier_map={}, allowed_tools=("t",))
@@ -355,8 +375,12 @@ class TestRuntimeToolRegistry:
         assert old_id != new_id
 
     def test_apply_policy_leaves_tools_unchanged_when_build_raises(self) -> None:
-        tool_a = build_runtime_tool(name="tool_a", server_key="s", enabled_for_llm=True)
-        tool_b = build_runtime_tool(name="tool_b", server_key="s", enabled_for_llm=True)
+        tool_a = build_fixture_runtime_tool(
+            name="tool_a", server_key="s", enabled_for_llm=True
+        )
+        tool_b = build_fixture_runtime_tool(
+            name="tool_b", server_key="s", enabled_for_llm=True
+        )
         reg = _registry_with(tool_a, tool_b)
         original_a = reg.get("tool_a")
         original_b = reg.get("tool_b")
@@ -383,7 +407,7 @@ class TestRuntimeToolRegistry:
     ) -> None:
         """CPython-GIL-dependent regression test: a single self._tools reference swap
         is atomic with respect to concurrent readers under CPython's GIL."""
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="t",
             server_key="s",
             agent_safety_tier="READ_ONLY",
@@ -420,7 +444,7 @@ class TestDisabledServerExclusion:
         disabled_cfg = MagicMock()
         disabled_cfg.is_disabled = True
 
-        tool = build_runtime_tool(name="write_file", server_key="disabled_srv")
+        tool = build_fixture_runtime_tool(name="write_file", server_key="disabled_srv")
         reg = RuntimeToolRegistry(
             {tool.name: tool},
             server_configs={"disabled_srv": disabled_cfg},
@@ -434,7 +458,7 @@ class TestDisabledServerExclusion:
         enabled_cfg = MagicMock()
         enabled_cfg.is_disabled = False
 
-        tool = build_runtime_tool(name="read_file", server_key="enabled_srv")
+        tool = build_fixture_runtime_tool(name="read_file", server_key="enabled_srv")
         reg = RuntimeToolRegistry(
             {tool.name: tool},
             server_configs={"enabled_srv": enabled_cfg},
@@ -446,7 +470,7 @@ class TestDisabledServerExclusion:
 class TestApplyPolicyReversibility:
     def test_disable_then_re_enable_sequence(self) -> None:
         """A tool disabled by one apply_policy() call becomes re-enabled by a subsequent call with the tool back in allowed_tools."""
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="shell_run", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
@@ -459,7 +483,7 @@ class TestApplyPolicyReversibility:
 
     def test_atomic_single_swap_per_call(self) -> None:
         """The _tools mapping reference changes identity exactly once per apply_policy() call."""
-        tool = build_runtime_tool(
+        tool = build_fixture_runtime_tool(
             name="shell_run", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
@@ -475,8 +499,8 @@ class TestPostureGate:
     """`allowed_servers` is the Security Posture gate: a key absent from it is excluded."""
 
     def test_a_server_absent_from_the_gate_is_excluded(self) -> None:
-        gated = build_runtime_tool(name="git_push", server_key="git")
-        green = build_runtime_tool(name="mdq_query", server_key="mdq")
+        gated = build_fixture_runtime_tool(name="git_push", server_key="git")
+        green = build_fixture_runtime_tool(name="mdq_query", server_key="mdq")
         reg = RuntimeToolRegistry(
             {"git_push": gated, "mdq_query": green},
             allowed_servers=frozenset(["mdq"]),
@@ -488,8 +512,8 @@ class TestPostureGate:
     def test_an_empty_gate_registers_nothing(self) -> None:
         """The fail-closed reading: no validated posture means no MCP tool at all."""
         tools = {
-            "a": build_runtime_tool(name="a", server_key="git"),
-            "b": build_runtime_tool(name="b", server_key="mdq"),
+            "a": build_fixture_runtime_tool(name="a", server_key="git"),
+            "b": build_fixture_runtime_tool(name="b", server_key="mdq"),
         }
         reg = RuntimeToolRegistry(tools, allowed_servers=frozenset())
         assert reg.all_tools() == []
@@ -501,15 +525,15 @@ class TestPostureGate:
 
     def test_no_gate_supplied_keeps_today_behavior(self) -> None:
         tools = {
-            "a": build_runtime_tool(name="a", server_key="git"),
-            "b": build_runtime_tool(name="b", server_key="mdq"),
+            "a": build_fixture_runtime_tool(name="a", server_key="git"),
+            "b": build_fixture_runtime_tool(name="b", server_key="mdq"),
         }
         reg = RuntimeToolRegistry(tools, allowed_servers=None)
         assert {tool.name for tool in reg.all_tools()} == {"a", "b"}
         assert reg.posture_excluded_servers == frozenset()
 
     def test_a_green_gate_excludes_nothing(self) -> None:
-        tool = build_runtime_tool(name="mdq_query", server_key="mdq")
+        tool = build_fixture_runtime_tool(name="mdq_query", server_key="mdq")
         reg = RuntimeToolRegistry(
             {"mdq_query": tool}, allowed_servers=frozenset(["mdq"])
         )
@@ -517,10 +541,10 @@ class TestPostureGate:
         assert reg.posture_excluded_servers == frozenset()
 
     def test_a_gated_tool_is_not_offered_to_the_llm(self) -> None:
-        gated = build_runtime_tool(
+        gated = build_fixture_runtime_tool(
             name="git_push", server_key="git", enabled_for_llm=True
         )
-        green = build_runtime_tool(
+        green = build_fixture_runtime_tool(
             name="mdq_query", server_key="mdq", enabled_for_llm=True
         )
         reg = RuntimeToolRegistry(
@@ -531,8 +555,8 @@ class TestPostureGate:
 
     def test_posture_exclusion_stays_separate_from_unavailability(self) -> None:
         """REQ-013 classifies the two causes differently, so the reports must not merge."""
-        down = build_runtime_tool(name="git_push", server_key="git")
-        unsafe = build_runtime_tool(name="mdq_query", server_key="mdq")
+        down = build_fixture_runtime_tool(name="git_push", server_key="git")
+        unsafe = build_fixture_runtime_tool(name="mdq_query", server_key="mdq")
         reg = RuntimeToolRegistry(
             {"git_push": down, "mdq_query": unsafe},
             unavailable_servers=frozenset(["git"]),
@@ -546,7 +570,7 @@ class TestPostureGate:
 
         cfg = MagicMock()
         cfg.is_disabled = True
-        tool = build_runtime_tool(name="write_file", server_key="disabled_srv")
+        tool = build_fixture_runtime_tool(name="write_file", server_key="disabled_srv")
         reg = RuntimeToolRegistry(
             {"write_file": tool},
             server_configs={"disabled_srv": cfg},
@@ -558,8 +582,8 @@ class TestPostureGate:
     def test_construction_logs_one_line_naming_the_excluded_keys(
         self, caplog: Any
     ) -> None:
-        gated = build_runtime_tool(name="git_push", server_key="git")
-        green = build_runtime_tool(name="mdq_query", server_key="mdq")
+        gated = build_fixture_runtime_tool(name="git_push", server_key="git")
+        green = build_fixture_runtime_tool(name="mdq_query", server_key="mdq")
         with caplog.at_level(logging.WARNING, logger="shared.runtime_tool_registry"):
             RuntimeToolRegistry(
                 {"git_push": gated, "mdq_query": green},
@@ -568,7 +592,7 @@ class TestPostureGate:
         assert "posture-excluded servers: git" in caplog.text
 
     def test_a_green_registry_logs_no_warning(self, caplog: Any) -> None:
-        tool = build_runtime_tool(name="mdq_query", server_key="mdq")
+        tool = build_fixture_runtime_tool(name="mdq_query", server_key="mdq")
         with caplog.at_level(logging.WARNING, logger="shared.runtime_tool_registry"):
             RuntimeToolRegistry({"mdq_query": tool}, allowed_servers=frozenset(["mdq"]))
         assert "posture-excluded" not in caplog.text

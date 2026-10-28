@@ -12,14 +12,16 @@ from shared.resource_scope import (
     resolve_resource_scopes,
     validate_tool_schema_v2,
 )
-from shared.runtime_tool import RuntimeTool, build_runtime_tool
+from shared.runtime_tool import RuntimeTool
+
+from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
 
 def _tool(**overrides: Any) -> RuntimeTool:
     """Build a RuntimeTool fixture, terse for scope-resolution tests."""
     overrides.setdefault("name", "t")
     overrides.setdefault("server_key", "s")
-    return build_runtime_tool(**overrides)
+    return build_fixture_runtime_tool(**overrides)
 
 
 class TestResolveResourceScopes:

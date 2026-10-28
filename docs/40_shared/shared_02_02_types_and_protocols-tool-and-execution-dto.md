@@ -45,7 +45,7 @@ A frozen dataclass of DAG scheduling metadata: the call identity, arguments, kin
 
 Represents normalized tool execution metadata (routing, LLM schema, scheduler metadata, side-effect detection, safety tier, approval requirement, argument validation relaxation) in a single type. `AgentSafetyTier` is defined locally as `Literal` types within this module to avoid circular imports due to `shared-is-leaf` constraints (not imported from `agent.tool_enums`).
 
-`build_runtime_tool()` applies safe defaults to unspecified annotation fields. `allow_extra_fields` is a per-tool flag read during the preparation phase (before approval) and passed to argument validation.
+`build_runtime_tool()` requires `is_write`, `requires_serial`, `resource_scope_kind` and `resource_scope_keys` and rejects a missing or `None` value; the remaining fields default conservatively (the most restrictive safety tier, not visible to the LLM, no capabilities, extra fields rejected). `allow_extra_fields` is a per-tool flag read during the preparation phase (before approval) and passed to argument validation.
 
 ---
 

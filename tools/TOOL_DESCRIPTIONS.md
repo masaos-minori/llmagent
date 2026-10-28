@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (51 modules)
+## Index (52 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -66,6 +66,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `mark_procedure_new_symbols.py` | Work item | `list` reports the symbol names `stale_detector.py` reports as missing in one procedure document with the lines of their unmarked backticked occurrences; `mark` inserts the `(new)` marker for the names the operator supplies, and refuses any name `stale_detector.py` does not report as missing |
 | `set_execution_status.py` | Work item | Mark the selected rows of one procedure document's `### Execution Status` table `Completed`, stamp the `Started` and `Completed` columns, and set `Notes` from `--note STEP:TEXT`. `--all` or `--step 1,4` selects rows; a step the table does not contain is refused. Updates the table state `manage_workitem_stage.py close-implementation` gates on |
 | `run_refactor_validation.py` | Validation runner | Runs the per-file refactor gate (`rules/toolchain.md`): ruff format and check, mypy, radon grade gate, targeted tests, coverage plus diff-cover scoped to the changed files |
+| `migrate_runtime_tool_calls.py` | Test migration | Rename default-reliant `build_runtime_tool(` call sites in test files to `build_fixture_runtime_tool(` (AST-detected: call omits `is_write`, `requires_serial`, `resource_scope_kind` or `resource_scope_keys`) and fix the file's imports; run `ruff check --select I --fix` afterwards for import order |
 | `run_validation_gates.py` | Validation runner | On-demand orchestrator: discovers changed files from `git diff <base>` (default `master`, `--base` override), maps them to gates from a two-source data table (`rules/toolchain.md` canonical sequence for full mode + `routing.md` path-keyed checkers for fast mode), runs each gate's canonical command as a subprocess, and prints one `Pass`/`Fail`/`Partial`/`Not available`/`Blocked` summary. `--fast`/`--full` selects mode; stops non-zero on the first `Fail`; `drift` subcommand fails when a `routing.md` checker has no mapping entry |
 | `module_nodes.py` | Refactor helper | Subcommands for Path C module splits: `measure <src>` reports the 1-based line span and encoded byte size of every top-level node (`--min N`, `--json`; read-only); `extract --src --dest` moves the exact source ranges of named top-level classes/functions (`--name`) or line spans (`--range START-END`), `--dedent` removing one indent level, never rewriting the original lines and leaving import cleanup and call/test repointing to the operator; `compare --old-src --new-src --name` checks moved functions against the same functions at a git revision (`--old-rev`, `--old-class`, `--param`) after normalizing allowed transformations, reporting `identical`/`DIFFERS` and exiting 1 on any difference |
 

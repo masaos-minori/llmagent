@@ -261,19 +261,20 @@ def get_consumer_offset(conn: sqlite3.Connection, consumer_id: str) -> int:
 def get_resume_position(conn: sqlite3.Connection, consumer_id: str) -> int:
     """Compute the resume position for a reconnecting consumer.
 
-    Returns the maximum of:
-      - The stored offset (high-water mark of acknowledged seq values)
-      - The lowest unacked seq among events with seq <= stored offset
-
-    This ensures no unacked event is skipped on reconnect while still
-    allowing fast-forward past already-acked events.
+    Return the first seq to deliver on reconnect. Return 0 when the consumer has
+    no stored offset. Otherwise return the lowest seq at or below the stored
+    offset that this consumer has not acknowledged (a consumer_delivery row with
+    acked = 0, or no row at all), or stored_offset + 1 when every such event is
+    acknowledged. This lets a reconnecting consumer skip already-acknowledged
+    events without skipping an unacknowledged one.
 
     Args:
         conn: SQLite connection.
         consumer_id: Consumer identifier.
 
     Returns:
-        Resume position (int). Returns 0 if no offset exists yet.
+        Resume position (int): 0 without an offset row, the lowest unacked seq,
+        or stored_offset + 1.
     """
     # Get stored offset
     row = conn.execute(

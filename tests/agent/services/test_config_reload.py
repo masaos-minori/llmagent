@@ -571,12 +571,14 @@ class TestRuntimeToolPolicyReapplication:
     ) -> None:
         """E2E: _sync_services → apply_policy on a real RuntimeToolRegistry."""
 
-        from shared.runtime_tool import AgentSafetyTier, build_runtime_tool
+        from shared.runtime_tool import AgentSafetyTier
         from shared.runtime_tool_registry import RuntimeToolRegistry
+
+        from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
         svc, ctx = self._make_svc(with_registry=True)
         tools = {
-            "read_file": build_runtime_tool(
+            "read_file": build_fixture_runtime_tool(
                 name="read_file",
                 server_key="fs",
                 description="Read a file",
@@ -586,7 +588,7 @@ class TestRuntimeToolPolicyReapplication:
                 agent_safety_tier=cast(AgentSafetyTier, "READ_ONLY"),
                 enabled_for_llm=True,
             ),
-            "delete_file": build_runtime_tool(
+            "delete_file": build_fixture_runtime_tool(
                 name="delete_file",
                 server_key="fs",
                 description="Delete a file",
