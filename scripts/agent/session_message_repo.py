@@ -11,6 +11,8 @@ from db.helper import SQLiteHelper
 from shared.json_utils import dumps as _json_dumps
 from shared.types import LLMMessage
 
+from agent.services.models import DeletedRow
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_VALID_ROLES: frozenset[str] = frozenset(
@@ -211,6 +213,55 @@ class SessionMessageRepository:
             db.commit()
         # sqlite3.Error propagates to the boundary, which wraps and compensates
         return int(deleted)
+
+    def undo_deleted_rows(self, session_id: int | None) -> list[DeletedRow]:
+        """Return the rows deleted by a /undo, ascending message_id (REQ-001).
+
+        One transaction: read the /undo boundary, find the last user row, gate on
+        `last_user_id > undo_floor`, then SELECT and DELETE every row at/after it.
+        Returns [] when there is no session, no user row, or the last user turn is
+        at/before the boundary (nothing undoable). Raises sqlite3.Error on DB failure.
+        """
+        if session_id is None:
+            return []
+        with SQLiteHelper("session").open(write_mode=True, row_factory=True) as db:
+            floor_row = db.execute(
+                "SELECT undo_floor_message_id FROM sessions WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+            undo_floor = floor_row[0] if floor_row else 0
+            rows = db.fetchall(
+                "SELECT message_id, role FROM messages WHERE session_id = ? "
+                "ORDER BY message_id DESC",
+                (session_id,),
+            )
+            last_user_id = None
+            for r in rows:
+                if r["role"] == "user":
+                    last_user_id = r["message_id"]
+                    break
+            if last_user_id is None or last_user_id <= undo_floor:
+                return []  # nothing undoable: at/before the boundary
+            deleted_rows = db.fetchall(
+                "SELECT message_id, role, content, tool_call_id "
+                "FROM messages WHERE session_id = ? AND message_id >= ? "
+                "ORDER BY message_id",
+                (session_id, last_user_id),
+            )
+            db.execute(
+                "DELETE FROM messages WHERE session_id = ? AND message_id >= ?",
+                (session_id, last_user_id),
+            )
+            db.commit()
+        return [
+            DeletedRow(
+                message_id=r["message_id"],
+                role=r["role"],
+                content=r["content"],
+                tool_call_id=r["tool_call_id"],
+            )
+            for r in deleted_rows
+        ]
 
     def save_phase_grouped(
         self,

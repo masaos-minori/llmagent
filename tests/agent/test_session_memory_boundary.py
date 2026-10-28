@@ -142,6 +142,10 @@ def wired(conn: sqlite3.Connection) -> Generator[AgentSession]:
     fake = _FakeSQLiteHelper(conn)
     with (
         patch("agent.session.SQLiteHelper", return_value=fake),
+        # undo_last_turn() delegates to SessionMessageRepository.undo_deleted_rows,
+        # which resolves SQLiteHelper in its own module; mock it too so the
+        # delegation routes to this in-memory test connection.
+        patch("agent.session_message_repo.SQLiteHelper", return_value=fake),
         patch("agent.memory.write_ops.SQLiteHelper", return_value=fake),
         patch("agent.memory.store.SQLiteHelper", return_value=fake),
     ):
@@ -188,7 +192,7 @@ class TestSessionOperationsKeepMemory:
         self, wired: AgentSession, conn: sqlite3.Connection
     ) -> None:
         wired.session_id = 1
-        assert wired.undo_last_turn() == 2
+        assert len(wired.undo_last_turn()) == 2
         assert (
             conn.execute("SELECT COUNT(*) FROM messages WHERE session_id=1").fetchone()[
                 0

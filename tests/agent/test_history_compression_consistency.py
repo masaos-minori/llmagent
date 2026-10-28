@@ -214,7 +214,7 @@ def test_undo_on_single_compressed_message_is_safe(
 
     deleted = session.undo_last_turn()
 
-    assert deleted == 0
+    assert len(deleted) == 0
     loaded = _msgs(session.fetch_messages(1))
     assert len(loaded) == 1
 
@@ -236,7 +236,7 @@ def test_undo_last_turn_returns_deleted_count(
     conn.commit()
 
     deleted = session.undo_last_turn()
-    assert deleted == 2
+    assert len(deleted) == 2
 
 
 def test_undo_empty_session_returns_zero(
@@ -245,7 +245,7 @@ def test_undo_empty_session_returns_zero(
     """undo_last_turn() on an empty session returns 0 without raising."""
     session, _ = session_and_conn
     deleted = session.undo_last_turn()
-    assert deleted == 0
+    assert len(deleted) == 0
 
 
 # --- Fallback truncation (in-memory only) ---

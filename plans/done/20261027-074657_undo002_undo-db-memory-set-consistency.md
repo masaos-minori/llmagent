@@ -289,9 +289,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: row-returning DB undo step | In Progress | — | — | Implementation procedure docs generated for all 3 Phase 1 target files |
-| 2 | Phase 2: memory reconciliation in the service | In Progress | — | — | Implementation procedure doc generated for undo_service.py |
-| 3 | Phase 3: tests and docs | In Progress | — | — | Implementation procedure docs generated for 3 test files + 1 doc |
+| 1 | Phase 1: row-returning DB undo step | Completed | 20261028-094618 | 20261028-094618 | Implementation procedure docs generated for all 3 Phase 1 target files |
+| 2 | Phase 2: memory reconciliation in the service | Completed | 20261028-094618 | 20261028-094618 | Implementation procedure doc generated for undo_service.py |
+| 3 | Phase 3: tests and docs | Completed | 20261028-094618 | 20261028-094618 | Implementation procedure docs generated for 3 test files + 1 doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

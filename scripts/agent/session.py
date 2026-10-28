@@ -14,6 +14,7 @@ from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
 from agent.diagnostic_store import DiagnosticStore
+from agent.services.models import DeletedRow
 from agent.session_message_repo import SessionMessageRepository
 from agent.turn_persistence import TurnPersistence
 
@@ -226,52 +227,21 @@ class AgentSession:
             for r in rows
         ]
 
-    def undo_last_turn(self) -> int:
+    def undo_last_turn(self) -> list[DeletedRow]:
         """Delete the last turn, gated by the /undo compression boundary.
 
-        Walks back to the last 'user' role message (skipping turns at or before
-        the persisted boundary sessions.undo_floor_message_id), then deletes every
-        message from that user message onwards (message_id >= last_user_id).
-        Returns 0 when nothing is undoable (no user message, or the last user
-        turn is at/before the boundary). Returns the number of rows deleted.
+        Delegates to SessionMessageRepository.undo_deleted_rows: the repo reads the
+        persisted boundary (sessions.undo_floor_message_id), walks back to the last
+        'user' role message, and deletes every message from that row onwards
+        (message_id >= last_user_id) in one transaction, returning those rows
+        ascending by message_id. Returns [] when nothing is undoable (no user
+        message, or the last user turn is at/before the boundary). The deleted-row
+        identity crosses to the service layer so memory trims to the same set
+        (REQ-001, REQ-005).
         """
         if self.session_id is None:
-            return 0
-        with SQLiteHelper("session").open(write_mode=True) as db:
-            # read floor
-            floor_row = db.execute(
-                "SELECT undo_floor_message_id FROM sessions WHERE session_id = ?",
-                (self.session_id,),
-            ).fetchone()
-            undo_floor = floor_row[0] if floor_row else 0
-            rows = db.fetchall(
-                "SELECT message_id, role FROM messages WHERE session_id = ? ORDER BY message_id DESC",
-                (self.session_id,),
-            )
-            if not rows:
-                return 0
-            last_user_id: int | None = None
-            for r in rows:
-                if r[1] == "user":
-                    last_user_id = r[0]
-                    break
-            if last_user_id is None or last_user_id <= undo_floor:
-                return 0  # last user is at/before the boundary: nothing undoable
-            deleted: int = db.execute(
-                "SELECT COUNT(*) FROM messages WHERE session_id = ? AND message_id >= ?",
-                (self.session_id, last_user_id),
-            ).fetchone()[0]
-            db.execute(
-                "DELETE FROM messages WHERE session_id = ? AND message_id >= ?",
-                (self.session_id, last_user_id),
-            )
-            db.commit()
-        logger.info(
-            "Undo: deleted %s messages from session %s",
-            deleted,
-            self.session_id,
-        )
-        return deleted
+            return []
+        return self._message_repo.undo_deleted_rows(self.session_id)
 
     def delete_session(self, session_id: int) -> bool:
         """Delete a session and all its messages from DB.

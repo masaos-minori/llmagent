@@ -588,7 +588,7 @@ class TestUndoLastTurn:
         session.save("user", "q2")
         session.save("assistant", "a2")
         deleted = session.undo_last_turn()
-        assert deleted == 2
+        assert len(deleted) == 2
         msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert len(msgs) == 2
@@ -602,7 +602,7 @@ class TestUndoLastTurn:
         session.save("tool", "result1", tool_call_id="tc1")
         session.save("user", "q2")
         deleted = session.undo_last_turn()
-        assert deleted == 1
+        assert len(deleted) == 1
         msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert len(msgs) == 3
@@ -611,16 +611,16 @@ class TestUndoLastTurn:
         session.start()
         session.save("assistant", "a1")
         deleted = session.undo_last_turn()
-        assert deleted == 0
+        assert deleted == []
 
     def test_no_op_when_session_id_none(self, session: AgentSession) -> None:
         deleted = session.undo_last_turn()
-        assert deleted == 0
+        assert deleted == []
 
     def test_no_op_when_empty_history(self, session: AgentSession) -> None:
         session.start()
         deleted = session.undo_last_turn()
-        assert deleted == 0
+        assert deleted == []
 
 
 class TestReplaceMessages:
@@ -666,7 +666,7 @@ class TestUndoLastTurnBoundary:
             )
             conn.commit()
             # q2 lives at message_id 3 == boundary: nothing undoable
-            assert session.undo_last_turn() == 0
+            assert session.undo_last_turn() == []
             rows = _msgs(session.fetch_messages(sid))  # type: ignore[arg-type]
             assert rows is not None
             assert len(rows) == 4
@@ -699,7 +699,7 @@ class TestUndoLastTurnBoundary:
             )
             conn.commit()
             # boundary at id 1: only q2(3)/a2(4) are undoable
-            assert session.undo_last_turn() == 2
+            assert len(session.undo_last_turn()) == 2
             rows = _msgs(session.fetch_messages(sid))  # type: ignore[arg-type]
             assert rows is not None
             assert [m["content"] for m in rows] == ["q1", "a1"]

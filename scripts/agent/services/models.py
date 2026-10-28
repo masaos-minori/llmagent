@@ -117,15 +117,29 @@ class SessionRestoreResult:
 
 
 @dataclass(frozen=True)
+class DeletedRow:
+    """A single deleted message row's identity, returned by the DB-side undo."""
+
+    message_id: int
+    role: str
+    content: str | None
+    tool_call_id: str | None
+
+
+@dataclass(frozen=True)
 class UndoResult:
     """Result of undoing a conversation action.
 
     `block_reason` is set when the undo was refused because the last turn is at or
     before the compression boundary; otherwise it is `None`.
+
+    `deleted_rows` carries the exact rows the DB deleted (ascending `message_id`);
+    the memory side trims to this set to converge memory/DB to parity (REQ-001, REQ-005).
     """
 
     n_removed: int
     block_reason: str | None = None
+    deleted_rows: list[DeletedRow] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

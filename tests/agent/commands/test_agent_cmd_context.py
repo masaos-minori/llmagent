@@ -17,7 +17,7 @@ from agent.commands.token_display import _token_source_label
 from agent.repl import completion_command_names
 from agent.services.context_view import _build_budget, _format_memory_status
 from agent.services.context_view import budget_breakdown as _budget_breakdown
-from agent.services.models import UndoResult
+from agent.services.models import DeletedRow, UndoResult
 from shared.types import LLMMessage
 
 # ── Test harness ──────────────────────────────────────────────────────────────
@@ -73,6 +73,31 @@ def _ephemeral_msg() -> dict:
     return {"role": "system", "content": "[mode hint]", "_ephemeral": True}
 
 
+def _last_turn_rows(history: list[dict]) -> list[DeletedRow]:
+    """Build the DeletedRows the DB-side undo returns for the last real turn.
+
+    Mirrors SessionMessageRepository.undo_deleted_rows: the DB deletes from the
+    last 'user' row onwards. Memory-only injected/ephemeral artifacts precede
+    that row and are stripped on the memory side, so they are excluded here.
+    Lets the identity-match trim run against real row identity in these
+    MagicMock-session command tests.
+    """
+    start = len(history) - 1
+    while start > 0 and (
+        history[start].get("role") != "user" or history[start].get("_memory_injected")
+    ):
+        start -= 1
+    return [
+        DeletedRow(
+            message_id=index,
+            role=msg["role"],
+            content=msg.get("content"),
+            tool_call_id=msg.get("tool_call_id"),
+        )
+        for index, msg in enumerate(history[start:])
+    ]
+
+
 # ── _cmd_undo ─────────────────────────────────────────────────────────────────
 
 
@@ -87,6 +112,7 @@ class TestCmdUndo:
             _assistant_msg("second reply"),
         ]
         ctx.stats.stat_turns = 2
+        ctx.session.undo_last_turn.return_value = _last_turn_rows(ctx.conv.history)
         cmd = _FakeCmd(ctx)
         cmd._cmd_undo()
         assert ctx.conv.history == [
@@ -107,6 +133,7 @@ class TestCmdUndo:
             _assistant_msg("second reply"),
         ]
         ctx.stats.stat_turns = 2
+        ctx.session.undo_last_turn.return_value = _last_turn_rows(ctx.conv.history)
         cmd = _FakeCmd(ctx)
         cmd._cmd_undo()
         # injection marker + second user + second assistant must be removed
@@ -128,6 +155,7 @@ class TestCmdUndo:
             _assistant_msg("second reply"),
         ]
         ctx.stats.stat_turns = 2
+        ctx.session.undo_last_turn.return_value = _last_turn_rows(ctx.conv.history)
         cmd = _FakeCmd(ctx)
         cmd._cmd_undo()
         # ephemeral hint + second user + second assistant must be removed
@@ -150,6 +178,7 @@ class TestCmdUndo:
             _assistant_msg("second reply"),
         ]
         ctx.stats.stat_turns = 2
+        ctx.session.undo_last_turn.return_value = _last_turn_rows(ctx.conv.history)
         cmd = _FakeCmd(ctx)
         cmd._cmd_undo()
         assert ctx.conv.history == [
@@ -196,6 +225,7 @@ class TestCmdUndo:
             _assistant_msg("final"),
         ]
         ctx.stats.stat_turns = 2
+        ctx.session.undo_last_turn.return_value = _last_turn_rows(ctx.conv.history)
         cmd = _FakeCmd(ctx)
         cmd._cmd_undo()
         # Everything from the last user message onwards must be removed

@@ -156,7 +156,7 @@ class TestUndoLastTurnDeletesFromDb:
 
         deleted = session.undo_last_turn()
 
-        assert deleted == 2
+        assert len(deleted) == 2
         assert _msgs(session.fetch_messages(sid)) == []
 
     def test_undo_preserves_earlier_turns(self, session: AgentSession) -> None:
@@ -201,7 +201,7 @@ class TestUndoHistoryDbParity:
         """undo_last_turn() returns 0 and leaves DB empty when no messages exist."""
         deleted = session.undo_last_turn()
 
-        assert deleted == 0
+        assert deleted == []
         assert _msgs(session.fetch_messages(session.session_id)) == []
 
 
@@ -217,7 +217,7 @@ class TestUndoReturnValue:
 
         count = session.undo_last_turn()
 
-        assert count == 2
+        assert len(count) == 2
 
     def test_undo_single_message_returns_one(self, session: AgentSession) -> None:
         """undo_last_turn() returns 1 when only one message exists (e.g., LLM never replied)."""
@@ -229,4 +229,4 @@ class TestUndoReturnValue:
 
         count = session.undo_last_turn()
 
-        assert count == 1
+        assert len(count) == 1

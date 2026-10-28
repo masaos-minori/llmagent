@@ -31,7 +31,7 @@ Documents the purpose and side effects of slash commands in the Session, MCP, an
 
 ### Session Category
 
-A group of commands for session management and history operations. `/clear [new]` resets the history, and `/clear new` also starts a new DB session. `/undo` pops the most recent user+assistant turn from both the history and the DB. Messages that existed when the history was last compressed (automatic, `/compact`, or fallback truncation) cannot be undone; `/undo` then reports that nothing can be undone and changes nothing. The boundary is stored in `sessions.undo_floor_message_id` and survives `/session load`.
+A group of commands for session management and history operations. `/clear [new]` resets the history, and `/clear new` also starts a new DB session. `/undo` pops the most recent user+assistant turn from both the history and the DB. Memory and the DB are trimmed from the exact same set of deleted rows; when they had already diverged, `/undo` still converges them — it trims memory to exactly the rows it deletes, and if those rows cannot be matched it reloads memory from the DB and logs the decision. Messages that existed when the history was last compressed (automatic, `/compact`, or fallback truncation) cannot be undone; `/undo` then reports that nothing can be undone and changes nothing. The boundary is stored in `sessions.undo_floor_message_id` and survives `/session load`.
 
 #### History and export
 
