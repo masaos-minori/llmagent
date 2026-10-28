@@ -33,12 +33,20 @@ class Role(StrEnum):
 
 @dataclass(frozen=True)
 class Principal:
-    """Authenticated identity carrying roles, consumer IDs, topics, and token fingerprint."""
+    """Authenticated identity carrying roles, consumer grants, and token fingerprint."""
 
     roles: frozenset[Role]
-    allowed_consumer_ids: frozenset[str] | None  # None means "any consumer ID"
-    allowed_topics: frozenset[str] | None  # None = unrestricted
+    # Explicit (consumer_id, topic) pairs; an empty set is deny-all
+    consumer_grants: frozenset[tuple[str, str]]
     token_fingerprint: str  # non-secret identifier for audit logging
+
+    def topics_for(self, consumer_id: str) -> frozenset[str]:
+        """Return the topics granted to one consumer_id."""
+        return frozenset(t for c, t in self.consumer_grants if c == consumer_id)
+
+    def is_granted(self, consumer_id: str, topic: str) -> bool:
+        """Return True when the (consumer_id, topic) pair is granted."""
+        return (consumer_id, topic) in self.consumer_grants
 
 
 # Route-to-role mapping: which roles may access which route category
@@ -146,18 +154,14 @@ def _populate_token_maps(config: Any) -> None:
     if hasattr(config, "auth_token") and config.auth_token:
         new_map[config.auth_token] = Principal(
             roles=_CONTROL_PLANE_ROLES,
-            allowed_consumer_ids=frozenset(),
-            allowed_topics=frozenset(),
+            consumer_grants=frozenset(),
             token_fingerprint=_fingerprint(config.auth_token),
         )
 
-    # consumer_authorization/topic_authorization apply as a blanket restriction
-    # on the CONSUMER-role token only: the config schema has no per-token
-    # consumer_id mapping, so every configured entry's union is granted to
-    # whichever single token holds the CONSUMER role (per owner decision:
-    # union-apply, not per-caller-distinct).
-    consumer_allowed_ids: frozenset[str] | None = None
-    consumer_allowed_topics: frozenset[str] | None = None
+    # consumer_authorization/topic_authorization are expanded into explicit
+    # (consumer_id, topic) pairs and granted to the CONSUMER-role token only; the
+    # config schema has no per-token consumer_id mapping. A pair is granted when
+    # either mapping lists it, so a consumer is never granted another consumer's topic.
     consumer_authorization = getattr(config, "consumer_authorization", None)
     topic_authorization = getattr(config, "topic_authorization", None)
 
@@ -168,34 +172,24 @@ def _populate_token_maps(config: Any) -> None:
             "Add consumer_authorization to config/eventbus.toml before starting."
         )
 
-    if consumer_authorization or topic_authorization:
-        ids: set[str] = set(consumer_authorization or {})
-        topics: set[str] = set()
-        for consumer_topics in (consumer_authorization or {}).values():
-            topics.update(consumer_topics)
-        for topic, consumer_ids in (topic_authorization or {}).items():
-            topics.add(topic)
-            ids.update(consumer_ids)
-        consumer_allowed_ids = frozenset(ids)
-        consumer_allowed_topics = frozenset(topics)
-    else:
-        # Both mappings empty: deny-all (frozenset()) instead of None (unrestricted).
-        # Keeps empty distinct from a missing key, which still raises above.
-        consumer_allowed_ids = frozenset()
-        consumer_allowed_topics = frozenset()
+    # Both mappings empty yields frozenset() (deny-all), distinct from a missing
+    # key, which still raises above.
+    pairs: set[tuple[str, str]] = set()
+    for consumer_id, consumer_topics in (consumer_authorization or {}).items():
+        pairs.update((consumer_id, topic) for topic in consumer_topics)
+    for topic, consumer_ids in (topic_authorization or {}).items():
+        pairs.update((consumer_id, topic) for consumer_id in consumer_ids)
+    consumer_grants = frozenset(pairs)
 
-    # Each per-role token grants only its own role. The consumer_id/topic bindings
-    # of a principal come from the consumer authorization mappings only when it holds
-    # the CONSUMER role; any other principal is bound to nothing (deny-all).
+    # Each per-role token grants only its own role. Grants are attached only to a
+    # principal holding the CONSUMER role; any other principal is bound to nothing.
     for field, role in _PER_ROLE_TOKEN_FIELDS:
         token = getattr(config, field, None)
         if not token:
             continue
-        has_consumer = role == Role.CONSUMER
         new_map[token] = Principal(
             roles=frozenset({role}),
-            allowed_consumer_ids=consumer_allowed_ids if has_consumer else frozenset(),
-            allowed_topics=consumer_allowed_topics if has_consumer else frozenset(),
+            consumer_grants=consumer_grants if role == Role.CONSUMER else frozenset(),
             token_fingerprint=_fingerprint(token),
         )
 
@@ -204,8 +198,7 @@ def _populate_token_maps(config: Any) -> None:
     if admin_token:
         new_map[admin_token] = Principal(
             roles=_CONTROL_PLANE_ROLES,
-            allowed_consumer_ids=frozenset(),
-            allowed_topics=frozenset(),
+            consumer_grants=frozenset(),
             token_fingerprint=_fingerprint(admin_token),
         )
 
@@ -279,8 +272,7 @@ async def resolve_principal(
 
     return Principal(
         roles=principal.roles,
-        allowed_consumer_ids=principal.allowed_consumer_ids,
-        allowed_topics=principal.allowed_topics,
+        consumer_grants=principal.consumer_grants,
         token_fingerprint=token_fp,
     )
 
@@ -314,24 +306,21 @@ def require_role(role: Role):
     return _check_role
 
 
-async def require_consumer_identity(
+def authorize_consumer_access(
     request: Request,
-    consumer_id: str = "",
-    topics: list[str] | None = None,
-    principal: Principal = Depends(resolve_principal),
-) -> Principal:
-    """FastAPI dependency: verify caller is authorized to use the given consumer_id and topics.
+    principal: Principal,
+    consumer_id: str,
+    topics: list[str],
+) -> None:
+    """Raise HTTP 403 unless every (consumer_id, topic) pair is granted.
 
-    Returns a Principal object with authorization context for the caller.
+    The single authorization decision shared by subscribe, ACK and NACK. No
+    principal bypasses it (ADR-013 INV-02, INV-07): a principal must hold the
+    CONSUMER role and explicit grants; an empty grant set is deny-all. An empty
+    consumer_id is left to the route's own 400, but its topics must still be
+    granted to some consumer of the principal.
     """
-    # No principal bypasses consumer identity or topic authorization (ADR-013 INV-02,
-    # INV-07): a principal admitted here holds the CONSUMER role and explicit
-    # consumer_id and topic authorizations. An empty frozenset() is deny-all.
-    if (
-        Role.CONSUMER not in principal.roles
-        or principal.allowed_consumer_ids is None
-        or principal.allowed_topics is None
-    ):
+    if Role.CONSUMER not in principal.roles or not principal.consumer_grants:
         logger.warning("Authorization failed: Consumer-scoped credential required")
         log_auth_failure(
             consumer_id=consumer_id,
@@ -346,7 +335,7 @@ async def require_consumer_identity(
             detail="Forbidden: a Consumer-scoped credential is required",
         )
 
-    if consumer_id and consumer_id not in principal.allowed_consumer_ids:
+    if consumer_id and not principal.topics_for(consumer_id):
         logger.warning(
             "Authorization failed: consumer_id=%s not allowed for this caller",
             consumer_id,
@@ -364,27 +353,50 @@ async def require_consumer_identity(
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
-    # Validate topic access: an empty frozenset() is deny-all and rejects every topic.
-    if topics:
-        for topic in topics:
-            if topic not in principal.allowed_topics:
-                logger.warning(
-                    "Authorization failed: topic=%s not allowed for this caller",
-                    topic,
-                )
-                log_auth_failure(
-                    consumer_id=consumer_id,
-                    request_id=request.state.request_id,
-                    route=request.url.path,
-                    target=topic,
-                    error_type="topic_authorization_rejected",
-                    detail="",
-                )
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Forbidden: topic '{topic}' not allowed",
-                )
+    for topic in topics:
+        if consumer_id:
+            granted = principal.is_granted(consumer_id, topic)
+        else:
+            granted = any(t == topic for _, t in principal.consumer_grants)
+        if not granted:
+            logger.warning(
+                "Authorization failed: topic=%s not allowed for this caller", topic
+            )
+            log_auth_failure(
+                consumer_id=consumer_id,
+                request_id=request.state.request_id,
+                route=request.url.path,
+                target=topic,
+                error_type="topic_authorization_rejected",
+                detail="",
+            )
+            raise HTTPException(
+                status_code=403,
+                detail=f"Forbidden: topic '{topic}' not allowed",
+            )
 
+
+def effective_topics(
+    principal: Principal, consumer_id: str, requested: list[str]
+) -> list[str]:
+    """Return the requested topics, or the consumer's granted topics when none.
+
+    The caller has already passed authorize_consumer_access, so an omitted topic
+    list narrows to the grants instead of meaning "all topics".
+    """
+    if requested:
+        return list(requested)
+    return sorted(principal.topics_for(consumer_id))
+
+
+async def require_consumer_identity(
+    request: Request,
+    consumer_id: str = "",
+    topics: list[str] | None = None,
+    principal: Principal = Depends(resolve_principal),
+) -> Principal:
+    """FastAPI dependency: verify caller is authorized for consumer_id and topics."""
+    authorize_consumer_access(request, principal, consumer_id, topics or [])
     return principal
 
 

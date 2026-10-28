@@ -25,7 +25,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         consumer_token="consumer-token",
         # Fail-closed (ADR-013 INV-02): an empty mapping is deny-all, so allow the
         # consumer_id these DLQ pagination tests use.
-        consumer_authorization={"consumer-A": ["t"]},
+        consumer_authorization={"consumer-A": ["test.topic"]},
         operator_token="operator-token",
         monitoring_token="monitoring-token",
         admin_token="admin-token",

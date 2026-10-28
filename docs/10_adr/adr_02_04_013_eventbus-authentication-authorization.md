@@ -249,6 +249,8 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 See Implementation References for the current file/symbol list.
 
+A Consumer principal holds explicit (consumer_id, topic) grants built from `consumer_authorization` and `topic_authorization`; a pair that is not listed is rejected with HTTP 403. A subscribe request without `topic` is narrowed to the topics granted to its `consumer_id`.
+
 ## Known Deviations
 
 Not applicable

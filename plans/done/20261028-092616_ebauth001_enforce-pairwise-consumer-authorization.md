@@ -180,10 +180,10 @@ Baseline recorded in Step 5: `radon cc` reports `_populate_token_maps` D (21) an
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Grant model and shared decision in `auth.py`, with principal tests | In Progress | — | — |  |
-| 2 | Subscribe route narrowing and tests | In Progress | — | — |  |
-| 3 | ACK/NACK pair authorization, `event_repo.py` helper, wiring and tests | In Progress | — | — |  |
-| 4 | ADR-013 and EventBus docs | In Progress | — | — |  |
+| 1 | Grant model and shared decision in `auth.py`, with principal tests | Completed | — | 20261028-130524 |  |
+| 2 | Subscribe route narrowing and tests | Completed | — | 20261028-130524 |  |
+| 3 | ACK/NACK pair authorization, `event_repo.py` helper, wiring and tests | Completed | — | 20261028-130524 |  |
+| 4 | ADR-013 and EventBus docs | Completed | — | 20261028-130524 |  |
 | 5 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log

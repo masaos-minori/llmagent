@@ -167,9 +167,9 @@ async def resolve_subscribe_identity(
     topic: list[str] = Query(default=[]),
     principal: Principal = Depends(resolve_principal),
 ) -> Principal:
-    # require_consumer_identity enforces the caller's allowed_consumer_ids and
-    # allowed_topics; passing the real consumer_id and topic (rather than empty
-    # defaults) is what makes those allowlists take effect. principal is resolved
+    # require_consumer_identity enforces the (consumer_id, topic) grants of the
+    # caller; passing the real consumer_id and topic (rather than empty
+    # defaults) is what makes those grants take effect. principal is resolved
     # here (not left as an unresolved Depends marker) so the direct call below
     # does not raise.
     return await require_consumer_identity(
@@ -265,7 +265,6 @@ async def ack_event(
     event_id: str,
     consumer_id: str = Query(...),  # Required — no default (REQ-004)
     _principal: Principal = Depends(require_role(Role.CONSUMER)),
-    _identity: Principal = Depends(require_consumer_identity),
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
     result: dict[str, Any] = await ack_event_route(
@@ -286,7 +285,6 @@ async def nack(
         default=""
     ),  # (new) caller-supplied NACK idempotency key
     _principal: Principal = Depends(require_role(Role.CONSUMER)),
-    _identity: Principal = Depends(require_consumer_identity),
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
     result: dict[str, Any] = await nack_route(

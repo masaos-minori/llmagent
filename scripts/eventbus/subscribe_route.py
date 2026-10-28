@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 
 from eventbus.auth import (
     Principal,
+    effective_topics,
 )
 from eventbus.broker import ConsumerAlreadyConnectedError
 from eventbus.json_utils import dumps as json_dumps
@@ -43,57 +44,17 @@ async def subscribe(
     broker = get_broker(request)
     db = get_db(request)
 
-    # _identity is resolved by app.py's route wrapper via
-    # Depends(require_consumer_identity) and passed in here as a real Principal —
-    # the wiring gap this comment used to describe (Depends(...) never
-    # actually invoked, tracked by
-    # issues/20260911-133957_ebauth01_role-and-consumer-identity-checks-never-run.md)
-    # is already fixed, see plans/done/20260912-111042_plan.md. The isinstance
-    # guard remains as a defensive check for any future caller that invokes
-    # this function directly, bypassing that dependency chain.
-    if isinstance(_identity, Principal):
-        caller_topics = _identity.allowed_topics
-        if caller_topics is not None:
-            for t in topic:
-                if t not in caller_topics:
-                    raise HTTPException(
-                        status_code=403,
-                        detail=f"Forbidden: topic '{t}' not allowed",
-                    )
-
-    # REQ-011: Validate principal owns the requested consumer ID
-    if _principal and _principal.allowed_consumer_ids:
-        if not consumer_id:
-            raise HTTPException(status_code=400, detail="Missing consumer_id")
-        if consumer_id not in _principal.allowed_consumer_ids:
-            logger.warning(
-                "Authorization failed: consumer_id=%s not allowed for this caller",
-                consumer_id,
-            )
-            raise HTTPException(
-                status_code=403,
-                detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
-            )
-
-    # REQ-012: Fail closed when identity resolution is missing
-    if _principal and _principal.allowed_consumer_ids and not consumer_id:
+    # The app.py dependency has already run authorize_consumer_access for the
+    # requested topics; a principal with grants must still name its consumer_id.
+    if _principal and _principal.consumer_grants and not consumer_id:
         raise HTTPException(status_code=400, detail="Missing consumer_id")
 
-    # REQ-013: Validate principal has access to the requested topics
-    if _principal and _principal.allowed_topics:
-        if topic:
-            for t in topic:
-                if t not in _principal.allowed_topics:
-                    logger.warning(
-                        "Authorization failed: topic=%s not allowed for this caller",
-                        t,
-                    )
-                    raise HTTPException(
-                        status_code=403,
-                        detail=f"Forbidden: topic '{t}' not allowed",
-                    )
-        # If principal has allowed_topics but none match, allow subscribe to all
-        # (empty topic list means subscribe to all topics)
+    # An omitted topic list narrows to the consumer's granted topics instead of
+    # meaning "all topics"; the narrowed list drives both replay and live delivery.
+    if _principal is not None:
+        topic = effective_topics(_principal, consumer_id, topic)
+        if not topic:
+            raise HTTPException(status_code=403, detail="Forbidden: no topics granted")
 
     # REQ-003: Read Last-Event-ID header as additional resume-position input
     last_event_id_str = request.headers.get("last-event-id", "")

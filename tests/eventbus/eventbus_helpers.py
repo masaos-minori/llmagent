@@ -56,6 +56,13 @@ TEST_TOPICS = (
     "boundary",
     "overlap",
     "resume2",
+    "ack",
+    "ack_test",
+    "crash",
+    "dlq",
+    "dlq_edge",
+    "dlq_multi",
+    "dlq_promo",
 )
 
 

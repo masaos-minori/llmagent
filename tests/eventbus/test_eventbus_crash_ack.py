@@ -73,7 +73,7 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
         # consumer_authorization. The manual Principal override below sets the
         # actual consumer_id restriction (consumer-A); this satisfies startup.
-        consumer_authorization={"consumer-A": ["test"]},
+        consumer_authorization={"consumer-A": ["crash"]},
         operator_token="operator-token",
         monitoring_token="monitoring-token",
         admin_token="admin-token",
@@ -89,7 +89,7 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
 
     with TestClient(eb_app.app) as c:
         # App lifespan re-runs _populate_token_maps() via the monkeypatched
-        # load_config, which carries consumer_authorization={"consumer-A": ["test"]}.
+        # load_config, which carries consumer_authorization={"consumer-A": ["crash"]}.
         # No direct _TOKEN_PRINCIPAL_MAP mutation needed (REQ-006).
         c.headers["Authorization"] = "Bearer consumer-token"
         yield c

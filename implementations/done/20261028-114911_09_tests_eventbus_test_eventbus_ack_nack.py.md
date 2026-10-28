@@ -1,12 +1,12 @@
-# Procedure: update Principal construction and add pairwise decision tests
+# Procedure: update Principal fixtures and add cross-consumer and cross-topic NACK tests
 
 ## Goal
 
-Move direct `Principal(...)` construction to `consumer_grants` and cover the four-cell matrix and control-plane rejection (Plan REQ-001, REQ-005).
+Move the `principal_client` fixture to `consumer_grants` and prove NACK rejects another consumer's id and a non-granted event topic without changing state (Plan REQ-004).
 
 ## Scope
 
-- Modify only `tests/eventbus/test_eventbus_auth.py`.
+- Modify only `tests/eventbus/test_eventbus_ack_nack.py`.
 - Test-only change; no source file is edited.
 
 ## Assumptions
@@ -27,15 +27,13 @@ N/A: lightweight row; the Plan fixes the approach.
 
 ### Target file
 
-`tests/eventbus/test_eventbus_auth.py`
+`tests/eventbus/test_eventbus_ack_nack.py`
 
 ### Procedure
 
-- In `_make_test_app`, replace the consumer principal's `allowed_consumer_ids` and `allowed_topics` with `consumer_grants`; update the explanatory comment that mentions `None` meaning unrestricted.
-- In `_make_test_app`'s local `resolve_subscribe_identity` copy, keep the shape but call the production dependency the way `app.py` does.
-- Rewrite `test_principal_without_topic_binding_is_rejected` for a principal with empty `consumer_grants`, and `test_non_empty_topic_restriction_is_enforced_and_returned` to assert a granted pair is accepted and an ungranted pair gets 403.
-- Add `test_pairwise_matrix_rejects_cross_pairs` (new): grants `(consumer_a, topic_a)` and `(consumer_b, topic_b)`; the two own pairs pass and the two cross pairs return 403.
-- Add `test_control_plane_token_cannot_use_consumer_routes` (new): the shared `auth_token` and `admin_token` get 403 on subscribe, ACK and NACK.
+- In the `principal_client` fixture (both construction sites), replace the removed fields with `consumer_grants` for `consumer-A` on the topic the file publishes to.
+- Add `test_nack_with_other_consumers_id_returns_403` (new) and `test_nack_for_event_of_ungranted_topic_returns_403` (new); assert the `consumer_delivery` table is unchanged afterwards.
+- Add `test_nack_for_unknown_event_still_returns_404` (new) for the unchanged not-found behavior.
 
 ### Method
 
@@ -43,7 +41,7 @@ Edit the existing tests in place; reuse the file's existing fixtures and helpers
 
 ### Details
 
-- The test-local `resolve_subscribe_identity` mirrors production wiring, so a production wiring change must be reflected here; compare with `app.py` when editing.
+- The table-level assertions reuse the file's existing `db` fixture.
 
 ## Compatibility considerations
 
@@ -61,13 +59,12 @@ N/A: revert the commit.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run pytest tests/eventbus/test_eventbus_auth.py -q` | Pass |
-| 2 | `uv run ruff format tests/eventbus/test_eventbus_auth.py`; `uv run ruff check tests/eventbus/test_eventbus_auth.py` | No finding |
+| 1 | `uv run pytest tests/eventbus/test_eventbus_ack_nack.py -q` | Pass |
+| 2 | `uv run ruff format tests/eventbus/test_eventbus_ack_nack.py`; `uv run ruff check tests/eventbus/test_eventbus_ack_nack.py` | No finding |
 
 ## Completion criteria
 
-- No test constructs `Principal` with the removed fields.
-- The matrix and control-plane tests pass.
+- The new tests fail on the pre-change code (no topic check) and pass after.
 
 ## Out of Scope
 
@@ -79,8 +76,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261028-130500 | 20261028-130500 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-130500 | 20261028-130500 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -94,10 +91,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-001, REQ-003, REQ-005 (grant model, shared decision, control-plane rejection)
+- **Requirement ID**: REQ-004 (pair bound to the event topic for ACK and NACK)
 - **Source issue**: issues/20261027-155843_ebauth001_enforce-pairwise-consumer-authorization.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-092616_ebauth001_enforce-pairwise-consumer-authorization.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-114911
-- **Related target files**: tests/eventbus/test_eventbus_auth.py
+- **Related target files**: tests/eventbus/test_eventbus_ack_nack.py

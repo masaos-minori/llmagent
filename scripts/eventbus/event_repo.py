@@ -78,6 +78,14 @@ def get_seq(conn: sqlite3.Connection, event_id: str) -> int:
     return int(row["seq"]) if row else 0
 
 
+def get_event_topic(conn: sqlite3.Connection, event_id: str) -> str | None:
+    """Return the topic of an existing event_id; None if not found."""
+    row = conn.execute(
+        "SELECT topic FROM events WHERE event_id = ?", (event_id,)
+    ).fetchone()
+    return str(row["topic"]) if row else None
+
+
 def fetch_events_since(
     conn: sqlite3.Connection,
     since_seq: int,

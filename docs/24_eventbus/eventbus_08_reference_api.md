@@ -46,7 +46,8 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|
-| `scripts/eventbus/ack_route.py` | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
+| `scripts/eventbus/ack_route.py` | `authorize_event_pair` | `async def authorize_event_pair(request, db, principal, event_id, consumer_id) -> None` | Authorize the (consumer_id, event topic) pair before any delivery write. |
+|  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
 |  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
 | `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request) -> dict[str, Any]` | Update `consumer_authorization`/`topic_authorization` at runtime and |
 | `scripts/eventbus/app.py` | `lifespan` | `async def lifespan(app) -> AsyncGenerator[None]` | FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown. |
@@ -57,20 +58,22 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `subscribe` | `async def subscribe(request, topic, since_seq, consumer_id, _principal, _identity) -> Any` | Subscribe to events matching the specified topics via SSE. |
 |  | `dlq_list` | `async def dlq_list(request, limit, offset, _principal) -> dict[str, Any]` | List dead-letter queue entries with pagination support. |
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id, _principal) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active queue. |
-|  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
-|  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
+|  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
+|  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
 |  | `admin_topics_authorization` | `async def admin_topics_authorization(request, _principal) -> dict[str, Any]` | Update consumer_authorization/topic_authorization at runtime. |
 | `scripts/eventbus/audit.py` | `AuditRecord` | `class AuditRecord` | Structured payload for one EventBus audit record. |
 |  | `log_auth_failure` | `def log_auth_failure(consumer_id, request_id, route, target, error_type, detail) -> None` | Emit one JSON-lines audit record for an authorization failure. |
 |  | `log_privileged_action` | `def log_privileged_action(consumer_id, request_id, route, target, detail) -> None` | Emit one JSON-lines audit record for a privileged action. |
 | `scripts/eventbus/auth.py` | `Role` | `class Role` | — |
-|  | `Principal` | `class Principal` | Authenticated identity carrying roles, consumer IDs, topics, and token fingerprint. |
+|  | `Principal` | `class Principal` | Authenticated identity carrying roles, consumer grants, and token fingerprint. |
 |  | `unauthorized_response` | `def unauthorized_response(detail) -> JSONResponse` | Return a standardized HTTP 401 Unauthorized response. |
 |  | `publish_principals` | `def publish_principals(new_map) -> None` | Atomically publish a fully built principal map. |
 |  | `get_auth_token` | `def get_auth_token(config) -> str` | Return the auth_token from EventBusConfig, or raise ValueError if missing. |
 |  | `resolve_principal` | `async def resolve_principal(request, credentials) -> Principal` | Resolve a bearer token to a Principal, or raise 401. |
 |  | `require_role` | `def require_role(role)` | FastAPI dependency factory: verify caller's principal has the required role. |
-|  | `require_consumer_identity` | `async def require_consumer_identity(request, consumer_id, topics, principal) -> Principal` | FastAPI dependency: verify caller is authorized to use the given consumer_id and topics. |
+|  | `authorize_consumer_access` | `def authorize_consumer_access(request, principal, consumer_id, topics) -> None` | Raise HTTP 403 unless every (consumer_id, topic) pair is granted. |
+|  | `effective_topics` | `def effective_topics(principal, consumer_id, requested) -> list[str]` | Return the requested topics, or the consumer's granted topics when none. |
+|  | `require_consumer_identity` | `async def require_consumer_identity(request, consumer_id, topics, principal) -> Principal` | FastAPI dependency: verify caller is authorized for consumer_id and topics. |
 |  | `attach_auth_middleware` | `def attach_auth_middleware(app) -> None` | Register X-Request-Id middleware on a FastAPI app. |
 | `scripts/eventbus/broker.py` | `ConsumerAlreadyConnectedError` | `class ConsumerAlreadyConnectedError` | Raised when a second connection attempts the same non-empty consumer_id. |
 |  | `EventBroker` | `class EventBroker` | In-memory pub/sub broker with per-subscriber queues and topic filtering. |
@@ -102,6 +105,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active event queue. |
 | `scripts/eventbus/event_repo.py` | `insert_event` | `def insert_event(conn, event_id, topic, payload_str, producer, published_at) -> tuple[int \| None, bool, str]` | INSERT OR IGNORE. Returns (seq, inserted, status). |
 |  | `get_seq` | `def get_seq(conn, event_id) -> int` | Return the seq for an existing event_id; 0 if not found. |
+|  | `get_event_topic` | `def get_event_topic(conn, event_id) -> str \| None` | Return the topic of an existing event_id; None if not found. |
 |  | `fetch_events_since` | `def fetch_events_since(conn, since_seq, topics, limit, offset) -> list[sqlite3.Row]` | Return events with seq > since_seq, optionally filtered by topics. |
 |  | `fetch_dlq` | `def fetch_dlq(conn, limit, offset) -> list[sqlite3.Row]` | Return events currently in the DLQ (dlq_at IS NOT NULL). |
 |  | `count_dlq` | `def count_dlq(conn) -> int` | Return the number of events currently in the DLQ. |

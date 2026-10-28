@@ -69,6 +69,15 @@ def deny_all_client(
     yield from _build_client(tmp_path, monkeypatch, {})
 
 
+@pytest.fixture
+def pair_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[TestClient]:
+    yield from _build_client(
+        tmp_path, monkeypatch, {"c-a": ["topic-a"], "c-b": ["topic-b"]}
+    )
+
+
 def _publish(client: TestClient, topic: str = "t") -> str:
     body: dict[str, Any] = {
         "event_id": str(uuid.uuid4()),
@@ -233,6 +242,38 @@ class TestConsumerPrincipalBinding:
         assert _delivery_state(event_id, "consumer-A") == (None, None, None)
 
 
+class TestPairwiseGrantsOverHttp:
+    def test_cross_pair_is_rejected_over_http(self, pair_client: TestClient) -> None:
+        headers = _bearer(_AUTH["consumer"])
+        event_a = _publish(pair_client, "topic-a")
+        event_b = _publish(pair_client, "topic-b")
+        for consumer_id, topic in (("c-a", "topic-b"), ("c-b", "topic-a")):
+            resp = pair_client.get(
+                f"/subscribe?consumer_id={consumer_id}&topic={topic}", headers=headers
+            )
+            assert resp.status_code == 403
+        assert (
+            pair_client.post(
+                f"/events/{event_b}/ack", params={"consumer_id": "c-a"}, headers=headers
+            ).status_code
+            == 403
+        )
+        assert (
+            pair_client.post(
+                f"/events/{event_a}/ack", params={"consumer_id": "c-b"}, headers=headers
+            ).status_code
+            == 403
+        )
+        assert _delivery_state(event_b, "c-a") == (None, None, None)
+        for consumer_id, event_id in (("c-a", event_a), ("c-b", event_b)):
+            resp = pair_client.post(
+                f"/events/{event_id}/ack",
+                params={"consumer_id": consumer_id},
+                headers=headers,
+            )
+            assert resp.status_code == 200
+
+
 class TestConsumerMappingConfigPath:
     """REQ-001, REQ-005: a consumer/topic mapping written to a TOML file survives
     load_config() and reaches the consumer principal; an empty mapping stays
@@ -265,15 +306,14 @@ class TestConsumerMappingConfigPath:
             assert cfg.consumer_authorization == {"c1": ["topicA"]}
             eb_auth._populate_token_maps(cfg)
             principal = eb_auth._TOKEN_PRINCIPAL_MAP["consumer-token"]
-            assert principal.allowed_consumer_ids == frozenset({"c1"})
-            assert principal.allowed_topics == frozenset({"topicA"})
+            assert principal.consumer_grants == frozenset({("c1", "topicA")})
         finally:
             eb_auth._TOKEN_PRINCIPAL_MAP.clear()
             eb_auth._TOKEN_PRINCIPAL_MAP.update(snapshot)
 
     def test_empty_mapping_via_config_denies_all(self, tmp_path: Path) -> None:
         """An empty consumer mapping written to a TOML file reaches
-        _populate_token_maps() as deny-all (empty frozensets)."""
+        _populate_token_maps() as deny-all (an empty grant set)."""
         import eventbus.auth as eb_auth
         import eventbus.config as eb_config
 
@@ -295,8 +335,31 @@ class TestConsumerMappingConfigPath:
             assert cfg.consumer_authorization == {}
             eb_auth._populate_token_maps(cfg)
             principal = eb_auth._TOKEN_PRINCIPAL_MAP["consumer-token"]
-            assert principal.allowed_consumer_ids == frozenset()
-            assert principal.allowed_topics == frozenset()
+            assert principal.consumer_grants == frozenset()
+        finally:
+            eb_auth._TOKEN_PRINCIPAL_MAP.clear()
+            eb_auth._TOKEN_PRINCIPAL_MAP.update(snapshot)
+
+    def test_consumer_authorization_with_empty_topic_list_grants_nothing(self) -> None:
+        import eventbus.auth as eb_auth
+        from eventbus.config import EventBusConfig
+
+        snapshot = dict(eb_auth._TOKEN_PRINCIPAL_MAP)
+        try:
+            cfg = EventBusConfig(
+                port=8015,
+                db_path="/tmp/test-eventbus-empty-topics.sqlite",
+                storage_dir="/tmp/test-eventbus-empty-topics",
+                deadletter_dir="/tmp/test-eventbus-empty-topics",
+                max_retry=3,
+                auth_token="shared-auth-token",
+                consumer_token="consumer-token",
+                consumer_authorization={"c1": []},
+            )
+            eb_auth._populate_token_maps(cfg)
+            principal = eb_auth._TOKEN_PRINCIPAL_MAP["consumer-token"]
+            assert principal.consumer_grants == frozenset()
+            assert principal.topics_for("c1") == frozenset()
         finally:
             eb_auth._TOKEN_PRINCIPAL_MAP.clear()
             eb_auth._TOKEN_PRINCIPAL_MAP.update(snapshot)

@@ -9,8 +9,10 @@ from fastapi import HTTPException, Query, Request
 
 from eventbus.auth import (
     Principal,
+    authorize_consumer_access,
 )
 from eventbus.db import nack_event as _nack_event
+from eventbus.event_repo import get_event_topic
 from eventbus.json_utils import now_iso
 from eventbus.route_helpers import (
     ERR_EVENT_ALREADY_ACKED,
@@ -25,11 +27,33 @@ from eventbus.route_helpers import (
 logger = logging.getLogger(__name__)
 
 
+async def authorize_event_pair(
+    request: Request,
+    db: Any,
+    principal: Principal | None,
+    event_id: str,
+    consumer_id: str,
+) -> None:
+    """Authorize the (consumer_id, event topic) pair before any delivery write.
+
+    A missing event is authorized on consumer_id alone so an ungranted consumer
+    never reaches the write path; the caller's not-found handling then applies.
+    """
+    if principal is None:
+        raise HTTPException(status_code=403, detail="Forbidden: principal required")
+    topic = await run_with_db_lock(lambda: get_event_topic(db, event_id))
+    authorize_consumer_access(
+        request, principal, consumer_id, [] if topic is None else [topic]
+    )
+
+
 async def _do_ack(
     db: Any,
     cfg: Any,
     event_id: str,
     consumer_id: str,  # Required — no default (REQ-004)
+    *,
+    request: Request,
     _principal: Principal | None = None,  # set by app.py wrapper
     _identity: Principal | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
@@ -42,6 +66,8 @@ async def _do_ack(
         raise HTTPException(
             status_code=400, detail="consumer_id is required for consumer ACK"
         )
+
+    await authorize_event_pair(request, db, _principal, event_id, consumer_id)
 
     def _ack_and_offset() -> tuple[bool, bool, int | None]:
         """Acknowledge an event atomically (delivery + offset in one transaction).
@@ -100,7 +126,9 @@ async def ack_event(
     """Acknowledge an event as successfully processed by a consumer."""
     db = get_db(request)
     cfg = get_config(request)
-    return await _do_ack(db, cfg, event_id, consumer_id, _principal=_principal)
+    return await _do_ack(
+        db, cfg, event_id, consumer_id, request=request, _principal=_principal
+    )
 
 
 async def nack(
@@ -129,6 +157,8 @@ async def nack(
 
     db = get_db(request)
     cfg = get_config(request)
+
+    await authorize_event_pair(request, db, _principal, event_id, consumer_id)
 
     # Extract idempotency_key value outside the closure to avoid capturing the Query object
     _idempotency_key = idempotency_key

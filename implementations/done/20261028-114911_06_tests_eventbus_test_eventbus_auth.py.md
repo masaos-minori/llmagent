@@ -1,12 +1,12 @@
-# Procedure: update config-to-principal assertions and add the consumer/topic matrix
+# Procedure: update Principal construction and add pairwise decision tests
 
 ## Goal
 
-Assert the pair set built from `consumer_authorization` and `topic_authorization` and that empty mappings stay deny-all (Plan REQ-001, REQ-007).
+Move direct `Principal(...)` construction to `consumer_grants` and cover the four-cell matrix and control-plane rejection (Plan REQ-001, REQ-005).
 
 ## Scope
 
-- Modify only `tests/eventbus/test_eventbus_consumer_authorization.py`.
+- Modify only `tests/eventbus/test_eventbus_auth.py`.
 - Test-only change; no source file is edited.
 
 ## Assumptions
@@ -27,14 +27,15 @@ N/A: lightweight row; the Plan fixes the approach.
 
 ### Target file
 
-`tests/eventbus/test_eventbus_consumer_authorization.py`
+`tests/eventbus/test_eventbus_auth.py`
 
 ### Procedure
 
-- In `test_mapping_loaded_via_config_reaches_consumer_principal`, replace the two set assertions with `principal.consumer_grants == frozenset({("c1", "topicA")})`.
-- In `test_empty_mapping_via_config_denies_all`, assert `principal.consumer_grants == frozenset()`.
-- Add `test_consumer_authorization_with_empty_topic_list_grants_nothing` (new): `{"c1": []}` yields no grant, so `c1` is rejected.
-- Add `test_cross_pair_is_rejected_over_http` (new) using the file's existing client fixture: configure `c-a -> topic-a` and `c-b -> topic-b` and assert 403 for `c-a`/`topic-b` and `c-b`/`topic-a`, 200 for the own pairs.
+- In `_make_test_app`, replace the consumer principal's `allowed_consumer_ids` and `allowed_topics` with `consumer_grants`; update the explanatory comment that mentions `None` meaning unrestricted.
+- In `_make_test_app`'s local `resolve_subscribe_identity` copy, keep the shape but call the production dependency the way `app.py` does.
+- Rewrite `test_principal_without_topic_binding_is_rejected` for a principal with empty `consumer_grants`, and `test_non_empty_topic_restriction_is_enforced_and_returned` to assert a granted pair is accepted and an ungranted pair gets 403.
+- Add `test_pairwise_matrix_rejects_cross_pairs` (new): grants `(consumer_a, topic_a)` and `(consumer_b, topic_b)`; the two own pairs pass and the two cross pairs return 403.
+- Add `test_control_plane_token_cannot_use_consumer_routes` (new): the shared `auth_token` and `admin_token` get 403 on subscribe, ACK and NACK.
 
 ### Method
 
@@ -42,7 +43,7 @@ Edit the existing tests in place; reuse the file's existing fixtures and helpers
 
 ### Details
 
-- The file's `TestClient` fixtures and config helpers are reused unchanged.
+- The test-local `resolve_subscribe_identity` mirrors production wiring, so a production wiring change must be reflected here; compare with `app.py` when editing.
 
 ## Compatibility considerations
 
@@ -60,13 +61,13 @@ N/A: revert the commit.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run pytest tests/eventbus/test_eventbus_consumer_authorization.py -q` | Pass |
-| 2 | `uv run ruff format tests/eventbus/test_eventbus_consumer_authorization.py`; `uv run ruff check tests/eventbus/test_eventbus_consumer_authorization.py` | No finding |
+| 1 | `uv run pytest tests/eventbus/test_eventbus_auth.py -q` | Pass |
+| 2 | `uv run ruff format tests/eventbus/test_eventbus_auth.py`; `uv run ruff check tests/eventbus/test_eventbus_auth.py` | No finding |
 
 ## Completion criteria
 
-- Assertions use `consumer_grants`.
-- The cross-pair HTTP test fails on the pre-change code and passes after.
+- No test constructs `Principal` with the removed fields.
+- The matrix and control-plane tests pass.
 
 ## Out of Scope
 
@@ -78,8 +79,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261028-130500 | 20261028-130500 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-130500 | 20261028-130500 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -93,10 +94,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-001, REQ-007 (grants built from both mappings; deny-all semantics)
+- **Requirement ID**: REQ-001, REQ-003, REQ-005 (grant model, shared decision, control-plane rejection)
 - **Source issue**: issues/20261027-155843_ebauth001_enforce-pairwise-consumer-authorization.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-092616_ebauth001_enforce-pairwise-consumer-authorization.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-114911
-- **Related target files**: tests/eventbus/test_eventbus_consumer_authorization.py
+- **Related target files**: tests/eventbus/test_eventbus_auth.py

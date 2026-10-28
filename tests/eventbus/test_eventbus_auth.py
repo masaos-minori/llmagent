@@ -90,7 +90,7 @@ def _make_test_app(
         loop.close()
 
     # _populate_token_maps() (run inside _init_local_state) leaves every token
-    # unrestricted (allowed_consumer_ids and allowed_topics are None). The
+    # carry no consumer grants. The
     # identity/topic rejection tests in this module (TestSubscribeAuth,
     # TestAuditRecordValidation) exercise require_consumer_identity and therefore
     # need the consumer-token to carry a concrete allowlist; mirror the
@@ -102,8 +102,7 @@ def _make_test_app(
         _existing = principal_map()[_ct]
         principal_map()[_ct] = Principal(
             roles=_existing.roles,
-            allowed_consumer_ids=frozenset({"consumer_a", "consumer_b"}),
-            allowed_topics=frozenset({"test"}),
+            consumer_grants=frozenset({("consumer_a", "test"), ("consumer_b", "test")}),
             token_fingerprint=_existing.token_fingerprint,
         )
 
@@ -115,8 +114,8 @@ def _make_test_app(
         topic: list[str] = Query(default=[]),
         principal: Principal = Depends(resolve_principal),
     ) -> Principal:
-        # require_consumer_identity enforces the caller's allowed_consumer_ids
-        # and allowed_topics; passing the real consumer_id and topic (rather than
+        # require_consumer_identity enforces the caller's (consumer_id, topic)
+        # grants; passing the real consumer_id and topic (rather than
         # empty defaults) is what makes those allowlists take effect. principal is
         # resolved here (not left as an unresolved Depends marker) so the direct
         # call below does not raise.
@@ -690,7 +689,7 @@ class TestRequireConsumerIdentityTopicSemantics:
 
     See implementations/done/20260913-152721_01_scripts_eventbus_auth.py.md: a
     token with no configured topic restriction must return `"topics": None`
-    (unrestricted), distinct from a genuinely non-empty allowlist.
+    (no grants), distinct from a genuinely non-empty allowlist.
     """
 
     @pytest.mark.asyncio
@@ -703,8 +702,7 @@ class TestRequireConsumerIdentityTopicSemantics:
 
         principal = Principal(
             roles=frozenset([Role.CONSUMER]),
-            allowed_consumer_ids=frozenset({"c1"}),
-            allowed_topics=None,
+            consumer_grants=frozenset(),
             token_fingerprint="test-fingerprint",
         )
         mock_request = MagicMock()
@@ -727,8 +725,7 @@ class TestRequireConsumerIdentityTopicSemantics:
 
         principal_with_topics = Principal(
             roles=frozenset([Role.CONSUMER]),
-            allowed_consumer_ids=frozenset(),
-            allowed_topics=frozenset({"allowed-topic"}),
+            consumer_grants=frozenset({("c1", "allowed-topic")}),
             token_fingerprint="test-fingerprint",
         )
         request_mock = MagicMock()
@@ -737,22 +734,103 @@ class TestRequireConsumerIdentityTopicSemantics:
         try:
             result = await require_consumer_identity(
                 request_mock,
-                consumer_id="",
+                consumer_id="c1",
                 topics=["allowed-topic"],
                 principal=principal_with_topics,
             )
-            assert result.allowed_topics == frozenset({"allowed-topic"})
+            assert result.is_granted("c1", "allowed-topic")
 
             with pytest.raises(HTTPException) as exc_info:
                 await require_consumer_identity(
                     request_mock,
-                    consumer_id="",
+                    consumer_id="c1",
                     topics=["disallowed-topic"],
                     principal=principal_with_topics,
                 )
             assert exc_info.value.status_code == 403
         finally:
             pass
+
+
+class TestPairwiseConsumerAuthorization:
+    """Pairwise (consumer_id, topic) decision shared by subscribe, ACK and NACK."""
+
+    @staticmethod
+    def _request() -> Any:
+        from unittest.mock import MagicMock
+
+        request = MagicMock()
+        request.state.request_id = "req-pairwise"
+        request.url.path = "/subscribe"
+        return request
+
+    @pytest.mark.asyncio
+    async def test_pairwise_matrix_rejects_cross_pairs(self) -> None:
+        from eventbus.auth import Principal, Role, require_consumer_identity
+
+        principal = Principal(
+            roles=frozenset([Role.CONSUMER]),
+            consumer_grants=frozenset(
+                {("consumer_a", "topic_a"), ("consumer_b", "topic_b")}
+            ),
+            token_fingerprint="test-fingerprint",
+        )
+        for consumer_id, topic in (
+            ("consumer_a", "topic_a"),
+            ("consumer_b", "topic_b"),
+        ):
+            accepted = await require_consumer_identity(
+                self._request(),
+                consumer_id=consumer_id,
+                topics=[topic],
+                principal=principal,
+            )
+            assert accepted is principal
+        for consumer_id, topic in (
+            ("consumer_a", "topic_b"),
+            ("consumer_b", "topic_a"),
+        ):
+            with pytest.raises(HTTPException) as exc:
+                await require_consumer_identity(
+                    self._request(),
+                    consumer_id=consumer_id,
+                    topics=[topic],
+                    principal=principal,
+                )
+            assert exc.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_control_plane_token_cannot_use_consumer_routes(self) -> None:
+        from eventbus.auth import _populate_token_maps, require_consumer_identity
+        from eventbus.config import EventBusConfig
+
+        snapshot = dict(principal_map())
+        try:
+            cfg = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-control-plane.sqlite",
+                storage_dir="/tmp/test-eventbus-control-plane",
+                deadletter_dir="/tmp/test-eventbus-control-plane",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="shared-token",
+                admin_token="admin-token",
+                consumer_token="consumer-token",
+                consumer_authorization={"consumer_a": ["test"]},
+            )
+            _populate_token_maps(cfg)
+            for token in ("shared-token", "admin-token"):
+                with pytest.raises(HTTPException) as exc:
+                    await require_consumer_identity(
+                        self._request(),
+                        consumer_id="consumer_a",
+                        topics=["test"],
+                        principal=principal_map()[token],
+                    )
+                assert exc.value.status_code == 403
+        finally:
+            principal_map().clear()
+            principal_map().update(snapshot)
 
 
 class TestPrincipalFieldValidation:
@@ -778,8 +856,7 @@ class TestPrincipalFieldValidation:
         token = "publisher-token"
         _TOKEN_PRINCIPAL_MAP[token] = Principal(
             roles=frozenset({Role.PUBLISHER}),
-            allowed_consumer_ids=None,
-            allowed_topics=None,
+            consumer_grants=frozenset(),
             token_fingerprint="test-fingerprint",
         )
         try:
@@ -789,8 +866,7 @@ class TestPrincipalFieldValidation:
             )
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset([Role.PUBLISHER])
-            assert principal.allowed_consumer_ids is None
-            assert principal.allowed_topics is None
+            assert principal.consumer_grants == frozenset()
         finally:
             _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
@@ -808,8 +884,7 @@ class TestPrincipalFieldValidation:
         token = "admin-token"
         _TOKEN_PRINCIPAL_MAP[token] = Principal(
             roles=frozenset(Role),
-            allowed_consumer_ids=None,
-            allowed_topics=None,
+            consumer_grants=frozenset(),
             token_fingerprint="test-fingerprint",
         )
         try:
@@ -819,8 +894,7 @@ class TestPrincipalFieldValidation:
             )
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset(Role)
-            assert principal.allowed_consumer_ids is None
-            assert principal.allowed_topics is None
+            assert principal.consumer_grants == frozenset()
         finally:
             _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
@@ -838,8 +912,7 @@ class TestPrincipalFieldValidation:
         token = "shared-token"
         _TOKEN_PRINCIPAL_MAP[token] = Principal(
             roles=frozenset(Role),
-            allowed_consumer_ids=None,
-            allowed_topics=None,
+            consumer_grants=frozenset(),
             token_fingerprint="test-fingerprint",
         )
         try:
@@ -849,10 +922,8 @@ class TestPrincipalFieldValidation:
             )
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset(Role)
-            # Shared token has None allowed_consumer_ids (any consumer_id)
-            assert principal.allowed_consumer_ids is None
-            # Shared token has no topic restriction
-            assert principal.allowed_topics is None
+            # Shared token carries no consumer grants
+            assert principal.consumer_grants == frozenset()
         finally:
             _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
@@ -870,8 +941,7 @@ class TestPrincipalFieldValidation:
         token = "consumer-token"
         _TOKEN_PRINCIPAL_MAP[token] = Principal(
             roles=frozenset({Role.CONSUMER}),
-            allowed_consumer_ids=None,
-            allowed_topics=None,
+            consumer_grants=frozenset(),
             token_fingerprint="test-fingerprint",
         )
         try:
@@ -881,7 +951,7 @@ class TestPrincipalFieldValidation:
             )
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset([Role.CONSUMER])
-            assert principal.allowed_consumer_ids is None
+            assert principal.consumer_grants == frozenset()
         finally:
             _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
@@ -1011,8 +1081,7 @@ class TestFailClosedConsumerAuthorization:
             principal = principal_map()[token]
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset({Role.CONSUMER})
-            assert principal.allowed_consumer_ids == frozenset()
-            assert principal.allowed_topics == frozenset()
+            assert principal.consumer_grants == frozenset()
             mock_request = MagicMock()
             mock_request.state.request_id = "req-denyall"
             mock_request.url.path = "/subscribe"
@@ -1060,9 +1129,9 @@ class TestFailClosedConsumerAuthorization:
             _populate_token_maps(cfg)
             principal = principal_map()[token]
             assert isinstance(principal, Principal)
-            allowed_ids = frozenset({"consumer_a", "consumer_b"})
-            assert principal.allowed_consumer_ids == allowed_ids
-            assert principal.allowed_topics == frozenset({"test"})
+            assert principal.consumer_grants == frozenset(
+                {("consumer_a", "test"), ("consumer_b", "test")}
+            )
             mock_request = MagicMock()
             mock_request.state.request_id = "req-allowlist"
             mock_request.url.path = "/subscribe"

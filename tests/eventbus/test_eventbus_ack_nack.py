@@ -157,7 +157,7 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
         # consumer_authorization. The manual Principal override below sets the
         # actual consumer_id restriction (consumer-A); this satisfies startup.
-        consumer_authorization={"consumer-A": ["test"]},
+        consumer_authorization={"consumer-A": ["t"]},
         operator_token="operator-token",
         monitoring_token="monitoring-token",
         admin_token="admin-token",
@@ -169,8 +169,7 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     if "consumer-token" in _TOKEN_PRINCIPAL_MAP:
         _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
             roles=_TOKEN_PRINCIPAL_MAP["consumer-token"].roles,
-            allowed_consumer_ids=frozenset({"consumer-A"}),
-            allowed_topics=_TOKEN_PRINCIPAL_MAP["consumer-token"].allowed_topics,
+            consumer_grants=frozenset({("consumer-A", "t")}),
             token_fingerprint=_TOKEN_PRINCIPAL_MAP["consumer-token"].token_fingerprint,
         )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
@@ -181,14 +180,13 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
 
     with TestClient(eb_app.app) as c:
         # The app lifespan re-runs _populate_token_maps() on startup, resetting
-        # consumer-token to an unrestricted principal. Re-apply the per-consumer
+        # consumer-token to the config-derived grants. Re-apply the per-consumer
         # restriction here so the ownership check under test actually fires.
         base = _TOKEN_PRINCIPAL_MAP.get("consumer-token")
         if base is not None:
             _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
                 roles=base.roles,
-                allowed_consumer_ids=frozenset({"consumer-A"}),
-                allowed_topics=base.allowed_topics,
+                consumer_grants=frozenset({("consumer-A", "t")}),
                 token_fingerprint=base.token_fingerprint,
             )
         c.headers["Authorization"] = "Bearer consumer-token"
@@ -808,3 +806,69 @@ class TestNackPrincipalValidation:
         with pytest_raises(HTTPException) as exc_info:
             await dep(mock_request, principal=mock_principals)
         assert exc_info.value.status_code == 403
+
+
+class TestNackPairwiseAuthorization:
+    """A NACK is authorized on the (consumer_id, event topic) pair before any write."""
+
+    @staticmethod
+    def _publish(client: TestClient, topic: str) -> dict[str, Any]:
+        body = _event(topic)
+        resp = client.post(
+            "/publish", json=body, headers={"Authorization": "Bearer publisher-token"}
+        )
+        assert resp.status_code == 200
+        return body
+
+    @staticmethod
+    def _delivery_rows() -> list[Any]:
+        import eventbus.app as eb_app
+
+        return list(
+            eb_app.app.state.db.execute("SELECT * FROM consumer_delivery").fetchall()
+        )
+
+    def test_nack_with_other_consumers_id_returns_403(
+        self, principal_client: TestClient
+    ) -> None:
+        body = self._publish(principal_client, "t")
+        before = self._delivery_rows()
+        resp = principal_client.post(
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-B",
+                "idempotency_key": "pair-key-1",
+            },
+        )
+        assert resp.status_code == 403
+        assert self._delivery_rows() == before
+
+    def test_nack_for_event_of_ungranted_topic_returns_403(
+        self, principal_client: TestClient
+    ) -> None:
+        body = self._publish(principal_client, "other-topic")
+        before = self._delivery_rows()
+        resp = principal_client.post(
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-A",
+                "idempotency_key": "pair-key-2",
+            },
+        )
+        assert resp.status_code == 403
+        assert self._delivery_rows() == before
+
+    def test_nack_for_unknown_event_still_returns_404(
+        self, principal_client: TestClient
+    ) -> None:
+        resp = principal_client.post(
+            "/nack",
+            params={
+                "event_id": "missing-event",
+                "consumer_id": "consumer-A",
+                "idempotency_key": "pair-key-3",
+            },
+        )
+        assert resp.status_code == 404

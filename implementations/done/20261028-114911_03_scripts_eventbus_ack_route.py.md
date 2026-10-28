@@ -13,7 +13,7 @@ Make the ACK and NACK routes read the event's topic and run the shared decision 
 ## Assumptions
 
 - Row 1 (seq 01) has landed and the `get_event_topic` procedure (seq 05, `scripts/eventbus/event_repo.py`) has been executed first, out of filename order, because this module imports it: `authorize_consumer_access` (new) and `get_event_topic` (new) exist.
-- A missing event keeps its existing 404 path, so the pair check runs only when the event exists; the order does not reveal event existence to an unauthorized consumer because an unauthorized `consumer_id` is rejected first by the 403 on the grants check.
+- A missing event keeps its existing 404 path, so the pair check runs only when the event exists; the order does not reveal event existence to an unauthorized consumer because the helper rejects an ungranted `consumer_id` with 403 before the not-found path, whether or not the event exists.
 - Overlap (compatible): `plans/20261028-093155_ebdurable003_define-publish-dlq-durability.md` also targets `scripts/eventbus/ack_route.py` and `docs/24_eventbus/eventbus_12_ack_nack_endpoints.md`; it edits the promotion block of `_nack_and_promote` and one transition-table row, which this procedure does not touch. `plans/20261028-092928_ebshutdown002_close-shutdown-admission-race.md` also targets `scripts/eventbus/app.py` (`_shutdown_lifespan` only).
 
 ## Design decisions
@@ -33,7 +33,7 @@ Make the ACK and NACK routes read the event's topic and run the shared decision 
 
 ### Procedure
 
-- Add an `authorize_event_pair` (new) helper (new) in this module: `topic = await run_with_db_lock(lambda: get_event_topic(db, event_id))`; when `topic` is not `None`, call `authorize_consumer_access(request, principal, consumer_id, [topic])`; when it is `None`, return and let the existing not-found path run.
+- Add an `authorize_event_pair` (new) helper (new) in this module: `topic = await run_with_db_lock(lambda: get_event_topic(db, event_id))`; always call `authorize_consumer_access(request, principal, consumer_id, [] if topic is None else [topic])`, so the consumer_id grant is enforced even for a missing event (correction after adversarial verification: skipping the check for a missing event let an ungranted consumer_id reach `ack_event_for_consumer`, which inserts a `consumer_delivery` row without an FK check); the existing not-found path then runs for an authorized consumer.
 - Extend `_do_ack` with a keyword `request` and call the helper after the `consumer_id` presence check and before `_ack_and_offset`; pass `request=request` from `ack_event`.
 - In `nack`, call the helper after the `idempotency_key` check and before `_nack_and_promote`; both calls use `_principal`, the principal that the route already receives.
 - When `_principal` is `None` (a direct call bypassing the dependency chain) raise HTTP 403 instead of skipping the check.
@@ -84,10 +84,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-130500 | 20261028-130500 | Step 3b: authorize on consumer_id even for a missing event |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-130500 | 20261028-130500 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-130500 | 20261028-130500 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-130500 | 20261028-130500 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

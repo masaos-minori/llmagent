@@ -233,8 +233,9 @@ class TestUpdateTakesEffect:
         assert resp.status_code == 200
 
         principal = principal_map()["consumer-tok"]
-        assert principal.allowed_consumer_ids == frozenset({"c1"})
-        assert principal.allowed_topics == frozenset({"topicA", "topicB"})
+        assert principal.consumer_grants == frozenset(
+            {("c1", "topicA"), ("c1", "topicB")}
+        )
 
 
 class TestValidation:
@@ -260,8 +261,29 @@ class TestValidation:
 
         # Confirm the earlier, valid state is unaffected by the rejected request.
         principal = principal_map()["consumer-tok"]
-        assert principal.allowed_consumer_ids == frozenset({"c1"})
-        assert principal.allowed_topics == frozenset({"topicA"})
+        assert principal.consumer_grants == frozenset({("c1", "topicA")})
+
+
+class TestUpdateRemovesPairs:
+    def test_update_removes_pairs_no_longer_configured(
+        self, admin_client: TestClient
+    ) -> None:
+        url = "/admin/topics/authorization"
+        headers = {"Authorization": "Bearer admin-tok"}
+        first = admin_client.post(
+            url,
+            headers=headers,
+            json={"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+        )
+        assert first.status_code == 200
+        second = admin_client.post(
+            url, headers=headers, json={"consumer_authorization": {"c1": ["topicA"]}}
+        )
+        assert second.status_code == 200
+
+        principal = principal_map()["consumer-tok"]
+        assert principal.is_granted("c1", "topicA")
+        assert not principal.is_granted("c1", "topicB")
 
 
 class TestOneRolePerTokenAdminRebuild:

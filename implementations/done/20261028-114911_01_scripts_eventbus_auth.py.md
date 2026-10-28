@@ -49,7 +49,7 @@ Edit the dataclass and the three functions in place; add the two helpers next to
 
 - Current behavior to change: `_populate_token_maps` collapses both mappings into `ids` and `topics` sets, so a token holding `consumer-a -> topic-a` and `consumer-b -> topic-b` accepts `consumer-a` with `topic-b`.
 - An empty `topic` query yields an empty `requested` list; the membership loop does nothing, which is the bypass REQ-002 closes through `effective_topics` (new).
-- `consumer_id` empty (ACK/NACK always pass one, subscribe may omit it) must still be rejected for a principal with grants: keep today's "Missing consumer_id" HTTP 400 in `subscribe_route.py` (the route owns it), and make `authorize_consumer_access` (new) treat an empty `consumer_id` with requested topics as 403.
+- `consumer_id` empty (ACK/NACK always pass a non-empty one, subscribe may omit it): keep today's "Missing consumer_id" HTTP 400 in `subscribe_route.py` (the route owns it, and `tests/eventbus/test_eventbus_subscribe.py` expects 400/422). Correction after adversarial verification: `authorize_consumer_access` (new) therefore must not reject an empty `consumer_id` itself; for an empty `consumer_id` it only requires each requested topic to be granted to some consumer of the principal (today's membership behavior), so the dependency does not preempt the route's 400.
 - Keep `Principal` frozen and hashable-safe: grants are a `frozenset` of tuples.
 
 ## Compatibility considerations
@@ -89,10 +89,10 @@ Revert the commit; no data or configuration migration is involved (grants are re
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-130500 | 20261028-130500 | Step 3b: empty consumer_id is left to the route 400 |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-130500 | 20261028-130500 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-130500 | 20261028-130500 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-130500 | 20261028-130500 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -55,7 +55,7 @@ Each per-role token grants only its own role. The shared `auth_token` and the `a
 ## Security Notes
 
 - All examples use placeholder values (e.g., `"Bearer ${TOKEN}"`) — no real credentials or secrets.
-- Consumer authorization requires the caller's principal to include the requested `consumer_id` in `allowed_consumer_ids`.
+- Consumer authorization requires the caller's principal to hold a grant for the requested `consumer_id` and each requested topic; a subscribe request without `topic` is narrowed to the granted topics.
 - Requeue operations use a lineage model where each requeue creates a new event; the original event's `dlq_at` timestamp is preserved to prevent duplicate redeliveries.
 
 ## Keywords

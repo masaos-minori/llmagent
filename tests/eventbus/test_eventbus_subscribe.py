@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-_TEST_TOPICS = ["t", "empty"]
+_TEST_TOPICS = ["t", "empty", "multi", "boundary", "resume", "fallback"]
 _CONSUMER_AUTHORIZATION = {
     consumer_id: _TEST_TOPICS
     for consumer_id in (
@@ -133,8 +133,7 @@ def principal_client(
     if "consumer-token" in _TOKEN_PRINCIPAL_MAP:
         _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
             roles=_TOKEN_PRINCIPAL_MAP["consumer-token"].roles,
-            allowed_consumer_ids=frozenset({"consumer-A"}),
-            allowed_topics=_TOKEN_PRINCIPAL_MAP["consumer-token"].allowed_topics,
+            consumer_grants=frozenset({("consumer-A", "t")}),
             token_fingerprint=_TOKEN_PRINCIPAL_MAP["consumer-token"].token_fingerprint,
         )
 
@@ -202,16 +201,14 @@ def test_subscribe_duplicate_consumer_id_returns_409(client: TestClient) -> None
 def test_subscribe_with_restricted_topic_rejects_disallowed_topic(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """AC-3: a token with a genuinely non-empty allowed_topics entry is still
-    rejected for a topic outside it — no regression from the None-means-
-    unrestricted fix (implementations/done/20260913-152721_02_scripts_eventbus_subscribe_route.py.md).
+    """AC-3: a token with a non-empty grant set is still rejected for a topic
+    outside its grants (implementations/done/20260913-152721_02_scripts_eventbus_subscribe_route.py.md).
     """
     from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal, Role
 
     _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
         roles=frozenset({Role.CONSUMER}),
-        allowed_consumer_ids=None,
-        allowed_topics=frozenset({"allowed-topic"}),
+        consumer_grants=frozenset({("c1", "allowed-topic")}),
         token_fingerprint="test-fingerprint",
     )
     try:
@@ -597,8 +594,8 @@ class TestSubscribePrincipalValidation:
             "/subscribe?consumer_id=unauthorized-consumer&topic=t"
         )
         # Subscribe uses topic-based authorization (_TOKEN_PRINCIPAL_MAP), not consumer ID ownership.
-        # When _TOKEN_PRINCIPAL_MAP maps consumer-token to a Principal with allowed_consumer_ids={"consumer-A"},
-        # the subscribe route checks if the requested consumer_id is in that set. If not, it returns 403.
+        # When _TOKEN_PRINCIPAL_MAP maps consumer-token to a Principal whose grants only
+        # name consumer-A, the shared authorization decision rejects any other consumer_id with 403.
         # However, the current implementation may allow the request through depending on
         # whether the subscribe route enforces consumer_id ownership at all.
         # Adjusted assertion to reflect actual behavior.
@@ -634,3 +631,77 @@ class TestSubscribePrincipalValidation:
         # in TestClient environment. The key assertion is that the response status
         # is 200, indicating the server accepted the request.
         assert resp.status_code == 200
+
+
+@pytest.fixture
+def narrowed_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Client whose consumer-A is granted topic-a only."""
+    import eventbus.subscribe_route as sr_module
+    from eventbus import app as eb_app
+    from eventbus.config import EventBusConfig
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(tmp_path / "eventbus.sqlite"),
+        storage_dir=str(tmp_path / "storage"),
+        deadletter_dir=str(tmp_path / "deadletter"),
+        max_retry=3,
+        auth_token="shared-token",
+        publisher_token="publisher-token",
+        consumer_token="consumer-token",
+        consumer_authorization={"consumer-A": ["topic-a"]},
+    )
+    object.__setattr__(cfg, "sse_idle_timeout", 0.5)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+    monkeypatch.setattr(sr_module, "DEFAULT_SSE_IDLE_TIMEOUT", 0.5)
+    with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer consumer-token"
+        yield c
+
+
+def test_subscribe_without_topic_receives_only_granted_topics(
+    narrowed_client: TestClient,
+) -> None:
+    pub = _pub_client(narrowed_client)
+    for topic in ("topic-a", "topic-b"):
+        assert pub.post("/publish", json=_event(topic)).status_code == 200
+
+    resp = narrowed_client.get("/subscribe?consumer_id=consumer-A", timeout=2.0)
+    assert resp.status_code == 200
+    topics: list[str] = []
+    for line in resp.iter_lines():
+        if line.startswith("data:"):
+            import json
+
+            topics.append(json.loads(line[len("data:") :])["topic"])
+    assert topics == ["topic-a"]
+
+
+def test_subscribe_without_topic_and_without_grants_returns_403(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eventbus import app as eb_app
+    from eventbus.config import EventBusConfig
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(tmp_path / "eventbus.sqlite"),
+        storage_dir=str(tmp_path / "storage"),
+        deadletter_dir=str(tmp_path / "deadletter"),
+        max_retry=3,
+        auth_token="shared-token",
+        consumer_token="consumer-token",
+        consumer_authorization={},
+    )
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+    with TestClient(eb_app.app) as c:
+        c.headers["Authorization"] = "Bearer consumer-token"
+        assert c.get("/subscribe?consumer_id=consumer-A").status_code == 403

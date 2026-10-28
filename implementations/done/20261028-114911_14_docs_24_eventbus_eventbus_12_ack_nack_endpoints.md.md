@@ -1,12 +1,12 @@
-# Procedure: refresh the generated API reference rows for the authorization symbols
+# Procedure: describe ACK/NACK pair authorization and the 403 cases
 
 ## Goal
 
-Refresh the `Principal`, `require_consumer_identity` and new function rows through the generator, not by hand (Plan REQ-008).
+Replace the `Principal.allowed_consumer_ids` wording and add the event-topic check and status codes (Plan REQ-008).
 
 ## Scope
 
-- Modify only `docs/24_eventbus/eventbus_08_reference_api.md`.
+- Modify only `docs/24_eventbus/eventbus_12_ack_nack_endpoints.md`.
 - Documentation-only change; state current behavior only (no history of the old model).
 
 ## Assumptions
@@ -27,12 +27,13 @@ N/A: lightweight row.
 
 ### Target file
 
-`docs/24_eventbus/eventbus_08_reference_api.md`
+`docs/24_eventbus/eventbus_12_ack_nack_endpoints.md`
 
 ### Procedure
 
-- Run `uv run python tools/generate_reference_table.py --type eventbus --dry-run` first if that type exists, otherwise `uv run python tools/generate_reference_table.py --check` to see the drift; then regenerate with the matching `--type` so the `<!-- AUTO-GENERATED -->` block updates in place.
-- If the generator does not cover these rows, edit only the rows for `Principal`, `require_consumer_identity`, `authorize_consumer_access` and `effective_topics` to match the new signatures.
+- In the Authentication section, replace the `Principal.allowed_consumer_ids` sentence with: the caller must hold a grant for the requested `consumer_id` on the topic of the event being acknowledged.
+- In the error table, change the `consumer_id` outside the caller's authorization 403 rows to "consumer_id or event topic outside the caller's grants" (both the ACK and the NACK table).
+- Do not edit the transition table; another Plan adds a row there.
 
 ### Method
 
@@ -40,7 +41,7 @@ Targeted sentence edits after re-reading the current file state.
 
 ### Details
 
-- The generated block is guarded by `tools/generate_reference_table.py --check` (ADR-015 INV-01); a manual edit that drifts fails CI.
+- Overlap with the DLQ-durability Plan is limited to the transition table, which this row does not touch.
 
 ## Compatibility considerations
 
@@ -75,8 +76,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-130500 | 20261028-130500 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261028-130500 | 20261028-130500 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -90,10 +91,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-008 (generated reference stays in sync)
+- **Requirement ID**: REQ-008 (ACK/NACK doc consistency)
 - **Source issue**: issues/20261027-155843_ebauth001_enforce-pairwise-consumer-authorization.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-092616_ebauth001_enforce-pairwise-consumer-authorization.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-114911
-- **Related target files**: docs/24_eventbus/eventbus_08_reference_api.md
+- **Related target files**: docs/24_eventbus/eventbus_12_ack_nack_endpoints.md

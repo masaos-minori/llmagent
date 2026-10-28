@@ -76,8 +76,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-130500 | 20261028-130500 | Out-of-scope support: tests/eventbus/eventbus_helpers.py TEST_TOPICS, test_eventbus_crash_ack.py and test_eventbus_dlq_pagination.py consumer_authorization |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261028-130500 | 20261028-130500 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

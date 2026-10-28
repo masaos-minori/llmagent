@@ -61,8 +61,8 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         consumer_token="consumer-token",
         # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
         # consumer_authorization. The manual Principal override below sets the
-        # actual consumer_id restriction (consumer-A); this satisfies startup.
-        consumer_authorization={"consumer-A": ["test"]},
+        # actual (consumer_id, topic) grants (consumer-A on ack_test).
+        consumer_authorization={"consumer-A": ["ack_test"]},
         operator_token="operator-token",
         monitoring_token="monitoring-token",
         admin_token="admin-token",
@@ -75,7 +75,7 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        # Override consumer-token's allowed_consumer_ids for authorization testing.
+        # Override consumer-token's consumer_grants for authorization testing.
         # Must run after TestClient entry: entering TestClient triggers the app's
         # `lifespan` startup handler, which calls _populate_token_maps() again and
         # would otherwise wipe out this override (see scripts/eventbus/app.py
@@ -85,8 +85,7 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         if "consumer-token" in _TOKEN_PRINCIPAL_MAP:
             _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
                 roles=_TOKEN_PRINCIPAL_MAP["consumer-token"].roles,
-                allowed_consumer_ids=frozenset({"consumer-A"}),
-                allowed_topics=_TOKEN_PRINCIPAL_MAP["consumer-token"].allowed_topics,
+                consumer_grants=frozenset({("consumer-A", "ack_test")}),
                 token_fingerprint=_TOKEN_PRINCIPAL_MAP[
                     "consumer-token"
                 ].token_fingerprint,
@@ -240,8 +239,37 @@ class TestAckEndpoint:
             params={"consumer_id": "unauthorized-consumer"},
         )
         # Authorization check (403) comes before delivery check (409)
-        # because _principal.allowed_consumer_ids is populated from _TOKEN_PRINCIPAL_MAP
+        # because the (consumer_id, topic) grants come from the consumer principal
         assert resp.status_code == 403
+
+    def test_ack_for_event_of_ungranted_topic_returns_403_and_changes_nothing(
+        self, principal_client: TestClient
+    ) -> None:
+        """A granted consumer_id cannot ACK an event of a topic it is not granted."""
+        import eventbus.app as eb_app
+
+        body = _event("ungranted_topic")
+        assert self._publish_with_publisher(principal_client, body) == 200
+
+        resp = principal_client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
+        assert resp.status_code == 403
+        db = eb_app.app.state.db
+        assert (
+            db.execute(
+                "SELECT 1 FROM consumer_delivery WHERE event_id = ?",
+                (body["event_id"],),
+            ).fetchone()
+            is None
+        )
+        assert (
+            db.execute(
+                "SELECT 1 FROM consumer_offsets WHERE consumer_id = ?",
+                ("consumer-A",),
+            ).fetchone()
+            is None
+        )
 
     def test_ack_event_delivery_verification(
         self, principal_client: TestClient
