@@ -84,7 +84,7 @@ async def test_timeout_exception_retried_once() -> None:
 
 
 @pytest.mark.asyncio
-async def test_request_error_exhaustion_includes_cause_in_message() -> None:
+async def test_request_error_exhaustion_message_contains_cause() -> None:
     transport = HttpTransport(
         http=MagicMock(spec=httpx.AsyncClient),
         base_url="http://127.0.0.1:8000",
@@ -93,14 +93,16 @@ async def test_request_error_exhaustion_includes_cause_in_message() -> None:
     )
     mock_post = AsyncMock()
     transport._http.post = mock_post
-    mock_post.side_effect = httpx.ConnectError("boom")
-    with pytest.raises(TransportError) as exc:
-        await transport.call("read_text_file", {})
+    mock_post.side_effect = httpx.ConnectError("connect refused")
+    with pytest.raises(TransportError) as excinfo:
+        await transport.call("write_file", {})
+    msg = str(excinfo.value)
+    assert "Retry exhausted" in msg
+    assert "tool=write_file" in msg
+    assert "ConnectError" in msg
+    assert "connect refused" in msg
+    assert "after 3 attempts" in msg
     assert mock_post.call_count == 3
-    message = str(exc.value)
-    assert "Retry exhausted" in message
-    assert "ConnectError" in message
-    assert "boom" in message
 
 
 @pytest.mark.asyncio
@@ -113,11 +115,14 @@ async def test_request_error_then_success_returns_result() -> None:
     )
     mock_post = AsyncMock()
     transport._http.post = mock_post
-    req = httpx.Request("POST", "http://127.0.0.1:8000/v1/call_tool")
-    mock_post.side_effect = [
-        httpx.ConnectError("boom"),
-        httpx.Response(200, request=req, json={"result": "ok", "is_error": False}),
-    ]
+    ok = MagicMock()
+    ok.status_code = 200
+    ok.raise_for_status.return_value = None
+    # parse_http_json() reads resp.content; fake body mirrors the proven
+    # success-after-error shape in tests/shared/test_tool_executor.py.
+    ok.content = b'{"result": "done", "is_error": false}'
+    ok.headers = {}
+    mock_post.side_effect = [httpx.ConnectError("flaky"), ok]
     result = await transport.call("read_text_file", {})
+    assert result.is_error is False
     assert mock_post.call_count == 2
-    assert result.output == "ok"

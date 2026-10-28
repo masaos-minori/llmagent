@@ -263,7 +263,7 @@ Degraded conditions: `circuit_open=True` after more than `failure_threshold` con
 ### Operator-facing examples
 
 ```
-[Retry exhausted] tool=<tool_name> status=<last retryable HTTP status> [last_error=<request-error class>: <message>] after <attempts> attempts
+[Retry exhausted] tool=<tool_name> [status=<last retryable HTTP status>] [last_error=<error class>: <error message>] after <attempts> attempts
 ```
 ```
 [FATAL] Session schema missing. Run: bash deploy/init_db.sh to initialize the database.
