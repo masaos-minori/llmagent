@@ -21,6 +21,7 @@ import subprocess
 import threading
 import time
 
+import pytest
 from db.schema_sql import WORKFLOW_SCHEMA_VERSION, build_eventbus_schema_sql
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -32,12 +33,24 @@ _HEALTH_CAPACITY_ONLY = {
     "db": "ok",
     "dlq_task": "running",
     "degraded_reasons": ["lock_wait_high", "subscribers_at_capacity"],
+    "liveness": True,
+    "readiness": True,
 }
 _HEALTH_DB_UNAVAILABLE = {
     "status": "degraded",
     "db": "unavailable",
     "dlq_task": "running",
     "degraded_reasons": ["db_unavailable"],
+    "liveness": True,
+    "readiness": False,
+}
+# The pre-contract shape: the gate must not fall back to the old db/dlq_task fields.
+_HEALTH_WITHOUT_LIVENESS = {
+    "status": "degraded",
+    "db": "ok",
+    "dlq_task": "running",
+    "degraded_reasons": ["lock_wait_high"],
+    "readiness": True,
 }
 
 
@@ -49,9 +62,10 @@ def _free_port() -> int:
     return port
 
 
-def _start_canned(body: dict[str, object], code: int) -> http.server.HTTPServer:
-    """Serve a fixed JSON body on an ephemeral port (mock LLM / canned /health)."""
-    payload = json.dumps(body).encode()
+def _start_canned(body: dict[str, object] | bytes, code: int) -> http.server.HTTPServer:
+    """Serve a fixed body on an ephemeral port (mock LLM / canned /health); a dict is
+    served as JSON and bytes are served verbatim."""
+    payload = body if isinstance(body, bytes) else json.dumps(body).encode()
 
     class _Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -279,5 +293,67 @@ def test_setup_services_healthy_start_passes(tmp_path: pathlib.Path) -> None:
         _reap(result2)
     finally:
         canned_capacity.shutdown()
+        for server in mocks:
+            server.shutdown()
+
+
+def _assert_gate_aborts(
+    tmp_path: pathlib.Path, body: dict[str, object] | bytes
+) -> None:
+    sb, _port, mocks = _prepare(tmp_path, malformed=False)
+    canned = _start_canned(body, 503)
+    try:
+        result = _run_setup(sb, f"http://127.0.0.1:{canned.server_address[1]}/health")
+        assert result.returncode == 1
+        assert "[FATAL] Event Bus" in result.stderr
+        assert "readiness predicate" in result.stderr
+        assert "READY (db ok, dlq_task running)" not in result.stdout
+        _reap(result)
+    finally:
+        canned.shutdown()
+        for server in mocks:
+            server.shutdown()
+
+
+def test_setup_services_malformed_body_aborts(tmp_path: pathlib.Path) -> None:
+    _assert_gate_aborts(tmp_path, b"<html>not json</html>")
+
+
+def test_setup_services_missing_liveness_field_aborts(tmp_path: pathlib.Path) -> None:
+    _assert_gate_aborts(tmp_path, _HEALTH_WITHOUT_LIVENESS)
+
+
+def test_setup_services_accepts_real_health_payload(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The gate accepts the body the real health_check produces (the field contract)."""
+    from eventbus import auth, db_conn
+
+    from tests.eventbus.eventbus_helpers import make_eventbus_client
+
+    # Running the app lifespan in-process sets the shutdown flag and rebuilds the token
+    # map. tests/eventbus/conftest.py restores them only for its own tests, so restore
+    # them here or they leak into the Event Bus tests that run after this one.
+    monkeypatch.setattr(db_conn, "_shutting_down", db_conn._shutting_down)
+    monkeypatch.setattr(db_conn, "_active_db_users", db_conn._active_db_users)
+    monkeypatch.setattr(auth, "_TOKEN_PRINCIPAL_MAP", auth._TOKEN_PRINCIPAL_MAP)
+
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    with make_eventbus_client(app_dir, monkeypatch, default_role="monitoring") as app:
+        response = app.get("/health")
+    payload = response.json()
+    assert payload["liveness"] is True
+    assert payload["readiness"] is True
+
+    sb, _port, mocks = _prepare(tmp_path, malformed=False)
+    canned = _start_canned(payload, response.status_code)
+    try:
+        result = _run_setup(sb, f"http://127.0.0.1:{canned.server_address[1]}/health")
+        assert result.returncode == 0
+        assert "READY (db ok, dlq_task running)" in result.stdout
+        _reap(result)
+    finally:
+        canned.shutdown()
         for server in mocks:
             server.shutdown()

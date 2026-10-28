@@ -45,6 +45,8 @@ Returned when one or more subsystems report degraded status.
 
 Same as success response, but with `status: "degraded"` and non-empty `degraded_reasons`.
 
+HTTP 503 is returned for any degraded reason, including the capacity-only reasons (`subscribers_at_capacity`, `lock_wait_high`, `query_duration_high`, `slow_consumers_detected`, `broker_queue_backlog_high`). A capacity-only 503 still has `liveness` and `readiness` true, so it satisfies the deployment readiness gate; `db_unavailable` and `dlq_task_stopped` do not.
+
 ### Possible Degraded Reasons
 
 | Reason | Description |
@@ -60,25 +62,24 @@ Same as success response, but with `status: "degraded"` and non-empty `degraded_
 
 ## Health Tiers
 
-The response includes three distinct health-tier fields:
+The response includes two boolean health-tier fields:
 
 | Field | Meaning |
 |-------|---------|
-| `liveness` | Process/endpoint reachable (DLQ task running) |
-| `readiness` | Dependencies healthy enough to accept work (DB connectable via `check_db`) |
-| `integrity` | Schema matches expected version (deferred to H-03; currently `null`) |
+| `liveness` | The DLQ sweep task is running |
+| `readiness` | The database is connectable (`check_db`) |
 
-`liveness` and `readiness` are boolean values. `integrity` is `null` because schema integrity is checked by H-03, not here. Readiness without integrity does not claim schema OK.
+The deployment readiness gate is `liveness and readiness` (`is_ready()` in `scripts/eventbus/health_route.py`); `deploy/setup_services.sh` reads exactly these two fields. The broker is not part of the gate. Schema integrity is checked at startup, not reported here.
 
 ## Metric Definitions
 
 ### Lock-wait vs Query Duration
 
-`eventbus_db_lock_wait_time_seconds` measures time spent waiting for the database lock (from thread submit to lock acquisition). `eventbus_db_query_duration_seconds` measures DB-execution time while holding the lock (excludes lock wait). These are independent measurements — `lock_wait_high` and `query_duration_high` compare against separate thresholds on separate metrics.
+`eventbus_db_lock_wait_time_seconds` measures time spent waiting for the database lock (from thread submit to lock acquisition). `eventbus_db_query_duration_seconds` measures DB-execution time while holding the lock (excludes lock wait) and is recorded also when the callback raises. These are independent measurements — `lock_wait_high` and `query_duration_high` compare against separate thresholds on separate metrics.
 
 ### Slow Consumer Metric
 
-`eventbus_slow_consumer_current` is a gauge reporting the current number of slow consumers (not a cumulative counter). Repeated `/health` polls do not inflate this value.
+`eventbus_slow_consumer_current` is a gauge reporting the current number of slow consumers (not a cumulative counter). It returns to zero after recovery, unsubscribe, an overflow disconnect and shutdown, and repeated `/health` polls do not inflate it.
 
 ## Keywords
 

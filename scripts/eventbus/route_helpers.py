@@ -138,27 +138,28 @@ async def run_with_db_lock(func: Any) -> Any:
     )
 
     def _locked() -> Any:
-        """Execute func while holding the DB lock."""
+        """Execute func while holding the DB lock.
+
+        Lock wait is the time from submit to acquisition; query duration is the time
+        func runs while the lock is held, recorded even when func raises.
+        """
         start_time = time.monotonic()
-        try:
-            with get_db_lock():
-                # A worker admitted before shutdown can reach the lock after the
-                # connection was closed; refuse before it touches SQL or the counter.
-                if is_shutting_down():
-                    raise RuntimeError("eventbus shutting down: refusing new DB work")
-                lock_hold_start = time.monotonic()
-                bump_active_db_user()
-                try:
-                    return func()
-                finally:
-                    release_active_db_user()
-                elapsed = time.monotonic() - lock_hold_start
-                _db_query_duration.observe(elapsed)
-        finally:
-            lock_wait = time.monotonic() - start_time
+        with get_db_lock():
+            acquired = time.monotonic()
+            lock_wait = acquired - start_time
             _db_lock_wait_time.observe(lock_wait)
             if lock_wait > 0.001:
                 _db_lock_contention.inc()
+            # A worker admitted before shutdown can reach the lock after the
+            # connection was closed; refuse before it touches SQL or the counter.
+            if is_shutting_down():
+                raise RuntimeError("eventbus shutting down: refusing new DB work")
+            bump_active_db_user()
+            try:
+                return func()
+            finally:
+                release_active_db_user()
+                _db_query_duration.observe(time.monotonic() - acquired)
 
     # REQ-004 fail-fast: refuse new work once shutdown has begun so a thread
     # queued on the lock never runs SQL against the closed connection.

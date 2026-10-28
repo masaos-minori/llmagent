@@ -109,7 +109,8 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `fetch_events_since` | `def fetch_events_since(conn, since_seq, topics, limit, offset) -> list[sqlite3.Row]` | Return events with seq > since_seq, optionally filtered by topics. |
 |  | `fetch_dlq` | `def fetch_dlq(conn, limit, offset) -> list[sqlite3.Row]` | Return events currently in the DLQ (dlq_at IS NOT NULL). |
 |  | `count_dlq` | `def count_dlq(conn) -> int` | Return the number of events currently in the DLQ. |
-| `scripts/eventbus/health_route.py` | `health_check` | `async def health_check(request) -> JSONResponse` | Return DB/broker/DLQ task health status as a JSON response. |
+| `scripts/eventbus/health_route.py` | `is_ready` | `def is_ready(liveness, readiness) -> bool` | Return the readiness gate predicate used by the deployment gate. |
+|  | `health_check` | `async def health_check(request) -> JSONResponse` | Return DB/broker/DLQ task health status as a JSON response. |
 | `scripts/eventbus/json_utils.py` | `dumps` | `def dumps(obj, option) -> str` | — |
 |  | `now_iso` | `def now_iso() -> str` | — |
 | `scripts/eventbus/publish_route.py` | `publish` | `async def publish(request) -> dict[str, Any]` | Publish an event after validating its envelope against the configured schema. |

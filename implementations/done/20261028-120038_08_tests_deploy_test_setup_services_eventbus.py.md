@@ -1,12 +1,12 @@
-# Procedure: update the integrity assertion and add failure-state and predicate tests
+# Procedure: update the gate fixtures and add malformed-body and contract tests
 
 ## Goal
 
-Replace the `integrity is None` assertion and cover the DB, broker and DLQ-task failure states and the gate predicate (Plan REQ-003, REQ-006).
+Add `liveness` and `readiness` to the canned bodies and cover malformed bodies and the real-payload contract (Plan REQ-004, REQ-006).
 
 ## Scope
 
-- Modify only `tests/eventbus/test_eventbus_health.py`.
+- Modify only `tests/deploy/test_setup_services_eventbus.py`.
 - Test-only change; no source file is edited.
 
 ## Assumptions
@@ -27,13 +27,14 @@ N/A: lightweight row; the Plan fixes the approach.
 
 ### Target file
 
-`tests/eventbus/test_eventbus_health.py`
+`tests/deploy/test_setup_services_eventbus.py`
 
 ### Procedure
 
-- In `TestHealth.test_health_ok`, replace the `"integrity" in body` and `body["integrity"] is None` assertions with `"integrity" not in body`.
-- Add `test_gate_predicate_is_true_for_healthy_and_capacity_only_payloads` (new) using `is_ready` from `eventbus.health_route` on the `liveness` and `readiness` values of real `/health` payloads, including the capacity-only 503 produced by shrinking `subscriber_count`.
-- Add `test_gate_predicate_is_false_when_db_unavailable_or_dlq_task_stopped` (new), reusing the setups of `test_health_degraded_when_db_unavailable` and `test_health_503_when_dlq_task_stopped`.
+- Add `"liveness": True, "readiness": True` to `_HEALTH_CAPACITY_ONLY`, and `"liveness": True, "readiness": False` to `_HEALTH_DB_UNAVAILABLE`.
+- Add `test_setup_services_malformed_body_aborts` (new) (the canned server returns a non-JSON body) and `test_setup_services_missing_liveness_field_aborts` (new).
+- Add `test_setup_services_accepts_real_health_payload` (new): build a payload with the real `health_check` through a `TestClient` (as `tests/eventbus/test_eventbus_health.py` does) and serve it from `_start_canned`; assert the gate passes.
+- Keep the existing four gate tests; they run the script in the sandbox copy and never write production paths.
 
 ### Method
 
@@ -41,7 +42,7 @@ Edit the existing tests in place and reuse the file's fixtures and helpers.
 
 ### Details
 
-- Row 3 has landed.
+- Rows 3 and 4 have landed. The sandbox helpers (`_make_sandbox`, `_run_setup`, `_start_canned`) are reused unchanged.
 
 ## Compatibility considerations
 
@@ -59,12 +60,12 @@ N/A: revert the commit.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run pytest tests/eventbus/test_eventbus_health.py -q` | Pass |
-| 2 | `uv run ruff format tests/eventbus/test_eventbus_health.py`; `uv run ruff check tests/eventbus/test_eventbus_health.py` | No finding |
+| 1 | `uv run pytest tests/deploy/test_setup_services_eventbus.py -q` | Pass |
+| 2 | `uv run ruff format tests/deploy/test_setup_services_eventbus.py`; `uv run ruff check tests/deploy/test_setup_services_eventbus.py` | No finding |
 
 ## Completion criteria
 
-- The payload has no `integrity` key and the predicate tests pass.
+- Healthy and capacity-only bodies pass; the failure and malformed bodies abort; the real payload passes.
 
 ## Out of Scope
 
@@ -76,8 +77,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261028-165731 | 20261028-165731 | Step 3b: real-payload test snapshots/restores db_conn flag, counter and token map (tests/eventbus/conftest.py autouse does not cover tests/deploy; first full run failed 9 tests from the leaked shutdown flag) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-165731 | 20261028-165731 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -91,10 +92,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-003, REQ-006 (health payload and gate predicate)
+- **Requirement ID**: REQ-004, REQ-006 (structural gate; shared predicate)
 - **Source issue**: issues/20261027-155849_ebmetrics006_correct-db-timing-health.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-094217_ebmetrics006_correct-db-timing-health.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-120038
-- **Related target files**: tests/eventbus/test_eventbus_health.py
+- **Related target files**: tests/deploy/test_setup_services_eventbus.py

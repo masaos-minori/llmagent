@@ -200,7 +200,9 @@ EB_PID=$!
 echo "  Event Bus PID: ${EB_PID}"
 
 # --- EventBus readiness gate (REQ-004) -------------------------------------
-# Ready only when the /health body reports db == ok AND dlq_task == running.
+# Ready only when the /health body reports liveness AND readiness, both true
+# (liveness: the DLQ task is running; readiness: the database is connectable; the
+# broker is not part of the gate).
 # A 503 carrying only capacity-only degraded_reasons (lock_wait_high,
 # slow_consumers_detected, query_duration_high, broker_queue_backlog_high,
 # subscribers_at_capacity) still satisfies the predicate and does NOT fail
@@ -234,11 +236,12 @@ for (( eb_attempt=1; eb_attempt<=LLM_HEALTH_RETRIES; eb_attempt++ )); do
         sleep "${LLM_HEALTH_INTERVAL}"
         continue
     fi
-    if [[ "${EB_LAST_BODY}" == *'"db":"ok"'* && "${EB_LAST_BODY}" == *'"dlq_task":"running"'* ]]; then
+    # A malformed body or a missing field is not ready: the check exits non-zero.
+    if uv run "${UV_PROD_FLAGS[@]}" python -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("liveness") is True and d.get("readiness") is True else 1)' < "${EB_BODY_FILE}" 2>/dev/null; then
         EB_READY=1
         break
     fi
-    echo "  Event Bus /health returned HTTP ${EB_LAST_CODE} without the readiness predicate (db=ok, dlq_task=running)." >&2
+    echo "  Event Bus /health returned HTTP ${EB_LAST_CODE} without the readiness predicate (liveness and readiness must both be true)." >&2
     rm -f "${EB_BODY_FILE}"
     eb_gate_fail
 done

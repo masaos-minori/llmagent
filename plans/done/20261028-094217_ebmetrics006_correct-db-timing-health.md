@@ -165,10 +165,10 @@ Baseline recorded in Step 5: `radon cc` reports `health_check` C (15) and no oth
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing timing and gauge tests | In Progress | — | — |  |
-| 2 | Fix the timing in `route_helpers.py` and the gauge in `broker.py` | In Progress | — | — |  |
-| 3 | Health contract and structural deployment gate with tests | In Progress | — | — |  |
-| 4 | Health and operations docs | In Progress | — | — |  |
+| 1 | Write the failing timing and gauge tests | Completed | — | 20261028-165731 |  |
+| 2 | Fix the timing in `route_helpers.py` and the gauge in `broker.py` | Completed | — | 20261028-165731 |  |
+| 3 | Health contract and structural deployment gate with tests | Completed | — | 20261028-165731 |  |
+| 4 | Health and operations docs | Completed | — | 20261028-165731 |  |
 | 5 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log

@@ -78,8 +78,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261028-165731 | 20261028-165731 | Step 3b: client fixture removed from the strict-delta tests (its DLQ sweep adds observations); scripted clock for the contended case; 3 of the 4 tests red before the fix |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-165731 | 20261028-165731 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -172,3 +172,89 @@ class TestSlowConsumer:
             assert sub1.disconnect.is_set()
         finally:
             eb_app.app.state.broker.unsubscribe(sub1)
+
+
+def _slow_gauge() -> float:
+    """Read eventbus_slow_consumer_current from the collector itself (other test
+    modules unregister collectors from the default registry)."""
+    from eventbus.broker import _slow_consumer_current
+
+    metric = next(iter(_slow_consumer_current.collect()))
+    return float(metric.samples[0].value)
+
+
+def _small_broker() -> Any:
+    """A broker whose slow-consumer threshold (2) is reached by two queued events."""
+    from eventbus.broker import EventBroker
+    from eventbus.config import EventBusConfig
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path="unused.sqlite",
+        storage_dir="unused",
+        deadletter_dir="unused",
+        max_retry=1,
+        auth_token="test-token",
+        slow_consumer_threshold=2,
+        subscriber_queue_maxsize=4,
+        backlog_health_threshold=4,
+    )
+    return EventBroker(cfg)
+
+
+class TestSlowConsumerGauge:
+    """eventbus_slow_consumer_current always equals the current slow-consumer count."""
+
+    def test_slow_consumer_gauge_returns_to_zero_after_recovery(self) -> None:
+        broker = _small_broker()
+        sub = broker.subscribe([])
+        broker.publish(_event())
+        broker.publish(_event())
+
+        assert broker.slow_consumer_count() == 1
+        assert _slow_gauge() == 1
+
+        sub.queue.get_nowait()
+        sub.queue.get_nowait()
+
+        assert broker.slow_consumer_count() == 0
+        assert _slow_gauge() == 0
+
+    def test_slow_consumer_gauge_is_zero_after_unsubscribe(self) -> None:
+        broker = _small_broker()
+        sub = broker.subscribe([])
+        broker.publish(_event())
+        broker.publish(_event())
+        assert broker.slow_consumer_count() == 1
+        assert _slow_gauge() == 1
+
+        broker.unsubscribe(sub)
+
+        assert _slow_gauge() == 0
+
+    def test_slow_consumer_gauge_is_zero_after_overflow_disconnect(self) -> None:
+        broker = _small_broker()
+        sub = broker.subscribe([])
+        broker.publish(_event())
+        broker.publish(_event())
+        assert broker.slow_consumer_count() == 1
+        assert _slow_gauge() == 1
+
+        for _ in range(3):  # the queue holds 4, so the fifth event overflows it
+            broker.publish(_event())
+
+        assert sub.disconnect.is_set()
+        assert broker.subscriber_count() == 0
+        assert _slow_gauge() == 0
+
+    def test_slow_consumer_gauge_is_zero_after_shutdown(self) -> None:
+        broker = _small_broker()
+        broker.subscribe([])
+        broker.publish(_event())
+        broker.publish(_event())
+        assert broker.slow_consumer_count() == 1
+        assert _slow_gauge() == 1
+
+        broker.shutdown()
+
+        assert _slow_gauge() == 0

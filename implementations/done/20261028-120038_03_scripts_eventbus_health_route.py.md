@@ -77,10 +77,10 @@ Remove one key and add one small function.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-165731 | 20261028-165731 | is_ready is a contract helper not called by the payload; reference table regenerated (eventbus_08, out of target) |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-165731 | 20261028-165731 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-165731 | 20261028-165731 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-165731 | 20261028-165731 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

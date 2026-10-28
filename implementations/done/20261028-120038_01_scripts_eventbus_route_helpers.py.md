@@ -81,10 +81,10 @@ Rewrite one nested function; no new imports.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-165731 | 20261028-165731 | Applied after tests 05 (red confirmed); keeps the shutdown guard between the wait observation and bump_active_db_user; vulture clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-165731 | 20261028-165731 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-165731 | 20261028-165731 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-165731 | 20261028-165731 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

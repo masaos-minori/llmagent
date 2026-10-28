@@ -135,7 +135,7 @@ Capacity is governed by `subscriber_count` and `publish_rate` (see Configuration
 
 ### Metrics
 
-Database-lock contention (`eventbus_db_lock_*`, `eventbus_db_query_duration_seconds`) and slow-consumer (`eventbus_slow_consumer_total`) metrics are Prometheus in-process metrics. The service does not serve a Prometheus scrape endpoint; `/health` reports lock wait and query duration averages and the contention total under its `metrics` sub-object, and reports `slow_consumers_detected` when a subscriber's queue depth exceeds `slow_consumer_threshold`.
+Database-lock contention (`eventbus_db_lock_*`, `eventbus_db_query_duration_seconds`) and slow-consumer (`eventbus_slow_consumer_current`, a gauge) metrics are Prometheus in-process metrics. The service does not serve a Prometheus scrape endpoint; `/health` reports lock wait and query duration averages and the contention total under its `metrics` sub-object, and reports `slow_consumers_detected` when a subscriber's queue depth exceeds `slow_consumer_threshold`.
 
 ---
 

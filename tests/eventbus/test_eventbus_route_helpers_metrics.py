@@ -6,7 +6,9 @@ Prometheus metrics instrumentation for run_with_db_lock.
 from __future__ import annotations
 
 import asyncio
+import threading
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -44,6 +46,27 @@ async def _do_cleanup() -> None:
         eb_app.app.state.broker.shutdown()
     if eb_app.app.state.db:
         eb_app.app.state.db.close()
+
+
+def _sample(name: str) -> float:
+    """Return a registered Prometheus sample value, 0.0 when it has no sample yet."""
+    return REGISTRY.get_sample_value(name) or 0.0
+
+
+def _run_with_lock(func: Any) -> Any:
+    """Run `func` through run_with_db_lock on a fresh event loop."""
+
+    async def _call() -> Any:
+        from eventbus.route_helpers import run_with_db_lock
+
+        return await run_with_db_lock(func)
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(_call())
+    finally:
+        loop.close()
 
 
 @pytest.fixture(scope="module")
@@ -101,116 +124,33 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 class TestRunWithDbLockMetrics:
     """Tests for Prometheus metrics in run_with_db_lock."""
 
-    def test_query_duration_metric_observed(self, client: Any, tmp_path: Path) -> None:
-        """run_with_db_lock observes _db_query_duration histogram."""
-
-        # Ensure route_helpers metrics are registered (may have been
-        # unregistered by a prior test's cleanup).
+    def test_query_duration_metric_observed(self) -> None:
+        """run_with_db_lock observes _db_query_duration once per call, with a positive
+        duration. No app fixture: its DLQ sweep would add observations of its own."""
         from tests.eventbus.conftest import _ensure_route_helpers_metrics_registered
 
         _ensure_route_helpers_metrics_registered()
+        count_before = _sample("eventbus_db_query_duration_seconds_count")
+        sum_before = _sample("eventbus_db_query_duration_seconds_sum")
 
-        # Collect current metrics before calling
-        before_text = generate_latest().decode()
-        before_count = sum(
-            1
-            for line in before_text.splitlines()
-            if "eventbus_db_query_duration" in line
-        )
+        assert _run_with_lock(lambda: 42) == 42
 
-        # Call run_with_db_lock
-        async def _call():
-            from eventbus.route_helpers import run_with_db_lock
+        assert _sample("eventbus_db_query_duration_seconds_count") - count_before == 1
+        assert _sample("eventbus_db_query_duration_seconds_sum") - sum_before > 0
 
-            def _noop():
-                return 42
-
-            return await run_with_db_lock(_noop)
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(_call())
-        finally:
-            loop.close()
-
-        assert result == 42
-
-        # Collect metrics after calling
-        after_text = generate_latest().decode()
-        after_lines = [
-            line
-            for line in after_text.splitlines()
-            if "eventbus_db_query_duration" in line
-        ]
-        # At least one metric sample should exist
-        assert len(after_lines) > 0 or before_count == 0
-
-        # Verify: query duration measures execution while holding lock (excludes lock wait)
-        # and lock-wait is measured separately. Under contention, these should be distinct.
-        # We verify both histograms received observations.
-        after_lock_lines = [
-            line
-            for line in after_text.splitlines()
-            if "eventbus_db_lock_wait_time" in line
-        ]
-        assert len(after_lock_lines) > 0 or before_count == 0
-
-    def test_lock_wait_time_metric_observed(self, client: Any, tmp_path: Path) -> None:
-        """run_with_db_lock observes _db_lock_wait_time histogram."""
-
-        # Ensure route_helpers metrics are registered (may have been
-        # unregistered by a prior test's cleanup).
+    def test_lock_wait_time_metric_observed(self) -> None:
+        """run_with_db_lock observes _db_lock_wait_time once per call, and an uncontended
+        call waits well under the 1 ms contention threshold."""
         from tests.eventbus.conftest import _ensure_route_helpers_metrics_registered
 
         _ensure_route_helpers_metrics_registered()
+        count_before = _sample("eventbus_db_lock_wait_time_seconds_count")
+        sum_before = _sample("eventbus_db_lock_wait_time_seconds_sum")
 
-        # Capture before/after delta to avoid order-dependent failures
-        before_text = generate_latest().decode()
-        before_count_samples = [
-            line
-            for line in before_text.splitlines()
-            if "eventbus_db_lock_wait_time_seconds_count" in line
-        ]
-        before_value = (
-            float(before_count_samples[-1].split(" ")[-1])
-            if before_count_samples
-            else 0.0
-        )
+        assert _run_with_lock(lambda: True) is True
 
-        # Call run_with_db_lock
-        async def _call():
-            from eventbus.route_helpers import run_with_db_lock
-
-            def _noop():
-                return True
-
-            return await run_with_db_lock(_noop)
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(_call())
-        finally:
-            loop.close()
-
-        assert result is True
-
-        # Collect metrics after calling
-        after_text = generate_latest().decode()
-        after_count_samples = [
-            line
-            for line in after_text.splitlines()
-            if "eventbus_db_lock_wait_time_seconds_count" in line
-        ]
-        after_value = (
-            float(after_count_samples[-1].split(" ")[-1])
-            if after_count_samples
-            else 0.0
-        )
-        delta = after_value - before_value
-        # At least one new histogram sample should have been added
-        assert delta >= 1
+        assert _sample("eventbus_db_lock_wait_time_seconds_count") - count_before == 1
+        assert _sample("eventbus_db_lock_wait_time_seconds_sum") - sum_before < 0.001
 
     def test_lock_contention_counter_increments_on_slow_acquire(
         self, client: Any, tmp_path: Path
@@ -261,3 +201,72 @@ class TestRunWithDbLockMetrics:
         # Counter may or may not have incremented depending on whether
         # lock wait exceeded the 1ms threshold — just verify it's a valid number
         assert delta >= 0
+
+    @pytest.mark.asyncio
+    async def test_contended_call_waits_and_increments_contention_counter(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A call queued behind a held lock records the wait up to acquisition (not the
+        callback time), increments the contention counter and records the callback as
+        the query duration. The clock is scripted so the timing is deterministic."""
+        import eventbus.route_helpers as rh
+        from eventbus import db as eb_db
+
+        from tests.eventbus.conftest import _ensure_route_helpers_metrics_registered
+
+        _ensure_route_helpers_metrics_registered()
+
+        real_lock = threading.Lock()
+        worker_waiting = threading.Event()
+
+        class _SignalingLock:
+            """Signal that the worker reached the lock, then block on the real lock."""
+
+            def __enter__(self) -> None:
+                worker_waiting.set()
+                real_lock.acquire()
+
+            def __exit__(self, *exc_info: object) -> None:
+                real_lock.release()
+
+        monkeypatch.setattr(eb_db, "get_db_lock", lambda: _SignalingLock())
+        # outer start, worker start, lock acquired, callback done, outer end
+        ticks = iter([100.0, 100.0, 100.5, 100.6, 100.6])
+        monkeypatch.setattr(
+            rh, "time", SimpleNamespace(monotonic=lambda: next(ticks, 100.6))
+        )
+
+        wait_count = _sample("eventbus_db_lock_wait_time_seconds_count")
+        wait_sum = _sample("eventbus_db_lock_wait_time_seconds_sum")
+        duration_sum = _sample("eventbus_db_query_duration_seconds_sum")
+        contention = _sample("eventbus_db_lock_contention_total")
+
+        real_lock.acquire()  # the test plays the role of the lock holder
+        task = asyncio.create_task(rh.run_with_db_lock(lambda: "done"))
+        assert await asyncio.to_thread(worker_waiting.wait, 5), "worker never queued"
+        real_lock.release()
+        assert await asyncio.wait_for(task, 5) == "done"
+
+        assert _sample("eventbus_db_lock_wait_time_seconds_count") - wait_count == 1
+        assert _sample("eventbus_db_lock_wait_time_seconds_sum") - wait_sum == (
+            pytest.approx(0.5)
+        )
+        assert _sample("eventbus_db_query_duration_seconds_sum") - duration_sum == (
+            pytest.approx(0.1)
+        )
+        assert _sample("eventbus_db_lock_contention_total") - contention == 1
+
+    def test_raising_callback_still_records_query_duration(self) -> None:
+        """The query duration is recorded even when the callback raises."""
+        from tests.eventbus.conftest import _ensure_route_helpers_metrics_registered
+
+        _ensure_route_helpers_metrics_registered()
+        count_before = _sample("eventbus_db_query_duration_seconds_count")
+
+        def _boom() -> None:
+            raise ValueError("callback failed")
+
+        with pytest.raises(ValueError, match="callback failed"):
+            _run_with_lock(_boom)
+
+        assert _sample("eventbus_db_query_duration_seconds_count") - count_before == 1

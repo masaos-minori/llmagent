@@ -22,6 +22,15 @@ from eventbus.route_helpers import (
 logger = logging.getLogger(__name__)
 
 
+def is_ready(liveness: bool, readiness: bool) -> bool:
+    """Return the readiness gate predicate used by the deployment gate.
+
+    A capacity-only degraded reason (HTTP 503) does not change liveness or readiness,
+    so such a payload still satisfies the gate.
+    """
+    return liveness and readiness
+
+
 async def health_check(request: Request) -> JSONResponse:
     """Return DB/broker/DLQ task health status as a JSON response."""
     db = get_db(request)
@@ -87,10 +96,9 @@ async def health_check(request: Request) -> JSONResponse:
 
     degraded_reasons.extend(capacity_degraded_reasons)
 
-    # Tiered health checks (REQ-005): separate liveness, readiness, integrity
+    # Tiered health checks (REQ-005): the deployment gate is is_ready(liveness, readiness)
     liveness = dlq_task_status == "running"
     readiness = db_ok
-    integrity = None  # Not checked here; deferred to H-03
 
     overall = "ok" if not degraded_reasons else "degraded"
     status_code = 200 if overall == "ok" else 503
@@ -112,7 +120,6 @@ async def health_check(request: Request) -> JSONResponse:
             },
             "liveness": liveness,
             "readiness": readiness,
-            "integrity": integrity,
         },
         status_code=status_code,
     )

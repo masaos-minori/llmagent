@@ -98,10 +98,9 @@ class TestHealth:
         # Tiered health fields (REQ-005)
         assert "liveness" in body
         assert "readiness" in body
-        assert "integrity" in body
+        assert "integrity" not in body
         assert body["liveness"] is True
         assert body["readiness"] is True
-        assert body["integrity"] is None  # Not checked here; deferred to H-03
 
     def test_health_degraded_when_db_unavailable(self, client: TestClient) -> None:
         from unittest.mock import MagicMock
@@ -116,6 +115,56 @@ class TestHealth:
         body = resp.json()
         assert body["status"] == "degraded"
         assert body["db"] == "unavailable"
+
+    def test_gate_predicate_is_true_for_healthy_and_capacity_only_payloads(
+        self, client: TestClient
+    ) -> None:
+        """The deployment gate predicate holds for a healthy payload and for a
+        capacity-only 503, which still reports liveness and readiness."""
+        from eventbus import app as eb_app
+        from eventbus.health_route import is_ready
+
+        healthy = client.get("/health")
+        assert healthy.status_code == 200
+        body = healthy.json()
+        assert is_ready(body["liveness"], body["readiness"]) is True
+
+        # Shrink the subscriber capacity so one subscriber reaches it.
+        object.__setattr__(eb_app.app.state.config, "subscriber_count", 1)
+        sub = eb_app.app.state.broker.subscribe([])
+        try:
+            capacity = client.get("/health")
+        finally:
+            eb_app.app.state.broker.unsubscribe(sub)
+        assert capacity.status_code == 503
+        body = capacity.json()
+        assert body["degraded_reasons"] == ["subscribers_at_capacity"]
+        assert is_ready(body["liveness"], body["readiness"]) is True
+
+    def test_gate_predicate_is_false_when_db_unavailable_or_dlq_task_stopped(
+        self, client: TestClient
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from eventbus import app as eb_app
+        from eventbus.health_route import is_ready
+
+        real_db = eb_app.app.state.db
+        broken_db = MagicMock()
+        broken_db.execute.side_effect = sqlite3.OperationalError("DB gone")
+        eb_app.app.state.db = broken_db
+        try:
+            body = client.get("/health").json()
+        finally:
+            eb_app.app.state.db = real_db
+        assert body["readiness"] is False
+        assert is_ready(body["liveness"], body["readiness"]) is False
+
+        eb_app.app.state.dlq_task.cancel()
+        eb_app.app.state.dlq_task = None
+        body = client.get("/health").json()
+        assert body["liveness"] is False
+        assert is_ready(body["liveness"], body["readiness"]) is False
 
     def test_health_broker_unavailable(self, client: TestClient) -> None:
         """Test that health endpoint returns degraded status when broker is unavailable."""
