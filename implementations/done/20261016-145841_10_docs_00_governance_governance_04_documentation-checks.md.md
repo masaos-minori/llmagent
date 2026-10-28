@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the GV-023 note | Pending | — | — | |
-| 2 | Run the docs checkers | Pending | — | — | |
+| 1 | Edit the GV-023 note | Completed | — | 20261016-181042 |  |
+| 2 | Run the docs checkers | Completed | — | 20261016-181042 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
