@@ -46,6 +46,29 @@ def _event(topic: str = "t") -> dict[str, Any]:
     }
 
 
+def _dlq_failure_counter() -> float:
+    """Current DLQ file-write failure counter, registering it if needed."""
+    from eventbus import dlq
+    from prometheus_client import REGISTRY
+
+    # Ensure the counter is registered (may have been unregistered by a prior test's cleanup)
+    if dlq._dlq_file_write_failure_counter not in REGISTRY._collector_to_names:
+        try:
+            REGISTRY.register(dlq._dlq_file_write_failure_counter)
+        except ValueError:
+            pass
+    return REGISTRY.get_sample_value("eventbus_dlq_file_write_failure_total") or 0.0
+
+
+def _make_promotable(db: Any, event_id: str) -> None:
+    """Insert a consumer_delivery record at the retry limit so the event is promotable."""
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
+        ("consumer-A", event_id),
+    )
+    db.commit()
+
+
 def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) -> None:
     from eventbus.db import open_db
     from eventbus.dlq import sweep_orphans
@@ -382,29 +405,163 @@ def test_atomic_write_failure_leaves_db_row_unchanged(
     def _raise(*_args: object, **_kwargs: object) -> None:
         raise OSError("disk full")
 
+    before = _dlq_failure_counter()
+
     monkeypatch.setattr(dlq, "_atomic_write", _raise)
 
     with pytest.raises(OSError):
         dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"])
 
-    # Verify the new DLQ file-write-failure counter incremented
+    # The inline write failure increments the failure counter exactly once.
+    assert _dlq_failure_counter() - before == 1
+
+
+def test_inline_write_failure_increments_counter_and_raises(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """promote_single meters the file-write failure, re-raises, and leaves the row live."""
     from eventbus import dlq
-    from prometheus_client import REGISTRY, generate_latest
+    from eventbus.db import open_db
 
-    # Ensure the counter is registered (may have been unregistered by a prior test's cleanup)
-    if dlq._dlq_file_write_failure_counter not in REGISTRY._collector_to_names:
-        try:
-            REGISTRY.register(dlq._dlq_file_write_failure_counter)
-        except ValueError:
-            pass
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event("dlq-inline-io")
+    client.post("/publish", json=ev)
+    _make_promotable(db, ev["event_id"])
 
-    after_text = generate_latest().decode()
-    dlq_fail_lines = [
-        line
-        for line in after_text.splitlines()
-        if "eventbus_dlq_file_write_failure_total" in line
-    ]
-    assert len(dlq_fail_lines) > 0
+    def _raise(*_args: object, **_kwargs: object) -> None:
+        raise OSError("disk full")
+
+    before = _dlq_failure_counter()
+    monkeypatch.setattr(dlq, "_atomic_write", _raise)
+
+    with pytest.raises(OSError, match="disk full"):
+        dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"])
+
+    assert _dlq_failure_counter() - before == 1
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert row["dlq_at"] is None
+    # No partial file is left behind by the failed atomic write.
+    assert not list((tmp_path / "deadletter").glob("*.json"))
+
+
+def test_sweep_continues_after_one_event_write_failure(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failing file write in the sweep is metered, logged and skipped; the sweep continues."""
+    from eventbus import dlq
+    from eventbus.db import open_db
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev1 = _event("io-a")
+    ev2 = _event("io-b")
+    client.post("/publish", json=ev1)
+    client.post("/publish", json=ev2)
+    _make_promotable(db, ev1["event_id"])
+    _make_promotable(db, ev2["event_id"])
+
+    original = dlq._atomic_write
+
+    def _flaky(deadletter_dir: str, event_id: str, record: Any) -> None:
+        if event_id == ev1["event_id"]:
+            raise OSError("transient disk error")
+        original(deadletter_dir, event_id, record)
+
+    monkeypatch.setattr(dlq, "_atomic_write", _flaky)
+
+    before = _dlq_failure_counter()
+    promoted = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    assert promoted == 1
+    assert _dlq_failure_counter() - before == 1
+
+    rows = db.execute(
+        "SELECT event_id, dlq_at FROM events WHERE event_id IN (?, ?)",
+        (ev1["event_id"], ev2["event_id"]),
+    ).fetchall()
+    dlq_at = {r["event_id"]: r["dlq_at"] for r in rows}
+    assert dlq_at[ev1["event_id"]] is None  # skipped event stays live
+    assert dlq_at[ev2["event_id"]] is not None
+    assert (tmp_path / "deadletter" / f"{ev2['event_id']}.json").exists()
+    assert not (tmp_path / "deadletter" / f"{ev1['event_id']}.json").exists()
+
+    # The next sweep repairs the skipped event.
+    monkeypatch.setattr(dlq, "_atomic_write", original)
+    promoted2 = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    assert promoted2 == 1
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev1["event_id"],)
+    ).fetchone()
+    assert row["dlq_at"] is not None
+
+
+def test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A commit failure after the DLQ file write leaves the row live; the next sweep repairs it."""
+    import sqlite3
+
+    from eventbus import dlq
+    from eventbus.db import open_db
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event("dlq-db-fail")
+    client.post("/publish", json=ev)
+    _make_promotable(db, ev["event_id"])
+
+    class _CommitFailingConn:
+        """Proxy connection whose first commit raises, simulating a crash after the file write."""
+
+        def __init__(self, inner: Any) -> None:
+            self._inner = inner
+            self._failed = False
+
+        def execute(self, sql: str, params: Any = ()) -> Any:
+            return self._inner.execute(sql, params)
+
+        def commit(self) -> None:
+            if not self._failed:
+                self._failed = True
+                raise sqlite3.OperationalError("disk I/O error")
+            self._inner.commit()
+
+        def rollback(self) -> None:
+            self._inner.rollback()
+
+    before = _dlq_failure_counter()
+    with pytest.raises(sqlite3.OperationalError, match="disk I/O error"):
+        dlq.promote_single(
+            _CommitFailingConn(db),  # type: ignore[arg-type]  # test-only: proxy connection stand-in
+            str(tmp_path / "deadletter"),
+            ev["event_id"],
+        )
+
+    # The file was written before the DB failure; only file-write failures move the counter.
+    dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+    assert dlq_file.exists()
+    assert _dlq_failure_counter() - before == 0
+
+    # The proxy shares one underlying connection: roll back the un-committed dlq_at UPDATE
+    # so the sweep sees the same state a fresh connection would.
+    db.rollback()
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert row["dlq_at"] is None
+
+    promoted = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    assert promoted == 1
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert row["dlq_at"] is not None
+
+    # Repair is idempotent: exactly one valid JSON record, no extra counter movement.
+    assert len(list((tmp_path / "deadletter").glob("*.json"))) == 1
+    record = orjson.loads(dlq_file.read_bytes())
+    assert record["event_id"] == ev["event_id"]
+    assert record["dlq_at"] is not None
+    assert _dlq_failure_counter() - before == 0
 
 
 @pytest.mark.asyncio

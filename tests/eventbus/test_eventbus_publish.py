@@ -115,6 +115,44 @@ def test_publish_succeeds_if_jsonl_append_fails(client: TestClient) -> None:
     assert ev["event_id"] in event_ids
 
 
+def test_duplicate_publish_after_jsonl_failure_returns_same_seq_and_does_not_backfill(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """REQ-006: a retry after a failed JSONL append returns the same seq and does not backfill."""
+    ev = _event()
+
+    original_open = Path.open
+
+    def failing_open(self, *args, **kwargs):
+        if "events.jsonl" in str(self):
+            raise OSError("disk full")
+        return original_open(self, *args, **kwargs)
+
+    with patch.object(Path, "open", failing_open):
+        first = client.post("/publish", json=ev)
+    assert first.status_code == 200
+    seq1 = first.json()["seq"]
+
+    # Identical retry with a healthy filesystem.
+    second = client.post("/publish", json=ev)
+    assert second.status_code == 200
+    assert second.json()["seq"] == seq1
+
+    # JSONL is appended only for a fresh insert: no backfill of the failed append.
+    jsonl_path = tmp_path / "storage" / "events.jsonl"
+    assert not jsonl_path.exists() or ev["event_id"] not in jsonl_path.read_text()
+
+    # SQLite is the source of truth: the event appears exactly once in replay.
+    replay = client.get(
+        "/replay",
+        params={"since_seq": 0, "format": "json"},
+        headers=eventbus_auth_headers("operator"),
+    )
+    assert replay.status_code == 200
+    event_ids = [e["event_id"] for e in replay.json()["items"]]
+    assert event_ids.count(ev["event_id"]) == 1
+
+
 class _CommitFailingConn:
     """Connection proxy whose commit() fails, simulating a SQLite commit error."""
 

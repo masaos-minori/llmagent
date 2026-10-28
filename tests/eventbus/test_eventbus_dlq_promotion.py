@@ -492,3 +492,167 @@ class TestMultiConsumerPromotion:
         assert last.json().get("dlq_promoted") is True
         assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
         assert _get_field(client, event_id, "dlq_at") is not None
+
+
+class TestPromotionFailurePaths:
+    """REQ-002/REQ-004/REQ-006: failure points in the NACK and inline promotion paths."""
+
+    def test_nack_with_failing_inline_promotion_returns_200_and_sweep_promotes(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A failed inline promotion defers to the sweep: 200 without dlq_promoted, row live."""
+        from eventbus import dlq
+        from eventbus.db import open_db
+
+        body = _event("dlq_promo")
+        assert client.post("/publish", json=body).status_code == 200
+        event_id = body["event_id"]
+
+        first = client.post(
+            "/nack",
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": "fail-promo-key-1",
+            },
+            headers=eventbus_auth_headers("consumer"),
+        )
+        assert first.status_code == 200
+
+        original = dlq._atomic_write
+
+        def _raise(*_args: object, **_kwargs: object) -> None:
+            raise OSError("disk full")
+
+        monkeypatch.setattr(dlq, "_atomic_write", _raise)
+
+        last = client.post(
+            "/nack",
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": "fail-promo-key-2",
+            },
+            headers=eventbus_auth_headers("consumer"),
+        )
+        assert last.status_code == 200
+        assert last.json()["consumer_delivery_failure_count"] == 2
+        assert "dlq_promoted" not in last.json()
+
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        row = db.execute(
+            "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
+        ).fetchone()
+        assert row["dlq_at"] is None
+        assert not (tmp_path / "deadletter" / f"{event_id}.json").exists()
+
+        # Restore the writer: the sweep repairs the deferred promotion.
+        monkeypatch.setattr(dlq, "_atomic_write", original)
+        promoted = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        assert promoted == 1
+        assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
+        row = db.execute(
+            "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
+        ).fetchone()
+        assert row["dlq_at"] is not None
+
+        # Repeating the NACK with the same idempotency key is a no-op: the event is
+        # already in the DLQ (409) and the failure count is unchanged.
+        repeat = client.post(
+            "/nack",
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": "fail-promo-key-2",
+            },
+            headers=eventbus_auth_headers("consumer"),
+        )
+        assert repeat.status_code == 409
+        count = db.execute(
+            "SELECT consumer_delivery_failure_count FROM consumer_delivery "
+            "WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", event_id),
+        ).fetchone()[0]
+        assert count == 2
+
+    def test_nack_update_failure_leaves_delivery_state_unchanged(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """A DB failure at the delivery upsert rolls back and re-raises with state unchanged."""
+        import sqlite3
+
+        from eventbus.db import open_db
+        from eventbus.delivery_repo import nack_event
+
+        body = _event("dlq_promo")
+        assert client.post("/publish", json=body).status_code == 200
+        event_id = body["event_id"]
+
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        _seed_delivery(db, "consumer-A", event_id, 0, 1)
+
+        class _ExecFailingConn:
+            """Proxy connection whose delivery upsert raises, simulating a DB write failure."""
+
+            def __init__(self, inner: Any) -> None:
+                self._inner = inner
+
+            def execute(self, sql: str, params: Any = ()) -> Any:
+                if sql.strip().startswith("INSERT INTO consumer_delivery"):
+                    raise sqlite3.OperationalError("disk I/O error")
+                return self._inner.execute(sql, params)
+
+            def commit(self) -> None:
+                self._inner.commit()
+
+            def rollback(self) -> None:
+                self._inner.rollback()
+
+        with pytest.raises(sqlite3.OperationalError, match="disk I/O error"):
+            nack_event(
+                _ExecFailingConn(db),  # type: ignore[arg-type]  # test-only: proxy connection stand-in
+                event_id,
+                "consumer-A",
+                last_nack_attempt="failing-update-key",
+            )
+
+        # nack_event rolled back: the seeded delivery row is untouched.
+        row = db.execute(
+            "SELECT consumer_delivery_failure_count, consumer_last_nack_attempt "
+            "FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", event_id),
+        ).fetchone()
+        assert row["consumer_delivery_failure_count"] == 1
+        assert row["consumer_last_nack_attempt"] == "seeded-attempt"
+        assert _get_field(client, event_id, "dlq_at") is None
+
+    def test_inline_promotion_then_sweep_returns_zero(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """Inline promotion is idempotent against the sweep: a following sweep promotes nothing."""
+        from eventbus.db import open_db
+        from eventbus.dlq import sweep_orphans
+
+        body = _event("dlq_promo")
+        assert client.post("/publish", json=body).status_code == 200
+        event_id = body["event_id"]
+
+        for key in ("inline-then-sweep-1", "inline-then-sweep-2"):
+            resp = client.post(
+                "/nack",
+                params={
+                    "event_id": event_id,
+                    "consumer_id": "consumer-A",
+                    "idempotency_key": key,
+                },
+                headers=eventbus_auth_headers("consumer"),
+            )
+            assert resp.status_code == 200
+        assert resp.json().get("dlq_promoted") is True
+        assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
+
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0

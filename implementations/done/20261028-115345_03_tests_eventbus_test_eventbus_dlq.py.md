@@ -34,7 +34,7 @@ N/A: lightweight row; the Plan fixes the approach.
 - In `test_atomic_write_failure_leaves_db_row_unchanged`, replace the final `len(dlq_fail_lines) > 0` assertion (satisfied by the metric's `# HELP` line) with a before/after comparison of `REGISTRY.get_sample_value("eventbus_dlq_file_write_failure_total")` that expects an increase of 1.
 - Add `test_inline_write_failure_increments_counter_and_raises` (new): monkeypatch `dlq._atomic_write` to raise `OSError`, call `promote_single`, assert `pytest.raises(OSError)`, the counter delta of 1 and `dlq_at` still NULL.
 - Add `test_sweep_continues_after_one_event_write_failure` (new): two promotable events (insert `consumer_delivery` rows with failure counts at the limit, as `test_reconciliation_orphan_file` does); make `_atomic_write` raise only for the first `event_id`; assert `sweep_orphans` returns 1, the second event has `dlq_at`, the first stays live and the counter moved by 1.
-- Add `test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep` (new): pass `promote_single` a proxy connection whose `commit` raises `sqlite3.OperationalError` (the `_CommitFailingConn` idea from `test_eventbus_publish.py`), assert the file exists and `dlq_at` is NULL, then run `sweep_orphans` on the real connection and assert `dlq_at` is set and the file content is valid JSON.
+- Add `test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep` (new): pass `promote_single` a proxy connection whose `commit` raises `sqlite3.OperationalError` (the `_CommitFailingConn` idea from `test_eventbus_publish.py`), assert the file exists and `dlq_at` is NULL, then run `sweep_orphans` on the real connection and assert `dlq_at` is set and the file content is valid JSON. Verification note: the proxy shares one underlying connection, so call `db.rollback()` after the expected failure before the sweep, otherwise the un-committed `dlq_at` UPDATE is still visible in the same transaction.
 
 ### Method
 
@@ -77,8 +77,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 2026-10-28 | 2026-10-28 | Adapted to the current record-based DLQ model (`dlq_at`, `{event_id}.json`); 3 new tests added, counter assertion strengthened; 20 tests pass |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-28 | 2026-10-28 | pytest + ruff clean; full suite 10372 passed; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

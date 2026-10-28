@@ -76,8 +76,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-28 | 2026-10-28 | Both edits applied (authority-model sentence in Canonical Store; permission-failure sentence corrected) |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 2026-10-28 | 2026-10-28 | quality/structure/content-policy --strict/japanese/consistency --domain eventbus: no findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

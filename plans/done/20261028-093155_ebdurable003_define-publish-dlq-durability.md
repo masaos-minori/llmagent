@@ -161,9 +161,9 @@ Baseline recorded in Step 5: `radon cc` reports no function in `dlq.py` or `ack_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add fault-injection and idempotency tests | In Progress | — | — |  |
-| 2 | Count inline failures, isolate sweep failures, handle committed-NACK promotion failure | In Progress | — | — |  |
-| 3 | Record the authority model and failure behavior in the three docs | In Progress | — | — |  |
+| 1 | Add fault-injection and idempotency tests | Completed | — | — | procedure rows 3-5 archived: fault-injection tests landed |
+| 2 | Count inline failures, isolate sweep failures, handle committed-NACK promotion failure | Completed | — | — | procedure rows 1-2 archived: dlq.py and ack_route.py landed |
+| 3 | Record the authority model and failure behavior in the three docs | Completed | — | — | procedure rows 6-8 archived: DLQ authority model, NACK transition-table row, publish durability guarantee documented; all docs checkers clean |
 | 4 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log

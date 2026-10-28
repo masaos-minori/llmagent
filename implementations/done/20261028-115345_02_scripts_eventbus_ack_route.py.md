@@ -78,10 +78,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-28 | 2026-10-28 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | — | test lands in row 4 of this batch |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-28 | 2026-10-28 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | docs land in row 7 of this batch |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

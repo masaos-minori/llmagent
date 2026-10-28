@@ -71,6 +71,7 @@ ACK state is per consumer; there is no event-level ACK column.
 | Initial ACK | 200 | Sets `consumer_delivery.acked` and advances the consumer offset |
 | Duplicate ACK | 200 (`already_acked: true`) | No new delivery state; the offset never moves backwards |
 | Initial NACK | 200 | Per-consumer failure count increases; the event is promoted to the DLQ under the ADR-006 INV-13 rule |
+| Initial NACK, inline DLQ file write failed | 200 (no `dlq_promoted`) | Per-consumer failure count increases; the event stays live (`dlq_at` NULL) and the next sweep promotes it |
 | Duplicate NACK (same delivery attempt) | 200 | No-op: a NACK repeating the stored `consumer_last_nack_attempt` leaves counters unchanged |
 | NACK followed by ACK | 200 | ACK succeeds because NACK does not set `acked`; the failure count keeps the value from the NACK |
 | ACK followed by NACK (same consumer) | 409 `event already acknowledged` | NACK rejected; counters unchanged |

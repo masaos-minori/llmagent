@@ -117,15 +117,19 @@ DLQ promotion occurs via two independent paths that share one underlying promoti
 
 Both paths call the same shared promotion routine (atomic write to JSON file + setting `dlq_at` in SQLite), so a promoted event's on-disk/DB representation does not differ by path.
 
+**Authority model**: SQLite `events.dlq_at` is the authoritative DLQ state. The JSON file in the dead-letter directory is a derived artifact: it is written first and becomes visible as a DLQ entry only when `dlq_at` is set.
+
+**Failed inline promotion**: `POST /nack` commits the NACK before attempting promotion. If the inline file write fails (`OSError`), the NACK stays committed, the event remains live (`dlq_at IS NULL`), the counter `eventbus_dlq_file_write_failure_total` increments, the failure is logged, and the next background sweep promotes the event.
+
 ## DLQ Background Sweep
 
 The background sweep selects events by the per-consumer failure count reaching the retry limit while `dlq_at IS NULL`. The exact rule is in [Background Loop Promotion](eventbus_05_dlq_offsets_and_delivery_semantics.md#background-loop-promotion).
 
-Optimistic locking on `dlq_at IS NULL` prevents duplicate promotion. If orphaned events are found, they are recorded in the logs. Any non-zero count may indicate an issue with the inline promotion process (e.g. a crash before its promotion write completed) rather than a normal condition.
+Optimistic locking on `dlq_at IS NULL` prevents duplicate promotion. If orphaned events are found, they are recorded in the logs. The sweep is the self-healing repair path: a non-zero count is expected after a crash between the NACK update and the promotion write, or after a failed DLQ file write, and is not by itself an indication of a defect.
 
 ## DLQ Reconciliation
 
-The background sweep self-heals orphan files (`dlq_at IS NULL` with an existing `{event_id}.json`) by re-writing the file and setting `dlq_at`. The following divergence cases require manual reconciliation:
+The background sweep self-heals orphan files (`dlq_at IS NULL` with an existing `{event_id}.json`) by re-writing the file and setting `dlq_at`. A persistent file-write failure for one event during a sweep is metered, logged and skipped; it does not block the promotion of the other events in the same sweep. The following divergence cases require manual reconciliation:
 
 ### Orphan Files (file exists, `dlq_at IS NULL`)
 
@@ -133,7 +137,7 @@ Normally self-healed by the sweep. If the sweep cannot promote (e.g. the file is
 
 ### Missing Files (row has `dlq_at IS NOT NULL`, `{event_id}.json` absent)
 
-Rebuild the DLQ record from the JSONL archive (`published_at`, `topic`, `payload`, `producer`) and re-set `dlq_at`, or quarantine the event per policy.
+Rebuild the DLQ record from the JSONL archive (`published_at`, `topic`, `payload`, `producer`) and re-set `dlq_at`, or quarantine the event per policy. Rebuilding from JSONL is best-effort: the JSONL append is best-effort (see `eventbus_09_publish_durability.md`), so an event whose append failed exists only in SQLite and must be quarantined instead.
 
 ### Corrupt Files (`{event_id}.json` present but unparseable JSON)
 

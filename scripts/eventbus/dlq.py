@@ -117,7 +117,8 @@ def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int)
             _atomic_write(deadletter_dir, event_id, record)
         except OSError:
             _dlq_file_write_failure_counter.inc()
-            raise
+            logger.exception("dlq sweep: DLQ file write failed event_id=%s", event_id)
+            continue
         cur = db.execute(
             "UPDATE events SET dlq_at = ? WHERE event_id = ? AND dlq_at IS NULL",
             (now, event_id),
@@ -153,7 +154,11 @@ def _shared_promote_single(
         return False
 
     record = _build_dlq_record(row, now, consumer_failure_count)
-    _atomic_write(deadletter_dir, event_id, record)
+    try:
+        _atomic_write(deadletter_dir, event_id, record)
+    except OSError:
+        _dlq_file_write_failure_counter.inc()
+        raise
     cur = db.execute(
         "UPDATE events SET dlq_at = ? WHERE event_id = ? AND dlq_at IS NULL",
         (now, event_id),
@@ -175,9 +180,12 @@ def sweep_orphans(
 ) -> int:
     """Sweep events that meet the promotion rule but were not promoted inline.
 
-    This is a safety-net sweep only. Under normal operation (inline promotion via
-    the nack endpoint working correctly), this returns 0.
-    Non-zero return value indicates a bug in the inline promotion path.
+    This is the self-healing repair path: it promotes events that inline promotion
+    left live, for example after a crash between the DLQ file write and the DB
+    update, or after a failed DLQ file write. A non-zero return value is expected
+    after such a failure and is logged by the caller. A failing file write is
+    metered, logged and skipped; the sweep continues with the next event and
+    returns the number of events promoted.
     """
     return _shared_promote(db, deadletter_dir, max_retry)
 

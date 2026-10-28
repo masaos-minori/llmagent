@@ -20,6 +20,8 @@ related:
 
 **SQLite is the canonical event store.** JSONL is derived data; no automated reconcile or rebuild tool exists (see Recovery Procedure).
 
+Authority model: SQLite is canonical for events and for DLQ state (`events.dlq_at`); the JSONL archive and the DLQ JSON files are derived artifacts; broker notification is best-effort and recoverable through SQLite replay; the publish guarantee is the database commit.
+
 Rationale:
 1. The database commit is the publish success criterion — if the DB commit succeeds, the event is considered published.
 2. JSONL is appended after the DB commit and is never read as primary data.
@@ -70,7 +72,7 @@ Both failures can occur simultaneously. Each is independently recorded by its ow
 
 ### Permission Failure Scenario
 
-Same as disk-full — DB commit succeeds, JSONL append fails. No retry attempt (idempotent by nature — JSONL append is append-only). JSONL lines that failed to append are not restored automatically when permissions are restored.
+Same as disk-full — DB commit succeeds, JSONL append fails. A retry of the same event is idempotent in SQLite and does not append to JSONL, because JSONL is appended only for newly inserted events, so a failed append is not repaired by a retry. JSONL lines that failed to append are not restored automatically when permissions are restored.
 
 ## Recovery Procedure
 
