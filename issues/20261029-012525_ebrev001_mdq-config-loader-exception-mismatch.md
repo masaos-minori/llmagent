@@ -1,7 +1,7 @@
 # mdq `_load_auth_token` does not catch the exception `ConfigLoader.load()` actually raises
 
 ## Priority
-Medium
+Low
 
 ## Summary
 In `scripts/mcp_servers/mdq/mdq_server.py`, `_load_auth_token()` catches only
@@ -47,8 +47,18 @@ The adjacent module comment states:
 > `_collect_dependencies()` swallows config/probe exceptions (it records them under
 > deps["config"] and returns an empty config view), so this never raises at import;
 
-This is factually incorrect. `_collect_dependencies()` calls `_load_auth_token()`, which
-does not swallow `ConfigMissingError`.
+This is factually incorrect, but for a different reason than the comment implies. Import
+is not exception-safe because of two independent module-level callers, neither of which
+swallows `ConfigMissingError`:
+
+- `_load_auth_token()` is invoked at module scope as `_AUTH_TOKEN = _load_auth_token()`.
+  Its `except (FileNotFoundError, KeyError, TypeError)` omits `ValueError`, so a missing
+  file raises `ConfigMissingError` out of it before anything else runs.
+- `_collect_dependencies()` (in `scripts/mcp_servers/mdq/health_check.py`) does not call
+  `_load_auth_token()`. It reads the config itself via `ConfigLoader().load(MDQ_OWN_CONFIG_FILE)`
+  and catches `(FileNotFoundError, PermissionError, KeyError, TypeError)` — which also
+  omits `ValueError`. It therefore raises `ConfigMissingError` on its own when the file
+  is absent.
 
 ## Reason for Change
 The comment misleads maintainers into believing import is exception-safe when it is not.
@@ -71,6 +81,11 @@ current name-based tuple. Correct the module comment to state the true behavior.
   other `ValueError`-based config errors, or `ValueError` per the documented contract).
 - Correct the module comment so it no longer claims `_collect_dependencies()` never
   raises at import.
+- Also fix the same omission in `_collect_dependencies()` (`health_check.py`): its
+  `except (FileNotFoundError, PermissionError, KeyError, TypeError)` omits `ValueError`,
+  so it independently raises `ConfigMissingError` on a missing file. Fixing only
+  `_load_auth_token()` leaves the import-time guarantee unmet, because
+  `_collect_dependencies()` is itself called at module scope during the posture build.
 - Add or update a unit test asserting `_load_auth_token()` returns `""` when the config
   file is absent.
 
