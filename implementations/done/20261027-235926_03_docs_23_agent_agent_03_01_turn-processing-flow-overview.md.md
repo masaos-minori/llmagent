@@ -100,8 +100,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the two persistence statements per Procedure/Method | Pending | — | — | Run after the seq 01 code change lands |
-| 2 | Run the documentation checkers (Validation plan) | Pending | — | — | |
+| 1 | Replace the two persistence statements per Procedure/Method | Completed | 20261028-122500 | 20261028-123121 | Run after the seq 01 code change lands Both stale persistence statements replaced with resume semantics |
+| 2 | Run the documentation checkers (Validation plan) | Completed | 20261028-122500 | 20261028-123121 | check_docs_quality/structure/content_policy/consistency(agent) all clean; no stale claim remains |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

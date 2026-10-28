@@ -90,7 +90,7 @@ The session title generation task scheduled on the first turn manages consecutiv
 - `BgTaskMonitor.notify_bg_failure_threshold()` guarantees notification to the user. If an exception occurs, it falls back to `logger.critical()` and does not propagate the exception.
 - If the constructor opt-in parameter `pause_on_critical_failure` is `True`, the corresponding task type is marked as paused when the threshold is reached. This is per-task-type control, not a global pause flag.
 - `handle_turn()` returns early and notifies the user if any entry in `_bg_pause_state` is `True`.
-- The paused state is held only in process memory and persists until the process restarts.
+- The paused state is held only in process memory and persists until a clean completion of the same task type clears it (a threshold breach pauses; the next success of that type resumes it).
 - Pausing is opt-in: it occurs only when `pause_on_critical_failure` is explicitly enabled.
 
 ## Key Constraints
@@ -128,7 +128,7 @@ The session title generation task scheduled on the first turn manages consecutiv
 
 ## Known Limitations
 
-- Background task failure pause is opt-in, and the paused state persists until process restart (see Background Task Failure Threshold Notification and Pausing).
+- Background task failure pause is opt-in, and the paused state persists until a clean completion of the same task type clears it (see Background Task Failure Threshold Notification and Pausing).
 
 ## Keywords
 

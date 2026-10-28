@@ -223,9 +223,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | `scripts/agent/bg_task_monitor.py` clean-completion pause clear (REQ-1, REQ-2) | In Progress | — | — | P1: resume path |
-| 2 | `tests/agent/test_orchestrator_bg_failure_threshold.py` resume-path regression cases (REQ-1, REQ-2, REQ-4) | In Progress | — | — | P2: regression tests |
-| 3 | Step 10 docs phase: `docs/23_agent/agent_03_01_turn-processing-flow-overview.md` L93/L131 (REQ-3) | In Progress | — | — | P3: deferred docs phase |
+| 1 | `scripts/agent/bg_task_monitor.py` clean-completion pause clear (REQ-1, REQ-2) | Completed | — | 20261028-123236 | P1: resume path |
+| 2 | `tests/agent/test_orchestrator_bg_failure_threshold.py` resume-path regression cases (REQ-1, REQ-2, REQ-4) | Completed | — | 20261028-123236 | P2: regression tests |
+| 3 | Step 10 docs phase: `docs/23_agent/agent_03_01_turn-processing-flow-overview.md` L93/L131 (REQ-3) | Completed | — | 20261028-123236 | P3: deferred docs phase |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

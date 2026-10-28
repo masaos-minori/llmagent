@@ -62,6 +62,22 @@ async def _await_raising(message: str, name: str = "bg_task_0") -> asyncio.Task[
     return task
 
 
+async def _ok_task() -> None:
+    """A task body that returns normally; ``task.exception()`` is ``None``."""
+
+
+async def _await_ok(name: str = "bg_task_0") -> asyncio.Task[object]:
+    """Create a task whose body completes cleanly and return the finished task.
+
+    Mirrors ``_await_raising`` for the clean-completion case: the body returns
+    normally, one yield lets it finish, and the finished task is returned so the
+    caller can hand it to the monitor without the completion escaping this helper.
+    """
+    task = asyncio.create_task(_ok_task(), name=name)
+    await asyncio.sleep(0)  # yield once so the body runs to completion
+    return task
+
+
 async def _make_cancelled(name: str) -> asyncio.Task[object]:
     """Create a cancellable task, cancel it, await it to completion, and return it."""
     task = asyncio.create_task(_cancellable_task(), name=name)
@@ -266,3 +282,55 @@ class TestCancelledTaskCounterReset:
         monitor.on_task_done(cancelled)
 
         assert monitor.get_consecutive_failures("cancelled_task") == 0
+
+
+class TestPauseResumePath:
+    @pytest.mark.asyncio
+    async def test_clean_completion_after_breach_clears_pause(self) -> None:
+        ctx = _make_ctx()
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(
+            ctx, tasks=tasks, on_discard=lambda t: None, pause_on_critical_failure=True
+        )
+
+        for i in range(BG_FAILURE_THRESHOLD):
+            monitor.on_task_done(await _await_raising(f"error {i}", "bg_task_0"))
+        assert monitor.bg_pause_state == {"bg_task_0": True}  # precondition
+
+        monitor.on_task_done(await _await_ok("bg_task_0"))
+
+        assert monitor.bg_pause_state == {}
+        assert monitor.check_pause_state() == (False, [])
+
+    @pytest.mark.asyncio
+    async def test_cancelled_task_after_breach_keeps_pause(self) -> None:
+        ctx = _make_ctx()
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(
+            ctx, tasks=tasks, on_discard=lambda t: None, pause_on_critical_failure=True
+        )
+
+        for i in range(BG_FAILURE_THRESHOLD):
+            monitor.on_task_done(await _await_raising(f"error {i}", "bg_task_0"))
+        assert monitor.bg_pause_state == {"bg_task_0": True}  # precondition
+
+        monitor.on_task_done(await _make_cancelled("bg_task_0"))
+
+        assert monitor.bg_pause_state == {"bg_task_0": True}
+
+    @pytest.mark.asyncio
+    async def test_other_task_success_after_breach_keeps_pause(self) -> None:
+        ctx = _make_ctx()
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(
+            ctx, tasks=tasks, on_discard=lambda t: None, pause_on_critical_failure=True
+        )
+
+        for i in range(BG_FAILURE_THRESHOLD):
+            monitor.on_task_done(await _await_raising(f"error {i}", "bg_task_0"))
+        assert monitor.bg_pause_state == {"bg_task_0": True}  # precondition
+
+        monitor.on_task_done(await _await_ok("other_task"))
+
+        assert monitor.bg_pause_state == {"bg_task_0": True}
+        assert monitor.check_pause_state() == (True, ["bg_task_0"])

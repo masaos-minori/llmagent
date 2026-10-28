@@ -87,8 +87,11 @@ class BgTaskMonitor:
             count = 0
         else:
             exc = task.exception()
-            if exc is None:  # clean completion resets the streak
+            if (
+                exc is None
+            ):  # clean completion resets the streak and resumes a paused type
                 count = 0
+                self._bg_pause_state.pop(task_name, None)
             else:
                 count = self._count_failure(task_name, exc, count)
                 if count == 1 and isinstance(exc, Exception):

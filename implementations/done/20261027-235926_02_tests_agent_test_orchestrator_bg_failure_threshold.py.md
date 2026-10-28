@@ -122,9 +122,9 @@ N/A: revert the commit (test additions only).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestPauseResumePath` (new) and `_await_ok` (new) per Procedure/Method | Pending | — | — | Depends on the seq 01 code change for case 3 to pass |
-| 2 | Run targeted pytest (this module + `test_orchestrator.py -k "pause or threshold or failure"`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestPauseResumePath` (new) and `_await_ok` (new) per Procedure/Method | Completed | 20261028-122500 | 20261028-122833 | Depends on the seq 01 code change for case 3 to pass Added TestPauseResumePath (3 cases) and _await_ok helper; ruff clean |
+| 2 | Run targeted pytest (this module + `test_orchestrator.py -k "pause or threshold or failure"`) | Completed | 20261028-122500 | 20261028-122833 | 13 passed incl. 3 new TestPauseResumePath cases |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-122500 | 20261028-122833 | ruff clean; full suite 10300 passed; diff-cover 100% on bg_task_monitor.py changed line |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
