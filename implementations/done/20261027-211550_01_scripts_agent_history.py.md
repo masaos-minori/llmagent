@@ -112,6 +112,12 @@ Two edits in one file: add one helper, swap two call sites to it, and change one
 - Changing summarizer retry/timeout policy.
 - `CompressResult` schema, selection policy, protected-turn handling, `_get_summary_text`.
 
+## Verification Notes (2026-10-28, second verification pass against the implemented source)
+
+- `compress()`'s early return `if not over_char and not over_token: return history, _no_op` makes `over_char or over_token` always True at the summary-`None` branch, so the `error="compression returned None"` branch is unreachable. It is kept in the code as a defensive guard. No production consumer reads `CompressResult.error`: `conversation_state_manager.handle_history_compression` gates only on `compressed_count > 0`.
+- Edge case confirmed by test run: a token-overflow history consisting of a single turn unit at the never-empty floor triggers `_fallback_truncate`, drops 0 messages, and returns `is_fallback=True`, `compressed_count=0`, history unchanged, plus the soft-limit WARNING — consistent with char-path soft-limit behavior.
+- The validation run flipped 4 mislabeled tests in `tests/agent/test_history_manager.py` plus one in `tests/agent/test_history_manager_new.py`, independently reproducing the scope expansion already recorded in the Row 2 procedure. The flipped tests now appear as the token-overflow fallback cases (for example `test_compress_token_overflow_fallback_when_llm_returns_none`, L680).
+
 ## Execution Status
 
 ### Execution Status
