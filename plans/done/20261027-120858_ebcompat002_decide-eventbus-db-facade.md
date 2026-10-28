@@ -185,7 +185,7 @@ persistence names through the facade; layer modules own the transactions and loc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: record the decision in README | In Progress | — | — |  |
+| 1 | Phase 1: record the decision in README | Completed | — | 20261028-153121 |  |
 | 2 | Phase 2: verification commands | In Progress | — | — |  |
 
 ### Blocker Log

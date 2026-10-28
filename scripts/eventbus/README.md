@@ -17,3 +17,5 @@ The module follows a layered architecture:
 `db.py` is a stub module that re-exports functions from the layer modules above. It provides a single entry point for consumers of the eventbus module.
 
 **Rule**: Do not add new functions here. Add them to the appropriate layer module and re-export from this stub.
+
+**Decision (2026-10-27)**: Retain this facade as the single entry point for the eventbus module; all consumer imports, including `scripts/agent/services/*`, go through it.
