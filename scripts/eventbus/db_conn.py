@@ -37,6 +37,10 @@ def set_shutdown_flag() -> None:
     Called by the shared cleanup helper (app.py) before closing the shared
     connection. Makes run_with_db_lock() refuse new work for any thread still queued
     on the lock (REQ-004). Idempotent.
+
+    run_with_db_lock() refuses twice: before queueing, and again after a queued
+    worker acquires the lock. Shutdown serializes behind any running worker by
+    acquiring the same lock before it closes the connection.
     """
     global _shutting_down
     _shutting_down = True
@@ -58,13 +62,19 @@ def clear_shutdown_flag() -> None:
 
 
 def bump_active_db_user() -> None:
-    """Increment the count of live DB users (called by run_with_db_lock())."""
+    """Increment the count of live DB users (called by run_with_db_lock()).
+
+    The counter is observability only; shutdown does not consult it.
+    """
     global _active_db_users
     _active_db_users += 1
 
 
 def release_active_db_user() -> None:
-    """Decrement the count of live DB users after the locked critical section."""
+    """Decrement the count of live DB users after the locked critical section.
+
+    The counter is observability only; shutdown does not consult it.
+    """
     global _active_db_users
     if _active_db_users > 0:
         _active_db_users -= 1

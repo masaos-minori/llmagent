@@ -196,9 +196,13 @@ test suite, so production and tests run the same sequence:
 1. Stop scheduling new DLQ sweep cycles once shutdown begins.
 2. Await the in-flight `_dlq_loop` sweep (its worker thread keeps running after
    task cancellation, so the close is serialized behind it).
-3. Prove exclusive ownership of the shared connection by acquiring `get_db_lock()`
-   (`_db_lock`) with no worker queued on it.
-4. Close the connection.
+3. Serialize behind any worker holding the lock by acquiring `get_db_lock()`
+   (`_db_lock`) before the connection is touched.
+4. Close the connection, then clear the shared connection reference so a later
+   lookup raises its explicit not-initialized error.
+
+A worker that was admitted before shutdown but acquires the lock after the shutdown
+flag is set exits with the shutdown error and runs no SQL.
 
 **Connection-ownership rule:** the shared SQLite connection is never closed while any
 worker — the DLQ sweep thread, a route-handler worker thread, or an SSE task — may

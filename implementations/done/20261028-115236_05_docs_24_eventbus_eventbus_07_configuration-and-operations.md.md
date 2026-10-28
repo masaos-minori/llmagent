@@ -77,8 +77,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-153121 | 20261028-153121 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261028-153121 | 20261028-153121 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

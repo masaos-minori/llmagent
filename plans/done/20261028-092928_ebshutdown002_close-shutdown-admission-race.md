@@ -139,9 +139,9 @@ Baseline recorded in Step 5: `radon cc` reports no touched function in these thr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing queued-worker regression test | In Progress | — | — |  |
-| 2 | Add the post-lock guard, clear `app.state.db`, fix docstrings, add remaining tests | In Progress | — | — |  |
-| 3 | Correct the Shutdown section of the operations doc | In Progress | — | — |  |
+| 1 | Write the failing queued-worker regression test | Completed | — | 20261028-153121 |  |
+| 2 | Add the post-lock guard, clear `app.state.db`, fix docstrings, add remaining tests | Completed | — | 20261028-153121 |  |
+| 3 | Correct the Shutdown section of the operations doc | Completed | — | 20261028-153121 |  |
 | 4 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log

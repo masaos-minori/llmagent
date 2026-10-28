@@ -142,6 +142,10 @@ async def run_with_db_lock(func: Any) -> Any:
         start_time = time.monotonic()
         try:
             with get_db_lock():
+                # A worker admitted before shutdown can reach the lock after the
+                # connection was closed; refuse before it touches SQL or the counter.
+                if is_shutting_down():
+                    raise RuntimeError("eventbus shutting down: refusing new DB work")
                 lock_hold_start = time.monotonic()
                 bump_active_db_user()
                 try:

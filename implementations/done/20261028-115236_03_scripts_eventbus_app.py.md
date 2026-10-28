@@ -77,10 +77,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-153121 | 20261028-153121 | Full suite: 1 unrelated failure (test_dlq_list_snapshot_consistent_during_promotion, count/fetch race against a separate writer connection under 16 min load; passes alone and in tests/eventbus) |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-153121 | 20261028-153121 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-153121 | 20261028-153121 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-153121 | 20261028-153121 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

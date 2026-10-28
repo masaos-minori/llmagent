@@ -26,9 +26,10 @@ from __future__ import annotations
 import asyncio
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
+from fastapi import FastAPI
 
 _SCHEMA_PATH = Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
 
@@ -150,3 +151,120 @@ async def test_run_with_db_lock_refuses_after_shutdown_flag() -> None:
     db_conn.set_shutdown_flag()  # conftest _reset_db_conn_state restores it after
     with pytest.raises(RuntimeError, match="refusing new DB work"):
         await run_with_db_lock(lambda: None)
+
+
+@pytest.mark.asyncio
+async def test_queued_worker_refuses_sql_after_shutdown_began(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REQ-001: a worker admitted before shutdown that acquires the lock after the
+    flag is set must raise the shutdown error and never run `func`."""
+    from eventbus import db as eb_db
+    from eventbus import db_conn
+    from eventbus.route_helpers import run_with_db_lock
+
+    real_lock = threading.Lock()
+    worker_waiting = threading.Event()
+
+    class _SignalingLock:
+        """Signal that a worker reached the lock, then block on the real lock."""
+
+        def __enter__(self) -> None:
+            worker_waiting.set()
+            real_lock.acquire()
+
+        def __exit__(self, *exc_info: object) -> None:
+            real_lock.release()
+
+    monkeypatch.setattr(eb_db, "get_db_lock", lambda: _SignalingLock())
+    calls: list[int] = []
+
+    real_lock.acquire()  # the test plays the role of the lock holder
+    task = asyncio.create_task(run_with_db_lock(lambda: calls.append(1)))
+    assert await asyncio.to_thread(worker_waiting.wait, 5), "worker never queued"
+
+    db_conn.set_shutdown_flag()  # conftest _reset_db_conn_state restores it
+    real_lock.release()
+
+    with pytest.raises(RuntimeError, match="refusing new DB work"):
+        await asyncio.wait_for(task, 5)
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_inflight_request_completes_before_connection_close() -> None:
+    """An admitted worker holding the lock finishes before shutdown closes the db."""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from eventbus import app as eb_app
+    from eventbus import db_conn
+    from eventbus.route_helpers import run_with_db_lock
+
+    order: list[str] = []
+    worker_started = threading.Event()
+    release_worker = threading.Event()
+
+    def _inflight() -> None:
+        worker_started.set()
+        release_worker.wait(timeout=5)
+        order.append("worker_done")
+
+    db = MagicMock()
+    db.close.side_effect = lambda: order.append("closed")
+    app = SimpleNamespace(state=SimpleNamespace(dlq_task=None, broker=None, db=db))
+
+    worker = asyncio.create_task(run_with_db_lock(_inflight))
+    assert await asyncio.to_thread(worker_started.wait, 5), "worker never started"
+    shutdown = asyncio.create_task(eb_app._shutdown_lifespan(cast(FastAPI, app)))
+    for _ in range(100):  # yield until shutdown has begun, without sleeping
+        if db_conn.is_shutting_down():
+            break
+        await asyncio.sleep(0)
+    assert db_conn.is_shutting_down()
+
+    release_worker.set()
+    await asyncio.wait_for(worker, 5)
+    await asyncio.wait_for(shutdown, 5)
+    assert order == ["worker_done", "closed"]
+
+
+@pytest.mark.asyncio
+async def test_shutdown_clears_app_state_db(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-003: after shutdown the shared reference is cleared, so a later lookup
+    raises the explicit not-initialized error instead of returning a closed db."""
+    from eventbus import app as eb_app
+    from eventbus.route_helpers import app_get_db
+
+    cfg = _make_config(tmp_path)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: _SCHEMA_PATH)
+    monkeypatch.setattr(eb_app, "_DLQ_INTERVAL", 3600.0)
+
+    async with eb_app.lifespan(eb_app.app):
+        assert app_get_db(eb_app.app) is not None
+
+    assert eb_app.app.state.db is None
+    with pytest.raises(RuntimeError, match="db not initialized"):
+        app_get_db(eb_app.app)
+
+
+@pytest.mark.asyncio
+async def test_second_lifecycle_does_not_inherit_shutdown_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fresh lifespan clears the shutdown flag left by the previous one."""
+    from eventbus import app as eb_app
+    from eventbus.route_helpers import run_with_db_lock
+
+    cfg = _make_config(tmp_path)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: _SCHEMA_PATH)
+    monkeypatch.setattr(eb_app, "_DLQ_INTERVAL", 3600.0)
+
+    async with eb_app.lifespan(eb_app.app):
+        pass
+    async with eb_app.lifespan(eb_app.app):
+        assert await run_with_db_lock(lambda: 42) == 42

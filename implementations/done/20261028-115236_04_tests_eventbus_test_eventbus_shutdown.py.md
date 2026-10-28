@@ -80,8 +80,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261028-153121 | 20261028-153121 | Written first; red confirmed (queued-worker and clears-state tests failed before the change) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-153121 | 20261028-153121 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

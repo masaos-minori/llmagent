@@ -132,6 +132,7 @@ async def _shutdown_lifespan(app: FastAPI) -> None:
         try:
             app.state.db.close()
         finally:
+            app.state.db = None
             lock.release()
 
 
