@@ -349,7 +349,8 @@ class TestRunHttpAugment:
         """auth_token should be passed to HttpAugment constructor."""
         mock_http = MagicMock()
         cfg = _make_cfg(
-            rag_query_service_url="http://example.com/api", rag_auth_token="secret-token"
+            rag_query_service_url="http://example.com/api",
+            rag_auth_token="secret-token",
         )
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
@@ -374,7 +375,9 @@ class TestRunHttpAugment:
     async def test_empty_auth_token_defaults_to_empty_string(self) -> None:
         """Empty auth_token should default to empty string."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_query_service_url="http://example.com/api", rag_auth_token="")
+        cfg = _make_cfg(
+            rag_query_service_url="http://example.com/api", rag_auth_token=""
+        )
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
         mock_result = MagicMock()
@@ -398,7 +401,9 @@ class TestRunHttpAugment:
     async def test_null_auth_token_defaults_to_empty_string(self) -> None:
         """Null auth_token should default to empty string."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_query_service_url="http://example.com/api", rag_auth_token=None)  # type: ignore[arg-type] — test verifies None defaults to empty string
+        cfg = _make_cfg(
+            rag_query_service_url="http://example.com/api", rag_auth_token=None
+        )  # type: ignore[arg-type] — test verifies None defaults to empty string
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
         mock_result = MagicMock()

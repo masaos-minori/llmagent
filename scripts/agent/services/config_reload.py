@@ -129,7 +129,9 @@ class ConfigReloadService:
                 direct_changed[section_path] = changed_fields
 
         mcp_items = (
-            classify_mcp_server_changes(ctx, new_cfg) if "mcp_servers" in new_cfg else []
+            classify_mcp_server_changes(ctx, new_cfg)
+            if "mcp_servers" in new_cfg
+            else []
         )
 
         pending_conv_updates: list[Any] = []
