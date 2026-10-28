@@ -81,10 +81,10 @@ One new parameter, one guard and one `try`/`except`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-28 | 2026-10-28 | — |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-28 | 2026-10-28 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-28 | 2026-10-28 | Static green. Routing-result conversion verified manually. Test failures deferred to procedures 12/13 (fixture construction). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-28 | 2026-10-28 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
