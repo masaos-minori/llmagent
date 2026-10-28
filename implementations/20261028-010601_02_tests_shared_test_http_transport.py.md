@@ -167,10 +167,10 @@ Append-only edits; reuse the file's existing fixture (`_http_cfg`) and injection
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | In Progress | 2026-10-28 | — | Append after L83 |
-| 2 | Add or update tests per Validation plan | In Progress | 2026-10-28 | — | This document is the test procedure |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | In Progress | 2026-10-28 | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | In Progress | 2026-10-28 | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-28 | 20261028-100140 | Append after L83 |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-28 | 20261028-100140 | This document is the test procedure |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-28 | 20261028-100140 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-28 | 20261028-100140 | N/A for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
