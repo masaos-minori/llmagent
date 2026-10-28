@@ -152,9 +152,15 @@ import-list additions in step 1.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After 20261028-004925_01 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-103200 | 20261028-110204 | 5 tests / 7 cases appended; mirror pin added |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-103200 | 20261028-110204 | See Blocker Log: 3 legacy tests in test_tool_executor.py also required the gate contract |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-103400 | 20261028-110204 | targeted suites green; ruff/mypy green; full suite rerun after legacy-test fix |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-103200 | 20261028-110204 | N/A: test file (plan row) |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| 2 | Full suite failed: 3 pre-existing tests in `tests/shared/test_tool_executor.py` (`TestHttpTransportRetry::test_retries_on_502/503/504_and_succeeds`) pinned the superseded contract (write tool retried on ambiguous statuses). The procedure's "all pre-existing tests pass unmodified" claim was stale | Yes — those 3 tests' tool argument switched from `write_file` to `read_text_file` (REQ-004 read-retry semantics preserved; write+ambiguous coverage lives in the 5 new gate tests here). `test_tool_executor_routing.py` remains unmodified | 20261028-104700 |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | See 20261028-004925_03 |
 
 ### Blocker Log
