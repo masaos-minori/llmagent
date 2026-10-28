@@ -124,15 +124,15 @@ Targeted Markdown edit of one bullet; preserve surrounding list structure and he
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After 20261028-004925_01 ships |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation file (plan row) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | 22_mcp docs consistency check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document is the docs row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-103200 | 20261028-110204 | L66 bullet replaced with the prescribed wording; stale key-presence claim removed (grep gate clean) |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-103200 | 20261028-110204 | N/A: documentation file (plan row) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-104200 | 20261028-110204 | `--domain mcp` consistency check + structure/quality/content-policy/japanese checks green |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-104100 | 20261028-110204 | See Blocker Log: one sentence also added to mcp_03_03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | `mcp_03_03` "Retries" bullet claimed retries on 429/502/503/504 and non-timeout `RequestError` for all tools — contradicts the new gate (AC-5 doc/code pairing) although the file is listed Out of Scope | Yes — one clarifying sentence added to `mcp_03_03` naming the gated classes for `_WRITE_TOOLS` and cross-referencing this file's "Write-tool retry" bullet; no other content changed | 20261028-104200 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
