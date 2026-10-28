@@ -75,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 2026-10-28 | 2026-10-28 | Test-only; _make_invoker forwards health_registry |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-28 | 2026-10-28 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
