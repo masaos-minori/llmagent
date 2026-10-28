@@ -47,7 +47,7 @@ in `tests/integration/test_production_security_regression.py` (current L204, L24
 
 ### Procedure
 
-1. Add the import with the module's import block:
+1. Add the import inside each of the two test functions, next to their existing function-local `agent.services...` imports (this module imports locally, not at module level; correction after adversarial verification):
    ```python
    from tests.agent.services._discovery_gates import gates_from
    ```

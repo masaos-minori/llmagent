@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
 from shared.config_loader import ConfigLoader
-from shared.mcp_config import McpServerHealthRegistry
+from shared.mcp_health import McpServerHealthRegistry
 from shared.runtime_paths import resolve_config_dir
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.types import LLMMessage

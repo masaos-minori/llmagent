@@ -148,7 +148,7 @@ one reporting a `shared.mcp_config` import of either Health type, and one report
    `path = "tests/agent/services/test_mcp_tool_discovery_posture_gate.py"`,
    `reason = "Negative test that asserts construction without posture_gates raises TypeError"`,
    `owner = "Repository owner"`, `expires = "2027-04-22"`, `removal_condition = "Remove when this test no longer constructs the service without posture_gates."`,
-   `category = "fixture"` — the plan's "explicit allowlist for negative tests" path. No other
+   `category = "fixture"` — the plan's "explicit allowlist for negative tests" path. Also update the `tools/compat_exceptions.toml` header comment ("These 20 paths" -> "These 21 paths") and procedure 18's `TestManifestParity` expectation in the same change set. No other
    exemptions are expected: the AST design keeps the checker's and other tests' fixture strings
    clean (Assumptions).
 

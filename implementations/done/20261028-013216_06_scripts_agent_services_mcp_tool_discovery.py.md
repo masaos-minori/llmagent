@@ -96,6 +96,8 @@ of the service (fetch, dedupe call, findings) is untouched.
 
 ## Compatibility considerations
 
+- Ordering correction (adversarial verification): execute procedure 13 immediately after this one; the old no-gate test in `test_mcp_tool_discovery_posture_gate.py` fails once the signature is required and procedure 13 replaces it.
+
 - Lands after procedures 11-15 (tests pass gates first, per the Plan's tests-first
   order); landing earlier fails the 65 call sites with `TypeError`.
 - The production startup path is unchanged: `startup_validation.py` already passes gates

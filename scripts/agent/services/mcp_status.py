@@ -13,11 +13,8 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, cast
 
 import httpx
-from shared.mcp_config import (
-    McpServerHealthState,
-    TransportType,
-    get_effective_health_timeout,
-)
+from shared.mcp_config import TransportType, get_effective_health_timeout
+from shared.mcp_health import McpServerHealthState
 
 from agent.lifecycle import LifecycleState
 from agent.services.enums import McpAvailability, McpTier

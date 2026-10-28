@@ -84,6 +84,8 @@ In-place single-method replacement; the surrounding helpers (`_resp`, `_gate`, `
 
 ## Compatibility considerations
 
+- Ordering correction (adversarial verification): the new `pytest.raises(TypeError)` assertion only passes after procedure 06 flips the signature, and procedure 06 breaks the old test this procedure replaces. Execute 06 and 13 back to back as one change unit (06 first, then 13); the intermediate state is not independently green.
+
 - Lands before procedure 06 (the flip): run against the current optional-`None` signature the
   new test would fail, so land 12 -> 13 -> 14 -> 15 -> 06 in plan order; the file is only
   green after 06 lands, matching Phase 2's single-change-set intent.

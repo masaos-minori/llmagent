@@ -46,8 +46,8 @@ Security Posture gating: when the caller supplies `posture_gates`, this service
 reduces them to a server-key allowlist with
 `agent.services.mcp_health.allowed_server_keys()` and hands that allowlist to
 `RuntimeToolRegistry`, so a server whose posture the Agent rejected contributes no
-tool. `posture_gates=None` means no gate was supplied and every reachable server's
-tools are registered as before. This module never probes `/health` and never
+tool. An empty gate mapping allows no server and adds no MCP tool to the registry.
+This module never probes `/health` and never
 decides a gate itself.
 """
 
@@ -92,13 +92,13 @@ class McpToolDiscoveryService:
     def __init__(
         self,
         ctx: AgentContext,
-        posture_gates: Mapping[str, PostureGate] | None = None,
+        posture_gates: Mapping[str, PostureGate],
     ) -> None:
-        """Build the discovery service, optionally carrying the Security Posture gate.
+        """Build the discovery service carrying the Security Posture gate.
 
-        `posture_gates` is the gate row `18` (`agent.services.mcp_health`) produced at readiness. `None`
-        means no gate was supplied and today's behavior is kept; it is the migration-window value, and the
-        only production caller passes real gates.
+        `posture_gates` is the gate row `18` (`agent.services.mcp_health`) produced at
+        readiness and is required. An empty mapping is a valid explicit value and
+        registers no MCP tool.
         """
         self._ctx = ctx
         self._posture_gates = posture_gates
@@ -107,11 +107,7 @@ class McpToolDiscoveryService:
         """Fetch tools from every HTTP-transport MCP server and build a registry."""
         entries, findings, unreachable = await self._fetch_all_server_entries()
         unavailable_keys = frozenset(unreachable)
-        allowed_servers = (
-            None
-            if self._posture_gates is None
-            else frozenset(allowed_server_keys(self._posture_gates))
-        )
+        allowed_servers = frozenset(allowed_server_keys(self._posture_gates))
         registry, dedup_findings = _dedupe_and_build(
             entries, unavailable_keys, allowed_servers=allowed_servers
         )

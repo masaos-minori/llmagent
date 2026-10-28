@@ -32,7 +32,7 @@ related:
 
 ## McpServerHealthRegistry (`shared/mcp_health.py`)
 
-The canonical module is `shared/mcp_health.py`; `shared/mcp_config.py` only re-exports the class.
+The canonical and only import path is `shared/mcp_health.py`.
 
 **State Transitions:**
 

@@ -15,7 +15,8 @@ import asyncio
 import httpx
 import pytest
 import respx
-from shared.mcp_config import McpServerConfig, McpServerHealthRegistry, TransportType
+from shared.mcp_config import McpServerConfig, TransportType
+from shared.mcp_health import McpServerHealthRegistry
 from shared.tool_executor import ToolExecutor
 
 _TEST_URL = "http://127.0.0.1:19001"

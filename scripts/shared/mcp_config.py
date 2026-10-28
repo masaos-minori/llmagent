@@ -16,10 +16,6 @@ from urllib.parse import urlparse
 
 from shared.config_utils import resolve_env_ref
 from shared.logger import register_secret
-from shared.mcp_health import (  # noqa: F401
-    McpServerHealthRegistry,
-    McpServerHealthState,
-)
 
 logger = logging.getLogger(__name__)
 

@@ -26,6 +26,8 @@ from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_executor import ToolExecutor
 
+from tests.agent.services._discovery_gates import gates_from
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -310,7 +312,9 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
         }
         ctx.services_required.http = http
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         names = {d["name"] for d in result.registry.llm_tool_definitions()}
         assert "visible_tool" in names
@@ -344,7 +348,9 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
         ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.services_required.http = http
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
         resolver = ToolRouteResolver(runtime_registry=result.registry)
 
         with pytest.raises(ValueError, match="Unknown tool"):

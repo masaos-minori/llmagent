@@ -12,13 +12,8 @@ import httpx
 import pytest
 from shared.http_transport import HttpTransport, TransportError
 from shared.logger import register_secret
-from shared.mcp_config import (
-    McpServerConfig,
-    McpServerHealthRegistry,
-    McpServerHealthState,
-    StartupMode,
-    TransportType,
-)
+from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
 from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_executor import ToolExecutor

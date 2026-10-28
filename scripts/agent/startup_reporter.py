@@ -81,7 +81,7 @@ class ReadinessReporter:
 
     def report_readiness(self, pipeline: StartupValidationResult) -> None:
         """Report aggregated readiness status after startup checks complete."""
-        from shared.mcp_config import McpServerHealthState
+        from shared.mcp_health import McpServerHealthState
 
         mcp_counts = _count_by_status(pipeline, "readiness")
         tool_disc_counts = _count_by_status(pipeline, "mcp_tool_discovery")

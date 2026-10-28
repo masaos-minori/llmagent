@@ -17,7 +17,7 @@ entry (REQ-005; AC-7).
 - Extension of the existing `TestManifestParity` pattern: a case asserting
   `tests/agent/services/test_mcp_tool_discovery_posture_gate.py` is allowlisted against the
   gate-less construction rule (the intentional `pytest.raises(TypeError)` construction).
-- No edits to existing test classes.
+- One deliberate edit to the existing `TestManifestParity.test_loaded_paths_match_needed_paths`: it pins the exact manifest path set (20 paths, `len(expected) == 20`), so the new `tests/agent/services/test_mcp_tool_discovery_posture_gate.py` entry from procedure 17 step 5 must be added to `expected`, `len(expected)` becomes 21 and the class docstring count is updated. No other existing test class changes.
 
 ## Assumptions
 
@@ -111,7 +111,8 @@ entry (REQ-005; AC-7).
            issues = check_gateless_discovery_construction(content, Path("tests/test.py"))
            assert len(issues) == 1
    ```
-3. Add one case asserting `check_all()` surfaces both new rules by default
+3. In `TestManifestParity.test_loaded_paths_match_needed_paths`, add `ROOT_DIR / "tests/agent/services/test_mcp_tool_discovery_posture_gate.py"` to `expected` (sorted position), change `assert len(expected) == 20` to `21`, and change the docstring "20 paths" to "21 paths".
+4. Add one case asserting `check_all()` surfaces both new rules by default
    (`include_removed_names=False`) and honors the allowlist for the posture-gate negative-test
    file:
    ```python

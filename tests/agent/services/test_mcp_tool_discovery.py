@@ -39,6 +39,8 @@ from shared.tool_registry import (
     get_registry,
 )
 
+from tests.agent.services._discovery_gates import gates_from
+
 
 def _server_auth_headers(module: ModuleType) -> dict[str, str]:
     """Bearer header for servers whose test config carries a non-empty inbound token."""
@@ -142,7 +144,9 @@ class TestWriteClassificationFinding:
         )
         ctx = _make_ctx({"s": _server()}, http, tool_definitions_strict=strict)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         mismatches = [
             f
@@ -181,7 +185,9 @@ class TestDiscoverAllHappyPath:
         )
         ctx = _make_ctx({"search_server": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert isinstance(result, DiscoveryResult)
         tool = result.registry.get("grep")
@@ -221,7 +227,9 @@ class TestDiscoverAllHappyPath:
         )
         ctx = _make_ctx({"fs": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         tool = result.registry.get("write_file")
         assert tool.is_write is True
@@ -259,7 +267,9 @@ class TestDiscoverAllSendsBearerAuth:
         )
         ctx = _make_ctx({"alpha": alpha, "beta": beta}, http)
 
-        await McpToolDiscoveryService(ctx).discover_all()
+        await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         sent = {
             call.args[0]: call.kwargs["headers"] for call in http.get.call_args_list
@@ -295,7 +305,9 @@ class TestDiscoverAllEnabledForLlm:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.get("grep").enabled_for_llm is True
 
@@ -324,7 +336,9 @@ class TestDiscoverAllEnabledForLlm:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.get("read_file").enabled_for_llm is True
 
@@ -354,7 +368,9 @@ class TestDiscoverAllEnabledForLlm:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         tool = result.registry.get("delete_file")
         assert tool.enabled_for_llm is False
@@ -382,7 +398,9 @@ class TestDiscoverAllMalformedEntries:
         srv_cfg.required = False
         ctx = _make_ctx({"srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -406,7 +424,9 @@ class TestDiscoverAllMalformedEntries:
         srv_cfg.required = False
         ctx = _make_ctx({"srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -429,7 +449,9 @@ class TestDiscoverAllMalformedEntries:
         srv_cfg.required = False
         ctx = _make_ctx({"srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -454,7 +476,9 @@ class TestDiscoverAllMalformedEntries:
         srv_cfg.required = False
         ctx = _make_ctx({"srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -471,7 +495,9 @@ class TestDiscoverAllMalformedEntries:
         srv_cfg.required = False
         ctx = _make_ctx({"srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -503,7 +529,9 @@ class TestDiscoverAllMalformedEntries:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.get("grep").server_key == "srv"
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -547,7 +575,9 @@ class TestDiscoverAllSchemaV2Contract:
         )
         ctx = _make_ctx({"fs": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         tool = result.registry.get("move_file")
         assert tool.is_write is True
@@ -578,7 +608,9 @@ class TestDiscoverAllSchemaV2Contract:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         assert any("is_write" in f.message for f in result.findings)
@@ -608,7 +640,9 @@ class TestDiscoverAllSchemaV2Contract:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         assert any("requires_serial" in f.message for f in result.findings)
@@ -638,7 +672,9 @@ class TestDiscoverAllSchemaV2Contract:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         assert any("resource_scope_kind" in f.message for f in result.findings)
@@ -668,7 +704,9 @@ class TestDiscoverAllSchemaV2Contract:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         assert any("resource_scope_keys" in f.message for f in result.findings)
@@ -702,7 +740,9 @@ class TestDiscoverAllSchemaV2Contract:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         assert any("missing_arg" in f.message for f in result.findings)
@@ -718,7 +758,9 @@ class TestDiscoverAllUnreachableServers:
         http.get = _async_result(_resp(503, {}))
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -735,7 +777,9 @@ class TestDiscoverAllUnreachableServers:
         http.get = _async_result(resp)
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -748,7 +792,9 @@ class TestDiscoverAllUnreachableServers:
         http.get = _async_result(_resp(200, ["not", "a", "dict"]))
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -760,7 +806,9 @@ class TestDiscoverAllUnreachableServers:
         http.get = _async_result(_resp(200, {"status": "ok"}))
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -774,7 +822,9 @@ class TestDiscoverAllUnreachableServers:
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -786,7 +836,9 @@ class TestDiscoverAllUnreachableServers:
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -799,7 +851,9 @@ class TestDiscoverAllUnreachableServers:
         http.get = AsyncMock(side_effect=OSError("network down"))
         ctx = _make_ctx({"srv": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -843,7 +897,9 @@ class TestDiscoverAllUnreachableServers:
             http,
         )
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["bad_server"]
         assert result.registry.get("grep").server_key == "good_server"
@@ -863,7 +919,9 @@ class TestDiscoverAllUnreachableServers:
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
         ctx = _make_ctx({"srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -885,7 +943,9 @@ class TestDiscoverAllUnreachableServers:
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
         ctx = _make_ctx({"srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -907,7 +967,9 @@ class TestDiscoverAllUnreachableServers:
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
         ctx = _make_ctx({"srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -947,7 +1009,9 @@ class TestDiscoverAllCrossProfileEquivalence:
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
         ctx = _make_ctx({"srv": srv_cfg}, http, security_profile=security_profile)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -998,7 +1062,9 @@ class TestDiscoverAllDuplicates:
     async def test_duplicate_name_production_is_fatal_and_excluded(self) -> None:
         ctx = self._dup_ctx(SecurityProfile.PRODUCTION)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.all_tools() == []
         dup_findings = [f for f in result.findings if "duplicate" in f.message]
@@ -1019,7 +1085,9 @@ class TestDiscoverAllServerFilter:
         cfg.url = ""
         ctx = _make_ctx({"empty_url_server": cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         http.get.assert_not_called()
         assert result.registry.all_tools() == []
@@ -1037,7 +1105,9 @@ class TestDiscoverAllServerFilter:
         cfg.url = "http://127.0.0.1:9000"
         ctx = _make_ctx({"stdio_server": cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         http.get.assert_not_called()
         assert result.registry.all_tools() == []
@@ -1060,7 +1130,9 @@ class TestDiscoverAllServerFilter:
         http.get = AsyncMock()
         ctx = _make_ctx({"disabled_srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         http.get.assert_not_called()
         assert result.registry.all_tools() == []
@@ -1088,7 +1160,9 @@ class TestDiscoverAllServerFilter:
         http.get = AsyncMock()
         ctx = _make_ctx({"disabled_required_srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         http.get.assert_not_called()
         assert result.unreachable == []
@@ -1195,7 +1269,9 @@ async def test_legacy_singular_resource_scope_rejected_synthetic() -> None:
     )
     ctx = _make_ctx({"srv": _server()}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result.registry.all_tools() == []
     assert any("resource_scope" in f.message for f in result.findings)
@@ -1223,7 +1299,9 @@ async def test_legacy_singular_resource_scope_rejected_synthetic() -> None:
     )
     ctx2 = _make_ctx({"srv": _server()}, http2)
 
-    result2 = await McpToolDiscoveryService(ctx2).discover_all()
+    result2 = await McpToolDiscoveryService(
+        ctx2, posture_gates=gates_from(ctx2.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result2.registry.all_tools() == []
     assert any("resource_scope" in f.message for f in result2.findings)
@@ -1252,7 +1330,9 @@ async def test_missing_scope_field_reported_once_synthetic() -> None:
     )
     ctx = _make_ctx({"srv": _server()}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result.registry.all_tools() == []
     assert sum(1 for f in result.findings if "resource_scope_keys" in f.message) == 1
@@ -1283,7 +1363,9 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
     )
     ctx = _make_ctx({"srv": _server()}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result.registry.all_tools() == []
     enabled_findings = [
@@ -1317,7 +1399,9 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
     )
     ctx2 = _make_ctx({"srv": _server()}, http2)
 
-    result2 = await McpToolDiscoveryService(ctx2).discover_all()
+    result2 = await McpToolDiscoveryService(
+        ctx2, posture_gates=gates_from(ctx2.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result2.registry.get("test_tool_ok") is not None
     assert not any("enabled" in f.message for f in result2.findings)
@@ -1346,7 +1430,9 @@ async def test_missing_schema_version_rejected() -> None:
     )
     ctx = _make_ctx({"legacy_srv": _server()}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result.registry.all_tools() == []
     mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -1382,7 +1468,9 @@ async def test_unsupported_schema_version_rejected() -> None:
     )
     ctx = _make_ctx({"future_srv": _server()}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result.registry.all_tools() == []
     mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -1416,7 +1504,9 @@ async def test_input_schema_only_rejected() -> None:
     )
     ctx = _make_ctx({"srv": _server()}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result.registry.all_tools() == []
     mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -1449,7 +1539,9 @@ async def test_missing_capabilities_tolerated() -> None:
     )
     ctx = _make_ctx({"fs": _server()}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     tool = result.registry.get("read_file")
     assert tool is not None
@@ -1482,7 +1574,9 @@ async def test_capabilities_present_and_valid_normalizes_to_tuple() -> None:
     )
     ctx = _make_ctx({"fs": _server()}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     tool = result.registry.get("delete_file")
     assert tool is not None
@@ -1514,7 +1608,9 @@ async def test_malformed_capabilities_produces_warning_not_fatal() -> None:
     )
     ctx = _make_ctx({"fs": _server()}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result.registry.all_tools() == []
     capability_findings = [f for f in result.findings if "capabilities" in f.message]
@@ -1551,7 +1647,9 @@ async def test_malformed_capabilities_produces_warning_for_non_required_server()
     )
     ctx = _make_ctx({"fs": _server(required=False)}, http)
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     assert result.registry.all_tools() == []
     capability_findings = [f for f in result.findings if "capabilities" in f.message]
@@ -1601,7 +1699,9 @@ class TestDriftDetection:
         )
         ctx.cfg.tool.tool_definitions_strict = False
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         dup_findings = [f for f in mcp_findings if "duplicate" in f.message.lower()]
@@ -1649,7 +1749,9 @@ class TestDriftDetection:
         )
         ctx.cfg.tool.tool_definitions_strict = False
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         dup_findings = [f for f in mcp_findings if "duplicate" in f.message.lower()]
@@ -1693,7 +1795,9 @@ class TestDriftDetection:
         )
         ctx.cfg.tool.tool_definitions_strict = True
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         dup_findings = [f for f in mcp_findings if "duplicate" in f.message.lower()]
@@ -1768,7 +1872,9 @@ class TestDriftDetection:
             )
             ctx.cfg.tool.tool_definitions_strict = False
 
-            result = await McpToolDiscoveryService(ctx).discover_all()
+            result = await McpToolDiscoveryService(
+                ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+            ).discover_all()
 
             mcp_findings = [
                 f for f in result.findings if f.source == "mcp_tool_discovery"
@@ -1840,7 +1946,9 @@ class TestDriftDetection:
             )
             ctx.cfg.tool.tool_definitions_strict = False
 
-            result = await McpToolDiscoveryService(ctx).discover_all()
+            result = await McpToolDiscoveryService(
+                ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+            ).discover_all()
 
             mcp_findings = [
                 f for f in result.findings if f.source == "mcp_tool_discovery"
@@ -1900,7 +2008,9 @@ class TestUnifiedSeverity:
         )
         ctx.cfg.tool.tool_definitions_strict = strict
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         dup_findings = [f for f in mcp_findings if "duplicate" in f.message.lower()]
@@ -1955,7 +2065,9 @@ class TestUnifiedSeverity:
         ctx = _make_ctx({"srv": _server()}, http)
         ctx.cfg.tool.tool_definitions_strict = strict
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         tool_defs_findings = [f for f in mcp_findings if "mismatch" in f.message]
@@ -2003,7 +2115,9 @@ async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
     ctx = _make_ctx({"srv": _server()}, http)
     ctx.cfg.tool.tool_definitions_strict = strict
 
-    result = await McpToolDiscoveryService(ctx).discover_all()
+    result = await McpToolDiscoveryService(
+        ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+    ).discover_all()
 
     mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
     tool_defs_findings = [f for f in mcp_findings if "boom" in f.message]
@@ -2060,7 +2174,9 @@ class TestRequiredServerMalformedEntryFatalEscalation:
         )
         ctx = _make_ctx({"required_srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.get("valid_tool") is not None
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -2115,7 +2231,9 @@ class TestRequiredServerMalformedEntryFatalEscalation:
         )
         ctx = _make_ctx({"optional_srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.get("valid_tool") is not None
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -2172,7 +2290,9 @@ class TestRequiredToolPresenceCheck:
         )
         ctx = _make_ctx({"required_srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.get("grep") is not None
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -2221,7 +2341,9 @@ class TestRequiredToolPresenceCheck:
         )
         ctx = _make_ctx({"required_srv": srv_cfg}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         assert result.registry.get("grep") is not None
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
@@ -2253,7 +2375,9 @@ class TestToolDiscoveryAuthHeader:
         )
         ctx = _make_ctx({"srv": cfg}, http)
 
-        await McpToolDiscoveryService(ctx).discover_all()
+        await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
         tool_calls = [c for c in http.get.call_args_list if "/v1/tools" in c.args[0]]
         assert tool_calls, "expected a /v1/tools probe"

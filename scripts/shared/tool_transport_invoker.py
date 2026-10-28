@@ -12,12 +12,8 @@ import httpx
 
 from shared.http_transport import HttpTransport, TransportError
 from shared.logger import attach_redaction_filter
-from shared.mcp_config import (
-    McpServerConfig,
-    McpServerHealthRegistry,
-    McpServerHealthState,
-    StartupMode,
-)
+from shared.mcp_config import McpServerConfig, StartupMode
+from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
 from shared.tool_lifecycle import _PERMITTED_LIFECYCLE_EXCEPTIONS, LifecycleProtocol
 from shared.transport_dto import ToolCallResult
 

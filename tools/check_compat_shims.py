@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 import tomllib
@@ -415,6 +416,62 @@ def _is_historical_context(lines: list[str], line_idx: int) -> bool:
     return False
 
 
+_MCP_HEALTH_REEXPORT_NAMES = frozenset(
+    {
+        "McpServerHealthRegistry",
+        "McpServerHealthState",
+        "MCPHealthSnapshot",  # pre-rename name
+        "ServerHealthState",  # pre-rename name
+        "classify_server_failure",  # pre-rename name
+    }
+)
+
+
+def check_mcp_health_reexport_import(content: str, filepath: Path) -> list[str]:
+    """Flag an import of a Health name from the removed shared.mcp_config re-export."""
+    if filepath.suffix != ".py":
+        return []
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return []
+    issues: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "shared.mcp_config":
+            for alias in node.names:
+                if alias.name in _MCP_HEALTH_REEXPORT_NAMES:
+                    issues.append(
+                        f"{filepath}:{node.lineno}: Health name imported from the "
+                        f"removed shared.mcp_config re-export path — import "
+                        f"'{alias.name}' from shared.mcp_health instead"
+                    )
+    return issues
+
+
+def check_gateless_discovery_construction(content: str, filepath: Path) -> list[str]:
+    """Flag a McpToolDiscoveryService construction that omits posture_gates."""
+    if filepath.suffix != ".py":
+        return []
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return []
+    issues: list[str] = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "McpToolDiscoveryService"
+            and "posture_gates" not in {kw.arg for kw in node.keywords if kw.arg}
+            and len(node.args) < 2
+        ):
+            issues.append(
+                f"{filepath}:{node.lineno}: McpToolDiscoveryService constructed "
+                f"without posture_gates — the argument is required (no None default)"
+            )
+    return issues
+
+
 def check_removed_name_reintroduction(content: str, filepath: Path) -> list[str]:
     """Flag a removed name presented as current outside historical context.
 
@@ -535,12 +592,18 @@ def check_all(
     (the corrections made by `plans/20260903-090104_plan.md`). The
     check is opt-in via the flag and blocking wherever the flag is passed
     (CI and pre-commit).
+
+    Two syntax-tree rules are always on: a Health-name import from the removed
+    `shared.mcp_config` re-export, and a `McpToolDiscoveryService` construction
+    without `posture_gates`.
     """
     if is_allowlisted(filepath, allowlist):
         return []
     issues = check_compat_patterns(
         content, filepath, allowlist
     ) + check_adr_prohibited_patterns(content, filepath, allowlist)
+    issues += check_mcp_health_reexport_import(content, filepath)
+    issues += check_gateless_discovery_construction(content, filepath)
     if include_removed_names:
         issues += check_removed_name_reintroduction(content, filepath)
     return issues

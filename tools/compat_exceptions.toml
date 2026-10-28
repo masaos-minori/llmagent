@@ -13,7 +13,7 @@
 version = "1"
 
 # --- Migrated compatibility-exception entries -------------------------------
-# These 20 paths are exactly the DEFAULT_ALLOWLIST entries that still produce a
+# These 21 paths are exactly the DEFAULT_ALLOWLIST entries that still produce a
 # finding under check_all(..., allowlist=set(), include_removed_names=True).
 # The 4 that do not (docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md,
 # tests/shared/test_rag_tools_consistency.py, tests/shared/test_route_resolver.py
@@ -180,6 +180,15 @@ reason = "CI guard test that references the helper name as a string to assert it
 owner = "Repository owner"
 expires = "2027-04-22"
 removal_condition = "Remove when this CI guard test no longer references the helper name to assert its absence."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "mcp-posture-gate-negative-test"
+path = "tests/agent/services/test_mcp_tool_discovery_posture_gate.py"
+reason = "Negative test that asserts construction without posture_gates raises TypeError"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer constructs the service without posture_gates."
 category = "fixture"
 
 [[compatibility_exceptions]]

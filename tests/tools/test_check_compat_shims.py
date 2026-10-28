@@ -19,6 +19,8 @@ from tools.check_compat_shims import (
     check_all,
     check_compat_patterns,
     check_doc_symbols,
+    check_gateless_discovery_construction,
+    check_mcp_health_reexport_import,
     check_removed_name_reintroduction,
     load_exceptions,
     main,
@@ -583,7 +585,7 @@ class TestManifestValidation:
 
 
 class TestManifestParity:
-    """The live manifest holds exactly the 20 paths that still produce findings
+    """The live manifest holds exactly the 21 paths that still produce findings
     under check_all(..., allowlist=set(), include_removed_names=True)."""
 
     def test_loaded_paths_match_needed_paths(self) -> None:
@@ -597,6 +599,7 @@ class TestManifestParity:
             ROOT_DIR / "tests/agent/commands/test_cmd_registry_note_removal.py",
             ROOT_DIR / "tests/agent/commands/test_removed_commands.py",
             ROOT_DIR / "tests/agent/services/test_mcp_tool_discovery.py",
+            ROOT_DIR / "tests/agent/services/test_mcp_tool_discovery_posture_gate.py",
             ROOT_DIR / "tests/agent/shared/test_startup_validation_pipeline.py",
             ROOT_DIR / "tests/agent/test_rag_get_cfg.py",
             ROOT_DIR / "tests/agent/test_startup_mcp_starter.py",
@@ -613,7 +616,7 @@ class TestManifestParity:
             ROOT_DIR / "tools/check_compat_shims.py",
         }
         assert allowlist == expected
-        assert len(expected) == 20
+        assert len(expected) == 21
         assert all(p.exists() for p in allowlist)
 
 
@@ -711,3 +714,76 @@ class TestDocSymbolStage:
         tools_dir.mkdir()
         (tools_dir / "helper.py").write_text("def tool_local_func():\n    pass\n")
         assert check_doc_symbols(tmp_path, docs, frozenset()) == []
+
+
+class TestMcpHealthReexportImport:
+    """AST rule: shared.mcp_config must not be a source of Health names."""
+
+    def test_multiline_reexport_import_is_flagged(self) -> None:
+        content = (
+            "from shared.mcp_config import (\n"
+            "    McpServerConfig,\n"
+            "    McpServerHealthRegistry,\n"
+            "    McpServerHealthState,\n"
+            ")\n"
+        )
+        issues = check_mcp_health_reexport_import(content, Path("scripts/test.py"))
+        assert len(issues) == 2
+        assert "shared.mcp_config" in issues[0] and ":1:" in issues[0]
+
+    def test_canonical_import_is_clean(self) -> None:
+        content = "from shared.mcp_health import McpServerHealthState\n"
+        assert check_mcp_health_reexport_import(content, Path("scripts/test.py")) == []
+
+    def test_other_mcp_config_names_are_clean(self) -> None:
+        content = "from shared.mcp_config import McpServerConfig, TransportType\n"
+        assert check_mcp_health_reexport_import(content, Path("scripts/test.py")) == []
+
+    def test_non_python_file_is_skipped(self) -> None:
+        content = "from shared.mcp_config import McpServerHealthState\n"
+        assert check_mcp_health_reexport_import(content, Path("docs/test.md")) == []
+
+
+class TestGatelessDiscoveryConstruction:
+    """AST rule: McpToolDiscoveryService requires the posture_gates argument."""
+
+    def test_gateless_construction_is_flagged(self) -> None:
+        content = "svc = McpToolDiscoveryService(ctx)\n"
+        issues = check_gateless_discovery_construction(content, Path("scripts/test.py"))
+        assert len(issues) == 1
+        assert "posture_gates" in issues[0] and ":1:" in issues[0]
+
+    def test_keyword_gates_construction_is_clean(self) -> None:
+        content = "svc = McpToolDiscoveryService(ctx, posture_gates=gates)\n"
+        assert (
+            check_gateless_discovery_construction(content, Path("scripts/test.py"))
+            == []
+        )
+
+    def test_positional_gates_construction_is_clean(self) -> None:
+        content = "svc = McpToolDiscoveryService(ctx, gates)\n"
+        assert (
+            check_gateless_discovery_construction(content, Path("scripts/test.py"))
+            == []
+        )
+
+    def test_multiline_gateless_construction_is_flagged(self) -> None:
+        content = "svc = McpToolDiscoveryService(\n    ctx,\n)\n"
+        issues = check_gateless_discovery_construction(content, Path("tests/test.py"))
+        assert len(issues) == 1
+
+
+class TestNewAstRulesWiring:
+    def test_check_all_runs_both_new_rules_by_default(self) -> None:
+        content = (
+            "from shared.mcp_config import McpServerHealthState\n"
+            "svc = McpToolDiscoveryService(ctx)\n"
+        )
+        issues = check_all(content, Path("scripts/test.py"), allowlist=set())
+        assert any("removed shared.mcp_config re-export path" in i for i in issues)
+        assert any("without posture_gates" in i for i in issues)
+
+    def test_allowlisted_negative_test_file_is_exempt(self) -> None:
+        content = "with pytest.raises(TypeError):\n    McpToolDiscoveryService(ctx)\n"
+        path = Path("tests/agent/services/test_mcp_tool_discovery_posture_gate.py")
+        assert check_all(content, path, allowlist={path}) == []

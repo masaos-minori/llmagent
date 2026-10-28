@@ -134,15 +134,13 @@ class TestPostureGateReachesTheRegistry:
         assert _tool_names(result.registry) == {"mdq_query"}
         assert result.registry.posture_excluded_servers == frozenset()
 
-    @pytest.mark.asyncio
-    async def test_no_gate_supplied_registers_every_reachable_tool(self) -> None:
+    def test_no_gate_supplied_raises_typeerror(self) -> None:
+        """The required-argument contract: construction without gates fails at once."""
         http = _http({"http://127.0.0.1:9000/v1/tools": _tools_body("git_push")})
         ctx = _make_ctx({"git": _server()}, http)
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
-
-        assert _tool_names(result.registry) == {"git_push"}
-        assert result.registry.posture_excluded_servers == frozenset()
+        with pytest.raises(TypeError):
+            McpToolDiscoveryService(ctx)
 
     @pytest.mark.asyncio
     async def test_an_empty_gate_registers_no_mcp_tool(self) -> None:

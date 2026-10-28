@@ -178,6 +178,8 @@ async def test_required_mcp_failure_aborts_startup() -> None:
         TransportType,
     )
 
+    from tests.agent.services._discovery_gates import gates_from
+
     # Port 1 is a real, always-connection-refused address on any local host --
     # no mock is involved in the actual HTTP attempt or its failure mode.
     unreachable_cfg = McpServerConfig(
@@ -201,7 +203,9 @@ async def test_required_mcp_failure_aborts_startup() -> None:
             ),
             services_required=types.SimpleNamespace(http=http),
         )
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
     fatal = [f for f in result.findings if f.status == StartupCheckStatus.FATAL]
     assert fatal, "an unreachable required=True server must produce a FATAL finding"
@@ -220,6 +224,8 @@ async def test_optional_mcp_failure_disables_only_that_tool() -> None:
         StartupMode,
         TransportType,
     )
+
+    from tests.agent.services._discovery_gates import gates_from
 
     optional_cfg = McpServerConfig(
         transport=TransportType.HTTP,
@@ -242,7 +248,9 @@ async def test_optional_mcp_failure_disables_only_that_tool() -> None:
             ),
             services_required=types.SimpleNamespace(http=http),
         )
-        result = await McpToolDiscoveryService(ctx).discover_all()
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
 
     assert not any(f.status == StartupCheckStatus.FATAL for f in result.findings), (
         "an unreachable required=False server must not produce a FATAL finding"

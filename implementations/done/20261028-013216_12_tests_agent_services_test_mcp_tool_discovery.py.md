@@ -11,11 +11,7 @@ procedure 06 makes `posture_gates` required (REQ-004; AC-4).
 
 ## Scope
 
-- All 60 gate-less constructions (AST-verified 2026-10-28; lines 146, 185, 225, 263, 299,
-  328, 358, 386, 410, 433, 458, 475, 507, 551, 582, 612, 642, 672, 706, 722, 739, 752, 764,
-  778, 790, 803, 847, 867, 889, 911, 951, 1002, 1023, 1041, 1064, 1092, 1199, 1253, 1284,
-  1318, 1347, 1383, 1417, 1450, 1483, 1515, 1552, 1602, 1650, 1694, 1769, 1841, 1901, 1956,
-  2004, 2061, 2116, 2173, 2222, 2254).
+- All 61 gate-less constructions (AST-verified 2026-10-28: 59 `McpToolDiscoveryService(ctx)` sites and 2 `McpToolDiscoveryService(ctx2)` sites at current L1226 and L1320; the earlier 60-site list was off by one line and missed the `ctx2` form). Both contexts come from `_make_ctx(...)`, so the same derivation applies.
 - No assertion, fixture, or helper changes; no existing test renamed or deleted.
 
 ## Assumptions
@@ -38,8 +34,8 @@ procedure 06 makes `posture_gates` required (REQ-004; AC-4).
 
 - Derive gates from `ctx.cfg.mcp.mcp_servers` rather than per-test literals: the mapping is
   already the single source of truth for each test's servers, so one uniform expression keeps
-  all 60 sites consistent and immune to a later `_make_ctx` server-count change.
-- A scripted, deterministic rewrite (count-checked) rather than 60 hand edits — the replacement
+  all 61 sites consistent and immune to a later `_make_ctx` server-count change.
+- A scripted, deterministic rewrite (count-checked) rather than 61 hand edits — the replacement
   is string-regular and the pre/post AST counts gate the result.
 
 ## Alternatives considered
@@ -67,11 +63,17 @@ procedure 06 makes `posture_gates` required (REQ-004; AC-4).
    import pathlib
    p = pathlib.Path("tests/agent/services/test_mcp_tool_discovery.py")
    src = p.read_text()
-   old = "McpToolDiscoveryService(ctx)"
-   new = "McpToolDiscoveryService(ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers))"
-   n = src.count(old)
-   assert n == 60, n  # AST-verified count; abort on drift
-   p.write_text(src.replace(old, new))
+   import re
+
+   pattern = re.compile(r"McpToolDiscoveryService\((ctx2?)\)")
+   n = len(pattern.findall(src))
+   assert n == 61, n  # AST-verified count (59 ctx + 2 ctx2); abort on drift
+   p.write_text(
+       pattern.sub(
+           r"McpToolDiscoveryService(\1, posture_gates=gates_from(\1.cfg.mcp.mcp_servers))",
+           src,
+       )
+   )
    print("replaced", n)
    EOF
    ```

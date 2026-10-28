@@ -231,9 +231,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move the Health imports and delete the re-export | In Progress | — | — |  |
-| 2 | Require the posture gates (helper, 65 call sites, signature flip) | In Progress | — | — |  |
-| 3 | Add the checker rules, tests and catalog entries | In Progress | — | — |  |
+| 1 | Move the Health imports and delete the re-export | Completed | — | 20261028-132530 |  |
+| 2 | Require the posture gates (helper, 65 call sites, signature flip) | Completed | — | 20261028-132530 |  |
+| 3 | Add the checker rules, tests and catalog entries | Completed | — | 20261028-132530 |  |
 | 4 | Deployment and verification | In Progress | — | — |  |
 
 ### Blocker Log
