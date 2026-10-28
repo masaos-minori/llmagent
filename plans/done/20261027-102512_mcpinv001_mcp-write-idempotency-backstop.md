@@ -327,9 +327,9 @@ Medium
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261028-004925_01_scripts_shared_http_transport.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261028-004925_02_tests_shared_test_http_transport.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261028-004925_03_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-004925_01_scripts_shared_http_transport.py.md | 2 | Procedure | Completed | — | 20261028-110204 |
+| implementations/20261028-004925_02_tests_shared_test_http_transport.py.md | 3 | Procedure | Completed | — | 20261028-110204 |
+| implementations/20261028-004925_03_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 3 | Procedure | Completed | — | 20261028-110204 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
