@@ -222,3 +222,22 @@ class TestValidateToolSchemaV2:
         entry["resource_scope_kind"] = ""
         entry["resource_scope_keys"] = []
         assert validate_tool_schema_v2(entry) == []
+
+    def test_rejects_missing_resource_scope_kind(self) -> None:
+        entry = self._valid_entry()
+        del entry["resource_scope_kind"]
+        problems = validate_tool_schema_v2(entry)
+        assert any("resource_scope_kind" in p for p in problems)
+
+    def test_rejects_missing_resource_scope_keys(self) -> None:
+        entry = self._valid_entry()
+        del entry["resource_scope_keys"]
+        problems = validate_tool_schema_v2(entry)
+        assert any("resource_scope_keys" in p for p in problems)
+
+    def test_rejects_legacy_singular_resource_scope(self) -> None:
+        entry = self._valid_entry()
+        entry["resource_scope"] = "filesystem"
+        problems = validate_tool_schema_v2(entry)
+        assert problems != []
+        assert any("legacy" in p and "resource_scope" in p for p in problems)

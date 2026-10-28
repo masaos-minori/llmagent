@@ -123,6 +123,49 @@ def _scopes_conflict(a: str, b: str) -> bool:
     return False
 
 
+def _scope_keys_problems(
+    entry: dict[str, Any], properties: dict[str, Any] | None
+) -> list[str]:
+    """Return the problems with *entry*'s `resource_scope_keys` declaration."""
+    if "resource_scope_keys" not in entry:
+        return ["resource_scope_keys is required"]
+    resource_scope_keys = entry["resource_scope_keys"]
+    if not isinstance(resource_scope_keys, list) or not all(
+        isinstance(key, str) for key in resource_scope_keys
+    ):
+        return ["resource_scope_keys must be a list[str]"]
+    if properties is None:
+        return []
+    return [
+        f"resource_scope_key {key!r} not in inputSchema.properties"
+        for key in resource_scope_keys
+        if key not in properties
+    ]
+
+
+def _scope_problems(
+    entry: dict[str, Any], properties: dict[str, Any] | None
+) -> list[str]:
+    """Return the problems with *entry*'s resource-scope declaration."""
+    problems: list[str] = []
+
+    if "resource_scope" in entry:
+        problems.append(
+            "legacy singular resource_scope is not supported; "
+            "use resource_scope_kind and resource_scope_keys"
+        )
+
+    if "resource_scope_kind" not in entry:
+        problems.append("resource_scope_kind is required")
+    elif entry["resource_scope_kind"] not in _KNOWN_SCOPE_KINDS:
+        problems.append(
+            f"unknown resource_scope_kind: {entry['resource_scope_kind']!r}"
+        )
+
+    problems.extend(_scope_keys_problems(entry, properties))
+    return problems
+
+
 def validate_tool_schema_v2(entry: dict[str, Any]) -> list[str]:
     """Validate a raw MCP tool-list *entry* against the schema-2.0 contract.
 
@@ -130,6 +173,10 @@ def validate_tool_schema_v2(entry: dict[str, Any]) -> list[str]:
     valid. Never coerces or defaults a missing/mistyped field — this is the last line of
     defense before an incomplete or malformed tool declaration reaches the registry, so it
     must reject rather than silently accept.
+
+    All four fields `is_write`, `requires_serial`, `resource_scope_kind` and
+    `resource_scope_keys` must be present; empty values (`""`, `[]`) are valid. An entry
+    carrying the legacy singular `resource_scope` key is rejected.
     """
     problems: list[str] = []
 
@@ -158,20 +205,6 @@ def validate_tool_schema_v2(entry: dict[str, Any]) -> list[str]:
     elif not isinstance(entry.get("requires_serial"), bool):
         problems.append("requires_serial must be a bool")
 
-    resource_scope_kind = entry.get("resource_scope_kind", "")
-    if resource_scope_kind not in _KNOWN_SCOPE_KINDS:
-        problems.append(f"unknown resource_scope_kind: {resource_scope_kind!r}")
-
-    resource_scope_keys = entry.get("resource_scope_keys", [])
-    if not isinstance(resource_scope_keys, list) or not all(
-        isinstance(key, str) for key in resource_scope_keys
-    ):
-        problems.append("resource_scope_keys must be a list[str]")
-    elif properties is not None:
-        for key in resource_scope_keys:
-            if key not in properties:
-                problems.append(
-                    f"resource_scope_key {key!r} not in inputSchema.properties"
-                )
+    problems.extend(_scope_problems(entry, properties))
 
     return problems

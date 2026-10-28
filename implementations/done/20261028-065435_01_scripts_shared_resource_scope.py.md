@@ -137,10 +137,10 @@ so no migration or data rollback is needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-110758 | 20261028-110758 | Changed: scripts/shared/resource_scope.py (helpers _scope_keys_problems, _scope_problems (new)); stale check clean; ruff/mypy/lint-imports/bandit pass; radon: validator B(10), _scope_problems A(4) |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-110758 | 20261028-111618 | Tests owned by procedures 03/04; targeted 40 passed; full suite: 1 failure owned by procedure 04 (legacy test), re-run after 04 full suite 10265 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-110758 | 20261028-111618 | Static validators passed; full-suite run pending joint application with 04 joint full-suite run after procedures 01-05 applied: 10265 passed, 8 skipped; diff-cover 95% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-111618 | 20261028-111618 | N/A: no docs/00_index.md mapping needed; docs handled by procedure 05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

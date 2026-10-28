@@ -194,8 +194,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Record the legacy-policy sign-off and run the baseline | In Progress | — | — |  |
-| 2 | Validator contract (tests first, then the validator) | In Progress | — | — |  |
-| 3 | Fetch layer and discovery tests | In Progress | — | — |  |
+| 2 | Validator contract (tests first, then the validator) | Completed | — | 20261028-111630 |  |
+| 3 | Fetch layer and discovery tests | Completed | — | 20261028-111630 |  |
 | 4 | Document, deployment hand-off and verification | In Progress | — | — |  |
 
 ### Blocker Log

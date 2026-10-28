@@ -42,15 +42,6 @@ _TOOLS_ENDPOINT = "/v1/tools"
 # the owning server's key and base URL: (server_key, server_url, entry).
 _RawEntry = tuple[str, str, dict[str, object]]
 
-# Schema-2.0 fields every discovered tool entry MUST declare. A missing field is a hard
-# rejection (per-tool WARNING/FATAL finding), not silently defaulted by build_runtime_tool().
-_REQUIRED_SCHEMA_V2_FIELDS = (
-    "is_write",
-    "requires_serial",
-    "resource_scope_kind",
-    "resource_scope_keys",
-)
-
 
 async def _fetch_server_tools(
     http_client: httpx.AsyncClient, server_key: str, cfg: McpServerConfig
@@ -220,13 +211,6 @@ def _entry_schema_error(
         value = entry.get(field_name)
         if not isinstance(value, expected_type):
             return f"{server_key}: tool {name!r} has invalid {field_name} {value!r}"
-
-    missing_fields = [f for f in _REQUIRED_SCHEMA_V2_FIELDS if f not in entry]
-    if missing_fields:
-        return (
-            f"{server_key}: tool {name!r} missing required schema-2.0 field(s): "
-            f"{', '.join(missing_fields)}"
-        )
 
     schema_errors = validate_tool_schema_v2(entry)
     if schema_errors:

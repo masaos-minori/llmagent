@@ -103,10 +103,10 @@ Delete the three added test methods; no source dependency.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-110850 | 20261028-110850 | Changed: tests/shared/test_resource_scope.py (3 new tests); stale check clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-110850 | 20261028-111618 | targeted: 43 passed with procedure 01 applied full suite 10265 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-110850 | 20261028-111618 | ruff pass; full-suite run pending joint application joint full-suite run after procedures 01-05 applied: 10265 passed, 8 skipped; diff-cover 95% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-111618 | 20261028-111618 | N/A: no docs/00_index.md mapping needed; docs handled by procedure 05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

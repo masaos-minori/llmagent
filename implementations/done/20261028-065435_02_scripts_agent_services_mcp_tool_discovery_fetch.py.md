@@ -111,10 +111,10 @@ Single-file deletion; revert the commit restores the constant and the branch.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-110833 | 20261028-110833 | Changed: scripts/agent/services/mcp_tool_discovery_fetch.py (removed _REQUIRED_SCHEMA_V2_FIELDS and missing_fields branch); stale check clean; grep confirmed no other use |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-110833 | 20261028-111618 | agent/services tests: 306 passed, 1 failed (legacy resource_scope test owned by procedure 04) full suite 10265 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-110833 | 20261028-111618 | ruff/mypy/lint-imports/bandit/vulture pass; full-suite run pending joint application joint full-suite run after procedures 01-05 applied: 10265 passed, 8 skipped; diff-cover 95% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-111618 | 20261028-111618 | N/A: no docs/00_index.md mapping needed; docs handled by procedure 05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

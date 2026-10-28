@@ -122,10 +122,10 @@ Restore the original test name/body from the parent commit and delete the new te
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-111006 | 20261028-111006 | Changed: tests/agent/services/test_mcp_tool_discovery.py (renamed/rewrote legacy test, added single-report test, removed now-unused RuntimeTool import); stale check clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-111006 | 20261028-111618 | tests/agent/services: 308 passed full suite 10265 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-111006 | 20261028-111618 | ruff pass; full suite running joint full-suite run after procedures 01-05 applied: 10265 passed, 8 skipped; diff-cover 95% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-111618 | 20261028-111618 | N/A: no docs/00_index.md mapping needed; docs handled by procedure 05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

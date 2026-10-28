@@ -33,7 +33,6 @@ from shared.mcp_config import (
     StartupMode,
     TransportType,
 )
-from shared.runtime_tool import RuntimeTool
 from shared.tool_registry import (
     ToolDefinition,
     _reset_registry_for_testing,
@@ -1171,8 +1170,8 @@ class TestToolsEndpointToolShape:
 
 
 @pytest.mark.asyncio
-async def test_resource_scope_field_ignored_after_removal_synthetic() -> None:
-    """resource_scope is no longer a valid field; entries containing it should pass."""
+async def test_legacy_singular_resource_scope_rejected_synthetic() -> None:
+    """Legacy singular `resource_scope` is rejected as a schema error (owner decision 2026-10-28)."""
     http = AsyncMock(spec=httpx.AsyncClient)
     http.get = _async_result(
         _resp(
@@ -1198,34 +1197,8 @@ async def test_resource_scope_field_ignored_after_removal_synthetic() -> None:
 
     result = await McpToolDiscoveryService(ctx).discover_all()
 
-    assert result.registry.all_tools() == [
-        RuntimeTool(
-            name="test_tool",
-            server_key="srv",
-            server_url="http://127.0.0.1:9000",
-            description="desc",
-            input_schema={"type": "object", "properties": {}},
-            raw_definition={
-                "name": "test_tool",
-                "description": "desc",
-                "inputSchema": {"type": "object", "properties": {}},
-                "resource_scope": 123,
-                "is_write": False,
-                "requires_serial": False,
-                "resource_scope_kind": "",
-                "resource_scope_keys": [],
-            },
-            status="active",
-            is_write=False,
-            requires_serial=False,
-            resource_scope_kind="",
-            resource_scope_keys=(),
-            agent_safety_tier="WRITE_DANGEROUS",
-            enabled_for_llm=True,
-            capabilities=(),
-            allow_extra_fields=False,
-        ),
-    ]
+    assert result.registry.all_tools() == []
+    assert any("resource_scope" in f.message for f in result.findings)
 
     http2 = AsyncMock(spec=httpx.AsyncClient)
     http2.get = _async_result(
@@ -1252,8 +1225,37 @@ async def test_resource_scope_field_ignored_after_removal_synthetic() -> None:
 
     result2 = await McpToolDiscoveryService(ctx2).discover_all()
 
-    assert result2.registry.get("test_tool_ok") is not None
-    assert not any("resource_scope" in f.message for f in result2.findings)
+    assert result2.registry.all_tools() == []
+    assert any("resource_scope" in f.message for f in result2.findings)
+
+
+@pytest.mark.asyncio
+async def test_missing_scope_field_reported_once_synthetic() -> None:
+    http = AsyncMock(spec=httpx.AsyncClient)
+    http.get = _async_result(
+        _resp(
+            200,
+            {
+                "schema_version": "1.0",
+                "tools": [
+                    {
+                        "name": "incomplete_tool",
+                        "description": "desc",
+                        "inputSchema": {"type": "object", "properties": {}},
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                    }
+                ],
+            },
+        )
+    )
+    ctx = _make_ctx({"srv": _server()}, http)
+
+    result = await McpToolDiscoveryService(ctx).discover_all()
+
+    assert result.registry.all_tools() == []
+    assert sum(1 for f in result.findings if "resource_scope_keys" in f.message) == 1
 
 
 @pytest.mark.asyncio
