@@ -207,8 +207,33 @@ class TestBodyIndexAgreement:
         assert check_body_index_agreement(index, bodies) == []
 
 
-class TestBodyIndexDisagreement:
-    def test_different_file_sets_produce_one_error(self) -> None:
+class TestBodyIndexContainment:
+    def test_body_subset_of_index_is_accepted(self) -> None:
+        index = _index(
+            _index_row(
+                "ADR-001 INV-01",
+                "Confirmed (`tests/a/test_a.py::test_x`, `tests/b/test_b.py::extra`)",
+            )
+        )
+        bodies = {"001": _body(_row("INV-01", "`tests/a/test_a.py::test_x`"))}
+        assert check_body_index_agreement(index, bodies) == []
+
+    def test_extra_index_citation_on_a_shared_row_is_accepted(self) -> None:
+        index = _index(
+            _index_row(
+                "ADR-001 INV-01, INV-09",
+                "Confirmed (`tests/a/test_a.py::x`, `tests/b/test_b.py::y`)",
+            )
+        )
+        bodies = {
+            "001": _body(
+                _row("INV-01", "`tests/a/test_a.py::x`"),
+                _row("INV-09", "`tests/b/test_b.py::y`"),
+            )
+        }
+        assert check_body_index_agreement(index, bodies) == []
+
+    def test_body_files_not_covered_by_index_is_reported(self) -> None:
         index = _index(
             _index_row("ADR-001 INV-01", "Confirmed (`tests/a/test_a.py::test_x`)")
         )
@@ -235,7 +260,7 @@ class TestBodyIndexDisagreement:
         }
         assert check_body_index_agreement(index, bodies) == []
 
-    def test_only_the_disagreeing_adr_of_a_multi_adr_row_is_reported(self) -> None:
+    def test_only_the_uncovered_adr_of_a_multi_adr_row_is_reported(self) -> None:
         index = _index(
             _index_row(
                 "ADR-002 INV-01 and ADR-004 INV-07",

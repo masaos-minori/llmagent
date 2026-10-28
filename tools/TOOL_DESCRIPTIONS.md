@@ -18,7 +18,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 |---|---|---|
 | `_docs_consistency_lib.py` | Shared base | DocFile/Issue data types, file discovery, generic checks |
 | `_front_matter_schema.py` | Shared base | Single source of truth for the Front Matter schema |
-| `check_adr_invariant_matrix.py` | ADR | Verify that test files and nodes cited in the ADR Invariant Verification Matrix and in ADR bodies exist (nodes by AST), and fail on empty ADR body evidence cells and body/index disagreements |
+| `check_adr_invariant_matrix.py` | ADR | Verify that test files and nodes cited in the ADR Invariant Verification Matrix and in ADR bodies exist (nodes by AST), and fail on empty ADR body evidence cells and body-cited test files not covered by the index (containment; extra index citations are allowed) |
 | `check_adr_reference.py` | ADR | Verify that source files named in the ADR Invariant Verification Matrix carry a `# ADR-NNN` comment marker |
 | `check_adr_structure.py` | ADR | Verify ADR structure: Known Deviations heading, Implementation Notes/References consistency, allowed heading list and order, leftover template instructions and legacy `INV-NNN` IDs |
 | `check_auto_check_inventory.py` | Consistency checker | Cross-check auto-checks documented as `Auto` in governance_04/routing.md against runnable scripts under `tools/` or `scripts/`; flags documented-but-absent or name-drifted entries at `Warning` (GV-014) |

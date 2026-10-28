@@ -29,9 +29,12 @@ canonical evidence record; the index mirrors it):
 1. An ADR body `### Automated Tests` row whose `Implementation` cell is empty (or
    `-`) is reported. A non-empty cell, including one that starts with "Not verified",
    counts as an explicit status.
-2. For an invariant that appears in both an ADR body and the index matrix, the cited
-   test files (the union over the body rows, compared with the index cell) must
-   agree; a difference is reported when both sides cite at least one test file.
+2. For an invariant that appears in both an ADR body and the index matrix, the test
+   files cited by the body (the union over the body rows) must be contained in the
+   union of the citations in the matrix rows naming that invariant; body-cited files
+   not covered by any index citation are reported when both sides cite at least one
+   test file. Extra index citations — additional evidence on rows shared by several
+   invariants — are not errors (containment rule; repository owner decision, 2026-10-28).
 3. Every backtick-quoted `path/to/file.py::node` citation anywhere in an ADR body
    (not only the Automated Tests table) must name an existing file by its full
    repository path and an existing node; a path-less citation such as
@@ -194,8 +197,8 @@ def check_adr_body_citations(adr_file: str, lines: list[str]) -> list[Issue]:
     return issues
 
 
-# Body-evidence findings (empty cells, body/index disagreements, unresolved body
-# citations) are errors, like the index checks.
+# Body-evidence findings (empty cells, body citations not covered by the index,
+# unresolved body citations) are errors, like the index checks.
 _BODY_RULE_SEVERITY = "ERROR"
 
 _ADR_LIST_HEADING = "## ADR List"
@@ -328,8 +331,8 @@ def _index_evidence(
 def check_body_index_agreement(
     index_lines: list[str], bodies: Mapping[str, list[str]]
 ) -> list[Issue]:
-    """Rule 2: report an invariant whose cited test files differ between the index
-    and the ADR body, when both sides cite at least one test file."""
+    """Rule 2 (containment): report an invariant whose body-cited test files are not
+    all covered by the index citations, when both sides cite at least one test file."""
     index_cited, index_line, _ = _index_evidence(index_lines)
     issues: list[Issue] = []
     for adr, body_lines in sorted(bodies.items()):
@@ -340,7 +343,7 @@ def check_body_index_agreement(
                 body_cited.setdefault(inv, set()).update(files)
         for inv, body_files in sorted(body_cited.items()):
             index_files = index_cited.get((adr, inv))
-            if not index_files or not body_files or index_files == body_files:
+            if not index_files or not body_files or body_files <= index_files:
                 continue
             issues.append(
                 Issue(
@@ -348,9 +351,9 @@ def check_body_index_agreement(
                     line_no=index_line[(adr, inv)],
                     severity=_BODY_RULE_SEVERITY,
                     message=(
-                        f"ADR-{adr} INV-{inv}: cited test files differ between the "
-                        f"index {sorted(index_files)} and the ADR body "
-                        f"{sorted(body_files)}"
+                        f"ADR-{adr} INV-{inv}: body-cited test files not covered by "
+                        f"the index citations {sorted(body_files - index_files)} "
+                        f"(the index covers {sorted(index_files)})"
                     ),
                 )
             )
@@ -420,7 +423,7 @@ def main(argv: list[str] | None = None) -> int:
             "Verify every pytest node id cited in docs/10_adr/adr_01_index.md's ADR "
             "Invariant Verification Matrix and in the ADR bodies resolves to an "
             "existing file and node, and report an empty ADR body Implementation "
-            "cell and a body/index disagreement of cited test files."
+            "cell and body-cited test files not covered by the index citations."
         )
     )
     parser.add_argument(
