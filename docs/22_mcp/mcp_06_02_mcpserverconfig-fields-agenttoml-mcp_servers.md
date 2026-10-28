@@ -54,7 +54,7 @@ with design meaning are:
 
 **About the `key` field:** `key` is not a TOML setting. It is derived from the `[mcp_servers.<key>]` section name, used as an error-message prefix, and excluded from equality comparison so it never affects `/reload` diff detection.
 
-**`startup_mode="none"`:** This server is not started as a subprocess, and no health check is performed at startup. All tool calls routed to this server are immediately rejected with a `"disabled (startup_mode=none)"` error by the `ToolExecutor` startup mode check before attempting network access. This is the default if `startup_mode` is omitted in the config — to make the server available, you must explicitly specify `"persistent"` or `"subprocess"`.
+**`startup_mode="none"`:** This server is not started as a subprocess, and no health check is performed at startup. All tool calls routed to this server are immediately rejected with a `"disabled (startup_mode=none)"` error by the shared invocation-boundary guard `ToolTransportInvoker._run_precall_gates()` (inherited by `ToolExecutor`) before attempting network access. This is the default if `startup_mode` is omitted in the config — to make the server available, you must explicitly specify `"persistent"` or `"subprocess"`.
 
 **Validation Rules:**
 - `transport="http"` → `url` must not be empty and must be a valid HTTP/HTTPS URL.

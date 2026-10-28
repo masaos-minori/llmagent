@@ -19,10 +19,7 @@ if TYPE_CHECKING:
 
 import httpx
 
-from shared.mcp_config import (
-    McpServerConfig,
-    StartupMode,
-)
+from shared.mcp_config import McpServerConfig
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_lifecycle import LifecycleProtocol
 from shared.tool_transport_invoker import ToolTransportInvoker
@@ -60,26 +57,11 @@ class ToolExecutor(ToolTransportInvoker):
             lifecycle: Optional lifecycle protocol for MCP servers.
         """
         super().__init__(http, server_configs, concurrency_limits, lifecycle)
-        self._server_configs = server_configs
-
         self._resolver = ToolRouteResolver()
 
     def set_runtime_registry(self, registry: RuntimeToolRegistry) -> None:
         """Wire RuntimeToolRegistry into the existing resolver after discovery completes."""
         self._resolver.set_runtime_registry(registry)
-
-    def _check_startup_mode(self, server_key: str) -> ToolCallResult | None:
-        """Return an error result if the server is disabled or has no validated config."""
-        cfg = self._server_configs.get(server_key)
-        if cfg is None:
-            msg = f"No validated configuration for MCP server {server_key!r}"
-            logger.error(msg)
-            return self._error_result(server_key, msg, error_type="tool")
-        if cfg.startup_mode == StartupMode.NONE:
-            msg = f"MCP server {server_key!r} is disabled (startup_mode=none) and cannot be used"
-            logger.warning(msg)
-            return self._error_result(server_key, msg, error_type="tool")
-        return None
 
     async def _raw_execute(
         self,
