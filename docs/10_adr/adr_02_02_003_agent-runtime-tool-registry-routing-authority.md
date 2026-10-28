@@ -249,14 +249,14 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 
 | Test | Verifies | Type | Blocking | Implementation |
 |---|---|---|---|---|
-| Startup fails on duplicate Tool name ownership | INV-01 | Integration | Yes | - |
-| Unregistered Tools are not executed | INV-02 | Unit | Yes | - |
-| There is no Fallback to the static ToolRegistry | INV-04 | Regression | Yes | - |
+| Startup fails on duplicate Tool name ownership | INV-01 | Integration | Yes | `tests/agent/services/test_mcp_tool_discovery.py` |
+| Unregistered Tools are not executed | INV-02 | Unit | Yes | `tests/shared/test_route_resolver.py::TestRegistryRouting` |
+| There is no Fallback to the static ToolRegistry | INV-04 | Regression | Yes | Not verified |
 | Startup Drift validation (config/live comparison) uses the static `ToolRegistry` as input and does not change the `RuntimeToolRegistry`-based Routing decision itself | INV-04 (Decision Detail #15) | Integration | No (warning only; in strict mode startup is aborted, but the Routing decision itself is not affected) | `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`, `tests/shared/test_tool_registry.py`, `tests/shared/test_tool_safety_tiers.py` |
-| Routing, approval, and auditing reference the same Safety Tier | INV-03 | Integration | Yes | - |
+| Routing, approval, and auditing reference the same Safety Tier | INV-03 | Integration | Yes | Not verified |
 | A registered write tool outside the static sets is never classified as READ, and a write-flag mismatch is reported at startup | INV-03 | Unit | Yes | `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/services/test_mcp_tool_discovery.py` |
-| A statically disabled Tool is not included in `llm_tool_definitions()` | INV-06 | Regression | Yes | - |
-| Tools belonging to a Circuit-Open server remain in `llm_tool_definitions()` | INV-07 | Integration | Yes | - |
+| A statically disabled Tool is not included in `llm_tool_definitions()` | INV-06 | Regression | Yes | `tests/shared/test_runtime_tool_registry.py` |
+| Tools belonging to a Circuit-Open server remain in `llm_tool_definitions()` | INV-07 | Integration | Yes | Not verified |
 | Tools of a server whose Security Posture is not accepted are absent from `RuntimeToolRegistry` | INV-06 | Unit | Yes | `tests/shared/test_runtime_tool_registry.py`, `tests/agent/test_mcp_health_posture.py` |
 
 ### Startup Validation

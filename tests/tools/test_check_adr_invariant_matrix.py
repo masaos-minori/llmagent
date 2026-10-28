@@ -42,7 +42,7 @@ class TestResolvableTestPath:
     def test_existing_test_path_produces_no_issue(self) -> None:
         lines = _matrix(
             "| INV-001 | ADR-001 | x | Unit Test | CI | Blocking | "
-            "Confirmed (`tests/agent/test_startup.py::test_aborts_on_missing_workflow_definition`, passing) |"
+            "Confirmed (`tests/agent/test_startup.py::TestStartupOrchestratorSetupPrompt`, passing) |"
         )
         assert check_invariant_matrix_test_paths(lines) == []
 
@@ -84,7 +84,7 @@ class TestMultipleRows:
     def test_only_the_broken_row_is_flagged(self) -> None:
         lines = _matrix(
             "| INV-001 | ADR-001 | x | Unit Test | CI | Blocking | "
-            "Confirmed (`tests/agent/test_startup.py::test_aborts_on_missing_workflow_definition`) |",
+            "Confirmed (`tests/agent/test_startup.py::TestStartupOrchestratorSetupPrompt`) |",
             "| INV-999 | ADR-999 | x | Unit Test | CI | Blocking | "
             "Confirmed (`tests/nonexistent/test_fake.py::test_fake_thing`) |",
         )
@@ -103,7 +103,7 @@ class TestMissingMatrixHeading:
 
 
 # ---------------------------------------------------------------------------
-# Rules that read the ADR bodies (WARNING severity)
+# Rules that read the ADR bodies (ERROR severity)
 # ---------------------------------------------------------------------------
 
 _BODY_HEADER = "| Test | Verifies | Type | Blocking | Implementation |"
@@ -154,7 +154,7 @@ class TestBodyEmptyCellWithoutMarker:
     def test_empty_implementation_cell_is_reported(self, cell: str) -> None:
         issues = check_adr_body_evidence_cells("adr_x.md", _body(_row("INV-03", cell)))
         assert len(issues) == 1
-        assert issues[0].severity == "WARNING"
+        assert issues[0].severity == "ERROR"
         assert issues[0].file == "adr_x.md"
         assert "INV-03" in issues[0].message
 
@@ -208,14 +208,14 @@ class TestBodyIndexAgreement:
 
 
 class TestBodyIndexDisagreement:
-    def test_different_file_sets_produce_one_warning(self) -> None:
+    def test_different_file_sets_produce_one_error(self) -> None:
         index = _index(
             _index_row("ADR-001 INV-01", "Confirmed (`tests/a/test_a.py::test_x`)")
         )
         bodies = {"001": _body(_row("INV-01", "`tests/b/test_b.py::test_y`"))}
         issues = check_body_index_agreement(index, bodies)
         assert len(issues) == 1
-        assert issues[0].severity == "WARNING"
+        assert issues[0].severity == "ERROR"
         assert issues[0].file == "adr_01_index.md"
         assert issues[0].line_no == 5
         assert "ADR-001 INV-01" in issues[0].message
@@ -327,20 +327,50 @@ class TestCollectIssues:
         (adr_dir / "adr_a.md").write_text(body, encoding="utf-8")
         cited = tmp_path / "tests" / "a" / "test_a.py"
         cited.parent.mkdir(parents=True)
-        cited.write_text("", encoding="utf-8")  # the cited file must exist for rule 0
+        # the cited file and node must exist for the index path and node checks
+        cited.write_text("def t() -> None:\n    pass\n", encoding="utf-8")
         monkeypatch.setattr(checker, "REPO_ROOT", tmp_path)
         monkeypatch.setattr(checker, "ADR_INDEX", adr_dir / "adr_01_index.md")
 
-    def test_all_body_rules_report_warnings_only(
+    def test_all_body_rules_report_errors(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         self._repo(tmp_path, monkeypatch)
         issues = checker.collect_issues()
-        assert {i.severity for i in issues} == {"WARNING"}
+        assert {i.severity for i in issues} == {"ERROR"}
         messages = " | ".join(i.message for i in issues)
         assert "INV-01: Implementation cell is empty" in messages
         assert "ADR-002 file cannot be read" in messages
         assert "ADR-003 is named in the matrix but not in the ADR List" in messages
+
+    def test_exit_code_is_nonzero_for_body_findings(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        self._repo(tmp_path, monkeypatch)
+        assert checker.main(["--format", "json"]) == 1
+        assert '"severity": "ERROR"' in capsys.readouterr().out
+
+    def test_body_citation_with_missing_node_is_an_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._repo(tmp_path, monkeypatch)
+        adr = tmp_path / "docs" / "10_adr" / "adr_a.md"
+        adr.write_text(
+            "\n".join(_body(_row("INV-01", "`tests/a/test_a.py::gone`"))),
+            encoding="utf-8",
+        )
+        messages = [i.message for i in checker.collect_issues()]
+        assert any("cited node 'gone' not found" in m for m in messages)
+
+    def test_ci_runner_regex_import_still_works(self) -> None:
+        from tools.check_adr_invariant_matrix import _TEST_PATH_RE
+
+        match = _TEST_PATH_RE.search("`tests/a/test_a.py::TestX::test_y[1]`")
+        assert match is not None
+        assert match.groups() == ("tests/a/test_a.py", "TestX::test_y[1]")
 
     def test_missing_index_is_still_an_error(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -348,3 +378,112 @@ class TestCollectIssues:
         monkeypatch.setattr(checker, "ADR_INDEX", tmp_path / "absent.md")
         issues = checker.collect_issues()
         assert [i.severity for i in issues] == ["ERROR"]
+
+
+# ---------------------------------------------------------------------------
+# Node validation (index and ADR body citations)
+# ---------------------------------------------------------------------------
+
+_NODE_MODULE = """\
+class TestThing:
+    def test_method(self) -> None:
+        pass
+
+
+def test_function() -> None:
+    pass
+
+
+async def test_async_function() -> None:
+    pass
+"""
+
+
+@pytest.fixture
+def cited_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A throwaway repository root with one cited test module."""
+    module = tmp_path / "tests" / "a" / "test_a.py"
+    module.parent.mkdir(parents=True)
+    module.write_text(_NODE_MODULE, encoding="utf-8")
+    monkeypatch.setattr(checker, "REPO_ROOT", tmp_path)
+    return tmp_path
+
+
+def _cited(node: str) -> list[str]:
+    return _matrix(
+        f"| INV-001 | ADR-001 | x | Unit Test | CI | Blocking | "
+        f"Confirmed (`tests/a/test_a.py::{node}`) |"
+    )
+
+
+class TestNodeValidation:
+    def test_missing_node_in_existing_file_is_an_error(self, cited_repo: Path) -> None:
+        issues = check_invariant_matrix_test_paths(_cited("test_gone"))
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert issues[0].file == "adr_01_index.md"
+        assert "test_gone" in issues[0].message
+
+    @pytest.mark.parametrize(
+        "node",
+        [
+            "test_function",
+            "test_async_function",
+            "TestThing",
+            "TestThing::test_method",
+        ],
+    )
+    def test_class_qualified_node_is_accepted(
+        self, cited_repo: Path, node: str
+    ) -> None:
+        assert check_invariant_matrix_test_paths(_cited(node)) == []
+
+    def test_wrong_class_for_a_method_is_still_found_by_name(
+        self, cited_repo: Path
+    ) -> None:
+        """A segment is matched by name against the file's classes and functions."""
+        assert check_invariant_matrix_test_paths(_cited("TestOther::test_method")) != []
+
+    def test_parameterized_id_suffix_is_stripped(self, cited_repo: Path) -> None:
+        assert check_invariant_matrix_test_paths(_cited("test_function[a-b]")) == []
+
+    def test_call_parentheses_suffix_is_stripped(self, cited_repo: Path) -> None:
+        assert check_invariant_matrix_test_paths(_cited("test_function()")) == []
+
+    def test_unparseable_file_is_an_error(self, cited_repo: Path) -> None:
+        (cited_repo / "tests" / "a" / "test_a.py").write_text("def (:\n")
+        issues = check_invariant_matrix_test_paths(_cited("test_function"))
+        assert len(issues) == 1
+        assert "cannot parse" in issues[0].message
+
+    def test_edited_file_is_re_read(self, cited_repo: Path) -> None:
+        assert check_invariant_matrix_test_paths(_cited("test_new")) != []
+        module = cited_repo / "tests" / "a" / "test_a.py"
+        module.write_text(_NODE_MODULE + "\n\ndef test_new() -> None:\n    pass\n")
+        assert check_invariant_matrix_test_paths(_cited("test_new")) == []
+
+
+class TestBodyCitations:
+    def test_body_citation_with_missing_node_is_an_error(
+        self, cited_repo: Path
+    ) -> None:
+        lines = ["intro", "See `tests/a/test_a.py::test_gone` for the proof."]
+        issues = checker.check_adr_body_citations("adr_x.md", lines)
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert issues[0].file == "adr_x.md"
+        assert issues[0].line_no == 2
+
+    def test_path_less_body_citation_is_an_error(self, cited_repo: Path) -> None:
+        lines = ["Covered by `test_a.py::TestThing`."]
+        issues = checker.check_adr_body_citations("adr_x.md", lines)
+        assert len(issues) == 1
+        assert "file not found: test_a.py" in issues[0].message
+
+    def test_resolved_body_citation_is_clean(self, cited_repo: Path) -> None:
+        lines = ["Covered by `tests/a/test_a.py::TestThing::test_method`."]
+        assert checker.check_adr_body_citations("adr_x.md", lines) == []
+
+    def test_text_without_a_node_citation_is_ignored(self, cited_repo: Path) -> None:
+        lines = ["See `tests/a/test_a.py` and `scripts/x.py` and `fetch_tools()`."]
+        assert checker.check_adr_body_citations("adr_x.md", lines) == []

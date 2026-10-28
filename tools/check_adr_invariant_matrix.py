@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""check_adr_invariant_matrix.py — Verify test paths cited in the ADR Invariant Verification Matrix exist.
+"""check_adr_invariant_matrix.py — Verify test paths and nodes cited in the ADR Invariant Verification Matrix exist.
 
 `docs/10_adr/adr_01_index.md`'s "## ADR Invariant Verification Matrix" table's
 `Verification Status` column sometimes cites a specific pytest node id in
@@ -8,18 +8,22 @@ as evidence that an invariant is covered by an automated test. Nothing
 previously verified that the cited path still exists — it could go stale
 after a file move/rename/deletion with no signal to a reader.
 
-This check extracts every backtick-quoted `path/to/file.py::test_name`-shaped
-substring from that column and fails if the file component does not exist.
+This check extracts every backtick-quoted `path/to/file.py::node`-shaped
+substring from that column and fails if the file component does not exist, or if
+the file exists but a `::` segment of the node is not a class or function defined
+in it (checked by parsing the file with `ast`; a trailing `()` and a `[...]`
+parameter id are stripped from each segment, and no cited code is imported or run).
 Rows whose Verification Status cites no such pattern (a code reference like
 `` `config_loader.py` `restrict_to()` ``, or "no test yet" / "Not verified" /
 "Not implemented") are correctly out of scope — they already document a known
 gap, not a claim this check can verify.
 
 This check does not run the cited tests to confirm they pass — only that the
-path exists. Running cited tests is a separate, not-yet-implemented sub-step
-(see docs/00_governance/governance_04_documentation-checks.md GV-012 Follow-up Work).
+path and node exist. Running the cited index tests is done by
+`.github/run_cited_adr_tests.py` (see docs/00_governance/governance_04_documentation-checks.md
+GV-012 Follow-up Work).
 
-Two further rules read the ADR bodies (the ADR body Verification section is the
+Three further rules read the ADR bodies (the ADR body Verification section is the
 canonical evidence record; the index mirrors it):
 
 1. An ADR body `### Automated Tests` row whose `Implementation` cell is empty (or
@@ -28,10 +32,13 @@ canonical evidence record; the index mirrors it):
 2. For an invariant that appears in both an ADR body and the index matrix, the cited
    test files (the union over the body rows, compared with the index cell) must
    agree; a difference is reported when both sides cite at least one test file.
+3. Every backtick-quoted `path/to/file.py::node` citation anywhere in an ADR body
+   (not only the Automated Tests table) must name an existing file by its full
+   repository path and an existing node; a path-less citation such as
+   `test_x.py::TestY` fails the file check.
 
-Both rules report `WARNING` (see `_BODY_RULE_SEVERITY`), so they do not change the exit
-code. Promote them to `ERROR` once a corpus survey reports no finding and the
-repository owner approves (`rules/coding.md` "Explicit sign-off gates").
+All three rules and the node validation report `ERROR` (see `_BODY_RULE_SEVERITY`),
+so any finding makes the exit code non-zero.
 
 Usage:
     python tools/check_adr_invariant_matrix.py
@@ -41,6 +48,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 from collections.abc import Mapping
@@ -100,30 +108,95 @@ def _matrix_rows(lines: list[str]) -> list[tuple[int, str]]:
     return rows
 
 
+_NODE_SEGMENT_SUFFIX_RE = re.compile(r"(?:\[.*\])?(?:\(\))?$")
+_DEFINED_NAMES_CACHE: dict[tuple[Path, int, int], frozenset[str] | None] = {}
+
+
+def _defined_names(path: Path) -> frozenset[str] | None:
+    """Return the class and function names defined anywhere in `path`, or None when
+    it cannot be read or parsed. Cached per (path, mtime, size)."""
+    try:
+        stat = path.stat()
+        key = (path, stat.st_mtime_ns, stat.st_size)
+        if key in _DEFINED_NAMES_CACHE:
+            return _DEFINED_NAMES_CACHE[key]
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return None
+    names = frozenset(
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+    )
+    _DEFINED_NAMES_CACHE[key] = names
+    return names
+
+
+def _node_problem(file_part: str, node: str) -> str | None:
+    """Return a message when a `::` segment of `node` is not a class or function
+    defined in `file_part`; None when every segment resolves."""
+    names = _defined_names(REPO_ROOT / file_part)
+    if names is None:
+        return f"cannot parse {file_part} to verify the cited node '{node}'"
+    for segment in node.split("::"):
+        name = _NODE_SEGMENT_SUFFIX_RE.sub("", segment)
+        if name not in names:
+            return (
+                f"cited node '{node}' not found in {file_part} "
+                f"('{name}' is not a class or function defined there)"
+            )
+    return None
+
+
+def _citation_problem(file_part: str, node: str) -> str | None:
+    """Return the problem with one cited `file::node`, or None when it resolves."""
+    if not (REPO_ROOT / file_part).is_file():
+        return (
+            f"cited test path '{file_part}::{node}' "
+            f"does not exist (file not found: {file_part})"
+        )
+    return _node_problem(file_part, node)
+
+
 def check_invariant_matrix_test_paths(lines: list[str]) -> list[Issue]:
-    """Fail for every cited pytest node id whose file component does not exist."""
+    """Fail for every cited pytest node id whose file or node does not exist."""
     issues: list[Issue] = []
     for line_no, row in _matrix_rows(lines):
         for match in _TEST_PATH_RE.finditer(row):
-            file_part = match.group(1)
-            if not (REPO_ROOT / file_part).exists():
+            problem = _citation_problem(match.group(1), match.group(2))
+            if problem:
                 issues.append(
                     Issue(
                         file="adr_01_index.md",
                         line_no=line_no,
                         severity="ERROR",
-                        message=(
-                            f"cited test path '{file_part}::{match.group(2)}' "
-                            f"does not exist (file not found: {file_part})"
-                        ),
+                        message=problem,
                     )
                 )
     return issues
 
 
-# The body-evidence rules start as warnings: the corpus still has empty cells and
-# body/index disagreements. Promotion condition: see the module docstring.
-_BODY_RULE_SEVERITY = "WARNING"
+def check_adr_body_citations(adr_file: str, lines: list[str]) -> list[Issue]:
+    """Rule 3: report an unresolved `file.py::node` citation anywhere in an ADR body."""
+    issues: list[Issue] = []
+    for line_no, line in enumerate(lines, start=1):
+        for match in _TEST_PATH_RE.finditer(line):
+            problem = _citation_problem(match.group(1), match.group(2))
+            if problem:
+                issues.append(
+                    Issue(
+                        file=adr_file,
+                        line_no=line_no,
+                        severity=_BODY_RULE_SEVERITY,
+                        message=problem,
+                    )
+                )
+    return issues
+
+
+# Body-evidence findings (empty cells, body/index disagreements, unresolved body
+# citations) are errors, like the index checks.
+_BODY_RULE_SEVERITY = "ERROR"
 
 _ADR_LIST_HEADING = "## ADR List"
 _AUTOMATED_TESTS_HEADING = "### Automated Tests"
@@ -314,6 +387,7 @@ def collect_issues() -> list[Issue]:
             continue
         bodies[adr] = lines
         issues.extend(check_adr_body_evidence_cells(path.name, lines))
+        issues.extend(check_adr_body_citations(path.name, lines))
     for adr in sorted(_index_evidence(index_lines)[2] - adr_files.keys()):
         issues.append(
             Issue(
@@ -344,9 +418,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Verify every pytest node id cited in docs/10_adr/adr_01_index.md's ADR "
-            "Invariant Verification Matrix resolves to an existing file, and report "
-            "(as warnings) an empty ADR body Implementation cell and a body/index "
-            "disagreement of cited test files."
+            "Invariant Verification Matrix and in the ADR bodies resolves to an "
+            "existing file and node, and report an empty ADR body Implementation "
+            "cell and a body/index disagreement of cited test files."
         )
     )
     parser.add_argument(

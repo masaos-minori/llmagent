@@ -2,11 +2,11 @@
 
 ## Goal
 
-Add a one-line `# ADR-014` marker comment so `tools/check_adr_reference.py` recognizes the file named by the ADR-014 INV-03 matrix row (Plan REQ-006).
+Add a one-line `# ADR-014` marker comment so `tools/check_adr_reference.py` recognizes the file named by the ADR-014 INV-01 matrix row (Plan REQ-006).
 
 ## Scope
 
-- Modify only `scripts/mcp_servers/tool_validators.py`.
+- Modify only `scripts/agent/workflow_engine_adapter.py`.
 - Comment-only change; no runtime effect.
 - Out of scope: any code, docstring or behavior change.
 
@@ -28,11 +28,11 @@ N/A: the Plan fixes the approach (see its Design section).
 
 ### Target file
 
-`scripts/mcp_servers/tool_validators.py`
+`scripts/agent/workflow_engine_adapter.py`
 
 ### Procedure
 
-- Add the line `# ADR-014: MCP Server owns technical safety validation of tool arguments` after the module docstring and before the first import.
+- Add the line `# ADR-014: adapter between the Orchestrator and the WorkflowEngine that owns persistent state` after the module docstring and before the first import.
 - Do not reformat or reorder anything else.
 
 ### Method
@@ -60,7 +60,7 @@ Insert one comment line.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run ruff format scripts/mcp_servers/tool_validators.py`; `uv run ruff check scripts/mcp_servers/tool_validators.py`; `uv run mypy --no-namespace-packages scripts/` | No finding |
+| 1 | `uv run ruff format scripts/agent/workflow_engine_adapter.py`; `uv run ruff check scripts/agent/workflow_engine_adapter.py`; `uv run mypy --no-namespace-packages scripts/` | No finding |
 | 2 | `uv run python tools/check_adr_reference.py` | The file is accepted once the repaired checker has landed |
 | 3 | `uv run python tools/check_module_size.py` | No new violation |
 
@@ -77,8 +77,8 @@ Insert one comment line.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-162007 | 20261028-162007 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-162007 | 20261028-162007 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -98,4 +98,4 @@ Insert one comment line.
 - **Source plan**: plans/20261028-093931_adrgate005_enforce-adr-evidence-checks.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115901
-- **Related target files**: scripts/mcp_servers/tool_validators.py
+- **Related target files**: scripts/agent/workflow_engine_adapter.py

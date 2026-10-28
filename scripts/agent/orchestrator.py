@@ -19,6 +19,7 @@ persistent task state, stage transitions, and retries to
 WorkflowEngine, and delegates the LLM/tool-call loop to LlmTurnExecutor.
 """
 
+# ADR-014: Orchestrator arbitrates processing within a turn and does not decide persistent state
 from __future__ import annotations
 
 import time

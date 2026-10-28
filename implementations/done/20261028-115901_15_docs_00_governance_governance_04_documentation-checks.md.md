@@ -1,17 +1,17 @@
-# Procedure: give the two ADR-012 test citations repository-relative paths
+# Procedure: describe the error severities and the marker in the governance check description
 
 ## Goal
 
-Replace `test_repository_state.py::TestStage3DestinationProtection` and `test_git_service_dispatch.py::TestDestinationBasedProtection` with full paths (Plan REQ-002).
+Replace the "warns (exit code unchanged)" wording in section 12 with the error behavior and describe the marker (Plan REQ-008).
 
 ## Scope
 
-- Modify only `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`.
+- Modify only `docs/00_governance/governance_04_documentation-checks.md`.
 - Documentation-only change; state current behavior only.
 
 ## Assumptions
 
-- Both files exist under `tests/mcp_servers/git/` (checked with `fd`).
+- Rows 1 and 3 have landed.
 - Overlap (compatible): `plans/20261028-094441_ebdlqunique007_enforce-dlq-redelivery-uniqueness.md` edits only the ADR-006 Implementation Notes, while this Plan edits ADR-006's Verification table. Any citation added by that Plan must resolve to an existing test node once the node validation of this Plan is in force.
 
 ## Design decisions
@@ -26,12 +26,13 @@ N/A: lightweight row.
 
 ### Target file
 
-`docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`
+`docs/00_governance/governance_04_documentation-checks.md`
 
 ### Procedure
 
-- In the verification table row that cites them, change the two citations to `tests/mcp_servers/git/test_repository_state.py::TestStage3DestinationProtection` and `tests/mcp_servers/git/test_git_service_dispatch.py::TestDestinationBasedProtection`.
-- Confirm both classes exist with `rg -n "class TestStage3DestinationProtection|class TestDestinationBasedProtection" tests/mcp_servers/git`.
+- In `### 12. ADR Invariant Matrix Checks`, change the sentence that says `check_adr_invariant_matrix.py` warns without changing the exit code to: an empty `Implementation` cell, a body/index citation disagreement and a cited node that does not exist are errors that fail the check.
+- Describe the source-reference rule as: every `scripts/` file cited in the matrix carries a `# ADR-NNN` comment marker.
+- Check the GV-012 row of the check table for a `Warning` severity statement and align it with the new behavior only if it describes these two checkers.
 
 ### Method
 
@@ -39,7 +40,7 @@ Targeted sentence edits after re-reading the current file state.
 
 ### Details
 
-- Citations only; no other text changes.
+- Keep the existing `**Enforcement:** pre-commit.` line.
 
 ## Compatibility considerations
 
@@ -74,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-162007 | 20261028-162007 | GV-012 Gate changed Warning -> Blocking: both checkers now fail the run and run in pre-commit |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261028-162007 | 20261028-162007 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -89,10 +90,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002 (path-less citations)
+- **Requirement ID**: REQ-008 (governance description)
 - **Source issue**: issues/20261027-155848_adrgate005_enforce-adr-evidence-checks.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093931_adrgate005_enforce-adr-evidence-checks.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115901
-- **Related target files**: docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md
+- **Related target files**: docs/00_governance/governance_04_documentation-checks.md

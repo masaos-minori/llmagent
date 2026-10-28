@@ -1,17 +1,17 @@
-# Procedure: update the two checker descriptions
+# Procedure: correct the two stale test names in the ADR-006 verification table
 
 ## Goal
 
-Describe node validation, body-rule errors and the marker rule in the two checker rows (Plan REQ-008).
+Rename the two cited test methods to their current names (Plan REQ-002).
 
 ## Scope
 
-- Modify only `tools/TOOL_DESCRIPTIONS.md`.
+- Modify only `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`.
 - Documentation-only change; state current behavior only.
 
 ## Assumptions
 
-- Rows 1 and 3 have landed.
+- The renamed tests exist (they carry `consumer_delivery_failure_count` in their names today).
 - Overlap (compatible): `plans/20261028-094441_ebdlqunique007_enforce-dlq-redelivery-uniqueness.md` edits only the ADR-006 Implementation Notes, while this Plan edits ADR-006's Verification table. Any citation added by that Plan must resolve to an existing test node once the node validation of this Plan is in force.
 
 ## Design decisions
@@ -26,13 +26,13 @@ N/A: lightweight row.
 
 ### Target file
 
-`tools/TOOL_DESCRIPTIONS.md`
+`docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
 
 ### Procedure
 
-- In both tables (Index and detail), update the `check_adr_invariant_matrix.py` rows: cited `file.py::node` existence is verified by AST in the index and ADR bodies; empty evidence cells and body/index disagreements are errors.
-- Update the `check_adr_reference.py` rows: matrix-named `scripts/*.py` files must carry a `# ADR-NNN` comment marker; the checker fails when the matrix yields no references.
-- Run `uv run python tools/check_tool_descriptions_sync.py` afterwards.
+- In the row "NACK counters and requeue counters are persisted per Event" (INV-08), replace `test_nack_increments_delivery_failure_count` (new) with `test_nack_increments_consumer_delivery_failure_count` (new) and `test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count` (new) with `test_dlq_requeue_increments_dlq_requeue_count_not_consumer_delivery_failure_count` (new); both live in `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics`.
+- Confirm with `rg -n "def test_nack_increments_consumer_delivery_failure_count|def test_dlq_requeue_increments_dlq_requeue_count_not_consumer" tests/eventbus/test_eventbus_dlq_promotion.py`.
+- Do not edit any other text; the Implementation Notes of this ADR are edited by another Plan.
 
 ### Method
 
@@ -40,7 +40,7 @@ Targeted sentence edits after re-reading the current file state.
 
 ### Details
 
-- No tool is added or removed, so the module count and file names stay unchanged.
+- Only the cited identifiers change.
 
 ## Compatibility considerations
 
@@ -75,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-162007 | 20261028-162007 | Cited names verified with rg before the edit |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261028-162007 | 20261028-162007 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -90,10 +90,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-008 (tool descriptions)
+- **Requirement ID**: REQ-002 (stale citations)
 - **Source issue**: issues/20261027-155848_adrgate005_enforce-adr-evidence-checks.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093931_adrgate005_enforce-adr-evidence-checks.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115901
-- **Related target files**: tools/TOOL_DESCRIPTIONS.md
+- **Related target files**: docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md

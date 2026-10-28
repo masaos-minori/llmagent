@@ -1,12 +1,12 @@
-# Procedure: describe the error severities and the marker in the governance check description
+# Procedure: update the two checker descriptions
 
 ## Goal
 
-Replace the "warns (exit code unchanged)" wording in section 12 with the error behavior and describe the marker (Plan REQ-008).
+Describe node validation, body-rule errors and the marker rule in the two checker rows (Plan REQ-008).
 
 ## Scope
 
-- Modify only `docs/00_governance/governance_04_documentation-checks.md`.
+- Modify only `tools/TOOL_DESCRIPTIONS.md`.
 - Documentation-only change; state current behavior only.
 
 ## Assumptions
@@ -26,13 +26,13 @@ N/A: lightweight row.
 
 ### Target file
 
-`docs/00_governance/governance_04_documentation-checks.md`
+`tools/TOOL_DESCRIPTIONS.md`
 
 ### Procedure
 
-- In `### 12. ADR Invariant Matrix Checks`, change the sentence that says `check_adr_invariant_matrix.py` warns without changing the exit code to: an empty `Implementation` cell, a body/index citation disagreement and a cited node that does not exist are errors that fail the check.
-- Describe the source-reference rule as: every `scripts/` file cited in the matrix carries a `# ADR-NNN` comment marker.
-- Check the GV-012 row of the check table for a `Warning` severity statement and align it with the new behavior only if it describes these two checkers.
+- In both tables (Index and detail), update the `check_adr_invariant_matrix.py` rows: cited `file.py::node` existence is verified by AST in the index and ADR bodies; empty evidence cells and body/index disagreements are errors.
+- Update the `check_adr_reference.py` rows: matrix-named `scripts/*.py` files must carry a `# ADR-NNN` comment marker; the checker fails when the matrix yields no references.
+- Run `uv run python tools/check_tool_descriptions_sync.py` afterwards.
 
 ### Method
 
@@ -40,7 +40,7 @@ Targeted sentence edits after re-reading the current file state.
 
 ### Details
 
-- Keep the existing `**Enforcement:** pre-commit.` line.
+- No tool is added or removed, so the module count and file names stay unchanged.
 
 ## Compatibility considerations
 
@@ -75,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-162007 | 20261028-162007 | Gate cell unchanged here; see procedure 15 |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261028-162007 | 20261028-162007 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -90,10 +90,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-008 (governance description)
+- **Requirement ID**: REQ-008 (tool descriptions)
 - **Source issue**: issues/20261027-155848_adrgate005_enforce-adr-evidence-checks.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093931_adrgate005_enforce-adr-evidence-checks.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115901
-- **Related target files**: docs/00_governance/governance_04_documentation-checks.md
+- **Related target files**: tools/TOOL_DESCRIPTIONS.md

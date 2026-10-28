@@ -14,6 +14,7 @@ enforcement, cwd/path validation, sandboxed execution, resource limits) — this
 is not duplicated or re-implemented in Orchestrator/ToolExecutor layers.
 """
 
+# ADR-014: MCP Server owns technical safety of shell execution
 from __future__ import annotations
 
 import asyncio

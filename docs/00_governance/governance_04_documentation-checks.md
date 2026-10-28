@@ -178,7 +178,7 @@ Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section ex
 
 ### 12. ADR Invariant Matrix Checks (`check_adr_invariant_matrix.py`, `check_adr_reference.py`)
 
-Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr_01_index.md`: every pytest node id or test path cited in a `Verification Status` cell exists, and every `scripts/` source file cited there carries an `ADR-XXX` comment. `check_adr_invariant_matrix.py` also warns (exit code unchanged) about an empty `Implementation` cell in an ADR body's `### Automated Tests` table and about an invariant whose cited test files differ between its ADR body and the index.
+Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr_01_index.md`: every pytest node id or test path cited in a `Verification Status` cell, and every `file.py::node` citation in an ADR body, names an existing file and an existing class or function (checked by AST; a body citation without the full repository path fails the file check). `check_adr_invariant_matrix.py` also reports an empty `Implementation` cell in an ADR body's `### Automated Tests` table and an invariant whose cited test files differ between its ADR body and the index; each finding is an error that fails the check. `check_adr_reference.py` requires every `scripts/` source file cited there to carry a `# ADR-XXX` comment marker, and fails when the matrix yields no source references.
 
 **Enforcement:** pre-commit.
 
@@ -281,7 +281,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Existing | Manual review by design (warning-only) |
 | GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Existing | Manual review by design (warning-only) |
 | GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Existing | Existing auto detection only; no stale_patterns extension by design |
-| GV-012 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | None |
+| GV-012 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Blocking | Existing | None |
 | GV-013 | Software vs Documentation dependency graph separation | Imp | Manual | Human review | PR | Warning | Existing | None |
 | GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Existing | None |
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Existing | None |

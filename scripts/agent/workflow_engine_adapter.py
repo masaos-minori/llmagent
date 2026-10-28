@@ -8,6 +8,7 @@ Extracted from orchestrator.py (_init_workflow_task, _activate_workflow,
 _deactivate_workflow, _handle_workflow_halt).
 """
 
+# ADR-014: adapter between the Orchestrator and the WorkflowEngine that owns persistent state
 from __future__ import annotations
 
 import asyncio

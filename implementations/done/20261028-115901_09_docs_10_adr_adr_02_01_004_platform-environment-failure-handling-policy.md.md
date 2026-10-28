@@ -1,17 +1,17 @@
-# Procedure: correct the two stale test names in the ADR-006 verification table
+# Procedure: replace the stale fetch_tools() code reference in ADR-004
 
 ## Goal
 
-Rename the two cited test methods to their current names (Plan REQ-002).
+Replace the citation of the removed fetch_tools function in `scripts/agent/services/mcp_tool_discovery.py` with the function that exists (Plan REQ-002).
 
 ## Scope
 
-- Modify only `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`.
+- Modify only `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`.
 - Documentation-only change; state current behavior only.
 
 ## Assumptions
 
-- The renamed tests exist (they carry `consumer_delivery_failure_count` in their names today).
+- `_fetch_server_tools` is the per-server fetch entry point (checked in the planning phase).
 - Overlap (compatible): `plans/20261028-094441_ebdlqunique007_enforce-dlq-redelivery-uniqueness.md` edits only the ADR-006 Implementation Notes, while this Plan edits ADR-006's Verification table. Any citation added by that Plan must resolve to an existing test node once the node validation of this Plan is in force.
 
 ## Design decisions
@@ -26,13 +26,12 @@ N/A: lightweight row.
 
 ### Target file
 
-`docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
+`docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`
 
 ### Procedure
 
-- In the row "NACK counters and requeue counters are persisted per Event" (INV-08), replace `test_nack_increments_delivery_failure_count` (new) with `test_nack_increments_consumer_delivery_failure_count` (new) and `test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count` (new) with `test_dlq_requeue_increments_dlq_requeue_count_not_consumer_delivery_failure_count` (new); both live in `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics`.
-- Confirm with `rg -n "def test_nack_increments_consumer_delivery_failure_count|def test_dlq_requeue_increments_dlq_requeue_count_not_consumer" tests/eventbus/test_eventbus_dlq_promotion.py`.
-- Do not edit any other text; the Implementation Notes of this ADR are edited by another Plan.
+- In the retry-policy bullet, replace the citation with `scripts/agent/services/mcp_tool_discovery_fetch.py::_fetch_server_tools()` (the fetch layer was split out and the old name fetch_tools no longer exists).
+- Confirm with `rg -n "def _fetch_server_tools" scripts/agent/services/mcp_tool_discovery_fetch.py`.
 
 ### Method
 
@@ -40,7 +39,7 @@ Targeted sentence edits after re-reading the current file state.
 
 ### Details
 
-- Only the cited identifiers change.
+- One identifier and path change; the sentence's meaning (no retry for live discovery) is unchanged.
 
 ## Compatibility considerations
 
@@ -75,8 +74,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-162007 | 20261028-162007 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261028-162007 | 20261028-162007 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -90,10 +89,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002 (stale citations)
+- **Requirement ID**: REQ-002 (stale code reference)
 - **Source issue**: issues/20261027-155848_adrgate005_enforce-adr-evidence-checks.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093931_adrgate005_enforce-adr-evidence-checks.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115901
-- **Related target files**: docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md
+- **Related target files**: docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md

@@ -1,12 +1,12 @@
-# Procedure: add node, parameterized id, body citation and severity tests to the matrix checker tests
+# Procedure: replace the obsolete seven-column fixtures and add marker and unparseable-matrix tests
 
 ## Goal
 
-Cover node validation, parameterized ids, body citations and the ERROR severity (Plan REQ-007).
+Rebuild the fixtures on the six-column matrix and cover the marker rule and the zero-reference failure (Plan REQ-005, REQ-007).
 
 ## Scope
 
-- Modify only `tests/tools/test_check_adr_invariant_matrix.py`.
+- Modify only `tests/tools/test_check_adr_reference.py`.
 - Test-only change; no source file is edited.
 
 ## Assumptions
@@ -27,14 +27,14 @@ N/A: lightweight row; the Plan fixes the approach.
 
 ### Target file
 
-`tests/tools/test_check_adr_invariant_matrix.py`
+`tests/tools/test_check_adr_reference.py`
 
 ### Procedure
 
-- Add `TestNodeValidation` (new) with `test_missing_node_in_existing_file_is_an_error` (new), `test_class_qualified_node_is_accepted` (new), `test_parameterized_id_suffix_is_stripped` (new) and `test_call_parentheses_suffix_is_stripped` (new), building throwaway modules under `tmp_path` and patching `REPO_ROOT` the way the existing tests do.
-- Add `test_body_citation_with_missing_node_is_an_error` (new) and `test_path_less_body_citation_is_an_error` (new) for the new body scan.
-- Change the existing body-rule tests in `TestBodyEmptyCellWithoutMarker` and `TestBodyIndexDisagreement` to assert severity `ERROR` and add `test_exit_code_is_nonzero_for_body_findings` (new) through `main(["--format", "json"])`.
-- Keep `_TEST_PATH_RE` import assertions if present and add `test_ci_runner_regex_import_still_works` (new) that imports the name from the module.
+- Replace `_HEADER`, `_SEPARATOR` and every fixture row with the six-column shape (`Invariant | Statement | Type | Timing | Gate | Verification Status`) and IDs like `ADR-004 INV-07`; update the expected `line_no` values.
+- Rewrite `test_file_with_adr_reference_produces_no_issue` to write `# ADR-004: startup checks` and keep `test_file_missing_adr_reference_produces_error`.
+- Add `test_prose_only_adr_mention_is_not_a_marker` (new) (the ID appears in a docstring and a string), `test_marker_after_other_comment_text_is_accepted_only_at_comment_start` (new), `test_matrix_with_no_parsable_rows_is_an_error` (new) through `collect_issues` with a patched `ADR_INDEX`, and `test_unparseable_source_file_is_an_error` (new).
+- Keep the tests that skip test-node citations and bare filenames.
 
 ### Method
 
@@ -42,7 +42,7 @@ Edit the existing tests in place and reuse the file's fixtures and helpers.
 
 ### Details
 
-- Row 1 has landed.
+- Row 3 has landed.
 
 ## Compatibility considerations
 
@@ -60,12 +60,12 @@ N/A: revert the commit.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run pytest tests/tools/test_check_adr_invariant_matrix.py -q` | Pass |
-| 2 | `uv run ruff format tests/tools/test_check_adr_invariant_matrix.py`; `uv run ruff check tests/tools/test_check_adr_invariant_matrix.py` | No finding |
+| 1 | `uv run pytest tests/tools/test_check_adr_reference.py -q` | Pass |
+| 2 | `uv run ruff format tests/tools/test_check_adr_reference.py`; `uv run ruff check tests/tools/test_check_adr_reference.py` | No finding |
 
 ## Completion criteria
 
-- Each new failure mode has a test and the existing tests pass with the new severity.
+- All fixtures use the six-column shape and each new failure mode has a test.
 
 ## Out of Scope
 
@@ -77,8 +77,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261028-162007 | 20261028-162007 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-162007 | 20261028-162007 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -92,10 +92,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-003, REQ-004, REQ-007 (new failure modes)
+- **Requirement ID**: REQ-005, REQ-007 (current table shape; marker rule; zero rows)
 - **Source issue**: issues/20261027-155848_adrgate005_enforce-adr-evidence-checks.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093931_adrgate005_enforce-adr-evidence-checks.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115901
-- **Related target files**: tests/tools/test_check_adr_invariant_matrix.py
+- **Related target files**: tests/tools/test_check_adr_reference.py

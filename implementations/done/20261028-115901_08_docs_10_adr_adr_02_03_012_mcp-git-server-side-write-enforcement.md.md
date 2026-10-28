@@ -1,17 +1,17 @@
-# Procedure: replace the stale fetch_tools() code reference in ADR-004
+# Procedure: give the two ADR-012 test citations repository-relative paths
 
 ## Goal
 
-Replace the citation of the removed fetch_tools function in `scripts/agent/services/mcp_tool_discovery.py` with the function that exists (Plan REQ-002).
+Replace `test_repository_state.py::TestStage3DestinationProtection` and `test_git_service_dispatch.py::TestDestinationBasedProtection` with full paths (Plan REQ-002).
 
 ## Scope
 
-- Modify only `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`.
+- Modify only `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`.
 - Documentation-only change; state current behavior only.
 
 ## Assumptions
 
-- `_fetch_server_tools` is the per-server fetch entry point (checked in the planning phase).
+- Both files exist under `tests/mcp_servers/git/` (checked with `fd`).
 - Overlap (compatible): `plans/20261028-094441_ebdlqunique007_enforce-dlq-redelivery-uniqueness.md` edits only the ADR-006 Implementation Notes, while this Plan edits ADR-006's Verification table. Any citation added by that Plan must resolve to an existing test node once the node validation of this Plan is in force.
 
 ## Design decisions
@@ -26,12 +26,12 @@ N/A: lightweight row.
 
 ### Target file
 
-`docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`
+`docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`
 
 ### Procedure
 
-- In the retry-policy bullet, replace the citation with `scripts/agent/services/mcp_tool_discovery_fetch.py::_fetch_server_tools()` (the fetch layer was split out and the old name fetch_tools no longer exists).
-- Confirm with `rg -n "def _fetch_server_tools" scripts/agent/services/mcp_tool_discovery_fetch.py`.
+- In the verification table row that cites them, change the two citations to `tests/mcp_servers/git/test_repository_state.py::TestStage3DestinationProtection` and `tests/mcp_servers/git/test_git_service_dispatch.py::TestDestinationBasedProtection`.
+- Confirm both classes exist with `rg -n "class TestStage3DestinationProtection|class TestDestinationBasedProtection" tests/mcp_servers/git`.
 
 ### Method
 
@@ -39,7 +39,7 @@ Targeted sentence edits after re-reading the current file state.
 
 ### Details
 
-- One identifier and path change; the sentence's meaning (no retry for live discovery) is unchanged.
+- Citations only; no other text changes.
 
 ## Compatibility considerations
 
@@ -74,8 +74,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-162007 | 20261028-162007 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261028-162007 | 20261028-162007 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -89,10 +89,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002 (stale code reference)
+- **Requirement ID**: REQ-002 (path-less citations)
 - **Source issue**: issues/20261027-155848_adrgate005_enforce-adr-evidence-checks.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093931_adrgate005_enforce-adr-evidence-checks.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115901
-- **Related target files**: docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md
+- **Related target files**: docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md

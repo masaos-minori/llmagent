@@ -15,6 +15,7 @@ ADR-014: MCP Server owns the technical safety of external operations, including
 this argument validation layer — not duplicated in Orchestrator/ToolExecutor.
 """
 
+# ADR-014: MCP Server owns technical safety validation of tool arguments
 from __future__ import annotations
 
 from collections.abc import Callable

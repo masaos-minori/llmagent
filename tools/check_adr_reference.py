@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
-"""check_adr_reference.py — Verify scripts/*.py files named by the ADR Invariant Matrix carry an ADR-XXX comment.
+"""check_adr_reference.py — Verify scripts/*.py files named by the ADR Invariant Matrix carry an ADR-XXX comment marker.
 
 `docs/10_adr/adr_01_index.md`'s "## ADR Invariant Verification Matrix" table sometimes
 cites a `scripts/<path>.py` source file directly in a row's `Verification
 Status` cell (e.g. `` `scripts/agent/startup.py` `` for ADR-004 INV-07) as
 the implementation evidence for that invariant. This check requires that any
-such named source file contain an inline reference to the row's ADR ID
-(e.g. `ADR-004`) somewhere in its text — so a reader opening the file can
-find which ADR it implements, and this check can later be extended to a
-smaller, well-scoped "ADR-vs-code" audit rather than a repository-wide
-mandate (per docs/00_governance/governance_04_documentation-checks.md GV-012
-Implementation intent §3: scoped to matrix-named files only).
+such named source file carry a deliberate comment marker for every `ADR-NNN`
+named in the row's `Invariant` cell: a comment that starts with `# ADR-NNN`
+(e.g. `# ADR-004: startup checks`). A prose mention in a docstring or a string
+does not count — so a reader opening the file finds which ADR it implements,
+and the check cannot be satisfied by an incidental mention (per
+docs/00_governance/governance_04_documentation-checks.md GV-012 Implementation
+intent §3: scoped to matrix-named files only).
+
+The matrix is parsed by its header row (`Invariant` and `Verification Status`
+columns), not by fixed positions. When the matrix yields no source references
+at all, the check fails: a changed table shape must not let it pass vacuously.
+A named file that cannot be tokenized is reported as an error.
 
 Scope is intentionally narrow: only a `scripts/<path>.py` cell with no `::`
 separator (a source-file reference) is checked here. A `tests/<path>.py::test_name`
@@ -27,8 +33,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import io
 import re
 import sys
+import tokenize
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,7 +59,7 @@ _TABLE_SEPARATOR_RE = re.compile(r"^\|[\s:|-]+\|\s*$")
 # A `scripts/...py` source-file reference, with no `::` (a test-node
 # reference is a different check's concern — see module docstring).
 _SOURCE_FILE_RE = re.compile(r"`(scripts/[^`]+\.py)`")
-_ADR_ID_RE = re.compile(r"^ADR-\d+$")
+_ADR_ID_RE = re.compile(r"ADR-\d+")
 
 
 @dataclass(frozen=True)
@@ -67,20 +75,24 @@ def _read_lines(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines()
 
 
-def _matrix_rows(lines: list[str]) -> list[tuple[int, str]]:
-    """Return (1-indexed line_no, line) pairs for each table data row under
-    the ADR Invariant Verification Matrix heading, skipping the header row
-    and its `---` separator row. Mirrors check_adr_invariant_matrix.py's
-    row-location logic (kept local rather than imported to avoid a
-    cross-tool private-function dependency for this small amount of logic)."""
+def _split_row(row: str) -> list[str]:
+    return [c.strip() for c in row.strip().strip("|").split("|")]
+
+
+def _matrix_table(lines: list[str]) -> tuple[list[str], list[tuple[int, str]]]:
+    """Return the matrix header cells and its (1-indexed line_no, line) data rows.
+
+    The table is the first one under the ADR Invariant Verification Matrix heading.
+    An empty header is returned when the heading or the table is missing."""
     start: int | None = None
     for i, line in enumerate(lines):
         if line.strip() == _MATRIX_HEADING:
             start = i
             break
     if start is None:
-        return []
+        return [], []
 
+    header: list[str] = []
     rows: list[tuple[int, str]] = []
     seen_separator = False
     for i in range(start + 1, len(lines)):
@@ -93,29 +105,47 @@ def _matrix_rows(lines: list[str]) -> list[tuple[int, str]]:
             seen_separator = True
             continue
         if not seen_separator:
-            continue  # header row itself
+            header = _split_row(line)
+            continue
         rows.append((i + 1, line))
-    return rows
+    return header, rows
 
 
 def parse_matrix_source_refs(lines: list[str]) -> list[MatrixSourceRef]:
-    """Extract every `scripts/*.py` file the matrix names, with its row's ADR id."""
+    """Extract every `scripts/*.py` file the matrix names, once per ADR id in its row.
+
+    Columns are located by header name. Every `ADR-NNN` token of the `Invariant`
+    cell is an ADR id of the row."""
+    header, rows = _matrix_table(lines)
+    if "Invariant" not in header or "Verification Status" not in header:
+        return []
+    invariant_col = header.index("Invariant")
+    status_col = header.index("Verification Status")
     refs: list[MatrixSourceRef] = []
-    for line_no, row in _matrix_rows(lines):
-        cells = [c.strip() for c in row.strip().strip("|").split("|")]
-        if len(cells) < 7:
+    for line_no, row in rows:
+        cells = _split_row(row)
+        if len(cells) != len(header):
             continue
-        adr_id = cells[1]
-        verification_status = cells[6]
-        if not _ADR_ID_RE.match(adr_id):
-            continue
-        for match in _SOURCE_FILE_RE.finditer(verification_status):
-            refs.append(
-                MatrixSourceRef(
-                    file_path=match.group(1), adr_id=adr_id, line_no=line_no
+        adr_ids = list(dict.fromkeys(_ADR_ID_RE.findall(cells[invariant_col])))
+        for match in _SOURCE_FILE_RE.finditer(cells[status_col]):
+            for adr_id in adr_ids:
+                refs.append(
+                    MatrixSourceRef(
+                        file_path=match.group(1), adr_id=adr_id, line_no=line_no
+                    )
                 )
-            )
     return refs
+
+
+def _has_adr_marker(source: str, adr_id: str) -> bool:
+    """Return True when a comment token starts with `# <adr_id>`.
+
+    Raises tokenize.TokenError or SyntaxError when the source cannot be tokenized."""
+    marker = re.compile(rf"#\s*{re.escape(adr_id)}\b")
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        if token.type == tokenize.COMMENT and marker.match(token.string):
+            return True
+    return False
 
 
 def check_adr_reference(refs: list[MatrixSourceRef]) -> list[Issue]:
@@ -137,7 +167,21 @@ def check_adr_reference(refs: list[MatrixSourceRef]) -> list[Issue]:
             )
             continue
         content = target.read_text(encoding="utf-8")
-        if ref.adr_id not in content:
+        try:
+            has_marker = _has_adr_marker(content, ref.adr_id)
+        except (tokenize.TokenError, SyntaxError) as exc:
+            issues.append(
+                Issue(
+                    file=ref.file_path,
+                    line_no=0,
+                    severity="ERROR",
+                    message=(
+                        f"file is cited for {ref.adr_id} but cannot be tokenized: {exc}"
+                    ),
+                )
+            )
+            continue
+        if not has_marker:
             issues.append(
                 Issue(
                     file=ref.file_path,
@@ -145,8 +189,7 @@ def check_adr_reference(refs: list[MatrixSourceRef]) -> list[Issue]:
                     severity="ERROR",
                     message=(
                         f"file is cited by docs/10_adr/adr_01_index.md's Invariant Matrix "
-                        f"for {ref.adr_id}, but contains no inline reference to "
-                        f"'{ref.adr_id}'"
+                        f"for {ref.adr_id}, but has no '# {ref.adr_id}' comment marker"
                     ),
                 )
             )
@@ -164,6 +207,18 @@ def collect_issues() -> list[Issue]:
             )
         ]
     refs = parse_matrix_source_refs(_read_lines(ADR_INDEX))
+    if not refs:
+        return [
+            Issue(
+                file="adr_01_index.md",
+                line_no=0,
+                severity="ERROR",
+                message=(
+                    "matrix yielded no source references; the matrix shape may have "
+                    "changed"
+                ),
+            )
+        ]
     return check_adr_reference(refs)
 
 
@@ -184,8 +239,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Verify every scripts/*.py file cited by docs/10_adr/adr_01_index.md's ADR "
-            "Invariant Verification Matrix contains an inline reference to "
-            "that row's ADR id."
+            "Invariant Verification Matrix carries a `# ADR-NNN` comment marker "
+            "for that row's ADR id."
         )
     )
     parser.add_argument(

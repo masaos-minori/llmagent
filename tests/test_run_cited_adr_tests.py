@@ -134,4 +134,4 @@ class TestRealMatrixRegression:
     def test_matrix_has_expected_unique_citation_count(self, helper: Any) -> None:
         # Pins the matrix size; a drift that adds/removes citations fails here.
         lines = helper.ADR_INDEX.read_text(encoding="utf-8").splitlines()
-        assert len(helper.extract_cited_node_ids(lines)) == 42
+        assert len(helper.extract_cited_node_ids(lines)) == 50

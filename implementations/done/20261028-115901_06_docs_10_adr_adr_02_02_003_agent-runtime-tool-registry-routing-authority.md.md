@@ -32,9 +32,9 @@ N/A: lightweight row.
 ### Procedure
 
 - INV-01 (startup fails on duplicate Tool name ownership): cite `tests/agent/services/test_mcp_tool_discovery.py::<class>::test_dedupe_and_build_excludes_a_duplicated_name_and_reports_it_fatal` (find the class with `rg -n "^class " tests/agent/services/test_mcp_tool_discovery.py`).
-- INV-02 (unregistered Tools are not executed): cite `tests/shared/test_tool_executor_routing.py::TestResolverIntegration::test_resolver_raises_for_unknown_tool`.
-- INV-03 (routing, approval and auditing reference the same Safety Tier): cite `tests/agent/test_startup_severity_classification.py::<class>::test_routing_safety_tiers_warning_on_messages` after confirming with `rg` that the test checks tier consistency; otherwise record `Not verified`.
-- INV-06 (a statically disabled Tool is not in `llm_tool_definitions()`): cite a `llm_tool_definitions` test in `tests/shared/test_runtime_tool_registry.py::TestDisabledServerExclusion` found with `rg -n "llm_tool_definitions" tests/shared/test_runtime_tool_registry.py`.
+- INV-02 (unregistered Tools are not executed): cite `tests/shared/test_route_resolver.py::TestRegistryRouting::test_unknown_tool_raises` (correction after adversarial verification: the index row for ADR-003 INV-02 already cites `tests/shared/test_route_resolver.py`, and the checker's body/index rule compares cited files, so citing `tests/shared/test_tool_executor_routing.py` created a new disagreement).
+- INV-03 (routing, approval and auditing reference the same Safety Tier): record `Not verified` (correction after adversarial verification: the candidate `tests/agent/test_startup_severity_classification.py::TestCheckServicesSeverityClassification::test_routing_safety_tiers_warning_on_messages` mocks `check_routing_safety_tiers` and only asserts that its messages become a WARNING outcome; it does not check that routing, approval and auditing use the same tier). Do not change the Blocking column.
+- INV-06 (a statically disabled Tool is not in `llm_tool_definitions()`): cite `tests/shared/test_runtime_tool_registry.py::TestRuntimeToolRegistry::test_llm_tool_definitions_filters_enabled_and_rekeys_parameters` (correction after adversarial verification: the `llm_tool_definitions` calls inside `TestDisabledServerExclusion` are posture-gate tests, not static-disable tests; this test builds a tool with `enabled_for_llm=False` and asserts it is absent).
 - INV-04 (no fallback to the static ToolRegistry) and INV-07 (Circuit-Open server tools stay in `llm_tool_definitions()`): no existing test was found; write `Not verified` and do not change the Blocking column (UNK-03; a follow-up Issue adds the tests).
 - Verify every cited node with the new node validation (`uv run python tools/check_adr_invariant_matrix.py`) and update the matching index rows only if the checker reports a body/index disagreement.
 
@@ -79,8 +79,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-162007 | 20261028-162007 | Step 3b: INV-03 Not verified; INV-02 cites test_route_resolver; ADR-003 size gate (26602 B) forces file/class-level citations for INV-01, INV-02, INV-06 |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261028-162007 | 20261028-162007 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -178,10 +178,10 @@ Baseline recorded in Step 5: `radon cc` reports no function at C or above in eit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Corpus cleanup in the index and four ADR bodies | In Progress | — | — |  |
-| 2 | Node validation and severity promotion in the matrix checker | In Progress | — | — |  |
-| 3 | Reference checker repair, marker rule and four marker comments | In Progress | — | — |  |
-| 4 | Tool and governance descriptions | In Progress | — | — |  |
+| 1 | Corpus cleanup in the index and four ADR bodies | Completed | — | 20261028-162007 |  |
+| 2 | Node validation and severity promotion in the matrix checker | Completed | — | 20261028-162007 |  |
+| 3 | Reference checker repair, marker rule and four marker comments | Completed | — | 20261028-162007 |  |
+| 4 | Tool and governance descriptions | Completed | — | 20261028-162007 |  |
 | 5 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log
