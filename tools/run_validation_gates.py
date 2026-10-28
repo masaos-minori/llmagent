@@ -975,12 +975,15 @@ ROUTING_GATES: tuple[Gate, ...] = (
         mode=MODE_FAST,
         patterns=("docs/**", "plans/**", "issues/**", "implementations/**"),
     ),
+    # Content-based, so no patterns: routing.md applies this check only to an ADR that was
+    # shortened or reworded without intending to change its decisions. It reports every
+    # added or removed test citation as an ERROR, so auto-selecting it for any ADR edit made
+    # a deliberate citation correction fail. Run it by hand for a size-reduction change.
     Gate(
         name="check_adr_preservation",
         command=(("uv", "run", "python", "tools/check_adr_preservation.py"),),
         source=SOURCE_ROUTING,
         mode=MODE_FAST,
-        patterns=("docs/10_adr/*.md", "docs/10_adr/**/*.md"),
     ),
     Gate(
         name="check_docs_japanese",

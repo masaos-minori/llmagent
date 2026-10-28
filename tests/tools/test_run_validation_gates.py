@@ -100,6 +100,19 @@ def test_selection_docs_only_fast_mode():
     assert "generate_reference_table_mcp" not in names
 
 
+def test_adr_edit_does_not_auto_select_preservation_check():
+    """check_adr_preservation is content-based (routing.md: only for an ADR shortened or
+    reworded without changing its decisions), so an ADR edit never selects it, while the
+    gate keeps its routing mapping entry for the drift check."""
+    adr_path = "docs/10_adr/adr_01_index.md"
+    for mode in (MODE_FAST, MODE_FULL):
+        names = {gate.name for gate in select_gates([adr_path], mode)}
+        assert "check_docs_structure" in names
+        assert "check_adr_preservation" not in names
+    gate = next(g for g in ROUTING_GATES if g.name == "check_adr_preservation")
+    assert gate.patterns == ()
+
+
 def test_manage_frontmatter_gate_command_is_valid_subcommand():
     """The manage_frontmatter gate must invoke a valid report-only CLI subcommand.
 
