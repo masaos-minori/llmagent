@@ -677,8 +677,8 @@ class TestCompressLLMFailurePaths:
     """Regression tests for compress() failure paths per implementations/20260731-201219_test_history_manager.py.md."""
 
     @pytest.mark.asyncio
-    async def test_compress_returns_none_from_llm_under_limit_sets_error(self) -> None:
-        """compress() returns None from LLM call -> verify original messages are returned and CompressResult.error is set."""
+    async def test_compress_token_overflow_fallback_when_llm_returns_none(self) -> None:
+        """Token-only overflow + LLM returns None -> fallback truncation runs (REQ-001)."""
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         # Simulate empty response that triggers HistoryCompressionError in _call_compress_llm
         mock_resp = MagicMock()
@@ -693,13 +693,14 @@ class TestCompressLLMFailurePaths:
         )
         h = _history(("user", "x" * 400), ("assistant", "y" * 400))
         result, cr = await mgr.compress(h)
+        assert cr.is_fallback is True
+        assert cr.error is None
+        assert mgr.stat_fallback_truncate_count == 1
         assert result == h
-        assert cr.error is not None
-        assert cr.is_fallback is False
 
     @pytest.mark.asyncio
-    async def test_compress_raises_history_compression_error_sets_error(self) -> None:
-        """compress() raises HistoryCompressionError -> verify original messages are returned and CompressResult.error is set."""
+    async def test_compress_token_overflow_fallback_when_llm_raises(self) -> None:
+        """Token-only overflow + LLM raises -> fallback truncation runs (REQ-001)."""
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         # Simulate a request error that raises HistoryCompressionError
         mock_http.post.side_effect = httpx.RequestError("connection refused")
@@ -710,9 +711,10 @@ class TestCompressLLMFailurePaths:
         )
         h = _history(("user", "x" * 400), ("assistant", "y" * 400))
         result, cr = await mgr.compress(h)
+        assert cr.is_fallback is True
+        assert cr.error is None
+        assert mgr.stat_fallback_truncate_count == 1
         assert result == h
-        assert cr.error is not None
-        assert cr.is_fallback is False
 
     @pytest.mark.asyncio
     async def test_compress_returns_none_with_over_char_triggers_fallback(self) -> None:
@@ -936,9 +938,31 @@ class TestFallbackTruncate:
         assert len(result) < len(h)
 
     @pytest.mark.asyncio
-    async def test_returns_original_and_error_when_llm_fails_under_limit_explicit(
+    async def test_compress_falls_back_on_token_only_overflow_when_llm_fails(
         self,
     ) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("fail")
+        # Under char_limit, over token_limit -> token-only overflow triggers fallback
+        mgr = _make_manager(
+            char_limit=999999, token_limit=5, compress_turns=1, http=mock_http
+        )
+        h = _history(
+            ("user", "x" * 400),
+            ("assistant", "y" * 400),
+            ("user", "z" * 400),
+            ("assistant", "w" * 400),
+            ("user", "a" * 400),
+            ("assistant", "b" * 400),
+        )
+        result, cr = await mgr.compress(h)
+        assert cr.is_fallback is True
+        assert cr.error is None
+        assert mgr.stat_fallback_truncate_count == 1
+        assert 0 < len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_compress_falls_back_on_token_overflow_when_llm_fails(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post.side_effect = httpx.RequestError("connection refused")
         # Under char_limit, but over token_limit to trigger compression attempt
@@ -956,12 +980,13 @@ class TestFallbackTruncate:
         )
         result, cr = await mgr.compress(h)
 
-        assert result == h
-        assert cr.error is not None
-        assert cr.is_fallback is False
+        assert cr.is_fallback is True
+        assert cr.error is None
+        assert mgr.stat_fallback_truncate_count == 1
+        assert 0 < len(result) < len(h)
 
     @pytest.mark.asyncio
-    async def test_returns_original_and_error_when_llm_returns_empty_summary_under_limit(
+    async def test_compress_falls_back_on_token_overflow_when_llm_returns_empty_summary(
         self,
     ) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -985,9 +1010,74 @@ class TestFallbackTruncate:
         )
         result, cr = await mgr.compress(h)
 
-        assert result == h
-        assert cr.error is not None
-        assert cr.is_fallback is False
+        assert cr.is_fallback is True
+        assert cr.error is None
+        assert mgr.stat_fallback_truncate_count == 1
+        assert 0 < len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_compress_token_only_fallback_preserves_tool_rounds(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("fail")
+        # Two turn units; protect_turns keeps the newest whole while the oldest
+        # drops whole. A tool round (assistant tool_calls + tool row) is one unit.
+        h: list[LLMMessage] = [
+            {"role": "user", "content": "z" * 400},
+            {"role": "assistant", "content": "n" * 400},
+            {"role": "user", "content": "a" * 400},
+            {"role": "assistant", "content": "m" * 400},
+            {"role": "tool", "tool_call_id": "call_1", "content": "r" * 400},
+        ]
+        mgr = _make_manager(
+            char_limit=999999,
+            token_limit=5,
+            compress_turns=1,
+            protect_turns=1,
+            http=mock_http,
+        )
+        result, cr = await mgr.compress(h)
+
+        assert cr.is_fallback is True
+        assert len(result) < len(h)
+        # The protected tail survives whole, never split.
+        assert all(a is b for a, b in zip(result[-3:], h[2:]))
+        # Whole units drop atomically: each unit is fully kept or fully dropped,
+        # so a tool round is never split (no orphaned tool row remains).
+        original_units = HistorySelectionPolicy.group_turn_messages(h)
+        kept_ids = {id(m) for m in result}
+        for unit in original_units:
+            kept_in_unit = sum(1 for m in unit if id(m) in kept_ids)
+            assert kept_in_unit == 0 or kept_in_unit == len(unit)
+
+    @pytest.mark.asyncio
+    async def test_compress_token_only_fallback_stays_bounded_repeated(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("fail")
+        mgr = _make_manager(
+            char_limit=999999, token_limit=5, compress_turns=1, http=mock_http
+        )
+        h = _history(
+            ("user", "x" * 400),
+            ("assistant", "y" * 400),
+            ("user", "z" * 400),
+            ("assistant", "w" * 400),
+            ("user", "a" * 400),
+            ("assistant", "b" * 400),
+        )
+        first_result, first_cr = await mgr.compress(h)
+        assert first_cr.is_fallback is True
+        second_result, second_cr = await mgr.compress(first_result)
+        assert second_cr.is_fallback is True
+        assert len(second_result) <= len(first_result)
+        # Either it shrank further, or it hit the minimal floor and logged the
+        # "could not bring context under limit" warning.
+        if len(second_result) == len(first_result):
+            assert any(
+                "could not bring context under limit" in r.getMessage()
+                for r in caplog.records
+            )
 
     @pytest.mark.asyncio
     async def test_returns_fallback_when_llm_returns_empty_summary_over_limit(

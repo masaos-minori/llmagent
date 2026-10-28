@@ -76,16 +76,16 @@ replaced. The relative comparison is used because the summariser input caps ever
 If `HistoryManager.compress()` fails to call the summarization LLM, a `HistoryCompressionError` is raised but caught
 internally, returning `None` and logging a WARNING. Subsequent branching:
 
-- **If character limit is still exceeded** → Falls through to fallback truncation, dropping whole turn units
+- **If over the character limit or the token limit** → Falls through to fallback truncation, dropping whole turn units
   without summarization.
-- **If character limit is no longer exceeded** → Returns as a no-op without modifying history
+- **If neither the character nor the token limit is exceeded** → Returns as a no-op without modifying history
   (`CompressResult(compressed_count=0, ...)`).
 
 Fallback truncation protects every `system` message plus the whole units covering the last `history_protect_turns`
 pairs, groups the remaining candidates into whole units, orders them by `HistorySelectionPolicy.group_importance()`
 (the highest `classify_importance()` score inside the unit) ascending (a pinned message scores infinity, so a
 pinned unit is dropped last, not protected), and deletes one whole unit per iteration from
-candidates that exclude the `system` role and the protected units until the character limit is met or a further drop
+candidates that exclude the `system` role and the protected units until **both the character and token limits are met (token-aware)** or a further drop
 would leave fewer than one message (soft-limit behavior: see Key Constraints, Character Limit Behavior). A
 `user`/`assistant` unit and its `tool` results are never split, so no `tool` row is orphaned. This path sets
 `CompressResult.is_fallback=True`, `summary_added=False` and `summary_chars=0`, reports `compressed_count` as the
@@ -148,8 +148,9 @@ fallback truncation it is not protected but is dropped last.
 
 ### Character Limit Behavior
 
-Fallback truncation drops only unprotected whole units, lowest unit importance first, until the character limit is
-met or a further drop would leave fewer than one message. The `system` messages (including the summary) and the
+Fallback truncation drops only unprotected whole units, lowest unit importance first, until both the character limit
+is met and, when a token limit is configured (`context_token_limit > 0`), the token limit is met, or a further drop
+would leave fewer than one message. The `system` messages (including the summary) and the
 protected recent units are never dropped, so when they alone exceed the limit the limit is a soft limit: processing
 continues and a WARNING is logged. Protected messages are never dropped silently to reach the limit. Individual
 messages can also exceed `char_limit`.

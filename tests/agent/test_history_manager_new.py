@@ -26,10 +26,10 @@ def history_manager(mock_http):
 
 
 @pytest.mark.asyncio
-async def test_compress_returns_error_on_none_and_under_limit(
-    history_manager, mock_http
-):
-    # Setup: under char limit, but over token limit, and enough turns to compress
+async def test_compress_token_overflow_fallback_on_none(history_manager, mock_http):
+    # Setup: under char limit, but over token limit, and enough turns to compress.
+    # Per REQ-001 a token-only overflow with an unavailable summarizer falls back
+    # to unit-drop truncation instead of returning the unchanged history.
     # n_protect = 2, n_compress = 2. Need len(turn_msgs) > 4.
     history = []
     for i in range(5):
@@ -44,9 +44,10 @@ async def test_compress_returns_error_on_none_and_under_limit(
 
     result_history, result = await history_manager.compress(history)
 
-    assert result.error == "compression returned None"
-    assert result_history == history
-    assert result.compressed_count == 0
+    assert result.is_fallback is True
+    assert result.error is None
+    assert result.compressed_count > 0
+    assert len(result_history) < len(history)
 
 
 @pytest.mark.asyncio

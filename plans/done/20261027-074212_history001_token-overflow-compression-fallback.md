@@ -245,8 +245,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: core logic in scripts/agent/history.py | In Progress | — | — |  |
-| 2 | Phase 2: regression tests and docs | In Progress | — | — |  |
+| 1 | Phase 1: core logic in scripts/agent/history.py | Completed | 20261028-082312 | 20261028-082312 |  |
+| 2 | Phase 2: regression tests and docs | Completed | 20261028-082312 | 20261028-082312 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

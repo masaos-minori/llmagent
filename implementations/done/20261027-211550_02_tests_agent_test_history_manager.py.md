@@ -111,8 +111,10 @@ N/A: revert the commit. No config, schema, or deployed-state change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the three token-only fallback regression tests and correct the two mislabeled token-overflow tests | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the three token-only fallback regression tests and correct the mislabeled token-overflow tests | Completed | 20261028-082312 | 20261028-082312 | Added T-001 (`test_compress_falls_back_on_token_only_overflow_when_llm_fails`), T-002 (`test_compress_token_only_fallback_preserves_tool_rounds`), T-003 (`test_compress_token_only_fallback_stays_bounded_repeated`). Corrected+renamed the two `TestFallbackTruncate` cases AND two further `TestCompressLLMFailurePaths` cases (`..._under_limit_sets_error` -> `test_compress_token_overflow_fallback_when_llm_returns_none`, `..._history_compression_error_sets_error` -> `test_compress_token_overflow_fallback_when_llm_raises`) that share the same mislabeling (char under limit, token over limit, old no-fallback assertions). Scope note below. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-082312 | 20261028-082312 | ruff clean (both files); mypy back to baseline 11 (no new errors); unit file 75 passed; consumer `-k "history or compress or rag_export"` 180 passed. Full suite still running before archive. |
+
+**Scope expansion (deviation from frozen target files):** The plan's Risk section (L235-238) assumed only the two `TestFallbackTruncate` "under_limit" cases would flip under REQ-001. Adversarial verification found four such cases in `test_history_manager.py` plus one in `tests/agent/test_history_manager_new.py` (`test_compress_token_overflow_fallback_on_none`, correcting `test_compress_returns_error_on_none_and_under_limit`). All assert the pre-REQ-001 no-fallback behavior for a genuine token-only overflow and were corrected to the post-REQ-001 fallback outcome. `test_history_manager_new.py` is outside the plan's frozen Implementation Target Files; the expansion is required for AC-004 (green suite) and is consistent with REQ-001. `test_history_compression_consistency.py` and `test_regression_history_compress_reload.py` (the other AC-004 modules) pass unchanged.
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

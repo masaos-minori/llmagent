@@ -91,8 +91,8 @@ Run the documentation checkers named in `routing.md` "When to run which tool" fo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the fallback-section doc edits described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`routing.md` "When to run which tool") | Pending | — | — | |
+| 1 | Apply the fallback-section doc edits described in Implementation > Procedure/Method/Details | Completed | 20261028-082312 | 20261028-082312 | Four prose edits applied to the fallback section and the Character Limit Behavior body. |
+| 2 | Run the documentation checkers (`routing.md` "When to run which tool") | Completed | 20261028-082312 | 20261028-082312 | All five pass: check_docs_quality (No issues found), check_docs_structure (All checks passed), check_docs_content_policy --strict (No issues found), check_docs_consistency --domain agent (No issues found), check_docs_japanese (no Japanese files). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -117,8 +117,8 @@ Two edits in one file: add one helper, swap two call sites to it, and change one
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `_is_over_any_limit` (new), swap the two call sites, and change the `compress()` summary-`None` guard to `over_char or over_token` | Pending | — | — | |
-| 2 | Add token-only fallback regression tests; run the validation sequence | Pending | — | — | |
+| 1 | Implement `_is_over_any_limit` (new), swap the two call sites, and change the `compress()` summary-`None` guard to `over_char or over_token` | Completed | 20261028-082312 | 20261028-082312 |  |
+| 2 | Add token-only fallback regression tests; run the validation sequence | Completed | 20261028-082312 | 20261028-082312 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -284,7 +284,7 @@ class HistoryManager:
         preserved_system, prior_summaries = self._split_system_msgs(split.system_msgs)
         summary_text = await self._get_summary_text(split.to_compress, prior_summaries)
         if summary_text is None:
-            if self._is_over_char_limit(history):
+            if over_char or over_token:
                 return self._fallback_truncate(history)
             return history, CompressResult(
                 compressed_count=0,
@@ -297,6 +297,17 @@ class HistoryManager:
     def _is_over_char_limit(self, history: list[LLMMessage]) -> bool:
         """Return True when history exceeds the character limit."""
         return self._char_limit > 0 and self.count_chars(history) > self._char_limit
+
+    def _is_over_any_limit(self, history: list[LLMMessage]) -> bool:
+        """Return True when history exceeds the character OR token limit.
+
+        Mirrors ``_is_over_char_limit`` for tokens: the token check is gated on
+        ``self._token_limit > 0`` (constructor default 0 = disabled) so a
+        token-only overflow still converges through the unit-drop fallback.
+        """
+        return self._is_over_char_limit(history) or (
+            self._token_limit > 0 and self.count_tokens(history) > self._token_limit
+        )
 
     def _fallback_truncate(
         self, history: list[LLMMessage]
@@ -312,11 +323,14 @@ class HistoryManager:
         new_history = self._apply_unit_drops(history, drop_candidates)
         self.stat_fallback_truncate_count += 1
         dropped = len(history) - len(new_history)
-        if self._is_over_char_limit(new_history):
+        if self._is_over_any_limit(new_history):
             logger.warning(
-                "Fallback truncation could not bring context under limit: chars=%d limit=%d",
+                "Fallback truncation could not bring context under limit: "
+                "chars=%d limit=%d tokens=%d token_limit=%d",
                 self.count_chars(new_history),
                 self._char_limit,
+                self.count_tokens(new_history),
+                self._token_limit,
             )
         logger.info("Fallback truncation applied: dropped %d messages", dropped)
         return new_history, CompressResult(
@@ -349,7 +363,7 @@ class HistoryManager:
         new_history = list(history)
         for unit in drop_candidates:
             if (
-                self._is_over_char_limit(new_history)
+                self._is_over_any_limit(new_history)
                 and len(new_history) - len(unit) >= 1
             ):
                 for m in unit:
