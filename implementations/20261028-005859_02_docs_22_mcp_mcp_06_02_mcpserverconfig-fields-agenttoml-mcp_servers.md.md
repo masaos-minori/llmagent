@@ -98,10 +98,10 @@ One sentence edit inside one bullet.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After 20261028-005859_01 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation file (plan row) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | 22_mcp docs consistency check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document is the docs row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-110204 | 20261028-111441 | Applied after 20261028-005859_01; AC-4 grep gate: zero "startup mode check" hits in the file |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261028-111441 | N/A: documentation file (plan row) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-110204 | 20261028-111441 | 22_mcp docs consistency check passed; structure/quality/content-policy/japanese passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261028-111441 | This document is the docs row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
