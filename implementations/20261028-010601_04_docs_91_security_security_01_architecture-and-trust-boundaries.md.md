@@ -106,10 +106,10 @@ Single-line replacement inside an existing fenced code block.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | In Progress | 2026-10-28 | — | Rebase first: high-churn file |
-| 2 | Add or update tests per Validation plan | In Progress | 2026-10-28 | — | N/A: documentation file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | In Progress | 2026-10-28 | — | Docs consistency check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | In Progress | 2026-10-28 | — | This document is the docs procedure |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-28 | 20261028-100140 | Rebase first: high-churn file |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-28 | 20261028-100140 | N/A: documentation file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-28 | 20261028-100140 | Docs consistency check |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-28 | 20261028-100140 | This document is the docs procedure |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
