@@ -81,3 +81,43 @@ async def test_timeout_exception_retried_once() -> None:
     with pytest.raises(TransportError):
         await transport.call("read_text_file", {})
     assert mock_post.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_request_error_exhaustion_includes_cause_in_message() -> None:
+    transport = HttpTransport(
+        http=MagicMock(spec=httpx.AsyncClient),
+        base_url="http://127.0.0.1:8000",
+        server_key="srv",
+        cfg=_http_cfg(),
+    )
+    mock_post = AsyncMock()
+    transport._http.post = mock_post
+    mock_post.side_effect = httpx.ConnectError("boom")
+    with pytest.raises(TransportError) as exc:
+        await transport.call("read_text_file", {})
+    assert mock_post.call_count == 3
+    message = str(exc.value)
+    assert "Retry exhausted" in message
+    assert "ConnectError" in message
+    assert "boom" in message
+
+
+@pytest.mark.asyncio
+async def test_request_error_then_success_returns_result() -> None:
+    transport = HttpTransport(
+        http=MagicMock(spec=httpx.AsyncClient),
+        base_url="http://127.0.0.1:8000",
+        server_key="srv",
+        cfg=_http_cfg(),
+    )
+    mock_post = AsyncMock()
+    transport._http.post = mock_post
+    req = httpx.Request("POST", "http://127.0.0.1:8000/v1/call_tool")
+    mock_post.side_effect = [
+        httpx.ConnectError("boom"),
+        httpx.Response(200, request=req, json={"result": "ok", "is_error": False}),
+    ]
+    result = await transport.call("read_text_file", {})
+    assert mock_post.call_count == 2
+    assert result.output == "ok"

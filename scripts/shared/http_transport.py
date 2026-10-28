@@ -132,12 +132,17 @@ class HttpTransport:
         return exc
 
     def _build_exhaustion_message(
-        self, tool_name: str, last_retryable_status: int | None
+        self,
+        tool_name: str,
+        last_retryable_status: int | None,
+        last_request_error: str | None = None,
     ) -> str:
         """Build a safe retry-exhaustion diagnostic without exposing raw response bodies."""
         parts = [f"[Retry exhausted] tool={tool_name}"]
         if last_retryable_status is not None:
             parts.append(f"status={last_retryable_status}")
+        if last_request_error is not None:
+            parts.append(f"last_error={last_request_error}")
         return " ".join(parts) + f" after {self._RETRY_MAX} attempts"
 
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
@@ -160,6 +165,7 @@ class HttpTransport:
 
         timeout = httpx.Timeout(self._timeout) if self._timeout > 0 else None
         last_retryable_status: int | None = None
+        last_request_error: str | None = None
         # Per-logical-call gating: this loop may issue multiple HTTP attempts
         # (retryable statuses in _RETRYABLE_STATUS, up to _RETRY_MAX=3) but each
         # attempt reuses the single idempotency key above and does NOT re-enter
@@ -212,12 +218,18 @@ class HttpTransport:
             except httpx.RequestError as e:
                 # REQ-006: writes are always retried on a non-timeout
                 # httpx.RequestError (this handler), exactly like read tools.
+                # Retry is an explicit `continue` below (was implicit fall-through);
+                # the request-error cause is captured for the exhaustion message.
                 # Safety against double execution rests on the always-active
                 # server-side _duplicate_cache (dispatch.py), which deduplicates
                 # every write keyed on the X-Idempotency-Key emitted once per
                 # logical call (lines 153/159). No client-side backstop exists:
                 # the key is always present, so a key-presence gate is impossible.
                 self._transport_error(name, f"[{type(e).__name__}]", str(e))
-        msg = self._build_exhaustion_message(name, last_retryable_status)
+                last_request_error = f"{type(e).__name__}: {e}"
+                continue
+        msg = self._build_exhaustion_message(
+            name, last_retryable_status, last_request_error
+        )
         logger.error(msg)
         raise TransportError(msg)
