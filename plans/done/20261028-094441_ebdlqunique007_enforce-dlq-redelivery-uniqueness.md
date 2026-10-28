@@ -1,3 +1,14 @@
+> **Superseded** (2026-10-28): the 8 implementation procedures generated from this Plan
+> (`implementations/20261028-120147_*`, never executed) described constructs that do not exist
+> in the repository at any commit (`RedeliveryError`, `BEGIN IMMEDIATE` in `dlq_repo.py`, a
+> `dlq_processing` status, an `events.status` column, a `result is None` contract in
+> `dlq_route.py`; `git log -S "RedeliveryError"` is empty) and were removed. This Plan's own
+> evidence line for `tests/db/test_create_schema.py` also misattributes `test_missing_index_raises`
+> to `idx_events_dlq_seq`; that test covers the rag-shape `idx_docs_content_hash`. A replacement
+> Plan (`plans/20261028-194908_ebdlqunique007_enforce-dlq-redelivery-uniqueness.md`) is generated
+> from `issues/done/20261027-155850_ebdlqunique007_enforce-dlq-redelivery-uniqueness.md` against
+> the verified current source; the Goal and Scope of this document remain valid.
+
 ## Goal
 - Make SQLite itself guarantee that one original dead-letter event has at most one redelivery descendant, so the invariant no longer depends on an application existence check and one in-process lock.
 
