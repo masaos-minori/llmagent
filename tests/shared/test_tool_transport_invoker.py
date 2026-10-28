@@ -36,24 +36,27 @@ def _http_cfg(
 def _make_invoker(
     configs: dict[str, McpServerConfig] | None = None,
     concurrency_limits: dict[str, int] | None = None,
+    health_registry: McpServerHealthRegistry | None = None,
 ) -> ToolTransportInvoker:
     http = MagicMock(spec=httpx.AsyncClient)
     return ToolTransportInvoker(
         http=http,
         server_configs=configs or {"srv": _http_cfg()},
         concurrency_limits=concurrency_limits,
+        health_registry=health_registry
+        if health_registry is not None
+        else McpServerHealthRegistry(),
     )
 
 
 class TestToolTransportInvoker:
     @pytest.mark.asyncio
     async def test_health_unavailable_returns_error_result(self) -> None:
-        invoker = _make_invoker()
         registry = McpServerHealthRegistry(failure_threshold=1)
         registry.record_failure(
             "srv"
         )  # state -> UNAVAILABLE immediately at threshold=1
-        invoker.set_health_registry(registry)
+        invoker = _make_invoker(health_registry=registry)
 
         result = await invoker.invoke("srv", "some_tool", {})
 
@@ -81,10 +84,9 @@ class TestToolTransportInvoker:
 
     @pytest.mark.asyncio
     async def test_success_records_health_success(self) -> None:
-        invoker = _make_invoker()
         registry = McpServerHealthRegistry()
         registry.record_success = MagicMock(wraps=registry.record_success)  # type: ignore[method-assign]
-        invoker.set_health_registry(registry)
+        invoker = _make_invoker(health_registry=registry)
 
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
@@ -132,10 +134,9 @@ class TestToolTransportInvoker:
 
     @pytest.mark.asyncio
     async def test_transport_error_records_health_failure(self) -> None:
-        invoker = _make_invoker()
         registry = McpServerHealthRegistry()
         registry.record_failure = MagicMock(wraps=registry.record_failure)  # type: ignore[method-assign]
-        invoker.set_health_registry(registry)
+        invoker = _make_invoker(health_registry=registry)
 
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(side_effect=TransportError("failed"))
@@ -229,7 +230,6 @@ class TestInvokeCharacterizationPin:
     async def test_invoke_healthy_returns_expected_result(self) -> None:
         """A healthy call through the real gate chain returns the expected ToolCallResult."""
         invoker = _make_invoker()
-        invoker.set_health_registry(McpServerHealthRegistry())
         lifecycle = AsyncMock()
         invoker.set_lifecycle(lifecycle)
         mock_transport = AsyncMock()
@@ -255,7 +255,6 @@ class TestInvokeCharacterizationPin:
     async def test_invoke_transport_error_returns_error_result(self) -> None:
         """A transport error through the real gate chain returns an error ToolCallResult."""
         invoker = _make_invoker()
-        invoker.set_health_registry(McpServerHealthRegistry())
         lifecycle = AsyncMock()
         invoker.set_lifecycle(lifecycle)
         mock_transport = AsyncMock()
@@ -281,9 +280,8 @@ class TestHalfOpenSingleTrialGate:
     @pytest.mark.asyncio
     async def test_first_call_after_cooldown_dispatches_as_trial(self) -> None:
         """ACC-002: the call that triggers the UNAVAILABLE->HALF_OPEN transition is the trial; it dispatches and succeeds."""
-        invoker = _make_invoker()
         registry = self._unavailable_registry()
-        invoker.set_health_registry(registry)
+        invoker = _make_invoker(health_registry=registry)
 
         mock_transport = AsyncMock()
         call_log: list[int] = []
@@ -307,14 +305,13 @@ class TestHalfOpenSingleTrialGate:
     @pytest.mark.asyncio
     async def test_half_open_in_flight_trial_rejects_dispatch(self) -> None:
         """ACC-002: once a trial is in flight (HALF_OPEN + flag set), dispatch is rejected."""
-        invoker = _make_invoker()
         registry = self._unavailable_registry()
         # Simulate an in-flight trial: transition to HALF_OPEN and acquire the slot.
         registry.record_failure("srv")
         registry.is_unavailable("srv")
         assert registry.get_state("srv") == McpServerHealthState.HALF_OPEN
         assert registry.trial_in_flight("srv") is True
-        invoker.set_health_registry(registry)
+        invoker = _make_invoker(health_registry=registry)
 
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
@@ -333,9 +330,8 @@ class TestHalfOpenSingleTrialGate:
 
     @pytest.mark.asyncio
     async def test_successful_trial_releases_flag(self) -> None:
-        invoker = _make_invoker()
         registry = self._unavailable_registry()
-        invoker.set_health_registry(registry)
+        invoker = _make_invoker(health_registry=registry)
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(
@@ -352,9 +348,8 @@ class TestHalfOpenSingleTrialGate:
 
     @pytest.mark.asyncio
     async def test_failed_trial_releases_flag(self) -> None:
-        invoker = _make_invoker()
         registry = self._unavailable_registry()
-        invoker.set_health_registry(registry)
+        invoker = _make_invoker(health_registry=registry)
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(side_effect=TransportError("down"))
         invoker._transports["srv"] = mock_transport
@@ -367,9 +362,8 @@ class TestHalfOpenSingleTrialGate:
 
     @pytest.mark.asyncio
     async def test_exceptioned_trial_releases_flag(self) -> None:
-        invoker = _make_invoker()
         registry = self._unavailable_registry()
-        invoker.set_health_registry(registry)
+        invoker = _make_invoker(health_registry=registry)
 
         async def _raising(name: str, args: dict[str, Any]) -> ToolCallResult:
             raise RuntimeError("boom")

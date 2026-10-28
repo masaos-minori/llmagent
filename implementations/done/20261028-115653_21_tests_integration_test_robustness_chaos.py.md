@@ -1,12 +1,12 @@
-# Procedure: replace the set_health_registry assertion with a constructor assertion
+# Procedure: construct the chaos-test executors with a health registry
 
 ## Goal
 
-Assert that `ToolExecutor` is constructed with the health registry instead of `set_health_registry` being called (Plan REQ-005).
+Pass a health registry to the six `ToolExecutor(` constructions (Plan REQ-005).
 
 ## Scope
 
-- Modify only `tests/agent/test_agent_factory.py`.
+- Modify only `tests/integration/test_robustness_chaos.py`.
 - Test-only change; no source file is edited.
 
 ## Assumptions
@@ -28,12 +28,11 @@ N/A: lightweight row; the Plan fixes the approach.
 
 ### Target file
 
-`tests/agent/test_agent_factory.py`
+`tests/integration/test_robustness_chaos.py`
 
 ### Procedure
 
-- Replace `tool_executor_instance.set_health_registry.assert_called_once()` and the `call_args[0][0]` check with an assertion on the `ToolExecutor` mock's constructor call: `health_registry` is passed and is the same instance as `ctx.services.health_registry`.
-- Keep `assert isinstance(ctx.services.health_registry, McpServerHealthRegistry)`.
+- Pass `health_registry=McpServerHealthRegistry()` in each of the six `ToolExecutor(...)` constructions (the `test_3b1` (new), `test_3d2` (new), `test_3d3` (new) tests and the three `_side_effect` based tests); add the import once.
 
 ### Method
 
@@ -41,7 +40,7 @@ Edit the existing tests in place and reuse the file's fixtures and helpers.
 
 ### Details
 
-- Row 7 has landed. The test uses a mock `ToolExecutor`, so assert on `call_args.kwargs`, not on state the test assigned to the mock.
+- Row 4 and 5 have landed.
 
 ## Compatibility considerations
 
@@ -59,12 +58,12 @@ N/A: revert the commit.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run pytest tests/agent/test_agent_factory.py -q` | Pass |
-| 2 | `uv run ruff format tests/agent/test_agent_factory.py`; `uv run ruff check tests/agent/test_agent_factory.py` | No finding |
+| 1 | `uv run pytest tests/integration/test_robustness_chaos.py -m integration -q` | Pass |
+| 2 | `uv run ruff format tests/integration/test_robustness_chaos.py`; `uv run ruff check tests/integration/test_robustness_chaos.py` | No finding |
 
 ## Completion criteria
 
-- The factory test asserts the constructor keyword and passes.
+- All six constructions pass a registry.
 
 ## Out of Scope
 
@@ -76,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261028 | 20261028-181752 | Applied health_registry to all six ToolExecutor constructions (prior state had only 1/6); import already present. Applied health_registry to all six ToolExecutor constructions; prior state had only 1/6. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028 | 20261028-181752 | ruff format/check clean; pytest 14 passed (run directly; file carries no integration marker). ruff clean; pytest 14 passed (direct run). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -91,10 +90,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-005 (factory passes the registry at construction)
+- **Requirement ID**: REQ-005 (integration executor construction)
 - **Source issue**: issues/20261027-155847_mcpexec004_make-mcp-deps-mandatory.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093529_mcpexec004_make-mcp-deps-mandatory.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115653
-- **Related target files**: tests/agent/test_agent_factory.py
+- **Related target files**: tests/integration/test_robustness_chaos.py

@@ -38,6 +38,7 @@ from agent.llm_turn_runner import LLMTurnRunner
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
 from shared.mcp_config import McpServerConfig, TransportType
+from shared.mcp_health import McpServerHealthRegistry
 from shared.tool_executor import ToolExecutor
 from shared.tool_spec import ToolSpec
 
@@ -53,7 +54,11 @@ _WF_CTX = dict(
 )
 
 
-def _make_http_executor(http: httpx.AsyncClient, tool_names: list[str]) -> ToolExecutor:
+def _make_http_executor(
+    http: httpx.AsyncClient,
+    tool_names: list[str],
+    health_registry: McpServerHealthRegistry | None = None,
+) -> ToolExecutor:
     cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url=_TEST_URL,
@@ -64,6 +69,7 @@ def _make_http_executor(http: httpx.AsyncClient, tool_names: list[str]) -> ToolE
     executor = ToolExecutor(
         http=http,
         server_configs={_HTTP_KEY: cfg},
+        health_registry=health_registry or McpServerHealthRegistry(),
     )
     executor._resolver.resolve = lambda _: _HTTP_KEY
     return executor

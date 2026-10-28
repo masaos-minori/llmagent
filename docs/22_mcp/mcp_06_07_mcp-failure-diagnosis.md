@@ -77,18 +77,20 @@ Health checks within the `ToolExecutor` execution process act as a gate before d
 - Duplicate tool name detection excluded the tool
 - ToolExecutor.set_runtime_registry() was not called
 
+**Result form:** `ToolExecutor.execute()` returns a `ToolCallResult` whose output begins with `routing:<kind>:`. The `<kind>` points at the cause: `not_ready` — `set_runtime_registry()` was not called or discovery did not populate the registry; `posture_excluded` — the Security Posture gate dropped the tool; `server_unavailable` — the owning server is unavailable or the tool is disabled; `unknown_tool` — the name is missing from `RuntimeToolRegistry` or was dropped by duplicate-name detection.
+
 **Diagnosis steps** (if `RuntimeToolRegistry` is missing or incomplete, restart the agent to re-initialize it, and investigate MCP connection issues if persistent):
 1. Check startup output for `mcp_tool_discovery` outcomes
 2. Check whether discovery was FATAL, WARNING, or SKIPPED
 3. Check whether the owning server's `/v1/tools` response includes the tool
 4. Check whether duplicate tool name detection excluded the tool
 5. Check whether ctx.services_required.runtime_tools was populated
-6. Check whether ToolExecutor.set_runtime_registry() was called
+6. Check whether ToolExecutor.set_runtime_registry() was called (an unwired registry yields the `not_ready` kind)
 7. Check whether the tool exists in RuntimeToolRegistry
 8. Do not rely only on config/agent.toml tool_definitions
 
 **Root cause:**
-The "Unknown tool" error originates from `ToolRouteResolver.resolve()` which raises `ValueError` when a tool name is not found in `RuntimeToolRegistry`. This can happen even when the LLM sees the tool via `/v1/tools` because `RuntimeToolRegistry` may be incomplete due to discovery failures.
+`ToolRouteResolver.resolve()` raises `ToolRoutingError` (a `ValueError` subclass) whenever a tool name is not found in `RuntimeToolRegistry`. `ToolExecutor.execute()` catches that error and converts it into the `routing` result described above (`is_error=True`, `error_type="routing"`, output `routing:<kind>:`). This can happen even when the LLM sees the tool via `/v1/tools`, because `RuntimeToolRegistry` may be incomplete due to discovery failures.
 
 ## Keywords
 

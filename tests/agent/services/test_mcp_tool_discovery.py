@@ -2415,7 +2415,9 @@ class TestRegistryBuildingLayer:
             ("down", "http://127.0.0.1:9001", self._entry("grep")),
         ]
 
-        registry = _build_runtime_tools(entries, frozenset({"down"}))
+        registry = _build_runtime_tools(
+            entries, frozenset({"down"}), allowed_servers=frozenset({"live", "down"})
+        )
 
         assert registry.resolve("read_file") == "live"
         assert registry.resolve("grep") is None
@@ -2429,9 +2431,30 @@ class TestRegistryBuildingLayer:
             ("b", "http://127.0.0.1:9001", self._entry("grep")),
         ]
 
-        registry, findings = _dedupe_and_build(entries, frozenset())
+        registry, findings = _dedupe_and_build(
+            entries, frozenset(), allowed_servers=frozenset({"a", "b"})
+        )
 
         assert registry.resolve("read_file") == "a"
         assert registry.resolve("grep") is None
         assert [finding.status for finding in findings] == [StartupCheckStatus.FATAL]
         assert "duplicate tool name 'grep'" in findings[0].message
+
+    def test_empty_allowed_servers_registers_nothing(self) -> None:
+        """An empty posture gate registers nothing (fail-closed)."""
+        entries: list[tuple[str, str, dict[str, object]]] = [
+            ("srv", "http://127.0.0.1:9000", self._entry("read_file")),
+        ]
+        registry = _build_runtime_tools(
+            entries, frozenset(), allowed_servers=frozenset()
+        )
+        assert registry.all_tools() == []
+        assert registry.resolve("read_file") is None
+
+    def test_build_requires_allowed_servers(self) -> None:
+        """`_build_runtime_tools()` has no default for `allowed_servers`; omitting it is a TypeError."""
+        entries: list[tuple[str, str, dict[str, object]]] = [
+            ("srv", "http://127.0.0.1:9000", self._entry("read_file")),
+        ]
+        with pytest.raises(TypeError):
+            _build_runtime_tools(entries, frozenset())

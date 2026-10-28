@@ -37,14 +37,16 @@ class ToolTransportInvoker:
         server_configs: dict[str, McpServerConfig],
         concurrency_limits: dict[str, int] | None = None,
         lifecycle: LifecycleProtocol | None = None,
+        *,
+        health_registry: McpServerHealthRegistry,
     ) -> None:
-        """Initialize with HTTP client, server configs, and optional concurrency limits.
+        """Initialize with HTTP client, server configs, optional concurrency limits, and a required health registry.
 
         Each configured server is capped at its configured positive limit, or at
         DEFAULT_PER_SERVER_CONCURRENCY when no positive limit is set; an explicit
         0/negative limit opts out (unlimited)."""
         self._lifecycle = lifecycle
-        self._health_registry: McpServerHealthRegistry | None = None
+        self._health_registry = health_registry
         self.stat_tool_errors: dict[str, int] = {}
         self.stat_transport_errors: dict[str, int] = {}
         self._concurrency_limits: dict[str, int] = dict(concurrency_limits or {})
@@ -72,10 +74,6 @@ class ToolTransportInvoker:
     def set_lifecycle(self, lifecycle: LifecycleProtocol | None) -> None:
         """Attach a lifecycle protocol for pre-call readiness checks."""
         self._lifecycle = lifecycle
-
-    def set_health_registry(self, registry: McpServerHealthRegistry | None) -> None:
-        """Attach a health registry for post-call success/failure tracking."""
-        self._health_registry = registry
 
     def set_session_id(self, session_id: str) -> None:
         """Propagate the current session ID to all transports."""
@@ -164,8 +162,6 @@ class ToolTransportInvoker:
         claiming a free trial slot after a cancelled trial — and must therefore
         release the trial flag on every exit path.
         """
-        if self._health_registry is None:
-            return None, False
         state = self._health_registry.get_state(server_key)
         if state == McpServerHealthState.HALF_OPEN:
             # A single trial is allowed per server while HALF_OPEN. If a trial is
@@ -204,8 +200,7 @@ class ToolTransportInvoker:
 
     def _record_success(self, server_key: str, result: ToolCallResult) -> None:
         """Record a successful call for health tracking; increment tool error counter on tool errors."""
-        if self._health_registry is not None:
-            self._health_registry.record_success(server_key)
+        self._health_registry.record_success(server_key)
         if result.is_error and result.error_type == "tool":
             self._increment_counter(self.stat_tool_errors, server_key)
 
@@ -214,19 +209,17 @@ class ToolTransportInvoker:
     ) -> ToolCallResult:
         """Record a transport-layer error and return an error result."""
         self._increment_counter(self.stat_transport_errors, server_key)
-        if self._health_registry is not None:
-            state = self._health_registry.record_failure(server_key)
-            logger.warning(
-                "transport failure for %r: %s (state=%s)", server_key, e, state.value
-            )
+        state = self._health_registry.record_failure(server_key)
+        logger.warning(
+            "transport failure for %r: %s (state=%s)", server_key, e, state.value
+        )
         return self._error_result(server_key, str(e), error_type="transport")
 
     def _handle_lifecycle_error(self, server_key: str, e: Exception) -> ToolCallResult:
         """Handle a lifecycle failure: record health failure and return normalized error result."""
         msg = f"Lifecycle ensure_ready failed for {server_key!r}: {e}"
         logger.error(msg)
-        if self._health_registry is not None:
-            self._health_registry.record_failure(server_key)
+        self._health_registry.record_failure(server_key)
         return self._error_result(server_key, msg, error_type="transport")
 
     async def _execute_with_semaphore(
@@ -309,7 +302,7 @@ class ToolTransportInvoker:
             # or errored trial never leaks the single-trial slot. Success/failure
             # paths also release via record_success/record_failure; this backstop
             # covers exceptions and early returns. Idempotent.
-            if owns_half_open_trial and self._health_registry is not None:
+            if owns_half_open_trial:
                 self._health_registry.release_trial(server_key)
 
     async def invoke(

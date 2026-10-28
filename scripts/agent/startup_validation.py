@@ -117,8 +117,7 @@ class StartupValidationPipeline:
             ).discover_all()
             ctx.services_required.runtime_tools = discovery.registry
             # Wire RuntimeToolRegistry into ToolExecutor routing resolver.
-            if discovery.registry is not None:
-                ctx.services_required.tools.set_runtime_registry(discovery.registry)
+            ctx.services_required.tools.set_runtime_registry(discovery.registry)
 
             if not discovery.findings and not discovery.unreachable:
                 pipeline.add_ok("mcp_tool_discovery")

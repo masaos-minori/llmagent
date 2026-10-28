@@ -6,14 +6,18 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ToolCallResult:
-    """Typed result from a single tool call execution."""
+    """Typed result from a single tool call execution.
+
+    ``error_type`` may also be ``"routing"``: it marks a failure before any
+    transport call (see ``ToolExecutor.execute``).
+    """
 
     output: str  # tool result text, or error message when is_error=True
     is_error: bool  # True if the call failed (transport or tool error)
     request_id: str  # x-request-id from HTTP transport; "" for cache hits
     server_key: str  # server key that handled the call
     source: str = ""  # "mcp" for MCP tools, "" for error paths
-    error_type: str = ""  # "transport" | "tool" | "" (empty on success)
+    error_type: str = ""  # "transport" | "tool" | "routing" | "" (empty on success)
 
     @classmethod
     def from_transport(

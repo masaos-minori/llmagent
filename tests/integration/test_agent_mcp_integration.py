@@ -24,7 +24,10 @@ _HTTP_KEY = "int_http"
 _HTTP_TOOL = "_int_http_tool"
 
 
-def _make_http_executor(http: httpx.AsyncClient) -> ToolExecutor:
+def _make_http_executor(
+    http: httpx.AsyncClient,
+    health_registry: McpServerHealthRegistry | None = None,
+) -> ToolExecutor:
     cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url=_TEST_URL,
@@ -35,6 +38,7 @@ def _make_http_executor(http: httpx.AsyncClient) -> ToolExecutor:
     executor = ToolExecutor(
         http=http,
         server_configs={_HTTP_KEY: cfg},
+        health_registry=health_registry or McpServerHealthRegistry(),
     )
     executor._resolver.resolve = lambda _: _HTTP_KEY
     return executor
@@ -143,9 +147,8 @@ async def test_a10_health_check_unavailable_rejects_call():
             200, json={"result": "ok", "is_error": False}
         )
         async with httpx.AsyncClient() as http:
-            executor = _make_http_executor(http)
             health = McpServerHealthRegistry()
-            executor.set_health_registry(health)
+            executor = _make_http_executor(http, health_registry=health)
             for _ in range(3):
                 health.record_failure(_HTTP_KEY)
 

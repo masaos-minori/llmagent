@@ -19,6 +19,7 @@ import httpx
 import pytest
 import respx
 from shared.mcp_config import StartupMode, TransportType
+from shared.mcp_health import McpServerHealthRegistry
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -191,6 +192,7 @@ class TestErrorInjectionChaos:
                 executor = ToolExecutor(
                     http=http,
                     server_configs={"chaos_b1": cfg},
+                    health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_b1")
                 result = await executor.execute("_chaos_tool_b1", {})
@@ -227,6 +229,7 @@ class TestErrorInjectionChaos:
                 executor = ToolExecutor(
                     http=http,
                     server_configs={"chaos_b2": cfg},
+                    health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_b2")
                 r1 = await executor.execute("_chaos_tool_b2a", {})
@@ -267,6 +270,7 @@ class TestErrorInjectionChaos:
                 executor = ToolExecutor(
                     http=http,
                     server_configs={"chaos_b3": cfg},
+                    health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_b3")
                 ok, fail = await asyncio.gather(
@@ -384,6 +388,7 @@ class TestNetworkChaos:
                 executor = ToolExecutor(
                     http=http,
                     server_configs={"chaos_d1": cfg},
+                    health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_d1")
                 result = await executor.execute("_chaos_d1", {})
@@ -415,6 +420,7 @@ class TestNetworkChaos:
                 executor = ToolExecutor(
                     http=http,
                     server_configs={"chaos_d2": cfg},
+                    health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_d2")
                 result = await executor.execute("_chaos_d2", {})
@@ -445,6 +451,7 @@ class TestNetworkChaos:
                 executor = ToolExecutor(
                     http=http,
                     server_configs={"chaos_d3": cfg},
+                    health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_d3")
                 result = await executor.execute("_chaos_d3", {})

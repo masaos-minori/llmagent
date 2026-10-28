@@ -206,10 +206,9 @@ class TestBuildAgentContext:
         ctx = _make_ctx()
         view = _make_view()
         build_agent_context(ctx, view)
-        tool_executor_instance = mocks["agent.factory.ToolExecutor"].return_value
-        tool_executor_instance.set_health_registry.assert_called_once()
-        call_arg = tool_executor_instance.set_health_registry.call_args[0][0]
-        assert call_arg is ctx.services.health_registry
+        executor_call = mocks["agent.factory.ToolExecutor"].call_args
+        assert executor_call.kwargs["health_registry"] is ctx.services.health_registry
+        assert isinstance(ctx.services.health_registry, McpServerHealthRegistry)
 
     def test_health_state_shared_via_registry(self, monkeypatch: Any) -> None:
         _apply_patches(monkeypatch)

@@ -72,7 +72,6 @@ class TestRagToolsInRegistry:
             }
         )
         resolver = ToolRouteResolver(
-            strict_mode=False,
             runtime_registry=runtime_registry,
         )
         for tool_name in RAG_TOOLS:

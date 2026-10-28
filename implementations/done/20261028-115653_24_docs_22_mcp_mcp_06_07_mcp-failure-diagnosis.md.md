@@ -1,12 +1,12 @@
-# Procedure: document the wiring order and the routing error contract
+# Procedure: replace the ValueError explanation with the routing result kinds
 
 ## Goal
 
-Describe the mandatory wiring order and the four routing result kinds (Plan REQ-008).
+Rewrite the "Unknown tool" diagnosis section around the routing result kinds (Plan REQ-008).
 
 ## Scope
 
-- Modify only `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`.
+- Modify only `docs/22_mcp/mcp_06_07_mcp-failure-diagnosis.md`.
 - Documentation-only change; state current behavior only.
 
 ## Assumptions
@@ -28,13 +28,13 @@ N/A: lightweight row.
 
 ### Target file
 
-`docs/22_mcp/mcp_03_01_dispatch-and-routing.md`
+`docs/22_mcp/mcp_06_07_mcp-failure-diagnosis.md`
 
 ### Procedure
 
-- In the routing section, add the wiring order: the health registry is passed at `ToolExecutor` construction; the `RuntimeToolRegistry` is attached with `set_runtime_registry()` after discovery completes and `None` is rejected.
-- Replace the "Critical failure mode" sentence: when the registry is not wired, `ToolExecutor.execute()` returns a `routing:not_ready` result and no tool runs.
-- Add the error contract: a routing failure returns `ToolCallResult` with `is_error=True` and `error_type="routing"`; the output starts with `routing:<kind>:`, kinds `not_ready`, `unknown_tool`, `posture_excluded`, `server_unavailable`; dynamic `UNAVAILABLE` / `HALF_OPEN` results keep their existing form.
+- In the section "LLM sees a tool but execution fails with Unknown tool", add the result form: the output now starts with `routing:<kind>:`; map `not_ready` to "set_runtime_registry() was not called or discovery failed", `posture_excluded` to the Security Posture gate, `server_unavailable` to an unavailable or disabled server, `unknown_tool` to a missing or duplicated tool name.
+- Replace the "Root cause" paragraph: the resolver raises `ToolRoutingError` (a `ValueError`) and `ToolExecutor.execute()` converts it into the `routing` result.
+- Keep diagnosis steps 1-8, updating step 6 to mention the `not_ready` kind.
 
 ### Method
 
@@ -42,7 +42,7 @@ Targeted sentence edits after re-reading the current file state.
 
 ### Details
 
-- Keep implementation detail minimal (`skills/DESIGN.md` Docs content policy): state the contract, not code.
+- The section is referenced from other MCP docs; do not rename its heading.
 
 ## Compatibility considerations
 
@@ -77,8 +77,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261028-182332 | Rewrote Unknown-tool section: added routing:<kind> result form + kind->cause map; replaced Root cause with ToolRoutingError->routing conversion; step 6 notes not_ready. Verified vs route_resolver.py/tool_executor.py. |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | — | 20261028-182332 | quality/structure/content_policy/japanese clean. consistency --domain mcp: 1 pre-existing warning in mcp_03_03 (set_health_registry typo), out of scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -92,10 +92,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-008 (dispatch doc)
+- **Requirement ID**: REQ-008 (diagnosis doc)
 - **Source issue**: issues/20261027-155847_mcpexec004_make-mcp-deps-mandatory.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093529_mcpexec004_make-mcp-deps-mandatory.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115653
-- **Related target files**: docs/22_mcp/mcp_03_01_dispatch-and-routing.md
+- **Related target files**: docs/22_mcp/mcp_06_07_mcp-failure-diagnosis.md

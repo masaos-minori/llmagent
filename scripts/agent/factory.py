@@ -114,13 +114,13 @@ def _build_tool_executor(
     http: httpx.AsyncClient,
 ) -> ToolExecutorResult:
     """Build ToolExecutor, lifecycle manager, and health registry; return all three."""
+    registry = McpServerHealthRegistry()
     tools = ToolExecutor(
         http,
         server_configs=ctx.cfg.mcp.mcp_servers,
         concurrency_limits=ctx.cfg.tool.tool_concurrency_limits,
+        health_registry=registry,
     )
-    registry = McpServerHealthRegistry()
-    tools.set_health_registry(registry)
     lifecycle: LifecycleManagerProtocol = _ServerLifecycleRouter(
         ctx.cfg.mcp.mcp_servers,
         tools,

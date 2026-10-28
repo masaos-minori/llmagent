@@ -12,6 +12,7 @@ import httpx
 import pytest
 from shared.http_transport import TransportError
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_health import McpServerHealthRegistry
 from shared.tool_transport_invoker import ToolTransportInvoker
 from shared.transport_dto import ToolCallResult
 
@@ -27,11 +28,15 @@ def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
 
 def _make_invoker(
     configs: dict[str, McpServerConfig] | None = None,
+    health_registry: McpServerHealthRegistry | None = None,
 ) -> ToolTransportInvoker:
     http = MagicMock(spec=httpx.AsyncClient)
     return ToolTransportInvoker(
         http=http,
         server_configs=configs or {"srv": _http_cfg()},
+        health_registry=health_registry
+        if health_registry is not None
+        else McpServerHealthRegistry(),
     )
 
 

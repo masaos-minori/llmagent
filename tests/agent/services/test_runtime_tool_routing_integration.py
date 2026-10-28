@@ -21,6 +21,7 @@ from shared.mcp_config import (
     StartupMode,
     TransportType,
 )
+from shared.mcp_health import McpServerHealthRegistry
 from shared.route_resolver import ToolRouteResolver
 from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
@@ -61,6 +62,7 @@ def _make_executor(
         http,
         server_configs=configs or {"file_read": _http()},
         concurrency_limits=concurrency_limits,
+        health_registry=McpServerHealthRegistry(),
     )
 
 
@@ -144,20 +146,6 @@ class TestRuntimeRegistryPriorityInResolve:
         resolver = ToolRouteResolver(runtime_registry=None)
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("read_text_file")
-
-    def test_strict_mode_error_message_mentions_runtime_registry(self) -> None:
-        """strict_mode error message mentions RuntimeToolRegistry explicitly."""
-        runtime_reg = _make_runtime_registry()
-        resolver = ToolRouteResolver(strict_mode=True, runtime_registry=runtime_reg)
-        with pytest.raises(ValueError, match="RuntimeToolRegistry"):
-            resolver.resolve("nonexistent_tool")
-
-    def test_warn_on_missing_logs_warning_for_unknown_tool(self) -> None:
-        """warn_on_missing=True logs warning for unknown tool."""
-        runtime_reg = _make_runtime_registry()
-        resolver = ToolRouteResolver(warn_on_missing=True, runtime_registry=runtime_reg)
-        with pytest.raises(ValueError, match="Unknown tool"):
-            resolver.resolve("unknown_tool_xyz")
 
     def test_empty_runtime_registry_raises_for_all_tools(self) -> None:
         """Empty RuntimeToolRegistry means no tool can resolve."""

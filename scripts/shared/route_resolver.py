@@ -5,8 +5,10 @@ Tool-name to server-key resolution for ToolExecutor.
 
 `RuntimeToolRegistry` (populated from live `/v1/tools` discovery via
 `ToolExecutor.set_runtime_registry()`) is the sole routing authority. When a tool is not
-found there, `resolve()` either raises `ValueError` immediately (strict_mode) or logs a
-warning and then raises. `ToolRegistry` is no longer consulted here.
+found there, `resolve()` raises `ToolRoutingError` (a `ValueError` subclass) carrying a
+`kind`: `not_ready` when no registry is wired, `posture_excluded` / `server_unavailable`
+when the registry dropped the tool, and `unknown_tool` otherwise.
+`ToolRegistry` is no longer consulted here.
 
 Config `tool_names` is NOT a routing input; it is drift validation metadata only.
 Live /v1/tools discovery is used for startup validation only, not routing.
@@ -15,7 +17,7 @@ Live /v1/tools discovery is used for startup validation only, not routing.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from shared.runtime_tool_registry import RuntimeToolRegistry
@@ -23,57 +25,71 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ToolRouteResolver:
-    """Map tool_name → server_key using RuntimeToolRegistry as the sole routing authority.
+class ToolRoutingError(ValueError):
+    """Raise when `ToolRouteResolver.resolve()` cannot map a tool to a server.
 
-    RuntimeToolRegistry is populated from live /v1/tools discovery. Raises ValueError
-    when the tool is not found there. Note: both `strict_mode=True` and `strict_mode=False`
-    always raise ValueError on an unresolved tool — the difference is in error-message
-    wording only.
+    A `ValueError` subclass carrying the failure `kind` and the offending `tool_name`:
+      - `not_ready`: no `RuntimeToolRegistry` is wired yet
+      - `posture_excluded`: the registry dropped the tool for a Security Posture reason
+      - `server_unavailable`: the registry dropped the tool as unavailable or disabled
+      - `unknown_tool`: the name was never registered
     """
 
     def __init__(
         self,
-        *,
-        warn_on_missing: bool = False,
-        strict_mode: bool = False,
+        kind: str,
+        tool_name: str,
+        message: str,
+    ) -> None:
+        """Store the failure `kind` and `tool_name`, then call `super().__init__(message)`."""
+        self.kind = kind
+        self.tool_name = tool_name
+        super().__init__(message)
+
+
+class ToolRouteResolver:
+    """Map tool_name → server_key using RuntimeToolRegistry as the sole routing authority.
+
+    RuntimeToolRegistry is populated from live /v1/tools discovery. Raises
+    `ToolRoutingError` (a `ValueError` subclass) when the tool is not found there.
+    """
+
+    def __init__(
+        self,
         runtime_registry: RuntimeToolRegistry | None = None,
     ) -> None:
         """Initialize the resolver.
 
         Args:
-            warn_on_missing: When True, log a warning on unresolved tools in `resolve()`.
-                Note: if `strict_mode=True`, this warning is never emitted because
-                `strict_mode=True` causes `resolve()` to raise `ValueError` directly
-                via `_raise_strict_error()` before reaching the `warn_on_missing` check.
-            strict_mode: When True, raise on unresolved tools in `resolve()` with a
-                stricter error message. Also bypasses the `warn_on_missing` warning log
-                entirely: when `strict_mode=True`, `resolve()` calls `_raise_strict_error()`
-                (a `NoReturn` path) before ever reaching the `warn_on_missing` check, so
-                both `strict_mode=True` and `strict_mode=False` always raise `ValueError`
-                on an unresolved tool — the difference is in error-message wording only.
             runtime_registry: Optional RuntimeToolRegistry from live /v1/tools discovery;
                 the sole routing source consulted by resolve().
         """
-        # RuntimeToolRegistry (sole routing authority).
         self._runtime_registry: RuntimeToolRegistry | None = runtime_registry
-        self._warn_on_missing = warn_on_missing
-        self._strict_mode = strict_mode
 
     def resolve(self, tool_name: str) -> str:
-        """Return the server key for tool_name; raises ValueError when no match."""
+        """Return the server key for tool_name; raise `ToolRoutingError` when no match.
+
+        With no wired registry the kind is `not_ready`; otherwise a dropped tool reports
+        `posture_excluded` or `server_unavailable` (via `RuntimeToolRegistry.exclusion_reason`)
+        and an unregistered name reports `unknown_tool`. The message keeps the
+        `Unknown tool: <name>` prefix so log searches stay valid.
+        """
         if (key := self._lookup_runtime_registry(tool_name)) is not None:
             return key
-        # No mapping found — raise ValueError immediately.
-        if self._strict_mode:
-            self._raise_strict_error(tool_name)
-        if self._warn_on_missing:
-            logger.warning(
-                "ToolRouteResolver: tool %r not found in RuntimeToolRegistry; "
-                "ensure MCP servers are healthy and discovery completed.",
+        if self._runtime_registry is None:
+            raise ToolRoutingError(
+                "not_ready",
                 tool_name,
+                f"Unknown tool: {tool_name!r} (RuntimeToolRegistry not ready)",
             )
-        raise ValueError(f"Unknown tool: {tool_name!r}")
+        reason = self._runtime_registry.exclusion_reason(tool_name)
+        if reason == "posture":
+            kind = "posture_excluded"
+        elif reason in ("unavailable", "disabled"):
+            kind = "server_unavailable"
+        else:
+            kind = "unknown_tool"
+        raise ToolRoutingError(kind, tool_name, f"Unknown tool: {tool_name!r}")
 
     def _lookup_runtime_registry(self, tool_name: str) -> str | None:
         """Look up a tool in RuntimeToolRegistry; returns server key or None."""
@@ -81,13 +97,12 @@ class ToolRouteResolver:
             return self._runtime_registry.resolve(tool_name)
         return None
 
-    def set_runtime_registry(self, registry: RuntimeToolRegistry | None) -> None:
-        """Replace the RuntimeToolRegistry consulted by resolve(), in place."""
-        self._runtime_registry = registry
+    def set_runtime_registry(self, registry: RuntimeToolRegistry) -> None:
+        """Replace the RuntimeToolRegistry consulted by resolve(), in place.
 
-    def _raise_strict_error(self, tool_name: str) -> NoReturn:
-        """Raise ValueError when strict_mode is enabled and no mapping found."""
-        raise ValueError(
-            f"ToolRouteResolver: tool {tool_name!r} not found in RuntimeToolRegistry "
-            f"and strict_mode=True; ensure MCP servers are healthy and discovery completed"
-        )
+        Raises `TypeError` when given `None`: an unwired resolver must never be
+        re-established as unwired.
+        """
+        if registry is None:
+            raise TypeError("runtime registry must not be None")
+        self._runtime_registry = registry

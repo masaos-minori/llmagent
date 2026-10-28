@@ -154,6 +154,7 @@ async def test_d05_http_timeout_races_lifecycle_termination() -> None:
     """
     from agent.http_lifecycle import HttpServerLifecycleManager
     from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+    from shared.mcp_health import McpServerHealthRegistry
     from shared.tool_executor import ToolExecutor
 
     cfg = McpServerConfig(
@@ -190,6 +191,7 @@ async def test_d05_http_timeout_races_lifecycle_termination() -> None:
             executor = ToolExecutor(
                 http=http,
                 server_configs={"d05_server": cfg},
+                health_registry=McpServerHealthRegistry(),
             )
             executor._resolver.resolve = lambda _: "d05_server"
 

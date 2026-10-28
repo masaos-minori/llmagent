@@ -3,7 +3,7 @@ Unit tests for shared.route_resolver.ToolRouteResolver.
 """
 
 import pytest
-from shared.route_resolver import ToolRouteResolver
+from shared.route_resolver import ToolRouteResolver, ToolRoutingError
 from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 
@@ -171,12 +171,6 @@ class TestRegistryWithoutConfig:
             server_key = resolver.resolve(tool_name)
             assert server_key, f"tool {tool_name!r} resolved to empty string"
 
-    def test_strict_mode_error_message_mentions_runtime_registry(self) -> None:
-        """strict_mode ValueError for unknown tool mentions RuntimeToolRegistry explicitly."""
-        resolver = ToolRouteResolver(strict_mode=True)
-        with pytest.raises(ValueError, match="RuntimeToolRegistry"):
-            resolver.resolve("no_such_tool_xyz")
-
 
 class TestRoutingSourceIsolation:
     def test_config_tool_names_do_not_affect_routing(self) -> None:
@@ -225,3 +219,73 @@ class TestDuplicateToolRegistration:
             registry.register(
                 ToolDefinition(name="read_text_file", server_key="server_b")
             )
+
+
+class TestRoutingFailureKinds:
+    """resolve() raises ToolRoutingError (a ValueError subclass) carrying the drop
+    kind; set_runtime_registry(None) raises TypeError."""
+
+    @staticmethod
+    def _registry(
+        tools: dict[str, str],
+        allowed_servers: frozenset[str] | None = None,
+        unavailable_servers: frozenset[str] | None = None,
+    ) -> RuntimeToolRegistry:
+        built = {
+            name: build_runtime_tool(
+                name=name,
+                server_key=server_key,
+                status="active",
+                is_write=False,
+                requires_serial=False,
+                resource_scope_kind="",
+                resource_scope_keys=(),
+                agent_safety_tier="READ_ONLY",
+                enabled_for_llm=True,
+                capabilities=(),
+            )
+            for name, server_key in tools.items()
+        }
+        return RuntimeToolRegistry(
+            tools=built,
+            allowed_servers=allowed_servers,
+            unavailable_servers=unavailable_servers,
+        )
+
+    def test_unwired_resolver_raises_not_ready(self) -> None:
+        resolver = ToolRouteResolver()
+        with pytest.raises(ValueError) as exc_info:
+            resolver.resolve("anything")
+        assert isinstance(exc_info.value, ToolRoutingError)
+        assert exc_info.value.kind == "not_ready"
+
+    def test_unknown_name_raises_unknown_tool(self) -> None:
+        registry = TestRoutingFailureKinds._registry({"read_text_file": "file_read"})
+        resolver = ToolRouteResolver(runtime_registry=registry)
+        with pytest.raises(ValueError) as exc_info:
+            resolver.resolve("never_registered")
+        assert exc_info.value.kind == "unknown_tool"
+
+    def test_posture_excluded_name_raises_posture_excluded(self) -> None:
+        registry = TestRoutingFailureKinds._registry(
+            {"read_text_file": "file_read"}, allowed_servers=frozenset(["file_write"])
+        )
+        resolver = ToolRouteResolver(runtime_registry=registry)
+        with pytest.raises(ValueError) as exc_info:
+            resolver.resolve("read_text_file")
+        assert exc_info.value.kind == "posture_excluded"
+
+    def test_unavailable_server_name_raises_server_unavailable(self) -> None:
+        registry = TestRoutingFailureKinds._registry(
+            {"read_text_file": "file_read"},
+            unavailable_servers=frozenset(["file_read"]),
+        )
+        resolver = ToolRouteResolver(runtime_registry=registry)
+        with pytest.raises(ValueError) as exc_info:
+            resolver.resolve("read_text_file")
+        assert exc_info.value.kind == "server_unavailable"
+
+    def test_set_runtime_registry_rejects_none(self) -> None:
+        resolver = ToolRouteResolver()
+        with pytest.raises(TypeError):
+            resolver.set_runtime_registry(None)

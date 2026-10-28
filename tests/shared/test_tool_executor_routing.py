@@ -60,6 +60,7 @@ _DEFAULT_TEST_TOOL_ROUTES = {
 def _make_executor(
     configs: dict[str, McpServerConfig] | None = None,
     concurrency_limits: dict[str, int] | None = None,
+    health_registry: McpServerHealthRegistry | None = None,
 ) -> ToolExecutor:
     resolved_configs = configs or {"file_read": _http_cfg()}
     http = MagicMock(spec=httpx.AsyncClient)
@@ -67,6 +68,9 @@ def _make_executor(
         http,
         server_configs=resolved_configs,
         concurrency_limits=concurrency_limits,
+        health_registry=health_registry
+        if health_registry is not None
+        else McpServerHealthRegistry(),
     )
     routes = {
         tool: server
@@ -155,7 +159,9 @@ class TestRawExecuteWithLifecycle:
     async def test_ensure_ready_called_before_transport(self) -> None:
         http = MagicMock(spec=httpx.AsyncClient)
         configs = {"file_read": _http_cfg("http://127.0.0.1:8000")}
-        ex = ToolExecutor(http, server_configs=configs)
+        ex = ToolExecutor(
+            http, server_configs=configs, health_registry=McpServerHealthRegistry()
+        )
         ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
 
         call_order: list[str] = []
@@ -188,7 +194,9 @@ class TestRawExecuteWithLifecycle:
     async def test_no_lifecycle_skips_ensure_ready(self) -> None:
         http = MagicMock(spec=httpx.AsyncClient)
         configs = {"file_read": _http_cfg()}
-        ex = ToolExecutor(http, server_configs=configs)
+        ex = ToolExecutor(
+            http, server_configs=configs, health_registry=McpServerHealthRegistry()
+        )
         ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
         assert ex._lifecycle is None
 
@@ -426,7 +434,11 @@ class TestSetSessionId:
         mock_resp.headers = {}
         mock_http.post = AsyncMock(return_value=mock_resp)
 
-        ex = ToolExecutor(mock_http, server_configs={"srv": cfg})
+        ex = ToolExecutor(
+            mock_http,
+            server_configs={"srv": cfg},
+            health_registry=McpServerHealthRegistry(),
+        )
         ex.set_session_id("sess-abc")
 
         # Trigger a call so headers are captured
@@ -446,7 +458,11 @@ class TestSetSessionId:
             auth_token="test-token",
         )
         mock_http = MagicMock(spec=httpx.AsyncClient)
-        ex = ToolExecutor(mock_http, server_configs={"srv": cfg})
+        ex = ToolExecutor(
+            mock_http,
+            server_configs={"srv": cfg},
+            health_registry=McpServerHealthRegistry(),
+        )
         ex.set_session_id("")
 
         transport = ex._transports["srv"]
@@ -633,8 +649,9 @@ class TestToolExecutorHealthGate:
         registry = McpServerHealthRegistry(failure_threshold=1)
         registry.record_failure("file_read")
 
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
 
         with patch.object(ex, "_transports", {}):
             res = await ex._raw_execute("read_text_file", {})
@@ -647,8 +664,9 @@ class TestToolExecutorHealthGate:
     async def test_healthy_server_proceeds_to_transport(self) -> None:
         """Healthy server is not blocked by health gate."""
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
 
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
@@ -663,22 +681,22 @@ class TestToolExecutorHealthGate:
         mock_transport.call.assert_called_once()
         assert not is_error
 
-    def test_set_health_registry_stores_registry(self) -> None:
-        ex = _make_executor()
-        registry = McpServerHealthRegistry()
-        ex.set_health_registry(registry)
-        assert ex._health_registry is registry
+    def test_executor_requires_health_registry(self) -> None:
+        http = MagicMock(spec=httpx.AsyncClient)
+        with pytest.raises(TypeError):
+            ToolExecutor(http, server_configs={})
 
-    def test_set_health_registry_accepts_none(self) -> None:
+    def test_set_runtime_registry_rejects_none(self) -> None:
         ex = _make_executor()
-        ex.set_health_registry(None)
-        assert ex._health_registry is None
+        with pytest.raises(TypeError):
+            ex.set_runtime_registry(None)
 
     @pytest.mark.asyncio
     async def test_transport_success_calls_record_success(self) -> None:
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(
@@ -693,8 +711,9 @@ class TestToolExecutorHealthGate:
     @pytest.mark.asyncio
     async def test_transport_failure_calls_record_failure(self) -> None:
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             side_effect=TransportError("connection refused")
@@ -708,8 +727,9 @@ class TestToolExecutorHealthGate:
     @pytest.mark.asyncio
     async def test_repeated_failures_reach_unavailable(self) -> None:
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(side_effect=TransportError("fail"))
         ex._transports["file_read"] = mock_transport
@@ -721,8 +741,9 @@ class TestToolExecutorHealthGate:
     async def test_unavailable_server_blocks_dispatch(self) -> None:
         registry = McpServerHealthRegistry(failure_threshold=1)
         registry.record_failure("file_read")
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(
@@ -739,8 +760,9 @@ class TestToolExecutorHealthGate:
     async def test_tool_error_does_not_affect_health(self) -> None:
         """Tool-level error (is_error=true from server) should NOT increment failure counter."""
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(
@@ -763,8 +785,9 @@ class TestToolExecutorHealthGate:
         registry = McpServerHealthRegistry(
             failure_threshold=1, half_open_cooldown_sec=0.01
         )
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(
@@ -797,8 +820,9 @@ class TestToolExecutorHealthTransitions:
     async def test_http_4xx_triggers_record_failure(self) -> None:
         """HTTP 4xx transport error triggers record_failure() at ToolExecutor level."""
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             side_effect=TransportError("HTTPStatusError: 401 Unauthorized")
@@ -814,8 +838,9 @@ class TestToolExecutorHealthTransitions:
     async def test_http_5xx_triggers_record_failure(self) -> None:
         """HTTP 5xx transport error triggers record_failure() at ToolExecutor level."""
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             side_effect=TransportError("HTTPStatusError: 500 Internal Server Error")
@@ -831,8 +856,9 @@ class TestToolExecutorHealthTransitions:
     async def test_timeout_triggers_record_failure(self) -> None:
         """Timeout transport error triggers record_failure() at ToolExecutor level."""
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             side_effect=TransportError("timeout: request exceeded time limit")
@@ -848,8 +874,9 @@ class TestToolExecutorHealthTransitions:
     async def test_connection_refused_triggers_record_failure(self) -> None:
         """Connection refused transport error triggers record_failure() at ToolExecutor level."""
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             side_effect=TransportError("ConnectError: connection refused")
@@ -865,8 +892,9 @@ class TestToolExecutorHealthTransitions:
     async def test_malformed_response_triggers_record_failure(self) -> None:
         """Malformed response transport error triggers record_failure() at ToolExecutor level."""
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             side_effect=TransportError("malformed response: expected dict, got str")
@@ -881,8 +909,9 @@ class TestToolExecutorHealthTransitions:
     async def test_tool_error_does_not_trigger_record_failure(self) -> None:
         """Tool-level error (HTTP 200 with is_error=True) calls record_success(), not record_failure()."""
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor(configs={"file_read": _http_cfg()})
-        ex.set_health_registry(registry)
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(
@@ -898,3 +927,84 @@ class TestToolExecutorHealthTransitions:
         assert res.is_error
         # Tool-level error should NOT increment failure count — record_success() is called
         assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
+
+
+class TestExecuteRoutingResults:
+    """execute() converts every ToolRoutingError kind to a normalized routing result."""
+
+    @staticmethod
+    def _postured_registry() -> RuntimeToolRegistry:
+        tool = build_runtime_tool(
+            name="postured_tool",
+            server_key="postured_srv",
+            status="active",
+            is_write=False,
+            requires_serial=False,
+            resource_scope_kind="",
+            resource_scope_keys=(),
+            agent_safety_tier="READ_ONLY",
+            enabled_for_llm=True,
+            capabilities=(),
+        )
+        return RuntimeToolRegistry(
+            tools={"postured_tool": tool},
+            allowed_servers=frozenset({"other_srv"}),
+        )
+
+    @staticmethod
+    def _unavailable_registry() -> RuntimeToolRegistry:
+        tool = build_runtime_tool(
+            name="unavailable_tool",
+            server_key="unavailable_srv",
+            status="active",
+            is_write=False,
+            requires_serial=False,
+            resource_scope_kind="",
+            resource_scope_keys=(),
+            agent_safety_tier="READ_ONLY",
+            enabled_for_llm=True,
+            capabilities=(),
+        )
+        return RuntimeToolRegistry(
+            tools={"unavailable_tool": tool},
+            unavailable_servers=frozenset({"unavailable_srv"}),
+        )
+
+    @pytest.mark.asyncio
+    async def test_execute_returns_routing_not_ready_result_before_wiring(self) -> None:
+        http = MagicMock(spec=httpx.AsyncClient)
+        ex = ToolExecutor(
+            http,
+            server_configs={},
+            health_registry=McpServerHealthRegistry(),
+        )
+        result = await ex.execute("read_text_file", {})
+        assert result.is_error is True
+        assert result.error_type == "routing"
+        assert "routing:not_ready:" in result.output
+
+    @pytest.mark.asyncio
+    async def test_execute_returns_routing_unknown_tool_result(self) -> None:
+        ex = _make_executor()
+        result = await ex.execute("totally_unknown_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "routing"
+        assert "routing:unknown_tool:" in result.output
+
+    @pytest.mark.asyncio
+    async def test_execute_returns_routing_posture_excluded_result(self) -> None:
+        ex = _make_executor()
+        ex.set_runtime_registry(self._postured_registry())
+        result = await ex.execute("postured_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "routing"
+        assert "routing:posture_excluded:" in result.output
+
+    @pytest.mark.asyncio
+    async def test_execute_returns_routing_server_unavailable_result(self) -> None:
+        ex = _make_executor()
+        ex.set_runtime_registry(self._unavailable_registry())
+        result = await ex.execute("unavailable_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "routing"
+        assert "routing:server_unavailable:" in result.output

@@ -83,10 +83,10 @@ Replace the resolver body and the exception; no new imports beyond the existing 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261028-165046 | 20261028-165046 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261028-165046 | 20261028-165046 | N/A: test changes owned by row 10; 1 obsolete strict_mode test (test_route_resolver.py:176) fails until row 10 removes it |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028-165046 | 20261028-165046 | static all pass; targeted 73 pass / 1 known-deferred to row 10; route_resolver.py coverage gate deferred to row 10 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261028-165046 | 20261028-165046 | N/A: out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

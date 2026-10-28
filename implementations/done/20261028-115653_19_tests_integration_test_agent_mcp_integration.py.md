@@ -1,12 +1,12 @@
-# Procedure: rewrite the resolver tests for kinds, None rejection and removed modes
+# Procedure: construct the integration executor with a health registry
 
 ## Goal
 
-Replace the mode test with kind, `None` and `ValueError`-compatibility tests (Plan REQ-003).
+Pass a health registry in `_make_http_executor` and drop `executor.set_health_registry(health)` (Plan REQ-005).
 
 ## Scope
 
-- Modify only `tests/shared/test_route_resolver.py`.
+- Modify only `tests/integration/test_agent_mcp_integration.py`.
 - Test-only change; no source file is edited.
 
 ## Assumptions
@@ -28,14 +28,12 @@ N/A: lightweight row; the Plan fixes the approach.
 
 ### Target file
 
-`tests/shared/test_route_resolver.py`
+`tests/integration/test_agent_mcp_integration.py`
 
 ### Procedure
 
-- Remove `test_strict_mode_error_message_mentions_runtime_registry` (the option no longer exists).
-- Add `test_unwired_resolver_raises_not_ready` (new), `test_unknown_name_raises_unknown_tool` (new), `test_posture_excluded_name_raises_posture_excluded` (new) and `test_unavailable_server_name_raises_server_unavailable` (new), each asserting `exc.kind` and that the exception is a `ValueError`; build the registries with `RuntimeToolRegistry(allowed_servers=...)` and `unavailable_servers=...`.
-- Add `test_set_runtime_registry_rejects_none` (new) expecting `TypeError`.
-- Keep the existing `pytest.raises(ValueError, match="Unknown tool")` tests; they stay green because the message prefix is unchanged.
+- Give `_make_http_executor` a `health_registry` parameter (default `McpServerHealthRegistry()`) and pass it to `ToolExecutor(...)`.
+- In `test_a10_health_check_unavailable_rejects_call`, build the executor with the test's `health` registry instead of calling `set_health_registry`.
 
 ### Method
 
@@ -43,7 +41,7 @@ Edit the existing tests in place and reuse the file's fixtures and helpers.
 
 ### Details
 
-- Rows 2 and 3 have landed; use `ToolRoutingError` from `shared.route_resolver`.
+- Row 4 and 5 have landed. The file imports `McpServerHealthRegistry` from `shared.mcp_config`; keep whatever import path the mcpcompat001 procedures leave.
 
 ## Compatibility considerations
 
@@ -61,12 +59,12 @@ N/A: revert the commit.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run pytest tests/shared/test_route_resolver.py -q` | Pass |
-| 2 | `uv run ruff format tests/shared/test_route_resolver.py`; `uv run ruff check tests/shared/test_route_resolver.py` | No finding |
+| 1 | `uv run pytest tests/integration/test_agent_mcp_integration.py -m integration -q` | Pass |
+| 2 | `uv run ruff format tests/integration/test_agent_mcp_integration.py`; `uv run ruff check tests/integration/test_agent_mcp_integration.py` | No finding |
 
 ## Completion criteria
 
-- Each kind is covered and the removed-mode test is gone.
+- The file constructs executors with a health registry.
 
 ## Out of Scope
 
@@ -78,8 +76,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | — | 20261028-180946 | Changes were NOT previously landed; applied here. _make_http_executor now takes health_registry param (default None -> fresh McpServerHealthRegistry()) and passes it to ToolExecutor; test_a10 builds executor with its own health registry instead of set_health_registry. ruff clean; 12 tests pass (ran directly -m integration deselects all 12: file lacks the marker). |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261028-180952 | ruff format+check clean; 12 tests pass (run directly). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -93,10 +91,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-003, REQ-007 (resolver contract)
+- **Requirement ID**: REQ-005 (integration executor construction)
 - **Source issue**: issues/20261027-155847_mcpexec004_make-mcp-deps-mandatory.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093529_mcpexec004_make-mcp-deps-mandatory.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115653
-- **Related target files**: tests/shared/test_route_resolver.py
+- **Related target files**: tests/integration/test_agent_mcp_integration.py

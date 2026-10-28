@@ -1,12 +1,12 @@
-# Procedure: construct the RAG-turn executor with a health registry
+# Procedure: remove the strict_mode and warn_on_missing cases and pass the health registry
 
 ## Goal
 
-Pass a health registry in `_make_http_executor` (Plan REQ-005).
+Delete the two cases for the removed resolver options and pass a health registry to the one `ToolExecutor(` construction (Plan REQ-003, REQ-005).
 
 ## Scope
 
-- Modify only `tests/integration/test_rag_turn_integration.py`.
+- Modify only `tests/agent/services/test_runtime_tool_routing_integration.py`.
 - Test-only change; no source file is edited.
 
 ## Assumptions
@@ -28,11 +28,14 @@ N/A: lightweight row; the Plan fixes the approach.
 
 ### Target file
 
-`tests/integration/test_rag_turn_integration.py`
+`tests/agent/services/test_runtime_tool_routing_integration.py`
 
 ### Procedure
 
-- In `_make_http_executor`, pass `health_registry=McpServerHealthRegistry()` to `ToolExecutor(...)` and import the type.
+- Remove `test_strict_mode_error_message_mentions_runtime_registry` and `test_warn_on_missing_logs_warning_for_unknown_tool`.
+- Pass `health_registry=McpServerHealthRegistry()` in the `ToolExecutor(` construction used by `test_set_runtime_registry_preserves_resolver_identity`.
+- Keep the `pytest.raises(ValueError, match="Unknown tool")` cases; they stay valid.
+- Do not add `allowed_servers` here: the only builder mention in this file is a comment (the Plan row was corrected in the procedure phase).
 
 ### Method
 
@@ -40,7 +43,7 @@ Edit the existing tests in place and reuse the file's fixtures and helpers.
 
 ### Details
 
-- Row 4 and 5 have landed.
+- Rows 3 and 4 have landed.
 
 ## Compatibility considerations
 
@@ -58,12 +61,12 @@ N/A: revert the commit.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run pytest tests/integration/test_rag_turn_integration.py -m integration -q` | Pass |
-| 2 | `uv run ruff format tests/integration/test_rag_turn_integration.py`; `uv run ruff check tests/integration/test_rag_turn_integration.py` | No finding |
+| 1 | `uv run pytest tests/agent/services/test_runtime_tool_routing_integration.py -q` | Pass |
+| 2 | `uv run ruff format tests/agent/services/test_runtime_tool_routing_integration.py`; `uv run ruff check tests/agent/services/test_runtime_tool_routing_integration.py` | No finding |
 
 ## Completion criteria
 
-- The helper builds the executor with a registry.
+- No test passes `strict_mode` or `warn_on_missing`; the file passes.
 
 ## Out of Scope
 
@@ -75,8 +78,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | — | 20261028-180257 | Prior session wrote changes; verified here. Removed test_strict_mode_error_message_mentions_runtime_registry and test_warn_on_missing_logs_warning_for_unknown_tool; _make_executor now passes health_registry=McpServerHealthRegistry(). |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261028-180302 | ruff format+check clean; 13 tests pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -90,10 +93,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-005 (integration executor construction)
+- **Requirement ID**: REQ-003, REQ-005 (resolver options removed; executor construction)
 - **Source issue**: issues/20261027-155847_mcpexec004_make-mcp-deps-mandatory.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093529_mcpexec004_make-mcp-deps-mandatory.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115653
-- **Related target files**: tests/integration/test_rag_turn_integration.py
+- **Related target files**: tests/agent/services/test_runtime_tool_routing_integration.py

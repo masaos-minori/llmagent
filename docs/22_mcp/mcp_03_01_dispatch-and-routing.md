@@ -83,7 +83,7 @@ A single stage does the real filtering: `RuntimeToolRegistry.llm_tool_definition
 
 Once a tool call reaches `ToolRouteResolver.resolve()`/`RuntimeToolRegistry`, routing succeeds as long as the tool is *owned* by a server — `enabled_for_llm`/`disabled_reason` are not re-checked at this layer. A disabled tool that somehow reaches this point (e.g., a stale LLM response referencing a tool disabled after the definitions were generated) is not rejected by the agent-side router; enforcement of "disabled tools must not execute" then depends on the owning MCP server's own `/v1/call_tool` gate, which every server except `mdq` implements (`git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search`, `shell`, `cicd`, `rag_pipeline` — see `mcp_03_06_tool-runtime-availability-metadata.md`).
 
-**Critical failure mode:** If `RuntimeToolRegistry` is missing entirely, the LLM sees no tools at all, resulting in "Unknown tool" errors even when tools exist in the system.
+**Critical failure mode:** If `RuntimeToolRegistry` is missing entirely, the LLM sees no tools at all, resulting in "Unknown tool" errors even when tools exist in the system. At execution time, if the registry is not wired into `ToolExecutor` (discovery has not completed), `execute()` cannot resolve any tool and returns a `routing:not_ready` result without running any tool.
 
 ## Data source for DAG scheduling
 
@@ -109,6 +109,10 @@ There is a single data source for scheduling metadata today: a tool's `/v1/tools
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
 Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](../10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md) for rationale and invariants.
+
+**Wiring order:** the `McpServerHealthRegistry` is passed at `ToolExecutor` construction, and the `RuntimeToolRegistry` is attached afterward with `set_runtime_registry()` once `/v1/tools` discovery completes. Passing `None` raises `TypeError` — an unwired resolver must never be re-established as unwired. Until the registry is wired, `resolve()` reports the `not_ready` kind.
+
+**Routing error contract:** a routing failure never reaches the transport. `ToolExecutor.execute()` catches `ToolRoutingError` and returns a `ToolCallResult` with `is_error=True` and `error_type="routing"`; the output begins with `routing:<kind>:` where `<kind>` is one of `not_ready`, `unknown_tool`, `posture_excluded`, `server_unavailable`. Dynamic circuit-breaker results (`UNAVAILABLE` / `HALF_OPEN`) are produced by the health gate and keep their existing result form; they are not routing failures.
 
 Tool names are grouped by owning server in the static frozensets of `shared/tool_constants.py`; these groups seed drift detection and operation-type classification, not routing. A tool name that `RuntimeToolRegistry` cannot resolve raises `ValueError`. For diagnosis guidance, see [MCP Failure Diagnosis](mcp_06_07_mcp-failure-diagnosis.md#llm-sees-a-tool-but-execution-fails-with-unknown-tool).
 

@@ -143,8 +143,8 @@ async def _execute_prepared_call(
     When ctx.services_required.gateway is None the call runs through *tools*
     instead of the gateway. Policy enforcement is not lost: every non-READ
     operation still passes check_preflight() before execution, and a tool name
-    that is not in the RuntimeToolRegistry raises ValueError in
-    ToolRouteResolver.resolve(), so an unregistered tool cannot execute.
+    that is not in the RuntimeToolRegistry yields a `routing` `ToolCallResult`
+    from `ToolExecutor.execute()` and cannot execute.
     NOTE: In production, factory.py:652 creates RepositoryGateway unconditionally
     during AppServices construction, so this branch should never execute.
     """
@@ -152,9 +152,6 @@ async def _execute_prepared_call(
     if gateway is not None:
         return await gateway.execute(ctx, name, args)
     # Preflight check when gateway is None for non-READ operations
-    # NOTE: strict_mode behavior — both strict_mode=True and strict_mode=False
-    # always raise ValueError on an unresolved tool; the difference is in
-    # error-message wording only. See ToolRouteResolver.__init__ docstring.
     op = classify_operation_type(name, ctx.services_required.runtime_tools)
     if op != OperationType.READ:
         try:

@@ -60,9 +60,12 @@ class RuntimeToolRegistry:
         self._allowed_servers = allowed_servers
         self._posture_excluded: set[str] = set()
         self._tools: dict[str, RuntimeTool] = {}
+        self._excluded_tools: dict[str, str] = {}
         if tools:
             for name, tool in tools.items():
-                if self._is_excluded_server(tool.server_key):
+                reason = self._exclusion_reason(tool.server_key)
+                if reason is not None:
+                    self._excluded_tools[name] = reason
                     continue
                 self._tools[name] = tool
         if self._posture_excluded:
@@ -71,25 +74,26 @@ class RuntimeToolRegistry:
                 ", ".join(sorted(self._posture_excluded)),
             )
 
-    def _is_excluded_server(self, server_key: str) -> bool:
-        """Return whether tools from `server_key` should be excluded.
+    def _exclusion_reason(self, server_key: str) -> str | None:
+        """Return why tools from `server_key` are excluded, or `None` if none.
 
-        A server is excluded if it is unavailable, disabled (startup_mode=none), or not in the posture
-        gate. A posture exclusion is recorded here, during construction, so the reported set is exactly
-        the set that was dropped.
+        Returns `"unavailable"` for an unreachable server, `"disabled"` for a
+        `startup_mode=none` server, and `"posture"` for a server absent from the
+        Security Posture gate. A posture exclusion is recorded here, during
+        construction, so the reported set is exactly the set that was dropped.
         """
         if server_key in self._unavailable_servers:
-            return True
+            return "unavailable"
         cfg = self._server_configs.get(server_key)
         if cfg is not None and getattr(cfg, "is_disabled", False):
-            return True
+            return "disabled"
         if (
             self._allowed_servers is not None
             and server_key not in self._allowed_servers
         ):
             self._posture_excluded.add(server_key)
-            return True
-        return False
+            return "posture"
+        return None
 
     @property
     def unavailable_servers(self) -> frozenset[str]:
@@ -104,6 +108,16 @@ class RuntimeToolRegistry:
         `unavailable_servers` and the "Unreachable servers" report stays truthful.
         """
         return frozenset(self._posture_excluded)
+
+    def exclusion_reason(self, tool_name: str) -> str | None:
+        """Return why `tool_name` was dropped at construction, or `None`.
+
+        Returns one of `"unavailable"`, `"disabled"`, `"posture"` for a tool the
+        registry dropped, and `None` for a registered or unknown name. Lets the
+        resolver distinguish posture-excluded and unavailable tools from ones
+        that were never discovered.
+        """
+        return self._excluded_tools.get(tool_name)
 
     def resolve(self, tool_name: str) -> str | None:
         """Return the `server_key` that owns `tool_name`, or `None` if unknown.

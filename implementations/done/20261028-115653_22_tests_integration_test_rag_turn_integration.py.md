@@ -1,12 +1,12 @@
-# Procedure: construct the crash-test executor with a health registry
+# Procedure: construct the RAG-turn executor with a health registry
 
 ## Goal
 
-Pass a health registry to the `ToolExecutor(` construction used with the mocked process (Plan REQ-005).
+Pass a health registry in `_make_http_executor` (Plan REQ-005).
 
 ## Scope
 
-- Modify only `tests/integration/test_mcp_transport_crash.py`.
+- Modify only `tests/integration/test_rag_turn_integration.py`.
 - Test-only change; no source file is edited.
 
 ## Assumptions
@@ -28,11 +28,11 @@ N/A: lightweight row; the Plan fixes the approach.
 
 ### Target file
 
-`tests/integration/test_mcp_transport_crash.py`
+`tests/integration/test_rag_turn_integration.py`
 
 ### Procedure
 
-- In the test code around `_make_running_proc`, pass `health_registry=McpServerHealthRegistry()` to `ToolExecutor(...)` and import the type from `shared.mcp_health`.
+- In `_make_http_executor`, pass `health_registry=McpServerHealthRegistry()` to `ToolExecutor(...)` and import the type.
 
 ### Method
 
@@ -58,12 +58,12 @@ N/A: revert the commit.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run pytest tests/integration/test_mcp_transport_crash.py -m integration -q` | Pass |
-| 2 | `uv run ruff format tests/integration/test_mcp_transport_crash.py`; `uv run ruff check tests/integration/test_mcp_transport_crash.py` | No finding |
+| 1 | `uv run pytest tests/integration/test_rag_turn_integration.py -m integration -q` | Pass |
+| 2 | `uv run ruff format tests/integration/test_rag_turn_integration.py`; `uv run ruff check tests/integration/test_rag_turn_integration.py` | No finding |
 
 ## Completion criteria
 
-- The construction passes a registry.
+- The helper builds the executor with a registry.
 
 ## Out of Scope
 
@@ -75,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261028 | 20261028-181752 | Added `from shared.mcp_health import McpServerHealthRegistry`; `_make_http_executor` now accepts `health_registry` kwarg and passes `health_registry=health_registry or McpServerHealthRegistry()` to `ToolExecutor`. Prior state had neither (note claiming "Row 4 and 5 have landed" was wrong). Added McpServerHealthRegistry import; _make_http_executor passes health_registry. Prior state had neither. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261028 | 20261028-181752 | ruff format/check clean; pytest 5 passed (run directly; file carries no integration marker). ruff clean; pytest 5 passed (direct run). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -96,4 +96,4 @@ N/A: revert the commit.
 - **Source plan**: plans/20261028-093529_mcpexec004_make-mcp-deps-mandatory.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115653
-- **Related target files**: tests/integration/test_mcp_transport_crash.py
+- **Related target files**: tests/integration/test_rag_turn_integration.py

@@ -14,7 +14,7 @@ from shared.http_transport import HttpTransport, TransportError
 from shared.logger import register_secret
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
-from shared.runtime_tool import build_runtime_tool
+from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_executor import ToolExecutor
 from shared.transport_dto import ToolCallResult
@@ -331,12 +331,16 @@ def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
 
 def _make_executor(
     configs: dict[str, McpServerConfig] | None = None,
+    health_registry: McpServerHealthRegistry | None = None,
 ) -> ToolExecutor:
     resolved_configs = configs or {"file_read": _http_cfg()}
     http = MagicMock(spec=httpx.AsyncClient)
     ex = ToolExecutor(
         http,
         server_configs=resolved_configs,
+        health_registry=health_registry
+        if health_registry is not None
+        else McpServerHealthRegistry(),
     )
     if "file_read" in resolved_configs:
         # Wire read_text_file -> file_read routing, mirroring the production flow
@@ -364,8 +368,7 @@ class TestToolExecutorErrorClassification:
     @pytest.mark.asyncio
     async def test_http_200_success_error_type_empty(self) -> None:
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor()
-        ex.set_health_registry(registry)
+        ex = _make_executor(health_registry=registry)
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(
@@ -387,8 +390,7 @@ class TestToolExecutorErrorClassification:
     @pytest.mark.asyncio
     async def test_http_200_tool_error_increments_stat_tool_errors(self) -> None:
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor()
-        ex.set_health_registry(registry)
+        ex = _make_executor(health_registry=registry)
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(
@@ -411,8 +413,7 @@ class TestToolExecutorErrorClassification:
     @pytest.mark.asyncio
     async def test_http_500_transport_error_classification(self) -> None:
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor()
-        ex.set_health_registry(registry)
+        ex = _make_executor(health_registry=registry)
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(side_effect=TransportError("HTTP 500"))
         ex._transports["file_read"] = mock_transport  # type: ignore[assignment]  -- AsyncMock duck-types HttpTransport
@@ -427,8 +428,7 @@ class TestToolExecutorErrorClassification:
     @pytest.mark.asyncio
     async def test_http_503_retry_exhaustion_is_transport_error(self) -> None:
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor()
-        ex.set_health_registry(registry)
+        ex = _make_executor(health_registry=registry)
 
         class _FakeClient503:
             async def post(self, url: str, **kw: Any) -> httpx.Response:
@@ -455,8 +455,7 @@ class TestToolExecutorErrorClassification:
     @pytest.mark.asyncio
     async def test_timeout_is_transport_error(self) -> None:
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor()
-        ex.set_health_registry(registry)
+        ex = _make_executor(health_registry=registry)
 
         class _FakeClientTimeout:
             async def post(self, url: str, **kw: Any) -> httpx.Response:
@@ -487,8 +486,7 @@ class TestToolExecutorErrorClassification:
     )
     async def test_malformed_response_is_transport_error(self, body: bytes) -> None:
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor()
-        ex.set_health_registry(registry)
+        ex = _make_executor(health_registry=registry)
 
         class _FakeClientMalformed:
             async def post(self, url: str, **kw: Any) -> httpx.Response:
@@ -512,8 +510,7 @@ class TestToolExecutorErrorClassification:
     async def test_malformed_response_fails_after_single_post(self) -> None:
         """A persistently malformed body must raise TransportError after one post call."""
         registry = McpServerHealthRegistry(failure_threshold=3)
-        ex = _make_executor()
-        ex.set_health_registry(registry)
+        ex = _make_executor(health_registry=registry)
 
         class _FakeClientMalformedCounter:
             def __init__(self, body: bytes) -> None:
@@ -545,12 +542,16 @@ class TestToolExecutorErrorClassification:
 
 def _make_executor_with_mock_lifecycle(
     ensure_ready_side_effect: BaseException | None = None,
+    health_registry: McpServerHealthRegistry | None = None,
 ) -> tuple[ToolExecutor, AsyncMock, MagicMock, AsyncMock]:
     http_mock = AsyncMock()
     executor = ToolExecutor(
         http_mock,
         server_configs={},
         concurrency_limits={},
+        health_registry=health_registry
+        if health_registry is not None
+        else McpServerHealthRegistry(),
     )
     mock_lifecycle = AsyncMock()
     if ensure_ready_side_effect is not None:
@@ -560,7 +561,6 @@ def _make_executor_with_mock_lifecycle(
     mock_registry = MagicMock()
     mock_registry.get_state.return_value = McpServerHealthState.HEALTHY
     mock_registry.is_unavailable.return_value = False
-    executor.set_health_registry(mock_registry)
 
     mock_transport = AsyncMock()
     executor._transports["test_server"] = mock_transport
@@ -625,6 +625,7 @@ class TestInvokeRawExecuteEquivalence:
         self,
         call_side_effect: Exception | None = None,
         return_value: ToolCallResult | None = None,
+        health_registry: McpServerHealthRegistry | None = None,
     ) -> ToolExecutor:
         ex = _make_executor(
             configs={
@@ -634,9 +635,11 @@ class TestInvokeRawExecuteEquivalence:
                     startup_mode=StartupMode.PERSISTENT,
                     auth_token="test-token",
                 )
-            }
+            },
+            health_registry=health_registry
+            if health_registry is not None
+            else McpServerHealthRegistry(),
         )
-        ex.set_health_registry(McpServerHealthRegistry())
         mock_transport = AsyncMock()
         ex._transports["test_server"] = mock_transport  # type: ignore[assignment]
         if return_value is not None:
@@ -681,3 +684,89 @@ class TestInvokeRawExecuteEquivalence:
         assert r_invoke.error_type == r_exec.error_type == "transport"
         assert r_invoke.server_key == r_exec.server_key == "test_server"
         assert r_invoke.output == r_exec.output
+
+
+class TestExecuteRoutingResults:
+    """execute() converts every ToolRoutingError kind to a normalized routing result."""
+
+    @staticmethod
+    def _tool(name: str, server_key: str) -> RuntimeTool:
+        return build_runtime_tool(
+            name=name,
+            server_key=server_key,
+            status="active",
+            is_write=False,
+            requires_serial=False,
+            resource_scope_kind="",
+            resource_scope_keys=(),
+            agent_safety_tier="READ_ONLY",
+            enabled_for_llm=True,
+            capabilities=(),
+        )
+
+    @staticmethod
+    async def _executor_with_registry(
+        registry: RuntimeToolRegistry,
+    ) -> tuple[ToolExecutor, MagicMock]:
+        http = MagicMock(spec=httpx.AsyncClient)
+        ex = ToolExecutor(
+            http,
+            server_configs={},
+            health_registry=McpServerHealthRegistry(),
+        )
+        ex.set_runtime_registry(registry)
+        return ex, http
+
+    @pytest.mark.asyncio
+    async def test_execute_returns_routing_not_ready_result_before_wiring(self) -> None:
+        http = MagicMock(spec=httpx.AsyncClient)
+        ex = ToolExecutor(
+            http,
+            server_configs={},
+            health_registry=McpServerHealthRegistry(),
+        )
+        result = await ex.execute("read_text_file", {})
+        assert result.is_error is True
+        assert result.error_type == "routing"
+        assert "routing:not_ready:" in result.output
+        http.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_execute_returns_routing_unknown_tool_result(self) -> None:
+        registry = RuntimeToolRegistry(
+            tools={"read_text_file": self._tool("read_text_file", "file_read")}
+        )
+        ex, http = await self._executor_with_registry(registry)
+        result = await ex.execute("totally_unknown_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "routing"
+        assert "routing:unknown_tool:" in result.output
+        http.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_execute_returns_routing_posture_excluded_result(self) -> None:
+        registry = RuntimeToolRegistry(
+            tools={"postured_tool": self._tool("postured_tool", "postured_srv")},
+            allowed_servers=frozenset({"other_srv"}),
+        )
+        ex, http = await self._executor_with_registry(registry)
+        result = await ex.execute("postured_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "routing"
+        assert "routing:posture_excluded:" in result.output
+        http.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_execute_returns_routing_server_unavailable_result(self) -> None:
+        registry = RuntimeToolRegistry(
+            tools={
+                "unavailable_tool": self._tool("unavailable_tool", "unavailable_srv")
+            },
+            unavailable_servers=frozenset({"unavailable_srv"}),
+        )
+        ex, http = await self._executor_with_registry(registry)
+        result = await ex.execute("unavailable_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "routing"
+        assert "routing:server_unavailable:" in result.output
+        http.post.assert_not_called()

@@ -286,6 +286,56 @@ class TestRuntimeToolRegistry:
         assert len(rows) == 1
         assert rows[0]["name"] == "tool_b"
 
+    def test_exclusion_reason_reports_the_drop_reason_and_none_for_known_or_unknown(
+        self,
+    ) -> None:
+        unavailable_tool = build_runtime_tool(
+            name="unavailable_tool", server_key="unreachable"
+        )
+        posture_tool = build_runtime_tool(name="posture_tool", server_key="postured")
+        healthy_tool = build_runtime_tool(name="healthy_tool", server_key="healthy")
+        reg = RuntimeToolRegistry(
+            tools={
+                "unavailable_tool": unavailable_tool,
+                "posture_tool": posture_tool,
+                "healthy_tool": healthy_tool,
+            },
+            unavailable_servers=frozenset(["unreachable"]),
+            allowed_servers=frozenset(["healthy"]),
+        )
+        assert reg.exclusion_reason("unavailable_tool") == "unavailable"
+        assert reg.exclusion_reason("posture_tool") == "posture"
+        assert reg.exclusion_reason("healthy_tool") is None
+        assert reg.exclusion_reason("never_seen") is None
+
+    def test_exclusion_reason_unavailable_server(self) -> None:
+        tool = build_runtime_tool(name="down_tool", server_key="down_srv")
+        reg = RuntimeToolRegistry(
+            {"down_tool": tool},
+            unavailable_servers=frozenset(["down_srv"]),
+        )
+        assert reg.exclusion_reason("down_tool") == "unavailable"
+
+    def test_exclusion_reason_disabled_server(self) -> None:
+        from unittest.mock import MagicMock
+
+        cfg = MagicMock()
+        cfg.is_disabled = True
+        tool = build_runtime_tool(name="disabled_tool", server_key="disabled_srv")
+        reg = RuntimeToolRegistry(
+            {"disabled_tool": tool},
+            server_configs={"disabled_srv": cfg},
+        )
+        assert reg.exclusion_reason("disabled_tool") == "disabled"
+
+    def test_exclusion_reason_posture_in_posture_gate(self) -> None:
+        tool = build_runtime_tool(name="gated_tool", server_key="git")
+        reg = RuntimeToolRegistry(
+            {"gated_tool": tool},
+            allowed_servers=frozenset(["mdq"]),
+        )
+        assert reg.exclusion_reason("gated_tool") == "posture"
+
     def test_disable_then_re_enable_returns_true(self) -> None:
         tool = build_runtime_tool(name="t", server_key="s", enabled_for_llm=True)
         reg = _registry_with(tool)

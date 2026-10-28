@@ -59,13 +59,12 @@ def _detect_duplicates(
 def _build_runtime_tools(
     unique_entries: list[_RawEntry],
     unavailable_servers: frozenset[str],
-    allowed_servers: frozenset[str] | None = None,
+    allowed_servers: frozenset[str],
 ) -> RuntimeToolRegistry:
     """Build RuntimeToolRegistry from unique entries with unavailable and posture filtering.
 
-    `allowed_servers` is the posture-derived allowlist (row `19`): `None` registers every tool that
-    survived the unavailable filter, a `frozenset` lets only its members through, and an empty
-    `frozenset` registers nothing.
+    `allowed_servers` is the posture-derived allowlist (row `19`): a `frozenset` lets only its
+    members through, and an empty `frozenset` registers nothing.
     """
     built: dict[str, RuntimeTool] = {}
     for server_key, server_url, entry in unique_entries:
@@ -96,7 +95,7 @@ def _build_runtime_tools(
 def _dedupe_and_build(
     entries: list[_RawEntry],
     unavailable_servers: frozenset[str],
-    allowed_servers: frozenset[str] | None = None,
+    allowed_servers: frozenset[str],
 ) -> tuple[RuntimeToolRegistry, list[StartupCheckOutcome]]:
     """Group entries by tool name, build RuntimeTools, and exclude duplicates.
 

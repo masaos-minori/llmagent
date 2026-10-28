@@ -78,8 +78,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | — | 20261028-175945 | Added test_exclusion_reason_unavailable_server, test_exclusion_reason_disabled_server, test_exclusion_reason_posture_in_posture_gate; existing test covers is_none_for_registered_and_unknown_names. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261028-175948 | ruff clean; 46 tests pass (was 43). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

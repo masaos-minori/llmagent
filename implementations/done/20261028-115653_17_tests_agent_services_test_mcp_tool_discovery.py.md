@@ -1,12 +1,12 @@
-# Procedure: construct the integration executor with a health registry
+# Procedure: pass allowed_servers to the registry builder calls
 
 ## Goal
 
-Pass a health registry in `_make_http_executor` and drop `executor.set_health_registry(health)` (Plan REQ-005).
+Update the two direct builder calls to pass `allowed_servers` (Plan REQ-001).
 
 ## Scope
 
-- Modify only `tests/integration/test_agent_mcp_integration.py`.
+- Modify only `tests/agent/services/test_mcp_tool_discovery.py`.
 - Test-only change; no source file is edited.
 
 ## Assumptions
@@ -28,12 +28,14 @@ N/A: lightweight row; the Plan fixes the approach.
 
 ### Target file
 
-`tests/integration/test_agent_mcp_integration.py`
+`tests/agent/services/test_mcp_tool_discovery.py`
 
 ### Procedure
 
-- Give `_make_http_executor` a `health_registry` parameter (default `McpServerHealthRegistry()`) and pass it to `ToolExecutor(...)`.
-- In `test_a10_health_check_unavailable_rejects_call`, build the executor with the test's `health` registry instead of calling `set_health_registry`.
+- In the test that calls `_build_runtime_tools(entries, frozenset({"down"}))`, pass `allowed_servers=frozenset({"srv"})`-style explicit keyword matching the servers in `entries`.
+- In `test_dedupe_and_build_excludes_a_duplicated_name_and_reports_it_fatal`, change `_dedupe_and_build(entries, frozenset())` to pass `allowed_servers` explicitly.
+- Add `test_empty_allowed_servers_registers_nothing` (new) and `test_build_requires_allowed_servers` (new) (a `TypeError` when the keyword is omitted).
+- Locate the call sites by test name; the file was edited by the mcpcompat003 procedures and may be edited by the mcpcompat001 posture-gate procedures.
 
 ### Method
 
@@ -41,7 +43,7 @@ Edit the existing tests in place and reuse the file's fixtures and helpers.
 
 ### Details
 
-- Row 4 and 5 have landed. The file imports `McpServerHealthRegistry` from `shared.mcp_config`; keep whatever import path the mcpcompat001 procedures leave.
+- Row 1 has landed.
 
 ## Compatibility considerations
 
@@ -59,12 +61,12 @@ N/A: revert the commit.
 
 | Step | Command | Expected outcome |
 |---|---|---|
-| 1 | `uv run pytest tests/integration/test_agent_mcp_integration.py -m integration -q` | Pass |
-| 2 | `uv run ruff format tests/integration/test_agent_mcp_integration.py`; `uv run ruff check tests/integration/test_agent_mcp_integration.py` | No finding |
+| 1 | `uv run pytest tests/agent/services/test_mcp_tool_discovery.py -q` | Pass |
+| 2 | `uv run ruff format tests/agent/services/test_mcp_tool_discovery.py`; `uv run ruff check tests/agent/services/test_mcp_tool_discovery.py` | No finding |
 
 ## Completion criteria
 
-- The file constructs executors with a health registry.
+- Both calls pass `allowed_servers`; the empty-set and required-keyword tests pass.
 
 ## Out of Scope
 
@@ -76,8 +78,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | — | 20261028-180448 | Prior session landed both call-site edits; verified here. Added test_empty_allowed_servers_registers_nothing and test_build_requires_allowed_servers (TypeError). |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261028-180454 | ruff format+check clean; 88 tests pass (added 2). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -91,10 +93,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-005 (integration executor construction)
+- **Requirement ID**: REQ-001 (builder requires allowed_servers)
 - **Source issue**: issues/20261027-155847_mcpexec004_make-mcp-deps-mandatory.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261028-093529_mcpexec004_make-mcp-deps-mandatory.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261028-115653
-- **Related target files**: tests/integration/test_agent_mcp_integration.py
+- **Related target files**: tests/agent/services/test_mcp_tool_discovery.py
