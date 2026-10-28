@@ -24,6 +24,13 @@ from shared.transport_dto import ToolCallResult
 logger = logging.getLogger(__name__)
 attach_redaction_filter(logger)
 
+# Process-wide default per-server concurrency ceiling. Sized from repo facts:
+# the highest configured production limit is 4 (config/agent.toml) and 10
+# configured servers x 8 = 80 stays under the shared httpx.AsyncClient default
+# pool ceiling of 100 connections (factory.py builds that client with timeout
+# only; no limits= override exists anywhere in scripts/).
+DEFAULT_PER_SERVER_CONCURRENCY: int = 8
+
 
 class ToolTransportInvoker:
     """Handles transport-level MCP invocation: health, lifecycle, semaphore, call, and recording."""
@@ -35,7 +42,11 @@ class ToolTransportInvoker:
         concurrency_limits: dict[str, int] | None = None,
         lifecycle: LifecycleProtocol | None = None,
     ) -> None:
-        """Initialize with HTTP client, server configs, and optional concurrency limits."""
+        """Initialize with HTTP client, server configs, and optional concurrency limits.
+
+        Each configured server is capped at its configured positive limit, or at
+        DEFAULT_PER_SERVER_CONCURRENCY when no positive limit is set; an explicit
+        0/negative limit opts out (unlimited)."""
         self._lifecycle = lifecycle
         self._health_registry: McpServerHealthRegistry | None = None
         self.stat_tool_errors: dict[str, int] = {}
@@ -88,30 +99,34 @@ class ToolTransportInvoker:
         }
 
     def _ensure_semaphores(self) -> None:
-        """Lazily create concurrency semaphores from configuration limits.
+        """Lazily create one concurrency semaphore per configured server.
 
-        A `0` or negative limit means "unlimited": no semaphore is created for that
-        server, exactly matching the unconfigured default (key omitted). Known server
-        keys with a `0`/negative limit are warned about once (this method runs once
-        per process) so the chosen meaning is visible instead of a silent drop.
+        Every key in ``self._server_configs`` gets a semaphore capped at its
+        effective limit: the configured positive value when present, otherwise
+        the process-wide DEFAULT_PER_SERVER_CONCURRENCY ceiling. An
+        explicit ``0`` or negative limit opts out of the default and stays
+        unlimited (no semaphore entry); such a known key is warned about once
+        per process so the chosen meaning is visible instead of a silent drop.
         """
-        if self._semaphores is None and self._concurrency_limits:
-            # 0/negative limits resolve to "unlimited" (no semaphore). Warn once
-            # per process for known server keys so the meaning is visible; unknown
-            # keys are handled in __init__. Behavior is unchanged.
-            for key, n in self._concurrency_limits.items():
-                if n <= 0 and key in self._server_configs:
+        if self._semaphores is None:
+            semaphores: dict[str, asyncio.Semaphore] = {}
+            for key in self._server_configs:
+                configured = self._concurrency_limits.get(key)
+                if configured is not None and configured <= 0:
                     logger.warning(
                         "tool_concurrency_limits: %r is %d; treated as unlimited "
                         "(no semaphore created).",
                         key,
-                        n,
+                        configured,
                     )
-            self._semaphores = {
-                key: asyncio.Semaphore(n)
-                for key, n in self._concurrency_limits.items()
-                if n > 0
-            }
+                    continue
+                limit = (
+                    configured
+                    if configured is not None
+                    else DEFAULT_PER_SERVER_CONCURRENCY
+                )
+                semaphores[key] = asyncio.Semaphore(limit)
+            self._semaphores = semaphores
 
     @staticmethod
     def _maybe_semaphore(

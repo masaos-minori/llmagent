@@ -4,6 +4,7 @@ Tests for ToolTransportInvoker.invoke(): health, lifecycle, semaphore, recording
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -18,7 +19,10 @@ from shared.mcp_config import (
     TransportType,
 )
 from shared.mcp_health import McpServerHealthState
-from shared.tool_transport_invoker import ToolTransportInvoker
+from shared.tool_transport_invoker import (
+    DEFAULT_PER_SERVER_CONCURRENCY,
+    ToolTransportInvoker,
+)
 from shared.transport_dto import ToolCallResult
 
 
@@ -435,3 +439,68 @@ class TestConcurrencyLimitZeroSemantics:
         sem = invoker._semaphores.get("srv")
         assert sem is not None
         assert sem._value == 3
+
+
+class _ConcurrencyProbe:
+    """Fake transport recording peak simultaneous in-flight calls.
+
+    Holds every call open on ``gate`` until the test releases it, so the
+    observed peak is deterministic (no wall-clock sleeps). Sets ``reached``
+    once expected_peak calls are simultaneously in flight."""
+
+    def __init__(self, expected_peak: int) -> None:
+        self.current = 0
+        self.peak = 0
+        self.expected_peak = expected_peak
+        self.reached = asyncio.Event()
+        self.gate = asyncio.Event()
+
+    async def call(self, tool_name: str, args: dict[str, Any]) -> ToolCallResult:
+        self.current += 1
+        self.peak = max(self.peak, self.current)
+        if self.current == self.expected_peak:
+            self.reached.set()
+        await self.gate.wait()
+        self.current -= 1
+        return ToolCallResult(
+            output="ok", is_error=False, request_id="", server_key="srv"
+        )
+
+
+class TestDefaultPerServerConcurrency:
+    @staticmethod
+    async def _measure_peak(
+        concurrency_limits: dict[str, int] | None,
+        expected_peak: int,
+        n_calls: int = 20,
+    ) -> int:
+        invoker = _make_invoker(concurrency_limits=concurrency_limits)
+        probe = _ConcurrencyProbe(expected_peak=expected_peak)
+        invoker._transports["srv"] = probe  # type: ignore[assignment]
+        tasks = [
+            asyncio.create_task(invoker.invoke("srv", "tool", {}))
+            for _ in range(n_calls)
+        ]
+        try:
+            await asyncio.wait_for(probe.reached.wait(), timeout=10)
+        finally:
+            probe.gate.set()
+            await asyncio.gather(*tasks)
+        return probe.peak
+
+    @pytest.mark.asyncio
+    async def test_unconfigured_server_uses_default_cap(self) -> None:
+        peak = await TestDefaultPerServerConcurrency._measure_peak(
+            None, DEFAULT_PER_SERVER_CONCURRENCY
+        )
+        assert peak == DEFAULT_PER_SERVER_CONCURRENCY
+
+    @pytest.mark.asyncio
+    async def test_configured_positive_limit_overrides_default(self) -> None:
+        peak = await TestDefaultPerServerConcurrency._measure_peak({"srv": 2}, 2)
+        assert peak == 2
+
+    @pytest.mark.asyncio
+    async def test_zero_limit_opts_out_of_default(self) -> None:
+        peak = await TestDefaultPerServerConcurrency._measure_peak({"srv": 0}, 20)
+        assert peak == 20

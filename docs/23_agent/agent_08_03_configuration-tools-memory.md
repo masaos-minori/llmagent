@@ -40,7 +40,7 @@ Loop limits (`max_tool_turns`, cycle-detection window, consecutive-error and per
 
 #### Parallel Execution
 
-`tool_concurrency_limits` maps a server key to its maximum concurrent calls. A `0` (or negative) value means "unlimited": no per-server semaphore is created, the same as the unconfigured default.
+`tool_concurrency_limits` maps a server key to its maximum concurrent calls. Every configured server is capped at its configured positive limit, or at the process-wide default concurrency ceiling when it has no entry; an explicit `0` (or negative) value opts out and stays unlimited (no per-server semaphore is created).
 
 Scopes are not defined in `config/agent.toml`; each MCP server declares `resource_scope_kind`/`resource_scope_keys` (Schema 2.0 contract, mandatory fields) via `/v1/tools`, and the scope is resolved per call from the actual invocation arguments (Explicit in code — `shared/resource_scope.py::resolve_resource_scopes()`, `agent/tool_scheduler.py::build_execution_groups()`). Conflict grouping is per call id, not per tool name. Scheduling classes:
 

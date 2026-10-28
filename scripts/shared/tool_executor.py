@@ -51,8 +51,11 @@ class ToolExecutor(ToolTransportInvoker):
         Args:
             http: AsyncHTTPClient instance for making requests.
             server_configs: Server configurations for MCP servers.
-            concurrency_limits: Optional concurrency limits per server. If None, no
-                concurrency limiting is applied. Note: this value is fixed at
+            concurrency_limits: Optional concurrency limits per server. A
+                configured positive value caps that server; a server with no
+                positive limit falls back to the process-wide
+                DEFAULT_PER_SERVER_CONCURRENCY. An explicit 0/negative value
+                opts out (unlimited). Note: this value is fixed at
                 initialization time and cannot be changed later.
             lifecycle: Optional lifecycle protocol for MCP servers.
         """
