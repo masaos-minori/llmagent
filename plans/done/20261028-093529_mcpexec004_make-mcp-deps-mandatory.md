@@ -66,7 +66,7 @@ table — no other file may be treated as a modification target.
 | `tests/shared/test_tool_executor_routing.py` | Routing tests | Pass `health_registry`; assert the four failure kinds | REQ-004, REQ-007 / AC-3 | `ToolExecutor(` constructed in 5 places (checked in Step 3) | itself | Verified |
 | `tests/shared/test_tool_transport_invoker.py` | Invoker tests | Pass `health_registry` at construction | REQ-005 / AC-4 | One `ToolTransportInvoker(` construction (checked in Step 3) | itself | Verified |
 | `tests/shared/test_tool_transport_invoker_merge.py` | Invoker merge tests | Pass `health_registry` at construction | REQ-005 / AC-4 | One construction (checked in Step 3) | itself | Verified |
-| `tests/agent/services/test_runtime_tool_routing_integration.py` | Routing integration tests | Remove `strict_mode`/`warn_on_missing` cases; pass `allowed_servers` to builder calls; pass `health_registry` | REQ-001, REQ-003, REQ-005 / AC-1, AC-2 | `ToolRouteResolver(strict_mode=True ...)` and `warn_on_missing=True` cases, a `ToolExecutor(` construction and builder calls (checked in Step 3) | itself | Verified |
+| `tests/agent/services/test_runtime_tool_routing_integration.py` | Routing integration tests | Remove `strict_mode`/`warn_on_missing` cases; pass `health_registry` (no builder call exists in this file, only a comment) | REQ-003, REQ-005 / AC-2, AC-4 | `ToolRouteResolver(strict_mode=True ...)` and `warn_on_missing=True` cases and a `ToolExecutor(` construction; the only builder mention is a comment (re-checked in the procedure step: `_build_runtime_tools` / `_dedupe_and_build` calls are in `test_mcp_tool_discovery.py`) | itself | Verified |
 | `tests/agent/services/test_mcp_tool_discovery.py` | Discovery tests | Pass `allowed_servers` to builder calls | REQ-001 / AC-1 | References `_build_runtime_tools` / `_dedupe_and_build` (checked in Step 3) | itself | Verified |
 | `tests/agent/test_agent_factory.py` | Factory test | Replace the `set_health_registry` assertion with a constructor-argument assertion | REQ-005 / AC-4 | Asserts `tool_executor_instance.set_health_registry.assert_called_once()` (checked in Step 3) | itself | Verified |
 | `tests/integration/test_agent_mcp_integration.py` | Integration test | Construct the executor with a health registry | REQ-005 / AC-4 | One `ToolExecutor(` construction and `executor.set_health_registry(health)` (checked in Step 3) | itself | Verified |
@@ -198,11 +198,11 @@ Baseline recorded in Step 5: `radon cc` reports `ToolTransportInvoker._run_preca
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Registry exclusion reasons, resolver error kinds, required `allowed_servers` | Pending | — | — | |
-| 2 | Required health registry and routing-result conversion in the invoker and executor | Pending | — | — | |
-| 3 | Factory, startup validation, runner comments and caller tests | Pending | — | — | |
-| 4 | MCP dispatch and diagnosis docs | Pending | — | — | |
-| 5 | Deployment and verification hand-off | Pending | — | — | |
+| 1 | Registry exclusion reasons, resolver error kinds, required `allowed_servers` | In Progress | — | — |  |
+| 2 | Required health registry and routing-result conversion in the invoker and executor | In Progress | — | — |  |
+| 3 | Factory, startup validation, runner comments and caller tests | In Progress | — | — |  |
+| 4 | MCP dispatch and diagnosis docs | In Progress | — | — |  |
+| 5 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -212,7 +212,30 @@ Baseline recorded in Step 5: `radon cc` reports `ToolTransportInvoker._run_preca
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-115653_01_scripts_agent_services_mcp_tool_discovery_registry.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115653_02_scripts_shared_runtime_tool_registry.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115653_03_scripts_shared_route_resolver.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115653_04_scripts_shared_tool_executor.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115653_05_scripts_shared_tool_transport_invoker.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115653_06_scripts_shared_transport_dto.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115653_07_scripts_agent_factory.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115653_08_scripts_agent_startup_validation.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115653_09_scripts_agent_tool_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115653_10_tests_shared_test_route_resolver.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115653_11_tests_shared_test_runtime_tool_registry.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115653_12_tests_shared_test_tool_executor.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115653_13_tests_shared_test_tool_executor_routing.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115653_14_tests_shared_test_tool_transport_invoker.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115653_15_tests_shared_test_tool_transport_invoker_merge.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115653_16_tests_agent_services_test_runtime_tool_routing_integration.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115653_17_tests_agent_services_test_mcp_tool_discovery.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115653_18_tests_agent_test_agent_factory.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115653_19_tests_integration_test_agent_mcp_integration.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115653_20_tests_integration_test_mcp_transport_crash.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115653_21_tests_integration_test_robustness_chaos.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115653_22_tests_integration_test_rag_turn_integration.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115653_23_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-115653_24_docs_22_mcp_mcp_06_07_mcp-failure-diagnosis.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -228,7 +251,7 @@ Baseline recorded in Step 5: `radon cc` reports `ToolTransportInvoker._run_preca
 |---|---|---|---|---|---|---|
 | REQ-001 | Required Changes 1; builder defaults `allowed_servers=None` | `scripts/agent/services/mcp_tool_discovery_registry.py` | Step 1 | AC-1 | `tests/agent/services/test_mcp_tool_discovery.py` | Confirmed by repository evidence |
 | REQ-001 | Required Changes 1 | `tests/agent/services/test_mcp_tool_discovery.py` | Step 1 | AC-1 | `uv run pytest tests/agent -q` | Confirmed by repository evidence |
-| REQ-001 | Required Changes 1 | `tests/agent/services/test_runtime_tool_routing_integration.py` | Step 3 | AC-1 | `uv run pytest tests/agent -q` | Confirmed by repository evidence |
+| REQ-005 | Required Changes 2; one `ToolExecutor(` construction in the file | `tests/agent/services/test_runtime_tool_routing_integration.py` | Step 3 | AC-4 | `uv run pytest tests/agent -q` | Confirmed by repository evidence |
 | REQ-002 | Required Changes 3; excluded tools collapse into unknown | `scripts/shared/runtime_tool_registry.py` | Step 1 | AC-2 | `tests/shared/test_runtime_tool_registry.py` | Derived from confirmed evidence |
 | REQ-002 | Required Changes 3 | `tests/shared/test_runtime_tool_registry.py` | Step 1 | AC-2 | `uv run pytest tests/shared -q` | Derived from confirmed evidence |
 | REQ-003 | Required Changes 2 and 4; resolver modes differ only in wording | `scripts/shared/route_resolver.py` | Step 1 | AC-2 | `tests/shared/test_route_resolver.py` | Confirmed by repository evidence |

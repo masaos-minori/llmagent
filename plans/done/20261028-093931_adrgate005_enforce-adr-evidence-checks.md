@@ -178,11 +178,11 @@ Baseline recorded in Step 5: `radon cc` reports no function at C or above in eit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Corpus cleanup in the index and four ADR bodies | Pending | — | — | |
-| 2 | Node validation and severity promotion in the matrix checker | Pending | — | — | |
-| 3 | Reference checker repair, marker rule and four marker comments | Pending | — | — | |
-| 4 | Tool and governance descriptions | Pending | — | — | |
-| 5 | Deployment and verification hand-off | Pending | — | — | |
+| 1 | Corpus cleanup in the index and four ADR bodies | In Progress | — | — |  |
+| 2 | Node validation and severity promotion in the matrix checker | In Progress | — | — |  |
+| 3 | Reference checker repair, marker rule and four marker comments | In Progress | — | — |  |
+| 4 | Tool and governance descriptions | In Progress | — | — |  |
+| 5 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -192,7 +192,21 @@ Baseline recorded in Step 5: `radon cc` reports no function at C or above in eit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-115901_01_tools_check_adr_invariant_matrix.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115901_02_tests_tools_test_check_adr_invariant_matrix.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115901_03_tools_check_adr_reference.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115901_04_tests_tools_test_check_adr_reference.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115901_05_docs_10_adr_adr_01_index.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115901_06_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115901_07_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115901_08_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115901_09_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115901_10_scripts_agent_orchestrator.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115901_11_scripts_agent_workflow_engine_adapter.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115901_12_scripts_mcp_servers_tool_validators.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115901_13_scripts_mcp_servers_shell_shell_service.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115901_14_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-115901_15_docs_00_governance_governance_04_documentation-checks.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

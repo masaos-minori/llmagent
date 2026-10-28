@@ -103,9 +103,9 @@ Baseline recorded in Step 5: `radon cc` reports no change-relevant function at C
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the `get_resume_position` docstring | Pending | — | — | |
-| 2 | Run the validation plan and docs checkers | Pending | — | — | |
-| 3 | Deployment and verification hand-off | Pending | — | — | |
+| 1 | Rewrite the `get_resume_position` docstring | In Progress | — | — |  |
+| 2 | Run the validation plan and docs checkers | Pending | — | — |  |
+| 3 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -115,7 +115,7 @@ Baseline recorded in Step 5: `radon cc` reports no change-relevant function at C
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-120349_01_scripts_eventbus_delivery_repo.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -165,11 +165,11 @@ Baseline recorded in Step 5: `radon cc` reports `health_check` C (15) and no oth
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing timing and gauge tests | Pending | — | — | |
-| 2 | Fix the timing in `route_helpers.py` and the gauge in `broker.py` | Pending | — | — | |
-| 3 | Health contract and structural deployment gate with tests | Pending | — | — | |
-| 4 | Health and operations docs | Pending | — | — | |
-| 5 | Deployment and verification hand-off | Pending | — | — | |
+| 1 | Write the failing timing and gauge tests | In Progress | — | — |  |
+| 2 | Fix the timing in `route_helpers.py` and the gauge in `broker.py` | In Progress | — | — |  |
+| 3 | Health contract and structural deployment gate with tests | In Progress | — | — |  |
+| 4 | Health and operations docs | In Progress | — | — |  |
+| 5 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -179,7 +179,16 @@ Baseline recorded in Step 5: `radon cc` reports `health_check` C (15) and no oth
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-120038_01_scripts_eventbus_route_helpers.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-120038_02_scripts_eventbus_broker.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-120038_03_scripts_eventbus_health_route.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-120038_04_deploy_setup_services.sh.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-120038_05_tests_eventbus_test_eventbus_route_helpers_metrics.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-120038_06_tests_eventbus_test_eventbus_slow_consumer.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-120038_07_tests_eventbus_test_eventbus_health.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-120038_08_tests_deploy_test_setup_services_eventbus.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-120038_09_docs_24_eventbus_eventbus_10_health_endpoint.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-120038_10_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -154,10 +154,10 @@ Baseline recorded in Step 5: `radon cc` reported no function at C or above in `s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing concurrency, mapping and schema tests | Pending | — | — | |
-| 2 | Add the index, bump the version, map the violation | Pending | — | — | |
-| 3 | ADR-006 notes, schema doc and DLQ endpoint doc | Pending | — | — | |
-| 4 | Deployment and verification hand-off with backup and duplicate check | Pending | — | — | |
+| 1 | Write the failing concurrency, mapping and schema tests | In Progress | — | — |  |
+| 2 | Add the index, bump the version, map the violation | In Progress | — | — |  |
+| 3 | ADR-006 notes, schema doc and DLQ endpoint doc | In Progress | — | — |  |
+| 4 | Deployment and verification hand-off with backup and duplicate check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -167,7 +167,14 @@ Baseline recorded in Step 5: `radon cc` reported no function at C or above in `s
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-120147_01_scripts_eventbus_schema.sql.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-120147_02_scripts_eventbus_dlq_repo.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-120147_03_tests_eventbus_test_eventbus_requeue_edge_cases.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-120147_04_tests_eventbus_test_eventbus_schema_version.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-120147_05_tests_db_test_create_schema.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-120147_06_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-120147_07_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-120147_08_docs_24_eventbus_eventbus_04_dlq_endpoint.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

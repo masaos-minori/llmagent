@@ -180,11 +180,11 @@ Baseline recorded in Step 5: `radon cc` reports `_populate_token_maps` D (21) an
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Grant model and shared decision in `auth.py`, with principal tests | Pending | — | — | |
-| 2 | Subscribe route narrowing and tests | Pending | — | — | |
-| 3 | ACK/NACK pair authorization, `event_repo.py` helper, wiring and tests | Pending | — | — | |
-| 4 | ADR-013 and EventBus docs | Pending | — | — | |
-| 5 | Deployment and verification hand-off | Pending | — | — | |
+| 1 | Grant model and shared decision in `auth.py`, with principal tests | In Progress | — | — |  |
+| 2 | Subscribe route narrowing and tests | In Progress | — | — |  |
+| 3 | ACK/NACK pair authorization, `event_repo.py` helper, wiring and tests | In Progress | — | — |  |
+| 4 | ADR-013 and EventBus docs | In Progress | — | — |  |
+| 5 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -194,7 +194,21 @@ Baseline recorded in Step 5: `radon cc` reports `_populate_token_maps` D (21) an
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-114911_01_scripts_eventbus_auth.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-114911_02_scripts_eventbus_subscribe_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-114911_03_scripts_eventbus_ack_route.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-114911_04_scripts_eventbus_app.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-114911_05_scripts_eventbus_event_repo.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-114911_06_tests_eventbus_test_eventbus_auth.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-114911_07_tests_eventbus_test_eventbus_consumer_authorization.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-114911_08_tests_eventbus_test_eventbus_subscribe.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-114911_09_tests_eventbus_test_eventbus_ack_nack.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-114911_10_tests_eventbus_test_eventbus_ack_endpoint.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-114911_11_tests_eventbus_test_admin_topics_authorization.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-114911_12_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-114911_13_docs_24_eventbus_eventbus_02_api-reference-index.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-114911_14_docs_24_eventbus_eventbus_12_ack_nack_endpoints.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-114911_15_docs_24_eventbus_eventbus_08_reference_api.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

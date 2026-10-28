@@ -139,10 +139,10 @@ Baseline recorded in Step 5: `radon cc` reports no touched function in these thr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing queued-worker regression test | Pending | — | — | |
-| 2 | Add the post-lock guard, clear `app.state.db`, fix docstrings, add remaining tests | Pending | — | — | |
-| 3 | Correct the Shutdown section of the operations doc | Pending | — | — | |
-| 4 | Deployment and verification hand-off | Pending | — | — | |
+| 1 | Write the failing queued-worker regression test | In Progress | — | — |  |
+| 2 | Add the post-lock guard, clear `app.state.db`, fix docstrings, add remaining tests | In Progress | — | — |  |
+| 3 | Correct the Shutdown section of the operations doc | In Progress | — | — |  |
+| 4 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -152,7 +152,11 @@ Baseline recorded in Step 5: `radon cc` reports no touched function in these thr
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-115236_01_scripts_eventbus_route_helpers.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115236_02_scripts_eventbus_db_conn.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115236_03_scripts_eventbus_app.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115236_04_tests_eventbus_test_eventbus_shutdown.py.md | 1,2 | Procedure | Pending | — | — |
+| implementations/20261028-115236_05_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

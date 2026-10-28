@@ -159,11 +159,11 @@ Baseline recorded in Step 5: `radon cc` reports no function at B or above in `ru
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the fixture builder and confirm cross-directory import | Pending | — | — | |
-| 2 | Move the 103 default-reliant test calls to the fixture builder | Pending | — | — | |
-| 3 | Make the production builder strict, add rejection and guard tests | Pending | — | — | |
-| 4 | Align the shared types doc | Pending | — | — | |
-| 5 | Deployment and verification hand-off | Pending | — | — | |
+| 1 | Create the fixture builder and confirm cross-directory import | In Progress | — | — |  |
+| 2 | Move the 103 default-reliant test calls to the fixture builder | In Progress | — | — |  |
+| 3 | Make the production builder strict, add rejection and guard tests | In Progress | — | — |  |
+| 4 | Align the shared types doc | In Progress | — | — |  |
+| 5 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -173,7 +173,15 @@ Baseline recorded in Step 5: `radon cc` reports no function at B or above in `ru
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-120306_01_scripts_shared_runtime_tool.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-120306_02_tests_shared_runtime_tool_factory.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-120306_03_tests_shared_test_runtime_tool.py.md | 1,3 | Procedure | Pending | — | — |
+| implementations/20261028-120306_04_tests_shared_test_runtime_tool_registry.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-120306_05_tests_shared_test_tool_routing_validation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-120306_06_tests_agent_services_test_config_reload.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-120306_07_tests_integration_test_production_security_regression.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-120306_08_tests_shared_test_resource_scope.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-120306_09_docs_40_shared_shared_02_02_types_and_protocols-tool-and-execution-dto.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

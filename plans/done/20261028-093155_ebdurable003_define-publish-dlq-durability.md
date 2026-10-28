@@ -161,10 +161,10 @@ Baseline recorded in Step 5: `radon cc` reports no function in `dlq.py` or `ack_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add fault-injection and idempotency tests | Pending | — | — | |
-| 2 | Count inline failures, isolate sweep failures, handle committed-NACK promotion failure | Pending | — | — | |
-| 3 | Record the authority model and failure behavior in the three docs | Pending | — | — | |
-| 4 | Deployment and verification hand-off | Pending | — | — | |
+| 1 | Add fault-injection and idempotency tests | In Progress | — | — |  |
+| 2 | Count inline failures, isolate sweep failures, handle committed-NACK promotion failure | In Progress | — | — |  |
+| 3 | Record the authority model and failure behavior in the three docs | In Progress | — | — |  |
+| 4 | Deployment and verification hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -174,7 +174,14 @@ Baseline recorded in Step 5: `radon cc` reports no function in `dlq.py` or `ack_
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-115345_01_scripts_eventbus_dlq.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115345_02_scripts_eventbus_ack_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-115345_03_tests_eventbus_test_eventbus_dlq.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115345_04_tests_eventbus_test_eventbus_dlq_promotion.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115345_05_tests_eventbus_test_eventbus_publish.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-115345_06_docs_24_eventbus_eventbus_03_dlq_operations.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115345_07_docs_24_eventbus_eventbus_12_ack_nack_endpoints.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-115345_08_docs_24_eventbus_eventbus_09_publish_durability.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
