@@ -483,3 +483,41 @@ def test_sequential_publish_seq_matches_persistence_order(client: TestClient) ->
     seq_b = r_b.json()["seq"]
 
     assert seq_a < seq_b
+
+
+def test_duplicate_publish_after_jsonl_failure_returns_same_seq_and_does_not_backfill(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A retry of the same event after a failed JSONL append returns the same seq
+    and does not backfill the missing JSONL line (REQ-006)."""
+    original_open = Path.open
+
+    def failing_open(self: Any, *args: Any, **kwargs: Any) -> Any:
+        if "events.jsonl" in str(self):
+            raise OSError("disk full")
+        return original_open(self, *args, **kwargs)
+
+    ev = _event()
+    with patch.object(Path, "open", failing_open):
+        first = client.post("/publish", json=ev)
+    assert first.status_code == 200
+    first_seq = first.json()["seq"]
+
+    # Retry the identical event without the patch: idempotent, same seq, no backfill.
+    second = client.post("/publish", json=ev)
+    assert second.status_code == 200
+    assert second.json()["seq"] == first_seq
+
+    jsonl_path = tmp_path / "storage" / "events.jsonl"
+    if jsonl_path.exists():
+        assert ev["event_id"] not in jsonl_path.read_text()
+
+    replay = client.get(
+        "/replay",
+        params={"since_seq": 0, "format": "json"},
+        headers=eventbus_auth_headers("operator"),
+    )
+    assert replay.status_code == 200
+    body = replay.json()
+    event_ids = [e["event_id"] for e in body["items"]]
+    assert event_ids.count(ev["event_id"]) == 1

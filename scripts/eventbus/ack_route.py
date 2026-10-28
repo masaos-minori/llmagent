@@ -204,9 +204,18 @@ async def nack(
         ):
             from eventbus.dlq import is_promotable, promote_single  # noqa: PLC0415
 
-            promoted = is_promotable(db, event_id, cfg.max_retry) and promote_single(
-                db, cfg.deadletter_dir, event_id, consumer_failure_count
-            )
+            try:
+                promoted = is_promotable(
+                    db, event_id, cfg.max_retry
+                ) and promote_single(
+                    db, cfg.deadletter_dir, event_id, consumer_failure_count
+                )
+            except OSError:
+                logger.exception(
+                    "nack: inline DLQ promotion failed, deferred to sweep event_id=%s",
+                    event_id,
+                )
+                promoted = False
         return ("ok", consumer_failure_count, promoted)
 
     status, consumer_failure_count, promoted = await run_with_db_lock(_nack_and_promote)
