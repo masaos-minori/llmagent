@@ -106,7 +106,7 @@ async def test_shutdown_raises_when_lock_timeout_exceeded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """When the sweep still holds the lock when the shutdown timeout elapses,
-    shutdown must refuse to close the connection (REQ-001) by raising, rather
+    shutdown must refuse to close the connection by raising, rather
     than logging a warning and closing anyway (the removed fallback)."""
     from eventbus import app as eb_app
 
@@ -143,7 +143,7 @@ async def test_shutdown_raises_when_lock_timeout_exceeded(
 
 @pytest.mark.asyncio
 async def test_run_with_db_lock_refuses_after_shutdown_flag() -> None:
-    """REQ-004: once set_shutdown_flag() has run, run_with_db_lock() must raise
+    """Once set_shutdown_flag() has run, run_with_db_lock() must raise
     before spawning a worker thread, so no thread queues on the lock behind a
     connection that is about to be closed."""
     from eventbus import db_conn
@@ -158,7 +158,7 @@ async def test_run_with_db_lock_refuses_after_shutdown_flag() -> None:
 async def test_queued_worker_refuses_sql_after_shutdown_began(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """REQ-001: a worker admitted before shutdown that acquires the lock after the
+    """A worker admitted before shutdown that acquires the lock after the
     flag is set must raise the shutdown error and never run `func`."""
     from eventbus import db as eb_db
     from eventbus import db_conn
@@ -234,7 +234,7 @@ async def test_inflight_request_completes_before_connection_close() -> None:
 async def test_shutdown_clears_app_state_db(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-003: after shutdown the shared reference is cleared, so a later lookup
+    """After shutdown the shared reference is cleared, so a later lookup
     raises the explicit not-initialized error instead of returning a closed db."""
     from eventbus import app as eb_app
     from eventbus.route_helpers import app_get_db
