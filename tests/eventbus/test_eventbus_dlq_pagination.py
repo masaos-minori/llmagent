@@ -63,9 +63,9 @@ def _simulate_delivery(client: Any, event_id: str, consumer_id: str) -> None:
     """Insert a consumer_delivery record simulating one prior failed attempt.
 
     Seeds consumer_delivery_failure_count=1 with a mismatched last_nack_attempt
-    so a subsequent NACK is not treated as a REQ-001 repeat and instead brings
+    so a subsequent NACK is not treated as a repeat and instead brings
     the per-consumer count to max_retry(2), enabling per-consumer DLQ promotion
-    (REQ-002).
+    (ADR-006 INV-13).
     """
     import eventbus.app as eb_app
 
@@ -111,7 +111,7 @@ def test_dlq_pagination(client: TestClient) -> None:
     for event_id in events:
         _simulate_delivery(client, event_id, "consumer-A")
 
-    # Promote all to DLQ. Under per-consumer gating (REQ-002) a single consumer
+    # Promote all to DLQ. Under per-consumer gating (ADR-006 INV-13) a single consumer
     # reaching its own max_retry promotes; only the per-consumer failure count
     # gates promotion.
     nack_headers = {"Authorization": "Bearer consumer-token"}
@@ -142,7 +142,7 @@ def test_dlq_pagination(client: TestClient) -> None:
     assert body2["offset"] == 2
     assert len(body2["items"]) == min(2, max(0, body["total"] - 2))
 
-    # REQ-001: request-local consistency. Each /dlq response is internally consistent
+    # Request-local consistency. Each /dlq response is internally consistent
     # (its items fall within its own total-bounded window and are seq-ordered); the two
     # disjoint windows are NOT claimed to derive from one cross-request snapshot, which
     # the API does not provide (each request takes its own run_with_db_lock).
@@ -156,7 +156,7 @@ def test_dlq_pagination(client: TestClient) -> None:
 
 
 def test_dlq_pagination_concurrent_mutation(client: TestClient) -> None:
-    """REQ-001: each response is internally consistent under a concurrent mutation;
+    """Each response is internally consistent under a concurrent mutation;
     cross-request stability is not claimed."""
     events = []
     for _ in range(5):
@@ -215,7 +215,7 @@ def test_dlq_pagination_concurrent_mutation(client: TestClient) -> None:
 
 
 def test_dlq_pagination_no_string_timestamp_interpolation() -> None:
-    """REQ-005 static check: the requeue path must not interpolate a timestamp
+    """Static check: the requeue path must not interpolate a timestamp
     into SQL via f-string strftime(...); it binds now_iso() as a ? parameter."""
     repo_path = (
         Path(__file__).parent.parent.parent / "scripts" / "eventbus" / "dlq_repo.py"
