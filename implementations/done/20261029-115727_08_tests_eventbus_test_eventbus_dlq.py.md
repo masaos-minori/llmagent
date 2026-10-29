@@ -74,9 +74,9 @@ Append-only test addition; no fixture or helper changes.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Added audit assertion test |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row is the tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-29 | 2026-10-29 | This row is the tests test landed but was broken at archive time: it POSTed to nonexistent /events/{id}/nack (404). Fixed 2026-10-29: canonical /nack query pattern with unique idempotency keys, range(2) (inline promotion at threshold 2; third nack would 409 on DLQ'd event) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-29 | 2026-10-29 | after fix: file 26 passed / 0 skipped; full tests/eventbus 439 passed / 0 skipped; ruff + mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

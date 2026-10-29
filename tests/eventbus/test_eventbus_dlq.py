@@ -943,11 +943,14 @@ def test_requeue_audit_record_carries_actor_and_request_id(
     assert resp.status_code == 200
     event_id = ev["event_id"]
 
-    # Nack the event until it lands in the DLQ
-    for _ in range(3):
+    # Nack the event until it lands in the DLQ: inline promotion triggers at the
+    # max_retry threshold (2); each nack needs a unique idempotency key (this
+    # file's canonical pattern, e.g. test_inline_dlq_promotion_on_nack). A third
+    # nack is not attempted: the event is already in the DLQ (nack returns 409).
+    for i in range(2):
         resp = client.post(
-            f"/events/{event_id}/nack",
-            params={"consumer_id": "test-consumer"},
+            f"/nack?event_id={event_id}&consumer_id=test-consumer"
+            f"&idempotency_key=requeue-audit-nack-key-{i}",
             headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200

@@ -41,6 +41,19 @@ tests.
   `sqlite3.Row` between lifecycle phases, matching the existing unit-test pattern
   (`:320-322`).
 - Baseline: `tests/eventbus` 411 passed / 1 skipped; the skip resolution removes that skip.
+- Verification corrections (adversarial re-verification on 2026-10-29 against the landed
+  implementation from origin commit `c456138f8`):
+  - Fixture registration: `eventbus_two_lifecycle_clients` lives in `eventbus_helpers.py`
+    as a plain generator (`:181`); the test module registers a local delegating
+    `@pytest.fixture` (`:113`) instead of importing the name directly, matching the repo
+    pattern (decorating or importing the helper caused ruff F811 shadow errors).
+  - T4/T5 expectations were wrong against verified resume semantics
+    (`delivery_repo.get_resume_position` `:261-306`): replay has no ack filtering
+    (at-least-once redelivery), a consumer that acked a middle seq resumes at the lowest
+    unacked seq, and a consumer with no offset resumes from 0. Corrected in the Details
+    rows below; T5 renamed `test_restart_new_consumer_starts_from_zero`.
+  - Skip resolution landed with the bounded read plus `headers=eventbus_auth_headers(
+    "consumer")` on the `/subscribe` call (CONSUMER role required, `app.py`).
 - Overlap: procedure `20261029-111247_01` (fixture in `eventbus_helpers.py`) must land
   first. `ebtestdrift007` lists this file too; per both plans, ebresumetest004 lands first.
 
@@ -127,8 +140,8 @@ def test_restart_<scenario>(
 | T1 | `test_restart_unacked_redelivery_single_consumer` (new) | publish 2 on topic `t`; `_reconnect_ids` drains `[1,2]`; `_ack` first event only | `_reconnect_ids` returns `[2]` only | REQ-002 |
 | T2 | `test_restart_resume_position_skips_acked` (new) | publish 3; `_ack` events 1-2 | `_reconnect_ids` returns `[3]`; `consumer_offsets` row equals seq 2 via direct sqlite read | REQ-002 |
 | T3 | `test_restart_midsequence_ack_resume_position` (new) | publish 3; `_ack` events 2 and 3 (offset high-water = seq 3) | `_reconnect_ids` starts at the lowest unacked seq → `[1,2,3]` delivery of the unacked set; DB offset equals seq 3 | REQ-002 |
-| T4 | `test_restart_two_consumers_independent_resume` (new) | publish 3; consumer A `_ack` event 1; consumer B `_ack` event 2 | `_reconnect_ids(c2, "A")` excludes event 1; `_reconnect_ids(c2, "B")` excludes event 2; two independent `consumer_offsets` rows | REQ-002 |
-| T5 | `test_restart_new_consumer_sees_only_new` (new) | publish 2; `_ack` both with `svc-old` | publish event 3 on client_2, then `_reconnect_ids(c2, "svc-new")` returns only event 3's seq | REQ-002 |
+| T4 | `test_restart_two_consumers_independent_resume` (new) | publish 3; `_ack` event 1 with `A`; `_ack` event 2 with `B` | `_reconnect_ids(c2, "A")` returns `[2,3]` (excludes acked event 1); `_reconnect_ids(c2, "B")` returns `[1,2,3]` (seq 1 unacked below offset 2 → resume restarts at 1, no ack filtering); two independent `consumer_offsets` rows | REQ-002 |
+| T5 | `test_restart_new_consumer_starts_from_zero` (new; renamed from `test_restart_new_consumer_sees_only_new` after semantics verification) | publish 2; `_ack` both with `svc-old` | publish event 3 on client_2, then `_reconnect_ids(c2, "svc-new")` returns `[1,2,3]`: no offset row → resume position 0 → all events redelivered | REQ-002 |
 | T6 | `test_restart_reconnect_consumer_id_reuse` (new) | publish 2; `_ack` event 1 with `svc-reuse`; direct sqlite read of `consumer_offsets.offset` equals event 1's seq | `_reconnect_ids(c2, "svc-reuse")` returns `[2]` | REQ-002 |
 | T7 | `test_restart_offset_gap_no_silent_skip` (new) | publish and `_ack` 3 events (offset = 3); delete the `consumer_delivery` row of seq 2 via direct sqlite between lifecycles | `_reconnect_ids` returns `[2]` (gap event replayed, no silent skip to 3); `consumer_offsets.offset` still 3 | REQ-002, REQ-006 |
 | T8 | `test_two_lifecycle_probe_fresh_state` (new) (REQ-001 probe; runs first in file order) | one `_reconnect_ids` read on topic `t` | after re-entry and both exits: db handles and brokers differ, first handle `_shutting_down` is True | REQ-001, REQ-003, AC-2 |
@@ -184,10 +197,10 @@ idle-timeout termination (`REQ-006`; AC-4).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-29 | 2026-10-29 | landed via origin c456138f8 (fixture + probe + T1-T7 + skip resolution + 3 renames); T4/T5 expectations corrected post-landing to verified resume semantics, T5 renamed test_restart_new_consumer_starts_from_zero |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-29 | 2026-10-29 | file: 17 collected, 17 passed, 0 skipped, deterministic across double runs; collect diff 8 new + 3 renames vs baseline |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-29 | 2026-10-29 | tests/eventbus 439 passed / 0 skipped; ruff check + format clean; mypy tests/eventbus clean (34 files) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-29 | 2026-10-29 | no docs in scope per Out of Scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

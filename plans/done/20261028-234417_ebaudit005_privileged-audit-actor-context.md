@@ -243,10 +243,10 @@ describes these record fields (grep verified 2026-10-28).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Additive actor field + shape unit tests (REQ-002, REQ-003 partial, REQ-007) | In Progress | 2026-10-29 | — |  |
-| 2 | Wrapper + call-site context plumbing (REQ-001, REQ-002, REQ-004) | In Progress | 2026-10-29 | — |  |
-| 3 | error_type docstring clarification + route tests + docs (REQ-003, REQ-005, REQ-006) | In Progress | 2026-10-29 | — | UNK-01 resolved 2026-10-29; no longer blocked |
-| 4 | Verification + deploy (REQ-001..REQ-007) | Pending | — | — |  |
+| 1 | Additive actor field + shape unit tests (REQ-002, REQ-003 partial, REQ-007) | Completed | 2026-10-29 | 2026-10-29 | procedures 20261029-115727_01..10 landed (origin 6eacab82d) and archived; 115727_08 dlq audit test fixed post-landing (canonical /nack route + idempotency keys, range(2)) |
+| 2 | Wrapper + call-site context plumbing (REQ-001, REQ-002, REQ-004) | Completed | 2026-10-29 | 2026-10-29 | procedures 20261029-115727_01..10 landed (origin 6eacab82d) and archived; 115727_08 dlq audit test fixed post-landing (canonical /nack route + idempotency keys, range(2)) |
+| 3 | error_type docstring clarification + route tests + docs (REQ-003, REQ-005, REQ-006) | Completed | 2026-10-29 | 2026-10-29 | UNK-01 resolved 2026-10-29; no longer blocked procedures 20261029-115727_01..10 landed (origin 6eacab82d) and archived; 115727_08 dlq audit test fixed post-landing (canonical /nack route + idempotency keys, range(2)) |
+| 4 | Verification + deploy (REQ-001..REQ-007) | In Progress | — | — | verification complete (439 passed / 0 skipped); deploy step not run this batch |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -256,16 +256,16 @@ describes these record fields (grep verified 2026-10-28).
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261029-115727_01_scripts_eventbus_audit.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261029-115727_02_scripts_eventbus_app.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-115727_03_scripts_eventbus_admin_route.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-115727_04_scripts_eventbus_dlq_route.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-115727_05_scripts_eventbus_replay_route.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-115727_06_tests_eventbus_test_eventbus_audit.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261029-115727_07_tests_eventbus_test_admin_topics_authorization.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261029-115727_08_tests_eventbus_test_eventbus_dlq.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261029-115727_09_tests_eventbus_test_eventbus_replay_pagination.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261029-115727_10_docs_24_eventbus_eventbus_08_reference_api.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261029-115727_01_scripts_eventbus_audit.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261029-115727_02_scripts_eventbus_app.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-115727_03_scripts_eventbus_admin_route.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-115727_04_scripts_eventbus_dlq_route.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-115727_05_scripts_eventbus_replay_route.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-115727_06_tests_eventbus_test_eventbus_audit.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261029-115727_07_tests_eventbus_test_admin_topics_authorization.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261029-115727_08_tests_eventbus_test_eventbus_dlq.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261029-115727_09_tests_eventbus_test_eventbus_replay_pagination.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261029-115727_10_docs_24_eventbus_eventbus_08_reference_api.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

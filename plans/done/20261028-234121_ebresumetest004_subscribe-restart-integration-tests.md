@@ -206,9 +206,9 @@ N/A: Path A tests-only; none of the three target files is deployed by `deploy.sh
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Two-lifecycle fixture + probe (REQ-001, REQ-003) | In Progress | — | — |  |
-| 2 | Scenario tests, renames, skip resolution (REQ-002, REQ-004..REQ-006) | In Progress | — | — |  |
-| 3 | Verification gates (no deploy step; tests only) | Pending | — | — |  |
+| 1 | Two-lifecycle fixture + probe (REQ-001, REQ-003) | Completed | — | 2026-10-29 | fixture + probe landed (origin c456138f8); probe passed, no lifecycle defect |
+| 2 | Scenario tests, renames, skip resolution (REQ-002, REQ-004..REQ-006) | Completed | — | 2026-10-29 | T1-T7 + renames + skip resolution landed; T4/T5 expectations corrected post-landing to verified resume semantics (T5 renamed test_restart_new_consumer_starts_from_zero) |
+| 3 | Verification gates (no deploy step; tests only) | Completed | — | 2026-10-29 | tests/eventbus 439 passed / 0 skipped, deterministic double runs; ruff + mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -218,9 +218,9 @@ N/A: Path A tests-only; none of the three target files is deployed by `deploy.sh
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261029-111247_01_tests_eventbus_eventbus_helpers.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261029-111247_02_tests_eventbus_test_eventbus_restart_resume.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261029-111247_03_tests_eventbus_test_eventbus_replay_subscribe.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-111247_01_tests_eventbus_eventbus_helpers.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261029-111247_02_tests_eventbus_test_eventbus_restart_resume.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261029-111247_03_tests_eventbus_test_eventbus_replay_subscribe.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

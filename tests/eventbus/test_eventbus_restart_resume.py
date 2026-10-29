@@ -695,7 +695,7 @@ def test_restart_two_consumers_independent_resume(
     with open_client() as client_1:
         ev1 = _pub(client_1)
         ev2 = _pub(client_1)
-        _pub(client_1)  # third event not acked by either consumer
+        ev3 = _pub(client_1)  # third event not acked by either consumer
         # Consumer A acks event 1
         client_1.post(
             f"/events/{ev1['event_id']}/ack?consumer_id=A",
@@ -712,9 +712,11 @@ def test_restart_two_consumers_independent_resume(
         replayed_a = _reconnect_ids(client_2, "A")
         assert ev1["seq"] not in replayed_a
 
-        # Consumer B reconnect: should exclude event 2
+        # Consumer B reconnect: acking seq 2 leaves seq 1 unacked below the stored
+        # offset, so resume restarts at the lowest unacked seq and the at-least-once
+        # replay redelivers 1,2,3 with no ack filtering (delivery_repo.get_resume_position).
         replayed_b = _reconnect_ids(client_2, "B")
-        assert ev2["seq"] not in replayed_b
+        assert replayed_b == [ev1["seq"], ev2["seq"], ev3["seq"]]
 
     # Verify two independent consumer_offsets rows via direct sqlite read
     import sqlite3
@@ -741,11 +743,12 @@ def test_restart_two_consumers_independent_resume(
     assert db_conn.is_shutting_down()
 
 
-def test_restart_new_consumer_sees_only_new(
+def test_restart_new_consumer_starts_from_zero(
     eventbus_two_lifecycle_clients: Any,
     tmp_path: Path,
 ) -> None:
-    """Old lifecycle acks all events; new lifecycle publishes one more → new consumer sees only it."""
+    """A consumer with no stored offset resumes from 0: replay redelivers every event,
+    including events already acked by a different consumer (at-least-once semantics)."""
     open_client, snapshots = eventbus_two_lifecycle_clients
 
     with open_client() as client_1:
@@ -764,9 +767,9 @@ def test_restart_new_consumer_sees_only_new(
     with open_client() as client_2:
         # Publish a new event on the fresh lifecycle
         ev3 = _pub(client_2)
-        # New consumer should see only the new event
+        # svc-new has no consumer_offsets row → resume position 0 → all events redelivered
         replayed = _reconnect_ids(client_2, "svc-new")
-        assert replayed == [ev3["seq"]]
+        assert replayed == [ev1["seq"], ev2["seq"], ev3["seq"]]
 
     # Fresh-state gate (REQ-003, AC-2)
     (db_1, broker_1), (db_2, broker_2) = snapshots
