@@ -133,8 +133,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Modify `delete_memories_before()` guards + auxiliary-cleanup keying (scripts/db/store_impl.py) | Pending | — | — | REQ-001, REQ-002, REQ-003 |
-| 2 | Add regression tests; adapt mock tests (tests/db/test_db_store_impl.py) | Pending | — | — | REQ-005, REQ-004 |
+| 1 | Modify `delete_memories_before()` guards + auxiliary-cleanup keying (scripts/db/store_impl.py) | In Progress | — | — | REQ-001, REQ-002, REQ-003 |
+| 2 | Add regression tests; adapt mock tests (tests/db/test_db_store_impl.py) | In Progress | — | — | REQ-005, REQ-004 |
 | 3 | Run validation gates; commit/push; deploy hand-off | Pending | — | — | REQ-004; deploy is user-gated |
 
 ### Blocker Log
@@ -145,7 +145,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-134342_01_scripts_db_store_impl.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-134342_02_tests_db_test_db_store_impl.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -168,3 +169,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Constraints / Out of Scope | scripts/db/store_impl.py | Phase 1 | AC-5 | T3, T4 | Explicit in issue |
 | REQ-004 | Constraints / Out of Scope | tests/db/test_db_store_impl.py | Phase 2 | AC-5 | T3, T4 | Explicit in issue |
 | REQ-005 | Testing Expectations / Required Changes | tests/db/test_db_store_impl.py | Phase 2 | AC-1, AC-2 | T1, T2 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-134342 -->
