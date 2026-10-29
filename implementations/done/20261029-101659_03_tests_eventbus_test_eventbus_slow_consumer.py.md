@@ -121,10 +121,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the four gauge assertions and replace the recovery test (Implementation > Procedure/Method/Details) | Pending | — | — | Needs seq 01 first |
-| 2 | Add the pure-read and health-refresh tests (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
+| 1 | Update the four gauge assertions and replace the recovery test (Implementation > Procedure/Method/Details) | Completed | 20261029-114544 | 20261029-115335 | Needs seq 01 first Changed: tests/eventbus/test_eventbus_slow_consumer.py (4 assertions to explicit refresh, recovery test replaced, 2 tests added). Pre-edit stale check showed only the earlier-seq name; the later mismatch was the replaced test name |
+| 2 | Add the pure-read and health-refresh tests (Validation plan) | Completed | 20261029-114544 | 20261029-115335 | targeted: 22 passed, repeated with and without randomization |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-114544 | 20261029-115335 | ruff, format, mypy (475 files), lint-imports, bandit, module-size, reference-table clean; full suite (run once for seq 01-03 together, after seq 03) 10396 passed 8 skipped 15 deselected; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-115335 | 20261029-115335 | Tests-only row N/A: tests-only row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

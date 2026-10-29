@@ -103,10 +103,10 @@ Revert the commit (single-file change); seq 02 depends on the helper, so revert 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extract `_build_principal_map` (new) and rewrite `_populate_token_maps` (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Run the existing auth and config tests (Validation plan; no new test in this row) | Pending | — | — | New tests are in seq 03 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No doc change; helper is private |
+| 1 | Extract `_build_principal_map` (new) and rewrite `_populate_token_maps` (Implementation > Procedure/Method/Details) | Completed | 20261029-112055 | 20261029-112852 | Changed: scripts/eventbus/auth.py. stale check: clean |
+| 2 | Run the existing auth and config tests (Validation plan; no new test in this row) | Completed | 20261029-112055 | 20261029-112852 | New tests are in seq 03 targeted: 120 passed (auth, config, consumer_authorization, admin tests); no new test in this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-112055 | 20261029-112852 | ruff, mypy (475 files), lint-imports, bandit, module-size, reference-table clean; full suite 10391 passed 8 skipped 15 deselected; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-112852 | 20261029-112852 | No doc change; helper is private N/A: no docs/00_index.md row maps this private helper to a doc needing change; helper skipped by the reference-table generator |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

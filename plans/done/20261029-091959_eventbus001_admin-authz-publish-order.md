@@ -127,9 +127,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Split principal-map build from publish (scripts/eventbus/auth.py) | In Progress | — | — | REQ-002 |
-| 2 | Reorder publish steps in `update_topics_authorization()` (scripts/eventbus/admin_route.py) | In Progress | — | — | REQ-001, REQ-004 |
-| 3 | Add failing-build and no-op regression tests (tests/eventbus/test_admin_topics_authorization.py) | In Progress | — | — | REQ-003, REQ-004 |
+| 1 | Split principal-map build from publish (scripts/eventbus/auth.py) | Completed | — | 20261029-112852 | REQ-002 |
+| 2 | Reorder publish steps in `update_topics_authorization()` (scripts/eventbus/admin_route.py) | Completed | — | 20261029-113618 | REQ-001, REQ-004 |
+| 3 | Add failing-build and no-op regression tests (tests/eventbus/test_admin_topics_authorization.py) | Completed | — | 20261029-114417 | REQ-003, REQ-004 |
 | 4 | Run validation plan; deploy hand-off | Pending | — | — | Deploy is user-gated |
 
 ### Blocker Log

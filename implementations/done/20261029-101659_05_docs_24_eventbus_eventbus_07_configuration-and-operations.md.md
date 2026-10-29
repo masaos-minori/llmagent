@@ -71,8 +71,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the two wording replacements (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Apply the two wording replacements (Implementation > Procedure/Method/Details) | Completed | 20261029-115800 | 20261029-115441 | Changed: docs/24_eventbus/eventbus_07_configuration-and-operations.md (two threshold wordings). Matches the Event Bus (config/ops) row; stale check: clean |
+| 2 | Run the documentation checkers named in Validation plan | Completed | 20261029-115441 | 20261029-115441 | check_docs_quality, structure, content_policy (also --strict), japanese, needs_confirmation_inventory, consistency --domain eventbus: all pass; docs-only row, full suite not re-run (code validated by seq 01-03) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

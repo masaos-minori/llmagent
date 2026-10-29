@@ -140,10 +140,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestPublishOrder` (new) with the three tests (Implementation > Procedure/Method/Details) | Pending | — | — | Needs seq 01 and seq 02 first |
-| 2 | Run the new and existing tests (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
+| 1 | Add `TestPublishOrder` (new) with the three tests (Implementation > Procedure/Method/Details) | Completed | 20261029-113627 | 20261029-114417 | Needs seq 01 and seq 02 first Changed: tests/eventbus/test_admin_topics_authorization.py (TestPublishOrder, 3 tests). failure-path test confirmed failing on the old order, passing on the new |
+| 2 | Run the new and existing tests (Validation plan) | Completed | 20261029-113627 | 20261029-114417 | targeted: 18 passed (3 runs, randomized and -p no:randomly) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-113627 | 20261029-114417 | ruff, format, mypy (475 files), mock-patch-target check clean; full suite run; diff-cover: tests only, no source file changed in this cycle (N/A) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-114417 | 20261029-114417 | Tests-only row N/A: tests-only row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

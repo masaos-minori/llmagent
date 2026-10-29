@@ -78,10 +78,10 @@ N/A: revert the commit (single-line change); if seq 01 is reverted too, this row
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Switch `health_check()` to the explicit refresh (Implementation > Procedure/Method/Details) | Pending | — | — | Needs seq 01 first |
-| 2 | Run the health and slow-consumer tests (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Docs are seq 04 and 05 |
+| 1 | Switch `health_check()` to the explicit refresh (Implementation > Procedure/Method/Details) | Completed | 20261029-114512 | 20261029-115335 | Needs seq 01 first Changed: scripts/eventbus/health_route.py. stale check (before edit): clean after seq 01 |
+| 2 | Run the health and slow-consumer tests (Validation plan) | Completed | 20261029-114512 | 20261029-115335 | targeted: 22 passed (shared run with seq 01 and 03) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-114512 | 20261029-115335 | ruff, format, mypy (475 files), lint-imports, bandit, module-size, reference-table clean; full suite (run once for seq 01-03 together, after seq 03) 10396 passed 8 skipped 15 deselected; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-115335 | 20261029-115335 | Docs are seq 04 and 05 N/A: docs are handled by seq 04 and 05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

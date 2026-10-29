@@ -149,10 +149,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Split pure read from explicit refresh (scripts/eventbus/broker.py) | In Progress | — | — | REQ-001, REQ-002 |
-| 2 | `health_check()` uses the explicit refresh (scripts/eventbus/health_route.py) | In Progress | — | — | REQ-002, REQ-005 |
-| 3 | Update and add slow-consumer tests (tests/eventbus/test_eventbus_slow_consumer.py) | In Progress | — | — | REQ-003 |
-| 4 | Update gauge-trigger and threshold wording (docs/24_eventbus/eventbus_10_health_endpoint.md, docs/24_eventbus/eventbus_07_configuration-and-operations.md) | In Progress | — | — | REQ-004 |
+| 1 | Split pure read from explicit refresh (scripts/eventbus/broker.py) | Completed | — | 20261029-115335 | REQ-001, REQ-002 |
+| 2 | `health_check()` uses the explicit refresh (scripts/eventbus/health_route.py) | Completed | — | 20261029-115335 | REQ-002, REQ-005 |
+| 3 | Update and add slow-consumer tests (tests/eventbus/test_eventbus_slow_consumer.py) | Completed | — | 20261029-115335 | REQ-003 |
+| 4 | Update gauge-trigger and threshold wording (docs/24_eventbus/eventbus_10_health_endpoint.md, docs/24_eventbus/eventbus_07_configuration-and-operations.md) | Completed | — | 20261029-115441 | REQ-004 |
 | 5 | Run validation plan; deploy hand-off | Pending | — | — | Deploy is user-gated |
 
 ### Blocker Log

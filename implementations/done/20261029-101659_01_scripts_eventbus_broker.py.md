@@ -97,10 +97,10 @@ Revert the commit; seq 02 and seq 03 depend on the new method, so revert them to
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Split the read from the refresh and update `unsubscribe()` (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Tests are updated in seq 03 (Validation plan) | Pending | — | — | Old gauge assertions fail until seq 03 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Docs are seq 04 and 05 |
+| 1 | Split the read from the refresh and update `unsubscribe()` (Implementation > Procedure/Method/Details) | Completed | 20261029-114454 | 20261029-115335 | Changed: scripts/eventbus/broker.py. stale check (before edit): clean |
+| 2 | Tests are updated in seq 03 (Validation plan) | Completed | 20261029-114454 | 20261029-115335 | Old gauge assertions fail until seq 03 targeted: 22 passed (slow consumer and health tests, seq 01-03 applied together; the old gauge assertions fail by design until seq 03) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-114454 | 20261029-115335 | ruff, format, mypy (475 files), lint-imports, bandit, module-size, reference-table clean; full suite (run once for seq 01-03 together, after seq 03) 10396 passed 8 skipped 15 deselected; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-115335 | 20261029-115335 | Docs are seq 04 and 05 N/A: docs are handled by seq 04 and 05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

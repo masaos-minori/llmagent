@@ -88,10 +88,10 @@ Revert the commit; seq 01's helper can stay in place because nothing else calls 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reorder the publish block and update the import (Implementation > Procedure/Method/Details) | Pending | — | — | Needs seq 01 first |
-| 2 | Run the admin tests; regression tests are added by seq 03 (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No doc states the old order |
+| 1 | Reorder the publish block and update the import (Implementation > Procedure/Method/Details) | Completed | 20261029-112901 | 20261029-113618 | Needs seq 01 first Changed: scripts/eventbus/admin_route.py. stale check: clean (after seq 01) |
+| 2 | Run the admin tests; regression tests are added by seq 03 (Validation plan) | Completed | 20261029-112901 | 20261029-113618 | targeted: 106 passed (admin, auth, config tests); regression tests are added by seq 03 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-112901 | 20261029-113618 | ruff, mypy (475 files), lint-imports, bandit, module-size, reference-table clean; full suite 10391 passed 8 skipped 15 deselected; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-113618 | 20261029-113618 | No doc states the old order N/A: no docs/00_index.md row maps this change to a doc; no doc states the old publish order (checked earlier in plan) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
