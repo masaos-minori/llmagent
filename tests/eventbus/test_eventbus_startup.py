@@ -155,7 +155,7 @@ def _free_loopback_port() -> int:
 
 def test_main_post_start_verification_binds_loopback(tmp_path: Path) -> None:
     """Real subprocess integration test for `_main()`'s post-start socket
-    verification (REQ-004): the actual bound socket is loopback, confirmed
+    verification (ADR-013 INV-06): the actual bound socket is loopback, confirmed
     by connecting to it, not merely by reading the config value back."""
     port = _free_loopback_port()
     (tmp_path / "storage").mkdir()
@@ -210,11 +210,11 @@ def test_main_post_start_verification_binds_loopback(tmp_path: Path) -> None:
 
 
 def test_main_failing_lifespan_exits_without_attributeerror(tmp_path: Path) -> None:
-    """Real subprocess integration test for a failing Event Bus lifespan (REQ-002,
-    AC-1, AC-4): with a missing envelope schema the uvicorn lifespan fails at the
-    schema read, so `_main()`'s post-start override must return cleanly instead of
-    raising a secondary `AttributeError` for the missing `self.servers`. Asserts
-    both halves of AC-1: the real cause is logged and no `AttributeError` surfaces,
+    """Real subprocess integration test for a failing Event Bus lifespan: with a
+    missing envelope schema the uvicorn lifespan fails at the schema read, so
+    `_main()`'s post-start override must return cleanly instead of raising a
+    secondary `AttributeError` for the missing `self.servers`. Asserts both halves
+    of the contract: the real cause is logged and no `AttributeError` surfaces,
     and the process still exits non-zero."""
     port = _free_loopback_port()
     config_path = tmp_path / "eventbus.toml"
@@ -256,7 +256,7 @@ def test_main_failing_lifespan_exits_without_attributeerror(tmp_path: Path) -> N
             proc.wait(timeout=5.0)
 
 
-# ── Startup schema shape gate (REQ-002: a matching version stamp alone is refused) ──
+# ── Startup schema shape gate (a matching version stamp alone is refused) ──
 
 
 def _stamped_database(tmp_path: Path, name: str, ddl: str) -> Path:
@@ -285,7 +285,7 @@ def test_canonical_stamped_database_passes_the_startup_shape_gate(
 
 def test_malformed_stamped_database_missing_index_is_refused(tmp_path: Path) -> None:
     """A database stamped with the current version but missing a required index is
-    refused at open_db: the stamp alone does not prove the shape (REQ-002)."""
+    refused at open_db: the stamp alone does not prove the shape."""
     ddl = build_eventbus_schema_sql().replace(
         "CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);", ""
     )
@@ -307,7 +307,7 @@ def test_malformed_stamped_database_changed_nullability_is_refused(
         open_db(str(path))
 
 
-# ── Real-subprocess startup gate tests (REQ-002 reject, REQ-004 readiness) ──
+# ── Real-subprocess startup gate tests (startup failure and readiness) ──
 
 
 def _launch_eventbus_subprocess(config_path: Path) -> subprocess.Popen[str]:
@@ -354,8 +354,8 @@ def _write_subprocess_config(
 
 
 def test_main_malformed_stamped_db_rejected_at_startup(tmp_path: Path) -> None:
-    """A correctly-stamped-but-malformed database must fail the real lifespan
-    (REQ-002): the subprocess exits non-zero with the startup-failure output."""
+    """A correctly-stamped-but-malformed database must fail the real lifespan:
+    the subprocess exits non-zero with the startup-failure output."""
     port = _free_loopback_port()
     ddl = build_eventbus_schema_sql().replace(
         "CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);", ""
@@ -375,8 +375,8 @@ def test_main_malformed_stamped_db_rejected_at_startup(tmp_path: Path) -> None:
 
 def test_main_canonical_db_passes_readiness_gate(tmp_path: Path) -> None:
     """A canonical database reaches the provisional readiness signal via the real
-    /health body: db == ok AND dlq_task == running (REQ-004). The HTTP status is
-    not asserted, mirroring the deploy gate's capacity-only 503 tolerance."""
+    /health body: db == ok AND dlq_task == running. The HTTP status is not
+    asserted, mirroring the deploy gate's capacity-only 503 tolerance."""
     port = _free_loopback_port()
     db_path = tmp_path / "eventbus.sqlite"
     open_db(str(db_path)).close()  # canonical schema, stamped
