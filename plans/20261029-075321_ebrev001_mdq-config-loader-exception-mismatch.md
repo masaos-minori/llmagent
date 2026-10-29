@@ -47,7 +47,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/mcp_servers/mdq/mdq_server.py | Modify | Replace the stale `except (FileNotFoundError, KeyError, TypeError)` in `_load_auth_token()` with the loader's real config error types, update its docstring, and rewrite the misleading module comment | REQ-001, REQ-002 | `_load_auth_token()` at `mdq_server.py:72-78` with stale tuple at line 76; module-scope call at line 81; false comment at lines 84-87 (checked in Step 2) | `TestMdqAuthStartGate` in tests/mcp_servers/mdq/test_mdq_authentication.py, new tests in tests/mcp_servers/mdq/test_mdq_config.py | Verified |
+| scripts/mcp_servers/mdq/mdq_server.py | Modify | Replace the stale `except (FileNotFoundError, KeyError, TypeError)` in `_load_auth_token()` with the loader's real config error types, update its docstring, and rewrite the misleading module comment | REQ-001, REQ-002 | `_load_auth_token()` at `mdq_server.py:72-78` with stale tuple at line 76; module-scope call at line 81; false comment at lines 84-87 (checked in Step 2) | `TestStartupRequiresToken` in tests/mcp_servers/mdq/test_mdq_authentication.py, new tests in tests/mcp_servers/mdq/test_mdq_config.py | Verified |
 | scripts/mcp_servers/mdq/health_check.py | Modify | Extend the `except` tuple in `_collect_dependencies()` to cover `ConfigMissingError` / `ConfigParseError` / `ConfigReadError` | REQ-003 | `_collect_dependencies()` at `health_check.py:113`, config read at line 143, stale tuple at line 169 (checked in Step 2) | new `_collect_dependencies` regression test in tests/mcp_servers/mdq/test_mdq_config.py | Verified |
 | tests/mcp_servers/mdq/test_mdq_config.py | Modify | Add the two missing-config regression tests (no existing test exercises either caller's exception path) | REQ-004 | file exists with config-fallback tests (`test_mdq_config.py:129 test_missing_config_file_falls_back_to_defaults` covers `MdqService`, not `_load_auth_token` / `_collect_dependencies`); grep found no test referencing either symbol (checked in Step 2) | new tests `T1`, `T2` | Verified |
 
@@ -64,7 +64,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - `AC-1` (REQ-001): with `ConfigLoader.load` raising `ConfigMissingError`, `_load_auth_token()` returns `""` instead of raising.
 - `AC-2` (REQ-002): the `mdq_server.py` module comment and `_load_auth_token()` docstring match actual behavior; no unqualified "never raises at import" claim remains in the module.
 - `AC-3` (REQ-003): with `ConfigLoader.load` raising `ConfigMissingError`, `_collect_dependencies()` returns without raising, with `deps["config"]` recorded and `mdq_cfg` empty.
-- `AC-4` (REQ-001, REQ-003): fail-closed behavior preserved — an empty token still makes the posture/startup gate refuse to start (existing `TestMdqAuthStartGate` tests stay green); `uv run pytest tests/mcp_servers/mdq` passes; ruff / mypy / bandit `-ll` gates stay clean; `scripts/shared/config_loader.py` and `scripts/shared/config_errors.py` are not modified.
+- `AC-4` (REQ-001, REQ-003): fail-closed behavior preserved — an empty token still makes the posture/startup gate refuse to start (existing `TestStartupRequiresToken` tests stay green); `uv run pytest tests/mcp_servers/mdq` passes; ruff / mypy / bandit `-ll` gates stay clean; `scripts/shared/config_loader.py` and `scripts/shared/config_errors.py` are not modified.
 
 ## Tests
 - `T1` (REQ-001, REQ-004): unit test in `tests/mcp_servers/mdq/test_mdq_config.py` — monkeypatch `ConfigLoader.load` to raise `ConfigMissingError`, assert `mdq_server._load_auth_token()` returns `""`.
@@ -140,8 +140,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix both catch lists + module comment (scripts/mcp_servers/mdq/mdq_server.py, scripts/mcp_servers/mdq/health_check.py) | Pending | — | — | REQ-001, REQ-002, REQ-003 |
-| 2 | Add regression tests (tests/mcp_servers/mdq/test_mdq_config.py) | Pending | — | — | REQ-004 |
+| 1 | Fix both catch lists + module comment (scripts/mcp_servers/mdq/mdq_server.py, scripts/mcp_servers/mdq/health_check.py) | In Progress | — | — | REQ-001, REQ-002, REQ-003 |
+| 2 | Add regression tests (tests/mcp_servers/mdq/test_mdq_config.py) | In Progress | — | — | REQ-004 |
 | 3 | Run validation gates; commit/push; deploy hand-off incl. mcp_mdq binary rebuild | Pending | — | — | REQ-004; deploy is user-gated |
 
 ### Blocker Log
@@ -152,7 +152,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-135744_01_scripts_mcp_servers_mdq_mdq_server.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-135744_02_scripts_mcp_servers_mdq_health_check.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-135744_03_tests_mcp_servers_mdq_test_mdq_config.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -171,3 +173,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-002 | Problem (comment quote) / Required Changes; comment confirmed at `mdq_server.py:84-87` (Step 2) | scripts/mcp_servers/mdq/mdq_server.py | Phase 1 | AC-2 | Phase 1 review point | Explicit in issue |
 | REQ-003 | Required Changes (`_collect_dependencies` omission); confirmed at `health_check.py:143,169` (Step 2) | scripts/mcp_servers/mdq/health_check.py | Phase 1 | AC-3, AC-4 | T2, T3 | Explicit in issue |
 | REQ-004 | Required Changes / Testing Expectations; no existing test covers either caller (Step 2) | tests/mcp_servers/mdq/test_mdq_config.py | Phase 2 | AC-1, AC-3 | T1, T2, T4 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-135744 -->
