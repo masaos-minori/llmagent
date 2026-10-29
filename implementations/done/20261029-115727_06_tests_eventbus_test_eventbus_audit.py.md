@@ -71,10 +71,10 @@ New-file creation; plain function-style tests (no classes needed).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land after seq 01 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row is the tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Aborted | — | — | Target file does not exist |
+| 2 | Add or update tests per Validation plan | Aborted | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Aborted | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Aborted | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

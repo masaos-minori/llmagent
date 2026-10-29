@@ -69,10 +69,10 @@ Cell-level table edits; keep the table formatting (`|` layout) intact.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land after seq 01-05 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Updated audit signature rows in reference API docs |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Docs row |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row is the docs update |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | This row is the docs update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

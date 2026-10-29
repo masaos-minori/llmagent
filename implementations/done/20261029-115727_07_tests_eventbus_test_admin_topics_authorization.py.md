@@ -74,10 +74,10 @@ Assertion-level edits inside one existing test function; no fixture or client ch
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land with seq 03 (detail shape coupling) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Extended audit assertions in effective-change test |
 | 2 | Add or update tests per Validation plan | Pending | — | — | This row is the tests |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -69,7 +69,7 @@ Two-line-scale edits; no logic change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land with/after seq 01+02 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Added principal param and actor to audit call |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Tests are seq 09 |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Doc rows are seq 10 |

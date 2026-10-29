@@ -74,7 +74,7 @@ Direct edit; no new module, no new import (`NotRequired` is already imported at 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Added actor field to AuditRecord and log_privileged_action |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Tests are seq 06; land after this row |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Doc rows are seq 10 |

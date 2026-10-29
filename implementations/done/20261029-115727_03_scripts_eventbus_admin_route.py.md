@@ -75,7 +75,7 @@ Direct edits inside the handler; no new imports beyond `Principal`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land after 101422_02 and after seq 01/02 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Added principal param, _changed_count helper, improved audit call |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Tests are seq 07 |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Doc rows are seq 10 |

@@ -1,16 +1,16 @@
 ## Goal
 
-Remove the plan-local identifiers (REQ, UNK, AC, SEQ labels) from the comments and docstrings of `tests/eventbus/test_eventbus_shutdown.py`, replacing each with a reference to a canonical definition (an ADR invariant or a `docs/24_eventbus/` section) or with plain wording, with no code change (`REQ-002`: rewrite or remove per mapping; `REQ-003`: no unresolved or doubly-meant identifier remains; `REQ-004`: comment and docstring changes only).
+Remove the plan-local identifiers (REQ, UNK, AC, SEQ labels) from the comments and docstrings of `tests/eventbus/test_eventbus_concurrent.py`, replacing each with a reference to a canonical definition (an ADR invariant or a `docs/24_eventbus/` section) or with plain wording, with no code change (`REQ-002`: rewrite or remove per mapping; `REQ-003`: no unresolved or doubly-meant identifier remains; `REQ-004`: comment and docstring changes only).
 
 ## Scope
 
-Comment and docstring text in `tests/eventbus/test_eventbus_shutdown.py` only. No assertion, fixture, name, or behavior change, no renamed test, no ADR or docs edit. Other files in the Plan's table are separate documents.
+Comment and docstring text in `tests/eventbus/test_eventbus_concurrent.py` only. No assertion, fixture, name, or behavior change, no renamed test, no ADR or docs edit. Other files in the Plan's table are separate documents.
 
 ## Assumptions
 
-- Occurrences re-verified this cycle with `rg -n -e '\b(REQ|UNK|AC|SEQ)-[0-9]+' tests/eventbus/test_eventbus_shutdown.py` (all sit in comments or docstrings; none is inside an assertion, `match=`, `pytest.mark`, or test name). Lines shift when other procedures land first, so the search is re-run at implementation time and every hit is handled by the rules below, including labels that other procedures add.
+- Occurrences re-verified this cycle with `rg -n -e '\b(REQ|UNK|AC|SEQ)-[0-9]+' tests/eventbus/test_eventbus_concurrent.py` (all sit in comments or docstrings; none is inside an assertion, `match=`, `pytest.mark`, or test name). Lines shift when other procedures land first, so the search is re-run at implementation time and every hit is handled by the rules below, including labels that other procedures add.
 - Canonical sources available: ADR-006 (docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md) INV-01 to INV-16 and ADR-013 (docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md) INV-01 to INV-07 (invariant texts read this cycle). A mapping is applied only when the invariant or doc section actually states the rule the test protects; otherwise the identifier is removed and the rule is written in plain words, and a rule that matters but has no canonical statement becomes an owner question in the change description (`REQ-005` of the Plan), not a definition in the test.
-- Overlap with other Frozen Plans or generated procedures: `plans/done/20261029-092424_eventbus003_test-lifecycle-production-path.md` (procedure `implementations/20261029-101908_03_tests_eventbus_test_eventbus_shutdown.py.md`) appends a test; compatible, and the appended test carries no identifier.
+- Overlap with other Frozen Plans or generated procedures: No other Frozen Plan targets this file.
 - `EVENTBUS-nnn` labels are outside this Plan's identifier list (Plan UNK-04) and stay unchanged.
 
 ## Design decisions
@@ -26,11 +26,11 @@ N/A: the Plan fixes the mapping approach; no alternative is needed for a comment
 
 ### Target file
 
-`tests/eventbus/test_eventbus_shutdown.py`
+`tests/eventbus/test_eventbus_concurrent.py`
 
 ### Procedure
 
-1. Run `rg -n -e '\b(REQ|UNK|AC|SEQ)-[0-9]+' tests/eventbus/test_eventbus_shutdown.py` and compare the hits with the list in Details (about 4 line references recorded this cycle).
+1. Run `rg -n -e '\b(REQ|UNK|AC|SEQ)-[0-9]+' tests/eventbus/test_eventbus_concurrent.py` and compare the hits with the list in Details (about 1 line references recorded this cycle).
 2. For each hit, apply the treatment in Details; edit only the comment or docstring text, never code.
 3. Re-run the search and confirm that no label remains unless it is cited together with a definition reachable from the repository docs.
 
@@ -40,11 +40,9 @@ Treat each hit by the preference order in Design decisions. Example shapes: a do
 
 ### Details
 
-Recorded hits in `test_eventbus_shutdown.py` (as of this cycle; line numbers are for orientation):
+Recorded hits in `test_eventbus_concurrent.py` (as of this cycle; line numbers are for orientation):
 
-- line 108, 160: REQ-001 (x2) — shutdown refuses to close the connection while a worker may own it; a worker admitted before shutdown finishes before close -> plain wording; ADR-006 Implementation Notes describe the shutdown rule but it is not an invariant, so cite it only if it states the rule
-- line 145: REQ-004 — run_with_db_lock raises once the shutdown flag is set -> plain wording
-- line 236: REQ-003 — the shared database reference is cleared after shutdown -> plain wording
+- line 170: REQ-002 — under per-consumer gating one consumer reaching max_retry does not promote the event -> cite ADR-006 INV-13
 
 ## Compatibility considerations
 
@@ -60,16 +58,16 @@ N/A: revert the commit.
 
 ## Validation plan
 
-1. `uv run pytest tests/eventbus/test_eventbus_shutdown.py -v` (pass count unchanged; for a helper module, run `uv run pytest tests/eventbus`).
-2. AST comparison of `tests/eventbus/test_eventbus_shutdown.py` against `HEAD` with docstrings removed reports no difference (comment-only check).
-3. `rg -n -e '\b(REQ|UNK|AC|SEQ)-[0-9]+' tests/eventbus/test_eventbus_shutdown.py` shows only cited identifiers with a reachable definition.
+1. `uv run pytest tests/eventbus/test_eventbus_concurrent.py -v` (pass count unchanged; for a helper module, run `uv run pytest tests/eventbus`).
+2. AST comparison of `tests/eventbus/test_eventbus_concurrent.py` against `HEAD` with docstrings removed reports no difference (comment-only check).
+3. `rg -n -e '\b(REQ|UNK|AC|SEQ)-[0-9]+' tests/eventbus/test_eventbus_concurrent.py` shows only cited identifiers with a reachable definition.
 4. `uv run ruff check tests/eventbus`; `uv run ruff format --check tests/eventbus`; `uv run mypy --no-namespace-packages scripts/ tests/eventbus`.
-5. `uv run python tools/stale_detector.py implementations/20261029-102038_11_tests_eventbus_test_eventbus_shutdown.py.md`.
+5. `uv run python tools/stale_detector.py implementations/20261029-102038_17_tests_eventbus_test_eventbus_concurrent.py.md`.
 
 ## Completion criteria
 
-- No identifier in `test_eventbus_shutdown.py` lacks a definition reachable from the repository docs; none carries two meanings.
-- The diff of `tests/eventbus/test_eventbus_shutdown.py` is comment and docstring text only and the file's tests pass with the same count.
+- No identifier in `test_eventbus_concurrent.py` lacks a definition reachable from the repository docs; none carries two meanings.
+- The diff of `tests/eventbus/test_eventbus_concurrent.py` is comment and docstring text only and the file's tests pass with the same count.
 - ruff, format, and mypy are clean; owner questions for gaps are noted for the change description.
 
 ## Out of Scope
@@ -81,9 +79,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run the identifier search and apply the mapping to comments and docstrings (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Run the tests and the comment-only AST comparison (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Re-run the identifier search and apply the mapping to comments and docstrings (Implementation > Procedure/Method/Details) | Completed | — | 20261029-134822 |  |
+| 2 | Run the tests and the comment-only AST comparison (Validation plan) | Completed | — | 20261029-134822 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261029-134822 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -103,4 +101,4 @@ N/A: revert the commit.
 - **Source plan**: `plans/20261029-092617_eventbus004_test-requirement-id-cleanup.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261029-102038
-- **Related target files**: `tests/eventbus/test_eventbus_shutdown.py`
+- **Related target files**: `tests/eventbus/test_eventbus_concurrent.py`

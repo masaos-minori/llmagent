@@ -174,10 +174,10 @@ def eventbus_two_lifecycle_clients(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Added eventbus_test_config + eventbus_two_lifecycle_clients |
+| 2 | Add or update tests per Validation plan | Done | — | — | Caller gate passes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff clean, tests green |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

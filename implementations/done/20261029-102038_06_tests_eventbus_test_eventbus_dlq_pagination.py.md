@@ -44,7 +44,7 @@ Recorded hits in `test_eventbus_dlq_pagination.py` (as of this cycle; line numbe
 
 - line 65, 67: REQ-001, REQ-002 — a NACK is not treated as a repeat; per-consumer gating -> plain wording; cite ADR-006 INV-13 for gating
 - line 113: REQ-002 — per-consumer gating -> cite ADR-006 INV-13
-- line 144: REQ-004 — cross-page non-overlap comment (replaced by the ebpage003 procedure) -> if still present, plain wording; if replaced, remove any new label the replacement adds
+- line 144: REQ-001 — cross-page non-overlap comment (replaced by the ebpage003 procedure) -> if still present, plain wording; if replaced, remove any new label the replacement adds
 - line 162: REQ-005 — static check that the requeue path does not interpolate a timestamp -> plain wording
 
 ## Compatibility considerations
@@ -82,9 +82,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run the identifier search and apply the mapping to comments and docstrings (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Run the tests and the comment-only AST comparison (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Re-run the identifier search and apply the mapping to comments and docstrings (Implementation > Procedure/Method/Details) | Completed | — | 20261029-134822 |  |
+| 2 | Run the tests and the comment-only AST comparison (Validation plan) | Completed | — | 20261029-134822 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261029-134822 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

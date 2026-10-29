@@ -74,10 +74,10 @@ Append-only test addition; no fixture changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land after seq 05 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | Added audit assertion test |
 | 2 | Add or update tests per Validation plan | Pending | — | — | This row is the tests |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
