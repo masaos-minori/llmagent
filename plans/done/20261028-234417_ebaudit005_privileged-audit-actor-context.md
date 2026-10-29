@@ -3,7 +3,8 @@
 ## Goal
 - Make every privileged-action audit record (admin topics authorization, DLQ requeue, replay) carry
   the originating `request_id` and the acting principal's `token_fingerprint`, replace the
-  always-empty `error_type` on successful records (shape: owner decision), and give the
+  always-empty `error_type` on successful records (UNK-01 resolved 2026-10-29: keep the current
+  `error_type=""` shape; the module docstring documents `""` as the success convention), and give the
   authorization-update record a non-sensitive scope-change summary plus `persistent=false` --
   without logging raw credentials and without renaming existing fields.
 
@@ -13,7 +14,8 @@ Medium
 ## Scope
 - **In-Scope**:
   - `scripts/eventbus/audit.py`: additive `actor` field (fingerprint) in `log_privileged_action`
-    records; success `error_type` shape change (omitted key or fixed value -- UNK-01).
+    records; success `error_type` keeps its current `""` shape (UNK-01 resolved 2026-10-29; only a
+    module-docstring clarification records the convention).
   - `scripts/eventbus/app.py` route wrappers passing the already-resolved `Principal` into the
     admin/DLQ/replay route functions; the three route modules passing `request_id` and fingerprint
     to `log_privileged_action`; admin record gains a scope summary and `persistent=false`.
@@ -23,7 +25,8 @@ Medium
   - `docs/24_eventbus/eventbus_08_reference_api.md` audit signature rows updated to the final
     signatures.
 - **Out-of-Scope**: `log_auth_failure` records; audit log storage/rotation/shipping; authorization
-  model changes; configured token labels as an actor identity (separate owner question, UNK-02).
+  model changes; configured token labels as an actor identity (UNK-02 resolved 2026-10-29:
+  `token_fingerprint` only is approved; a label variant would be a follow-up issue).
 - **Dependencies**: The auth Plan `plans/done/20261028-092616_ebauth001_enforce-pairwise-consumer-authorization.md`
   is archived and its procedure `implementations/20261028-114911_04_scripts_eventbus_app.py.md`
   (ACK/NACK wiring in `scripts/eventbus/app.py`) is implemented (`implementations/` top level is
@@ -48,7 +51,8 @@ although `Principal.token_fingerprint` exists for exactly this purpose (`auth.py
 identifier for audit logging"; derived at `:97/:158/:193/:202`) and the app wrappers already resolve
 the principal via `Depends(require_role(...))` (`app.py`, `_principal` currently unused on the
 admin/DLQ/replay routes). Only the admin path has audit tests
-(`test_admin_topics_authorization.py:188-213`), and they assert call count and redaction only.
+(`test_admin_topics_authorization.py:187`/`:203`, re-verified 2026-10-29), and they assert call
+count and redaction only.
 
 ## Problem
 A privileged action cannot be tied to the request that caused it (admin updates) or to the
@@ -64,8 +68,8 @@ misuse); not time-sensitive.
 Keep the change additive and limited to audit fields: add an actor parameter to
 `log_privileged_action` and emit it as a new `actor` key; pass the wrapper-resolved principal and
 the real request id at the three call sites; replace the admin `detail="updated"` with a
-counts-and-mappings summary and record `persistent=false`; resolve the success `error_type` shape
-only after the owner answers UNK-01. Never log raw tokens; keep one JSON line per record and all
+counts-and-mappings summary and record `persistent=false`; the success `error_type` shape stays
+`""` (UNK-01 resolved 2026-10-29). Never log raw tokens; keep one JSON line per record and all
 existing field names. If plumbing the principal into a route requires changes beyond the wrappers,
 stop and report.
 
@@ -74,9 +78,10 @@ stop and report.
   (non-empty).
 - `REQ-002`: all three privileged-action records carry the acting principal's
   `token_fingerprint` as a new `actor` field; no raw token value appears in any emitted record.
-- `REQ-003`: a successful privileged record has no empty `error_type`: either the key is omitted
-  (typing via `NotRequired`/`total=False`) or a documented fixed value is used, per the owner
-  decision (UNK-01); `AuditRecord` typing and the module docstring state the chosen shape.
+- `REQ-003`: the success `error_type` shape stays exactly as today (`error_type=""` present in every
+  privileged record; UNK-01 resolved 2026-10-29: owner chose to keep the current behavior); the
+  module docstring documents `""` as the documented success value and `AuditRecord` typing is
+  unchanged.
 - `REQ-004`: the authorization-update record states what changed without secrets: which mappings
   changed and their counts, plus `persistent=false`; the no-op case still emits no record.
 - `REQ-005`: tests assert the new fields for all three actions (admin update, DLQ requeue, replay),
@@ -87,12 +92,12 @@ stop and report.
   redaction behavior are preserved (additive change).
 
 ## Implementation Target Files
-**Freeze status**: Frozen (Step 8 2026-10-29: all target rows Verified; `tools/check_workitem_structure.py` clean; `tools/check_plan_target_overlaps.py` findings reviewed as documented sequencing dependencies).
+**Freeze status**: Frozen (Step 8 2026-10-29: all target rows Verified; `tools/check_workitem_structure.py` clean; `tools/check_plan_target_overlaps.py` findings reviewed as documented sequencing dependencies; corrected 2026-10-29 after source re-verification: call-site line ranges, wrapper ranges, no-redaction-helper finding, UNK-01/UNK-02 owner decisions).
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/eventbus/audit.py | Add `actor` parameter/field to `log_privileged_action`; change success `error_type` shape and `AuditRecord` typing/docstring | Records lack an actor and carry `error_type=""` on success | REQ-002, REQ-003, REQ-007; AC-1, AC-2 | `audit.py:129-135` signature; `_build_audit_record` `error_type=""` default (lines 67, 91); `AuditRecord.error_type: str` (line 56); module docstring line 12 | tests/eventbus/test_eventbus_audit.py (new) | Verified |
-| scripts/eventbus/app.py | Pass the resolved `Principal` from admin/DLQ/replay wrappers into their route functions | Wrappers already resolve `_principal` but the route functions never see it | REQ-002; AC-1 | `app.py` wrappers `_principal: Principal = Depends(require_role(...))` incl. admin wrapper at line 304 and OPERATOR wrappers at lines 245, 256 | Route audit tests below | Verified |
+| scripts/eventbus/audit.py | Add `actor` parameter/field to `log_privileged_action`; document the success `error_type=""` convention in the module docstring (no shape change, UNK-01 resolved) | Records lack an actor and carry `error_type=""` on success | REQ-002, REQ-003, REQ-007; AC-1, AC-2 | `audit.py:129-135` signature; `_build_audit_record` `error_type=""` default (lines 67, 91); `AuditRecord.error_type: str` (line 56); module docstring line 12 | tests/eventbus/test_eventbus_audit.py (new) | Verified |
+| scripts/eventbus/app.py | Pass the resolved `Principal` from admin/DLQ/replay wrappers into their route functions | Wrappers already resolve `_principal` but the route functions never see it | REQ-002; AC-1 | `app.py` wrappers `_principal: Principal = Depends(require_role(...))`: replay wrapper `:201-211` (`_principal` at `:208`), `dlq_requeue` wrapper `:253-260` (`_principal` at `:254`), admin wrapper `:303-310` (`_principal` at `:304`); ack/nack wrappers already pass `_principal` (ebauth001 region, disjoint) (re-verified 2026-10-29) | Route audit tests below | Verified |
 | scripts/eventbus/admin_route.py | Pass `request.state.request_id` + fingerprint; `detail` becomes a mappings/counts summary; record `persistent=false` | Emits `request_id=""` and `detail="updated"` | REQ-001, REQ-002, REQ-004; AC-1, AC-3 | `admin_route.py:141-147` call site; response `persistent: False` at line 149 | tests/eventbus/test_admin_topics_authorization.py | Verified |
 | scripts/eventbus/dlq_route.py | Pass the acting principal's fingerprint (wrapper-supplied) into the requeue audit call | Requeue record has no actor | REQ-002; AC-1 | `dlq_route.py:70` call site (`consumer_id=""` rendered `-`) | tests/eventbus/test_eventbus_dlq.py new audit assertions | Verified |
 | scripts/eventbus/replay_route.py | Pass the acting principal's fingerprint (wrapper-supplied) into the replay audit call | Replay record has no actor | REQ-002; AC-1 | `replay_route.py:38-44` call site | tests/eventbus/test_eventbus_replay_pagination.py new audit assertions | Verified |
@@ -113,7 +118,8 @@ stop and report.
 ## Acceptance Criteria
 - AC-1 (REQ-001, REQ-002): every privileged-action record contains a non-empty `request_id` and an
   actor fingerprint, and no raw credential.
-- AC-2 (REQ-003): a successful record has no empty `error_type` (omitted or a documented value).
+- AC-2 (REQ-003): a successful record keeps `error_type=""` exactly as today, and the module
+  docstring documents `""` as the success convention (UNK-01 resolved 2026-10-29).
 - AC-3 (REQ-004): the authorization update record states what changed without listing secrets and
   records `persistent=false`.
 - AC-4 (REQ-005): tests assert the new fields for the admin update, DLQ requeue and replay, and a
@@ -123,8 +129,8 @@ stop and report.
 
 ## Tests
 - REQ-003/REQ-007: unit tests in `tests/eventbus/test_eventbus_audit.py` -- new key present, all
-  existing keys unchanged, one JSON line, `detail` never empty, success `error_type` per the chosen
-  shape; at least one caplog-based test asserting the emitted line contains no token substring.
+  existing keys unchanged, one JSON line, `detail` never empty, success `error_type` keeps `""`;
+  at least one caplog-based test asserting the emitted line contains no token substring.
 - REQ-001/REQ-004: extend `test_audit_emitted_on_effective_change` and `test_audit_not_emitted_on_noop`
   in `tests/eventbus/test_admin_topics_authorization.py` (request id non-empty, actor == admin
   principal fingerprint, detail names changed mappings + counts, `persistent=false` recorded).
@@ -147,21 +153,22 @@ describes these record fields (grep verified 2026-10-28).
 - `token_fingerprint` is precomputed at Principal construction, so emitting it adds no per-request
   hashing cost.
 - Log parsers ignore unknown JSON keys, so the additive `actor` key is safe without owner approval;
-  only the UNK-01 error_type choice can be parser-breaking.
+  the UNK-01 resolution (2026-10-29) removes the only parser-breaking candidate by keeping the
+  `error_type` shape unchanged.
 - Phase 1+2 (additive fields) can ship before the UNK-01 answer; only the error_type edit is gated.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Should `error_type` be omitted on success or carry a fixed non-empty value (e.g. `none`)? | Owner design decision; the issue lists it as open | Owner decision weighing parser compatibility (omission removes a key; fixed value is additive-safe) before the error_type edit | True |
-| UNK-02 | Is `token_fingerprint` an acceptable actor identifier for operators, or is a configured token label wanted? | No operator feedback yet; fingerprint is mandated by the issue's Required Changes | Owner confirmation after real audit lines are observable; a label variant would be a follow-up issue | False |
+| UNK-01 | ~~Should `error_type` be omitted on success or carry a fixed non-empty value (e.g. `none`)?~~ RESOLVED 2026-10-29: owner chose to keep the current behavior (`error_type=""` present in every privileged record); no shape change, no parser impact. Module docstring documents `""` as the success value. | None -- owner decision obtained 2026-10-29 | Closed | False |
+| UNK-02 | ~~Is `token_fingerprint` an acceptable actor identifier for operators, or is a configured token label wanted?~~ RESOLVED 2026-10-29: owner approved `token_fingerprint` only. A label variant would be a follow-up issue. | None -- owner decision obtained 2026-10-29 | Closed | False |
 | UNK-03 | Exact scope-summary `detail` format (which mappings + counts) that satisfies the current redaction vocabulary | No existing multi-mapping audit detail precedent | Fixed during procedure writing with a redaction review; Phase 2 tests pin it | False |
 
 ## Affected areas
 
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
 |---|---|---|---|---|---|
-| scripts/eventbus/audit.py | Additive actor field; gated error_type shape | Audit log consumers | 0 | 1 | Yes: deployed; audit logger restart required |
+| scripts/eventbus/audit.py | Additive actor field; `error_type` shape unchanged (docstring note only) | Audit log consumers | 0 | 1 | Yes: deployed; audit logger restart required |
 | scripts/eventbus/app.py | Wrapper wiring passes Principal (region distinct from ebauth001 edits) | Route wiring | 8 | 2 | Yes: deployed; service restart required |
 | scripts/eventbus/admin_route.py | Request id + scope summary in audit call | Admin route | 1 | 1 | Yes: deployed; service restart required |
 | scripts/eventbus/dlq_route.py | Actor in requeue audit call | DLQ route | 2 | 2 | Yes: deployed; service restart required |
@@ -180,16 +187,18 @@ describes these record fields (grep verified 2026-10-28).
 - `log_privileged_action(consumer_id, request_id, route, target, detail="", actor="")`:
   `actor` is emitted as a new record key; empty actor is rejected by an assertion in tests (AC-1
   requires non-empty for all privileged calls).
-- `error_type` (gated): option A omit the key on success (`AuditRecord` with `error_type:
-  NotRequired[str]`); option B fixed canonical value (e.g. `"none"`) documented in the module
-  docstring. The decision is recorded in UNK-01 and must state parser impact; neither option changes
-  failure records (`log_auth_failure` keeps its vocabulary).
+- `error_type` (UNK-01 resolved 2026-10-29): keep the current shape -- every privileged record
+  carries `error_type: str` with value `""` (`AuditRecord` typing and `_build_audit_record` unchanged);
+  only the module docstring gains an explicit "`\"\"` on success" note. Failure records
+  (`log_auth_failure` keep their vocabulary) are untouched.
 - Admin scope summary: built from the same `changed` computation the route already has
-  (`admin_route.py`); content is mapping keys + counts only, sanitized by the existing redaction
-  helpers; `persistent` recorded as part of the record (key or detail -- decided at procedure level,
-  UNK-03's format note covers both).
-- Phasing: additive Phases 1-2 ship independently of UNK-01; the error_type edit is a separate
-  Phase 3 change shipped together with its tests and doc rows.
+  (`admin_route.py`); content is mapping keys + counts only. There are no existing redaction helper
+  functions in `scripts/eventbus/` (grep 2026-10-29), so sanitization is structural: consumer ids and
+  topic names are already non-secret config values and the summary carries counts of changed
+  mappings; no token or grant-set dump; `persistent` recorded as part of the record (key or detail
+  -- decided at procedure level, UNK-03's format note covers both).
+- Phasing: additive Phases 1-2 ship independently; Phase 3 carries the docstring note, route tests
+  and doc rows (no gated decision remains after UNK-01 resolved 2026-10-29).
 
 ## Implementation steps
 1. **Phase 1: Audit record shape (additive)**
@@ -199,8 +208,8 @@ describes these record fields (grep verified 2026-10-28).
    - [ ] Pass the resolved `Principal` from the admin/DLQ/replay wrappers in `scripts/eventbus/app.py` into their route functions (REQ-002; scripts/eventbus/app.py)
    - [ ] Update `scripts/eventbus/admin_route.py` to pass the real request id, the fingerprint, a mappings/counts `detail` and `persistent=false` (REQ-001, REQ-002, REQ-004; scripts/eventbus/admin_route.py)
    - [ ] Update `scripts/eventbus/dlq_route.py` and `scripts/eventbus/replay_route.py` call sites with the fingerprint (REQ-002; scripts/eventbus/dlq_route.py, scripts/eventbus/replay_route.py)
-3. **Phase 3: Success error_type shape (BLOCKED on UNK-01) + route tests + docs**
-   - [ ] Implement the owner-chosen success `error_type` shape in `scripts/eventbus/audit.py` with typing and docstring updates (REQ-003; scripts/eventbus/audit.py)
+3. **Phase 3: Success error_type docstring clarification (UNK-01 resolved 2026-10-29) + route tests + docs**
+   - [ ] Document the `""`-on-success convention in the `scripts/eventbus/audit.py` module docstring (REQ-003; scripts/eventbus/audit.py)
    - [ ] Add audit assertions to `tests/eventbus/test_admin_topics_authorization.py`, `tests/eventbus/test_eventbus_dlq.py`, `tests/eventbus/test_eventbus_replay_pagination.py`, incl. caplog no-token check (REQ-005; those three test files)
    - [ ] Update the audit signature rows in `docs/24_eventbus/eventbus_08_reference_api.md` (REQ-006; docs/24_eventbus/eventbus_08_reference_api.md)
 4. **Phase 4: Verification & Deployment**
@@ -217,11 +226,11 @@ describes these record fields (grep verified 2026-10-28).
 | Changed files | Static gates | `uv run ruff check`, `uv run mypy` | Clean; bandit baseline (3 B101 findings, none in these files) gains no new finding |
 
 ## Risks
-- **Risk**: omitting `error_type` on success breaks a downstream parser that assumes the key →
-  **Mitigation**: UNK-01 owner decision explicitly weighs parser compatibility; the fixed-value
-  option is additive-safe.
+- **Risk**: a hypothetical downstream parser depends on a future error_type shape change →
+  **Mitigation**: UNK-01 resolved 2026-10-29: no shape change; `error_type=""` stays exactly as today.
 - **Risk**: the scope-summary detail leaks more topic information than `detail="updated"` →
-  **Mitigation**: mappings + counts only, existing redaction helpers, tests assert content shape
+  **Mitigation**: mappings + counts only (no secret values; `scripts/eventbus/` has no redaction
+  helper functions -- grep 2026-10-29), tests assert content shape
   (UNK-03).
 - **Risk**: editing `app.py` wrappers collides with the recently implemented ebauth001 ACK/NACK
   region → **Mitigation**: regions verified disjoint (admin/DLQ/replay vs ACK/NACK wrappers);
@@ -234,20 +243,29 @@ describes these record fields (grep verified 2026-10-28).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Additive actor field + shape unit tests (REQ-002, REQ-003 partial, REQ-007) | Pending | — | — | |
-| 2 | Wrapper + call-site context plumbing (REQ-001, REQ-002, REQ-004) | Pending | — | — | |
-| 3 | error_type shape + route tests + docs (REQ-003, REQ-005, REQ-006) | Pending | — | — | Blocked on UNK-01 |
-| 4 | Verification + deploy (REQ-001..REQ-007) | Pending | — | — | |
+| 1 | Additive actor field + shape unit tests (REQ-002, REQ-003 partial, REQ-007) | In Progress | 2026-10-29 | — |  |
+| 2 | Wrapper + call-site context plumbing (REQ-001, REQ-002, REQ-004) | In Progress | 2026-10-29 | — |  |
+| 3 | error_type docstring clarification + route tests + docs (REQ-003, REQ-005, REQ-006) | In Progress | 2026-10-29 | — | UNK-01 resolved 2026-10-29; no longer blocked |
+| 4 | Verification + deploy (REQ-001..REQ-007) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 3 | Owner decision on `error_type` success shape (UNK-01) | No | — |
+| 3 | Owner decision on `error_type` success shape (UNK-01) | Yes | 2026-10-29 (keep current `""` shape) |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-115727_01_scripts_eventbus_audit.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261029-115727_02_scripts_eventbus_app.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-115727_03_scripts_eventbus_admin_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-115727_04_scripts_eventbus_dlq_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-115727_05_scripts_eventbus_replay_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-115727_06_tests_eventbus_test_eventbus_audit.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-115727_07_tests_eventbus_test_admin_topics_authorization.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261029-115727_08_tests_eventbus_test_eventbus_dlq.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261029-115727_09_tests_eventbus_test_eventbus_replay_pagination.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261029-115727_10_docs_24_eventbus_eventbus_08_reference_api.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -265,8 +283,10 @@ describes these record fields (grep verified 2026-10-28).
 | REQ-001 | Issue Required Changes bullet 1 | scripts/eventbus/admin_route.py | Phase 2 | AC-1 | Admin route audit assertions | Explicit in issue |
 | REQ-002 | Issue Required Changes bullet 2 | scripts/eventbus/audit.py | Phase 1 | AC-1 | Field-shape unit tests | Explicit in issue |
 | REQ-002 | Issue Required Changes bullet 2 | scripts/eventbus/app.py, scripts/eventbus/dlq_route.py, scripts/eventbus/replay_route.py | Phase 2 | AC-1 | Route audit assertions | Explicit in issue |
-| REQ-003 | Issue Required Changes bullet 3 | scripts/eventbus/audit.py | Phase 3 | AC-2 | Field-shape unit tests | Needs confirmation (UNK-01) |
+| REQ-003 | Issue Required Changes bullet 3 | scripts/eventbus/audit.py | Phase 3 | AC-2 | Field-shape unit tests | Resolved 2026-10-29 (UNK-01: keep `error_type=""`; docstring note only) |
 | REQ-004 | Issue Required Changes bullet 4 | scripts/eventbus/admin_route.py | Phase 2 | AC-3 | Extended admin audit tests | Explicit in issue |
 | REQ-005 | Issue Required Changes bullet 5 | tests/eventbus/test_eventbus_audit.py, tests/eventbus/test_admin_topics_authorization.py, tests/eventbus/test_eventbus_dlq.py, tests/eventbus/test_eventbus_replay_pagination.py | Phases 1-3 | AC-4 | New + extended tests, caplog no-token check | Explicit in issue |
 | REQ-006 | Issue Documentation Impact | docs/24_eventbus/eventbus_08_reference_api.md | Phase 3 | AC-5 | check_docs_consistency run | Explicit in issue |
 | REQ-007 | Issue Constraints | scripts/eventbus/audit.py | Phases 1-3 | AC-1, AC-2 | Shape tests (additive-only check) | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-115727 -->
