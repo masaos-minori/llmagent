@@ -76,7 +76,7 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
-    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    # Create consumer_delivery record required for ADR-006 INV-13 per-consumer DLQ promotion
     db.execute(
         "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
@@ -99,7 +99,7 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
-    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    # Create consumer_delivery record required for ADR-006 INV-13 per-consumer DLQ promotion
     db.execute(
         "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
@@ -127,7 +127,7 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     pub = client.post("/publish", json=ev)
     assert pub.status_code == 200
     original_seq = pub.json()["seq"]
-    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    # Create consumer_delivery record required for ADR-006 INV-13 per-consumer DLQ promotion
     db.execute(
         "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
@@ -145,9 +145,9 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     assert "new_event_id" in body
     assert body["new_event_id"] != ev["event_id"]
     uuid.UUID(body["new_event_id"], version=4)
-    # new_event_id and new_seq come from the same atomic result (REQ-001,
-    # REQ-003): the descendant row insert and the seq assignment happen in one
-    # transaction, so new_seq is strictly greater than the original seq.
+    # new_event_id and new_seq come from the same atomic result: the descendant
+    # row insert and the seq assignment happen in one transaction, so new_seq is
+    # strictly greater than the original seq.
     assert "new_seq" in body
     assert isinstance(body["new_seq"], int)
     assert body["new_seq"] > original_seq
@@ -176,7 +176,7 @@ def test_requeue_increments_dlq_requeue_count(
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
-    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    # Create consumer_delivery record required for ADR-006 INV-13 per-consumer DLQ promotion
     db.execute(
         "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
@@ -243,7 +243,7 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
 
     # Second nack — consumer_delivery_failure_count becomes 2, hits threshold, inline promote
     # A distinct idempotency key is required: the same key would be skipped
-    # as a duplicate NACK attempt (REQ-002 idempotency guard).
+    # as a duplicate NACK attempt (idempotency guard).
     r = client.post(
         f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer"
         "&idempotency_key=inline-nack-key-2",
@@ -314,7 +314,7 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
-    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    # Create consumer_delivery record required for ADR-006 INV-13 per-consumer DLQ promotion
     db.execute(
         "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
@@ -575,7 +575,7 @@ async def test_concurrent_requeue_same_event(
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
-    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    # Create consumer_delivery record required for ADR-006 INV-13 per-consumer DLQ promotion
     db.execute(
         "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
@@ -639,7 +639,7 @@ async def test_concurrent_requeue_different_events(
     ev2 = _event(topic="t2")
     client.post("/publish", json=ev1)
     client.post("/publish", json=ev2)
-    # Create consumer_delivery records required for REQ-002 per-consumer DLQ promotion
+    # Create consumer_delivery records required for ADR-006 INV-13 per-consumer DLQ promotion
     db.execute(
         "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev1["event_id"]),
