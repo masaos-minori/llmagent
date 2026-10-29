@@ -5,10 +5,3 @@
 各計画書から実装手順書を作成した後に以下のファイル一覧から作業が完了した計画書ファイル名を削除してください。
 作業が終了した計画書はアーカイブしてください。
 
-- plans/20261028-231549_ebgen001_authz-generation-role-tests.md
-- plans/20261028-231610_ebdlqrecon002_rebuild-missing-dlq-files.md
-- plans/20261028-231631_ebpage003_pagination-contract-dlq-index.md
-- plans/20261028-233320_ebpubat006_published-at-ownership.md
-- plans/20261028-234121_ebresumetest004_subscribe-restart-integration-tests.md
-- plans/20261028-234417_ebaudit005_privileged-audit-actor-context.md
-- plans/20261028-234655_ebtestdrift007_test-lifecycle-terminology.md
