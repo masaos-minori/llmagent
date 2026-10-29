@@ -120,7 +120,7 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `_build_security_posture()` docstring (scripts/mcp_servers/web_search/web_search_server.py) | Pending | — | — | REQ-001, REQ-002 |
+| 1 | Rewrite `_build_security_posture()` docstring (scripts/mcp_servers/web_search/web_search_server.py) | In Progress | — | — | REQ-001, REQ-002 |
 | 2 | Run consistency check + gates; docstring-only diff review; deploy hand-off incl. mcp_web_search binary rebuild | Pending | — | — | REQ-003; deploy is user-gated |
 
 ### Blocker Log
@@ -131,7 +131,7 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-140154_01_scripts_mcp_servers_web_search_web_search_server.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -149,3 +149,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-001 | Summary / Problem (docstring quote) / Required Changes; confirmed at `web_search_server.py:69-71` and `server.py:141-146` (Step 2) | scripts/mcp_servers/web_search/web_search_server.py | Phase 1 | AC-1, AC-2 | T1 | Explicit in issue |
 | REQ-002 | Required Changes ("preserve the accurate part of the comparison"); confirmed against `shell_server.py:120-124` and `startup_flow.py:186` (Step 2) | scripts/mcp_servers/web_search/web_search_server.py | Phase 1 | AC-2 | T1 | Derived from confirmed evidence |
 | REQ-003 | Constraints / AI Implementation Instruction ("do not change any executable code") | scripts/mcp_servers/web_search/web_search_server.py | Phase 2 | AC-3 | T2 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-140154 -->
