@@ -201,8 +201,8 @@ def test_subscribe_duplicate_consumer_id_returns_409(client: TestClient) -> None
 def test_subscribe_with_restricted_topic_rejects_disallowed_topic(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """AC-3: a token with a non-empty grant set is still rejected for a topic
-    outside its grants (implementations/done/20260913-152721_02_scripts_eventbus_subscribe_route.py.md).
+    """ADR-013 INV-02 and ADR-006 INV-10: a token with a non-empty grant set
+    is still rejected for a topic outside its grants (implementations/done/20260913-152721_02_scripts_eventbus_subscribe_route.py.md).
     """
     from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal, Role
 
@@ -221,7 +221,7 @@ def test_subscribe_with_restricted_topic_rejects_disallowed_topic(
 def test_subscribe_heartbeat_resets_idle_timeout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-006: Heartbeat activity resets idle timeout.
+    """Heartbeat activity resets idle timeout.
 
     When no events arrive, the heartbeat emitted in the timeout branch
     must prevent the idle timeout from disconnecting the subscriber.
@@ -265,7 +265,7 @@ def test_subscribe_heartbeat_resets_idle_timeout(
 def test_sse_idle_timeout_loaded_from_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-001: sse_idle_timeout is loaded from config, falls back to DEFAULT_SSE_IDLE_TIMEOUT."""
+    """sse_idle_timeout is loaded from config, falls back to DEFAULT_SSE_IDLE_TIMEOUT."""
     import time
 
     import eventbus.subscribe_route as sr_module
