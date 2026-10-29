@@ -207,7 +207,7 @@ class TestAckEndpoint:
         assert data["already_acked"] is True
 
     def test_ack_event_with_empty_consumer_id(self, client: TestClient) -> None:
-        """POST /events/{event_id}/ack with empty consumer_id returns 400 (REQ-004)."""
+        """POST /events/{event_id}/ack with empty consumer_id returns 400."""
         body = _event()
         resp = client.post(
             "/publish",
@@ -363,7 +363,7 @@ class TestAckMonotonicOffset:
 
 
 class TestNackEndpointIdempotency:
-    """HTTP-level NACK idempotency under the latest-key-only contract (REQ-002, REQ-006)."""
+    """HTTP-level NACK idempotency under the latest-key-only contract."""
 
     def _publish_with_publisher(self, client: TestClient, body: dict[str, Any]) -> int:
         """Publish an event using the publisher token."""
@@ -400,7 +400,7 @@ class TestNackEndpointIdempotency:
         assert r2.json()["consumer_delivery_failure_count"] == 1  # no-op: same key
 
     def test_nack_keyless_returns_400(self, principal_client: TestClient) -> None:
-        """A NACK without an idempotency key is rejected with 400 (UNK-01)."""
+        """A NACK without an idempotency key is rejected with 400."""
         body = _event()
         self._publish_with_publisher(principal_client, body)
         _simulate_delivery(principal_client, body["event_id"], "consumer-A")
