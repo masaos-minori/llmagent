@@ -118,7 +118,7 @@ def test_publish_succeeds_if_jsonl_append_fails(client: TestClient) -> None:
 def test_duplicate_publish_after_jsonl_failure_returns_same_seq_and_does_not_backfill(
     client: TestClient, tmp_path: Path
 ) -> None:
-    """REQ-006: a retry after a failed JSONL append returns the same seq and does not backfill."""
+    """A retry after a failed JSONL append returns the same seq and does not backfill."""
     ev = _event()
 
     original_open = Path.open
