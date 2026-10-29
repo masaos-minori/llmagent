@@ -148,9 +148,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the health fixture to rely on the lifespan (tests/eventbus/test_eventbus_health.py) | Pending | — | — | REQ-001 |
-| 2 | Make `make_eventbus_client()` lifespan-only and remove `_init_state` / `_do_cleanup` (tests/eventbus/eventbus_helpers.py) | Pending | — | — | REQ-002 |
-| 3 | Add the two-sequential-lifecycles test (tests/eventbus/test_eventbus_shutdown.py) | Pending | — | — | REQ-003 |
+| 1 | Rewrite the health fixture to rely on the lifespan (tests/eventbus/test_eventbus_health.py) | In Progress | — | — | REQ-001 |
+| 2 | Make `make_eventbus_client()` lifespan-only and remove `_init_state` / `_do_cleanup` (tests/eventbus/eventbus_helpers.py) | In Progress | — | — | REQ-002 |
+| 3 | Add the two-sequential-lifecycles test (tests/eventbus/test_eventbus_shutdown.py) | In Progress | — | — | REQ-003 |
 | 4 | Run the validation plan; no deploy (tests only) | Pending | — | — | REQ-004 |
 
 ### Blocker Log
@@ -161,7 +161,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-101908_01_tests_eventbus_test_eventbus_health.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-101908_02_tests_eventbus_eventbus_helpers.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-101908_03_tests_eventbus_test_eventbus_shutdown.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

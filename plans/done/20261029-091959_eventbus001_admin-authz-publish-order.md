@@ -41,8 +41,8 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/eventbus/admin_route.py | Modify | Build the replacement config and principal map first, then publish both; import the build helper and `publish_principals` | REQ-001, REQ-004; AC-1, AC-3 | `admin_route.py:130-131` config assigned, `:134-135` `_populate_token_maps(config)` called after it; import at line 11 (checked in Step 2) | tests/eventbus/test_admin_topics_authorization.py | Verified |
 | scripts/eventbus/auth.py | Modify | Split `_populate_token_maps()` into a map-returning build helper and the existing publish; startup behavior unchanged | REQ-002; AC-2 | `auth.py:105` `_populate_token_maps` builds `new_map` (line 148) and calls `publish_principals(new_map)` at line 206; `publish_principals` defined at line 209 (checked in Step 2) | tests/eventbus/test_eventbus_auth.py (existing build-new-then-swap tests, lines ~1725-1806), tests/eventbus/test_eventbus_config.py | Verified |
+| scripts/eventbus/admin_route.py | Modify | Build the replacement config and principal map first, then publish both; import the build helper and `publish_principals` | REQ-001, REQ-004; AC-1, AC-3 | `admin_route.py:130-131` config assigned, `:134-135` `_populate_token_maps(config)` called after it; import at line 11 (checked in Step 2) | tests/eventbus/test_admin_topics_authorization.py | Verified |
 | tests/eventbus/test_admin_topics_authorization.py | Modify | Add the failing-build regression test and the no-op publish assertion | REQ-003, REQ-004; AC-1, AC-3 | `TestValidation.test_invalid_body_rejected_without_corrupting_state` at line 242 covers only body validation; `admin_client` fixture at lines 17-73 builds the app via `TestClient(eb_app.app)` (checked in Step 3) | The new tests themselves | Verified |
 
 ## Reference Files
@@ -127,9 +127,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Split principal-map build from publish (scripts/eventbus/auth.py) | Pending | — | — | REQ-002 |
-| 2 | Reorder publish steps in `update_topics_authorization()` (scripts/eventbus/admin_route.py) | Pending | — | — | REQ-001, REQ-004 |
-| 3 | Add failing-build and no-op regression tests (tests/eventbus/test_admin_topics_authorization.py) | Pending | — | — | REQ-003, REQ-004 |
+| 1 | Split principal-map build from publish (scripts/eventbus/auth.py) | In Progress | — | — | REQ-002 |
+| 2 | Reorder publish steps in `update_topics_authorization()` (scripts/eventbus/admin_route.py) | In Progress | — | — | REQ-001, REQ-004 |
+| 3 | Add failing-build and no-op regression tests (tests/eventbus/test_admin_topics_authorization.py) | In Progress | — | — | REQ-003, REQ-004 |
 | 4 | Run validation plan; deploy hand-off | Pending | — | — | Deploy is user-gated |
 
 ### Blocker Log
@@ -140,7 +140,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-101422_01_scripts_eventbus_auth.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-101422_02_scripts_eventbus_admin_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-101422_03_tests_eventbus_test_admin_topics_authorization.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

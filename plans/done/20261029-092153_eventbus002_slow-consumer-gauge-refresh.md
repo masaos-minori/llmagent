@@ -149,10 +149,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Split pure read from explicit refresh (scripts/eventbus/broker.py) | Pending | — | — | REQ-001, REQ-002 |
-| 2 | `health_check()` uses the explicit refresh (scripts/eventbus/health_route.py) | Pending | — | — | REQ-002, REQ-005 |
-| 3 | Update and add slow-consumer tests (tests/eventbus/test_eventbus_slow_consumer.py) | Pending | — | — | REQ-003 |
-| 4 | Update gauge-trigger and threshold wording (docs/24_eventbus/eventbus_10_health_endpoint.md, docs/24_eventbus/eventbus_07_configuration-and-operations.md) | Pending | — | — | REQ-004 |
+| 1 | Split pure read from explicit refresh (scripts/eventbus/broker.py) | In Progress | — | — | REQ-001, REQ-002 |
+| 2 | `health_check()` uses the explicit refresh (scripts/eventbus/health_route.py) | In Progress | — | — | REQ-002, REQ-005 |
+| 3 | Update and add slow-consumer tests (tests/eventbus/test_eventbus_slow_consumer.py) | In Progress | — | — | REQ-003 |
+| 4 | Update gauge-trigger and threshold wording (docs/24_eventbus/eventbus_10_health_endpoint.md, docs/24_eventbus/eventbus_07_configuration-and-operations.md) | In Progress | — | — | REQ-004 |
 | 5 | Run validation plan; deploy hand-off | Pending | — | — | Deploy is user-gated |
 
 ### Blocker Log
@@ -163,7 +163,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-101659_01_scripts_eventbus_broker.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-101659_02_scripts_eventbus_health_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-101659_03_tests_eventbus_test_eventbus_slow_consumer.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261029-101659_04_docs_24_eventbus_eventbus_10_health_endpoint.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261029-101659_05_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -185,10 +185,10 @@ Table structure, status/type vocabulary, and general guidance: see
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Inventory identifiers in the 18 target files and decide the mapping (read-only) | Pending | — | — | REQ-001, REQ-005 |
-| 2 | Clean configuration and lifecycle files (tests/eventbus/test_eventbus_config.py, tests/eventbus/test_eventbus_startup.py, tests/eventbus/test_eventbus_shutdown.py, tests/eventbus/test_eventbus_health.py, tests/eventbus/eventbus_helpers.py) | Pending | — | — | REQ-002, REQ-003, REQ-004 |
-| 3 | Clean authentication and authorization files (tests/eventbus/test_eventbus_auth.py, tests/eventbus/test_admin_topics_authorization.py, tests/eventbus/test_eventbus_consumer_authorization.py) | Pending | — | — | REQ-002, REQ-003, REQ-004 |
-| 4 | Clean DLQ files (tests/eventbus/test_eventbus_dlq.py, tests/eventbus/test_eventbus_dlq_pagination.py, tests/eventbus/test_eventbus_dlq_promotion.py, tests/eventbus/test_eventbus_requeue_edge_cases.py) | Pending | — | — | REQ-002, REQ-003, REQ-004 |
-| 5 | Clean ACK, publish, subscribe, and concurrency files (tests/eventbus/test_eventbus_ack_nack.py, tests/eventbus/test_eventbus_ack_endpoint.py, tests/eventbus/test_eventbus_subscribe.py, tests/eventbus/test_eventbus_crash_ack.py, tests/eventbus/test_eventbus_publish.py, tests/eventbus/test_eventbus_concurrent.py) | Pending | — | — | REQ-002, REQ-003, REQ-004 |
+| 2 | Clean configuration and lifecycle files (tests/eventbus/test_eventbus_config.py, tests/eventbus/test_eventbus_startup.py, tests/eventbus/test_eventbus_shutdown.py, tests/eventbus/test_eventbus_health.py, tests/eventbus/eventbus_helpers.py) | In Progress | — | — | REQ-002, REQ-003, REQ-004 |
+| 3 | Clean authentication and authorization files (tests/eventbus/test_eventbus_auth.py, tests/eventbus/test_admin_topics_authorization.py, tests/eventbus/test_eventbus_consumer_authorization.py) | In Progress | — | — | REQ-002, REQ-003, REQ-004 |
+| 4 | Clean DLQ files (tests/eventbus/test_eventbus_dlq.py, tests/eventbus/test_eventbus_dlq_pagination.py, tests/eventbus/test_eventbus_dlq_promotion.py, tests/eventbus/test_eventbus_requeue_edge_cases.py) | In Progress | — | — | REQ-002, REQ-003, REQ-004 |
+| 5 | Clean ACK, publish, subscribe, and concurrency files (tests/eventbus/test_eventbus_ack_nack.py, tests/eventbus/test_eventbus_ack_endpoint.py, tests/eventbus/test_eventbus_subscribe.py, tests/eventbus/test_eventbus_crash_ack.py, tests/eventbus/test_eventbus_publish.py, tests/eventbus/test_eventbus_concurrent.py) | In Progress | — | — | REQ-002, REQ-003, REQ-004 |
 | 6 | Run the validation plan; report the inventory and owner questions; no deploy (tests only) | Pending | — | — | REQ-003, REQ-004, REQ-005 |
 
 ### Blocker Log
@@ -199,7 +199,24 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-102038_01_tests_eventbus_test_eventbus_config.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-102038_02_tests_eventbus_test_eventbus_auth.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261029-102038_03_tests_eventbus_test_eventbus_dlq.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261029-102038_04_tests_eventbus_test_eventbus_startup.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-102038_05_tests_eventbus_test_eventbus_requeue_edge_cases.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261029-102038_06_tests_eventbus_test_eventbus_dlq_pagination.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261029-102038_07_tests_eventbus_test_eventbus_dlq_promotion.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261029-102038_08_tests_eventbus_test_eventbus_ack_nack.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261029-102038_09_tests_eventbus_test_eventbus_ack_endpoint.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261029-102038_10_tests_eventbus_test_eventbus_subscribe.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261029-102038_11_tests_eventbus_test_eventbus_shutdown.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-102038_12_tests_eventbus_test_admin_topics_authorization.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261029-102038_13_tests_eventbus_test_eventbus_crash_ack.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261029-102038_14_tests_eventbus_test_eventbus_publish.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261029-102038_15_tests_eventbus_test_eventbus_health.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-102038_16_tests_eventbus_test_eventbus_consumer_authorization.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261029-102038_17_tests_eventbus_test_eventbus_concurrent.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261029-102038_18_tests_eventbus_eventbus_helpers.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
