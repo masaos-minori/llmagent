@@ -12,10 +12,10 @@ Medium
 - **Dependencies**: N/A: none.
 
 ## Background
-`MCPServer.run_http()` (`scripts/mcp_servers/server.py:266`) enforces, in order at call time: loopback-only host check (lines 281-285), config isolation via `ConfigLoader.restrict_to` or `ConfigPermissionError` (lines 287-297), then `self._enforce_startup_posture_gate()` (line 299, base method at lines 255-264 invoking the server module's `_enforce_posture_gate()`, which raises `SystemExit(1)` on policy violation). Only after that does it build `uvicorn.Config` / `_LoopbackVerifyingServer` (lines 320-324) and enter `try: server.run()` (lines 325-327) with `except SystemExit` (line 328, logging + re-raise) and `except KeyboardInterrupt` (lines 332-333).
+`MCPServer.run_http()` (`scripts/mcp_servers/server.py:266`) enforces, in order at call time: loopback-only host check (lines 281-285), config isolation via `ConfigLoader.restrict_to` or `ConfigPermissionError` (lines 287-297), then `self._enforce_startup_posture_gate()` (line 299, base method at lines 255-264 invoking the server module's `_enforce_posture_gate()`, which raises `SystemExit(1)` on policy violation). Only after that does it build `uvicorn.Config` / `_LoopbackVerifyingServer` (lines 320-324) and enter `try: server.run()` (lines 326-327) with `except SystemExit` (line 328, logging + re-raise) and `except KeyboardInterrupt` (lines 333-334).
 
 ## Problem
-The docstring (lines 272-274) claims run_http "Catches ``SystemExit`` raised by ``_enforce_startup_posture_gate()`` during startup so that the failure reason is logged before the process terminates", and the `# noqa: BLE001` comment justifies the handler as existing for "posture-gate failure during startup". Step 2 verification confirms both are false: the gate call at line 299 runs before the `try` at line 325, so a gate `SystemExit` propagates uncaught out of `run_http()`. The existing test `tests/mcp_servers/test_posture_gate_start_path.py::test_failed_posture_exits_before_binding` (lines 36-48) pins exactly this: it patches `uvicorn.Config` to raise `AssertionError("uvicorn was built")` and asserts `SystemExit(1)` escapes `run_http()` — the log handler at lines 329-331 never runs for a gate failure. A residual wart is recorded, not fixed: the handler's log message string itself is a gate-specific label, but changing it is a runtime-text change the Issue's constraints exclude (flagged for a possible follow-up decision).
+The docstring (lines 272-274) claims run_http "Catches ``SystemExit`` raised by ``_enforce_startup_posture_gate()`` during startup so that the failure reason is logged before the process terminates", and the `# noqa: BLE001` comment justifies the handler as existing for "posture-gate failure during startup". Step 2 verification confirms both are false: the gate call at line 299 runs before the `try` at line 326, so a gate `SystemExit` propagates uncaught out of `run_http()`. The existing test `tests/mcp_servers/test_posture_gate_start_path.py::test_failed_posture_exits_before_binding` (lines 36-48) pins exactly this: it patches `uvicorn.Config` to raise `AssertionError("uvicorn was built")` and asserts `SystemExit(1)` escapes `run_http()` — the log handler at lines 329-331 never runs for a gate failure. A residual wart is recorded, not fixed: the handler's log message string itself is a gate-specific label, but changing it is a runtime-text change the Issue's constraints exclude (flagged for a possible follow-up decision).
 
 ## Reason for Change
 The documented and commented contract is the opposite of the control flow: the logging handler that the docstring credits for gate failures never runs for them, and the `# noqa` suppresses the lint rule with a justification for a branch that does not cover its stated purpose — misleading maintainers about where startup failures are handled.
@@ -25,7 +25,7 @@ Adopt the Issue's recommended option (b): a pure documentation fix. Rewrite the 
 
 ## Requirements
 - `REQ-001`: the `run_http()` docstring states the true control flow: loopback check, config isolation, then posture gate — all before the `try` — and the gate's `SystemExit` propagates uncaught by design; no claim that `run_http()` catches the gate's `SystemExit` remains.
-- `REQ-002`: the `# noqa: BLE001` comment on `except SystemExit` justifies the handler by what it really covers (`SystemExit` raised during `server.run()`; logged and re-raised, plus the `if not server.started: sys.exit(1)` fail-closed follow-up at lines 334-335), not by a posture-gate purpose.
+- `REQ-002`: the `# noqa: BLE001` comment on `except SystemExit` justifies the handler by what it really covers (`SystemExit` raised during `server.run()`; logged and re-raised, plus the `if not server.started: sys.exit(1)` fail-closed follow-up at lines 335-336), not by a posture-gate purpose.
 - `REQ-003`: zero runtime behavior change: the gate call site, the handler's code and log message string, the `raise`, and all exit paths stay byte-identical; `test_failed_posture_exits_before_binding` and `test_validated_posture_reaches_uvicorn` stay green.
 
 ## Implementation Target Files
@@ -40,7 +40,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/mcp_servers/server.py | Modify | Rewrite the false `run_http()` docstring sentences and the inaccurate `# noqa: BLE001` justification; docstring/comment-only edit | REQ-001, REQ-002, REQ-003 | Docstring claim at `server.py:272-274`; gate call at line 299 before `try` at line 325; `except SystemExit as e:  # noqa: BLE001 — posture-gate failure during startup` at line 328 (checked in Step 2) | `tests/mcp_servers/test_posture_gate_start_path.py::test_failed_posture_exits_before_binding`, `test_validated_posture_reaches_uvicorn` | Verified |
+| scripts/mcp_servers/server.py | Modify | Rewrite the false `run_http()` docstring sentences and the inaccurate `# noqa: BLE001` justification; docstring/comment-only edit | REQ-001, REQ-002, REQ-003 | Docstring claim at `server.py:272-274`; gate call at line 299 before `try` at line 326; `except SystemExit as e:  # noqa: BLE001 — posture-gate failure during startup` at line 328 (checked in Step 2) | `tests/mcp_servers/test_posture_gate_start_path.py::test_failed_posture_exits_before_binding`, `test_validated_posture_reaches_uvicorn` | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified.
@@ -56,7 +56,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 
 ## Tests
 - `T1` (REQ-003): `uv run pytest tests/mcp_servers/test_posture_gate_start_path.py -v` — both existing tests green (the Issue's named Testing Expectation).
-- `T2` (REQ-001, REQ-002): documentation consistency check — re-read `server.py:266-335` after the edit and confirm every docstring/comment sentence matches the control flow at lines 281-299 (before-try gates) and 325-335 (the handler's actual coverage).
+- `T2` (REQ-001, REQ-002): documentation consistency check — re-read `server.py:266-336` after the edit and confirm every docstring/comment sentence matches the control flow at lines 281-299 (before-try gates) and 326-336 (the handler's actual coverage).
 - `T3` (REQ-003): `uv run ruff check scripts/mcp_servers`; `uv run mypy --no-namespace-packages scripts/mcp_servers`; `git diff` review confirming a comment/docstring-only diff.
 
 ## Documentation Impact
@@ -118,7 +118,7 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `run_http()` docstring + noqa justification (scripts/mcp_servers/server.py) | Pending | — | — | REQ-001, REQ-002 |
+| 1 | Rewrite `run_http()` docstring + noqa justification (scripts/mcp_servers/server.py) | In Progress | — | — | REQ-001, REQ-002 |
 | 2 | Run posture-gate tests, consistency check, static gates, diff review; deploy hand-off | Pending | — | — | REQ-003; deploy is user-gated |
 
 ### Blocker Log
@@ -129,7 +129,7 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-140245_01_scripts_mcp_servers_server.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -147,3 +147,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-001 | Summary / Problem (control-flow sketch, docstring quote); confirmed at `server.py:272-274,299,325` (Step 2) | scripts/mcp_servers/server.py | Phase 1 | AC-1 | T2 | Explicit in issue |
 | REQ-002 | Problem (noqa quote) / Required Changes; confirmed at `server.py:328` (Step 2) | scripts/mcp_servers/server.py | Phase 1 | AC-2 | T2 | Explicit in issue |
 | REQ-003 | Constraints ("preserve fail-closed behavior", "keep the test green") / AI Implementation Instruction | scripts/mcp_servers/server.py | Phase 2 | AC-3 | T1, T3 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-140245 -->
