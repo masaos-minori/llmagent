@@ -256,7 +256,7 @@ class TestDLQPromotionSemantics:
         data = resp.json()
         new_event_id = data["new_event_id"]
 
-        # Create consumer_delivery record for the descendant event (required for REQ-002 per-consumer DLQ promotion)
+        # Create consumer_delivery record for the descendant event (required for ADR-006 INV-13 per-consumer DLQ promotion)
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
             "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
@@ -274,7 +274,7 @@ class TestDLQPromotionSemantics:
     def test_dlq_list_snapshot_consistent_during_promotion(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """REQ-004: total and items must describe one snapshot even while a
+        """Total and items must describe one snapshot even while a
         sweep_orphans promotion runs concurrently on a second connection."""
         import threading
         import time
@@ -495,7 +495,7 @@ class TestMultiConsumerPromotion:
 
 
 class TestPromotionFailurePaths:
-    """REQ-002/REQ-004/REQ-006: failure points in the NACK and inline promotion paths."""
+    """Failure points in the NACK and inline promotion paths."""
 
     def test_nack_with_failing_inline_promotion_returns_200_and_sweep_promotes(
         self,
