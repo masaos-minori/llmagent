@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (52 modules)
+## Index (53 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -39,6 +39,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `check_mock_patch_targets.py` | Test | Detect `unittest.mock.patch()` targets that are ineffective |
 | `check_needs_confirmation_inventory.py` | Consistency checker | Verify that every Needs confirmation mention is registered in the central inventory |
 | `check_issue_inventory_conformance.py` | Consistency checker | Validate the vocabulary, template, and reference integrity of the Issue inventory |
+| `audit_plan_target_paths.py` | Work item | Audit plan target-file paths against the current tree; report cross-plan overlaps and path references in plan bodies not covered by a target row |
 | `check_plan_target_overlaps.py` | Work item | Detect the same file path targeted by multiple Frozen Plans |
 | `check_suppression_justification.py` | Lint/Suppression | Detect `# noqa` / `# type: ignore` / `# nosec` comments that lack a justification |
 | `check_workitem_traceability.py` | Work item | Check consistency of `## Traceability` sections |

@@ -100,6 +100,12 @@ def extract_target_file_rows(text: str) -> list[str]:
         first_cell = cells[0]
         if not first_cell:
             continue
+        # Normalize citation style: some Plans wrap the path cell in backticks.
+        # Without this, a backticked row and a bare row for the same file are
+        # treated as two different targets and real overlaps go undetected.
+        first_cell = first_cell.strip("`").strip()
+        if not first_cell:
+            continue
         if first_cell == "File Path":
             continue
         if set(first_cell) <= {"-"}:
