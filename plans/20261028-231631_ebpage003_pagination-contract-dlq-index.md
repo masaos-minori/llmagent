@@ -137,11 +137,11 @@ Baseline (2026-10-28, pre-implementation, saved under `.opencode/verification/`)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite index test (REQ-002..REQ-004) | Pending | — | — | |
-| 2 | Pagination reword (REQ-001) | Pending | — | — | |
-| 3 | Concurrent-mutation test (REQ-001) | Pending | — | — | |
-| 4 | Endpoint docs boundary wording (REQ-005) | Pending | — | — | |
-| 5 | Full verification (REQ-001..REQ-005) | Pending | — | — | |
+| 1 | Rewrite index test (REQ-002..REQ-004) | In Progress | — | — |  |
+| 2 | Pagination reword (REQ-001) | In Progress | — | — |  |
+| 3 | Concurrent-mutation test (REQ-001) | In Progress | — | — |  |
+| 4 | Endpoint docs boundary wording (REQ-005) | In Progress | — | — |  |
+| 5 | Full verification (REQ-001..REQ-005) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -151,7 +151,10 @@ Baseline (2026-10-28, pre-implementation, saved under `.opencode/verification/`)
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-094100_01_tests_eventbus_test_eventbus_dlq_pagination.py.md | 2, 3 | Procedure | Pending | — | — |
+| implementations/20261029-094100_02_tests_eventbus_test_eventbus_dlq_index.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-094100_03_docs_24_eventbus_eventbus_04_dlq_endpoint.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261029-094100_04_docs_24_eventbus_eventbus_11_replay_endpoint.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -172,3 +175,5 @@ Baseline (2026-10-28, pre-implementation, saved under `.opencode/verification/`)
 | REQ-004 | Issue Background bullet 5 (publish ignored; verified 403) | tests/eventbus/test_eventbus_dlq_index.py | Phase 1 | AC-4 | Asserted publish with publisher token | Confirmed by repository evidence |
 | REQ-005 | Issue Required Changes bullet 5; doc line 68 read | docs/24_eventbus/eventbus_04_dlq_endpoint.md | Phase 3 | AC-6 | check_docs_consistency run | Explicit in issue |
 | REQ-005 | Issue Target Files; replay doc line 68 | docs/24_eventbus/eventbus_11_replay_endpoint.md | Phase 3 | AC-6 | check_docs_consistency run | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-094100 -->
