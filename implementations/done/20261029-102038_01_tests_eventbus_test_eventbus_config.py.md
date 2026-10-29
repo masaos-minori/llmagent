@@ -86,9 +86,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run the identifier search and apply the mapping to comments and docstrings (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Run the tests and the comment-only AST comparison (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Re-run the identifier search and apply the mapping to comments and docstrings (Implementation > Procedure/Method/Details) | Completed | 20261029-131545 | 20261029-131545 |  |
+| 2 | Run the tests and the comment-only AST comparison (Validation plan) | Completed | 20261029-131545 | 20261029-131545 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-131545 | 20261029-131545 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

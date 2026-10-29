@@ -103,9 +103,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `sqlite3` import and the two-lifecycle test (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Run the new and existing shutdown tests (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the `sqlite3` import and the two-lifecycle test (Implementation > Procedure/Method/Details) | Completed | 20261029-131310 | 20261029-131310 |  |
+| 2 | Run the new and existing shutdown tests (Validation plan) | Completed | 20261029-131310 | 20261029-131310 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-131310 | 20261029-131310 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
 
 ### Blocker Log

@@ -98,9 +98,9 @@ N/A: revert the commit (single-file test change); callers are unaffected.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the hand-built state, `_cleanup`, the two helper functions, and the unused import; update the docstring (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Run every caller's tests (Validation plan) | Pending | — | — | 7 call sites in 7 files |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the hand-built state, `_cleanup`, the two helper functions, and the unused import; update the docstring (Implementation > Procedure/Method/Details) | Completed | 20261029-131220 | 20261029-131220 |  |
+| 2 | Run every caller's tests (Validation plan) | Completed | 20261029-131220 | 20261029-131220 | 7 call sites in 7 files |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-131220 | 20261029-131220 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
 
 ### Blocker Log

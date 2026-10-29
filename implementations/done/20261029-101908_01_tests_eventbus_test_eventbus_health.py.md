@@ -97,9 +97,9 @@ N/A: revert the commit (single-file test change).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the helpers and hand-built setup and teardown from the fixture (Implementation > Procedure/Method/Details) | Pending | — | — | |
-| 2 | Run the health tests and the package tests (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the helpers and hand-built setup and teardown from the fixture (Implementation > Procedure/Method/Details) | Completed | 20261029-130949 | 20261029-130949 |  |
+| 2 | Run the health tests and the package tests (Validation plan) | Completed | 20261029-130954 | 20261029-130954 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-130956 | 20261029-130956 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
 
 ### Blocker Log

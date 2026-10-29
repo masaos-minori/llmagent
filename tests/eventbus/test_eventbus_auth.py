@@ -344,7 +344,7 @@ class TestPublishAuth:
         assert response.status_code == 401
 
     def test_publish_with_consumer_token_is_rejected(self) -> None:
-        """AC-2: a consumer_token bearer is not authorized for /publish
+        """ADR-013 INV-02: a consumer_token bearer is not authorized for /publish
         (Role.PUBLISHER-gated), even though the token is otherwise valid. Now
         HTTP-level (through this fixture's own `Depends(require_role(...))`
         declaration) — supersedes the earlier unit-level stopgap that called
@@ -401,7 +401,7 @@ class TestSubscribeAuth:
             cls.client._cleanup()
 
     def test_subscribe_with_publisher_token_is_rejected(self) -> None:
-        """AC-2: a publisher_token bearer is not authorized for /subscribe
+        """ADR-013 INV-02: a publisher_token bearer is not authorized for /subscribe
         (Role.CONSUMER-gated)."""
         response = self.client.get(
             "/subscribe",
@@ -491,7 +491,7 @@ class TestAckAuth:
         assert response.status_code == 401
 
     def test_ack_with_publisher_token_is_rejected(self) -> None:
-        """AC-2: a publisher_token bearer is not authorized for
+        """ADR-013 INV-02: a publisher_token bearer is not authorized for
         /events/{event_id}/ack (Role.CONSUMER-gated)."""
         response = self.client.post(
             "/events/test-event-id/ack",
@@ -533,7 +533,7 @@ class TestNackAuth:
         assert response.status_code == 401
 
     def test_nack_with_publisher_token_is_rejected(self) -> None:
-        """AC-2: a publisher_token bearer is not authorized for /nack
+        """ADR-013 INV-02: a publisher_token bearer is not authorized for /nack
         (Role.CONSUMER-gated)."""
         response = self.client.post(
             "/nack",
@@ -570,7 +570,7 @@ class TestDlqListAuth:
             cls.client._cleanup()
 
     def test_dlq_list_with_publisher_token_is_rejected(self) -> None:
-        """AC-2: a publisher_token bearer is not authorized for /dlq
+        """ADR-013 INV-02: a publisher_token bearer is not authorized for /dlq
         (Role.OPERATOR-gated)."""
         response = self.client.get(
             "/dlq",
@@ -624,7 +624,7 @@ class TestDlqRequeueAuth:
         assert response.status_code == 401
 
     def test_dlq_requeue_with_publisher_token_is_rejected(self) -> None:
-        """AC-2: a publisher_token bearer is not authorized for
+        """ADR-013 INV-02: a publisher_token bearer is not authorized for
         /dlq/{event_id}/requeue (Role.OPERATOR-gated)."""
         response = self.client.post(
             "/dlq/test-event-id/requeue",
@@ -660,7 +660,7 @@ class TestReplayAuth:
             cls.client._cleanup()
 
     def test_replay_with_publisher_token_is_rejected(self) -> None:
-        """AC-2: a publisher_token bearer is not authorized for /replay
+        """ADR-013 INV-02: a publisher_token bearer is not authorized for /replay
         (Role.OPERATOR-gated)."""
         response = self.client.get(
             "/replay",
@@ -991,9 +991,9 @@ class TestFailClosedConsumerAuthorization:
 
     @pytest.mark.asyncio
     async def test_empty_mappings_deny_all_consumers(self) -> None:
-        """REQ-001/REQ-002 (EVENTBUS-008): empty consumer/topic authorization
-        mappings resolve to frozenset() (deny-all); every consumer_id is rejected
-        by require_consumer_identity."""
+        """ADR-013 INV-07: empty consumer/topic authorization mappings resolve to
+        frozenset() (deny-all); every consumer_id is rejected by
+        require_consumer_identity."""
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
@@ -1041,9 +1041,9 @@ class TestFailClosedConsumerAuthorization:
 
     @pytest.mark.asyncio
     async def test_non_empty_mapping_restricts_to_allowlist(self) -> None:
-        """REQ-003 (EVENTBUS-008): a non-empty consumer/topic authorization
-        mapping restricts the CONSUMER principal to its allowlist union; in-
-        allowlist consumer_ids pass and out-of-allowlist ones are rejected."""
+        """A non-empty consumer/topic authorization mapping restricts the CONSUMER
+        principal to its allowlist union; in-allowlist consumer_ids pass and
+        out-of-allowlist ones are rejected."""
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
@@ -1316,7 +1316,7 @@ class TestUnified401ResponseFormat:
     """Tests for the unified HTTP 401 response format."""
 
     def test_missing_authorization_header_returns_unified_format(self) -> None:
-        """REQ-009, REQ-010: Missing Authorization header returns standardized 401 response."""
+        """ADR-013 INV-01: Missing Authorization header returns standardized 401 response."""
         app, cfg = _make_test_app(
             Path("/tmp/test-unified-401"),
             token="test-shared-token",
@@ -1349,7 +1349,7 @@ class TestUnified401ResponseFormat:
         assert 'Bearer realm="eventbus"' in response.headers["www-authenticate"]
 
     def test_invalid_bearer_token_returns_unified_format(self) -> None:
-        """REQ-009, REQ-010: Invalid Bearer token returns standardized 401 response."""
+        """ADR-013 INV-01: Invalid Bearer token returns standardized 401 response."""
         app, cfg = _make_test_app(
             Path("/tmp/test-unified-401-invalid"),
             token="test-shared-token",
@@ -1383,7 +1383,7 @@ class TestUnified401ResponseFormat:
         assert 'Bearer realm="eventbus"' in response.headers["www-authenticate"]
 
     def test_no_double_authentication_processing(self) -> None:
-        """REQ-008: Authentication failures are not processed twice."""
+        """Authentication failures are not processed twice."""
         app, cfg = _make_test_app(
             Path("/tmp/test-no-double-auth"),
             token="test-shared-token",
@@ -1514,8 +1514,8 @@ class TestProductionRouteWiring:
 
 
 class TestDuplicateTokenBinding:
-    """REQ-003, REQ-004: duplicate non-empty token values are rejected and each
-    token holds exactly its documented role."""
+    """Duplicate non-empty token values are rejected and each token holds
+    exactly its documented role."""
 
     @staticmethod
     def _snapshot():
@@ -1649,7 +1649,7 @@ class TestDuplicateTokenBinding:
 
 
 class TestAtomicPublishAndFailedRebuild:
-    """SEQ-07: Assert atomic publish (no empty-map window) and failed-rebuild preservation."""
+    """Assert atomic publish (no empty-map window) and failed-rebuild preservation."""
 
     @staticmethod
     def _snapshot():
