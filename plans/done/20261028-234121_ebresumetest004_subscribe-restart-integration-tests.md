@@ -32,8 +32,9 @@ Medium
 ## Background
 All tests in `tests/eventbus/test_eventbus_restart_resume.py` run inside one `TestClient`
 lifecycle; none closes it and reopens a second one on the same database. `TestOutOfOrderAckNoSkipOnReconnect`
-(lines 274-307) and `test_get_resume_position_no_offset` call `ack_event_for_consumer`,
-`get_consumer_offset` and `get_resume_position` directly without crossing `/subscribe`. Two tests
+(class at line 273, methods at :313, :377, :429) and its `test_get_resume_position_no_offset` member
+call `ack_event_for_consumer`, `get_consumer_offset` and `get_resume_position` directly on a raw
+`sqlite3` connection without crossing `/subscribe`. Two tests
 (`test_reconnect_after_ordered_acks_replays_next_event_first`,
 `test_reconnect_after_out_of_order_ack_replays_lowest_unacked_first`) do use `/subscribe` through
 `_reconnect_ids()` (finite `sse_idle_timeout` 0.5 s) but stay within one lifecycle.
@@ -84,12 +85,14 @@ if a second lifecycle exposes a production defect, stop and report it with the f
   synchronization; no sleeps.
 
 ## Implementation Target Files
-**Freeze status**: Frozen (Step 8 2026-10-29: all target rows Verified; `tools/check_workitem_structure.py` clean; `tools/check_plan_target_overlaps.py` findings reviewed as documented sequencing dependencies).
+**Freeze status**: Frozen (Step 8 2026-10-29: all target rows Verified; `tools/check_workitem_structure.py` clean; `tools/check_plan_target_overlaps.py` findings reviewed as documented sequencing dependencies; Step 3a corrections 2026-10-29 -- row-1 evidence helper names/lines replaced (`_init_eventbus_state` does not exist; actual builders `make_eventbus_client`/`_init_state`/`_do_cleanup`), Background and row-2 class line ranges corrected to `:273`/`:313`/`:377`/`:429`; target-file rows unchanged; Design fixture shape corrected 2026-10-29 -- fixture yields
+`(open_client, snapshots)` with sequential lifecycle entry because two concurrently entered
+`TestClient`s on the module-level singleton app would share one lifecycle).
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| tests/eventbus/eventbus_helpers.py | Add the shared two-lifecycle lifespan fixture and leak-probe helper | No reusable second-lifecycle harness exists today | REQ-001, REQ-003; AC-1, AC-2 | File holds the existing client builders (e.g. `_init_eventbus_state`, lines 131-174 hand state setup); `scripts/eventbus/app.py` lifespan startup clears the shutdown flag and `_shutdown_lifespan` nulls `app.state.db` | Probe test added in the restart file consumes it | Verified |
-| tests/eventbus/test_eventbus_restart_resume.py | Add restart integration tests; rename direct-SQL tests; resolve the skip | No test crosses two lifecycles; two tests claim endpoint coverage via SQL; one test skipped with a stale citation | REQ-002, REQ-004, REQ-005, REQ-006; AC-1, AC-3, AC-4 | Skip at line 196 cites old `issues/` path; `TestOutOfOrderAckNoSkipOnReconnect` (lines 274-307) and `test_get_resume_position_no_offset` run SQL directly; `_reconnect_ids()` finite-timeout pattern already in the file | The new tests themselves | Verified |
+| tests/eventbus/eventbus_helpers.py | Add the shared two-lifecycle lifespan fixture and leak-probe helper | No reusable second-lifecycle harness exists today | REQ-001, REQ-003; AC-1, AC-2 | File holds the existing single-lifecycle builders: `make_eventbus_client` (`:101-161`, config build at `:118-135`, hand-built `app.state` init via `_init_state` at `:164-176`, cleanup via `_do_cleanup` at `:179-191`) (re-verified 2026-10-29); `scripts/eventbus/app.py` `lifespan()` (`:70-89`) initializes config/db/broker/dlq_task and clears the shutdown flag at startup, `_shutdown_lifespan` (`:95-137`) nulls `app.state.db` | Probe test added in the restart file consumes it | Verified |
+| tests/eventbus/test_eventbus_restart_resume.py | Add restart integration tests; rename direct-SQL tests; resolve the skip | No test crosses two lifecycles; two tests claim endpoint coverage via SQL; one test skipped with a stale citation | REQ-002, REQ-004, REQ-005, REQ-006; AC-1, AC-3, AC-4 | Skip decorator at line 196 cites old `issues/` path (def at :202) (re-verified 2026-10-29); `TestOutOfOrderAckNoSkipOnReconnect` (class :273, methods :313/:377/:429) runs raw-`sqlite3` SQL directly; `_reconnect_ids()` (`:448`) finite-timeout pattern already in the file | The new tests themselves | Verified |
 | tests/eventbus/test_eventbus_replay_subscribe.py | Rename `test_subscribe_yields_matching_event` to a query/row-conversion name | Name claims subscribe behavior while the test runs a SQL query and `_row_to_dict()` directly | REQ-004; AC-3 | Test at line 82; its own comment at line 87 states `/replay` already validates SSE framing and the same `_row_to_dict` is reused | Existing test, renamed; `pytest --collect-only` diff | Verified |
 
 ## Reference Files
@@ -145,11 +148,23 @@ N/A: Path A tests-only; none of the three target files is deployed by `deploy.sh
 `deploy.sh Impact` is nil for every row.
 
 ## Design
-- Fixture shape: a generator that yields `(client_1, client_2)` built from two sequential
-  `with TestClient(app)` blocks over one tmp `db_path`; between lifecycles it snapshots
-  `app.state.db` identity, broker identity and `db_conn._shutting_down` for the probe assertions.
-  It reuses the config-builder already in `eventbus_helpers.py` rather than re-handling
-  `app.state` (that hand-built pattern is what ebtestdrift007 removes).
+- Fixture shape: fixture `eventbus_two_lifecycle_clients` in `tests/eventbus/eventbus_helpers.py`
+  yielding `(open_client, snapshots)`, where `open_client()` is a context manager that enters
+  `TestClient(eb_app.app)` (production lifespan builds and tears down `app.state`) over one tmp
+  `db_path`, and each entry appends the fresh `app.state.db` handle and broker identity to
+  `snapshots`; tests open two sequential `with open_client()` blocks, and `db_conn._shutting_down`
+  on the retained handle plus differing identities give the probe assertions.
+  Correction note 2026-10-29: the original "yields `(client_1, client_2)`" two concurrently
+  entered clients is not implementable — `eb_app.app` is a module-level singleton whose
+  `app.state` is wholesale replaced by each `lifespan()`/`_shutdown_lifespan()`
+  (`scripts/eventbus/app.py:70-137`, `app.state.db = None` at `:135`), so two simultaneously
+  entered clients would share one lifecycle and a phase-A request issued after the second entry
+  would not be "before restart". Sequential factory entry preserves the frozen intent.
+  It reuses the `EventBusConfig` build/monkeypatch pattern of `make_eventbus_client`
+  (`eventbus_helpers.py:118-135`) rather than re-handling `app.state`: the fixture must not
+  call `_init_state` (`:164-176`), because `lifespan()` already initializes
+  config/db/broker/dlq_task on `TestClient` entry (that hand-built pattern is what
+  ebtestdrift007 removes).
 - Termination: only the finite `sse_idle_timeout` pattern (`_reconnect_ids()`) and response-body
   reads; no raw socket reads, no sleeps.
 - Scenario coverage maps one-to-one to REQ-002's seven scenarios; scenarios that duplicate an
@@ -191,9 +206,9 @@ N/A: Path A tests-only; none of the three target files is deployed by `deploy.sh
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Two-lifecycle fixture + probe (REQ-001, REQ-003) | Pending | — | — | |
-| 2 | Scenario tests, renames, skip resolution (REQ-002, REQ-004..REQ-006) | Pending | — | — | |
-| 3 | Verification gates (no deploy step; tests only) | Pending | — | — | |
+| 1 | Two-lifecycle fixture + probe (REQ-001, REQ-003) | In Progress | — | — |  |
+| 2 | Scenario tests, renames, skip resolution (REQ-002, REQ-004..REQ-006) | In Progress | — | — |  |
+| 3 | Verification gates (no deploy step; tests only) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -203,7 +218,9 @@ N/A: Path A tests-only; none of the three target files is deployed by `deploy.sh
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-111247_01_tests_eventbus_eventbus_helpers.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-111247_02_tests_eventbus_test_eventbus_restart_resume.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261029-111247_03_tests_eventbus_test_eventbus_replay_subscribe.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -225,3 +242,5 @@ N/A: Path A tests-only; none of the three target files is deployed by `deploy.sh
 | REQ-004 | Issue Required Changes bullet 4 | tests/eventbus/test_eventbus_restart_resume.py | Phase 2 | AC-3 | collect-only diff | Explicit in issue |
 | REQ-005 | Issue Required Changes bullet 5 | tests/eventbus/test_eventbus_restart_resume.py | Phase 2 | AC-3 | Unskip run (UNK-01) | Needs confirmation |
 | REQ-006 | Issue Constraints bullet 1 | tests/eventbus/test_eventbus_restart_resume.py | Phase 2 | AC-4 | Double-run determinism | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-111247 -->
