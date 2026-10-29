@@ -220,4 +220,4 @@ idle-timeout termination (`REQ-006`; AC-4).
 - **Source plan**: plans/20261028-234121_ebresumetest004_subscribe-restart-integration-tests.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261029-111247
-- **Related target files**: tests/eventbus/eventbus_helpers.py, tests/eventbus/test_eventbus_replay_subscribe.py
+- **Related target files**: tests/eventbus/test_eventbus_restart_resume.py

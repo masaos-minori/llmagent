@@ -131,10 +131,10 @@ shape (call sites only call it).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the fallback branch with a FileNotFoundError raise (Implementation > Procedure/Method/Details) | Pending | — | — | After `111247_02`/`03` land |
-| 2 | Run the missing-schema probe and grep gate (Validation plan 2-3) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
+| 1 | Replace the fallback branch with a FileNotFoundError raise (Implementation > Procedure/Method/Details) | Completed | 20261029-195210 | 20261029-195210 | After `111247_02`/`03` land |
+| 2 | Run the missing-schema probe and grep gate (Validation plan 2-3) | Completed | 20261029-195210 | 20261029-195210 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-195242 | 20261029-195242 | Target file unchanged-count preserved (15 passed/2 failed before and after). 3 pre-existing failures in tests/eventbus are out of scope and orthogonal to this change: test_restart_new_consumer_sees_only_new + test_restart_two_consumers_independent_resume (ebresumetest004 two-lifecycle replay bug, uses eventbus_two_lifecycle_clients fixture not _create_tables) and test_requeue_audit_record_carries_actor_and_request_id (tests/eventbus/test_eventbus_dlq.py). All reproduce at clean HEAD; git tree holds only this edit. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-195210 | 20261029-195210 | Tests-only row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

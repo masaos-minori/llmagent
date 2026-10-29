@@ -116,8 +116,8 @@ class TestConfigErrorDegradation:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestConfigErrorDegradation` (new) with the two regression tests | Pending | — | — | REQ-004 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | REQ-004 |
+| 1 | Add `TestConfigErrorDegradation` (new) with the two regression tests | Completed | — | 20261029-202648 | REQ-004 REQ-004; both tests pass vs fixed source; regression lock confirmed (fail at HEAD) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261029-202654 | REQ-004 REQ-004; ruff/mypy/lint-imports/bandit(-ll) clean; mdq suite 414 passed/1 skipped (baseline +2) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

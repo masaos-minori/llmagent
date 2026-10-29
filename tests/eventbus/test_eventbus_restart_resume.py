@@ -318,35 +318,8 @@ class TestOutOfOrderAckNoSkipOnReconnect:
             Path(__file__).parent.parent.parent / "scripts" / "eventbus" / "schema.sql"
         )
         if not schema_path.exists():
-            # Fallback: inline schema for test isolation
-            conn.executescript(
-                "CREATE TABLE IF NOT EXISTS events ("
-                "seq INTEGER PRIMARY KEY AUTOINCREMENT, "
-                "event_id TEXT NOT NULL UNIQUE, "
-                "topic TEXT NOT NULL, "
-                "payload TEXT NOT NULL, "
-                "producer TEXT NOT NULL, "
-                "published_at TEXT NOT NULL, "
-                "acked INTEGER NOT NULL DEFAULT 0, "
-                "redelivered_from TEXT, "
-                "dlq_requeue_count INTEGER NOT NULL DEFAULT 0, "
-                "dlq_at TEXT, "
-                "consumer_id TEXT, "
-                "consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0"
-                "); "
-                "CREATE TABLE IF NOT EXISTS consumer_delivery ("
-                "consumer_id TEXT NOT NULL, "
-                "event_id TEXT NOT NULL, "
-                "acked INTEGER NOT NULL DEFAULT 0, "
-                "PRIMARY KEY (consumer_id, event_id)"
-                "); "
-                "CREATE TABLE IF NOT EXISTS consumer_offsets ("
-                "consumer_id TEXT PRIMARY KEY, "
-                "offset INTEGER NOT NULL DEFAULT 0"
-                ");"
-            )
-        else:
-            conn.executescript(schema_path.read_text())
+            raise FileNotFoundError(f"EventBus schema.sql not found: {schema_path}")
+        conn.executescript(schema_path.read_text())
 
     def test_unit_midsequence_ack_resume_position(self, tmp_path: Path) -> None:
         """ACK a higher seq before a lower seq → reconnect must not skip the lower seq."""

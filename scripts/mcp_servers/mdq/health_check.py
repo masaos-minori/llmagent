@@ -16,6 +16,7 @@ from pathlib import Path
 
 from db.helper import apply_connection_pragmas
 from fastapi.responses import JSONResponse
+from shared.config_errors import ConfigMissingError, ConfigParseError, ConfigReadError
 from shared.config_loader import ConfigLoader
 from shared.security.posture_contract import SecurityPosture
 
@@ -166,7 +167,14 @@ def _collect_dependencies() -> tuple[
             finally:
                 conn.close()
 
-    except (FileNotFoundError, PermissionError, KeyError, TypeError) as e:
+    except (
+        ConfigMissingError,
+        ConfigParseError,
+        ConfigReadError,
+        PermissionError,
+        KeyError,
+        TypeError,
+    ) as e:
         deps["config"] = f"check failed: {e}"
 
     return (

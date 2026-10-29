@@ -102,10 +102,10 @@ Reverting the commit restores the old names; no other change depends on either s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename the two `dmq` methods to `dlq` spellings (Implementation > Procedure/Method/Details) | Pending | — | — | After `102038_05` lands |
-| 2 | Run the grep gate (Validation plan 2) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
+| 1 | Rename the two `dmq` methods to `dlq` spellings (Implementation > Procedure/Method/Details) | Completed | 20261029-195906 | 20261029-195906 | After `102038_05` lands Rename applied; old dmq names gone by design (stale_detector false-positive: names renamed to dlq) |
+| 2 | Run the grep gate (Validation plan 2) | Completed | 20261029-195906 | 20261029-195906 | grep -rn dmq tests/eventbus/ (source) empty; only stale __pycache__ .pyc matched |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-195906 | 20261029-195906 | ruff check/format --check/mypy clean; file collects 10 tests, all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-200625 | 20261029-200625 | Tests-only row N/A: tests-only row, no docs/00_index.md task-scope mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -176,10 +176,10 @@ importers).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the fixture region with the lifespan fixture and delete the three helpers and the unused import (Implementation > Procedure/Method/Details) | Pending | — | — | After `101908_01`/`02` land |
-| 2 | Run the file twice and the package suite (Validation plan 1-3) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
+| 1 | Replace the fixture region with the lifespan fixture and delete the three helpers and the unused import (Implementation > Procedure/Method/Details) | Completed | 20261029-201216 | 20261029-201216 | After `101908_01`/`02` land Fixture rebuilt around ; 3 helpers +  deleted; config values/docstring verbatim |
+| 2 | Run the file twice and the package suite (Validation plan 1-3) | Completed | 20261029-201216 | 20261029-201216 | File ran twice (fresh proc): 18 passed each; package gate tests/eventbus: 436 passed, 3 pre-existing failures (orthogonal, out-of-scope) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-201216 | 20261029-201216 | ruff check/format --check/mypy clean; grep gate (_init_state/_do_cleanup/_cleanup/app.state assignment) empty |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-201216 | 20261029-201216 | Tests-only row N/A: tests-only row, no docs/00_index.md task-scope mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

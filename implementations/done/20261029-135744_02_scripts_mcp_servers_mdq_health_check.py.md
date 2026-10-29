@@ -101,8 +101,8 @@ from shared.config_errors import ConfigMissingError, ConfigParseError, ConfigRea
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the `except` tuple and add the import per Method | Pending | — | — | REQ-003 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | REQ-004 |
+| 1 | Extend the `except` tuple and add the import per Method | Completed | 20261029-202002 | 20261029-202002 | REQ-003 except tuple extended with 3 ValueError config errors (FileNotFoundError dropped); import added before config_loader; ruff format wrapped tuple |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-202003 | 20261029-202003 | REQ-004 ruff/mypy/bandit(-ll)/lint-imports clean; module size OK; ref table no drift; tests/mcp_servers/mdq 412 passed 1 skipped. AC-3 direct unit test owned by sibling procedure 135744_03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

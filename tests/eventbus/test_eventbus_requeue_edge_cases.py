@@ -73,7 +73,7 @@ class TestRequeueEdgeCases:
         resp = client.post("/dlq/nonexistent-event/requeue")
         assert resp.status_code == 404
 
-    def test_requeue_non_dmq_event(self, client: TestClient) -> None:
+    def test_requeue_non_dlq_event(self, client: TestClient) -> None:
         """POST /dlq/{event_id}/requeue for non-DLQ event returns 409 Conflict."""
         body = _event()
         resp = client.post(
@@ -85,7 +85,7 @@ class TestRequeueEdgeCases:
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 409
 
-    def test_requeue_valid_dmq_event(self, client: TestClient, tmp_path: Path) -> None:
+    def test_requeue_valid_dlq_event(self, client: TestClient, tmp_path: Path) -> None:
         """POST /dlq/{event_id}/requeue for valid DLQ event succeeds."""
         from eventbus.db import open_db
         from eventbus.dlq import sweep_orphans

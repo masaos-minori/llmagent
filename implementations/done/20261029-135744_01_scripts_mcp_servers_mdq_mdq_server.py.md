@@ -121,8 +121,8 @@ New module comment for lines 84-87 (no unqualified "never raises at import" clai
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `except`, update docstring and module comment per Method/Details | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | REQ-004 |
+| 1 | Extend `except`, update docstring and module comment per Method/Details | Completed | 20261029-201731 | 20261029-201731 | REQ-001, REQ-002 except tuple extended with 3 ValueError config errors; docstring and module comment rewritten; import added (alphabetical order) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-201731 | 20261029-201731 | REQ-004 ruff/mypy/bandit(-ll)/lint-imports all clean; module size OK; ref table no drift; tests/mcp_servers/mdq 412 passed 1 skipped. AC-1 direct unit test owned by sibling procedure 135744_03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

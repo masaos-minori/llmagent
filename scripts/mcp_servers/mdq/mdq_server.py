@@ -20,6 +20,7 @@ from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from shared.config_errors import ConfigMissingError, ConfigParseError, ConfigReadError
 from shared.config_loader import ConfigLoader
 from shared.config_utils import get_str
 from shared.formatters import fmt_kvlog
@@ -70,10 +71,14 @@ app = FastAPI(
 
 
 def _load_auth_token() -> str:
-    """Return the server Bearer token from mdq_mcp_server.toml ("" when unset)."""
+    """Return the server Bearer token from mdq_mcp_server.toml.
+
+    Falls back to an empty config view (-> "" token, fail-closed startup) on
+    ConfigMissingError / ConfigParseError / ConfigReadError, KeyError, or TypeError.
+    """
     try:
         cfg = ConfigLoader().load("mdq_mcp_server.toml")
-    except (FileNotFoundError, KeyError, TypeError):
+    except (ConfigMissingError, ConfigParseError, ConfigReadError, KeyError, TypeError):
         cfg = {}
     return get_str(cfg, "auth_token")
 
@@ -82,9 +87,10 @@ _AUTH_TOKEN: str = _load_auth_token()
 _service: MdqService = MdqService()
 
 # Build the MDQ security posture once at import (REQ-002). `_collect_dependencies()`
-# swallows config/probe exceptions (it records them under deps["config"] and returns an
-# empty config view), so this never raises at import; the gate below fails closed at
-# startup when the resulting posture is not validated.
+# records config-read errors (ConfigMissingError / ConfigParseError / ConfigReadError)
+# and probe-side PermissionError / KeyError / TypeError under deps["config"] and
+# returns an empty config view; it swallows no other exceptions. The gate below fails
+# closed at startup when the resulting posture is not validated.
 (
     _deps,
     _details,
