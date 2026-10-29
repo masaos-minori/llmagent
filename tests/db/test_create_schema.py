@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS events (
     topic                  TEXT    NOT NULL,
     payload                TEXT    NOT NULL,
     producer               TEXT    NOT NULL,
-    published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    published_at           TEXT    NOT NULL,
     redelivered_from       TEXT,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
     dlq_at                 TEXT,
@@ -917,6 +917,9 @@ class TestTimestampDefaults:
             col_name = row[1]
             default = row[4]
             not_null = row[3]
+            if col_name == "published_at":
+                # Publisher-supplied since schema v3: intentionally has no default.
+                continue
             # Nullable columns such as events.dlq_at carry no default.
             if col_name.endswith("_at") and not_null:
                 assert default is not None, f"events.{col_name} has no DEFAULT"
@@ -1168,8 +1171,12 @@ class TestEventbusSchemaFingerprint:
             conn.close()
 
     def test_changed_default_raises(self) -> None:
+        """A database whose published_at still carries the removed strftime default
+        (the pre-v3 shape) is rejected by the fingerprint gate."""
         ddl = _CANONICAL_EVENTBUS_DDL.replace(
-            "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')", "CURRENT_TIMESTAMP"
+            "    published_at           TEXT    NOT NULL,",
+            "    published_at           TEXT    NOT NULL DEFAULT "
+            "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),",
         )
         conn = _apply_eventbus_ddl(ddl)
         try:

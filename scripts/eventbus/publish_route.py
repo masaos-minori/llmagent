@@ -32,6 +32,10 @@ _broker_notify_failure_counter = Counter(
     "Number of broker notification failures after successful database commit",
 )
 
+# Validates the envelope's date-time format fields (published_at). Registration of
+# the date-time checker requires rfc3339-validator, declared in pyproject.toml.
+_FORMAT_CHECKER = jsonschema.FormatChecker()
+
 
 async def publish(
     request: Request,
@@ -39,7 +43,9 @@ async def publish(
     """Publish an event after validating its envelope against the configured schema."""
     body: dict[str, Any] = await request.json()
     try:
-        jsonschema.validate(body, request.app.state.envelope_schema)
+        jsonschema.validate(
+            body, request.app.state.envelope_schema, format_checker=_FORMAT_CHECKER
+        )
     except jsonschema.ValidationError as e:
         raise HTTPException(status_code=422, detail=e.message)
 

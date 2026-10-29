@@ -240,6 +240,47 @@ def test_conflicting_content_retry_returns_409(client: TestClient) -> None:
     assert resp2.json()["detail"] == ERR_EVENT_CONFLICT
 
 
+def test_published_at_stored_unchanged(client: TestClient, tmp_path: Path) -> None:
+    """Supplied published_at is stored exactly as sent (no server rewrite)."""
+    ev = _event()
+    resp = client.post("/publish", json=ev)
+    assert resp.status_code == 200
+
+    with sqlite3.connect(tmp_path / "eventbus.sqlite") as conn:
+        stored = conn.execute(
+            "SELECT published_at FROM events WHERE event_id = ?",
+            (ev["event_id"],),
+        ).fetchone()[0]
+    assert stored == ev["published_at"]
+
+
+def test_duplicate_retry_preserves_original_published_at(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Identical-content retry keeps the original row's published_at unchanged.
+
+    Canonical equality excludes published_at, so a retry with a different
+    published_at is a duplicate: same seq, stored row not rewritten
+    (current duplicate-retention shape, plan UNK-03 decision).
+    """
+    ev = _event()
+    resp1 = client.post("/publish", json=ev)
+    assert resp1.status_code == 200
+    seq1 = resp1.json()["seq"]
+
+    retry = {**ev, "published_at": "2026-06-22T12:00:00Z"}
+    resp2 = client.post("/publish", json=retry)
+    assert resp2.status_code == 200
+    assert resp2.json()["seq"] == seq1
+
+    with sqlite3.connect(tmp_path / "eventbus.sqlite") as conn:
+        rows = conn.execute(
+            "SELECT published_at FROM events WHERE event_id = ?",
+            (ev["event_id"],),
+        ).fetchall()
+    assert [r[0] for r in rows] == [ev["published_at"]]
+
+
 def _ensure_prometheus_counters_registered() -> None:
     """Ensure Prometheus counters used by these tests are registered.
 

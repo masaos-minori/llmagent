@@ -5,6 +5,7 @@ Event Bus publish persistence contract tests.
 
 from __future__ import annotations
 
+import sqlite3
 import uuid
 from pathlib import Path
 from unittest.mock import patch
@@ -143,20 +144,36 @@ class TestPublishEnvelopeSchemaContract:
         )
         assert resp.status_code == 422
 
-    def test_published_at_format_not_validated_by_jsonschema(
-        self, client: TestClient
-    ) -> None:
-        """jsonschema does NOT validate the date-time format by default.
+    def test_published_at_bad_format_returns_422(self, client: TestClient) -> None:
+        """A malformed published_at is rejected with 422.
 
-        The jsonschema library ignores the 'format' keyword unless a format
-        checker is explicitly attached. This test documents that behavior
-        so it is not mistaken for a bug.
+        The publish route attaches a jsonschema FormatChecker, so the envelope
+        schema's date-time format is enforced (rfc3339-validator registered).
         """
         resp = client.post(
             "/publish",
             json={**_event(), "published_at": "not-a-date"},
         )
+        assert resp.status_code == 422
+
+    def test_published_at_future_value_accepted(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """A valid RFC 3339 timestamp in the future is accepted and stored unchanged.
+
+        Format-only enforcement: no clock-skew or future-value limit (plan
+        UNK-02 decision).
+        """
+        future = "2030-01-01T00:00:00Z"
+        ev = {**_event(), "published_at": future}
+        resp = client.post("/publish", json=ev)
         assert resp.status_code == 200
+        with sqlite3.connect(tmp_path / "eventbus.sqlite") as conn:
+            stored = conn.execute(
+                "SELECT published_at FROM events WHERE event_id = ?",
+                (ev["event_id"],),
+            ).fetchone()[0]
+        assert stored == future
 
     def test_empty_string_topic_rejected(self, client: TestClient) -> None:
         """topic must have minLength=1."""

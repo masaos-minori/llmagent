@@ -366,8 +366,10 @@ class _RacingConn:
         if not self._injected and str(sql).strip().upper().startswith("UPDATE"):
             self._injected = True
             self._racer.execute(
-                "INSERT INTO events (event_id, topic, payload, producer, redelivered_from) "
-                "SELECT ?, topic, payload, producer, ? FROM events WHERE event_id = ?",
+                "INSERT INTO events "
+                "(event_id, topic, payload, producer, published_at, redelivered_from) "
+                "SELECT ?, topic, payload, producer, published_at, ? "
+                "FROM events WHERE event_id = ?",
                 (uuid.uuid4().hex, self._original_event_id, self._original_event_id),
             )
             self._racer.commit()
@@ -499,15 +501,23 @@ class TestRequeueFailureInjection:
 def _seed_dlq_event(conn: Any, topic: str) -> str:
     """Insert one event with dlq_at set directly into the events table.
 
-    Satisfies the NOT NULL columns (published_at has a schema default) so the
-    redeliver_event UPDATE guard (dlq_at IS NOT NULL) matches without any
-    sweep or nack choreography. Returns the event_id.
+    Satisfies the NOT NULL columns (published_at is passed explicitly; the
+    schema default was removed in v3) so the redeliver_event UPDATE guard
+    (dlq_at IS NOT NULL) matches without any sweep or nack choreography.
+    Returns the event_id.
     """
     event_id = uuid.uuid4().hex
     conn.execute(
-        "INSERT INTO events (event_id, topic, payload, producer, dlq_at) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (event_id, topic, '{"key": "value"}', "test-producer", "2026-01-01T00:00:00Z"),
+        "INSERT INTO events (event_id, topic, payload, producer, published_at, dlq_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            event_id,
+            topic,
+            '{"key": "value"}',
+            "test-producer",
+            "2026-01-01T00:00:00Z",
+            "2026-01-01T00:00:00Z",
+        ),
     )
     conn.commit()
     return event_id

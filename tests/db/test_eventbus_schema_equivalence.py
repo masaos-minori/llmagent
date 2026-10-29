@@ -46,8 +46,9 @@ def test_existing_database_is_unchanged_on_restart(tmp_path: Path) -> None:
     path = tmp_path / "eventbus.sqlite"
     conn = open_db(str(path))
     conn.execute(
-        "INSERT INTO events (event_id, topic, payload, producer)"
-        " VALUES ('evt-1', 'test-topic', '{}', 'producer-1')"
+        "INSERT INTO events (event_id, topic, payload, producer, published_at)"
+        " VALUES ('evt-1', 'test-topic', '{}', 'producer-1',"
+        " '2026-01-01T00:00:00Z')"
     )
     conn.commit()
     before_schema = _schema(conn)

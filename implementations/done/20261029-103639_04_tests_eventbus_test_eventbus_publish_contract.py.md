@@ -84,10 +84,10 @@ Inline test edit; reuse the module's existing client/header fixtures.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261029-154000 | 20261029-160102 | Stored-unchanged assertion reads the DB directly: the publish response body only returns event_id+seq. |
+| 2 | Add or update tests per Validation plan | Completed | 20261029-154000 | 20261029-160102 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-154000 | 20261029-160102 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-154000 | 20261029-160102 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

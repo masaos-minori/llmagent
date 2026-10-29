@@ -30,7 +30,7 @@ def insert_event(
       - status="conflict": conflicting content, return None
 
     Canonical equality fields: topic, payload (canonical JSON), producer.
-    published_at is excluded from canonical equality (server-generated).
+    published_at is excluded from canonical equality (publisher-supplied).
     """
     cur = conn.execute(
         "INSERT OR IGNORE INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",

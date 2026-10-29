@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS events (
     topic                  TEXT    NOT NULL,
     payload                TEXT    NOT NULL,
     producer               TEXT    NOT NULL,
-    published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    published_at           TEXT    NOT NULL,
     redelivered_from       TEXT,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
     dlq_at                 TEXT,
@@ -42,4 +42,4 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
 
 -- Schema version of this DDL. Bump it whenever the schema changes in a way that
 -- requires recreating the database; open_db() refuses a database stamped otherwise.
-PRAGMA user_version = 2;
+PRAGMA user_version = 3;

@@ -84,10 +84,10 @@ Inline edit of two lines in the single schema file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261029-154000 | 20261029-160102 | Dead default removed + user_version 3. Dependent test fixtures adapted (sanctioned): tests/db/test_create_schema.py (_EVENTBUS_SCHEMA_NO_VEC0 fixture, test_eventbus_schema_timestamps published_at exclusion, test_changed_default_raises mutated to re-add the removed default), tests/db/test_eventbus_schema_equivalence.py (explicit published_at INSERT), tests/eventbus/test_eventbus_requeue_edge_cases.py (_seed_dlq_event + _RacingConn carry published_at). Stale v2-stamped /tmp test scratch DBs removed; deployed v2 DBs require the documented recreate procedure. |
+| 2 | Add or update tests per Validation plan | Completed | 20261029-154000 | 20261029-160102 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-154000 | 20261029-160102 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261029-154000 | 20261029-160102 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

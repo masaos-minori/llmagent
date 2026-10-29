@@ -244,8 +244,8 @@ matches runtime (line 56), and no doc may pre-announce an undecided model.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Docstring alignment + owner report (REQ-002, REQ-001 gate) | In Progress | — | — |  |
-| 2 | Apply chosen model (REQ-003/REQ-005 + tests + docs) | In Progress | — | — | Unblocked 2026-10-29 by owner decisions (UNK-01/02/03) |
+| 1 | Docstring alignment + owner report (REQ-002, REQ-001 gate) | Completed | 20261029-153434 | 20261029-160105 |  |
+| 2 | Apply chosen model (REQ-003/REQ-005 + tests + docs) | Completed | 20261029-153434 | 20261029-160105 | Unblocked 2026-10-29 by owner decisions (UNK-01/02/03) Implemented 2026-10-29 (all 9 procedures archived); dependent test fixtures adapted, recorded in procedure 03 Notes |
 | 3 | Verification + deploy | Pending | — | — |  |
 
 ### Blocker Log
@@ -256,15 +256,15 @@ matches runtime (line 56), and no doc may pre-announce an undecided model.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261029-103639_01_scripts_eventbus_event_repo.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261029-103639_02_scripts_eventbus_publish_route.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-103639_03_scripts_eventbus_schema.sql.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-103639_04_tests_eventbus_test_eventbus_publish_contract.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-103639_05_tests_eventbus_test_eventbus_publish.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-103639_06_docs_24_eventbus_eventbus_06_persistence_schema.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-103639_07_tests_eventbus_test_eventbus_schema_version.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-103639_08_pyproject.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261029-103639_09_uv.lock.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-103639_01_scripts_eventbus_event_repo.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261029-103639_02_scripts_eventbus_publish_route.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-103639_03_scripts_eventbus_schema.sql.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-103639_04_tests_eventbus_test_eventbus_publish_contract.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-103639_05_tests_eventbus_test_eventbus_publish.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-103639_06_docs_24_eventbus_eventbus_06_persistence_schema.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-103639_07_tests_eventbus_test_eventbus_schema_version.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-103639_08_pyproject.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261029-103639_09_uv.lock.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -4,8 +4,10 @@ eventbus.sqlite carries a schema version (PRAGMA user_version stamped by
 schema.sql). open_db() refuses a database stamped with another version, stamps an
 unstamped database only when its tables match schema.sql, and refuses the rest.
 
-The version is pinned to 2 (the idx_events_redelivered_from unique index bump); a
-database still stamped 1 must be refused with the recreate message.
+The version is pinned to 3 (the enforced date-time format check via
+rfc3339-validator plus the removal of the dead published_at schema default;
+version 2 was the idx_events_redelivered_from unique index bump); a database
+still stamped 1 must be refused with the recreate message.
 """
 
 from __future__ import annotations
@@ -68,9 +70,9 @@ def test_unstamped_old_shape_is_refused_and_left_unstamped(tmp_path: Path) -> No
     assert _version(path) == 0
 
 
-def test_schema_version_is_pinned_to_two() -> None:
-    """Contract lock for this plan: schema.sql must stamp PRAGMA user_version = 2."""
-    assert eventbus_schema_version() == 2
+def test_schema_version_is_pinned_to_three() -> None:
+    """Contract lock for this plan: schema.sql must stamp PRAGMA user_version = 3."""
+    assert eventbus_schema_version() == 3
 
 
 def test_new_database_has_redelivered_from_index(tmp_path: Path) -> None:
