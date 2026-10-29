@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -38,6 +37,16 @@ TEST_CONSUMER_IDS = (
     "consumer1",
     "consumer2",
     "test-precedence",
+    "probe-consumer",
+    "svc-A",
+    "svc-B",
+    "svc-C",
+    "svc-new",
+    "svc-old",
+    "svc-reuse",
+    "svc-gap",
+    "A",
+    "B",
 )
 TEST_TOPICS = (
     "t",
@@ -98,6 +107,36 @@ def eventbus_auth_headers(role: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {tokens[f'{role}_token']}"}
 
 
+def eventbus_test_config(
+    tmp_path: Path,
+    *,
+    max_retry: int = 3,
+    sse_idle_timeout: float | None = None,
+    token: str = "test-token",
+) -> Any:
+    """Build an EventBusConfig for test use.
+
+    Returns a configured EventBusConfig instance with test tokens and paths
+    derived from ``tmp_path``. This is a private test helper (not a leading
+    underscore) because the restart test file imports it across modules.
+    """
+    from eventbus.config import EventBusConfig
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(tmp_path / "eventbus.sqlite"),
+        storage_dir=str(tmp_path / "storage"),
+        deadletter_dir=str(tmp_path / "deadletter"),
+        max_retry=max_retry,
+        **eventbus_test_tokens(token),
+    )
+    if sse_idle_timeout is not None:
+        # The constructor validates the idle timeout against the heartbeat
+        # interval, so a short value is assigned after construction.
+        object.__setattr__(cfg, "sse_idle_timeout", sse_idle_timeout)
+    return cfg
+
+
 def make_eventbus_client(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -111,22 +150,20 @@ def make_eventbus_client(
     carry one role. Callers that exercise more than one role must pass the correct
     header per call via :func:`eventbus_auth_headers`; ``default_role`` covers the
     common case where a test starts with (and mostly stays on) one role.
+
+    The returned client must be entered as a context manager
+    (``with make_eventbus_client(...) as c``): the production lifespan then starts
+    the application and its shutdown sequence stops it. The helper builds no app
+    state itself.
     """
     from eventbus import app as eb_app
-    from eventbus.config import EventBusConfig
 
-    cfg = EventBusConfig(
-        port=8015,
-        db_path=str(tmp_path / "eventbus.sqlite"),
-        storage_dir=str(tmp_path / "storage"),
-        deadletter_dir=str(tmp_path / "deadletter"),
+    cfg = eventbus_test_config(
+        tmp_path,
         max_retry=max_retry,
-        **eventbus_test_tokens("test-token"),
+        sse_idle_timeout=sse_idle_timeout,
+        token="test-token",
     )
-    if sse_idle_timeout is not None:
-        # The constructor validates the idle timeout against the heartbeat
-        # interval, so a short value is assigned after construction.
-        object.__setattr__(cfg, "sse_idle_timeout", sse_idle_timeout)
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
@@ -134,61 +171,46 @@ def make_eventbus_client(
     monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
-    # Initialize app.state before creating TestClient
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(_init_state(cfg))
-    finally:
-        loop.close()
-
     client = TestClient(eb_app.app)
     client.headers["Authorization"] = eventbus_auth_headers(default_role)[
         "Authorization"
     ]
-
-    # Store cleanup callback on client for teardown
-    def _cleanup():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(_do_cleanup())
-        finally:
-            loop.close()
-
-    # TestClient has no _cleanup attribute; attached here only for this test helper's own teardown call
-    client._cleanup = _cleanup
     return client
 
 
-async def _init_state(cfg: Any) -> None:
-    import pathlib
+def eventbus_two_lifecycle_clients(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Any:
+    """Yield (open_client, snapshots).
+
+    open_client() enters TestClient(eb_app.app) so the production lifespan builds and
+    tears down app.state; each entry appends (app.state.db, app.state.broker) to
+    snapshots. Callers open two sequential lifecycles on the same tmp_path database.
+    """
+    from contextlib import contextmanager
 
     from eventbus import app as eb_app
 
-    eb_app.app.state.config = cfg
-    eb_app.app.state.db = eb_app.open_db(cfg.db_path)
+    cfg = eventbus_test_config(tmp_path)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )
-    eb_app.app.state.envelope_schema = eb_app.orjson.loads(schema_path.read_bytes())
-    pathlib.Path(cfg.storage_dir).mkdir(parents=True, exist_ok=True)
-    eb_app.app.state.broker = eb_app.EventBroker(cfg)
+    monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
+    snapshots: list[tuple[Any, Any]] = []
 
-async def _do_cleanup() -> None:
-    from eventbus import app as eb_app
+    @contextmanager
+    def open_client() -> Any:
+        with TestClient(eb_app.app) as client:
+            client.headers["Authorization"] = eventbus_auth_headers("publisher")[
+                "Authorization"
+            ]
+            snapshots.append((eb_app.app.state.db, eb_app.app.state.broker))
+            yield client
 
-    if eb_app.app.state.dlq_task:
-        eb_app.app.state.dlq_task.cancel()
-        try:
-            await eb_app.app.state.dlq_task
-        except asyncio.CancelledError:
-            pass
-    if eb_app.app.state.broker:
-        eb_app.app.state.broker.shutdown()
-    if eb_app.app.state.db:
-        eb_app.app.state.db.close()
+    yield open_client, snapshots
 
 
 def principal_map() -> dict[str, Principal]:

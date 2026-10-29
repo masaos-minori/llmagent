@@ -92,7 +92,7 @@ def test_load_config_rejects_stray_offset_checkpoint_interval(tmp_path: Path) ->
 
 
 def test_load_config_accepts_sse_idle_timeout(tmp_path: Path) -> None:
-    """REQ-007: sse_idle_timeout should be accepted as a known key."""
+    """sse_idle_timeout is accepted as a known config key."""
     toml_path = tmp_path / "eventbus.toml"
     toml_path.write_text(
         "port = 8015\n"
@@ -178,7 +178,7 @@ def test_load_config_call_sites_pass_get_config_path() -> None:
 
 
 def test_non_loopback_host_raises_value_error() -> None:
-    """REQ-007: Regression test confirming EventBusConfig rejects non-loopback hosts."""
+    """ADR-006 INV-15: EventBusConfig rejects a non-loopback host at configuration validation."""
     # IPv4 non-loopback
     with pytest.raises(ValueError, match="non-loopback"):
         EventBusConfig(
@@ -205,7 +205,7 @@ def test_non_loopback_host_raises_value_error() -> None:
 
 
 def test_load_config_rejects_unknown_key(tmp_path: Path) -> None:
-    """REQ-005: load_config() raises ValueError for unknown TOML keys."""
+    """ADR-013 INV-04: load_config() raises ValueError for unknown TOML keys."""
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
 port = 8015
@@ -222,7 +222,7 @@ unknown_key = "should-be-rejected"
 
 
 def test_load_config_rejects_removed_offsets_dir_key(tmp_path: Path) -> None:
-    """REQ-003: a configuration that still carries offsets_dir is rejected as an unknown key."""
+    """ADR-013 INV-04: a configuration that still carries offsets_dir is rejected as an unknown key."""
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
 port = 8015
@@ -261,7 +261,7 @@ backlog_health_threshold = 1000
 
 
 def test_load_config_rejects_wrong_type(tmp_path: Path) -> None:
-    """REQ-005: load_config() raises ValueError for wrong-type keys."""
+    """ADR-013 INV-04: load_config() raises ValueError for wrong-type keys."""
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
 port = "not-an-int"
@@ -277,7 +277,7 @@ auth_token = "test-token"
 
 
 def test_load_config_rejects_empty_auth_token(tmp_path: Path) -> None:
-    """REQ-005: load_config() raises ValueError for empty auth_token."""
+    """load_config() raises ValueError for an empty auth_token."""
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
 port = 8015
@@ -293,7 +293,7 @@ auth_token = ""
 
 
 def test_load_config_succeeds_with_auth_token_only(tmp_path: Path) -> None:
-    """REQ-006: load_config() accepts configuration with only auth_token (no per-role token required)."""
+    """load_config() accepts a configuration with only auth_token (no per-role token required)."""
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
 port = 8015
@@ -343,7 +343,7 @@ def test_slow_consumer_threshold_equal_to_maxsize_raises() -> None:
 
 
 def test_cross_field_validation_sse_idle_timeout_less_than_heartbeat_interval() -> None:
-    """REQ-009: Cross-field validation between sse_idle_timeout and sse_heartbeat_interval."""
+    """Cross-field validation between sse_idle_timeout and sse_heartbeat_interval."""
     # sse_idle_timeout must be greater than sse_heartbeat_interval
     with pytest.raises(ValueError, match="sse_idle_timeout.*must be greater than"):
         EventBusConfig(
@@ -443,7 +443,7 @@ def test_publish_rate_default_is_100_0() -> None:
 
 
 def test_cross_field_slow_consumer_threshold_exceeds_maxsize() -> None:
-    """REQ-001, REQ-002: slow_consumer_threshold must be strictly less than subscriber_queue_maxsize."""
+    """slow_consumer_threshold must be strictly less than subscriber_queue_maxsize (docs/24_eventbus/eventbus_07_configuration-and-operations.md, Configuration Fields)."""
     with pytest.raises(ValueError, match="slow_consumer_threshold"):
         EventBusConfig(
             port=8015,
@@ -459,7 +459,7 @@ def test_cross_field_slow_consumer_threshold_exceeds_maxsize() -> None:
 
 
 def test_cross_field_backlog_health_threshold_exceeds_maxsize() -> None:
-    """REQ-001, REQ-002: backlog_health_threshold must be <= subscriber_queue_maxsize."""
+    """backlog_health_threshold must be <= subscriber_queue_maxsize (docs/24_eventbus/eventbus_07_configuration-and-operations.md, Configuration Fields)."""
     with pytest.raises(ValueError, match="backlog_health_threshold"):
         EventBusConfig(
             port=8015,
@@ -475,7 +475,7 @@ def test_cross_field_backlog_health_threshold_exceeds_maxsize() -> None:
 
 
 def test_load_config_requires_at_least_one_token(tmp_path: Path) -> None:
-    """REQ-006: When auth_token is empty and no per-role tokens are set, raises ValueError."""
+    """When auth_token is empty and no per-role tokens are set, it raises ValueError."""
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
 port = 8015
@@ -491,7 +491,7 @@ auth_token = ""
 
 
 def test_admin_role_exists_in_enum() -> None:
-    """REQ-004: Role.ADMIN must exist in the Role enum."""
+    """Role.ADMIN must exist in the Role enum."""
     from eventbus.auth import Role
 
     assert hasattr(Role, "ADMIN"), "Role.ADMIN must exist"
@@ -527,7 +527,7 @@ def test_admin_token_grants_control_plane_roles_only() -> None:
 
 
 def test_publisher_only_deployment_succeeds(tmp_path: Path) -> None:
-    """REQ-006: Publisher-only deployment (only publisher_token + auth_token) is allowed."""
+    """Publisher-only deployment (only publisher_token + auth_token) is allowed."""
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
 port = 8015
@@ -545,7 +545,7 @@ publisher_token = "test-publisher-token"
 
 
 def test_monitoring_only_deployment_succeeds(tmp_path: Path) -> None:
-    """REQ-006: Monitoring-only deployment (only monitoring_token + auth_token) is allowed."""
+    """Monitoring-only deployment (only monitoring_token + auth_token) is allowed."""
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
 port = 8015
@@ -565,7 +565,7 @@ monitoring_token = "test-monitoring-token"
 def test_load_config_resolves_shared_token_env_reference(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-002: a "${ENV:...}" auth_token resolves to the variable's value."""
+    """an "${ENV:...}" auth_token resolves to the variable's value at load time (docs/24_eventbus/eventbus_07_configuration-and-operations.md)."""
     monkeypatch.setenv("EVENTBUS_AUTH_TOKEN", "resolved-shared-token")
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
@@ -585,7 +585,7 @@ auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
 def test_load_config_shared_token_env_reference_unset_names_the_variable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-002 fail-closed: an unset referenced variable stops the load, naming it."""
+    """fail-closed: an unset referenced variable stops the load, naming it (docs/24_eventbus/eventbus_07_configuration-and-operations.md)."""
     monkeypatch.delenv("EVENTBUS_AUTH_TOKEN", raising=False)
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
@@ -604,7 +604,7 @@ auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
 def test_load_config_shared_token_env_reference_empty_hits_non_empty_check(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-002: an empty referenced value falls through to the non-empty check."""
+    """an empty referenced value falls through to the non-empty check (docs/24_eventbus/eventbus_07_configuration-and-operations.md)."""
     monkeypatch.setenv("EVENTBUS_AUTH_TOKEN", "")
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
@@ -623,7 +623,7 @@ auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
 def test_load_config_resolves_per_role_token_env_reference(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-002: the resolution applies to the per-role token keys as well."""
+    """the resolution applies to the per-role token keys as well (docs/24_eventbus/eventbus_07_configuration-and-operations.md)."""
     monkeypatch.setenv("EVENTBUS_MONITORING_TOKEN", "resolved-monitoring-token")
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
@@ -643,7 +643,7 @@ monitoring_token = "${ENV:EVENTBUS_MONITORING_TOKEN}"
 def test_load_config_per_role_token_env_reference_unset_names_the_variable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-002 fail-closed: an unset per-role reference names its own variable."""
+    """fail-closed: an unset per-role reference names its own variable (docs/24_eventbus/eventbus_07_configuration-and-operations.md)."""
     monkeypatch.delenv("EVENTBUS_MONITORING_TOKEN", raising=False)
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
@@ -663,7 +663,7 @@ monitoring_token = "${ENV:EVENTBUS_MONITORING_TOKEN}"
 def test_load_config_keeps_literal_tokens_supported_beside_references(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-006: literal token configuration keeps working beside a resolved reference."""
+    """literal token configuration keeps working beside a resolved reference."""
     monkeypatch.setenv("EVENTBUS_MONITORING_TOKEN", "resolved-monitoring-token")
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""

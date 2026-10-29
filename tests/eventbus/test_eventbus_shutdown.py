@@ -24,6 +24,7 @@ timing non-determinism a fixed `time.sleep()` would leave.
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 import threading
 from pathlib import Path
 from typing import Any, cast
@@ -268,3 +269,32 @@ async def test_second_lifecycle_does_not_inherit_shutdown_flag(
         pass
     async with eb_app.lifespan(eb_app.app):
         assert await run_with_db_lock(lambda: 42) == 42
+
+
+@pytest.mark.asyncio
+async def test_second_lifecycle_opens_new_usable_connection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two sequential lifespans: the second opens a new connection and never reuses
+    the closed first one, and the shutdown flag does not leak into it."""
+    from eventbus import app as eb_app
+    from eventbus.route_helpers import run_with_db_lock
+
+    cfg = _make_config(tmp_path)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: _SCHEMA_PATH)
+    monkeypatch.setattr(eb_app, "_DLQ_INTERVAL", 3600.0)
+
+    async with eb_app.lifespan(eb_app.app):
+        first_db = eb_app.app.state.db
+    async with eb_app.lifespan(eb_app.app):
+        second_db = eb_app.app.state.db
+        assert second_db is not None
+        assert second_db is not first_db
+        assert (
+            await run_with_db_lock(lambda: second_db.execute("SELECT 1").fetchone()[0])
+            == 1
+        )
+
+    with pytest.raises(sqlite3.ProgrammingError):
+        first_db.execute("SELECT 1")

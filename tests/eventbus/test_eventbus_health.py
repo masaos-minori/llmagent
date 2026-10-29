@@ -8,40 +8,9 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 from pathlib import Path
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-
-
-async def _init_state(cfg: Any) -> None:
-    import pathlib
-
-    from eventbus import app as eb_app
-
-    schema_path = (
-        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
-    )
-    eb_app.app.state.config = cfg
-    eb_app.app.state.db = eb_app.open_db(cfg.db_path)
-    eb_app.app.state.envelope_schema = eb_app.orjson.loads(schema_path.read_bytes())
-    pathlib.Path(cfg.storage_dir).mkdir(parents=True, exist_ok=True)
-    eb_app.app.state.broker = eb_app.EventBroker(cfg)
-
-
-async def _do_cleanup() -> None:
-    from eventbus import app as eb_app
-
-    if eb_app.app.state.dlq_task:
-        eb_app.app.state.dlq_task.cancel()
-        try:
-            await eb_app.app.state.dlq_task
-        except asyncio.CancelledError:
-            pass
-    if eb_app.app.state.broker:
-        eb_app.app.state.broker.shutdown()
-    if eb_app.app.state.db:
-        eb_app.app.state.db.close()
 
 
 @pytest.fixture
@@ -64,25 +33,10 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
-    # Initialize app.state before creating TestClient
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(_init_state(cfg))
-    finally:
-        loop.close()
-
+    # The production lifespan starts the app and its shutdown sequence stops it.
     with TestClient(eb_app.app) as c:
         c.headers["Authorization"] = "Bearer test-token"
         yield c
-
-    # Cleanup on teardown
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(_do_cleanup())
-    finally:
-        loop.close()
 
 
 class TestHealth:
