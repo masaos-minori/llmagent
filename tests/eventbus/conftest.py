@@ -6,6 +6,11 @@ from collections.abc import Generator
 
 import pytest
 
+# Register generator fixtures from helpers so pytest discovers them.
+from tests.eventbus.eventbus_helpers import (
+    eventbus_two_lifecycle_clients,  # noqa: F401 — fixture registration via side-effect import; pytest discovers eventbus_two_lifecycle_clients from helpers
+)
+
 # Precedent: tests/mcp_servers/mdq/conftest.py::_reset_mdq_state_for_testing()
 # Precedent: tests/conftest.py::_reset_tool_registry() — session-scoped reset pattern
 

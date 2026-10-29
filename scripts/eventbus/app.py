@@ -210,6 +210,7 @@ async def replay(
     """Replay events from a given sequence number via SSE or JSON."""
     return await replay_route(
         request,
+        principal=_principal,
         since_seq=since_seq,
         fmt=fmt,
         limit=limit,
@@ -256,7 +257,9 @@ async def dlq_requeue(
     _principal: Principal = Depends(require_role(Role.OPERATOR)),
 ) -> dict[str, Any]:
     """Requeue a dead-letter queue entry back into the active queue."""
-    result: dict[str, Any] = await dlq_requeue_route(request, event_id)
+    result: dict[str, Any] = await dlq_requeue_route(
+        request, event_id, principal=_principal
+    )
     return result
 
 
@@ -304,7 +307,9 @@ async def admin_topics_authorization(
     _principal: Principal = Depends(require_role(Role.ADMIN)),
 ) -> dict[str, Any]:
     """Update consumer_authorization/topic_authorization at runtime."""
-    result: dict[str, Any] = await update_topics_authorization_route(request)
+    result: dict[str, Any] = await update_topics_authorization_route(
+        request, principal=_principal
+    )
     return result
 
 

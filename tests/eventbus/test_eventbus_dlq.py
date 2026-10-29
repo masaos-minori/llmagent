@@ -4,9 +4,11 @@ import asyncio
 import uuid
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import orjson
 import pytest
+from eventbus.auth import _derive_token_fingerprint
 from fastapi.testclient import TestClient
 
 from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
@@ -923,3 +925,46 @@ def test_reconcile_concurrent_callers_under_db_lock(
             "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
         ).fetchone()
         assert row["dlq_at"] is not None
+
+
+def test_requeue_audit_record_carries_actor_and_request_id(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A successful requeue emits one privileged record carrying the operator token fingerprint and the real request id."""
+
+    ev = {
+        "event_id": str(uuid.uuid4()),
+        "topic": "t",
+        "payload": {"key": "value"},
+        "producer": "test-producer",
+        "published_at": "2026-06-22T11:56:00Z",
+    }
+    resp = client.post("/publish", json=ev, headers=eventbus_auth_headers("publisher"))
+    assert resp.status_code == 200
+    event_id = ev["event_id"]
+
+    # Nack the event until it lands in the DLQ
+    for _ in range(3):
+        resp = client.post(
+            f"/events/{event_id}/nack",
+            params={"consumer_id": "test-consumer"},
+            headers=eventbus_auth_headers("consumer"),
+        )
+        assert resp.status_code == 200
+
+    # Requeue with operator credential
+    with patch("eventbus.dlq_route.log_privileged_action") as mock_log:
+        resp = client.post(
+            f"/dlq/{event_id}/requeue",
+            headers=eventbus_auth_headers("operator"),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["requeued"] is True
+        assert mock_log.call_count == 1
+        kwargs = mock_log.call_args.kwargs
+        assert kwargs["route"] == "/dlq/requeue"
+        assert kwargs["target"] == event_id
+        assert kwargs["actor"] == _derive_token_fingerprint(
+            eventbus_test_tokens("test-token")["operator_token"]
+        )
+        assert kwargs["request_id"] != ""

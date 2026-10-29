@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import HTTPException, Request
 
 from eventbus.audit import log_privileged_action
-from eventbus.auth import _build_principal_map, publish_principals
+from eventbus.auth import Principal, _build_principal_map, publish_principals
 from eventbus.route_helpers import get_config
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,11 @@ def _validate_consumer_authorization(value: Any) -> dict[str, list[str]]:
     return value
 
 
+def _changed_count[T](old: dict[str, T], new: dict[str, T]) -> int:
+    """Count mapping entries whose values differ plus added/removed keys."""
+    return sum(1 for k in set(old) | set(new) if old.get(k) != new.get(k))
+
+
 def _validate_topic_authorization(value: Any) -> dict[str, list[str]]:
     """Validate a `topic_authorization` value per EventBusConfig's own rules:
     string keys, list/set values of strings.
@@ -71,7 +76,9 @@ def _validate_topic_authorization(value: Any) -> dict[str, list[str]]:
     return value
 
 
-async def update_topics_authorization(request: Request) -> dict[str, Any]:
+async def update_topics_authorization(
+    request: Request, principal: Principal
+) -> dict[str, Any]:
     """Update `consumer_authorization`/`topic_authorization` at runtime and
     refresh the derived per-token `Principal` authorization state.
 
@@ -112,16 +119,21 @@ async def update_topics_authorization(request: Request) -> dict[str, Any]:
 
     # Determine if the update is a no-op by comparing against current config
     changed = False
+    counts: dict[str, int] = {}
     if new_consumer_authorization is not None:
         current = config.consumer_authorization or {}
         if new_consumer_authorization != current:
             changed = True
+            counts["consumer_authorization"] = _changed_count(
+                current, new_consumer_authorization
+            )
     if new_topic_authorization is not None:
         # Convert list values to sets for comparison (config stores set[str])
         new_as_sets = {t: set(cids) for t, cids in new_topic_authorization.items()}
         current = config.topic_authorization or {}
         if new_as_sets != current:
             changed = True
+            counts["topic_authorization"] = _changed_count(current, new_as_sets)
     if changed:
         # EventBusConfig is a frozen dataclass — build a replacement instance
         # rather than mutating the existing one. Build the replacement principal
@@ -138,12 +150,15 @@ async def update_topics_authorization(request: Request) -> dict[str, Any]:
 
     # Emit privileged-action audit record for effective changes
     if changed:
+        detail_parts = [f"{name}:{count}" for name, count in counts.items()]
+        detail_parts.append("persistent:false")
         log_privileged_action(
             consumer_id="admin",
-            request_id="",
+            request_id=request.state.request_id,
             route="/admin/topics/authorization",
             target="topics_authorization",
-            detail="updated",
+            detail=";".join(detail_parts),
+            actor=principal.token_fingerprint,
         )
 
     return {"status": "ok", "persistent": False, "changed": changed}

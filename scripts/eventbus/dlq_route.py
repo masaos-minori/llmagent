@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import HTTPException, Query, Request
 
 from eventbus.audit import log_privileged_action
+from eventbus.auth import Principal
 from eventbus.db import count_dlq, fetch_dlq, redeliver_event
 from eventbus.dlq_repo import RequeueResult
 from eventbus.route_helpers import (
@@ -45,6 +46,7 @@ async def dlq_list(
 async def dlq_requeue(
     request: Request,
     event_id: str,
+    principal: Principal,
 ) -> dict[str, Any]:
     """Requeue a dead-letter queue entry back into the active event queue.
 
@@ -73,6 +75,7 @@ async def dlq_requeue(
             route="/dlq/requeue",
             target=event_id,
             detail="",
+            actor=principal.token_fingerprint,
         )
 
         return {

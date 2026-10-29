@@ -12,7 +12,11 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import (
+    eventbus_auth_headers,
+    eventbus_test_config,
+    eventbus_test_tokens,
+)
 
 if TYPE_CHECKING:
     import sqlite3
@@ -105,6 +109,42 @@ def _pub(client: TestClient, topic: str = "t") -> dict[str, Any]:
     return published
 
 
+@pytest.fixture
+def eventbus_two_lifecycle_clients(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Any:
+    """Yield (open_client, snapshots).
+
+    open_client() enters TestClient(eb_app.app) so the production lifespan builds and
+    tears down app.state; each entry appends (app.state.db, app.state.broker) to
+    snapshots. Callers open two sequential lifecycles on the same tmp_path database.
+    """
+    from contextlib import contextmanager
+
+    from eventbus import app as eb_app
+
+    cfg = eventbus_test_config(tmp_path)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
+    monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+
+    snapshots: list[tuple[Any, Any]] = []
+
+    @contextmanager
+    def open_client() -> Any:
+        with TestClient(eb_app.app) as client:
+            client.headers["Authorization"] = eventbus_auth_headers("publisher")[
+                "Authorization"
+            ]
+            snapshots.append((eb_app.app.state.db, eb_app.app.state.broker))
+            yield client
+
+    yield open_client, snapshots
+
+
 def test_same_consumer_id_resumes_from_last_acked_offset(
     client: TestClient, tmp_path: Path
 ) -> None:
@@ -193,12 +233,6 @@ def test_same_consumer_id_last_write_wins(client: TestClient, tmp_path: Path) ->
     # The offset file simply overwrites silently
 
 
-@pytest.mark.skip(
-    reason="TestClient's plain .get() blocks forever on /subscribe when there is "
-    "deliverable data, since the SSE generator never detects the client "
-    "disconnecting — see issues/20260911-135626_ebsse01_subscribe-generator-"
-    "never-detects-client-disconnect.md"
-)
 def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
     """Consumer resumes from SQLite-backed offset after restart."""
     import json
@@ -254,6 +288,8 @@ def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
     start_seq = get_consumer_offset(db, "resume-consumer")
     assert start_seq == seq2
 
+    # Bounded SSE read (REQ-006; AC-4) — set idle timeout before request
+    object.__setattr__(eb_app.app.state.config, "sse_idle_timeout", 0.5)
     response = client.get(
         "/subscribe",
         params={
@@ -261,6 +297,8 @@ def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
             "consumer_id": "resume-consumer",
             "since_seq": start_seq,
         },
+        headers=eventbus_auth_headers("consumer"),
+        timeout=5.0,
     )
     assert response.status_code == 200
 
@@ -310,7 +348,7 @@ class TestOutOfOrderAckNoSkipOnReconnect:
         else:
             conn.executescript(schema_path.read_text())
 
-    def test_out_of_order_ack_no_skip_on_reconnect(self, tmp_path: Path) -> None:
+    def test_unit_midsequence_ack_resume_position(self, tmp_path: Path) -> None:
         """ACK a higher seq before a lower seq → reconnect must not skip the lower seq."""
         import sqlite3
 
@@ -374,7 +412,7 @@ class TestOutOfOrderAckNoSkipOnReconnect:
         finally:
             conn.close()
 
-    def test_ordered_ack_baseline(self, tmp_path: Path) -> None:
+    def test_unit_inorder_ack_resume_position(self, tmp_path: Path) -> None:
         """Ordered ACKs: reconnect resumes from stored offset + 1 (fast-forward)."""
         import sqlite3
 
@@ -426,7 +464,7 @@ class TestOutOfOrderAckNoSkipOnReconnect:
         finally:
             conn.close()
 
-    def test_get_resume_position_no_offset(self, tmp_path: Path) -> None:
+    def test_unit_get_resume_position_defaults_to_zero(self, tmp_path: Path) -> None:
         """No prior offset: resume position returns 0 (start from beginning)."""
         import sqlite3
 
@@ -493,3 +531,357 @@ def test_reconnect_after_out_of_order_ack_replays_lowest_unacked_first(
     _ack(client, events[1], "oof-route-consumer")
 
     assert _reconnect_ids(client, "oof-route-consumer") == [1, 2, 3, 4]
+
+
+def test_two_lifecycle_probe_fresh_state(
+    eventbus_two_lifecycle_clients: Any,
+    tmp_path: Path,
+) -> None:
+    """Probe: verify two sequential lifecycles produce distinct state handles."""
+    open_client, snapshots = eventbus_two_lifecycle_clients
+
+    with open_client() as client_1:
+        # Single reconnect read on topic t
+        _reconnect_ids(client_1, "probe-consumer")
+
+    with open_client():
+        pass  # phase B: no operations needed for probe
+
+    # Fresh-state gate (REQ-001, REQ-003, AC-2)
+    (db_1, broker_1), (db_2, broker_2) = snapshots
+    assert db_1 is not db_2 and broker_1 is not broker_2
+    from eventbus import db_conn
+
+    assert db_conn.is_shutting_down()
+
+
+def test_restart_unacked_redelivery_single_consumer(
+    eventbus_two_lifecycle_clients: Any,
+    tmp_path: Path,
+) -> None:
+    """Publish 2 events; ack only the first → reconnect returns only the unacked seq."""
+    open_client, snapshots = eventbus_two_lifecycle_clients
+
+    with open_client() as client_1:
+        ev1 = _pub(client_1)
+        ev2 = _pub(client_1)
+        # Ack only the first event via HTTP route
+        client_1.post(
+            f"/events/{ev1['event_id']}/ack?consumer_id=svc-A",
+            headers=eventbus_auth_headers("consumer"),
+        )
+        # Drain SSE to establish the subscription
+        _reconnect_ids(client_1, "svc-A")
+
+    with open_client() as client_2:
+        # Reconnect should return only the unacked event
+        replayed = _reconnect_ids(client_2, "svc-A")
+        assert replayed == [ev2["seq"]]
+
+    # Fresh-state gate (REQ-003, AC-2)
+    (db_1, broker_1), (db_2, broker_2) = snapshots
+    assert db_1 is not db_2 and broker_1 is not broker_2
+    from eventbus import db_conn
+
+    assert db_conn.is_shutting_down()
+
+
+def test_restart_resume_position_skips_acked(
+    eventbus_two_lifecycle_clients: Any,
+    tmp_path: Path,
+) -> None:
+    """Publish 3 events; ack 1-2 → reconnect returns only seq 3; offset row matches."""
+    open_client, snapshots = eventbus_two_lifecycle_clients
+
+    with open_client() as client_1:
+        ev1 = _pub(client_1)
+        ev2 = _pub(client_1)
+        ev3 = _pub(client_1)
+        # Ack events 1 and 2 via HTTP route
+        client_1.post(
+            f"/events/{ev1['event_id']}/ack?consumer_id=svc-B",
+            headers=eventbus_auth_headers("consumer"),
+        )
+        client_1.post(
+            f"/events/{ev2['event_id']}/ack?consumer_id=svc-B",
+            headers=eventbus_auth_headers("consumer"),
+        )
+
+    with open_client() as client_2:
+        replayed = _reconnect_ids(client_2, "svc-B")
+        assert replayed == [ev3["seq"]]
+
+    # Verify consumer_offsets row via direct sqlite read
+    import sqlite3
+
+    db_path = str(tmp_path / "eventbus.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("svc-B",),
+        ).fetchone()
+        assert row is not None
+        assert int(row["offset"]) == ev2["seq"]
+    finally:
+        conn.close()
+
+    # Fresh-state gate (REQ-003, AC-2)
+    (db_1, broker_1), (db_2, broker_2) = snapshots
+    assert db_1 is not db_2 and broker_1 is not broker_2
+    from eventbus import db_conn
+
+    assert db_conn.is_shutting_down()
+
+
+def test_restart_midsequence_ack_resume_position(
+    eventbus_two_lifecycle_clients: Any,
+    tmp_path: Path,
+) -> None:
+    """Ack events 2 and 3 (high-water = seq 3) → reconnect starts at lowest unacked seq."""
+    open_client, snapshots = eventbus_two_lifecycle_clients
+
+    with open_client() as client_1:
+        ev1 = _pub(client_1)
+        ev2 = _pub(client_1)
+        ev3 = _pub(client_1)
+        # Ack events 2 and 3 (skip event 1)
+        client_1.post(
+            f"/events/{ev2['event_id']}/ack?consumer_id=svc-C",
+            headers=eventbus_auth_headers("consumer"),
+        )
+        client_1.post(
+            f"/events/{ev3['event_id']}/ack?consumer_id=svc-C",
+            headers=eventbus_auth_headers("consumer"),
+        )
+
+    with open_client() as client_2:
+        replayed = _reconnect_ids(client_2, "svc-C")
+        # Should deliver the unacked set starting from the lowest unacked seq
+        assert replayed == [ev1["seq"], ev2["seq"], ev3["seq"]]
+
+    # Verify consumer_offsets row via direct sqlite read
+    import sqlite3
+
+    db_path = str(tmp_path / "eventbus.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("svc-C",),
+        ).fetchone()
+        assert row is not None
+        assert int(row["offset"]) == ev3["seq"]
+    finally:
+        conn.close()
+
+    # Fresh-state gate (REQ-003, AC-2)
+    (db_1, broker_1), (db_2, broker_2) = snapshots
+    assert db_1 is not db_2 and broker_1 is not broker_2
+    from eventbus import db_conn
+
+    assert db_conn.is_shutting_down()
+
+
+def test_restart_two_consumers_independent_resume(
+    eventbus_two_lifecycle_clients: Any,
+    tmp_path: Path,
+) -> None:
+    """Two consumers ack different events → each reconnects independently."""
+    open_client, snapshots = eventbus_two_lifecycle_clients
+
+    with open_client() as client_1:
+        ev1 = _pub(client_1)
+        ev2 = _pub(client_1)
+        _pub(client_1)  # third event not acked by either consumer
+        # Consumer A acks event 1
+        client_1.post(
+            f"/events/{ev1['event_id']}/ack?consumer_id=A",
+            headers=eventbus_auth_headers("consumer"),
+        )
+        # Consumer B acks event 2
+        client_1.post(
+            f"/events/{ev2['event_id']}/ack?consumer_id=B",
+            headers=eventbus_auth_headers("consumer"),
+        )
+
+    with open_client() as client_2:
+        # Consumer A reconnect: should exclude event 1
+        replayed_a = _reconnect_ids(client_2, "A")
+        assert ev1["seq"] not in replayed_a
+
+        # Consumer B reconnect: should exclude event 2
+        replayed_b = _reconnect_ids(client_2, "B")
+        assert ev2["seq"] not in replayed_b
+
+    # Verify two independent consumer_offsets rows via direct sqlite read
+    import sqlite3
+
+    db_path = str(tmp_path / "eventbus.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            "SELECT consumer_id, offset FROM consumer_offsets ORDER BY consumer_id"
+        ).fetchall()
+        assert len(rows) == 2
+        offsets = {row["consumer_id"]: int(row["offset"]) for row in rows}
+        assert offsets["A"] == ev1["seq"]
+        assert offsets["B"] == ev2["seq"]
+    finally:
+        conn.close()
+
+    # Fresh-state gate (REQ-003, AC-2)
+    (db_1, broker_1), (db_2, broker_2) = snapshots
+    assert db_1 is not db_2 and broker_1 is not broker_2
+    from eventbus import db_conn
+
+    assert db_conn.is_shutting_down()
+
+
+def test_restart_new_consumer_sees_only_new(
+    eventbus_two_lifecycle_clients: Any,
+    tmp_path: Path,
+) -> None:
+    """Old lifecycle acks all events; new lifecycle publishes one more → new consumer sees only it."""
+    open_client, snapshots = eventbus_two_lifecycle_clients
+
+    with open_client() as client_1:
+        ev1 = _pub(client_1)
+        ev2 = _pub(client_1)
+        # Ack both events with svc-old
+        client_1.post(
+            f"/events/{ev1['event_id']}/ack?consumer_id=svc-old",
+            headers=eventbus_auth_headers("consumer"),
+        )
+        client_1.post(
+            f"/events/{ev2['event_id']}/ack?consumer_id=svc-old",
+            headers=eventbus_auth_headers("consumer"),
+        )
+
+    with open_client() as client_2:
+        # Publish a new event on the fresh lifecycle
+        ev3 = _pub(client_2)
+        # New consumer should see only the new event
+        replayed = _reconnect_ids(client_2, "svc-new")
+        assert replayed == [ev3["seq"]]
+
+    # Fresh-state gate (REQ-003, AC-2)
+    (db_1, broker_1), (db_2, broker_2) = snapshots
+    assert db_1 is not db_2 and broker_1 is not broker_2
+    from eventbus import db_conn
+
+    assert db_conn.is_shutting_down()
+
+
+def test_restart_reconnect_consumer_id_reuse(
+    eventbus_two_lifecycle_clients: Any,
+    tmp_path: Path,
+) -> None:
+    """Same consumer_id across lifecycles: reconnect resumes from stored offset."""
+    open_client, snapshots = eventbus_two_lifecycle_clients
+
+    with open_client() as client_1:
+        ev1 = _pub(client_1)
+        ev2 = _pub(client_1)
+        # Ack event 1 with svc-reuse
+        client_1.post(
+            f"/events/{ev1['event_id']}/ack?consumer_id=svc-reuse",
+            headers=eventbus_auth_headers("consumer"),
+        )
+
+    with open_client() as client_2:
+        # Reconnect with same consumer_id should resume from offset
+        replayed = _reconnect_ids(client_2, "svc-reuse")
+        assert replayed == [ev2["seq"]]
+
+    # Verify consumer_offsets row via direct sqlite read
+    import sqlite3
+
+    db_path = str(tmp_path / "eventbus.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("svc-reuse",),
+        ).fetchone()
+        assert row is not None
+        assert int(row["offset"]) == ev1["seq"]
+    finally:
+        conn.close()
+
+    # Fresh-state gate (REQ-003, AC-2)
+    (db_1, broker_1), (db_2, broker_2) = snapshots
+    assert db_1 is not db_2 and broker_1 is not broker_2
+    from eventbus import db_conn
+
+    assert db_conn.is_shutting_down()
+
+
+def test_restart_offset_gap_no_silent_skip(
+    eventbus_two_lifecycle_clients: Any,
+    tmp_path: Path,
+) -> None:
+    """Delete consumer_delivery row for seq 2 between lifecycles → gap event is replayed."""
+    open_client, snapshots = eventbus_two_lifecycle_clients
+
+    with open_client() as client_1:
+        ev1 = _pub(client_1)
+        ev2 = _pub(client_1)
+        ev3 = _pub(client_1)
+        # Ack all three events
+        client_1.post(
+            f"/events/{ev1['event_id']}/ack?consumer_id=svc-gap",
+            headers=eventbus_auth_headers("consumer"),
+        )
+        client_1.post(
+            f"/events/{ev2['event_id']}/ack?consumer_id=svc-gap",
+            headers=eventbus_auth_headers("consumer"),
+        )
+        client_1.post(
+            f"/events/{ev3['event_id']}/ack?consumer_id=svc-gap",
+            headers=eventbus_auth_headers("consumer"),
+        )
+
+    # Delete the consumer_delivery row for seq 2 between lifecycles
+    import sqlite3
+
+    db_path = str(tmp_path / "eventbus.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute(
+            "DELETE FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            ("svc-gap", ev2["event_id"]),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    with open_client() as client_2:
+        # Reconnect should return seq 2 (gap event replayed, no silent skip to 3)
+        replayed = _reconnect_ids(client_2, "svc-gap")
+        assert ev2["seq"] in replayed
+
+    # Verify consumer_offsets.offset still equals 3
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("svc-gap",),
+        ).fetchone()
+        assert row is not None
+        assert int(row["offset"]) == ev3["seq"]
+    finally:
+        conn.close()
+
+    # Fresh-state gate (REQ-003, AC-2)
+    (db_1, broker_1), (db_2, broker_2) = snapshots
+    assert db_1 is not db_2 and broker_1 is not broker_2
+    from eventbus import db_conn
+
+    assert db_conn.is_shutting_down()

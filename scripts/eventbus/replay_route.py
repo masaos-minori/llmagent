@@ -9,6 +9,7 @@ from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
 
 from eventbus.audit import log_privileged_action
+from eventbus.auth import Principal
 from eventbus.db import fetch_events_since
 from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import _row_to_dict, get_db, run_with_db_lock
@@ -26,6 +27,7 @@ def _count_events_since(conn: Any, since_seq: int) -> int:
 
 async def replay(
     request: Request,
+    principal: Principal,
     since_seq: int = Query(default=0, ge=0),
     fmt: Literal["sse", "json"] = Query(default="sse", alias="format"),
     limit: int = Query(default=100, ge=1, le=1000),
@@ -41,6 +43,7 @@ async def replay(
         route="/replay",
         target=f"seq:{since_seq}",
         detail="",
+        actor=principal.token_fingerprint,
     )
 
     def _fetch_and_count(since_seq: int, limit: int, offset: int):

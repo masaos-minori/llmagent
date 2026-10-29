@@ -227,7 +227,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 | Test | Verifies | Type | Blocking | Implementation |
 |---|---|---|---|---|
 | Events are stored even when no Subscriber is present | INV-03 | Integration | Yes | `tests/eventbus/test_eventbus_publish.py::test_publish_inserts_event` |
-| Un-ACKed Events are Replayed on reconnection | INV-04 | Integration | Yes | `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_unacked_event_replayed_on_reconnect`, `tests/eventbus/test_eventbus_restart_resume.py::TestOutOfOrderAckNoSkipOnReconnect::test_out_of_order_ack_no_skip_on_reconnect` |
+| Un-ACKed Events are Replayed on reconnection | INV-04 | Integration | Yes | `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_unacked_event_replayed_on_reconnect` |
 | Offsets do not move backward | INV-05 | Regression | Yes | `tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq` |
 | A failure to persist an ACK is not treated as success | INV-12 | Integration | Yes | `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state` (the failure raises and nothing is committed; no HTTP-level test exists) |
 | Consumers can handle duplicates when switching between Replay and Live | INV-14 | Integration | Yes | `tests/eventbus/test_eventbus_subscribe_transition.py::TestReplayToLiveTransition::test_event_published_during_replay_delivered_via_live_push` (server-side Replay-to-Live transition; consumer-side idempotency is not testable here) |

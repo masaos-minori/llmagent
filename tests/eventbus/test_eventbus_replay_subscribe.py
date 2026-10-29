@@ -79,7 +79,9 @@ def test_replay_since_seq_filters(client: TestClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_subscribe_yields_matching_event(client: TestClient) -> None:
+async def test_subscribe_query_row_conversion_yields_matching_event(
+    client: TestClient,
+) -> None:
     """Test the query logic that powers /subscribe.
 
     httpx.ASGITransport blocks on response_complete for infinite SSE generators,

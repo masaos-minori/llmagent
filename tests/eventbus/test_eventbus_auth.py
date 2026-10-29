@@ -171,7 +171,9 @@ def _make_test_app(
         event_id: str,
         _principal: Principal = Depends(require_role(Role.OPERATOR)),
     ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.dlq_requeue_route(request, event_id)
+        result: dict[str, Any] = await eb_app.dlq_requeue_route(
+            request, event_id, principal=_principal
+        )
         return result
 
     @local_app.get("/replay")
@@ -185,6 +187,7 @@ def _make_test_app(
     ) -> Any:
         return await eb_app.replay_route(
             request,
+            principal=_principal,
             since_seq=since_seq,
             fmt=fmt,
             limit=limit,

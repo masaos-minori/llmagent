@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from eventbus.auth import _derive_token_fingerprint
 from fastapi.testclient import TestClient
 
 from tests.eventbus.eventbus_helpers import principal_map
@@ -197,8 +198,13 @@ class TestAdminGating:
             assert resp.status_code == 200
             assert mock_log.call_count == 1
             call_args = mock_log.call_args
+            assert call_args.kwargs["request_id"] != ""
+            assert call_args.kwargs["actor"] == _derive_token_fingerprint("admin-tok")
             assert call_args.kwargs["target"] == "topics_authorization"
-            assert call_args.kwargs["detail"] == "updated"
+            assert (
+                call_args.kwargs["detail"]
+                == "consumer_authorization:1;persistent:false"
+            )
 
     def test_audit_not_emitted_on_noop(self, admin_client: TestClient) -> None:
         """No-op does not emit audit record."""

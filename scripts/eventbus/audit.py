@@ -21,6 +21,8 @@ Recommendation: Adopt the ``web_search`` style for new MCP servers.
 Rationale: more stable across Python versions, more readable in log queries,
 and consistent with RFC 7807 Problem Details conventions.
 
+Successful privileged-action records carry ``error_type=""``.
+
 Detail Field Semantics
 ----------------------
 The ``detail`` field (optional, ``NotRequired[str]``) contains machine-parseable
@@ -55,6 +57,7 @@ class AuditRecord(TypedDict):
     outcome: str
     error_type: str
     detail: NotRequired[str]
+    actor: NotRequired[str]
 
 
 def _build_audit_record(
@@ -132,6 +135,7 @@ def log_privileged_action(
     route: str,
     target: str,
     detail: str = "",
+    actor: str = "",
 ) -> None:
     """Emit one JSON-lines audit record for a privileged action.
 
@@ -141,6 +145,7 @@ def log_privileged_action(
         route: Route being accessed.
         target: Resource identifier (event_id, topic, etc.).
         detail: Optional key=value pairs (omit when empty).
+        actor: Non-secret token fingerprint of the acting principal.
     """
     record = _build_audit_record(
         event="privileged_action",
@@ -152,4 +157,6 @@ def log_privileged_action(
         error_type="",
         detail=detail,
     )
+    if actor:
+        record["actor"] = actor
     logger.info(orjson.dumps(record, option=orjson.OPT_SORT_KEYS).decode())

@@ -3,8 +3,10 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
+from eventbus.auth import _derive_token_fingerprint
 from fastapi.testclient import TestClient
 
 from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
@@ -129,3 +131,33 @@ def test_replay_invalid_format_returns_422(client: TestClient) -> None:
         headers=eventbus_auth_headers("operator"),
     )
     assert r.status_code == 422
+
+
+def test_replay_audit_record_carries_actor_and_request_id(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A GET /replay request emits one privileged record carrying the operator token fingerprint and the real request id."""
+    ev = {
+        "event_id": str(uuid.uuid4()),
+        "topic": "t",
+        "payload": {"key": "value"},
+        "producer": "test-producer",
+        "published_at": "2026-06-22T11:56:00Z",
+    }
+    resp = client.post("/publish", json=ev, headers=eventbus_auth_headers("publisher"))
+    assert resp.status_code == 200
+
+    with patch("eventbus.replay_route.log_privileged_action") as mock_log:
+        resp = client.get(
+            "/replay?since_seq=0&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
+        assert resp.status_code == 200
+        assert mock_log.call_count == 1
+        kwargs = mock_log.call_args.kwargs
+        assert kwargs["route"] == "/replay"
+        assert kwargs["target"] == "seq:0"
+        assert kwargs["actor"] == _derive_token_fingerprint(
+            eventbus_test_tokens("test-token")["operator_token"]
+        )
+        assert kwargs["request_id"] != ""

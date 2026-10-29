@@ -49,7 +49,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | `scripts/eventbus/ack_route.py` | `authorize_event_pair` | `async def authorize_event_pair(request, db, principal, event_id, consumer_id) -> None` | Authorize the (consumer_id, event topic) pair before any delivery write. |
 |  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
 |  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
-| `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request) -> dict[str, Any]` | Update `consumer_authorization`/`topic_authorization` at runtime and |
+| `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request, principal) -> dict[str, Any]` | Update `consumer_authorization`/`topic_authorization` at runtime and |
 | `scripts/eventbus/app.py` | `lifespan` | `async def lifespan(app) -> AsyncGenerator[None]` | FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown. |
 |  | `resolve_subscribe_identity` | `async def resolve_subscribe_identity(request, consumer_id, topic, principal) -> Principal` | — |
 |  | `health` | `async def health(request, _principal) -> JSONResponse` | Health check endpoint for the event bus service. |
@@ -63,7 +63,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `admin_topics_authorization` | `async def admin_topics_authorization(request, _principal) -> dict[str, Any]` | Update consumer_authorization/topic_authorization at runtime. |
 | `scripts/eventbus/audit.py` | `AuditRecord` | `class AuditRecord` | Structured payload for one EventBus audit record. |
 |  | `log_auth_failure` | `def log_auth_failure(consumer_id, request_id, route, target, error_type, detail) -> None` | Emit one JSON-lines audit record for an authorization failure. |
-|  | `log_privileged_action` | `def log_privileged_action(consumer_id, request_id, route, target, detail) -> None` | Emit one JSON-lines audit record for a privileged action. |
+|  | `log_privileged_action` | `def log_privileged_action(consumer_id, request_id, route, target, detail, actor) -> None` | Emit one JSON-lines audit record for a privileged action. |
 | `scripts/eventbus/auth.py` | `Role` | `class Role` | — |
 |  | `Principal` | `class Principal` | Authenticated identity carrying roles, consumer grants, and token fingerprint. |
 |  | `unauthorized_response` | `def unauthorized_response(detail) -> JSONResponse` | Return a standardized HTTP 401 Unauthorized response. |
@@ -103,7 +103,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | `scripts/eventbus/dlq_repo.py` | `RequeueResult` | `class RequeueResult` | Typed result of a redeliver_event() call (replaces the (bool, str \| None) tuple). |
 |  | `redeliver_event` | `def redeliver_event(conn, event_id, now) -> RequeueResult` | Redeliver a dead-lettered event by inserting a new row with lineage. |
 | `scripts/eventbus/dlq_route.py` | `dlq_list` | `async def dlq_list(request, limit, offset) -> dict[str, Any]` | List dead-letter queue entries with pagination support (one snapshot). |
-|  | `dlq_requeue` | `async def dlq_requeue(request, event_id) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active event queue. |
+|  | `dlq_requeue` | `async def dlq_requeue(request, event_id, principal) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active event queue. |
 | `scripts/eventbus/event_repo.py` | `insert_event` | `def insert_event(conn, event_id, topic, payload_str, producer, published_at) -> tuple[int \| None, bool, str]` | INSERT OR IGNORE. Returns (seq, inserted, status). |
 |  | `get_seq` | `def get_seq(conn, event_id) -> int` | Return the seq for an existing event_id; 0 if not found. |
 |  | `get_event_topic` | `def get_event_topic(conn, event_id) -> str \| None` | Return the topic of an existing event_id; None if not found. |
@@ -115,7 +115,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | `scripts/eventbus/json_utils.py` | `dumps` | `def dumps(obj, option) -> str` | — |
 |  | `now_iso` | `def now_iso() -> str` | — |
 | `scripts/eventbus/publish_route.py` | `publish` | `async def publish(request) -> dict[str, Any]` | Publish an event after validating its envelope against the configured schema. |
-| `scripts/eventbus/replay_route.py` | `replay` | `async def replay(request, since_seq, fmt, limit, offset) -> Any` | Replay events from a given sequence number via SSE or JSON response. |
+| `scripts/eventbus/replay_route.py` | `replay` | `async def replay(request, principal, since_seq, fmt, limit, offset) -> Any` | Replay events from a given sequence number via SSE or JSON response. |
 | `scripts/eventbus/route_helpers.py` | `get_histogram_avg` | `def get_histogram_avg(hist) -> float` | Return the average observation for a Histogram via the public API. |
 |  | `get_counter_value` | `def get_counter_value(counter) -> int` | Return the current value of a Counter via the public API. |
 |  | `get_db` | `def get_db(request) -> Any` | Return the app state DB connection or raise RuntimeError. |

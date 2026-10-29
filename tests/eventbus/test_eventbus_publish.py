@@ -281,6 +281,57 @@ def test_duplicate_retry_preserves_original_published_at(
     assert [r[0] for r in rows] == [ev["published_at"]]
 
 
+def test_published_at_stored_as_sent(client: TestClient, tmp_path: Path) -> None:
+    """Supplied published_at is stored exactly as sent (no server rewrite)."""
+    sent_at = "2026-01-15T08:30:00Z"
+    ev = _event()
+    ev["published_at"] = sent_at
+
+    resp = client.post("/publish", json=ev)
+    assert resp.status_code == 200
+
+    # Verify via direct DB query (response does not include published_at)
+    with sqlite3.connect(tmp_path / "eventbus.sqlite") as db:
+        row = db.execute(
+            "SELECT published_at FROM events WHERE event_id = ?",
+            (ev["event_id"],),
+        ).fetchone()
+    assert row is not None
+    assert row[0] == sent_at
+
+
+def test_duplicate_publish_retains_original_published_at(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Duplicate publish returns original seq and original published_at."""
+    sent_at_1 = "2026-01-15T08:30:00Z"
+    sent_at_2 = "2026-06-20T12:00:00Z"
+    ev = _event()
+    ev["published_at"] = sent_at_1
+
+    resp1 = client.post("/publish", json=ev)
+    assert resp1.status_code == 200
+    seq1 = resp1.json()["seq"]
+
+    # Change published_at and retry with the same event_id
+    ev["published_at"] = sent_at_2
+
+    resp2 = client.post("/publish", json=ev)
+    assert resp2.status_code == 200
+    seq2 = resp2.json()["seq"]
+
+    assert seq1 == seq2  # Same seq returned (duplicate not inserted)
+
+    # Verify the DB retains the original published_at (only 1 row)
+    with sqlite3.connect(tmp_path / "eventbus.sqlite") as db:
+        rows = db.execute(
+            "SELECT seq, published_at FROM events WHERE event_id = ? ORDER BY seq",
+            (ev["event_id"],),
+        ).fetchall()
+    assert len(rows) == 1
+    assert rows[0][1] == sent_at_1  # Original published_at retained
+
+
 def _ensure_prometheus_counters_registered() -> None:
     """Ensure Prometheus counters used by these tests are registered.
 
