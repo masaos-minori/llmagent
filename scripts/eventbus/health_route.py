@@ -63,7 +63,8 @@ async def health_check(request: Request) -> JSONResponse:
     if broker is not None:
         active_subscribers = broker.subscriber_count()
         max_queue_depth = broker.max_queue_depth()
-        slow_consumers = broker.slow_consumer_count()
+        # A health read is a documented refresh trigger for the slow-consumer gauge.
+        slow_consumers = broker.refresh_slow_consumer_gauge()
         overflow_disconnects = broker.overflow_disconnect_count()
         duplicate_connection_rejections = broker.duplicate_rejection_count()
 

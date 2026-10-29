@@ -264,6 +264,70 @@ class TestValidation:
         assert principal.consumer_grants == frozenset({("c1", "topicA")})
 
 
+class TestPublishOrder:
+    def test_failed_principal_build_keeps_previous_generation(
+        self, admin_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from eventbus import app as eb_app
+
+        config_before = eb_app.app.state.config
+        map_before = principal_map()
+
+        def _boom(config: Any) -> Any:
+            raise ValueError("principal build failed")
+
+        monkeypatch.setattr("eventbus.admin_route._build_principal_map", _boom)
+        failing = TestClient(admin_client.app, raise_server_exceptions=False)
+        resp = failing.post(
+            "/admin/topics/authorization",
+            headers={"Authorization": "Bearer admin-tok"},
+            json={"consumer_authorization": {"c1": ["topicB"]}},
+        )
+
+        assert resp.status_code == 500
+        assert eb_app.app.state.config is config_before
+        assert principal_map() is map_before
+
+    def test_noop_update_publishes_nothing(self, admin_client: TestClient) -> None:
+        from eventbus import app as eb_app
+
+        config_before = eb_app.app.state.config
+        map_before = principal_map()
+
+        resp = admin_client.post(
+            "/admin/topics/authorization",
+            headers={"Authorization": "Bearer admin-tok"},
+            json={"consumer_authorization": {"c1": ["topicA"]}},
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["changed"] is False
+        assert eb_app.app.state.config is config_before
+        assert principal_map() is map_before
+
+    def test_effective_update_publishes_config_and_map(
+        self, admin_client: TestClient
+    ) -> None:
+        from eventbus import app as eb_app
+
+        config_before = eb_app.app.state.config
+        map_before = principal_map()
+
+        resp = admin_client.post(
+            "/admin/topics/authorization",
+            headers={"Authorization": "Bearer admin-tok"},
+            json={"consumer_authorization": {"c1": ["topicB"]}},
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["changed"] is True
+        assert eb_app.app.state.config is not config_before
+        assert principal_map() is not map_before
+        assert principal_map()["consumer-tok"].consumer_grants == frozenset(
+            {("c1", "topicB")}
+        )
+
+
 class TestUpdateRemovesPairs:
     def test_update_removes_pairs_no_longer_configured(
         self, admin_client: TestClient

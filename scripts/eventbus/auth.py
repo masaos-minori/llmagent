@@ -102,18 +102,16 @@ def _derive_token_fingerprint(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()[:16]
 
 
-def _populate_token_maps(config: Any) -> None:
-    """Populate _TOKEN_PRINCIPAL_MAP from config at startup.
+def _build_principal_map(config: Any) -> dict[str, Principal]:
+    """Build the token-to-Principal map from config without publishing it.
 
-    Uses build-new-then-swap: builds the entire new map into a fresh local dict
-    before publishing, so concurrent readers never observe an empty map window.
-    If building raises (e.g. consumer_token without consumer_authorization), the
-    previous generation remains in force.
+    Builds the entire map into a fresh local dict. If building raises (e.g.
+    consumer_token without consumer_authorization, or a duplicate token), nothing
+    has been published and the previous generation stays in force.
 
     Replaces the old _TOKEN_CONSUMER_MAP / _TOKEN_TOPIC_MAP / _TOKEN_ROLE_MAP
     design with a single Principal-based lookup table.
     """
-    global _TOKEN_PRINCIPAL_MAP
 
     # Helper to compute token fingerprint for logging
     def _fingerprint(token: str) -> str:
@@ -202,8 +200,17 @@ def _populate_token_maps(config: Any) -> None:
             token_fingerprint=_fingerprint(admin_token),
         )
 
-    # Publish the fully built map via one atomic assignment — no empty-map window.
-    publish_principals(new_map)
+    return new_map
+
+
+def _populate_token_maps(config: Any) -> None:
+    """Populate _TOKEN_PRINCIPAL_MAP from config at startup.
+
+    Builds the whole map first and publishes it with one assignment through
+    publish_principals(), so concurrent readers never observe an empty map window
+    and a build error leaves the previous generation in force.
+    """
+    publish_principals(_build_principal_map(config))
 
 
 def publish_principals(new_map: dict[str, Principal]) -> None:

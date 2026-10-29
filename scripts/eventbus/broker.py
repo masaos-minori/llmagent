@@ -80,7 +80,7 @@ class EventBroker:
             pass
         if sub.consumer_id:
             self._consumer_subs.pop(sub.consumer_id, None)
-        self._refresh_slow_consumer_gauge()
+        self.refresh_slow_consumer_gauge()
 
     def publish(self, event: dict[str, Any]) -> int:
         """Fan out event to matching subscribers. Returns delivery count."""
@@ -126,19 +126,23 @@ class EventBroker:
         subs = list(self._subscribers)
         return max((sub.queue.qsize() for sub in subs), default=0)
 
-    def _refresh_slow_consumer_gauge(self) -> int:
-        """Count the slow consumers, publish the count to the gauge and return it."""
-        count = sum(
+    def _count_slow_consumers(self) -> int:
+        """Count subscribers whose queue depth reaches the slow consumer threshold."""
+        return sum(
             1
             for sub in list(self._subscribers)
             if sub.queue.qsize() >= self._slow_consumer_threshold
         )
+
+    def refresh_slow_consumer_gauge(self) -> int:
+        """Publish the current slow-consumer count to the gauge and return it."""
+        count = self._count_slow_consumers()
         _slow_consumer_current.set(count)
         return count
 
     def slow_consumer_count(self) -> int:
-        """Count subscribers whose queue depth reaches the slow consumer threshold."""
-        return self._refresh_slow_consumer_gauge()
+        """Count slow consumers without touching the gauge."""
+        return self._count_slow_consumers()
 
     def overflow_disconnect_count(self) -> int:
         """Return the number of disconnects caused by queue overflow."""

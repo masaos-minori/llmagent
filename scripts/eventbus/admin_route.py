@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import HTTPException, Request
 
 from eventbus.audit import log_privileged_action
-from eventbus.auth import _populate_token_maps
+from eventbus.auth import _build_principal_map, publish_principals
 from eventbus.route_helpers import get_config
 
 logger = logging.getLogger(__name__)
@@ -124,15 +124,15 @@ async def update_topics_authorization(request: Request) -> dict[str, Any]:
             changed = True
     if changed:
         # EventBusConfig is a frozen dataclass — build a replacement instance
-        # rather than mutating the existing one, then swap it into app.state
-        # so every other request-scoped `get_config(request)` call sees the
+        # rather than mutating the existing one. Build the replacement principal
+        # map from it before publishing anything, so a failed build leaves the
+        # previous config and principal generation fully active; then swap both
+        # in so every other request-scoped `get_config(request)` call sees the
         # update immediately.
         config = dataclasses.replace(config, **replacements)
+        new_principals = _build_principal_map(config)
         request.app.state.config = config
-
-    # Only repopulate principals when config actually changed
-    if changed:
-        _populate_token_maps(config)
+        publish_principals(new_principals)
 
     logger.info("admin: topics authorization updated")
 

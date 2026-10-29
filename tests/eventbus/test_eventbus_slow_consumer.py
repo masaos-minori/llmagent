@@ -205,27 +205,56 @@ def _small_broker() -> Any:
 class TestSlowConsumerGauge:
     """eventbus_slow_consumer_current always equals the current slow-consumer count."""
 
-    def test_slow_consumer_gauge_returns_to_zero_after_recovery(self) -> None:
+    def test_drain_without_unsubscribe_keeps_gauge_until_refresh(self) -> None:
         broker = _small_broker()
         sub = broker.subscribe([])
         broker.publish(_event())
         broker.publish(_event())
-
-        assert broker.slow_consumer_count() == 1
+        assert broker.refresh_slow_consumer_gauge() == 1
         assert _slow_gauge() == 1
 
         sub.queue.get_nowait()
         sub.queue.get_nowait()
 
-        assert broker.slow_consumer_count() == 0
+        assert _slow_gauge() == 1  # a drain alone does not refresh the gauge
+        assert broker.refresh_slow_consumer_gauge() == 0
         assert _slow_gauge() == 0
+
+    def test_slow_consumer_count_is_a_pure_read(self) -> None:
+        broker = _small_broker()
+        sub = broker.subscribe([])
+        broker.publish(_event())
+        broker.publish(_event())
+        broker.refresh_slow_consumer_gauge()
+        sub.queue.get_nowait()
+        sub.queue.get_nowait()
+
+        for _ in range(3):
+            assert broker.slow_consumer_count() == 0
+            assert _slow_gauge() == 1  # reads never touch the gauge
+
+    def test_health_read_refreshes_gauge(self, client: TestClient) -> None:
+        from eventbus import app as eb_app
+        from eventbus.broker import _slow_consumer_current
+
+        broker = eb_app.app.state.broker
+        sub = broker.subscribe([])
+        try:
+            for _ in range(120):  # default threshold is 100
+                assert client.post("/publish", json=_event()).status_code == 200
+            _slow_consumer_current.set(0)  # publish never refreshes the gauge
+            resp = client.get("/health", headers=eventbus_auth_headers("monitoring"))
+            assert resp.json()["slow_consumers"] == 1
+            assert _slow_gauge() == 1
+        finally:
+            broker.unsubscribe(sub)
 
     def test_slow_consumer_gauge_is_zero_after_unsubscribe(self) -> None:
         broker = _small_broker()
         sub = broker.subscribe([])
         broker.publish(_event())
         broker.publish(_event())
-        assert broker.slow_consumer_count() == 1
+        assert broker.refresh_slow_consumer_gauge() == 1
         assert _slow_gauge() == 1
 
         broker.unsubscribe(sub)
@@ -237,7 +266,7 @@ class TestSlowConsumerGauge:
         sub = broker.subscribe([])
         broker.publish(_event())
         broker.publish(_event())
-        assert broker.slow_consumer_count() == 1
+        assert broker.refresh_slow_consumer_gauge() == 1
         assert _slow_gauge() == 1
 
         for _ in range(3):  # the queue holds 4, so the fifth event overflows it
@@ -252,7 +281,7 @@ class TestSlowConsumerGauge:
         broker.subscribe([])
         broker.publish(_event())
         broker.publish(_event())
-        assert broker.slow_consumer_count() == 1
+        assert broker.refresh_slow_consumer_gauge() == 1
         assert _slow_gauge() == 1
 
         broker.shutdown()
