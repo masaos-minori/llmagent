@@ -176,6 +176,7 @@ class SQLiteMemoryDeleteStore:
 
     def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
         """Delete memories not updated for N days atomically across all memory tables."""
+        # Fast path only; the guards are re-applied by the DELETE below.
         rows = self._db.fetchall(
             "SELECT memory_id FROM memories "
             "WHERE updated_at < datetime('now', ?) AND pinned = 0",
@@ -184,23 +185,24 @@ class SQLiteMemoryDeleteStore:
         if not rows:
             return MemoryDeleteResult(deleted=0)
 
-        mids = [row[0] for row in rows]
-        placeholders = ",".join("?" * len(mids))
+        param = f"-{older_than_days} days"
         with self._db.begin_immediate():
             cur = self._db.execute(
-                f"DELETE FROM memories WHERE memory_id IN ({placeholders})",  # nosec B608 — mids are UUIDs from DB; placeholders use ?
-                tuple(mids),
+                "DELETE FROM memories "
+                "WHERE updated_at < datetime('now', ?) AND pinned = 0 "
+                "RETURNING memory_id",
+                (param,),
             )
-            deleted = cur.rowcount
-            for mid in mids:
+            deleted_ids = [row[0] for row in cur.fetchall()]
+            for mid in deleted_ids:
                 self._db.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
-            for mid in mids:
+            for mid in deleted_ids:
                 self._db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
-            for mid in mids:
+            for mid in deleted_ids:
                 self._db.execute("DELETE FROM memory_links WHERE src_id=?", (mid,))
-            for mid in mids:
+            for mid in deleted_ids:
                 self._db.execute("DELETE FROM memory_links WHERE dst_id=?", (mid,))
-        return MemoryDeleteResult(deleted=deleted)
+        return MemoryDeleteResult(deleted=len(deleted_ids))
 
     def collect_prunable_ids(self, older_than_days: int) -> list[str]:
         """Return memory_ids not updated for older_than_days days that are not pinned."""

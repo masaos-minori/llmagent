@@ -382,12 +382,11 @@ class TestPruneOldMemories:
     def _make_db(
         self,
         fetchall_return: list,
-        rowcount: int = 0,
     ) -> MagicMock:
         mock = MagicMock(spec=SQLiteHelper)
         mock.fetchall.return_value = fetchall_return
         cur_mock = MagicMock()
-        cur_mock.rowcount = rowcount
+        cur_mock.fetchall.return_value = fetchall_return  # DELETE ... RETURNING rows
         mock.execute.return_value = cur_mock
         return mock
 
@@ -403,7 +402,6 @@ class TestPruneOldMemories:
         mid = "abc-uuid"
         mock_db = self._make_db(
             fetchall_return=[(mid,)],
-            rowcount=1,
         )
         result = prune_old_memories(mock_db, older_than_days=30)
 
@@ -421,11 +419,10 @@ class TestPruneOldMemories:
         mid = "abc-uuid"
         mock_db = self._make_db(
             fetchall_return=[(mid,)],
-            rowcount=1,
         )
         # memories_vec deletion failure propagates in STRICT mode (default)
         mock_db.execute.side_effect = [
-            MagicMock(rowcount=1),  # DELETE FROM memories
+            MagicMock(fetchall=lambda: [(mid,)]),  # DELETE FROM memories ... RETURNING
             MagicMock(),  # DELETE FROM memories_fts
             Exception("no vec table"),  # DELETE FROM memories_vec — must raise
         ]

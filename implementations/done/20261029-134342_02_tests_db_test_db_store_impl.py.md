@@ -10,6 +10,12 @@ adapt the mock-based delete-store tests to the new `DELETE ... RETURNING` statem
   mid-window re-pin / refresh regression tests plus the `_RaceDeleteDB` (new) test wrapper.
 - `TestSQLiteMemoryDeleteStore` (`tests/db/test_db_store_impl.py:395-473`): adapt the
   mock delete tests to the new statement shape; add one SQL-shape assertion test.
+- `TestPruneOldMemories` (`tests/db/test_db_maintenance.py:381-433`): adapt the
+  caller-level mock fixtures to the new cursor shape. Discovered at execution time: its
+  `_make_db` cursor mock depended on the old `rowcount`/`IN (...)` statement shape
+  (MagicMock `__iter__` defaults to empty, silently zeroing the deleted-id list), so the
+  Plan's "unchanged gate" expectation was incomplete — the same sanctioned mock coupling
+  applies here.
 
 ## Assumptions
 
@@ -171,8 +177,8 @@ T3 mock adaptations (MagicMock `db`):
 ## Out of Scope
 
 - `scripts/db/store_impl.py` itself (sibling procedure document).
-- `tests/db/test_db_maintenance.py` — its `TestPruneOldMemories` caller-level regression
-  is an unchanged gate, not a modification target.
+- `tests/db/test_db_maintenance.py` — only the `TestPruneOldMemories` mock-fixture
+  adaptation recorded in Scope; no other maintenance tests are modified.
 - Concurrency stress/load testing beyond the deterministic window injection.
 
 ## Execution Status
@@ -180,9 +186,9 @@ T3 mock adaptations (MagicMock `db`):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_RaceDeleteDB` (new), T1/T2 real-SQLite regression tests | Pending | — | — | REQ-001, REQ-002, REQ-005 |
-| 2 | Adapt `TestSQLiteMemoryDeleteStore` mock tests; add DELETE-shape test | Pending | — | — | REQ-004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | REQ-004 |
+| 1 | Add `_RaceDeleteDB` (new), T1/T2 real-SQLite regression tests | Completed | 20261029-143734 | 20261029-144156 | REQ-001, REQ-002, REQ-005 |
+| 2 | Adapt `TestSQLiteMemoryDeleteStore` mock tests; add DELETE-shape test | Completed | 20261029-144156 | 20261029-144156 | REQ-004 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-144210 | 20261029-145006 | REQ-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

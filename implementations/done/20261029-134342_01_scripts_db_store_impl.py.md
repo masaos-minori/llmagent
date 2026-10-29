@@ -162,8 +162,8 @@ def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `delete_memories_before()` body per Procedure/Method/Details | Pending | — | — | REQ-001, REQ-002, REQ-003 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | REQ-004; test adaptation is covered by the sibling document |
+| 1 | Rewrite `delete_memories_before()` body per Procedure/Method/Details | Completed | 20261029-143314 | 20261029-143633 | REQ-001, REQ-002, REQ-003 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261029-143633 | 20261029-145006 | REQ-004; test adaptation is covered by the sibling document Static gates and targeted run pass; full-suite+diff-cover deferred to sibling procedure T3 adaptation gate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

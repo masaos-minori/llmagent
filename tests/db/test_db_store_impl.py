@@ -6,6 +6,7 @@ SQLiteDocumentStore, SQLiteVectorStore, SQLiteMemoryDeleteStore.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
@@ -405,7 +406,7 @@ class TestSQLiteMemoryDeleteStore:
     def test_old_entries_trigger_delete_and_commit(self) -> None:
         mock_db = MagicMock()
         mock_cur = MagicMock()
-        mock_cur.rowcount = 2
+        mock_cur.fetchall.return_value = [("uuid-1",), ("uuid-2",)]
         mock_db.fetchall.return_value = [("uuid-1",), ("uuid-2",)]
         mock_db.execute.return_value = mock_cur
         mock_cm = MagicMock()
@@ -420,7 +421,7 @@ class TestSQLiteMemoryDeleteStore:
     def test_fts_and_vec_cleanup_called_per_deleted_entry(self) -> None:
         mock_db = MagicMock()
         mock_cur = MagicMock()
-        mock_cur.rowcount = 1
+        mock_cur.fetchall.return_value = [("uuid-abc",)]
         mock_db.fetchall.return_value = [("uuid-abc",)]
         mock_db.execute.return_value = mock_cur
         store = SQLiteMemoryDeleteStore(mock_db)
@@ -429,6 +430,23 @@ class TestSQLiteMemoryDeleteStore:
         assert any("DELETE FROM memories WHERE" in c for c in calls)
         assert any("memories_fts" in c for c in calls)
         assert any("memories_vec" in c for c in calls)
+        assert any("memory_links" in c for c in calls)
+
+    def test_delete_statement_reapplies_guards_and_returns_ids(self) -> None:
+        mock_db = MagicMock()
+        mock_cur = MagicMock()
+        mock_cur.fetchall.return_value = [("uuid-1",)]
+        mock_db.fetchall.return_value = [("uuid-1",)]
+        mock_db.execute.return_value = mock_cur
+        store = SQLiteMemoryDeleteStore(mock_db)
+        result = store.delete_memories_before(30)
+        sql, params = mock_db.execute.call_args_list[0][0]
+        assert "DELETE FROM memories" in sql
+        assert "updated_at < datetime('now', ?)" in sql
+        assert "pinned = 0" in sql
+        assert "RETURNING memory_id" in sql
+        assert params == ("-30 days",)
+        assert result.deleted == 1
 
     def test_collect_prunable_ids_filters_pinned(self) -> None:
         mock_db = MagicMock()
@@ -487,44 +505,64 @@ class _RealDeleteDB(_FakeDB):
             self.conn.commit()
 
 
+class _RaceDeleteDB(_RealDeleteDB):
+    """Runs an injected committed mutation right after the fast-path selection."""
+
+    def __init__(self, conn: sqlite3.Connection, inject: Callable[[], None]) -> None:
+        super().__init__(conn)
+        self._inject = inject
+        self._armed = True
+
+    def fetchall(self, sql: str, params: tuple = ()) -> list:
+        rows = super().fetchall(sql, params)
+        if self._armed and sql.startswith("SELECT memory_id FROM memories"):
+            self._armed = False
+            self._inject()
+            self.conn.commit()
+        return rows
+
+
+def _seed_delete_tables(conn: sqlite3.Connection) -> None:
+    """Create the minimal memory tables and seed m1..m4 with auxiliary rows."""
+    conn.executescript(
+        """
+        CREATE TABLE memories (
+            memory_id  TEXT PRIMARY KEY,
+            created_at TEXT,
+            updated_at TEXT,
+            pinned     INTEGER DEFAULT 0
+        );
+        CREATE TABLE memories_fts (memory_id TEXT);
+        CREATE TABLE memories_vec (memory_id TEXT);
+        CREATE TABLE memory_links (src_id TEXT, dst_id TEXT);
+        """
+    )
+
+    def _iso(days_ago: int) -> str:
+        return (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d %H:%M:%S")
+
+    conn.executemany(
+        "INSERT INTO memories VALUES (?, ?, ?, ?)",
+        [
+            ("m1", _iso(90), _iso(90), 0),  # old update + old create -> prune
+            ("m2", _iso(90), _iso(1), 0),  # old create, recent update -> keep
+            ("m3", _iso(90), _iso(90), 1),  # old but pinned -> keep
+            ("m4", _iso(1), _iso(1), 0),  # recent -> keep
+        ],
+    )
+    conn.commit()
+    conn.executemany("INSERT INTO memories_fts VALUES (?)", [("m1",), ("m2",)])
+    conn.executemany("INSERT INTO memories_vec VALUES (?)", [("m1",), ("m2",)])
+    conn.executemany(
+        "INSERT INTO memory_links VALUES (?, ?)", [("m1", "x"), ("y", "m1")]
+    )
+    conn.commit()
+
+
 class TestMemoryDeleteStoreRealSqlite:
     def test_prunes_only_old_unpinned_by_updated_at(self) -> None:
         conn = sqlite3.connect(":memory:")
-        conn.executescript(
-            """
-            CREATE TABLE memories (
-                memory_id  TEXT PRIMARY KEY,
-                created_at TEXT,
-                updated_at TEXT,
-                pinned     INTEGER DEFAULT 0
-            );
-            CREATE TABLE memories_fts (memory_id TEXT);
-            CREATE TABLE memories_vec (memory_id TEXT);
-            CREATE TABLE memory_links (src_id TEXT, dst_id TEXT);
-            """
-        )
-
-        def _iso(days_ago: int) -> str:
-            return (datetime.now() - timedelta(days=days_ago)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-
-        conn.executemany(
-            "INSERT INTO memories VALUES (?, ?, ?, ?)",
-            [
-                ("m1", _iso(90), _iso(90), 0),  # old update + old create -> prune
-                ("m2", _iso(90), _iso(1), 0),  # old create, recent update -> keep
-                ("m3", _iso(90), _iso(90), 1),  # old but pinned -> keep
-                ("m4", _iso(1), _iso(1), 0),  # recent -> keep
-            ],
-        )
-        conn.commit()
-        conn.executemany("INSERT INTO memories_fts VALUES (?)", [("m1",), ("m2",)])
-        conn.executemany("INSERT INTO memories_vec VALUES (?)", [("m1",), ("m2",)])
-        conn.executemany(
-            "INSERT INTO memory_links VALUES (?, ?)", [("m1", "x"), ("y", "m1")]
-        )
-        conn.commit()
+        _seed_delete_tables(conn)
 
         store = SQLiteMemoryDeleteStore(_RealDeleteDB(conn))  # type: ignore[arg-type]
         ids = store.collect_prunable_ids(30)
@@ -547,3 +585,60 @@ class TestMemoryDeleteStoreRealSqlite:
             ("m1", "m1"),
         ).fetchall()
         assert link_rows == []
+
+    def test_repin_between_selection_and_delete_is_retained(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        _seed_delete_tables(conn)
+
+        def _inject() -> None:
+            conn.execute("UPDATE memories SET pinned = 1 WHERE memory_id = 'm1'")
+
+        store = SQLiteMemoryDeleteStore(_RaceDeleteDB(conn, _inject))  # type: ignore[arg-type]
+        result = store.delete_memories_before(30)
+
+        assert result.deleted == 0
+        assert conn.execute(
+            "SELECT pinned FROM memories WHERE memory_id = 'm1'"
+        ).fetchone() == (1,)
+        assert conn.execute(
+            "SELECT memory_id FROM memories_fts WHERE memory_id='m1'"
+        ).fetchall() == [("m1",)]
+        assert conn.execute(
+            "SELECT memory_id FROM memories_vec WHERE memory_id='m1'"
+        ).fetchall() == [("m1",)]
+        assert (
+            conn.execute(
+                "SELECT * FROM memory_links WHERE src_id='m1' OR dst_id='m1'"
+            ).fetchall()
+            != []
+        )
+
+    def test_updated_at_refresh_between_selection_and_delete_is_retained(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        _seed_delete_tables(conn)
+
+        def _inject() -> None:
+            conn.execute(
+                "UPDATE memories SET updated_at = datetime('now') "
+                "WHERE memory_id = 'm1'"
+            )
+
+        store = SQLiteMemoryDeleteStore(_RaceDeleteDB(conn, _inject))  # type: ignore[arg-type]
+        result = store.delete_memories_before(30)
+
+        assert result.deleted == 0
+        assert conn.execute(
+            "SELECT memory_id FROM memories WHERE memory_id = 'm1'"
+        ).fetchone() == ("m1",)
+        assert conn.execute(
+            "SELECT memory_id FROM memories_fts WHERE memory_id='m1'"
+        ).fetchall() == [("m1",)]
+        assert conn.execute(
+            "SELECT memory_id FROM memories_vec WHERE memory_id='m1'"
+        ).fetchall() == [("m1",)]
+        assert (
+            conn.execute(
+                "SELECT * FROM memory_links WHERE src_id='m1' OR dst_id='m1'"
+            ).fetchall()
+            != []
+        )

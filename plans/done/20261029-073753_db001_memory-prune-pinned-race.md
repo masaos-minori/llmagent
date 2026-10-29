@@ -133,8 +133,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Modify `delete_memories_before()` guards + auxiliary-cleanup keying (scripts/db/store_impl.py) | In Progress | — | — | REQ-001, REQ-002, REQ-003 |
-| 2 | Add regression tests; adapt mock tests (tests/db/test_db_store_impl.py) | In Progress | — | — | REQ-005, REQ-004 |
+| 1 | Modify `delete_memories_before()` guards + auxiliary-cleanup keying (scripts/db/store_impl.py) | Completed | 20261029-145050 | 20261029-145050 | REQ-001, REQ-002, REQ-003 |
+| 2 | Add regression tests; adapt mock tests (tests/db/test_db_store_impl.py) | Completed | 20261029-145050 | 20261029-145050 | REQ-005, REQ-004 Deviation: tests/db/test_db_maintenance.py TestPruneOldMemories mock fixtures were coupled to the old statement shape and required adaptation for the full-suite gate; not in the frozen target table - recorded in the sibling procedure document |
 | 3 | Run validation gates; commit/push; deploy hand-off | Pending | — | — | REQ-004; deploy is user-gated |
 
 ### Blocker Log
@@ -145,8 +145,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261029-134342_01_scripts_db_store_impl.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261029-134342_02_tests_db_test_db_store_impl.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-134342_01_scripts_db_store_impl.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261029-134342_02_tests_db_test_db_store_impl.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
