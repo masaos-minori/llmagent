@@ -103,7 +103,7 @@ Baseline (2026-10-28, before implementation):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the two all-roles tests (REQ-001) | In Progress | — | — |  |
+| 1 | Delete the two all-roles tests (REQ-001) | Completed | — | 20261029-103640 |  |
 | 2 | Run EventBus suite, confirm collection delta (REQ-001, REQ-002) | Pending | — | — |  |
 | 3 | ruff on the changed file (REQ-001) | Pending | — | — |  |
 

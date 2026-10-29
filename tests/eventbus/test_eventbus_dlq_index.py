@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import shutil
+import sqlite3
+import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
@@ -21,6 +25,10 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=2,
         auth_token="test-token",
+        publisher_token="publisher-token",
+        consumer_token="consumer-token",
+        consumer_authorization={"consumer-A": ["test.topic"]},
+        operator_token="operator-token",
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
@@ -35,7 +43,8 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
 
 def _event(topic: str = "test.topic") -> dict[str, Any]:
     return {
-        "event_id": "test-event-id",
+        # UUID v4 required by the envelope schema (else /publish returns 422).
+        "event_id": str(uuid.uuid4()),
         "topic": topic,
         "payload": {"x": 1},
         "producer": "p1",
@@ -43,32 +52,95 @@ def _event(topic: str = "test.topic") -> dict[str, Any]:
     }
 
 
-def test_dlq_query_uses_index(client: TestClient) -> None:
-    """DLQ query should use idx_events_dlq_at index."""
-    client.post("/publish", json=_event())
-
-    import eventbus.app as eb_app
-
-    # Create DLQ index if it doesn't exist
-    assert eb_app.app.state.db is not None
-    indexes = eb_app.app.state.db.execute(
+def _canonical_index_names(conn: Any) -> set[str]:
+    rows = conn.execute(
         'SELECT name FROM sqlite_master WHERE type="index" AND tbl_name="events"'
     ).fetchall()
-    index_names = [i[0] for i in indexes]
-    if "idx_events_dlq_at" not in index_names:
-        eb_app.app.state.db.execute("CREATE INDEX idx_events_dlq_at ON events(dlq_at)")
+    return {name for (name,) in rows}
 
-    def _explain() -> list[str]:
-        assert eb_app.app.state.db is not None
-        rows = eb_app.app.state.db.execute(
-            "EXPLAIN QUERY PLAN SELECT event_id, seq, topic, payload, producer, published_at"
-            " FROM events WHERE dlq_at IS NOT NULL ORDER BY dlq_at DESC LIMIT 100 OFFSET 0"
-        ).fetchall()
-        return [str(list(row)) for row in rows]
 
-    plan = _explain()
-    print("PLAN:", plan)
-    # Check if any row contains the index name
-    assert any("idx_events_dlq_at" in p or "idx_events_dlq_seq" in p for p in plan), (
-        f"Expected DLQ index in plan: {plan}"
+def _assert_canonical_dlq_indexes(conn: Any) -> None:
+    """REQ-002: both canonical DLQ indexes exist on the examined connection."""
+    indexes = _canonical_index_names(conn)
+    assert "idx_events_dlq_at" in indexes, (
+        f"missing idx_events_dlq_at: {sorted(indexes)}"
     )
+    assert "idx_events_dlq_seq" in indexes, (
+        f"missing idx_events_dlq_seq: {sorted(indexes)}"
+    )
+
+
+def _seed_dlq_row(client: TestClient) -> None:
+    """Publish and nack one event so it lands in the DLQ for the plan assertion."""
+    pub_headers = {"Authorization": "Bearer publisher-token"}
+    r = client.post("/publish", json=_event(), headers=pub_headers)
+    assert r.status_code == 200  # REQ-004: setup publish is authorised
+    con = cast(FastAPI, client.app).state.db
+    assert con is not None
+    con.execute(
+        "UPDATE events SET dlq_at = ? WHERE topic = ?",
+        ("2026-10-28T00:00:00Z", "test.topic"),
+    )
+    con.commit()
+
+
+def test_dlq_index_shape_present(client: TestClient) -> None:
+    """REQ-002: canonical DLQ indexes present under the open_db schema; no DDL runs."""
+    assert cast(FastAPI, client.app).state.db is not None
+    _assert_canonical_dlq_indexes(cast(FastAPI, client.app).state.db)
+
+
+def test_dlq_index_shape_fails_when_dropped(client: TestClient) -> None:
+    """REQ-002 negative: dropping a canonical index in a throwaway copy is detected."""
+    import tempfile
+    from pathlib import Path
+
+    con = cast(FastAPI, client.app).state.db
+    assert con is not None
+    # PRAGMA database_file is empty on the pragma-configured shared connection;
+    # config.db_path is the authoritative path to the same live test DB file.
+    db_path = cast(FastAPI, client.app).state.config.db_path
+    with tempfile.TemporaryDirectory() as tmp:
+        copy_path = Path(tmp) / "copy.sqlite"
+        shutil.copyfile(db_path, copy_path)
+        copy_conn = sqlite3.connect(copy_path)
+        try:
+            copy_conn.execute("DROP INDEX IF EXISTS idx_events_dlq_at")
+            with pytest.raises(AssertionError):
+                _assert_canonical_dlq_indexes(copy_conn)
+        finally:
+            copy_conn.close()
+
+
+def test_dlq_index_plan_matches_production_sql(client: TestClient) -> None:
+    """REQ-003: EXPLAIN the exact SQL fetch_dlq()/count_dlq() execute."""
+    from eventbus.event_repo import count_dlq, fetch_dlq
+
+    con = cast(FastAPI, client.app).state.db
+    assert con is not None
+    # Seed one DLQ row so fetch_dlq returns something.
+    _seed_dlq_row(client)
+
+    captured: list[str] = []
+    con.set_trace_callback(captured.append)
+    try:
+        count_dlq(con)
+        fetch_dlq(con, limit=2, offset=0)
+    finally:
+        con.set_trace_callback(None)
+
+    count_sql = next(s for s in captured if s.startswith("SELECT COUNT(*)"))
+    page_sql = next(
+        s for s in captured if s.startswith("SELECT") and "ORDER BY seq" in s
+    )
+
+    count_plan = con.execute(f"EXPLAIN QUERY PLAN {count_sql}").fetchall()
+    page_plan = con.execute(f"EXPLAIN QUERY PLAN {page_sql}").fetchall()
+
+    # EXPLAIN QUERY PLAN returns sqlite3.Row objects; str(Row) is only the object
+    # repr, so render the values before matching the plan text.
+    count_text = " ".join(" ".join(str(v) for v in row) for row in count_plan)
+    page_text = " ".join(" ".join(str(v) for v in row) for row in page_plan)
+
+    assert "idx_events_dlq_seq" in count_text, count_plan
+    assert "sort" not in page_text.lower(), page_plan

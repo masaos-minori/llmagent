@@ -144,10 +144,10 @@ Baseline (2026-10-28, pre-implementation, saved under `.opencode/verification/`)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `reconcile_missing_dlq_files()` (REQ-001, REQ-002) | In Progress | — | — |  |
-| 2 | Unit + idempotency tests (REQ-001, REQ-002) | In Progress | — | — |  |
-| 3 | Concurrency test (REQ-003) | In Progress | — | — |  |
-| 4 | Runbook "Missing Files" rewrite (REQ-004) | In Progress | — | — |  |
+| 1 | Implement `reconcile_missing_dlq_files()` (REQ-001, REQ-002) | Completed | — | 20261029-104101 |  |
+| 2 | Unit + idempotency tests (REQ-001, REQ-002) | Completed | — | 20261029-110326 |  |
+| 3 | Concurrency test (REQ-003) | Completed | — | 20261029-110326 |  |
+| 4 | Runbook "Missing Files" rewrite (REQ-004) | Completed | — | 20261029-110740 |  |
 | 5 | Operator entry point + command (REQ-005) | Pending | — | — | Blocked on UNK-01 |
 | 6 | Full verification + deploy (REQ-001..REQ-004) | Pending | — | — |  |
 

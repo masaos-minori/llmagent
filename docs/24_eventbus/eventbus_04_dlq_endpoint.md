@@ -31,6 +31,7 @@ GET /dlq
 - Query parameters `limit` (bounded; see `scripts/eventbus/dlq_route.py`) and `offset` (`>= 0`) paginate the result. Out-of-range values return HTTP 422.
 - The response is a pagination envelope (`total`, `limit`, `offset`) plus an `items` array. Each item carries event identity, `dlq_at` (the time the event was promoted to the DLQ) and `dlq_requeue_count`.
 - Items are ordered by event `seq` ascending (oldest event first), not by the time of DLQ promotion. An empty DLQ returns `total: 0` and an empty `items` array.
+- Consistency is request-local: within a single `/dlq` response the `total` count and the `items` array are read under one database lock and are internally consistent; two separate `/dlq` requests are not guaranteed to reflect the same state, because each request acquires its own lock.
 
 ## Requeue DLQ Entry
 

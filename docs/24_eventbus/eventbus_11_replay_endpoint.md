@@ -65,7 +65,7 @@ When no events exist after `since_seq`, the JSON response has `total: 0` and an 
 
 ## Ordering and Consistency
 
-Events are ordered by `seq` ascending (insertion order). The page and the total count are fetched under the global DB lock in a single acquisition, so the returned events and `total` form a consistent snapshot; concurrent writes do not affect the result set.
+Events are ordered by `seq` ascending (insertion order). Within a single `/replay` response the events and the `total` count are read under one database-lock acquisition and are internally consistent; consistency is request-local — successive `/replay` requests are not guaranteed to reflect the same state.
 
 ## Keywords
 

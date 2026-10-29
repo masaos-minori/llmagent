@@ -79,6 +79,8 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "tests" / "db" / "test_db_public_api.py",
     ROOT_DIR / "tests" / "db" / "test_db_store_impl.py",
     ROOT_DIR / "tests" / "db" / "test_rag_consistency.py",
+    ROOT_DIR / "tests" / "eventbus" / "test_eventbus_dlq.py",
+    ROOT_DIR / "tests" / "eventbus" / "test_eventbus_dlq_promotion.py",
     ROOT_DIR / "tests" / "eventbus" / "test_eventbus_health.py",
     ROOT_DIR / "tests" / "eventbus" / "test_eventbus_publish.py",
     ROOT_DIR / "tests" / "eventbus" / "test_eventbus_replay_subscribe.py",

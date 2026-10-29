@@ -46,8 +46,9 @@ docs.
 ### Procedure
 
 1. Open `tests/eventbus/test_eventbus_dlq_pagination.py`.
-2. In `test_dlq_pagination`, delete the REQ-004 comment block (existing lines 144-158) and
-   the two requests (`ra`, `page2_ids`) and their overlap/coverage assertions it drives.
+2. In `test_dlq_pagination`, delete the REQ-004 cross-page non-overlap/coverage block
+   (existing lines 144-158): the second `/dlq` request, the derived page-id lists, and the
+   overlap + union-coverage assertions they drive. These identifiers are removed, not kept.
 3. Replace them with per-response internal-consistency assertions on the two disjoint
    windows already fetched (`body` from `limit=100`, `body2` from `limit=2&offset=2`):
    each response reports `total`, `limit`, `offset`, and `len(items)` within its
@@ -198,9 +199,9 @@ Revert the commit (single-file test change).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword pagination test to request-local contract (Implementation > Procedure) | Pending | — | — | |
-| 2 | Add concurrent-mutation test (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Reword pagination test to request-local contract (Implementation > Procedure) | Completed | — | 20261029-111855 | Applied verbatim; cross-request assertions replaced with per-response consistency. |
+| 2 | Add concurrent-mutation test (Validation plan) | Completed | — | 20261029-111855 | `test_dlq_pagination_concurrent_mutation` added, barrier-synchronised, no sleeps. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261029-111855 | Pagination module 4 passed x3 (AC-5); full eventbus 415 passed / 1 skipped, no new skips; ruff check+format, mypy, stale_detector all clean. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
 
 ### Blocker Log

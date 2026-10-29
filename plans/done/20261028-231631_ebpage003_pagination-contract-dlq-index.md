@@ -137,11 +137,11 @@ Baseline (2026-10-28, pre-implementation, saved under `.opencode/verification/`)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite index test (REQ-002..REQ-004) | In Progress | — | — |  |
-| 2 | Pagination reword (REQ-001) | In Progress | — | — |  |
-| 3 | Concurrent-mutation test (REQ-001) | In Progress | — | — |  |
-| 4 | Endpoint docs boundary wording (REQ-005) | In Progress | — | — |  |
-| 5 | Full verification (REQ-001..REQ-005) | Pending | — | — |  |
+| 1 | Rewrite index test (REQ-002..REQ-004) | Completed | — | 20261029-114030 |  |
+| 2 | Pagination reword (REQ-001) | Completed | — | 20261029-111910 |  |
+| 3 | Concurrent-mutation test (REQ-001) | Completed | — | 20261029-111910 |  |
+| 4 | Endpoint docs boundary wording (REQ-005) | Completed | — | 20261029-114330 |  |
+| 5 | Full verification (REQ-001..REQ-005) | Completed | — | 20261029-114558 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

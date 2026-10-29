@@ -219,9 +219,9 @@ Notes on the method:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `reconcile_missing_dlq_files()` (REQ-001, REQ-002, REQ-003) | Pending | — | — | Lock-free; caller holds run_with_db_lock |
-| 2 | Apply static gates to scripts/eventbus/dlq.py (REQ-001..REQ-003) | Pending | — | — | ruff/mypy/radon/vulture/bandit |
-| 3 | Run the DLQ suite with the sibling test procedure (REQ-001..REQ-003) | Pending | — | — | Tests authored in the 02 procedure |
+| 1 | Implement `reconcile_missing_dlq_files()` (REQ-001, REQ-002, REQ-003) | Completed | — | 20261029-104026 | Lock-free; caller holds run_with_db_lock |
+| 2 | Apply static gates to scripts/eventbus/dlq.py (REQ-001..REQ-003) | Completed | — | 20261029-104026 | ruff/mypy/radon/vulture/bandit |
+| 3 | Run the DLQ suite with the sibling test procedure (REQ-001..REQ-003) | Completed | — | 20261029-104026 | Tests authored in the 02 procedure Not run: regression/concurrency tests for reconcile_missing_dlq_files are authored in sibling proc 02 (runs next); existing DLQ suite 20 passed, no regression |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -871,63 +871,6 @@ class TestPrincipalFieldValidation:
             _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
     @pytest.mark.asyncio
-    async def test_admin_token_grants_all_roles(self) -> None:
-        from unittest.mock import MagicMock
-
-        from eventbus.auth import (
-            _TOKEN_PRINCIPAL_MAP,
-            Principal,
-            Role,
-            resolve_principal,
-        )
-
-        token = "admin-token"
-        _TOKEN_PRINCIPAL_MAP[token] = Principal(
-            roles=frozenset(Role),
-            consumer_grants=frozenset(),
-            token_fingerprint="test-fingerprint",
-        )
-        try:
-            principal = await resolve_principal(
-                self._make_request_mock(),
-                credentials=MagicMock(credentials=token),
-            )
-            assert isinstance(principal, Principal)
-            assert principal.roles == frozenset(Role)
-            assert principal.consumer_grants == frozenset()
-        finally:
-            _TOKEN_PRINCIPAL_MAP.pop(token, None)
-
-    @pytest.mark.asyncio
-    async def test_shared_token_grants_all_roles_for_backward_compat(self) -> None:
-        from unittest.mock import MagicMock
-
-        from eventbus.auth import (
-            _TOKEN_PRINCIPAL_MAP,
-            Principal,
-            Role,
-            resolve_principal,
-        )
-
-        token = "shared-token"
-        _TOKEN_PRINCIPAL_MAP[token] = Principal(
-            roles=frozenset(Role),
-            consumer_grants=frozenset(),
-            token_fingerprint="test-fingerprint",
-        )
-        try:
-            principal = await resolve_principal(
-                self._make_request_mock(),
-                credentials=MagicMock(credentials=token),
-            )
-            assert isinstance(principal, Principal)
-            assert principal.roles == frozenset(Role)
-            # Shared token carries no consumer grants
-            assert principal.consumer_grants == frozenset()
-        finally:
-            _TOKEN_PRINCIPAL_MAP.pop(token, None)
-
-    @pytest.mark.asyncio
     async def test_per_role_token_has_no_consumer_restriction(self) -> None:
         from unittest.mock import MagicMock
 

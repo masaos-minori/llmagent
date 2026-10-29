@@ -190,6 +190,65 @@ def sweep_orphans(
     return _shared_promote(db, deadletter_dir, max_retry)
 
 
+def reconcile_missing_dlq_files(
+    db: sqlite3.Connection,
+    deadletter_dir: str,
+) -> dict[str, int]:
+    """Detect and rebuild DLQ files lost after promotion.
+
+    REQ-001, REQ-002, REQ-003: lists promoted events (dlq_at IS NOT NULL) whose
+    {event_id}.json file is absent and rebuilds each through _atomic_write, reusing
+    the sweep's failure metering. Lock-free by design: the caller holds
+    run_with_db_lock, exactly as it does for sweep_orphans. Idempotent — an existing
+    file is never rewritten. Returns {checked, rebuilt, failed}.
+    """
+    checked = rebuilt = failed = 0
+    rows = db.execute(
+        "SELECT e.seq, e.event_id, e.topic, e.payload, e.producer,"  # nosec B608 — constant SQL fragment, values parameterized
+        " e.published_at, e.dlq_at"
+        " FROM events e"
+        " WHERE e.dlq_at IS NOT NULL"
+        " AND NOT EXISTS (SELECT 1 FROM events d WHERE d.redelivered_from = e.event_id)"
+    ).fetchall()
+
+    for row in rows:
+        checked += 1
+        event_id = row["event_id"]
+        dst = Path(deadletter_dir) / f"{event_id}.json"
+        if dst.exists():
+            continue
+        consumer_row = db.execute(
+            f"SELECT MAX({_COL_CONSUMER_DELIVERY_FAILURE_COUNT}) FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
+            "WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()
+        failure_count = (
+            int(consumer_row[0]) if consumer_row and consumer_row[0] else None
+        )
+        record = DlqEventRecord(
+            seq=row["seq"],
+            event_id=event_id,
+            topic=row["topic"],
+            payload=orjson.loads(row["payload"]),
+            producer=row["producer"],
+            published_at=row["published_at"],
+            dlq_at=row["dlq_at"],
+            consumer_delivery_failure_count=failure_count,
+        )
+        try:
+            _atomic_write(deadletter_dir, event_id, record)
+        except OSError:
+            _dlq_file_write_failure_counter.inc()
+            logger.exception(
+                "dlq reconcile: DLQ file write failed event_id=%s", event_id
+            )
+            failed += 1
+            continue
+        rebuilt += 1
+
+    return {"checked": checked, "rebuilt": rebuilt, "failed": failed}
+
+
 def promote_single(
     db: sqlite3.Connection,
     deadletter_dir: str,

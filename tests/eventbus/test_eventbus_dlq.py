@@ -751,3 +751,175 @@ def test_reconciliation_missing_file(client: TestClient, tmp_path: Path) -> None
     # Sweep should not fail even though the first event's file is missing
     promoted = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
     assert promoted == 1  # Only ev2 should be promoted
+
+
+# ---------------------------------------------------------------------------
+# reconcile_missing_dlq_files (new) — rebuild lost DLQ files for promoted events
+# ---------------------------------------------------------------------------
+
+
+def test_reconcile_rebuilds_full_record_from_db(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A promoted event whose file was lost is rebuilt byte-for-byte from SQLite."""
+    from eventbus.db import open_db
+    from eventbus.dlq import reconcile_missing_dlq_files, sweep_orphans
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+
+    # Promote via sweep so the event has a DLQ record, then delete the file.
+    _make_promotable(db, ev["event_id"])
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    original_bytes = (tmp_path / "deadletter" / f"{ev['event_id']}.json").read_bytes()
+    (tmp_path / "deadletter" / f"{ev['event_id']}.json").unlink()
+
+    # Reconcile returns {checked, rebuilt, failed}; the file is absent so it rebuilds.
+    reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
+    assert reconciled == {"checked": 1, "rebuilt": 1, "failed": 0}
+
+    rebuilt = (tmp_path / "deadletter" / f"{ev['event_id']}.json").read_bytes()
+    assert rebuilt == original_bytes  # byte-for-byte identical to sweep-time record
+
+
+def test_reconcile_ignores_unpromoted_events(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Events with dlq_at IS NULL are not touched (only promoted events are reconciled)."""
+    from eventbus.db import open_db
+    from eventbus.dlq import reconcile_missing_dlq_files
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+    # Never promoted: dlq_at stays NULL.
+    reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
+    assert reconciled == {"checked": 0, "rebuilt": 0, "failed": 0}
+    assert not (tmp_path / "deadletter" / f"{ev['event_id']}.json").exists()
+
+
+def test_reconcile_is_idempotent_and_preserves_existing_file(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Re-running reconcile on an intact file leaves it untouched (no rewrite, mtime preserved)."""
+    from eventbus.db import open_db
+    from eventbus.dlq import reconcile_missing_dlq_files, sweep_orphans
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+
+    # Promote via sweep; do NOT delete the file, so reconcile must skip it.
+    _make_promotable(db, ev["event_id"])
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    target = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+    stat_before = target.stat()
+    reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
+    # File already present: counted as checked, but never rewritten (rebuilt == 0).
+    assert reconciled == {"checked": 1, "rebuilt": 0, "failed": 0}
+    stat_after = target.stat()
+    assert (
+        stat_before.st_mtime_ns == stat_after.st_mtime_ns
+    )  # existing file not rewritten
+
+
+def test_reconcile_isolates_single_event_write_failure(
+    client: TestClient, tmp_path: Path, monkeypatch
+) -> None:
+    """A write failure for one event is skipped without blocking the others."""
+    from eventbus import dlq
+    from eventbus.db import open_db
+    from eventbus.dlq import _atomic_write, reconcile_missing_dlq_files, sweep_orphans
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+
+    ev1 = _event()
+    ev2 = _event()
+    client.post("/publish", json=ev1)
+    client.post("/publish", json=ev2)
+
+    for ev in (ev1, ev2):
+        _make_promotable(db, ev["event_id"])
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    # Delete both files; both are now reconcile targets.
+    for ev in (ev1, ev2):
+        (tmp_path / "deadletter" / f"{ev['event_id']}.json").unlink()
+
+    # _atomic_write is a module-level function: (deadletter_dir, event_id, record).
+    # Force the write of ev1 to fail; ev2 writes normally via the real function.
+    def flaky_atomic_write(deadletter_dir, event_id, record):
+        if event_id == ev1["event_id"]:
+            raise OSError("simulated disk failure")
+        return _atomic_write(deadletter_dir, event_id, record)
+
+    monkeypatch.setattr(dlq, "_atomic_write", flaky_atomic_write)
+
+    reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
+    # ev1 fails, ev2 succeeds: checked=2, rebuilt=1, failed=1.
+    assert reconciled == {"checked": 2, "rebuilt": 1, "failed": 1}
+
+    assert (tmp_path / "deadletter" / f"{ev2['event_id']}.json").exists()
+    assert not (tmp_path / "deadletter" / f"{ev1['event_id']}.json").exists()
+
+    # Both events were promoted by sweep (dlq_at set); only the file differs.
+    row1 = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev1["event_id"],)
+    ).fetchone()
+    row2 = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev2["event_id"],)
+    ).fetchone()
+    assert row1["dlq_at"] is not None
+    assert row2["dlq_at"] is not None
+
+    # The single write failure was metered on the failure counter.
+    assert _dlq_failure_counter() >= 1.0
+
+
+def test_reconcile_concurrent_callers_under_db_lock(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Two callers each holding get_db_lock() reconcile their events without corruption."""
+    import threading
+
+    from eventbus.db import get_db_lock, open_db
+    from eventbus.dlq import reconcile_missing_dlq_files, sweep_orphans
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+
+    ev_a = _event()
+    ev_b = _event()
+    client.post("/publish", json=ev_a)
+    client.post("/publish", json=ev_b)
+
+    for ev in (ev_a, ev_b):
+        _make_promotable(db, ev["event_id"])
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    # Delete both files; both are now reconcile targets.
+    for ev in (ev_a, ev_b):
+        (tmp_path / "deadletter" / f"{ev['event_id']}.json").unlink()
+
+    # get_db_lock() is a non-reentrant threading.Lock, so two callers that both hold
+    # it serialize by design. Each worker mirrors the real caller: hold the lock
+    # around the whole reconcile call. No sleeps or barriers.
+    def worker() -> None:
+        with get_db_lock():
+            reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
+
+    t_a = threading.Thread(target=worker)
+    t_b = threading.Thread(target=worker)
+    t_a.start()
+    t_b.start()
+    t_a.join()
+    t_b.join()
+
+    for ev in (ev_a, ev_b):
+        assert (tmp_path / "deadletter" / f"{ev['event_id']}.json").exists()
+        row = db.execute(
+            "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+        ).fetchone()
+        assert row["dlq_at"] is not None

@@ -137,7 +137,7 @@ Normally self-healed by the sweep. If the sweep cannot promote (e.g. the file is
 
 ### Missing Files (row has `dlq_at IS NOT NULL`, `{event_id}.json` absent)
 
-Rebuild the DLQ record from the JSONL archive (`published_at`, `topic`, `payload`, `producer`) and re-set `dlq_at`, or quarantine the event per policy. Rebuilding from JSONL is best-effort: the JSONL append is best-effort (see `eventbus_09_publish_durability.md`), so an event whose append failed exists only in SQLite and must be quarantined instead.
+The background reconciliation rebuilds the lost file from the SQLite row, which is the authoritative DLQ source (see Authority model above). Rebuild reads the event row (`event_id`, `topic`, `payload`, `producer`, `published_at`) and writes the record using the same write-file-then-set-`dlq_at` order. JSONL is best-effort and is not a rebuild source: an event whose JSONL append failed exists only in SQLite and is rebuilt from SQLite here; if the SQLite row is itself absent, quarantine the event per policy. Reconciliation runs on a schedule and retries a transient write failure on the next pass. {defer operator-command sentence until UNK-01}
 
 ### Corrupt Files (`{event_id}.json` present but unparseable JSON)
 
@@ -158,7 +158,7 @@ Failure behavior of the other endpoints is in their reference documents above.
 | Duplicate `event_id` with conflicting content during `publish` | 409 Conflict, event is not saved |
 | Duplicate `event_id` during `publish` (Idempotency skip) | 200 returned (existing `seq`), broker notification skipped |
 | Subscriber queue full | Subscriber disconnected; client must reconnect using its last committed offset |
-| DLQ file missing after promotion | Rebuild from JSONL archive or quarantine |
+| DLQ file missing after promotion | Rebuild from SQLite via background reconciliation, or quarantine |
 | DLQ file corrupt after promotion | Quarantine (`*.corrupt`); manual review required |
 
 ## Keywords

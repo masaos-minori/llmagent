@@ -102,10 +102,10 @@ Revert the one reworded sentence.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Docs-only edit |
-| 2 | Add or update tests per Validation plan | Pending | — | — | No tests for docs change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs checks named above |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This is the docs deliverable |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261029-114404 | Line 68 reworded: "consistent snapshot"/"concurrent writes do not affect" removed; per-response, request-local wording. |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Docs-only edit, no tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261029-114404 | check_docs_consistency --domain eventbus: no issues; check_docs_structure: passed; stale_detector: not stale. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261029-114404 | This is the docs deliverable |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

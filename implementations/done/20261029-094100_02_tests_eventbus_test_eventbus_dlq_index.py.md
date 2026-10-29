@@ -52,7 +52,7 @@ Test-only edit to `tests/eventbus/test_eventbus_dlq_index.py`. No production cod
 2. Extend the `client` fixture config: add `publisher_token="publisher-token"`,
    `consumer_token="consumer-token"`, `operator_token="operator-token"` alongside the
    existing `auth_token`, so the setup publish is authorised (REQ-004).
-3. Replace the whole `test_dlq_query_uses_index` function with three new functions below.
+3. Remove the single existing DLQ-index test case and add the three new functions below.
 4. Add `import shutil` after the existing imports (marked `(new)`).
 5. Run `stale_detector.py` on this document (cite `scripts/eventbus/event_repo.py` and
    `scripts/eventbus/schema.sql` by full leading-slash path; mark the new test/helper
@@ -77,7 +77,7 @@ def _assert_canonical_dlq_indexes(conn: Any) -> None:
     assert "idx_events_dlq_seq" in indexes, f"missing idx_events_dlq_seq: {sorted(indexes)}"
 ```
 
-Replace `test_dlq_query_uses_index` with:
+Replace the single existing DLQ-index test with:
 
 ```python
 def test_dlq_index_shape_present(client: TestClient) -> None:
@@ -217,15 +217,19 @@ Revert the commit (single-file test change).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite index test: shape + plan cases (Implementation > Procedure) | Pending | — | — | REQ-002, REQ-003, REQ-004 |
-| 2 | Add negative drop-index + publish-assertion tests (Validation plan) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rewrite index test: shape + plan cases (Implementation > Procedure) | Completed | — | 20261029-114001 | Three cases (shape present, shape-dropped, plan). Five spec-vs-reality conflicts resolved — see Blocker Log (startup auth, dropped unused import, UUID publish, PRAGMA path, sqlite3.Row plan rendering). |
+| 2 | Add negative drop-index + publish-assertion tests (Validation plan) | Completed | — | 20261029-114001 | Negative case copies the live DB via `config.db_path` and asserts `AssertionError`; `_seed_dlq_row` asserts publish 200. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261029-114001 | Index module 3 passed x3 (AC-5); full eventbus suite re-run below; ruff check+format, mypy, stale_detector all clean. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Tests-only row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Fixture sets `consumer_token` without `consumer_authorization`; `_populate_token_maps` raises `ValueError` at app startup (`auth.py:168-173`, `app.py:76` unwrapped). Fix: add `consumer_authorization={"consumer-A": ["test.topic"]}` + `operator_token` (mirrors the pagination fixture). | Yes | 20261029-113xxx |
+| 1 | Proc Method imports `eventbus.app as eb_app` in the plan test but never uses it (`ruff F401`). Fix: drop the import; reach the DB via `cast(FastAPI, client.app).state.db` (the established pattern in `test_eventbus_offsets.py`). | Yes | 20261029-113xxx |
+| 1 | `_event()` uses `event_id="test-event-id"`, which fails the envelope UUID-v4 pattern → `/publish` returns 422, breaking the REQ-004 publish-assertion. Fix: generate `str(uuid.uuid4())`. | Yes | 20261029-113xxx |
+| 1 | Negative test uses `con.execute("PRAGMA database_file").fetchone()[0]`; `PRAGMA database_file` returns empty on the pragma/WAL-configured shared connection → `TypeError`. Fix: use authoritative `config.db_path` (same live test file). | Yes | 20261029-113xxx |
+| 1 | Proc assertion `any("idx_events_dlq_seq" in str(row) ...)` is logically dead: `fetchall()` returns `sqlite3.Row` objects and `str(Row)` is only `<sqlite3.Row object at 0x…>`, never the plan text. Plans are correct (count→covering `idx_events_dlq_seq`, page→`SCAN events`); fix renders Row values before matching. | Yes | 20261029-113xxx |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

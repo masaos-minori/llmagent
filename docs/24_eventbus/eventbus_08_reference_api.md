@@ -97,6 +97,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | `scripts/eventbus/dlq.py` | `DlqEventRecord` | `class DlqEventRecord` | A single event record written to the dead-letter queue as a JSON file on disk. |
 |  | `is_promotable` | `def is_promotable(db, event_id, max_retry) -> bool` | Return True if the event is not yet in the DLQ and meets the promotion rule. |
 |  | `sweep_orphans` | `def sweep_orphans(db, deadletter_dir, max_retry) -> int` | Sweep events that meet the promotion rule but were not promoted inline. |
+|  | `reconcile_missing_dlq_files` | `def reconcile_missing_dlq_files(db, deadletter_dir) -> dict[str, int]` | Detect and rebuild DLQ files lost after promotion. |
 |  | `promote_single` | `def promote_single(db, deadletter_dir, event_id, consumer_failure_count) -> bool` | Promote one event to DLQ immediately (inline on nack threshold). |
 |  | `archive_dlq_record` | `def archive_dlq_record(deadletter_dir, event_id) -> bool` | Move {deadletter_dir}/{event_id}.json to {deadletter_dir}/requeued/{event_id}_{timestamp}.json. |
 | `scripts/eventbus/dlq_repo.py` | `RequeueResult` | `class RequeueResult` | Typed result of a redeliver_event() call (replaces the (bool, str \| None) tuple). |

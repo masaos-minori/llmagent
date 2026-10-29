@@ -106,10 +106,10 @@ Revert the two edits (subsection + table row) to restore the prior text.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Docs-only edit |
-| 2 | Add or update tests per Validation plan | Pending | — | — | No tests for docs change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This is the docs deliverable |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261029-110726 | Docs-only edit |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261029-110726 | No tests for docs change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261029-110726 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261029-110726 | This is the docs deliverable |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

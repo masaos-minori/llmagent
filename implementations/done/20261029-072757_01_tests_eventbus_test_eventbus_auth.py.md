@@ -123,9 +123,9 @@ The next method in the file, `test_per_role_token_has_no_consumer_restriction`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the two synthetic all-roles tests (REQ-001) | Pending | — | — | |
-| 2 | Run the file and full EventBus suite; confirm collection delta (REQ-001, REQ-002) | Pending | — | — | |
-| 3 | ruff on the changed file (REQ-001) | Pending | — | — | |
+| 1 | Delete the two synthetic all-roles tests (REQ-001) | Completed | — | 20261029-103558 |  |
+| 2 | Run the file and full EventBus suite; confirm collection delta (REQ-001, REQ-002) | Completed | — | 20261029-103558 |  |
+| 3 | ruff on the changed file (REQ-001) | Completed | — | 20261029-103558 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
