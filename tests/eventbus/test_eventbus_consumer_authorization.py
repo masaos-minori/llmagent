@@ -275,7 +275,7 @@ class TestPairwiseGrantsOverHttp:
 
 
 class TestConsumerMappingConfigPath:
-    """REQ-001, REQ-005: a consumer/topic mapping written to a TOML file survives
+    """ADR-013 INV-02: a consumer/topic mapping written to a TOML file survives
     load_config() and reaches the consumer principal; an empty mapping stays
     deny-all and a missing required mapping raises."""
 
