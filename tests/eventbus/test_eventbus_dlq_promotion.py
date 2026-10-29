@@ -613,7 +613,7 @@ class TestPromotionFailurePaths:
 
         with pytest.raises(sqlite3.OperationalError, match="disk I/O error"):
             nack_event(
-                _ExecFailingConn(db),  # type: ignore[arg-type]  # test-only: proxy connection stand-in
+                _ExecFailingConn(db),  # type: ignore[arg-type]  # — test-only: proxy connection stand-in
                 event_id,
                 "consumer-A",
                 last_nack_attempt="failing-update-key",

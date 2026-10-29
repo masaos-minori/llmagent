@@ -531,7 +531,7 @@ def test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep(
     before = _dlq_failure_counter()
     with pytest.raises(sqlite3.OperationalError, match="disk I/O error"):
         dlq.promote_single(
-            _CommitFailingConn(db),  # type: ignore[arg-type]  # test-only: proxy connection stand-in
+            _CommitFailingConn(db),  # type: ignore[arg-type]  # — test-only: proxy connection stand-in
             str(tmp_path / "deadletter"),
             ev["event_id"],
         )
