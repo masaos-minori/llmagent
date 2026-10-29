@@ -108,7 +108,7 @@ report in hand. Production files are never touched; helper signatures (`make_eve
   all existing test assertions keep their behavior (terminology/loader consolidation only).
 
 ## Implementation Target Files
-**Freeze status**: Frozen (Step 8 2026-10-29: all target rows Verified; `tools/check_workitem_structure.py` clean; `tools/check_plan_target_overlaps.py` findings reviewed as documented sequencing dependencies).
+**Freeze status**: Frozen (Step 8 2026-10-29: all target rows Verified; `tools/check_workitem_structure.py` clean; `tools/check_plan_target_overlaps.py` findings reviewed as documented sequencing dependencies). Re-verified 2026-10-29 against HEAD `de896f113`: the frozen inventory is stale against the current tree (see Verification findings below and the Blocker Log); the Plan is referred back to `issue-to-plan` for rescope and re-freeze — no procedure documents are generated from this freeze.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
@@ -132,6 +132,45 @@ Phase 4 / UNK-01): `test_eventbus_config.py` (20 `x_cfg_`), `test_eventbus_dlq.p
 `test_eventbus_admin_topics.py` (3), `test_eventbus_ack_endpoint.py` (3),
 `test_eventbus_subscribe.py` (3), `test_eventbus_concurrent.py` (2), `test_eventbus_health.py`
 (1), `test_eventbus_helpers.py` (1, docstring example).
+
+**Verification findings (2026-10-29, against HEAD `de896f113`; supersede the 2026-10-28
+census above)**:
+- `tests/eventbus/` holds 34 `.py` files (census said 18); files absent from the census
+  include `test_eventbus_schema_version.py`, `test_eventbus_offsets.py`,
+  `test_admin_topics_authorization.py`, `test_eventbus_publish_contract.py`,
+  `test_eventbus_replay_subscribe.py`.
+- Zero `x_<role>_` prefixed identifiers exist under `tests/eventbus/` (the census `x_cfg_`,
+  `x_dlq_`, etc. are gone). `tests/eventbus/eventbus_helpers.py` was rewritten in commit
+  `a82cae689` (2026-10-28 13:10 JST, before this Plan was generated); its current helpers are
+  `eventbus_test_tokens` (:69), `eventbus_auth_headers` (:88), `make_eventbus_client` (:101),
+  `principal_map` (:194). `make_event_bus_ctx`, `open_consumer_db` and `subscribe_client` do
+  not exist anywhere in the repo, so the helper names this Plan treats as the contract are
+  gone.
+- Zero direct `EventBus(`/`EventConsumer(` construction sites exist under `tests/eventbus/`;
+  the `test_eventbus_consumer_authorization.py` target row cites sites at `:27` and `:30` that
+  do not exist (the file now builds a `_build_client` fixture).
+- 43 `TestClient(` occurrences across 12+ files (12 in `test_eventbus_auth.py`, 8 in
+  `test_eventbus_subscribe.py`), not the 5 cited sites.
+- No `dmq` identifier exists at `test_eventbus_requeue_edge_cases.py:76,88`; the only `dmq`
+  substrings are the test method names `test_requeue_non_dmq_event` (:75) and
+  `test_requeue_valid_dmq_event` (:87). REQ-005 as written has no referent.
+- The schema moved: `db/` does not exist; the canonical DDL is `scripts/eventbus/schema.sql`.
+  In `test_eventbus_restart_resume.py`, `_create_tables` (:277) already loads the production
+  `schema.sql` (:311); the private inline DDL survives only as a dead fallback branch
+  (:283-309; tables `events`, `consumer_delivery`, `consumer_offsets`) — the Plan cites
+  `:276-307` and `db/schema.sql`.
+- New uncovered private DDL, absent from the frozen inventory: `test_eventbus_schema_version.py:64`
+  executes `CREATE TABLE events`.
+- `docs/24_eventbus/eventbus_08_reference_api.md` is 149 lines; the cited fixture names at
+  `:155-157` do not exist.
+- The governance doc lives at `docs/00_governance/governance_03_issue-and-uncertainty-management.md`;
+  `docs/07_governance/` does not exist.
+- `tools/TOOL_DESCRIPTIONS.md` is 227 lines (census said 598). `assets/` still does not exist
+  and `tools/audit_test_terminology.py` does not exist — both census claims hold.
+
+Conclusion: every frozen target row needs re-scoping against this census; the audit-tool and
+mapping-doc requirements (REQ-001, REQ-002) remain conceptually valid but their evidence lines
+are stale.
 
 ## Reference Files
 
@@ -284,6 +323,7 @@ UNK-01 decision.
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | — | No hard blocker; Phase 4b (bulk renames) is deferred on UNK-01 by design | No | — |
+| All | 2026-10-29 re-verification: frozen target inventory is stale against the current tree — rewritten `eventbus_helpers.py` (`a82cae689`), helpers `make_event_bus_ctx`/`open_consumer_db`/`subscribe_client` no longer exist, zero `x_<role>_` identifiers, zero inline `EventBus(`/`EventConsumer(` sites, 43 `TestClient(` occurrences (not 5), no `dmq` identifier, schema moved to `scripts/eventbus/schema.sql`, uncovered private DDL at `test_eventbus_schema_version.py:64`, wrong docs paths/line cites (see Verification findings). Referred back to `issue-to-plan` for rescope and re-freeze; procedure generation refused per the Blocked-on-new-target-discovery rule | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
