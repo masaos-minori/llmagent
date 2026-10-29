@@ -144,12 +144,12 @@ Baseline (2026-10-28, pre-implementation, saved under `.opencode/verification/`)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `reconcile_missing_dlq_files()` (REQ-001, REQ-002) | Pending | — | — | |
-| 2 | Unit + idempotency tests (REQ-001, REQ-002) | Pending | — | — | |
-| 3 | Concurrency test (REQ-003) | Pending | — | — | |
-| 4 | Runbook "Missing Files" rewrite (REQ-004) | Pending | — | — | |
+| 1 | Implement `reconcile_missing_dlq_files()` (REQ-001, REQ-002) | In Progress | — | — |  |
+| 2 | Unit + idempotency tests (REQ-001, REQ-002) | In Progress | — | — |  |
+| 3 | Concurrency test (REQ-003) | In Progress | — | — |  |
+| 4 | Runbook "Missing Files" rewrite (REQ-004) | In Progress | — | — |  |
 | 5 | Operator entry point + command (REQ-005) | Pending | — | — | Blocked on UNK-01 |
-| 6 | Full verification + deploy (REQ-001..REQ-004) | Pending | — | — | |
+| 6 | Full verification + deploy (REQ-001..REQ-004) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -159,7 +159,9 @@ Baseline (2026-10-28, pre-implementation, saved under `.opencode/verification/`)
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261029-085348_01_scripts_eventbus_dlq.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261029-085348_02_tests_eventbus_test_eventbus_dlq.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261029-085348_03_docs_24_eventbus_eventbus_03_dlq_operations.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -181,3 +183,5 @@ Baseline (2026-10-28, pre-implementation, saved under `.opencode/verification/`)
 | REQ-005 | Issue Unresolved Questions line 69 (entry point) | N/A: no file row can be frozen before the owner decision | Phase 3 (blocked) | AC-7 | N/A: blocked | Needs confirmation |
 | REQ-002 | Issue Acceptance Criteria (idempotence) | tests/eventbus/test_eventbus_dlq.py | Phase 2 | AC-2 | Idempotent second-run test | Explicit in issue |
 | REQ-001 | Issue Required Changes bullet 1 | tests/eventbus/test_eventbus_dlq.py | Phase 2 | AC-1, AC-3, AC-4 | Reconcile unit tests | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-085348 -->
