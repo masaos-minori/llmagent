@@ -46,7 +46,9 @@ Low (source issue priority; maintenance and readability only, no behavior is wro
   - `test_admin_topics_authorization.py`: implement after eventbus003 procedures
     `20261029-101908_01` (health pattern) and `20261029-101908_02` (helpers) land; this row is the
     follow-up that eventbus003 UNK-02 deferred as "separate Issue after this Plan lands" for this
-    file.
+    file. Pending procedures `20261029-115727_07` (audit-test assertions), `20261029-101422_03`
+    (appended class), and `20261029-102038_12` (comment labels) touch disjoint regions of the
+    same file and need no ordering against this Plan's row.
 
 ## Background
 Re-verified 2026-10-29 against HEAD `c8689f78b`, directly from the source issue
@@ -253,10 +255,10 @@ Not required (source issue wording). No `docs/` change; the rename may only matt
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fallback schema removal (REQ-001) | Pending | — | — | After `111247_02`/`03` land |
-| 2 | dmq rename (REQ-002) | Pending | — | — | After `102038_05` lands |
-| 3 | Admin fixture lifespan rewrite (REQ-003) | Pending | — | — | After `101908_01`/`02` land |
-| 4 | Verification gates (REQ-001..REQ-004) | Pending | — | — | |
+| 1 | Fallback schema removal (REQ-001) | In Progress | 2026-10-29 | — | After `111247_02`/`03` land |
+| 2 | dmq rename (REQ-002) | In Progress | 2026-10-29 | — | After `102038_05` lands |
+| 3 | Admin fixture lifespan rewrite (REQ-003) | In Progress | 2026-10-29 | — | After `101908_01`/`02` land |
+| 4 | Verification gates (REQ-001..REQ-004) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -268,7 +270,9 @@ Not required (source issue wording). No `docs/` change; the rename may only matt
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261029-130401_01_tests_eventbus_test_eventbus_restart_resume.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261029-130401_02_tests_eventbus_test_eventbus_requeue_edge_cases.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261029-130401_03_tests_eventbus_test_admin_topics_authorization.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan (re-scope pass 2026-10-29)
@@ -288,3 +292,5 @@ Not required (source issue wording). No `docs/` change; the rename may only matt
 | REQ-002 | Issue Required Changes bullet 3 ("Rename the two dmq tests to dlq") + Acceptance bullet 3 | tests/eventbus/test_eventbus_requeue_edge_cases.py | Phase 2 | AC-2 | Existing tests after rename | Explicit in issue |
 | REQ-003 | Issue Target Files (`test_admin_topics_authorization.py`) + Acceptance bullet 1 ("Health and admin tests use the production lifespan fixture") -- admin half not covered by eventbus003 (UNK-02 deferral) | tests/eventbus/test_admin_topics_authorization.py | Phase 3 | AC-3 | Existing tests, run twice in one session | Explicit in issue |
 | REQ-004 | Issue Constraints (renames/comment edits behavior-preserving, production untouched) | all target files | Phases 1-4 | AC-4 | Full suite + diff scope check | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261029-130401 -->
