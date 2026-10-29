@@ -167,7 +167,7 @@ class TestConcurrentDlqRequeue:
         original_seq = resp.json()["seq"]
 
         # Simulate one prior failure for consumer-A so a single NACK reaches
-        # max_retry. Under per-consumer gating (REQ-002) one consumer reaching
+        # max_retry. Under per-consumer gating (ADR-006 INV-13) one consumer reaching
         # its own budget promotes; only the per-consumer failure count gates.
         from eventbus import app as eb_app
 
