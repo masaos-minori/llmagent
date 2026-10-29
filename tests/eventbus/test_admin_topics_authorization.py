@@ -143,7 +143,7 @@ class TestAdminGating:
         assert resp.status_code == 401
 
     def test_empty_body_rejected(self, admin_client: TestClient) -> None:
-        """UNK-02: empty/no-op bodies are rejected with 422."""
+        """Empty/no-op bodies are rejected with 422."""
         resp = admin_client.post(
             "/admin/topics/authorization",
             headers={"Authorization": "Bearer admin-tok"},
@@ -351,8 +351,8 @@ class TestUpdateRemovesPairs:
 
 
 class TestOneRolePerTokenAdminRebuild:
-    """REQ-004: each configured token holds exactly its documented role when
-    _populate_token_maps() runs as admin_route.py rebuilds the maps."""
+    """ADR-013 INV-02: each configured token holds exactly its documented role
+    when _populate_token_maps() runs as admin_route.py rebuilds the maps."""
 
     @staticmethod
     def _snapshot():
@@ -410,7 +410,7 @@ class TestOneRolePerTokenAdminRebuild:
 
 
 class TestDuplicateRejectionAdminRebuild:
-    """REQ-003: duplicate non-empty token values are rejected by
+    """Duplicate non-empty token values are rejected by
     _populate_token_maps() as admin_route.py calls it, naming the fields."""
 
     @staticmethod
