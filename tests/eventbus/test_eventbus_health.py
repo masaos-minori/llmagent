@@ -49,7 +49,7 @@ class TestHealth:
         assert body["dlq_task"] == "running"
         assert body["overflow_disconnects"] == 0
         assert body["duplicate_connection_rejections"] == 0
-        # Tiered health fields (REQ-005)
+        # Tiered health fields (liveness, readiness)
         assert "liveness" in body
         assert "readiness" in body
         assert "integrity" not in body
