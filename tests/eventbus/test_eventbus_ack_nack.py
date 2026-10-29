@@ -47,7 +47,7 @@ def _simulate_delivery_http(client: Any, event_id: str, consumer_id: str) -> Non
 
 
 class TestAckEvent:
-    """Tests for ack_event_for_consumer — acked_at column replaced by acked boolean (REQ-004)."""
+    """Tests for ack_event_for_consumer — acked_at column replaced by acked boolean."""
 
     def test_two_consumers_ack_same_event(self, tmp_path: Path) -> None:
         """Two distinct consumer_ids can each ACK the same event independently."""
@@ -314,7 +314,7 @@ class TestAckHttpBehavior:
         assert offset["offset"] == high_seq
 
     def test_two_consumers_ack_same_event_independently(self, client: Any) -> None:
-        """Two distinct consumer_ids can each ACK the same event_id independently (REQ-001)."""
+        """Two distinct consumer_ids can each ACK the same event_id independently."""
         body = _event()
         resp = client.post(
             "/publish", json=body, headers=eventbus_auth_headers("publisher")
@@ -603,10 +603,10 @@ class TestNackEvent:
 
 
 class TestNackIdempotency:
-    """Tests for NACK idempotency under the recommended latest-key-only model (REQ-003, REQ-004)."""
+    """Tests for NACK idempotency under the recommended latest-key-only model."""
 
     def test_nack_same_key_no_increment(self, db: sqlite3.Connection) -> None:
-        """A repeated delivery-attempt key does not increment the failure counter (REQ-003)."""
+        """A repeated delivery-attempt key does not increment the failure counter."""
         from eventbus.db import nack_event
 
         ev = _event()
@@ -669,7 +669,7 @@ class TestNackIdempotency:
         )  # "A retry": non-latest → count=3
 
     def test_nack_concurrent_same_key_collapses(self, db: sqlite3.Connection) -> None:
-        """Sequential same-key retries collapse to a single increment (REQ-003).
+        """Sequential same-key retries collapse to a single increment.
 
         Note: SQLite connections are not thread-safe, so true concurrent testing
         is not possible here. Sequential retries of the same key are tested instead.
