@@ -79,7 +79,7 @@ The deployment readiness gate is `liveness and readiness` (`is_ready()` in `scri
 
 ### Slow Consumer Metric
 
-`eventbus_slow_consumer_current` is a gauge reporting the current number of slow consumers (not a cumulative counter). It returns to zero after recovery, unsubscribe, an overflow disconnect and shutdown, and repeated `/health` polls do not inflate it.
+`eventbus_slow_consumer_current` is a gauge reporting the current number of slow consumers (not a cumulative counter). A consumer is slow when its queue depth reaches `slow_consumer_threshold`. The gauge is refreshed on every `/health` read and whenever a subscriber is removed (an unsubscribe or an overflow disconnect), and it is set to zero at shutdown. It is not refreshed when a queue drains on its own, so after a consumer recovers the gauge keeps its previous value until the next `/health` read or subscriber removal. Repeated `/health` polls do not inflate it, and the `slow_consumers` field in the `/health` body is always computed fresh.
 
 ## Keywords
 

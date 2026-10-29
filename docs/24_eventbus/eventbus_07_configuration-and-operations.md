@@ -135,7 +135,7 @@ Capacity is governed by `subscriber_count` and `publish_rate` (see Configuration
 
 ### Metrics
 
-Database-lock contention (`eventbus_db_lock_*`, `eventbus_db_query_duration_seconds`) and slow-consumer (`eventbus_slow_consumer_current`, a gauge) metrics are Prometheus in-process metrics. The service does not serve a Prometheus scrape endpoint; `/health` reports lock wait and query duration averages and the contention total under its `metrics` sub-object, and reports `slow_consumers_detected` when a subscriber's queue depth exceeds `slow_consumer_threshold`.
+Database-lock contention (`eventbus_db_lock_*`, `eventbus_db_query_duration_seconds`) and slow-consumer (`eventbus_slow_consumer_current`, a gauge) metrics are Prometheus in-process metrics. The service does not serve a Prometheus scrape endpoint; `/health` reports lock wait and query duration averages and the contention total under its `metrics` sub-object, and reports `slow_consumers_detected` when a subscriber's queue depth reaches `slow_consumer_threshold`.
 
 ---
 
@@ -155,7 +155,7 @@ Verify live push using `GET /subscribe?consumer_id=test`. Events should be recei
 
 ### Monitoring Slow Consumers
 
-A subscriber queue holding more than `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration. This can be verified via the health endpoint:
+A subscriber queue holding at least `slow_consumer_threshold` events is considered slow. This value is configurable via the `slow_consumer_threshold` field in the Event Bus TOML configuration. This can be verified via the health endpoint:
 
 - `slow_consumers > 0` → `degraded`
 - `max_queue_depth >= backlog_health_threshold` → `broker_queue_backlog_high`
