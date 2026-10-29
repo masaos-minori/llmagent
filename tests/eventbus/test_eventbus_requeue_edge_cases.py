@@ -98,13 +98,13 @@ class TestRequeueEdgeCases:
 
         # Promote to DLQ
         db = open_db(str(tmp_path / "eventbus.sqlite"))
-        # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+        # Create consumer_delivery record required for ADR-006 INV-13 per-consumer DLQ promotion
         db.execute(
             "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
             ("consumer-A", body["event_id"]),
         )
         db.commit()
-        # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
+        # Per-consumer sweep gating (ADR-006 INV-13): seed a giving-up consumer so the
         # sweep can promote.
         db.execute(
             "INSERT INTO consumer_delivery "
@@ -159,13 +159,13 @@ class TestRequeueEdgeCases:
 
         # Promote to DLQ when the per-consumer failure count >= max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
-        # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+        # Create consumer_delivery record required for ADR-006 INV-13 per-consumer DLQ promotion
         db.execute(
             "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
             ("consumer-A", body["event_id"]),
         )
         db.commit()
-        # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
+        # Per-consumer sweep gating (ADR-006 INV-13): seed a giving-up consumer so the
         # sweep can promote.
         db.execute(
             "INSERT INTO consumer_delivery "
@@ -229,13 +229,13 @@ class TestRequeueEdgeCases:
 
         # Promote to DLQ
         db = open_db(str(tmp_path / "eventbus.sqlite"))
-        # Create a consumer_delivery record (required for REQ-002 per-consumer DLQ promotion)
+        # Create a consumer_delivery record (required for ADR-006 INV-13 per-consumer DLQ promotion)
         db.execute(
             "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
             ("consumer-A", body["event_id"]),
         )
         db.commit()
-        # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
+        # Per-consumer sweep gating (ADR-006 INV-13): seed a giving-up consumer so the
         # sweep can promote.
         db.execute(
             "INSERT INTO consumer_delivery "
@@ -384,7 +384,7 @@ class _RacingConn:
 
 class TestRequeueFailureInjection:
     """Failure-injection tests proving every failed requeue path rolls back and
-    leaves the shared connection usable (REQ-002)."""
+    leaves the shared connection usable."""
 
     def test_requeue_insert_failure_rolls_back_and_keeps_connection_usable(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
@@ -526,7 +526,7 @@ def _seed_dlq_event(conn: Any, topic: str) -> str:
 def test_redelivered_from_violation_maps_to_already_redelivered(tmp_path: Path) -> None:
     """A competing descendant INSERT makes the redelivery INSERT violate the
     events.redelivered_from unique index: redeliver_event must return status
-    already_redelivered with a clean rollback, not raise (REQ-002)."""
+    already_redelivered with a clean rollback, not raise."""
     import eventbus.dlq_repo as dlq_repo
     from eventbus.db import open_db
 
@@ -568,7 +568,7 @@ def test_redelivered_from_violation_maps_to_already_redelivered(tmp_path: Path) 
 
 def test_two_connections_requeue_same_original_exactly_once(tmp_path: Path) -> None:
     """Two racing connections redeliver the same original: exactly one success
-    and one already_redelivered, with exactly one descendant row (REQ-005).
+    and one already_redelivered, with exactly one descendant row.
 
     Outcome-only assertions by design: the loser either sees the competitor in
     the pre-check or loses at the unique index, and both paths return
