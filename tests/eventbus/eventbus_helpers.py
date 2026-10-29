@@ -79,7 +79,7 @@ def eventbus_test_tokens(token: str = "test-token") -> dict[str, Any]:
     """Config kwargs giving each role its own distinct test token.
 
     Every non-empty token field holds a distinct value and grants exactly its
-    own role (REQ-003 uniqueness, REQ-004 one-role-per-token). The shared
+    own role (ADR-013 INV-02 and INV-07). The shared
     ``auth_token`` holds only control-plane roles; the per-role tokens grant
     PUBLISHER, CONSUMER, OPERATOR, and MONITORING respectively. The consumer
     role is bound to explicit consumer_id and topic authorizations.
