@@ -66,9 +66,11 @@ def _build_security_posture(cfg: WebSearchConfig) -> SecurityPosture:
     read. Only the server-security stage is supplied: the flow's built-in common stage
     covers own-config, auth-token, and published-tool checks, and this module does not
     re-read web_search_mcp_server.toml. The fingerprint view is the one row 51 defines on
-    the config, so no second view definition exists here. Unlike Shell, this module has no
-    import-time refusal for an empty token, so the posture is where an empty auth_token
-    first becomes visible, as a warning rather than a failure.
+    the config, so no second view definition exists here. Unlike Shell's module-level
+    guard, this module refuses an empty token through the middleware helper: the posture
+    (with its auth-token warning) is built first, then the module-scope
+    attach_auth_middleware(..., require_auth_token(...)) call raises RuntimeError and the
+    import fails — a failure, not a degraded-warn mode.
     """
     return run_startup_validation(
         WEB_SEARCH_SERVER_KEY,

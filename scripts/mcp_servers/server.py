@@ -269,9 +269,10 @@ class MCPServer:
         Also enforces config isolation and the server's security posture gate before
         any socket is created.
 
-        Catches ``SystemExit`` raised by ``_enforce_startup_posture_gate()`` during
-        startup so that the failure reason is logged before the process terminates.
-        This ensures consistent error output across all launch paths.
+        The loopback check, config isolation, and ``_enforce_startup_posture_gate()`` all
+        run before the ``try`` below, so a gate ``SystemExit`` intentionally propagates
+        uncaught out of ``run_http()`` (fail-fast: the process terminates via the uncaught
+        ``SystemExit(1)`` before any socket is created).
         """
         import logging
         import sys
@@ -325,7 +326,7 @@ class MCPServer:
         server = _LoopbackVerifyingServer(config=config)
         try:
             server.run()
-        except SystemExit as e:  # noqa: BLE001 — posture-gate failure during startup
+        except SystemExit as e:  # noqa: BLE001 — SystemExit originating from server.run() itself; logged and re-raised, with the sys.exit(1) follow-up below
             logging.getLogger(type(self).__name__).error(
                 "Posture-gate failure during startup: %s", e
             )

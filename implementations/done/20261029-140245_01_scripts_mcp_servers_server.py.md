@@ -56,7 +56,7 @@ before any socket is created).
 New noqa justification (token unchanged, text after the dash replaced):
 
 ```python
-        except SystemExit as e:  # noqa: BLE001 — SystemExit originating from server.run() itself; logged and re-raised
+        except SystemExit as e:  # noqa: BLE001 — SystemExit originating from server.run() itself; logged and re-raised, with the sys.exit(1) follow-up below
 ```
 
 ### Details
@@ -110,8 +110,8 @@ New noqa justification (token unchanged, text after the dash replaced):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite docstring + noqa justification per Method/Details | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Run the T1-T3 consistency/static gates (docs checkers, `rules/toolchain.md`) | Pending | — | — | REQ-003; no new tests in scope |
+| 1 | Rewrite docstring + noqa justification per Method/Details | Completed | 20261029-145210 | 20261029-150129 | REQ-001, REQ-002 |
+| 2 | Run the T1-T3 consistency/static gates (docs checkers, `rules/toolchain.md`) | Completed | 20261029-150129 | 20261029-150129 | REQ-003; no new tests in scope Full-suite+diff-cover gate batched with the sibling docstring-only procedure |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

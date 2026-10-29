@@ -106,8 +106,8 @@ RuntimeError and the import fails — a failure, not a degraded-warn mode.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the docstring sentences per Method/Details | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Run the T1 consistency check and the validation gates (docs checkers, `rules/toolchain.md`) | Pending | — | — | REQ-003; no new tests in scope |
+| 1 | Rewrite the docstring sentences per Method/Details | Completed | 20261029-145130 | 20261029-145139 | REQ-001, REQ-002 |
+| 2 | Run the T1 consistency check and the validation gates (docs checkers, `rules/toolchain.md`) | Completed | 20261029-145139 | 20261029-150113 | REQ-003; no new tests in scope Full-suite+diff-cover gate batched with the sibling docstring-only procedure |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
