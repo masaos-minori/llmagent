@@ -80,7 +80,7 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     )
     _populate_token_maps(cfg)
     # consumer-token principal is built via _populate_token_maps() above;
-    # no direct _TOKEN_PRINCIPAL_MAP mutation needed (REQ-006).
+    # no direct _TOKEN_PRINCIPAL_MAP mutation needed.
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
@@ -90,7 +90,7 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     with TestClient(eb_app.app) as c:
         # App lifespan re-runs _populate_token_maps() via the monkeypatched
         # load_config, which carries consumer_authorization={"consumer-A": ["crash"]}.
-        # No direct _TOKEN_PRINCIPAL_MAP mutation needed (REQ-006).
+        # No direct _TOKEN_PRINCIPAL_MAP mutation needed.
         c.headers["Authorization"] = "Bearer consumer-token"
         yield c
 
