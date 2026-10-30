@@ -57,7 +57,6 @@ class StartupOrchestrator:
         self._view = view
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
-        self._spawned_subprocesses: list[subprocess.Popen] = []
         self._shutdown_event = shutdown_event
         self._mcp_starter = McpServerStarter(ctx, view, shutdown_event)
         self._validation_pipeline = StartupValidationPipeline(ctx, view)
@@ -70,7 +69,7 @@ class StartupOrchestrator:
             self._ctx, self._view
         ).initialize()
         try:
-            self._spawned_subprocesses = await self._start_servers()
+            await self._start_servers()
             await self._verify_mcp_health()
             await self._check_services()
             await self._setup_prompt()

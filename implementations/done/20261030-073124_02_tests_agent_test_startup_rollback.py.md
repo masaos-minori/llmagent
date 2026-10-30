@@ -136,8 +136,8 @@ behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the dead-state tests described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the dead-state tests described in Implementation > Procedure/Method/Details | Completed | 20261030-092017 | 20261030-092017 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-092017 | 20261030-092017 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

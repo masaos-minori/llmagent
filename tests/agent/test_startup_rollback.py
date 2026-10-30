@@ -233,27 +233,6 @@ class TestStartupRollback:
             await orch.run()
 
         mock_lifecycle.shutdown_all.assert_awaited_once()
-        assert orch._spawned_subprocesses == []
-
-    @pytest.mark.asyncio
-    async def test_run_populates_spawned_subprocesses_on_exception_path(self) -> None:
-        """Regression: _spawned_subprocesses must be populated even when run() raises."""
-        orch, mock_lifecycle = _make_rollback_startup()
-        fake_procs = [
-            MagicMock(spec=subprocess.Popen),
-            MagicMock(spec=subprocess.Popen),
-        ]
-        orch._start_servers = AsyncMock(return_value=fake_procs)
-        orch._check_services = AsyncMock(
-            side_effect=RuntimeError("health check failed")
-        )
-        orch._setup_prompt = AsyncMock()
-        mock_lifecycle.shutdown_all.side_effect = OSError("shutdown failed")
-
-        with pytest.raises(RuntimeError, match="health check failed"):
-            await orch.run()
-
-        assert orch._spawned_subprocesses == fake_procs
 
     @pytest.mark.asyncio
     async def test_run_returns_cmds_and_orchestrator_on_success(self) -> None:

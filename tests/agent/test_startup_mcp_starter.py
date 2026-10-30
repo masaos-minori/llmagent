@@ -138,3 +138,59 @@ async def test_verify_single_health_fails_with_wrong_token():
         )
         with pytest.raises(RuntimeError, match="HTTP 401"):
             await starter._verify_single_health("srv", cfg)
+
+
+@pytest.mark.asyncio
+async def test_verify_single_health_degraded_but_live_does_not_raise():
+    import httpx
+    import respx
+    from agent.startup_mcp_starter import McpServerStarter
+
+    ctx, _ = _starter_ctx("s3cret")
+    starter = McpServerStarter(ctx, MagicMock())
+    with respx.mock as router:
+        router.get("http://localhost:9999/health").mock(
+            return_value=httpx.Response(
+                503,
+                json={"liveness": True},
+                headers={"content-type": "application/json"},
+            )
+        )
+        # Must not raise: degraded-but-live is treated as ready.
+        await starter._verify_single_health("srv", ctx.cfg.mcp.mcp_servers["srv"])
+
+
+@pytest.mark.asyncio
+async def test_verify_single_health_degraded_but_live_false_raises():
+    import httpx
+    import respx
+    from agent.startup_mcp_starter import McpServerStarter
+
+    ctx, cfg = _starter_ctx("s3cret")
+    starter = McpServerStarter(ctx, MagicMock())
+    with respx.mock as router:
+        router.get("http://localhost:9999/health").mock(
+            return_value=httpx.Response(
+                503,
+                json={"liveness": False},
+                headers={"content-type": "application/json"},
+            )
+        )
+        with pytest.raises(RuntimeError, match="HTTP 503"):
+            await starter._verify_single_health("srv", cfg)
+
+
+@pytest.mark.asyncio
+async def test_verify_single_health_non_503_non_200_raises():
+    import httpx
+    import respx
+    from agent.startup_mcp_starter import McpServerStarter
+
+    ctx, cfg = _starter_ctx("s3cret")
+    starter = McpServerStarter(ctx, MagicMock())
+    with respx.mock as router:
+        router.get("http://localhost:9999/health").mock(
+            return_value=httpx.Response(401, json={"error": "Unauthorized"})
+        )
+        with pytest.raises(RuntimeError, match="HTTP 401"):
+            await starter._verify_single_health("srv", cfg)

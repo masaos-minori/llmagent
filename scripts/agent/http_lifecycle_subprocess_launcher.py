@@ -70,6 +70,7 @@ class SubprocessLauncher:
         stderr_fh = self._stderr_log_manager.open_log(server_key, cfg)
         self._stderr_files[server_key] = stderr_fh
         if not cfg.cmd or not cfg.cmd[0]:
+            self.close_stderr_log(server_key, stderr_fh)
             raise HttpStartupError(
                 StartupFailure(
                     server_key=server_key,

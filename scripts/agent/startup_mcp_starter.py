@@ -21,6 +21,7 @@ from shared.mcp_config import (
 )
 
 from agent.context import AgentContext
+from agent.http_lifecycle_health_checker import HealthChecker
 from agent.output_tags import OutputTag
 from agent.secrets_masker import _mask_secrets
 from agent.shared.retry_helper import retry_once_with_delay
@@ -197,11 +198,25 @@ class McpServerStarter:
     async def _verify_single_health(
         self, server_key: str, cfg: McpServerConfig
     ) -> None:
-        """Verify health of a single MCP subprocess server."""
+        """Verify health of a single MCP subprocess server.
+
+        A non-200 /health response whose body indicates liveness == true is
+        degraded-but-live (the server started but an optional dependency is
+        unavailable) and is tolerated: this returns normally so the retry
+        helper treats the retry as success. Any other non-200 still raises
+        RuntimeError.
+        """
         url = cfg.url.rstrip("/") + "/health"
         async with httpx.AsyncClient(timeout=5.0, headers=cfg.auth_headers()) as client:
             resp = await client.get(url)
             if resp.status_code != httpx.codes.OK:
+                if HealthChecker.is_degraded_but_live(resp):
+                    logger.warning(
+                        "Post-startup health check degraded-but-live for %r "
+                        "(after retry); treating as ready",
+                        server_key,
+                    )
+                    return
                 raise RuntimeError(f"HTTP {resp.status_code}")
             logger.info(
                 "Post-startup health check passed for %r (after retry)",

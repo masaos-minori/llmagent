@@ -225,8 +225,8 @@ class TestSubprocessSpawnCharacterization:
     ) -> None:
         """An empty cmd is a startup failure raised before command validation or Popen.
 
-        The stderr handle opened for the attempt is left open and its tracking entry is
-        left in place on this path; the lock records that as current behavior.
+        The stderr handle opened for the attempt is closed and its tracking entry is
+        dropped on this path, matching the other failure branches.
         """
         cfg = _make_cfg(cmd=[""])
         stderr_fh = MagicMock()
@@ -243,8 +243,8 @@ class TestSubprocessSpawnCharacterization:
         assert exc_info.value.failure.server_key == "test"
         mock_validate.assert_not_called()
         mock_popen.assert_not_called()
-        stderr_fh.close.assert_not_called()
-        assert mgr._stderr_files.get("test") is stderr_fh
+        stderr_fh.close.assert_called_once()
+        assert "test" not in mgr._stderr_files
         assert "test" not in mgr._http_procs
         assert "test" not in mgr._http_pgids
 
