@@ -57,10 +57,10 @@ Additive wiring inside existing functions; imports limited to `db.migrations_wor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests come from row 18 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-120000 | 20261030-120000 | Wired `ensure_baseline(db.conn)` into `create_workflow_schema`; added `_record_eventbus_baseline` (INSERT OR IGNORE) wired into fresh/stamped paths of `create_eventbus_schema`; legacy `user_version 0` branch left untouched. `ensure_ledger` guards the eventbus baseline so a schema that predates the ledger table still works. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-120000 | 20261030-120000 | Formal coverage is row 18 (`tests/db/test_create_schema.py`). Hand smoke test validated fresh workflow carries `(0,1)` baseline + user_version=1; fresh eventbus carries `(4,4)` baseline + user_version=4; re-run idempotent (single baseline); workflow/eventbus string mismatches still refuse; legacy eventbus (user_version=0) stays unstamped with no baseline row. All 68 existing tests green. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-120000 | 20261030-120000 | ruff format+check clean; mypy clean; lint-imports 6/6 KEPT; check_db_separation no violations; check_docstrings OK (268 grandfathered). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-120000 | 20261030-120000 | Module docstring updated to note fresh workflow/eventbus receive ledger + baseline row. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

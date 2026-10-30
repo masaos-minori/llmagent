@@ -7,6 +7,9 @@
 
 SQLテンプレートはdb/schema_sql.pyに定義（正規DDLソース）。
 
+dbmig001: 新規作成の workflow.sqlite / eventbus.sqlite は追加で migration ledger
+と baseline row を受け取る。既存 DB は従来の fail-closed 拒否を維持。
+
 Functions:
   create_rag_schema()        — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
   create_session_schema()    — session.sqlite: sessions, messages, memory
@@ -19,9 +22,11 @@ import logging
 import sqlite3
 import sys
 
+from shared.db_migrations import ensure_ledger
 from shared.eventbus_schema_fingerprint import assert_matches
 
 from db.helper import SQLiteHelper
+from db.migrations_workflow import ensure_baseline
 from db.schema_sql import (
     WORKFLOW_SCHEMA_VERSION,
     build_eventbus_schema_sql,
@@ -78,6 +83,25 @@ def _record_workflow_schema_version(db: SQLiteHelper) -> None:
         )
 
 
+def _record_eventbus_baseline(conn: sqlite3.Connection) -> None:
+    """Insert the eventbus baseline ledger row idempotently.
+
+    Called on the fresh and already-stamped create paths so a freshly created
+    eventbus database carries the ledger baseline row. Uses INSERT OR IGNORE
+    against the row-01 ledger table so re-running create_schema.py stays safe.
+    The baseline stamps ``from_version == to_version`` (a fresh database is at
+    the target version, never migrated), matching the "no migration executed"
+    convention. ``ensure_ledger`` (row-01 ledger primitive) guarantees the ledger
+    table exists even against a schema that predates it.
+    """
+    ensure_ledger(conn)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_migrations "
+        "(id, from_version, to_version) VALUES ('eventbus_ledger_baseline', ?, ?)",
+        (eventbus_schema_version(), eventbus_schema_version()),
+    )
+
+
 def create_rag_schema() -> None:
     """Create rag.sqlite tables, virtual tables, and triggers."""
     dims = get_embedding_dims()
@@ -95,10 +119,17 @@ def create_session_schema() -> None:
 
 
 def create_workflow_schema() -> None:
-    """Create workflow.sqlite tables (tasks, attempts, processed_events, artifacts)."""
+    """Create workflow.sqlite tables (tasks, attempts, processed_events, artifacts).
+
+    A freshly created database additionally receives the migration ledger and its
+    baseline row (dbmig001 row 08); an existing database keeps today's
+    fail-closed string-version refusal in ``_record_workflow_schema_version``.
+    """
     with SQLiteHelper("workflow").open(write_mode=True) as db:
         _execute_schema_ddl(db, build_workflow_schema_sql(), "workflow")
         _record_workflow_schema_version(db)
+        if db.conn is not None:
+            ensure_baseline(db.conn)
         db.commit()
     logger.info("Workflow schema created successfully.")
 
@@ -122,12 +153,21 @@ def create_eventbus_schema() -> None:
             raise
         if existing and before == 0:
             # Leave an unverified legacy database unstamped; the EventBus service
-            # stamps it only after checking its tables against schema.sql.
+            # stamps it only after checking its tables against schema.sql. No
+            # baseline row lands on this path.
             db.execute("PRAGMA user_version = 0")
-        elif existing and db.conn is not None:
+        elif existing:
             # A database already stamped with the current version must still match
-            # the canonical shape; fail closed before committing (REQ-003).
-            assert_matches(db.conn)
+            # the canonical shape; fail closed before committing (REQ-003), then
+            # stamp the ledger baseline row.
+            if db.conn is not None:
+                assert_matches(db.conn)
+                _record_eventbus_baseline(db.conn)
+        else:
+            # Fresh database: schema.sql stamped user_version to the current
+            # version; stamp the ledger baseline row.
+            if db.conn is not None:
+                _record_eventbus_baseline(db.conn)
         db.commit()
     logger.info("Event Bus schema created successfully.")
 
