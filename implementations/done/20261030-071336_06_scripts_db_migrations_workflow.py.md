@@ -2,20 +2,20 @@
 Create the `workflow.sqlite` migration registry `scripts/db/migrations_workflow.py` (new): the domain-specific home where future workflow version steps register, built on the shared framework, and decide the string-version to integer-code mapping the Plan defers (REQ-001 migration framework, REQ-009 registered paths preserve rows).
 
 ## Scope
-- In scope: registry construction for the `workflow` domain — a `REGISTRY` (new) collection of `MigrationSpec` entries from row 01's framework, the version-code map for `WORKFLOW_SCHEMA_VERSION`, and a ledger-bootstrap step (new) that adds the `schema_migrations` (new) table to an existing workflow database that only has the legacy `workflow_schema_version` string log.
+- In scope: registry construction for the `workflow` domain — a `REGISTRY` (new) collection of `MigrationSpec` entries from row 01's framework, the version-code map for `WORKFLOW_SCHEMA_VERSION`, and a ledger-bootstrap step (new) that adds the `schema_migrations` table to an existing workflow database that only has the legacy `workflow_schema_version` string log.
 - Out of scope: ledger DDL in the workflow DDL set (row 09), create-path baseline (row 08), CLI (row 07).
 
 ## Assumptions
 - `workflow.sqlite` has no `PRAGMA user_version` stamp today: its version marker is the `workflow_schema_version` TEXT table (`scripts/db/schema_sql.py:214-217`) written by `_record_workflow_schema_version` (`scripts/db/create_schema.py:53-78`), and a string mismatch raises the "recreate the database" refusal (`create_schema.py:75-78`). The integer ledger therefore maps string versions to codes; the Plan's ledger contract (`schema_migrations(id, applied_at, from_version, to_version)`) stays integer-keyed for both domains.
-- Version-code mapping (Plan UNK-02, decided here): `WORKFLOW_VERSION_CODES = {"1.1.0": 1}` (new) and `WORKFLOW_TARGET_VERSION = 1`, mirroring `WORKFLOW_SCHEMA_VERSION = "1.1.0"` (`scripts/db/schema_sql.py:25`). A string not in the map cannot be migrated (refusal), keeping today's fail-closed semantics. Needs confirmation: this row reserves only baseline code 1; if a workflow schema change is pending, its step must register here (planned registry contents: baseline step only). Confirm against the current workflow backlog before implementation.
+- Version-code mapping (Plan UNK-02, decided here): `WORKFLOW_VERSION_CODES = {"1.1.0": 0}` (new). The integer ledger code is a namespace separate from the string marker: a legacy database with no ledger is code 0 and after bootstrap it is code 1, so the bootstrap step moves `0 -> 1` (the framework rejects a `from == to` step as a cycle). A string absent from this map cannot be migrated (refusal), keeping today's fail-closed semantics. Mirrors `WORKFLOW_SCHEMA_VERSION = "1.1.0"` (`scripts/db/schema_sql.py:25`). Needs confirmation: none — this reserves only the baseline code; a future workflow schema change registers its step here. Confirm against the current workflow backlog before implementation.
 - Backup verification for the gate is a callable wrapping `scripts/db/recovery.py::_backup_is_usable` (row 10 exposes it) plus the workflow domain-identity check (required table `tasks`; `_REQUIRED_TABLE_BY_DOMAIN` in `recovery.py:136-139` has no `workflow` entry today, so this registry supplies the workflow-specific check).
 
 ## Design decisions
 - Registry is a module-level ordered spec collection consumed by the create path (row 08) and the CLI (row 07); same shape as row 02's eventbus registry.
-- The bootstrap step `workflow_ledger_baseline` (new) is itself a registered, gate-gated migration `1 → 1`: precondition — latest `workflow_schema_version.version` maps to a known code and no ledger exists; mutation — ledger DDL following the Plan's column contract, in the shape row 09 appends to `_WORKFLOW_SCHEMA` and row 01's `ensure_ledger` (new) creates, plus a baseline row `(id='workflow_ledger_baseline', from_version=1, to_version=1)`; postcondition — ledger present and latest string maps to `WORKFLOW_TARGET_VERSION`. The string log stays as the compatibility marker (Plan Assumption: `WORKFLOW_SCHEMA_VERSION` remains the baseline marker).
+- The bootstrap step `workflow_ledger_baseline` (new) is itself a registered, gate-gated migration `0 → 1`: precondition — `PRAGMA user_version` is at the pre-ledger baseline (0) and the latest `workflow_schema_version.version` maps to a known code; mutation — ledger DDL (identical to row 01/09 contract) plus `PRAGMA user_version = 1`; the runner records the baseline row `(id='workflow_ledger_baseline', from_version=0, to_version=1)` via `record_applied` (the mutation inserts no row itself); postcondition — `user_version` is at the target (1) and the baseline row landed. The string log stays as the compatibility marker (Plan Assumption: `WORKFLOW_SCHEMA_VERSION` remains the baseline marker). The ledger code is `0 → 1` rather than the originally-planned `1 → 1` because the shared runner rejects a `from == to` step as a cycle; the logical version (1.1.0) is unchanged, only the ledger position moves from absent to present.
 
 ## Alternatives considered
-- Using `PRAGMA user_version` for workflow as eventbus does — rejected: existing workflow databases have `user_version 0` and the string table is the deployed marker; introducing a second marker would fork the source of truth (Plan Risk "version fragmentation").
+- Using `PRAGMA user_version` for workflow as eventbus does — originally rejected (existing workflow databases have `user_version 0` and the string table is the deployed marker; introducing a second marker would fork the source of truth, Plan Risk "version fragmentation"). Adopted in a bounded form here: the bootstrap stamps `user_version` to the ledger code (0 → 1) so the shared runner's version tracking works, while the `workflow_schema_version` string remains the sole schema-version marker. The two markers serve distinct purposes (ledger position vs schema version), so they do not conflict.
 
 ## Implementation
 ### Target file
@@ -33,8 +33,6 @@ New module inside the `db` layer; may import `shared` and sibling `db` modules (
 ### Details
 - `MigrationSpec`/`MigrationRunner` are created by row 01; this document assumes they exist when executed in `seq` order.
 - No content steps beyond baseline; future workflow steps (e.g. dlqbox001 outbox lands in eventbus, not here) append to `REGISTRY`.
-- `current_version` for the runner is derived by the caller (row 07 CLI): the latest `workflow_schema_version.version` string mapped through `WORKFLOW_VERSION_CODES` (new); an unmapped string is an UNKNOWN_PATH refusal raised before the gate.
-- Needs confirmation: row 01's `plan` resolves forward paths and refusal classes but does not define same-version semantics; the `workflow_ledger_baseline` `1 → 1` step must resolve as a registered path when the ledger is absent (not as a no-op or self-cycle refusal). Pin this down with row 01 during implementation.
 
 ## Compatibility considerations
 - Existing workflow databases keep working through `_record_workflow_schema_version` unchanged; the ledger is additive. `create_schema.py` refusal semantics (row 08 keeps them intact) must keep refusing unmapped strings.
@@ -60,10 +58,10 @@ New module inside the `db` layer; may import `shared` and sibling `db` modules (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests come from row 17 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-110000 | 20261030-110000 | Created scripts/db/migrations_workflow.py: REGISTRY with workflow_ledger_baseline step (0 -> 1), WORKFLOW_VERSION_CODES map (fail-closed), verify_backup + ensure_baseline. NOTE: implemented 0 -> 1, not the planned 1 -> 1, because the shared runner rejects a from==to step as a cycle. The logical schema version (1.1.0) is unchanged; only the ledger position moves absent -> present. Bootstrap stamps PRAGMA user_version=1 so the runner's version tracking works; the string log stays the schema marker. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-110000 | 20261030-110000 | Tests come from row 17 Formal coverage is row 17 (tests/db/test_migrations_workflow.py), not yet generated. Hand smoke test validated: legacy -> migrated bootstrap writes schema_migrations + baseline row (0->1) + stamps user_version=1 while preserving the 1.1.0 string marker and tasks rows; re-apply resolves to [] (idempotent); unmapped string (9.9.9) refused; ensure_baseline (create path) stamps user_version=1. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-110000 | 20261030-110000 | ruff format+check clean; mypy(445) clean; lint-imports 6/6 KEPT; check_db_separation no violations; check_docstrings OK (268 grandfathered). Formal pytest suite from row 17 pending. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-110000 | 20261030-110000 | N/A for this row N/A: no docs/00_index.md task-scope mapping for migrations_workflow.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
