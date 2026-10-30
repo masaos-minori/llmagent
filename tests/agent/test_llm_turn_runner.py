@@ -20,6 +20,9 @@ from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_persistence import ConversationPersistenceError
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
+from shared.mcp_health import McpServerHealthState
+from shared.token_estimation import RATIO_TEXT, estimate_tokens
+from shared.transport_dto import DynamicAvailabilityHint, ToolCallResult
 from shared.types import LLMMessage
 
 
@@ -422,6 +425,7 @@ class TestRun:
         ):
             runner._guard.check_all.return_value = None
             runner._guard.check_empty_result_repeat.return_value = None
+            runner._guard.check_unavailable_repeat.return_value = None
             result = await runner.run("http://llm", **WF_CTX)
 
         assert result.answer == "Done"
@@ -468,6 +472,7 @@ class TestRun:
         ):
             runner._guard.check_all.return_value = None
             runner._guard.check_empty_result_repeat.return_value = None
+            runner._guard.check_unavailable_repeat.return_value = None
             runner._ctx.cfg.tool.max_tool_turns = 2
 
             result = await runner.run("http://llm", **WF_CTX)
@@ -517,6 +522,7 @@ class TestRun:
         ):
             runner._guard.check_all.return_value = None
             runner._guard.check_empty_result_repeat.return_value = None
+            runner._guard.check_unavailable_repeat.return_value = None
             runner._guard.check_error_limit.return_value = "Error limit reached"
 
             result = await runner.run("http://llm", **WF_CTX)
@@ -549,6 +555,7 @@ class TestRun:
         ):
             runner._guard.check_all.return_value = None
             runner._guard.check_empty_result_repeat.return_value = None
+            runner._guard.check_unavailable_repeat.return_value = None
             result = await runner.run("http://llm", **WF_CTX)
 
         assert result.action == "fail"
@@ -614,6 +621,7 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
         ):
             runner._guard.check_all.return_value = None
             runner._guard.check_empty_result_repeat.return_value = None
+            runner._guard.check_unavailable_repeat.return_value = None
             await runner.run("http://llm", **WF_CTX)
 
         assert runner._ctx.conv.history[0] == {
@@ -813,6 +821,7 @@ class TestRunRoundAtomicity:
             guard.check_all.return_value = None
             guard.check_error_limit.return_value = None
             guard.check_empty_result_repeat.return_value = None
+            guard.check_unavailable_repeat.return_value = None
             guard.update_errors.return_value = 0
             ctx = MagicMock()
             ctx.conv = conv
@@ -868,3 +877,218 @@ class TestRunRoundAtomicity:
                 "SELECT role FROM messages WHERE session_id = 1 ORDER BY message_id"
             ).fetchall()
             assert [r[0] for r in rows] == ["user"]
+
+
+# ── Unavailable-repeat bound integration (toolhint001 AC-2 / AC-1 / AC-5) ────
+
+_UNAVAILABLE_OUTPUT = "MCP server 'srv' is currently unavailable (health check failed)"
+_BOUND_SUMMARY = "Repeated unavailability from server 'srv' detected."
+
+
+def _hinted_unavailable_result() -> ToolCallResult:
+    return ToolCallResult(
+        output=_UNAVAILABLE_OUTPUT,
+        is_error=True,
+        request_id="",
+        server_key="srv",
+        source="mcp",
+        error_type="tool",
+        availability_hint=DynamicAvailabilityHint(
+            reason="server_unavailable",
+            circuit_state=McpServerHealthState.UNAVAILABLE,
+            retry_after_seconds=7,
+        ),
+    )
+
+
+class TestUnavailableRepeatBoundIntegration:
+    """End-to-end runner bound: hinted results observed through the real
+    ToolLoopGuard stop the turn before max_tool_turns, and the tool-definitions
+    block at the LLM request boundary is identical across every round (AC-1/AC-2)."""
+
+    _TOOL_DEFS = [
+        {"name": "mcp_read", "description": "read", "parameters": {"type": "object"}},
+        {"name": "mcp_write", "description": "write", "parameters": {"type": "object"}},
+    ]
+
+    def _real_guard_runner(
+        self, limit: int, responses: list[LLMResponse]
+    ) -> tuple[LLMTurnRunner, MagicMock, MagicMock]:
+        ctx = _make_ctx()
+        ctx.cfg.tool.tool_empty_result_max_repeats = limit
+        # Distinct tool names per round already avoid dedup; raise the window so
+        # only the unavailable-repeat bound can end this turn. Pin the stagnation
+        # dial the real guard compares with `<= 0`.
+        ctx.cfg.tool.tool_dedup_max_repeats = 100
+        ctx.cfg.tool.progress_stagnation_window = 0
+        guard = ToolLoopGuard(ctx)
+        registry = MagicMock()
+        registry.llm_tool_definitions.return_value = [dict(d) for d in self._TOOL_DEFS]
+        ctx.services_required.runtime_tools = registry
+        ctx.services_required.llm.stream = AsyncMock(side_effect=responses)
+        return LLMTurnRunner(ctx, guard), ctx, guard
+
+    @staticmethod
+    def _tool_response(round_idx: int) -> LLMResponse:
+        return LLMResponse(
+            message={
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": f"c{round_idx}",
+                        "function": {"name": f"mcp_read_{round_idx}"},
+                    }
+                ],
+            },
+            finish_reason="tool_calls",
+        )
+
+    @pytest.mark.asyncio
+    async def test_bound_terminates_turn_before_max_tool_turns(self) -> None:
+        responses = [
+            self._tool_response(1),
+            self._tool_response(2),
+            self._tool_response(3),
+        ]
+        runner, ctx, guard = self._real_guard_runner(2, responses)
+
+        async def _observe_hook(*_a: object, **_k: object) -> None:
+            # Mirrors scripts/agent/tool_runner.py: every executed result is
+            # offered to the guard's availability observer.
+            guard.observe_availability(_hinted_unavailable_result())
+
+        with patch(
+            "agent.llm_turn_runner.execute_all_tool_calls",
+            AsyncMock(side_effect=_observe_hook),
+        ):
+            result = await runner.run("http://llm", **WF_CTX)
+
+        assert result.action == "fail"
+        assert result.reason == "unavailable_repeat"
+        # Fixed guard summary, not server free text (security boundary).
+        assert result.answer == _BOUND_SUMMARY
+        # Bounded at 2 rounds, strictly before max_tool_turns=5 exhaustion.
+        assert ctx.services_required.llm.stream.await_count == 2
+        assert guard.scan_unavailable_repeat() == ("srv", 2)
+
+    @pytest.mark.asyncio
+    async def test_llm_tool_definitions_identical_across_turns(self) -> None:
+        responses = [
+            self._tool_response(1),
+            self._tool_response(2),
+            self._tool_response(3),
+        ]
+        runner, ctx, guard = self._real_guard_runner(2, responses)
+
+        async def _observe_hook(*_a: object, **_k: object) -> None:
+            guard.observe_availability(_hinted_unavailable_result())
+
+        with patch(
+            "agent.llm_turn_runner.execute_all_tool_calls",
+            AsyncMock(side_effect=_observe_hook),
+        ):
+            await runner.run("http://llm", **WF_CTX)
+
+        captured = [
+            call.args[2] for call in ctx.services_required.llm.stream.await_args_list
+        ]
+        assert len(captured) == 2
+        assert all(defs == self._TOOL_DEFS for defs in captured)
+
+    @pytest.mark.asyncio
+    async def test_default_off_runs_unbounded_scenario_as_today(self) -> None:
+        # tool_empty_result_max_repeats=0 (repo default): identical hinted
+        # results never end the turn (characterization of default-off).
+        stop = LLMResponse(
+            message={"role": "assistant", "content": "Done"}, finish_reason="stop"
+        )
+        responses = [self._tool_response(1), self._tool_response(2), stop]
+        runner, ctx, guard = self._real_guard_runner(0, responses)
+
+        async def _observe_hook(*_a: object, **_k: object) -> None:
+            guard.observe_availability(_hinted_unavailable_result())
+
+        with patch(
+            "agent.llm_turn_runner.execute_all_tool_calls",
+            AsyncMock(side_effect=_observe_hook),
+        ):
+            result = await runner.run("http://llm", **WF_CTX)
+
+        assert result.action == "continue"
+        assert result.answer == "Done"
+        assert guard.scan_unavailable_repeat() is None
+
+
+class TestAvailabilityHintTokenImpact:
+    """REQ-006 / AC-5 measurement: hint-carrying vs unhinted histories.
+
+    The availability hint travels as structured DTO metadata; the tool-result
+    text is byte-identical to the legacy rejection text. The only turn-level
+    token addition is the fixed guard bound summary. Cached regions (system
+    prompt + assistant tool-call serialization) must measure identically.
+    """
+
+    _SYSTEM = (
+        "You are an agent. Use the available tools to answer user requests. "
+        "Prefer short, verified answers and cite tool output. "
+    ) * 6
+    _TOOL_CALLS = [
+        {
+            "id": "c1",
+            "function": {"name": "mcp_read", "arguments": '{"path": "notes.txt"}'},
+        }
+    ]
+
+    def _histories(self) -> tuple[list[LLMMessage], list[LLMMessage]]:
+        base: list[LLMMessage] = [
+            {"role": "system", "content": self._SYSTEM},
+            {"role": "user", "content": "Read the notes file."},
+            {"role": "assistant", "content": "", "tool_calls": self._TOOL_CALLS},
+            {"role": "tool", "tool_call_id": "c1", "content": _UNAVAILABLE_OUTPUT},
+            {"role": "assistant", "content": "", "tool_calls": self._TOOL_CALLS},
+            {"role": "tool", "tool_call_id": "c2", "content": _UNAVAILABLE_OUTPUT},
+        ]
+        hinted = list(base)
+        # At the bound the runner ends the turn with the fixed guard summary;
+        # this is the only conversation-visible hint artifact.
+        hinted.append({"role": "assistant", "content": _BOUND_SUMMARY})
+        return base, hinted
+
+    def _tool_region_tokens(self, history: list[LLMMessage]) -> int:
+        return sum(
+            int(len(msg["content"]) / RATIO_TEXT)
+            for msg in history
+            if msg.get("role") == "tool"
+        )
+
+    def test_cached_regions_measure_identically(self) -> None:
+        unhinted, hinted = self._histories()
+        _, base_breakdown = estimate_tokens(unhinted)
+        _, hinted_breakdown = estimate_tokens(hinted)
+        # Prompt-cached regions: system prompt and tool-call serialization.
+        assert hinted_breakdown["system"] == base_breakdown["system"]
+        assert hinted_breakdown["tool_calls"] == base_breakdown["tool_calls"]
+
+    def test_tool_result_region_delta_is_zero_and_summary_cost_recorded(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        unhinted, hinted = self._histories()
+        base_total, _ = estimate_tokens(unhinted)
+        hinted_total, _ = estimate_tokens(hinted)
+        tool_region_base = self._tool_region_tokens(unhinted)
+        tool_region_hinted = self._tool_region_tokens(hinted)
+        total_delta = hinted_total - base_total
+
+        # Tool-result text region: unchanged (hint is structured DTO metadata).
+        assert tool_region_hinted == tool_region_base
+        # The only added cost is the once-per-turn fixed bound summary.
+        assert total_delta == int(len(_BOUND_SUMMARY) / RATIO_TEXT)
+
+        # Recorded value for the plan Execution Status note (AC-5 gate).
+        print(
+            "REQ-006 measurement: tool-result-region delta="
+            f"{tool_region_hinted - tool_region_base} tokens, "
+            f"bound-summary cost={total_delta} tokens, "
+            f"totals unhinted={base_total} hinted={hinted_total}"
+        )

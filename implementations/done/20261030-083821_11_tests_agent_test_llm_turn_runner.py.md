@@ -22,6 +22,10 @@ AC-2, AC-5).
   location (`llm_turn_runner.py:116-133`). Test-first: new tests fail until rows 04/05
   land. Measurement tooling: `estimate_tokens(history)` and
   `estimate_tokens_for_text` exist (`shared/token_estimation.py:48`, `:19`).
+- Verification note (row 05 execution): the runner tests mock the guard as a plain
+  `MagicMock`, so every existing test site that pins `check_empty_result_repeat
+  .return_value = None` also needs `check_unavailable_repeat.return_value = None`
+  (6 sites; applied during row 05). Test assertions themselves stay byte-identical.
 
 ## Design decisions
 - Integration test: patch `tool_empty_result_max_repeats=2`, make the mocked transport
@@ -91,9 +95,9 @@ AC-2, AC-5).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append bounded-loop integration tests (fail before rows 04/05 land) | Pending | — | — | |
-| 2 | Append token-estimation comparison test; record REQ-006 delta in plan Execution Status notes | Pending | — | — | |
-| 3 | Confirm 30 existing tests byte-identical and green | Pending | — | — | |
+| 1 | Append bounded-loop integration tests (fail before rows 04/05 land) | Completed | — | 20261030-205803 | TestUnavailableRepeatBoundIntegration: real ToolLoopGuard + observe hook; action=fail reason=unavailable_repeat answer=guard summary; bounded at 2 rounds < max_tool_turns; tool-defs identical across rounds; default-off characterization |
+| 2 | Append token-estimation comparison test; record REQ-006 delta in plan Execution Status notes | Completed | — | 20261030-205803 | TestAvailabilityHintTokenImpact appended; measured delta recorded in plan Execution Status Step 2 Notes: tool-result-region delta=0, bound-summary=12 tokens, totals unhinted=304 hinted=316 |
+| 3 | Confirm 30 existing tests byte-identical and green | Completed | — | 20261030-205803 | 35 passed (30 existing + 5 new); existing test bodies byte-identical; ruff clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -10,12 +10,15 @@ failure without copying a fingerprint or a server-supplied message into the Agen
 
 from __future__ import annotations
 
+import time
 from typing import Any
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from agent.commands.cmd_mcp import _format_availability_display
 from agent.output_tags import OutputTag
+from agent.services.enums import McpAvailability, McpTier
 from agent.services.mcp_health import (
     PostureGate,
     ServerFailureClass,
@@ -25,7 +28,9 @@ from agent.services.mcp_health import (
     classify_server_failure,
     collect_server_postures,
 )
+from agent.services.models import McpProbeResult
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
 from shared.security.posture_contract import (
     REQUIRED_CHECK_IDS,
     SECURITY_CONTRACT_VERSION,
@@ -515,3 +520,104 @@ class TestCheckReadinessPosture:
         http = _http({HEALTH_URL: _response(_body(_security_block()))})
         result = await check_readiness(_ctx({SERVER_KEY: _server()}, http))
         assert not result.has_issues
+
+
+class TestStaticVsDynamicDisplay:
+    """Static visibility and dynamic health render as two labeled values.
+
+    Display composition contract for the /mcp status output (plan AC-4):
+    static visibility is config-derived, dynamic health is the registry
+    circuit state with a closed reason code and retry timing only for
+    UNAVAILABLE/HALF_OPEN rows, and the display path performs no state
+    transition.
+    """
+
+    @staticmethod
+    def _probe(
+        health: str, *, static_visibility: bool = True
+    ) -> McpProbeResult:
+        return McpProbeResult(
+            key=SERVER_KEY,
+            transport="http",
+            startup_mode="persistent",
+            auth=False,
+            tier=McpTier.READ_ONLY,
+            role="",
+            availability=McpAvailability.OK,
+            health=health,
+            endpoint=BASE_URL,
+            static_visibility=static_visibility,
+        )
+
+    @staticmethod
+    def _unavailable_registry() -> McpServerHealthRegistry:
+        registry = McpServerHealthRegistry(
+            failure_threshold=3, half_open_cooldown_sec=30.0
+        )
+        for _ in range(3):
+            registry.record_failure(SERVER_KEY)
+        return registry
+
+    def test_disabled_server_shows_excluded_and_still_renders_dynamic_state(
+        self,
+    ) -> None:
+        registry = McpServerHealthRegistry()
+        registry.record_success(SERVER_KEY)
+        static_line, dynamic_line = _format_availability_display(
+            self._probe("HEALTHY", static_visibility=False), registry
+        )
+        assert static_line == "Static visibility: excluded"
+        assert dynamic_line == "Dynamic health: HEALTHY"
+
+    def test_enabled_server_shows_visible(self) -> None:
+        static_line, _ = _format_availability_display(
+            self._probe("HEALTHY", static_visibility=True), McpServerHealthRegistry()
+        )
+        assert static_line == "Static visibility: visible"
+
+    def test_unavailable_row_carries_reason_and_retry_after(self) -> None:
+        registry = self._unavailable_registry()
+        _, dynamic_line = _format_availability_display(
+            self._probe("UNAVAILABLE"), registry
+        )
+        retry_text = dynamic_line.split("retry_after=", 1)[1]
+        retry_after = int(retry_text)
+        assert dynamic_line.startswith(
+            "Dynamic health: UNAVAILABLE reason=server_unavailable retry_after="
+        )
+        assert 0 <= retry_after <= 30
+
+    def test_half_open_row_carries_reason_without_retry_after(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        registry = self._unavailable_registry()
+        # Cooldown elapsed: is_unavailable() performs UNAVAILABLE → HALF_OPEN.
+        elapsed = time.monotonic() + 31.0
+        monkeypatch.setattr(time, "monotonic", lambda: elapsed)
+        assert registry.is_unavailable(SERVER_KEY) is False
+        assert registry.get_state(SERVER_KEY) == McpServerHealthState.HALF_OPEN
+        _, dynamic_line = _format_availability_display(
+            self._probe("HALF_OPEN"), registry
+        )
+        assert dynamic_line == (
+            "Dynamic health: HALF_OPEN reason=half_open_trial_in_progress"
+        )
+
+    def test_healthy_row_carries_neither_reason_nor_retry_after(self) -> None:
+        _, dynamic_line = _format_availability_display(
+            self._probe("HEALTHY"), McpServerHealthRegistry()
+        )
+        assert dynamic_line == "Dynamic health: HEALTHY"
+
+    def test_missing_registry_falls_back_to_reason_without_retry_after(self) -> None:
+        _, dynamic_line = _format_availability_display(
+            self._probe("UNAVAILABLE"), None
+        )
+        assert dynamic_line == "Dynamic health: UNAVAILABLE reason=server_unavailable"
+
+    def test_display_path_performs_no_state_transition(self) -> None:
+        registry = self._unavailable_registry()
+        before = registry.get_state(SERVER_KEY)
+        _format_availability_display(self._probe("UNAVAILABLE"), registry)
+        _format_availability_display(self._probe("UNAVAILABLE"), registry)
+        assert registry.get_state(SERVER_KEY) == before

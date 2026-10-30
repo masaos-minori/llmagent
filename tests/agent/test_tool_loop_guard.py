@@ -4,12 +4,18 @@ Unit tests for agent/tool_loop_guard.py — ToolLoopGuard.
 
 from __future__ import annotations
 
+import dataclasses
+from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import orjson
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
-from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
+from agent.tool_loop_guard import UNAVAILABLE_REPEAT_HINT, ToolLoopGuard, TurnLoopState
+from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
+from shared.runtime_tool import build_runtime_tool
+from shared.runtime_tool_registry import RuntimeToolRegistry
+from shared.transport_dto import DynamicAvailabilityHint, ToolCallResult
 
 
 def _cfg(**overrides: dict) -> AgentConfig:
@@ -469,3 +475,178 @@ class TestDisabledOptionIsInert:
         assert guard.scan_empty_result_repeat() is None
         assert guard.check_empty_result_repeat({"role": "assistant"}) is None
         ctx.diagnostics.save.assert_not_called()
+
+
+def _hinted_result(
+    server_key: str,
+    reason: Literal["server_unavailable", "half_open_trial_in_progress"] = (
+        "server_unavailable"
+    ),
+) -> ToolCallResult:
+    """Genuine ToolCallResult carrying a dynamic availability hint."""
+    circuit_state = (
+        McpServerHealthState.UNAVAILABLE
+        if reason == "server_unavailable"
+        else McpServerHealthState.HALF_OPEN
+    )
+    return ToolCallResult(
+        output="",
+        is_error=True,
+        request_id="",
+        server_key=server_key,
+        source="mcp",
+        error_type="transport",
+        availability_hint=DynamicAvailabilityHint(
+            reason=reason,
+            circuit_state=circuit_state,
+            retry_after_seconds=5 if reason == "server_unavailable" else None,
+        ),
+    )
+
+
+def _plain_result(server_key: str) -> ToolCallResult:
+    """Genuine unhinted success ToolCallResult (recovery-path fixture)."""
+    return ToolCallResult(
+        output="ok",
+        is_error=False,
+        request_id="",
+        server_key=server_key,
+        source="mcp",
+        error_type="",
+    )
+
+
+class TestUnavailableRepeat:
+    @staticmethod
+    def _guard(limit: int) -> tuple[ToolLoopGuard, MagicMock]:
+        ctx = _make_ctx()
+        ctx.cfg.tool.tool_empty_result_max_repeats = limit
+        ctx.diagnostics = MagicMock()
+        return ToolLoopGuard(ctx), ctx
+
+    def test_counting_fires_at_bound_and_saves_one_hint(self) -> None:
+        guard, ctx = self._guard(2)
+        guard.observe_availability(_hinted_result("srv"))
+        assert guard.scan_unavailable_repeat() is None
+
+        text = guard.check_unavailable_repeat()
+        assert text is None  # one count is below the bound
+
+        guard.observe_availability(_hinted_result("srv"))
+        text = guard.check_unavailable_repeat()
+        assert text == "Repeated unavailability from server 'srv' detected."
+        ctx.diagnostics.save.assert_called_once()
+        kind = ctx.diagnostics.save.call_args.args[1]
+        payload = orjson.loads(ctx.diagnostics.save.call_args.args[2])
+        assert kind == "guard_hint"
+        assert payload["guard_type"] == "unavailable_repeat"
+        assert (payload["server_key"], payload["repeat_count"]) == ("srv", 2)
+        # The emitted hint is the fixed module constant: server-supplied free
+        # text can never enter this channel.
+        assert payload["hint"] == UNAVAILABLE_REPEAT_HINT
+
+    def test_unhinted_result_clears_the_accumulated_count(self) -> None:
+        """Models HALF_OPEN trial success = recovery (AC-3)."""
+        guard, _ = self._guard(3)
+        guard.observe_availability(_hinted_result("srv"))
+        guard.observe_availability(_hinted_result("srv"))
+        guard.observe_availability(_plain_result("srv"))
+        assert guard._unavailable_counts["srv"] == 0
+
+        guard.observe_availability(_hinted_result("srv"))
+        assert guard.scan_unavailable_repeat() is None
+        assert guard._unavailable_counts["srv"] == 1
+
+    def test_limit_zero_disables_regardless_of_counts(self) -> None:
+        guard, ctx = self._guard(0)
+        for _ in range(5):
+            guard.observe_availability(_hinted_result("srv"))
+        assert guard.scan_unavailable_repeat() is None
+        assert guard.check_unavailable_repeat() is None
+        ctx.diagnostics.save.assert_not_called()
+
+    def test_counts_are_scoped_per_server_key(self) -> None:
+        guard, ctx = self._guard(2)
+        guard.observe_availability(_hinted_result("srv_a"))
+        guard.observe_availability(_hinted_result("srv_b"))
+        assert guard.scan_unavailable_repeat() is None
+
+        guard.observe_availability(_hinted_result("srv_b"))
+        text = guard.check_unavailable_repeat()
+        assert text == "Repeated unavailability from server 'srv_b' detected."
+        assert guard._unavailable_counts["srv_a"] == 1
+        assert guard._unavailable_counts["srv_b"] == 2
+
+    def test_half_open_hint_counts_toward_the_bound(self) -> None:
+        guard, _ = self._guard(2)
+        guard.observe_availability(_hinted_result("srv", "half_open_trial_in_progress"))
+        assert guard.scan_unavailable_repeat() is None
+        guard.observe_availability(_hinted_result("srv"))
+        hit = guard.scan_unavailable_repeat()
+        assert hit == ("srv", 2)
+
+
+class TestStaticFieldImmutability:
+    """REQ-007/AC-1: health transitions and availability hints never touch
+    static registration data (RuntimeTool fields, LLM tool definitions)."""
+
+    def test_registry_data_identical_across_health_transitions(self) -> None:
+        tool_a = build_runtime_tool(
+            "tool_a",
+            "srv",
+            is_write=False,
+            requires_serial=False,
+            resource_scope_kind="path",
+            resource_scope_keys=("path",),
+            enabled_for_llm=True,
+        )
+        tool_b = build_runtime_tool(
+            "tool_b",
+            "srv",
+            is_write=True,
+            requires_serial=True,
+            resource_scope_kind="path",
+            resource_scope_keys=("path",),
+            enabled_for_llm=True,
+        )
+        registry = RuntimeToolRegistry({tool_a.name: tool_a, tool_b.name: tool_b})
+        tool_snapshot = list(registry.all_tools())
+        definition_snapshot = registry.llm_tool_definitions()
+        assert definition_snapshot  # non-empty: both tools are LLM-visible
+
+        ctx = _make_ctx()
+        ctx.cfg.tool.tool_empty_result_max_repeats = 2
+        guard = ToolLoopGuard(ctx)
+        health = McpServerHealthRegistry(
+            failure_threshold=2, half_open_cooldown_sec=0.0
+        )
+
+        # HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY, each
+        # interleaved with an observe_availability call.
+        health.record_failure("srv")
+        assert health.get_state("srv") == McpServerHealthState.DEGRADED
+        guard.observe_availability(_hinted_result("srv"))
+
+        health.record_failure("srv")
+        assert health.get_state("srv") == McpServerHealthState.UNAVAILABLE
+        guard.observe_availability(_hinted_result("srv"))
+
+        health.is_unavailable("srv")  # cooldown elapsed → HALF_OPEN trial window
+        assert health.get_state("srv") == McpServerHealthState.HALF_OPEN
+        guard.observe_availability(_hinted_result("srv", "half_open_trial_in_progress"))
+        health.release_trial("srv")
+
+        health.record_success("srv")
+        assert health.get_state("srv") == McpServerHealthState.HEALTHY
+        guard.observe_availability(_plain_result("srv"))
+
+        # Field-level equality for every registered RuntimeTool.
+        current = registry.all_tools()
+        assert current == tool_snapshot
+        for before, after in zip(tool_snapshot, current, strict=True):
+            for field in dataclasses.fields(before):
+                assert getattr(before, field.name) == getattr(after, field.name)
+            assert before.enabled_for_llm is True
+
+        # The LLM tool-definition mapping is unchanged.
+        assert registry.llm_tool_definitions() == definition_snapshot

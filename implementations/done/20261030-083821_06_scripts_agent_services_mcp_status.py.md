@@ -106,10 +106,10 @@ separately-labeled values (REQ-005; plan AC-4).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `static_visibility` (new) to `McpProbeResult` and set it in `mcp_status` (UNK-04, Needs confirmation) | Pending | — | — | |
-| 2 | Add `cmd_mcp.py` renderer lines for static/dynamic display (UNK-04) | Pending | — | — | |
-| 3 | Extend `tests/agent/test_mcp_health_posture.py` display assertions | Pending | — | — | |
-| 4 | Run `uv run pytest tests/agent` and mypy | Pending | — | — | |
+| 1 | Add `static_visibility` (new) to `McpProbeResult` and set it in `mcp_status` (UNK-04, Needs confirmation) | Completed | 20261030-203503 | 20261030-203727 |  |
+| 2 | Add `cmd_mcp.py` renderer lines for static/dynamic display (UNK-04) | Completed | — | 20261030-203727 |  |
+| 3 | Extend `tests/agent/test_mcp_health_posture.py` display assertions | Completed | — | 20261030-203727 |  |
+| 4 | Run `uv run pytest tests/agent` and mypy | Completed | — | 20261030-203727 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

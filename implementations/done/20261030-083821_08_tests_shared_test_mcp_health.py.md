@@ -76,8 +76,8 @@ Cover the normalized reason constants and `retry_after_seconds` (new) derivation
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append `TestRetryAfterDerivation` (new) (fails before row 02 lands) | Pending | — | — | |
-| 2 | Confirm existing state-machine classes byte-identical and green | Pending | — | — | |
+| 1 | Append `TestRetryAfterDerivation` (new) (fails before row 02 lands) | Completed | 20261030-203916 | 20261030-203916 |  |
+| 2 | Confirm existing state-machine classes byte-identical and green | Completed | — | 20261030-203916 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

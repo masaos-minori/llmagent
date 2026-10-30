@@ -23,6 +23,7 @@ from shared.json_utils import (
     now_iso_raw,
 )
 from shared.tool_executor_helpers import tool_hash_key
+from shared.transport_dto import ToolCallResult
 from shared.types import LLMMessage, ToolCallFunction
 
 if TYPE_CHECKING:
@@ -69,6 +70,12 @@ EMPTY_RESULT_REPEAT_HINT = (
     " provide your best answer with the information already available."
 )
 
+UNAVAILABLE_REPEAT_HINT = (
+    "[System] The same MCP server was unavailable repeatedly. Stop selecting its"
+    " tools in this turn and provide your best answer with the information already"
+    " available."
+)
+
 
 @dataclass
 class TurnLoopState:
@@ -107,6 +114,7 @@ class ToolLoopGuard:
                 # REQ-003: an unavailable logger must not fail startup.
                 pass
         self._empty_result_counts: dict[str, int] = {}
+        self._unavailable_counts: dict[str, int] = {}
 
     def report_effective_state(self) -> str:
         """Return a concise summary of the effective on/off state of both guards.
@@ -195,6 +203,59 @@ class ToolLoopGuard:
             hint=EMPTY_RESULT_REPEAT_HINT,
         )
         return f"Repeated empty result from '{tool_name}' detected."
+
+    # ── Unavailable repeat guard helpers ──────────────────────────────────────
+
+    def observe_availability(self, result: ToolCallResult) -> None:
+        """Track per-server unavailable repeats from the advisory result hint.
+
+        A hinted result (``availability_hint`` set) increments the count for
+        its ``server_key``; any unhinted result — success or non-health error
+        — resets that key to 0. The reset is both recovery clearing (a
+        successful or trial-successful call ends the accumulation) and the
+        false-positive protection: only the fixed hint channel is counted,
+        never server-supplied text.
+        """
+        hint = result.availability_hint
+        server_key = result.server_key
+        if hint is None:
+            self._unavailable_counts[server_key] = 0
+            return
+        self._unavailable_counts[server_key] = (
+            self._unavailable_counts.get(server_key, 0) + 1
+        )
+
+    def scan_unavailable_repeat(self) -> tuple[str, int] | None:
+        """Return the first (server_key, count) at the repeat threshold; record nothing."""
+        limit = self._ctx.cfg.tool.tool_empty_result_max_repeats
+        if limit <= 0:
+            return None
+        return next(
+            ((k, c) for k, c in self._unavailable_counts.items() if c >= limit), None
+        )
+
+    def check_unavailable_repeat(self) -> str | None:
+        """Check if any server has exceeded the unavailable repeat threshold.
+
+        Reuses the empty-result repeat bound (``tool_empty_result_max_repeats``);
+        limit <= 0 disables the check entirely (default-off).
+        """
+        if (hit := self.scan_unavailable_repeat()) is None:
+            return None
+        server_key, count = hit
+        logger.warning(
+            "Unavailable repeat detected: %r (%s times)",
+            server_key,
+            count,
+        )
+        self._save_guard_hint(
+            self._ctx,
+            "unavailable_repeat",
+            server_key=server_key,
+            repeat_count=count,
+            hint=UNAVAILABLE_REPEAT_HINT,
+        )
+        return f"Repeated unavailability from server '{server_key}' detected."
 
     # ── Guard checks ──────────────────────────────────────────────────────────
 

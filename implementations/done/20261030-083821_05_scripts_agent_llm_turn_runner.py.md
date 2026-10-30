@@ -96,9 +96,9 @@ unbounded re-selection (REQ-003; plan AC-2).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert `check_unavailable_repeat` (new) branch after `check_empty_result_repeat` | Pending | — | — | |
-| 2 | Confirm runner test suite green with default config (bound off) | Pending | — | — | |
-| 3 | Run mypy and `lint-imports` | Pending | — | — | |
+| 1 | Insert `check_unavailable_repeat` (new) branch after `check_empty_result_repeat` | Completed | 20261030-203128 | 20261030-203330 |  |
+| 2 | Confirm runner test suite green with default config (bound off) | Completed | — | 20261030-210821 | mock-pin adaptation: 6 guard-mock sites gained check_unavailable_repeat.return_value=None (MagicMock guard); assertions unchanged Follow-up: 7th mock-pin site found in tests/integration/test_rag_turn_integration.py _make_guard (same pattern, one line; caught by final full-suite run) |
+| 3 | Run mypy and `lint-imports` | Completed | — | 20261030-203330 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

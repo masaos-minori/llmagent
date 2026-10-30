@@ -100,9 +100,9 @@ Add the normalized health reason codes and a pure `retry_after_seconds` (new) de
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add reason constants, `cooldown_remaining()`, `retry_after_seconds()` | Pending | — | — | |
-| 2 | Confirm existing registry tests pass unchanged (`uv run pytest tests/shared/test_mcp_health.py`) | Pending | — | — | |
-| 3 | Run `uv run mypy --no-namespace-packages scripts/` and `lint-imports` | Pending | — | — | |
+| 1 | Add reason constants, `cooldown_remaining()`, `retry_after_seconds()` | Completed | 20261030-202734 | 20261030-202759 | row 03 follow-up: reason constants annotated as Literal so they type-check against the hint field |
+| 2 | Confirm existing registry tests pass unchanged (`uv run pytest tests/shared/test_mcp_health.py`) | Completed | — | 20261030-202759 |  |
+| 3 | Run `uv run mypy --no-namespace-packages scripts/` and `lint-imports` | Completed | — | 20261030-202759 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

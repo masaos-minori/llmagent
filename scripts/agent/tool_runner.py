@@ -225,6 +225,7 @@ async def execute_one_tool_call(
     )
 
     _record_transport_failure(ctx, name, result)
+    guard.observe_availability(result)
     if not is_error:
         guard.record_tool_result(name, text)
 

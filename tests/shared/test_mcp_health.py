@@ -6,9 +6,16 @@ recovery back to UNAVAILABLE.
 
 from __future__ import annotations
 
+import math
 import time
 
-from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
+import pytest
+from shared.mcp_health import (
+    HEALTH_REASON_HALF_OPEN_TRIAL_IN_PROGRESS,
+    HEALTH_REASON_SERVER_UNAVAILABLE,
+    McpServerHealthRegistry,
+    McpServerHealthState,
+)
 
 
 class TestFailureThresholdAndReset:
@@ -184,3 +191,95 @@ class TestHalfOpenSingleTrialFlag:
 
         assert registry.get_state("srv") == McpServerHealthState.UNAVAILABLE
         assert registry.trial_in_flight("srv") is False
+
+
+class TestRetryAfterDerivation:
+    """cooldown_remaining()/retry_after_seconds(): boundary, state mapping, purity."""
+
+    @staticmethod
+    def _unavailable_registry(
+        monkeypatch: pytest.MonkeyPatch, cooldown: float = 30.0
+    ) -> tuple[McpServerHealthRegistry, dict[str, float]]:
+        """Registry driven to UNAVAILABLE at fake-clock time 1000.0."""
+        clock = {"now": 1000.0}
+        monkeypatch.setattr(time, "monotonic", lambda: clock["now"])
+        registry = McpServerHealthRegistry(
+            failure_threshold=3, half_open_cooldown_sec=cooldown
+        )
+        for _ in range(3):
+            registry.record_failure("srv")
+        return registry, clock
+
+    def test_just_before_expiry_ceil_is_one_second(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        registry, clock = self._unavailable_registry(monkeypatch)
+        clock["now"] = 1029.999
+        remaining = registry.cooldown_remaining("srv")
+        assert 0.0 < remaining < 1.0
+        assert registry.retry_after_seconds("srv") == 1
+        assert registry.retry_after_seconds("srv") == math.ceil(remaining)
+
+    def test_at_and_after_expiry_is_zero_never_negative(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        registry, clock = self._unavailable_registry(monkeypatch)
+        clock["now"] = 1030.0
+        assert registry.cooldown_remaining("srv") == 0.0
+        assert registry.retry_after_seconds("srv") == 0
+        clock["now"] = 1200.0
+        assert registry.cooldown_remaining("srv") == 0.0
+        assert registry.retry_after_seconds("srv") == 0
+
+    def test_state_mapping_only_unavailable_carries_an_int(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        registry, _ = self._unavailable_registry(monkeypatch)
+        assert registry.retry_after_seconds("srv") is not None
+        registry.record_success("srv")
+        assert registry.get_state("srv") == McpServerHealthState.HEALTHY
+        assert registry.retry_after_seconds("srv") is None
+        assert registry.cooldown_remaining("srv") == 0.0
+        registry.record_failure("srv")  # DEGRADED
+        assert registry.get_state("srv") == McpServerHealthState.DEGRADED
+        assert registry.retry_after_seconds("srv") is None
+        assert registry.retry_after_seconds("unknown-key") is None
+        assert registry.cooldown_remaining("unknown-key") == 0.0
+
+    def test_half_open_carries_no_retry_after(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        registry, clock = self._unavailable_registry(monkeypatch)
+        clock["now"] = 1031.0
+        assert registry.is_unavailable("srv") is False  # UNAVAILABLE -> HALF_OPEN
+        assert registry.get_state("srv") == McpServerHealthState.HALF_OPEN
+        assert registry.retry_after_seconds("srv") is None
+        assert registry.cooldown_remaining("srv") == 0.0
+
+    def test_derivation_is_pure_no_state_or_trial_mutation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        registry, _ = self._unavailable_registry(monkeypatch)
+        before = (
+            dict(registry._states),
+            dict(registry._failure_counts),
+            dict(registry._unavailable_since),
+            set(registry._half_open_trials),
+        )
+        for _ in range(5):
+            registry.cooldown_remaining("srv")
+            registry.retry_after_seconds("srv")
+        after = (
+            dict(registry._states),
+            dict(registry._failure_counts),
+            dict(registry._unavailable_since),
+            set(registry._half_open_trials),
+        )
+        assert after == before
+        # A repeated read must never perform the UNAVAILABLE -> HALF_OPEN
+        # transition that is_unavailable()'s side effect would cause.
+        assert registry.get_state("srv") == McpServerHealthState.UNAVAILABLE
+
+    def test_reason_constants_match_the_hint_literal_values(self) -> None:
+        assert HEALTH_REASON_SERVER_UNAVAILABLE == "server_unavailable"
+        assert HEALTH_REASON_HALF_OPEN_TRIAL_IN_PROGRESS == (
+            "half_open_trial_in_progress"
+        )

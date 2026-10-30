@@ -2,10 +2,21 @@
 """scripts/shared/mcp_health.py — MCP server health tracking for dispatch gating."""
 
 import logging
+import math
 import time
 from enum import Enum
+from typing import Literal
 
 logger = logging.getLogger(__name__)
+
+# Closed set of normalized availability-hint reason codes. Canonical owners
+# of these strings; consumers (hint producers) import them from here. The
+# Literal annotations keep the constants assignable to the closed Literal
+# on DynamicAvailabilityHint (shared/transport_dto.py).
+HEALTH_REASON_SERVER_UNAVAILABLE: Literal["server_unavailable"] = "server_unavailable"
+HEALTH_REASON_HALF_OPEN_TRIAL_IN_PROGRESS: Literal["half_open_trial_in_progress"] = (
+    "half_open_trial_in_progress"
+)
 
 
 class McpServerHealthState(Enum):
@@ -77,6 +88,29 @@ class McpServerHealthRegistry:
     def get_state(self, server_key: str) -> McpServerHealthState:
         """Get the current health state for a server, defaulting to HEALTHY."""
         return self._states.get(server_key, McpServerHealthState.HEALTHY)
+
+    def cooldown_remaining(self, server_key: str) -> float:
+        """Return seconds remaining before the HALF_OPEN window opens.
+
+        Pure read-only: unlike ``is_unavailable()`` this never transitions
+        state or touches trial slots. Only ``UNAVAILABLE`` has a cooldown;
+        every other state and unknown keys return ``0.0``.
+        """
+        if self.get_state(server_key) != McpServerHealthState.UNAVAILABLE:
+            return 0.0
+        since = self._unavailable_since.get(server_key, 0.0)
+        return max(0.0, self._half_open_cooldown_sec - (time.monotonic() - since))
+
+    def retry_after_seconds(self, server_key: str) -> int | None:
+        """Return whole seconds until the next dispatch opportunity, or None.
+
+        ``UNAVAILABLE``: ``ceil(cooldown_remaining(...))`` — an int, never
+        negative. ``HALF_OPEN`` (trial window already open) and all other
+        states: ``None`` — no timing to convey.
+        """
+        if self.get_state(server_key) != McpServerHealthState.UNAVAILABLE:
+            return None
+        return math.ceil(self.cooldown_remaining(server_key))
 
     def is_unavailable(self, server_key: str) -> bool:
         """Return whether dispatch to `server_key` should currently be blocked.

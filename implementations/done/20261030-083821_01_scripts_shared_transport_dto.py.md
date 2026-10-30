@@ -103,9 +103,9 @@ a new `DynamicAvailabilityHint` (new) dataclass plus an `availability_hint` (new
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define `DynamicAvailabilityHint` (new) and append `availability_hint` (new) to `ToolCallResult` | Pending | — | — | |
-| 2 | Confirm all existing construction sites unaffected (`uv run pytest`) | Pending | — | — | |
-| 3 | Run `uv run mypy --no-namespace-packages scripts/` and `lint-imports` | Pending | — | — | |
+| 1 | Define `DynamicAvailabilityHint` (new) and append `availability_hint` (new) to `ToolCallResult` | Completed | 20261030-201712 | 20261030-202710 |  |
+| 2 | Confirm all existing construction sites unaffected (`uv run pytest`) | Completed | — | 20261030-202710 |  |
+| 3 | Run `uv run mypy --no-namespace-packages scripts/` and `lint-imports` | Completed | — | 20261030-202710 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

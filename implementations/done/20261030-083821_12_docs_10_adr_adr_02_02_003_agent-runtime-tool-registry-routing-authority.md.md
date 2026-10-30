@@ -94,9 +94,9 @@ ADR-003 (REQ-008; plan AC-1). Decisions 11/12 stay byte-identical.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append Decision 17 (advisory hint boundary) against current HEAD | Pending | — | — | |
-| 2 | Verify decisions 11/12 unchanged and ADR-016 matrix consistency | Pending | — | — | |
-| 3 | Run docs/ADR checkers from `routing.md` | Pending | — | — | |
+| 1 | Append Decision 17 (advisory hint boundary) against current HEAD | Completed | — | 20261030-204921 | Decision 17 appended; git diff pure single-line add; Decisions 11/12 byte-identical |
+| 2 | Verify decisions 11/12 unchanged and ADR-016 matrix consistency | Completed | — | 20261030-204921 | ADR-016 matrix contains no ADR-003 references; nothing to sync |
+| 3 | Run docs/ADR checkers from `routing.md` | Completed | — | 20261030-204921 | check_docs_quality green; check_docs_structure green after SIZE_EXCEPTIONS re-accept at 26890 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

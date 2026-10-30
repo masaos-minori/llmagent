@@ -84,9 +84,9 @@ display in the MCP health-reasons doc (REQ-008; plan AC-4).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert availability-hint reason-codes subsection | Pending | — | — | |
-| 2 | Insert static-vs-dynamic display subsection and Keywords entries | Pending | — | — | |
-| 3 | Run docs checkers from `routing.md` | Pending | — | — | |
+| 1 | Insert availability-hint reason-codes subsection | Completed | — | 20261030-204921 | 'Availability Hint Reason Codes' section inserted after degraded-reasons block with closed-code table and boundary wording |
+| 2 | Insert static-vs-dynamic display subsection and Keywords entries | Completed | — | 20261030-204921 | 'Static Availability vs Dynamic Health in Diagnostics' inserted before tool-vs-transport section; display labels match cmd_mcp.py; 5 Keywords appended |
+| 3 | Run docs checkers from `routing.md` | Completed | — | 20261030-204921 | check_docs_quality + check_docs_structure + stale_detector green; error-kind and priority tables unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

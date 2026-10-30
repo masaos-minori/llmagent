@@ -91,9 +91,9 @@ static-visibility authority invariant in `tests/agent/test_tool_loop_guard.py`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append `TestUnavailableRepeat` (new) (fails before row 04 lands) | Pending | — | — | |
-| 2 | Append `TestStaticFieldImmutability` (new) (REQ-007 field-equality) | Pending | — | — | |
-| 3 | Confirm 39 existing tests and wiring suite green | Pending | — | — | |
+| 1 | Append `TestUnavailableRepeat` (new) (fails before row 04 lands) | Completed | — | 20261030-205244 | TestUnavailableRepeat appended: bound-at-bound single save with guard_type=unavailable_repeat, recovery reset, limit-0 inert, per-server keying, half-open hint counting |
+| 2 | Append `TestStaticFieldImmutability` (new) (REQ-007 field-equality) | Completed | — | 20261030-205244 | TestStaticFieldImmutability appended: real RuntimeTool/RuntimeToolRegistry snapshot equality (dataclass fields + llm_tool_definitions) across HEALTHY-DEGRADED-UNAVAILABLE-HALF_OPEN-HEALTHY interleaved with observe_availability |
+| 3 | Confirm 39 existing tests and wiring suite green | Completed | — | 20261030-205244 | 51 passed (39 existing + 6 wiring + 6 new); existing test bodies byte-identical; ruff clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

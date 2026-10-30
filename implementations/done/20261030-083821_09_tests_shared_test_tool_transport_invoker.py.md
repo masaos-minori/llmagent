@@ -81,8 +81,8 @@ elsewhere in `tests/shared/test_tool_transport_invoker.py` (REQ-002).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append hint presence/absence tests (fail before row 03 lands) | Pending | — | — | |
-| 2 | Confirm 26 existing tests and the merge suite byte-identical and green | Pending | — | — | |
+| 1 | Append hint presence/absence tests (fail before row 03 lands) | Completed | 20261030-204034 | 20261030-204034 |  |
+| 2 | Confirm 26 existing tests and the merge suite byte-identical and green | Completed | — | 20261030-204034 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -70,8 +70,8 @@ tests in `tests/shared/test_transport_dto.py` (REQ-001, REQ-002).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestAvailabilityHint` (new) (fails before row 01 lands) | Pending | — | — | |
-| 2 | Confirm existing tests byte-identical and green after row 01 | Pending | — | — | |
+| 1 | Add `TestAvailabilityHint` (new) (fails before row 01 lands) | Completed | 20261030-203812 | 20261030-203812 |  |
+| 2 | Confirm existing tests byte-identical and green after row 01 | Completed | — | 20261030-203812 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

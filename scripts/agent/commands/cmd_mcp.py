@@ -13,7 +13,12 @@ import logging
 from collections.abc import Iterable
 from typing import Any
 
-from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
+from shared.mcp_health import (
+    HEALTH_REASON_HALF_OPEN_TRIAL_IN_PROGRESS,
+    HEALTH_REASON_SERVER_UNAVAILABLE,
+    McpServerHealthRegistry,
+    McpServerHealthState,
+)
 
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
@@ -59,6 +64,33 @@ def _format_health_interpretation(result: McpProbeResult) -> str:
     except Exception as e:  # noqa: BLE001 — status display must not abort on unexpected health-interpretation shape
         lines.append(f"  [!] Interpretation error: {e}")
     return "\n".join(lines)
+
+
+def _format_availability_display(
+    result: McpProbeResult,
+    registry: McpServerHealthRegistry | None,
+) -> tuple[str, str]:
+    """Return the static-visibility and dynamic-health lines for one server row.
+
+    Static visibility is the config-derived fact (startup_mode=none means the
+    server's tools are excluded from the LLM tool surface). Dynamic health is
+    the registry circuit state composed at display time, with a closed reason
+    code and retry timing only for UNAVAILABLE/HALF_OPEN rows. Both values
+    are display-only: they never gate, reroute, or retry anything.
+    """
+    static_line = (
+        f"Static visibility: {'visible' if result.static_visibility else 'excluded'}"
+    )
+    parts = [f"Dynamic health: {result.health}"]
+    if result.health == McpServerHealthState.UNAVAILABLE.value.upper():
+        parts.append(f"reason={HEALTH_REASON_SERVER_UNAVAILABLE}")
+        if registry is not None:
+            retry_after = registry.retry_after_seconds(result.key)
+            if retry_after is not None:
+                parts.append(f"retry_after={retry_after}")
+    elif result.health == McpServerHealthState.HALF_OPEN.value.upper():
+        parts.append(f"reason={HEALTH_REASON_HALF_OPEN_TRIAL_IN_PROGRESS}")
+    return static_line, " ".join(parts)
 
 
 class _McpMixin(MixinBase):
@@ -143,6 +175,18 @@ class _McpMixin(MixinBase):
         self._out.write(
             f"\n  Servers     {len(rows)} configured ({ok_count} ok, {unreachable_count} unreachable)"
         )
+        # Static visibility (config-derived) and dynamic health (registry
+        # circuit state) are shown as separate labeled values per server.
+        display_registry = ctx.services_required.health_registry
+        self._out.write("")
+        self._out.write("  Availability:")
+        for r in sorted(rows, key=lambda x: x.key):
+            static_line, dynamic_line = _format_availability_display(
+                r, display_registry
+            )
+            self._out.write(f"  [{r.key}]")
+            self._out.write(f"    {static_line}")
+            self._out.write(f"    {dynamic_line}")
         # Show health interpretation details for servers with issues
         has_interpretation = False
         for r in rows:

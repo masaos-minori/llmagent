@@ -493,3 +493,100 @@ class TestDefaultPerServerConcurrency:
     async def test_zero_limit_opts_out_of_default(self) -> None:
         peak = await TestDefaultPerServerConcurrency._measure_peak({"srv": 0}, 20)
         assert peak == 20
+
+
+class TestAvailabilityHintAttachment:
+    """Hints attach on exactly the two health-gate rejections and nowhere else.
+
+    Contract owner for "free text preserved": the legacy rejection strings are
+    asserted byte-identically alongside the new structured hint.
+    """
+
+    @pytest.mark.asyncio
+    async def test_unavailable_rejection_carries_hint(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=1)
+        registry.record_failure("srv")  # UNAVAILABLE, cooldown 30s default
+        invoker = _make_invoker(health_registry=registry)
+
+        result = await invoker.invoke("srv", "some_tool", {})
+
+        assert result.is_error is True
+        assert (
+            result.output
+            == "MCP server 'srv' is currently unavailable (health check failed)"
+        )
+        hint = result.availability_hint
+        assert hint is not None
+        assert hint.reason == "server_unavailable"
+        assert hint.circuit_state == McpServerHealthState.UNAVAILABLE
+        assert isinstance(hint.retry_after_seconds, int)
+        assert 0 <= hint.retry_after_seconds <= 30
+
+    @pytest.mark.asyncio
+    async def test_half_open_busy_rejection_carries_hint(self) -> None:
+        registry = McpServerHealthRegistry(
+            failure_threshold=1, half_open_cooldown_sec=0.0
+        )
+        registry.record_failure("srv")
+        registry.is_unavailable("srv")  # -> HALF_OPEN with trial acquired
+        assert registry.trial_in_flight("srv") is True
+        invoker = _make_invoker(health_registry=registry)
+
+        result = await invoker.invoke("srv", "some_tool", {})
+
+        assert result.is_error is True
+        assert (
+            result.output
+            == "MCP server 'srv' has a HALF_OPEN trial already in progress"
+        )
+        hint = result.availability_hint
+        assert hint is not None
+        assert hint.reason == "half_open_trial_in_progress"
+        assert hint.circuit_state == McpServerHealthState.HALF_OPEN
+        assert hint.retry_after_seconds is None
+
+    @pytest.mark.asyncio
+    async def test_healthy_call_carries_no_hint(self) -> None:
+        invoker = _make_invoker()
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key="srv"
+            )
+        )
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
+
+        result = await invoker.invoke("srv", "some_tool", {})
+
+        assert result.is_error is False
+        assert result.availability_hint is None
+
+    @pytest.mark.asyncio
+    async def test_tool_error_result_carries_no_hint(self) -> None:
+        invoker = _make_invoker()
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult.from_transport(
+                output="boom", is_error=True, request_id="r1"
+            )
+        )
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
+
+        result = await invoker.invoke("srv", "some_tool", {})
+
+        assert result.is_error is True
+        assert result.error_type == "tool"
+        assert result.availability_hint is None
+
+    @pytest.mark.asyncio
+    async def test_transport_failure_result_carries_no_hint(self) -> None:
+        invoker = _make_invoker()
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(side_effect=TransportError("network down"))
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
+
+        result = await invoker.invoke("srv", "some_tool", {})
+
+        assert result.is_error is True
+        assert result.error_type == "transport"
+        assert result.availability_hint is None

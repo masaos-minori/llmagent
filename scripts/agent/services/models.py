@@ -77,6 +77,8 @@ class McpProbeResult:
         dependency_summary: List of failed dependency descriptions
         details_summary: List of detail entry descriptions
         parse_failure_reason: Reason why the /health body could not be parsed
+        static_visibility: Whether the server's tools are statically visible to the
+            LLM (config-derived; False when startup_mode=none)
     """
 
     key: str
@@ -106,6 +108,7 @@ class McpProbeResult:
     dependency_summary: list[str] = field(default_factory=list)
     details_summary: list[str] = field(default_factory=list)
     parse_failure_reason: str | None = None
+    static_visibility: bool = True
 
 
 @dataclass(frozen=True)

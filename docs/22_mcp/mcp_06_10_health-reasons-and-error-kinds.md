@@ -44,6 +44,30 @@ The `/health` body reason is used for display only; `record_failure()` takes no 
 
 ---
 
+## Availability Hint Reason Codes
+
+When a tool call is rejected by the circuit breaker, the structured tool result may carry a dynamic availability hint whose reason is one of a closed set of two codes:
+
+| Code | Circuit state at rejection | `retry_after_seconds` |
+|------|---------------------------|----------------------|
+| `server_unavailable` | `UNAVAILABLE` | Cooldown remainder in seconds (rounded up) |
+| `half_open_trial_in_progress` | `HALF_OPEN` | Absent |
+
+- The codes are derived from the circuit state at rejection time, not from the `/health` body. They are not a stored per-server field, consistent with "Degraded Reasons Are Not Stored" above.
+- `retry_after_seconds` is a computed cooldown remainder, present only for the unavailable case, and is never stored.
+- Boundary: the codes never gate, reroute, or retry a call, and they do not change LLM tool visibility (ADR-003 Decision 17). The reason set is closed and never carries server-supplied free text.
+
+## Static Availability vs Dynamic Health in Diagnostics
+
+`/mcp status` shows two separate labeled values per server:
+
+- `Static visibility: visible|excluded` — the config-derived fact (startup_mode=none means the server's tools are excluded from the LLM tool surface).
+- `Dynamic health: <state>` — the circuit state, optionally followed by `reason=<code>` and `retry_after=<seconds>`.
+
+Static visibility is computed once at startup and is unchanged by any dynamic health state or hint.
+
+---
+
 ## Difference Between Tool Errors and Transport Errors
 
 In an MCP server, errors are divided into two categories:
@@ -89,3 +113,8 @@ Do not change `requires_serial` or `resource_scope_kind`/`resource_scope_keys` v
 
 - health-reasons
 - scheduling
+- availability hint
+- server_unavailable
+- half_open_trial_in_progress
+- retry_after_seconds
+- static visibility

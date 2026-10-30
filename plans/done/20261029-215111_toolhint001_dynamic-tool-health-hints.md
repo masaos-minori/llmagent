@@ -171,10 +171,10 @@ Yes. ADR-003 (`docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-aut
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Hint contract (shared layer) | In Progress | — | — |  |
-| 2 | Phase 2: Loop bound and measurement | In Progress | — | — | Record REQ-006 measurement numbers here |
-| 3 | Phase 3: Diagnostics & Deployment & Verification | In Progress | — | — |  |
-| 4 | Phase 4: Documentation | In Progress | — | — |  |
+| 1 | Phase 1: Hint contract (shared layer) | Completed | — | 20261030-204034 | rows 01-03,07-09 done: hint contract, reason codes/retry_after, invoker attachment + tests |
+| 2 | Phase 2: Loop bound and measurement | Completed | — | 20261030-205803 | Record REQ-006 measurement numbers here REQ-006 measured (test_availability_hint...): tool-result-region delta=0 tokens (hint is structured DTO metadata; legacy rejection text byte-identical), once-per-turn bound-summary cost=12 tokens; system+tool_calls cached-region counts identical (AC-5 gate satisfied) |
+| 3 | Phase 3: Diagnostics & Deployment & Verification | Completed | — | 20261030-203727 | row 06 done: static_visibility field + Availability display block in /mcp status |
+| 4 | Phase 4: Documentation | Completed | — | 20261030-205825 | rows 12-14 done: ADR-003 Decision 17; agent_06_01 Design Intent subsection; mcp_06_10 reason-codes + static-vs-dynamic display sections + Keywords; docs checkers green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -184,20 +184,20 @@ Yes. ADR-003 (`docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-aut
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261030-083821_01_scripts_shared_transport_dto.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_02_scripts_shared_mcp_health.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_03_scripts_shared_tool_transport_invoker.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_04_scripts_agent_tool_loop_guard.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_05_scripts_agent_llm_turn_runner.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_06_scripts_agent_services_mcp_status.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_07_tests_shared_test_transport_dto.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_08_tests_shared_test_mcp_health.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_09_tests_shared_test_tool_transport_invoker.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_10_tests_agent_test_tool_loop_guard.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_11_tests_agent_test_llm_turn_runner.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_12_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_13_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261030-083821_14_docs_22_mcp_mcp_06_10_health-reasons-and-error-kinds.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261030-083821_01_scripts_shared_transport_dto.py.md` | 1 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_02_scripts_shared_mcp_health.py.md` | 1 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_03_scripts_shared_tool_transport_invoker.py.md` | 1 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_04_scripts_agent_tool_loop_guard.py.md` | 2 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_05_scripts_agent_llm_turn_runner.py.md` | 2 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_06_scripts_agent_services_mcp_status.py.md` | 3 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_07_tests_shared_test_transport_dto.py.md` | 1 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_08_tests_shared_test_mcp_health.py.md` | 1 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_09_tests_shared_test_tool_transport_invoker.py.md` | 1 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_10_tests_agent_test_tool_loop_guard.py.md` | 2 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_11_tests_agent_test_llm_turn_runner.py.md` | 2 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_12_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md` | 4 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_13_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md` | 4 | Procedure | Completed | — | 20261030-205825 |
+| `implementations/20261030-083821_14_docs_22_mcp_mcp_06_10_health-reasons-and-error-kinds.md.md` | 4 | Procedure | Completed | — | 20261030-205825 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

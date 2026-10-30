@@ -2,6 +2,23 @@
 """scripts/shared/transport_dto.py — Transport-level data classes for MCP tool execution."""
 
 from dataclasses import dataclass
+from typing import Literal
+
+from shared.mcp_health import McpServerHealthState
+
+
+@dataclass(frozen=True)
+class DynamicAvailabilityHint:
+    """Advisory dynamic-availability signal on a structured tool result.
+
+    Advisory only: the hint never gates, reroutes, or retries a call, and
+    never changes LLM tool visibility or static availability. ``reason`` is
+    a closed literal set so server-supplied free text can never enter it.
+    """
+
+    reason: Literal["server_unavailable", "half_open_trial_in_progress"]
+    circuit_state: McpServerHealthState
+    retry_after_seconds: int | None  # seconds, never negative; None when no timing applies
 
 
 @dataclass(frozen=True)
@@ -18,6 +35,9 @@ class ToolCallResult:
     server_key: str  # server key that handled the call
     source: str = ""  # "mcp" for MCP tools, "" for error paths
     error_type: str = ""  # "transport" | "tool" | "routing" | "" (empty on success)
+    availability_hint: (
+        DynamicAvailabilityHint | None
+    ) = None  # advisory dynamic health signal; None means no signal
 
     @classmethod
     def from_transport(

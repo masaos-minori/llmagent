@@ -13,9 +13,14 @@ import httpx
 from shared.http_transport import HttpTransport, TransportError
 from shared.logger import attach_redaction_filter
 from shared.mcp_config import McpServerConfig, StartupMode
-from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
+from shared.mcp_health import (
+    HEALTH_REASON_HALF_OPEN_TRIAL_IN_PROGRESS,
+    HEALTH_REASON_SERVER_UNAVAILABLE,
+    McpServerHealthRegistry,
+    McpServerHealthState,
+)
 from shared.tool_lifecycle import _PERMITTED_LIFECYCLE_EXCEPTIONS, LifecycleProtocol
-from shared.transport_dto import ToolCallResult
+from shared.transport_dto import DynamicAvailabilityHint, ToolCallResult
 
 logger = logging.getLogger(__name__)
 attach_redaction_filter(logger)
@@ -143,8 +148,13 @@ class ToolTransportInvoker:
         server_key: str,
         output: str,
         error_type: str = "tool",
+        availability_hint: DynamicAvailabilityHint | None = None,
     ) -> ToolCallResult:
-        """Construct a ToolCallResult indicating a tool-level error."""
+        """Construct a ToolCallResult indicating a tool-level error.
+
+        ``availability_hint`` is advisory data carried on the result; only
+        the health-gate rejections pass one (see ``_check_health``).
+        """
         return ToolCallResult(
             output=output,
             is_error=True,
@@ -152,6 +162,7 @@ class ToolTransportInvoker:
             server_key=server_key,
             source="mcp",
             error_type=error_type,
+            availability_hint=availability_hint,
         )
 
     def _check_health(self, server_key: str) -> tuple[ToolCallResult | None, bool]:
@@ -177,6 +188,11 @@ class ToolTransportInvoker:
                     f"MCP server {server_key!r} has a HALF_OPEN trial already "
                     "in progress",
                     error_type="tool",
+                    availability_hint=DynamicAvailabilityHint(
+                        reason=HEALTH_REASON_HALF_OPEN_TRIAL_IN_PROGRESS,
+                        circuit_state=McpServerHealthState.HALF_OPEN,
+                        retry_after_seconds=None,
+                    ),
                 ),
                 False,
             )
@@ -184,7 +200,24 @@ class ToolTransportInvoker:
         if self._health_registry.is_unavailable(server_key):
             msg = f"MCP server {server_key!r} is currently unavailable (health check failed)"
             logger.warning(msg)
-            return self._error_result(server_key, msg, error_type="tool"), False
+            # is_unavailable() returned True: state is still UNAVAILABLE (the
+            # HALF_OPEN transition only happens on a False return). Compute
+            # the retry timing at this same instant; it is advisory only.
+            return (
+                self._error_result(
+                    server_key,
+                    msg,
+                    error_type="tool",
+                    availability_hint=DynamicAvailabilityHint(
+                        reason=HEALTH_REASON_SERVER_UNAVAILABLE,
+                        circuit_state=McpServerHealthState.UNAVAILABLE,
+                        retry_after_seconds=self._health_registry.retry_after_seconds(
+                            server_key
+                        ),
+                    ),
+                ),
+                False,
+            )
         # is_unavailable() returned False. It only acquires a trial when it
         # transitions UNAVAILABLE->HALF_OPEN; a newly-set flag means this call is
         # the trial owner.

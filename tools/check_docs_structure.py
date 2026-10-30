@@ -89,7 +89,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Raised to 26592 for the write-classification note, test entry and reference (2026-10-13).
     # Re-recorded after the grouped rename (`adr_02_<GG>_<NNN>_*.md`): the longer names in
     # the body and front matter raised the size to 26602.
-    "adr_02_02_003_agent-runtime-tool-registry-routing-authority.md": 26602,
+    # Raised to 26890 (2026-10-30) by the toolhint001 Decision 17 append (advisory dynamic
+    # availability hints do not change the static visibility contract); the ceiling equals
+    # the accepted size, so further growth fails.
+    "adr_02_02_003_agent-runtime-tool-registry-routing-authority.md": 26890,
     # ADR-004 grew by the audit Owner assignment and the spawn-failure Exceptions
     # section (2026-10-13), the security-posture Decision and Automated Tests rows
     # (2026-10-17), and the by-phase failure-class verification evidence (2026-10-17);

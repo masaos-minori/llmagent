@@ -79,8 +79,8 @@ tool-execution doc (REQ-008; plan AC-2).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert availability-hint/loop-bound subsection | Pending | — | — | |
-| 2 | Run docs checkers from `routing.md` | Pending | — | — | |
+| 1 | Insert availability-hint/loop-bound subsection | Completed | — | 20261030-204921 | Design Intent subsection 'Dynamic Availability Hints and the Unavailable-Repeat Bound' inserted before Responsibility Boundary; Keywords appended |
+| 2 | Run docs checkers from `routing.md` | Completed | — | 20261030-204921 | check_docs_quality + check_docs_structure + stale_detector green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -104,9 +104,9 @@ Attach `DynamicAvailabilityHint` (new) values to the UNAVAILABLE and HALF_OPEN-b
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add hint keyword to `_error_result` and build hints in `_check_health` | Pending | — | — | |
-| 2 | Confirm existing invoker tests (exact texts) pass unchanged | Pending | — | — | |
-| 3 | Run mypy and `lint-imports` (shared-only imports) | Pending | — | — | |
+| 1 | Add hint keyword to `_error_result` and build hints in `_check_health` | Completed | 20261030-202827 | 20261030-202923 |  |
+| 2 | Confirm existing invoker tests (exact texts) pass unchanged | Completed | — | 20261030-202923 |  |
+| 3 | Run mypy and `lint-imports` (shared-only imports) | Completed | — | 20261030-202923 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

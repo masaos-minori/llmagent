@@ -128,6 +128,10 @@ class LLMTurnRunner:
                 return TurnResult(
                     action="fail", answer=msg, reason="empty_result_repeat"
                 )
+            if msg := self._guard.check_unavailable_repeat():
+                return TurnResult(
+                    action="fail", answer=msg, reason="unavailable_repeat"
+                )
             if msg := self._guard.check_error_limit(state.consecutive_errors):
                 return TurnResult(action="fail", answer=msg, reason="error_limit")
 

@@ -155,6 +155,7 @@ class McpStatusService:
             dependency_summary=dep_summary,
             details_summary=detail_summary,
             parse_failure_reason=parse_failure_reason,
+            static_visibility=not cfg.is_disabled,
         )
         return result
 

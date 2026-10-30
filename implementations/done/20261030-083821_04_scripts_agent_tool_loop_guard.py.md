@@ -112,10 +112,10 @@ with an observable system hint and recovery clearing (REQ-003, REQ-004; plan AC-
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add hint constant, counter, `observe_availability` (new), `scan_*`, `check_*` | Pending | — | — | |
-| 2 | Disclosed `tool_runner.py` call-site line (UNK-03, Needs confirmation) | Pending | — | — | |
-| 3 | Run `uv run pytest tests/agent/test_tool_loop_guard*` green incl. existing wiring tests | Pending | — | — | |
-| 4 | Run mypy and `lint-imports` | Pending | — | — | |
+| 1 | Add hint constant, counter, `observe_availability` (new), `scan_*`, `check_*` | Completed | 20261030-203024 | 20261030-203102 |  |
+| 2 | Disclosed `tool_runner.py` call-site line (UNK-03, Needs confirmation) | Completed | — | 20261030-203102 |  |
+| 3 | Run `uv run pytest tests/agent/test_tool_loop_guard*` green incl. existing wiring tests | Completed | — | 20261030-203102 |  |
+| 4 | Run mypy and `lint-imports` | Completed | — | 20261030-203102 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
