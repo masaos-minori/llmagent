@@ -114,6 +114,8 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `health_check` | `async def health_check(request) -> JSONResponse` | Return DB/broker/DLQ task health status as a JSON response. |
 | `scripts/eventbus/json_utils.py` | `dumps` | `def dumps(obj, option) -> str` | — |
 |  | `now_iso` | `def now_iso() -> str` | — |
+| `scripts/eventbus/migrate.py` | `main` | `def main(argv) -> int` | Parse flags, guard against a live service, and run the migration mode. |
+| `scripts/eventbus/migrations.py` | `verify_backup` | `def verify_backup(conn, _backup_path) -> None` | Injected backup verifier: confirm the backup is a real eventbus database. |
 | `scripts/eventbus/publish_route.py` | `publish` | `async def publish(request) -> dict[str, Any]` | Publish an event after validating its envelope against the configured schema. |
 | `scripts/eventbus/replay_route.py` | `replay` | `async def replay(request, principal, since_seq, fmt, limit, offset) -> Any` | Replay events from a given sequence number via SSE or JSON response. |
 | `scripts/eventbus/route_helpers.py` | `get_histogram_avg` | `def get_histogram_avg(hist) -> float` | Return the average observation for a Histogram via the public API. |
