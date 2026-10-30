@@ -15,6 +15,10 @@ Source: `memo-issue.md` entry L-01 (consolidating M-06 and L-03). Re-checked aga
 - Confirmed: the key column is documented in `docs/41_db/db_02_architecture_and_schema-schema-reference.md` and `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` under the name `idempotency_key`. The EventBus `idempotency_key` (`scripts/eventbus/app.py`) is a separate concept and is not in scope.
 - Related closed work: `issues/done/20261021-093421_turn001_task-idempotency-key-collides-across-restarts.md` removed the derived key (restart collision) and `issues/done/20261024-105743_workflow001_state-store-create-task-duplicates-the-composite-idempotency-key.md` removed the second derivation in `StateStore.create_task`. Neither renamed the field or removed the duplicated read/update methods.
 
+- Adversarial verification (issue-to-plan Step 2, 2026-10-30): none of `get_task_by_session`, `get_latest_task`, `list_tasks`, or `get_task_by_idempotency_key` appears in `docs/`, so documentation impact is limited to the key paragraph and the `get_task_by_id` mention already listed. `TaskRecord` has 2 references in 1 test file; `StateStore` has 84 references in 7 test files, so the `StateStore` methods are kept as thin delegates where tests call them rather than removed.
+
+- Adversarial verification (Step 2, second finding): raw `INSERT INTO tasks (... idempotency_key ...)` statements exist in `tests/agent/workflow/test_workflow_state_store.py` (lines 105, 264, 416, 466, 509) and `tests/agent/workflow/test_workflow_stage_persistence.py:29`; `tests/db/test_create_schema.py` holds a copy of the `tasks` DDL (line 359) and a test named `test_tasks_idempotency_key_unique` (line 495); `test_workflow_models.py:25` constructs `TaskRecord(idempotency_key=...)`. A rename therefore touches these files, not only the three the first draft listed. `scripts/db/create_schema.py` and `scripts/agent/services/workflow_schema.py:114` refuse a database whose recorded `WORKFLOW_SCHEMA_VERSION` differs, so bumping the version without a registered migration makes a retained database fail startup.
+
 ## Problem
 - Any change to task validation, schema, or transition rules must be made in two places, and the two copies can diverge silently (the closed `workflow001` issue is an example of exactly that).
 - The name `idempotency_key` implies caller-request deduplication that does not exist; the only protection is the docstring.
@@ -35,9 +39,8 @@ The state-machine work in `issues/20261030-105639_wfrecovery001_workflow-recover
 - `scripts/agent/workflow/models.py` (`TaskRecord.idempotency_key`)
 - `scripts/db/schema_sql.py` (`tasks.idempotency_key`, `WORKFLOW_SCHEMA_VERSION`), only if the column is renamed
 - `scripts/agent/workflow_engine_adapter.py`, `scripts/agent/workflow/workflow_engine.py` (call sites)
-- `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`
+- `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`, `tests/agent/workflow/test_workflow_models.py`, `tests/db/test_create_schema.py` (corrected: `tests/agent/workflow/test_state_store.py` has no task-key reference and is not a target)
 - `docs/41_db/db_02_architecture_and_schema-schema-reference.md` (section 7, task-key paragraph), `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` ("StateStore Responsibility Scope" and the "fresh, unique task keys" bullet)
-- `docs/23_agent/agent_13_reference-api-generated.md` (generated; refresh, do not hand-edit)
 
 ## Required Changes
 - Run a repository-wide caller search (`scripts/`, `tests/`, `tools/`, `docs/`) for each duplicated method and for `idempotency_key` on tasks, and record the result in the PR.
@@ -69,7 +72,7 @@ The state-machine work in `issues/20261030-105639_wfrecovery001_workflow-recover
 Yes, narrowly (intent and boundaries only; no code restatement per `skills/DESIGN.md`):
 
 - `docs/41_db/db_02_architecture_and_schema-schema-reference.md` section 7 and `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` (StateStore scope, task-key bullet): state the key's contract after the decision, and the identity / request-deduplication / stage-event idempotency distinction. Both currently describe the UUID4 key and `get_task_by_id` reuse.
-- `docs/23_agent/agent_13_reference-api-generated.md`: refresh through the generator if the field or API names change.
+- Checked, not affected (corrected from the first draft): `docs/23_agent/agent_13_reference-api-generated.md` mentions `idempotency_key` only as an `audit_tool_exec` parameter and lists none of the task APIs, so it is not a target; the generator drift check stays as a gate (baseline `No drift found`, 2026-10-30).
 - `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` INV-08 uses the stage event key, not the task key, so it is unaffected.
 
 ## Out of Scope
@@ -99,4 +102,4 @@ Yes, narrowly (intent and boundaries only; no code restatement per `skills/DESIG
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261030-105723
-- **Related target files**: `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/models.py`, `scripts/db/schema_sql.py`, `scripts/agent/workflow_engine_adapter.py`, `scripts/agent/workflow/workflow_engine.py`, `docs/41_db/db_02_architecture_and_schema-schema-reference.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`, `docs/23_agent/agent_13_reference-api-generated.md`
+- **Related target files**: `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/models.py`, `scripts/db/schema_sql.py`, `scripts/agent/workflow_engine_adapter.py`, `scripts/agent/workflow/workflow_engine.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`, `tests/agent/workflow/test_workflow_models.py`, `tests/db/test_create_schema.py`, `docs/41_db/db_02_architecture_and_schema-schema-reference.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`

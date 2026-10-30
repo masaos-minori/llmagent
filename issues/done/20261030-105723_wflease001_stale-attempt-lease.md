@@ -16,6 +16,10 @@ Source: `memo-issue.md` entry M-01 (consolidating M-01 and M-02). Re-checked aga
 - Confirmed: recovery runs once, in `Orchestrator.__init__` (`scripts/agent/orchestrator.py`), and marks every `running` attempt older than the grace period as `failed`. `attempts` has no worker identity, lease, or heartbeat column (`scripts/db/schema_sql.py`).
 - Related closed work: `issues/done/20261021-093421_turn001_task-idempotency-key-collides-across-restarts.md` is why a retained `workflow.sqlite` can hold `running` rows from earlier runs.
 
+- Adversarial verification (issue-to-plan Step 2, 2026-10-30): `_STALE_GRACE_SEC` is referenced by no test (0 references), while `recover_stale_attempts` has 18 references in 2 test files. `scripts/shared/` has no ISO-8601 parser; the only other `Z` handling is a local `fromisoformat(created_at.replace("Z", "+00:00"))` in `scripts/agent/memory/scoring.py:25`, which is out of scope for this issue. The lease needs a heartbeat that runs while `asyncio.wait_for(fn(), timeout)` is awaiting in `WorkflowEngine._run_stage`; the engine runs on one event loop, so a periodic asyncio task is feasible there, but a blocking call inside the stage would starve it (not examined).
+- Adversarial verification, design (Step 2, second finding): `WorkflowEngine._run_stage` enforces the stage deadline with `asyncio.wait_for(fn(), timeout=timeout_sec)`, so a stage that is running normally cannot outlive `timeout_sec`. A lease written at attempt start as `now + timeout_sec + margin` therefore needs no heartbeat in the normal path: by that time the attempt has finished, failed, or its owner is dead or stuck. A stuck owner is fenced by the conditional finish (a later `finish_attempt` finds the attempt no longer `running` and raises). The open question about a periodic renewal task is thereby narrowed to whether that stronger guarantee is wanted.
+- Adversarial verification, scope: no worker or process identity exists in `scripts/` (the only `worker_id` is the session ID in `scripts/agent/audit_event_emitter.py:84`, unrelated), so an owner ID must be introduced; `attempts.started_at` is read only inside the workflow package; `scripts/agent/orchestrator.py:92` calls `recover_stale_attempts(get_connection())` and needs no change if the signature is kept, so it is a reference, not a target; `tests/shared/test_json_utils.py` already tests `now_iso` (`:383`) and is where parser tests belong; no test in `tests/` changes the process timezone yet (`tzset` finds none), so the timezone test is new technique.
+
 ## Problem
 - With the current parser, an attempt left `running` by a crashed process is never recovered.
 - If only the parser is fixed, a second agent process starting while another process is inside a legitimate execute stage longer than 30 seconds marks the first process's live attempt `failed`.
@@ -36,14 +40,14 @@ Parsing and liveness are one decision: fixing either alone leaves a wrong outcom
 - `scripts/shared/json_utils.py` (timestamp helpers; add a matching parser next to `now_iso`)
 - `scripts/db/schema_sql.py` (`attempts` columns, `WORKFLOW_SCHEMA_VERSION`)
 - `scripts/agent/workflow/attempt_ops.py`, `scripts/agent/workflow/idempotency_ops.py` (where the attempt row is created), `scripts/agent/workflow/workflow_engine.py` (lease renewal during a stage)
-- `scripts/agent/orchestrator.py` (startup recovery call)
-- `config/workflows/default.json` and `scripts/agent/workflow/workflow_loader.py` (only if lease duration becomes configuration)
-- `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_state_store.py`
+- `scripts/agent/orchestrator.py` (startup recovery call; reference only, no change expected)
+- `config/workflows/default.json` and `scripts/agent/workflow/workflow_loader.py` (only if lease duration becomes configuration; not expected under the deadline-lease design)
+- `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/shared/test_json_utils.py`, `tests/db/test_create_schema.py`
 - `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` ("Startup Recovery")
 - `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` (INV-07, if "interrupted Attempts" changes meaning)
 
 ## Required Changes
-- Add a UTC ISO-8601 parser matching `now_iso()` (with `Z`) and use it for `started_at`; cover `Z`, explicit offset, fractional seconds, and malformed input.
+- Add one UTC ISO-8601 parser matching `now_iso()` (with `Z`) in `scripts/shared/json_utils.py`, reusing the approach of the existing local parse in `scripts/agent/memory/scoring.py` rather than adding a third variant, and use it for `started_at`; cover `Z`, explicit offset, fractional seconds, and malformed input.
 - Report malformed `started_at` values instead of skipping them, and define their handling.
 - Add worker identity and lease expiry (or heartbeat) to running attempts, set at attempt start and renewed during the stage.
 - Replace the fixed 30-second rule with lease-expiry-based detection; keep the lease at least as long as the stage's `timeout_sec` plus a renewal margin.
@@ -94,8 +98,8 @@ Yes (intent, ownership semantics, and failure behavior only; no DDL or code rest
 - Should be ordered with `issues/20261030-105639_wfrecovery001_workflow-recovery-state-machine.md`: both change the attempt row and stale recovery (`recover_stale_attempts`); land the state-machine contract first, then add the lease fields to it. Re-verify this issue against current source after that issue lands.
 
 ## Unresolved Questions
-- 不明: the deployment model: whether more than one agent process can open the same `workflow.sqlite` at once, and whether a process lock exists. The memo assumes it; this issue's multi-process criteria depend on it.
-- 不明: how lease renewal runs during a stage (periodic task inside the engine's event loop vs. a renewal at stage boundaries only); needs an owner decision.
+- 不明: whether running more than one agent process against one `workflow.sqlite` is a supported operating mode. Verified fact: no process lock or single-instance guard exists (`rg` for flock, pidfile, lockfile, fcntl under `scripts/agent` and `deploy/start_agent.sh` finds none), so nothing prevents it. This issue's multi-process criteria apply to that unprevented case.
+- 不明: whether a periodic renewal is wanted at all. Verified: the deadline-lease design needs none because the engine enforces `timeout_sec`; a heartbeat would only shorten the takeover delay for a stuck stage at the cost of event-loop DB writes (`BEGIN IMMEDIATE` waits up to the 30000 ms busy timeout under contention).
 - 不明: whether the lease duration should be derived from `timeout_sec` or configured separately.
 - Assumption: historic `running` rows in retained databases are acceptable to mark failed once at migration time, after the manual-recovery rule is defined.
 

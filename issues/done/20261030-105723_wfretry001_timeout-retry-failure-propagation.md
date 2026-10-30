@@ -16,6 +16,9 @@ Source: `memo-issue.md` entry M-02 (consolidating M-03 and M-04). Re-checked aga
 - Confirmed: `_ERROR_KIND_TIMEOUT = "timeout"` and `_ERROR_KIND_EXCEPTION = "exception"` are written to `attempts.error_kind`; the names `workflow_timeout` and `workflow_halted` proposed in the memo do not exist in `scripts/`.
 - Related closed work: `issues/done/20261021-093421_turn002_execute-stage-retry-duplicates-user-messages.md` (turn-entry work now runs once, outside the retry loop) and `issues/done/20261021-093421_turn003_task-status-overwritten-after-failure.md`. Not yet evidenced: how the REPL presents a turn that ends with `error_kind` set (versus the callback notice).
 
+- Adversarial verification (issue-to-plan Step 2, 2026-10-30): reproduced on Python 3.13.5: `asyncio.wait_for(inner(), 60)` where `inner()` raises `TimeoutError` is caught by `except TimeoutError` and would be labeled a stage timeout, because `asyncio.TimeoutError` is the builtin `TimeoutError` since 3.11. `_run_stage` (`scripts/agent/workflow/workflow_engine.py`) therefore cannot tell stage-deadline expiry from an inner timeout; whether production stage callbacks raise such an inner `TimeoutError` was not shown. Existing test `TestWorkflowEngineTimeout::test_timeout_raises_workflow_timeout_error` (`tests/agent/workflow/test_workflow_engine.py`) accepts either exception type. Blast radius in `tests/`: `WorkflowHaltError` 28 references in 3 files, `WorkflowTimeoutError` 16 in 2, `WorkflowEngine` 54 in 3.
+- Adversarial verification (Step 2, second finding): `workflow_loader._validate` validates only required keys and ignores unknown ones (it rejects only `require_approval`), so an optional new policy key is accepted by already-deployed loaders; `_validate` is already grade C (18) under radon, so new validation belongs in a separate helper. No per-attempt record of side effects exists: `scripts/agent/tool_policy.py` classifies a call as `OperationType.READ` or not (`classify_operation_type`) and `scripts/agent/tool_runner.py:155-157` branches on it, but `TurnState` (`scripts/agent/context.py:213-226`) has no flag, so the side-effect rule needs a place to record it (`context.py`, `tool_runner.py` join the scope). Today an exception in the execute stage re-runs the whole LLM and tool loop, so a retried attempt can repeat a non-READ tool call; the rule changes that default on purpose. ADR-001 decision 6 (retry budget exceeded persists `halted`) stays true under the shipped configuration, so the ADR is unaffected unless the owner changes the outcome. `scripts/agent/orchestrator.py`, `startup_component_init.py`, and `cli_view.py` need no change if the adapter returns the error kind (the orchestrator already forwards it to the turn-end audit). Once the engine fails the stage for an LLM-level failure result, the engine no longer writes `completed` first, which makes the transitional `completed -> failed` edge in the wfrecovery001 matrix removable.
+
 ## Problem
 - Timeout retry behavior cannot be read from configuration: the retry flag says yes, the code says no for timeouts, yes for other exceptions, and not at all for returned failure results.
 - A turn that halted or timed out is indistinguishable, in the turn-end audit and in the returned tuple, from a turn with an empty answer; the only failure signal is the optional `on_error` callback (a callback-only signal, which the Implementation Intent forbids as sole carrier).
@@ -36,13 +39,14 @@ Retry eligibility and outward failure reporting are one contract; operators cann
 - `scripts/agent/workflow/workflow_engine.py` (retry loop, error-kind constants, halt/timeout exceptions)
 - `scripts/agent/workflow/models.py`, `scripts/agent/workflow/workflow_loader.py`, `config/workflows/default.json` (retry policy schema), and the workflow definition validation path
 - `scripts/agent/workflow_engine_adapter.py` (`execute_turn`, `_handle_workflow_halt`, `_status_for_exit`, `_run_execute_stage`)
-- `scripts/agent/orchestrator.py` (`_execute_turn`, `emit_turn_end` call)
-- `scripts/agent/startup_component_init.py` (`on_error` wiring), `scripts/agent/cli_view.py` and the view port behind `write_llm_error`; the turn-result / error models (exact files: 不明, to be located during implementation)
-- `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/test_orchestrator.py`
+- `scripts/agent/context.py` (`TurnState`: per-attempt side-effect flag), `scripts/agent/tool_runner.py` (sets it for non-READ calls)
+- `scripts/agent/orchestrator.py` (`_execute_turn`, `emit_turn_end` call), `scripts/agent/startup_component_init.py` (`on_error` wiring), `scripts/agent/cli_view.py` (`write_llm_error`): reference only, no change expected
+- `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_loader.py`, `tests/agent/test_orchestrator.py`, `tests/agent/test_tool_runner.py`
 - `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` ("Task Status Transitions" table, "Retry Mechanism", Operational Notes)
-- `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` (decision 6, only if the timeout-to-`halted` outcome changes)
+- `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` (decision 6; verified unaffected under the shipped configuration, edit only if the owner changes the outcome)
 
 ## Required Changes
+- Distinguish expiry of the stage deadline from a `TimeoutError` raised inside the stage callback; today both are labeled a stage timeout (see Background).
 - Decide and encode whether a timeout is retryable, and which attempts consume `max_attempts`.
 - Add explicit retryable error kinds to the workflow definition schema and loader validation.
 - Decide the treatment of LLM-level failure results (the non-raising channel): retry under the same policy, or terminal; make the engine and adapter agree.
@@ -53,7 +57,7 @@ Retry eligibility and outward failure reporting are one contract; operators cann
 - Update the `agent_03_03` passages listed under Documentation Impact, and ADR-001 decision 6 if the timeout outcome changes (ADR change protocol).
 
 ## Constraints
-- Changing the workflow definition schema affects `config/workflows/*.json` and the startup preflight; retained configuration must still load or fail with a clear error.
+- Changing the workflow definition schema affects `config/workflows/default.json`, the loader's required-key sets (`_REQUIRED_STAGE_KEYS`, `_REQUIRED_POLICY_KEYS` in `scripts/agent/workflow/workflow_loader.py`), and the deploy pre-flight (`deploy/setup_services.sh` runs `python -m agent.workflow.validate` against the deployed `/opt/llm/config/workflows/default.json`). New policy fields must be optional with a safe default, or the deployed file must be updated in the same release; retained configuration must still load or fail with a clear error.
 - Task status vocabulary and transitions are owned by `issues/20261030-105639_wfrecovery001_workflow-recovery-state-machine.md`; this issue must use whatever that contract defines for halted/failed.
 - Fail-closed behavior must not weaken; a failure must never degrade to an apparently successful turn.
 - Partial-side-effect safety must not rely on MCP tool-call deduplication that does not yet exist for all servers (see Dependencies).
@@ -71,6 +75,7 @@ Retry eligibility and outward failure reporting are one contract; operators cann
 - Adapter/orchestrator tests: halt and timeout with callback and without callback; assert returned tuple, task status, and the emitted turn-end audit.
 - Test for failure before and after partial output.
 - Workflow-definition loader tests for the new policy fields, including a definition with unknown error kinds.
+- Update `tests/agent/workflow/test_workflow_engine.py::TestWorkflowEngineTimeout::test_timeout_raises_workflow_timeout_error`, which accepts either `WorkflowHaltError` or `WorkflowTimeoutError` and therefore does not pin the intended behavior.
 - Run the sequence in `rules/toolchain.md`.
 - Docs checkers per `routing.md` Tools: `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py --strict`, `check_docs_consistency.py --domain agent`, and `check_docs_japanese.py`; `check_needs_confirmation_inventory.py` if a Needs Confirmation marker is added.
 - `uv run python tools/check_adr_preservation.py` if the ADR is edited.
@@ -95,7 +100,7 @@ Yes (intent and failure behavior only; no code restatement per `skills/DESIGN.md
 ## Unresolved Questions
 - 不明: whether a stage timeout should be retried. The memo asks the owner to decide; this issue does not assume either answer.
 - 不明: whether LLM-level failure results (non-raising channel) should be retried, given they currently are not.
-- 不明: how the view port renders `write_llm_error` for a halt versus how it renders a turn whose `error_kind` is set; confirm before choosing the user-visible output so the failure is not shown twice.
+- 不明: how the view port renders `write_llm_error` for a halt, and how a turn whose `error_kind` is set reaches the user; `rg error_kind` finds consumers only in `scripts/agent/audit_event_emitter.py`, none in `repl.py` or `cli_view.py`. Confirm before choosing the user-visible output so the failure is not shown twice.
 - 不明: choice between a typed failure result and exception propagation as the single terminal-failure mechanism.
 - Assumption: a turn that ends `halted` should be shown to the user as failed rather than as an empty answer.
 
