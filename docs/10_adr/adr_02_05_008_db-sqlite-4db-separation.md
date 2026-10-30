@@ -57,7 +57,7 @@ With multiple SQLite files, a recovery mechanism without an explicit safety cont
 - Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
 - A persistence failure in Workflow or EventBus is not treated as success with only a log entry
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
-- `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, and `eventbus.sqlite` have no migration mechanism and are recreated on a schema change. Migration design is out of scope for this ADR.
+- `rag.sqlite` and `session.sqlite` are recreated on a schema change (recreate policy). `workflow.sqlite` and `eventbus.sqlite` evolve through registered forward-only migrations gated on a verified backup: a migration runs only after a domain-identity backup passes the pre-migration gate, refuses before any mutation when the target version is unmapped or no verified backup exists, rolls back to the last good version on a failing step (never half-applies a migration), and records every applied step in the `schema_migrations` ledger. Migration design beyond these two domains' forward-only paths is out of scope for this ADR.
 
 ## Assumptions
 
@@ -69,6 +69,10 @@ With multiple SQLite files, a recovery mechanism without an explicit safety cont
 - Re-evaluate if assumptions no longer hold: multi-host configuration, distributed execution, integration with an external event store, migration to replicated storage
 
 ## Decision
+
+### Amendment (dbmig001, 2026-10-30)
+
+This ADR previously stated in Context > Constraints that all four databases "have no migration mechanism and are recreated on a schema change." That statement no longer covers `workflow.sqlite` and `eventbus.sqlite`, which now evolve through registered forward-only migrations recorded in `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` sections 8a and 8b. The separation decision, the per-DB responsibilities, and the `rag.sqlite`/`session.sqlite` recreate policy are unchanged; only the migration sub-decision for the two ledger-bearing domains was adopted by Plan `plans/20261029-214108_dbmig001_forward-only-db-migrations.md`. This adoption is made under the task-level approval decision referenced in this Approval Record.
 
 ### Recovery Category Glossary
 
@@ -356,7 +360,7 @@ Not applicable
 - sqlite-vec is needed in a database other than `rag.sqlite` and `session.sqlite`
 - A store that is a system of record is added outside the four domains, mdq.sqlite starts holding data that cannot be rebuilt, or two domains are merged (a recovery policy must then be defined for it)
 - Persistent storage moves to something other than files
-- A migration mechanism or a replicated storage foundation is introduced
+- A migration mechanism is introduced (realized for `workflow.sqlite`/`eventbus.sqlite` by dbmig001's forward-only migrations) or a replicated storage foundation is introduced
 - The backup strategy changes from periodic file copies to another method
 - An operator-restore trigger is proposed
 - The recovery policy for `workflow.sqlite`/`eventbus.sqlite` changes from manual handling to an automated path

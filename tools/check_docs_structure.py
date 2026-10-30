@@ -100,8 +100,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-recorded after the grouped rename: 32305.
     "adr_02_01_004_platform-environment-failure-handling-policy.md": 32305,
     # ADR-007 reached 24596 after the grouped rename (default limit 24576).
-    "adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md": 24596,
-    "adr_02_05_008_db-sqlite-4db-separation.md": 33647,
+    # adr_02_05_008 sat at 33647 until dbmig001 recorded the workflow/eventbus
+    # forward-only migration contract in Context > Constraints plus an Amendment
+    # subsection and a realized Revisit Trigger (2026-10-30); the ceiling is
+    # re-recorded to the accepted size.
+    "adr_02_05_008_db-sqlite-4db-separation.md": 34206,
     # ADR-006 grew past MAX_SIZE by the EVENTBUS-008 resolution follow-up (2026-10-14):
     # the empty-mapping gap was resolved to deny-all and the superuser residual deviation
     # documented; base size was already 38 bytes under MAX_SIZE, so this necessary content
