@@ -62,10 +62,10 @@ Append a section + two in-place sentences; no renumbering unless checkers requir
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land after code rows per Plan sequencing |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Docs checkers only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs checker subset |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row is the documentation |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Land after code rows per Plan sequencing Added '## 12. Recovery drills' section (purpose, --domain all/per-domain commands, exit codes, optional deploy/init opt-in hook note, artifact location + field table with RPO/RTO measurement semantics, live-DB immutability, UNK-01 frequency/retention placeholder via {defer...until UNK-01}). Added archive-verified-recovery-point bullet to section 11 Important notes. Renumbered Verification Plan 12->13. Verified module paths/fields against recovery_drill.py + rotation.py. |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Docs checkers only Docs checkers only. check_docs_quality OK; check_docs_content_policy --strict OK; check_docs_structure OK; check_docs_consistency --domain db OK (no issues); check_docs_japanese OK. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | Docs checker subset Confirmed db_03 'section 11/11a' cross-refs still resolve (unchanged); no forbidden tokens (REQ-/Added/issues/done/strikethrough/Traceability/to-be-determined/pending) introduced. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | This row is the documentation Procedure doc itself is the deliverable; archived after doc gates pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
