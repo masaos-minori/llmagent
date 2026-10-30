@@ -64,10 +64,10 @@ Additive new module only; no import from `db`, `eventbus`, `agent`, `rag`, or `m
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests come from row 14's procedure document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-083000 | 20261030-083000 | Implemented scripts/shared/db_migrations.py: registry dataclass, runner, pre-migration gate, ledger, dry-run, refusal semantics. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-083000 | 20261030-083000 | Tests come from row 14's procedure document Tests from row 14: tests/shared/test_db_migrations.py (10 tests). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-083000 | 20261030-083000 | ruff+mypy+lint-imports+check_db_separation+check_docstrings clean; 10/10 tests pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-083000 | 20261030-083000 | N/A for this row N/A: no docs/00_index.md task-scope mapping for db_migrations.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

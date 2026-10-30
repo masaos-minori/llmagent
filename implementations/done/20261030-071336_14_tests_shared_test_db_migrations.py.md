@@ -66,10 +66,10 @@ Plain pytest + stdlib `sqlite3` on tmp_path files; no monkeypatching of framewor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-083000 | 20261030-083000 | Wrote tests/shared/test_db_migrations.py (10 tests): happy path, rollback, resume, downgrade/unknown/cycle refusal, dry-run purity, gate semantics. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-083000 | 20261030-083000 | Same module as step 1. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-083000 | 20261030-083000 | ruff+mypy+lint-imports+check_db_separation clean; 10/10 pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-083000 | 20261030-083000 | N/A: no docs/00_index.md task-scope mapping for test_db_migrations.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
