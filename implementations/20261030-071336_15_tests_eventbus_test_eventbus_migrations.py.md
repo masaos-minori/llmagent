@@ -62,10 +62,10 @@ pytest + tmp_path file fixtures + subprocess CLI invocations with argv lists (no
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Tests implemented in dbmig001 feature commit 5b301eecb; verified against current tree 2026-10-30. Baseline migration preserves rows, fault-injection refusal leaves live DB untouched, CLI classes distinguished, fingerprint passes post-migration, registry resolution (4->4 no-op, downgrade/unknown refusal), CLI dry-run/apply/status. |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Module tests/eventbus/test_eventbus_migrations.py: 10 tests pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format OK; ruff check OK; mypy clean; pytest 10 passed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Out of scope: registry/CLI behavior (row 15), schema.sql (row 04). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
