@@ -197,12 +197,12 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Policy schema and loader | Pending | — | — | Independent |
-| 2 | Phase 2: Engine semantics | Pending | — | — | After wfrecovery001 Phase 4 |
-| 3 | Phase 3: Side-effect rule | Pending | — | — | |
-| 4 | Phase 4: Boundary contract | Pending | — | — | |
-| 5 | Phase 5: Documentation | Pending | — | — | |
-| 6 | Phase 6: Deployment & Verification | Pending | — | — | |
+| 1 | Phase 1: Policy schema and loader | In Progress | — | — | Independent |
+| 2 | Phase 2: Engine semantics | In Progress | — | — | After wfrecovery001 Phase 4 |
+| 3 | Phase 3: Side-effect rule | In Progress | — | — |  |
+| 4 | Phase 4: Boundary contract | In Progress | — | — |  |
+| 5 | Phase 5: Documentation | In Progress | — | — |  |
+| 6 | Phase 6: Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -212,7 +212,18 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261030-130229_01_scripts_agent_workflow_workflow_engine.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-130229_02_scripts_agent_workflow_models.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261030-130229_03_scripts_agent_workflow_workflow_loader.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261030-130229_04_config_workflows_default.json.md | 1 | Procedure | Pending | — | — |
+| implementations/20261030-130229_05_scripts_agent_workflow_engine_adapter.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261030-130229_06_scripts_agent_context.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-130229_07_scripts_agent_tool_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-130229_08_tests_agent_workflow_test_workflow_engine.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-130229_09_tests_agent_workflow_test_workflow_loader.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261030-130229_10_tests_agent_test_orchestrator.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261030-130229_11_tests_agent_test_tool_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-130229_12_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
