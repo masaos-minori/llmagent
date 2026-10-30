@@ -114,6 +114,7 @@ Schema changes require DB recreation — a migration feature does not exist. **S
 - Recreated DBs are empty — existing records are not automatically migrated.
 - `create_schema()` is a wrapper calling `create_rag_schema()` → `create_session_schema()` → `create_workflow_schema()` → `create_eventbus_schema()` unconditionally and sequentially; each schema DDL is protected by `IF NOT EXISTS` so it is idempotent even against existing files.
 - A condition "initialize only if `eventbus.sqlite` does not exist" does not exist in the implementation; if you only need to recreate one DB, use the individual functions: `create_rag_schema()`, `create_session_schema()`, `create_workflow_schema()`, `create_eventbus_schema()`.
+- **Archived files are verified recovery points.** `rotate_all_dbs()` archives each database through `_archive_db_file()`, which runs the integrity check on every domain and the domain-identity check where a required table is defined before returning the copy; a failing archive raises and is left in place, named in the error, for re-rotation or investigation. Recovery drills (section 12) restore from these verified archives.
 
 ### 11a. Identifying a Database's Current Schema
 
@@ -145,7 +146,46 @@ A database that does not match is recreated (section 11), not migrated. `eventbu
 
 ---
 
-## 12. Verification Plan
+## 12. Recovery Drills
+
+A recovery drill exercises the restore path for each persistence domain without touching the live database. The harness (`scripts/db/recovery_drill.py`) takes a recovery point through the rotation code path, restores it into an isolated copy, runs per-domain verification against that copy only, and writes one JSON audit artifact per domain. The live database file is never rewritten: the backup is a WAL-consistent read-only copy produced by the SQLite online backup API.
+
+Run the full sweep across all four domains:
+
+```bash
+scripts/db/recovery_drill.py --domain all
+```
+
+Drill a single domain:
+
+```bash
+scripts/db/recovery_drill.py --domain workflow
+scripts/db/recovery_drill.py --domain eventbus
+scripts/db/recovery_drill.py --domain rag
+scripts/db/recovery_drill.py --domain session
+```
+
+Exit code is `0` when every drilled domain passes and `1` when any domain fails. Deploy/init can invoke this as an opt-in hook after restore (deploy row 13) so a failing drill surfaces at deploy time.
+
+**Artifact location and fields.** Each domain writes `{drill_dir}/{domain}_{timestamp}.json`, where `drill_dir` defaults to `<archive-dir>/drills` and `archive_dir` resolves from the `agent.toml` `sqlite_archive_dir` key (`rotation.py` falls back to a hardcoded default when the key is unset; the directory may not exist until the first rotation). Fields:
+
+| Field | Meaning for RPO / RTO reading |
+|-------|-------------------------------|
+| `domain` | Persistence domain drilled. |
+| `policy` | `migrate` (workflow/eventbus, ledger-bearing) or `recreate` (rag/session). |
+| `archive_path` / `archive_ts` | The verified recovery point and the time it was taken. |
+| `rto_seconds` | Measured restore-and-verify wall time (measurement semantics, not a threshold). |
+| `rpo_window_seconds` | Gap between `drill_ts` and the archive timestamp. |
+| `integrity` | Boolean: the restored copy passed the integrity check. |
+| `verification` | Per-domain checks (`integrity`, `required_table_<domain>`, plus per-domain fields). |
+| `ledger` | workflow/eventbus only: `current_version`, `baseline_row`, `ledger_present`. A missing `ledger_present` in a migrate-policy domain is a drill finding. |
+| `error` | Populated when the drill could not complete; the artifact is still written. |
+
+Frequency and artifact retention are owner decisions tracked under UNK-01; this section states the procedure only. {defer the drill cadence and the artifact retention window until UNK-01}
+
+---
+
+## 13. Verification Plan
 
 Schema initialization and DB maintenance are covered by `tests/db/` (`pytest tests/db/`), with `mypy scripts/db/` for type checking. The full integration check is: create the DBs with `create_schema()`, then confirm all expected tables exist with `sqlite3 <db_path> ".tables"` for each database path configured in `agent.toml`.
 
