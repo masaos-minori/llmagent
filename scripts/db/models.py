@@ -10,6 +10,7 @@ agent/services/models.py re-exports these for agent-layer callers.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,26 @@ class MessageRow:
     tool_call_id: str | None = None
 
 
+class FindingSeverity(StrEnum):
+    """Severity classification for a consistency finding.
+
+    DEGRADED findings are repairable without data loss; FATAL findings are
+    un-downgradable and must never be silently downgraded to DEGRADED.
+    """
+
+    DEGRADED = "degraded"
+    FATAL = "fatal"
+
+
+@dataclass(frozen=True)
+class ConsistencyFinding:
+    """A single structured consistency finding with its severity and repair action."""
+
+    severity: FindingSeverity
+    message: str
+    repair_action: str
+
+
 @dataclass(frozen=True)
 class RagConsistencyReport:
     """Counts from chunks, chunks_fts, and chunks_vec for consistency verification."""
@@ -86,6 +107,15 @@ class RagConsistencyReport:
         False  # RAG read-smoke-test result, mirrors SessionConsistencyReport
     )
     issues: tuple[str, ...] = ()  # human-readable consistency issues
+    # Structured severity (see FindingSeverity / ConsistencyFinding)
+    findings: tuple[ConsistencyFinding, ...] = ()  # structured findings w/ severity
+    fatal_count: int = 0  # number of FATAL findings
+    degraded_count: int = 0  # number of DEGRADED findings
+    # Per-check fatal-count slots (populated by doc 03 from doc 04 query results)
+    fk_inconsistency_count: int = 0
+    dimension_mismatch: int = 0
+    unknown_schema: int = 0
+    corpus_meta_verified: bool = False
     # Document-level checks
     documents_without_chunks_count: int = 0  # documents with no chunks
     chunks_without_vec_count: int = 0  # chunks without vector rows
