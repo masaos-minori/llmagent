@@ -61,9 +61,9 @@ timeout/failure marks identity-unverified without aborting.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-073721 | 20261031-073721 | Phase 1: replaced stale per-issue-warning + SKIPPED-on-exception RAG tests with TestRagConsistencySeverityStartup (FATAL aborts, DEGRADED warns w/ repair_action, timeout/exception -> identity-unverified WARNING). |
+| 2 | Apply the Implementation procedure | Completed | 20261031-073721 | 20261031-073721 | Phase 1: replaced stale per-issue-warning + SKIPPED-on-exception RAG tests with TestRagConsistencySeverityStartup (FATAL aborts, DEGRADED warns w/ repair_action, timeout/exception -> identity-unverified WARNING). |
+| 3 | Run the Validation plan gates | Completed | 20261031-073721 | 20261031-073721 | Phase 1: replaced stale per-issue-warning + SKIPPED-on-exception RAG tests with TestRagConsistencySeverityStartup (FATAL aborts, DEGRADED warns w/ repair_action, timeout/exception -> identity-unverified WARNING). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
