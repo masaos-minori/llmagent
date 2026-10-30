@@ -178,35 +178,35 @@ Yes. `docs/24_eventbus/eventbus_03_dlq_operations.md` (outbox lifecycle, orderin
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Decision record + tests-first contracts | In Progress | — | — |  |
-| 2 | Phase 2: Schema via migration framework | In Progress | — | — | Gated on dbmig001 Phases 1–2 |
-| 3 | Phase 3: Outbox core | In Progress | — | — |  |
-| 4 | Phase 4: Reconciliation reporting | In Progress | — | — |  |
-| 5 | Phase 5: Verification | Pending | — | — |  |
-| 6 | Phase 6: Documentation | In Progress | — | — |  |
+| 1 | Phase 1: Decision record + tests-first contracts | Completed | 20261031-000000 | 20261031-120000 | dlqbox001 batch implemented in remote commits 6c0afd96a + 0758e63d1; coverage follow-up 5604b68aa; diff-cover 100%; full suite green |
+| 2 | Phase 2: Schema via migration framework | Completed | 20261031-000000 | 20261031-120000 | Gated on dbmig001 Phases 1–2 dlqbox001 batch implemented in remote commits 6c0afd96a + 0758e63d1; coverage follow-up 5604b68aa; diff-cover 100%; full suite green |
+| 3 | Phase 3: Outbox core | Completed | 20261031-000000 | 20261031-120000 | dlqbox001 batch implemented in remote commits 6c0afd96a + 0758e63d1; coverage follow-up 5604b68aa; diff-cover 100%; full suite green |
+| 4 | Phase 4: Reconciliation reporting | Completed | 20261031-000000 | 20261031-120000 | dlqbox001 batch implemented in remote commits 6c0afd96a + 0758e63d1; coverage follow-up 5604b68aa; diff-cover 100%; full suite green |
+| 5 | Phase 5: Verification | Completed | 20261031-000000 | 20261031-120000 | dlqbox001 batch implemented in remote commits 6c0afd96a + 0758e63d1; coverage follow-up 5604b68aa; diff-cover 100%; full suite green |
+| 6 | Phase 6: Documentation | Completed | 20261031-000000 | 20261031-120000 | dlqbox001 batch implemented in remote commits 6c0afd96a + 0758e63d1; coverage follow-up 5604b68aa; diff-cover 100%; full suite green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 2 | dbmig001 framework not yet implemented (planning-order dependency, not a design conflict) | No | — |
+| 2 | dbmig001 framework not yet implemented (planning-order dependency, not a design conflict) | Yes | 20261031 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261030-103000_01_scripts_eventbus_schema.sql.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_02_scripts_eventbus_migrations.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_03_scripts_eventbus_dlq.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_04_scripts_eventbus_dlq_repo.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_05_scripts_eventbus_ack_route.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_06_scripts_eventbus_app.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_07_scripts_eventbus_config.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_08_config_eventbus.toml.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_09_tests_eventbus_test_eventbus_dlq.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_10_tests_eventbus_test_eventbus_dlq_outbox.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_11_tests_eventbus_test_eventbus_shutdown.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_12_docs_24_eventbus_eventbus_03_dlq_operations.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_13_docs_24_eventbus_eventbus_09_publish_durability.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261030-103000_14_docs_24_eventbus_eventbus_08_reference_api.md.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261030-103000_01_scripts_eventbus_schema.sql.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_02_scripts_eventbus_migrations.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_03_scripts_eventbus_dlq.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_04_scripts_eventbus_dlq_repo.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_05_scripts_eventbus_ack_route.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_06_scripts_eventbus_app.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_07_scripts_eventbus_config.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_08_config_eventbus.toml.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_09_tests_eventbus_test_eventbus_dlq.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_10_tests_eventbus_test_eventbus_dlq_outbox.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_11_tests_eventbus_test_eventbus_shutdown.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_12_docs_24_eventbus_eventbus_03_dlq_operations.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_13_docs_24_eventbus_eventbus_09_publish_durability.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261030-103000_14_docs_24_eventbus_eventbus_08_reference_api.md.md` | 6 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
