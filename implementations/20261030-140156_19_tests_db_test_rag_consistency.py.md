@@ -63,9 +63,9 @@ checks.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-074238 | 20261031-074238 | Phase 1: synthetic-report baselines set corpus_meta_verified=True so new schema_recognition/corpus_meta fatal checks stay silent on consistent reports. Folded into doc03 commit 69f36fc49; 59 tests green. |
+| 2 | Apply the Implementation procedure | Completed | 20261031-074238 | 20261031-074238 | Phase 1: synthetic-report baselines set corpus_meta_verified=True so new schema_recognition/corpus_meta fatal checks stay silent on consistent reports. Folded into doc03 commit 69f36fc49; 59 tests green. |
+| 3 | Run the Validation plan gates | Completed | 20261031-074238 | 20261031-074238 | Phase 1: synthetic-report baselines set corpus_meta_verified=True so new schema_recognition/corpus_meta fatal checks stay silent on consistent reports. Folded into doc03 commit 69f36fc49; 59 tests green. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
