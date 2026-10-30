@@ -13,6 +13,8 @@ Create the `workflow.sqlite` migration CLI `scripts/db/migrate_db.py` (new) with
 ## Design decisions
 - Same CLI contract as row 05 for operator ergonomics: `--dry-run` resolves and gates against a throwaway copy without mutating; `--apply` requires a passing gate (row 06 `verify_backup`); `--status` prints `schema_migrations` rows and the current ledger version via row-01 ledger primitives plus the legacy `workflow_schema_version` marker for cross-checking.
 - Exit codes distinguish refusal classes (0 success/no-op, 1 gate/step failure, 2 downgrade/unknown/cycle refusal); tests assert classes, not raw numbers (mirrors row 05).
+- No `--archive-dir` flag: the shared runner's gate manages the backup copy in a throwaway temp file and deletes it; it does not accept an archive directory (row 01 scope). Adding a passthrough flag would be misleading (it would do nothing), so the CLI omits it. This is a deliberate divergence from the procedure's draft (line 25).
+- A refusal never touches the database (AC-2). The runner commits the ledger table before the step loop, so a step refusal raised inside `apply()` would otherwise leave a dangling empty `schema_migrations` table. The CLI therefore runs each planned step's `preconditions` before calling `apply()`; a `MigrationRefusalError` from the preflight maps to exit 2 and leaves the canonical database byte-for-byte intact. Preconditions are read-only, so re-running them inside `apply()` is harmless.
 
 ## Alternatives considered
 - Extending `create_schema.py` with CLI flags — rejected: the Plan separates startup validation (row 08) from the explicit operator entry point, and `create_schema.py` must stay importable with no argparse surface.
@@ -22,7 +24,7 @@ Create the `workflow.sqlite` migration CLI `scripts/db/migrate_db.py` (new) with
 - `scripts/db/migrate_db.py` (new)
 
 ### Procedure
-1. `argparse` interface: `--dry-run`, `--apply`, `--status`, optional `--archive-dir` passthrough for the gate's backup copy location.
+1. `argparse` interface: `--dry-run`, `--apply`, `--status`. No `--archive-dir` (the runner's gate uses a throwaway temp copy; row 01 scope).
 2. Compose `MigrationRunner` (row 01) + `db.migrations_workflow.REGISTRY` + `verify_backup` (row 06); report the resolved path or refusal reason.
 3. `--status` output is machine-readable (stable field names) because row 11's drill harness reports ledger state next to drill artifacts.
 
@@ -56,10 +58,10 @@ New executable module in the `db` layer, `if __name__ == "__main__"` entry, mirr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests come from row 17 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-120000 | 20261030-120000 | Created scripts/db/migrate_db.py: workflow migration CLI (--dry-run/--apply/--status) over shared runner + db.migrations_workflow.REGISTRY. DB path via SQLiteHelper('workflow'). NOTE: no --archive-dir flag (runner gate uses throwaway temp copy; row 01 scope). Precondition now raises MigrationRefusalError(UNKNOWN_PATH) so refusals map to exit 2; _latest_workflow_string tolerates a missing marker table; CLI pre-runs step preconditions before apply() to keep refusals from touching the DB (AC-2). |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-120000 | 20261030-120000 | Tests come from row 17 Formal coverage is row 17 (tests/db/test_migrations_workflow.py), not yet generated. Hand smoke test validated all completion-criteria cases: --dry-run leaves main DB byte-identical; --apply writes baseline ledger row (0->1) + stamps user_version=1 while preserving 1.1.0 marker and tasks; re-apply idempotent; unmapped string (9.9.9) and missing-marker both exit 2 with DB untouched; no-args exits 2. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-120000 | 20261030-120000 | ruff format+check clean; mypy clean for both files; lint-imports 6/6 KEPT; check_db_separation no violations; check_docstrings OK (268 grandfathered). Formal pytest suite from row 17 pending. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-120000 | 20261030-120000 | N/A for this row N/A: no docs/00_index.md task-scope mapping for migrate_db.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

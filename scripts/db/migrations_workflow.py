@@ -23,7 +23,12 @@ import logging
 import sqlite3
 from pathlib import Path
 
-from shared.db_migrations import MigrationRunner, MigrationSpec
+from shared.db_migrations import (
+    MigrationRefusalError,
+    MigrationRefusalReason,
+    MigrationRunner,
+    MigrationSpec,
+)
 
 from db.recovery import _backup_is_usable
 
@@ -69,10 +74,19 @@ _BOOTSTRAP_MUTATION_SQL = (
 
 
 def _latest_workflow_string(conn: sqlite3.Connection) -> str | None:
-    """Return the latest recorded ``workflow_schema_version`` string, if any."""
-    row = conn.execute(
-        "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1"
-    ).fetchone()
+    """Return the latest recorded ``workflow_schema_version`` string, if any.
+
+    Returns None when the table is absent (a database that predates the marker
+    table) so the caller can treat "no marker" and "unmigratable" uniformly.
+    """
+    try:
+        row = conn.execute(
+            "SELECT version FROM workflow_schema_version "
+            "ORDER BY applied_at DESC LIMIT 1"
+        ).fetchone()
+    except sqlite3.OperationalError:
+        # The marker table is absent on a database that predates it.
+        return None
     return row[0] if row else None
 
 
@@ -87,17 +101,20 @@ def _precondition_baseline(conn: sqlite3.Connection) -> None:
     """
     current = int(conn.execute("PRAGMA user_version").fetchone()[0])
     if current != _BASELINE_VERSION:
-        raise RuntimeError(
+        raise MigrationRefusalError(
+            MigrationRefusalReason.UNKNOWN_PATH,
             f"workflow.sqlite is at user_version {current}; the ledger bootstrap "
             f"step applies only to a {_BASELINE_VERSION}-stamped database",
         )
     latest = _latest_workflow_string(conn)
     if latest is None:
-        raise RuntimeError(
+        raise MigrationRefusalError(
+            MigrationRefusalReason.UNKNOWN_PATH,
             "no workflow_schema_version recorded; cannot resolve a baseline code",
         )
     if latest not in WORKFLOW_VERSION_CODES:
-        raise RuntimeError(
+        raise MigrationRefusalError(
+            MigrationRefusalReason.UNKNOWN_PATH,
             f"workflow schema version {latest!r} is not in the migration map "
             f"{list(WORKFLOW_VERSION_CODES)}; recreate the database",
         )
