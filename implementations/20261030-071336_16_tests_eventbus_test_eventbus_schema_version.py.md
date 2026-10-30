@@ -58,10 +58,10 @@ Existing module style (raw `sqlite3` connections on tmp files, no service involv
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Tests implemented in dbmig001 feature commit 319691d15; verified against current tree 2026-10-30. Stamp contract lock flipped 3->4, registered 3->4 path migrates at startup, unknown(5)/downgrade refusals preserved, fresh-DB stamps 4. |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Module tests/eventbus/test_eventbus_schema_version.py: 10 tests pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format OK; ruff check OK; mypy clean; pytest 10 passed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Out of scope: registry/CLI behavior (row 15), schema.sql (row 04). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
