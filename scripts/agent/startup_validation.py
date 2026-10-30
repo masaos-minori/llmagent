@@ -17,6 +17,8 @@ import asyncio
 import sqlite3
 from typing import TYPE_CHECKING
 
+from db.models import FindingSeverity
+
 from agent.context import AgentContext
 from agent.services.mcp_health import check_readiness, collect_server_postures
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
@@ -170,21 +172,33 @@ class StartupValidationPipeline:
             if rag_check.is_consistent:
                 pipeline.add_ok("rag_consistency")
             else:
-                for issue in rag_check.issues:
-                    pipeline.add_warning(
-                        "rag_consistency", f"[RAG] Consistency issue: {issue}"
+                # Findings carry severity structurally (docs 05/03/04); route by it.
+                # No config path may downgrade a fatal finding (AC-4).
+                for finding in rag_check.findings:
+                    message = (
+                        f"{finding.message} Repair action: {finding.repair_action}"
                     )
+                    if finding.severity == FindingSeverity.FATAL:
+                        pipeline.add_fatal("rag_consistency", message)
+                    else:
+                        pipeline.add_warning("rag_consistency", message)
         except TimeoutError:
             logger.warning("RAG consistency check timed out after 30s")
-            pipeline.add_skipped(
-                "rag_consistency", "RAG consistency check skipped: timeout after 30s"
+            pipeline.add_warning(
+                "rag_consistency",
+                "RAG identity-unverified: consistency check timed out after 30s; "
+                "startup continues but the gate refuses fallback while unverified "
+                "(REQ-007).",
             )
-        except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup
+        except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup;
+            # the unverified state is fail-closed at the gate (REQ-007), not here.
             category = _classify_rag_failure(exc)
             logger.warning("RAG consistency check failed: %s", exc)
-            pipeline.add_skipped(
+            pipeline.add_warning(
                 "rag_consistency",
-                f"RAG consistency check skipped: {category} ({type(exc).__name__}): {exc}",
+                "RAG identity-unverified: "
+                f"{category} ({type(exc).__name__}): {exc}; startup continues but "
+                "the gate refuses fallback while unverified (REQ-007).",
             )
 
         return pipeline

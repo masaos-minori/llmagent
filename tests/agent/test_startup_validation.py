@@ -80,16 +80,17 @@ class TestRagConsistencyTimeout:
 
     @pytest.mark.asyncio
     async def test_rag_check_timeout_enforced(self) -> None:
-        """REQ-002: a timed-out RAG consistency check is skipped, not fatal."""
+        """REQ-002: a timed-out RAG consistency check warns identity-unverified, not fatal."""
         rag_service = MagicMock()
         result = await _run_check_services(
             rag_service,
             wait_for_side_effect=TimeoutError("timed out"),
         )
 
-        assert _rag_outcomes(result) == [StartupCheckStatus.SKIPPED]
-        skipped = [o for o in result.outcomes if o.source == "rag_consistency"]
-        assert "timeout" in skipped[0].message
+        assert _rag_outcomes(result) == [StartupCheckStatus.WARNING]
+        warned = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert "timed out" in warned[0].message
+        assert "identity-unverified" in warned[0].message
         assert not result.has_fatal
 
     @pytest.mark.asyncio
@@ -105,16 +106,17 @@ class TestRagConsistencyTimeout:
 
     @pytest.mark.asyncio
     async def test_rag_check_programming_error_classified(self) -> None:
-        """REQ-004: a programming-error exception is recorded as a classified SKIPPED."""
+        """REQ-004: a programming-error exception is recorded as a classified WARNING."""
         rag_service = MagicMock()
         rag_service.consistency.side_effect = KeyError("missing key")
 
         result = await _run_check_services(rag_service)
 
-        assert _rag_outcomes(result) == [StartupCheckStatus.SKIPPED]
-        skipped = [o for o in result.outcomes if o.source == "rag_consistency"]
-        assert "PROGRAMMING_ERROR" in skipped[0].message
-        assert "KeyError" in skipped[0].message
+        assert _rag_outcomes(result) == [StartupCheckStatus.WARNING]
+        warned = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert "PROGRAMMING_ERROR" in warned[0].message
+        assert "KeyError" in warned[0].message
+        assert "identity-unverified" in warned[0].message
         assert not result.has_fatal
 
     @pytest.mark.asyncio
@@ -130,14 +132,14 @@ class TestRagConsistencyTimeout:
     async def test_rag_check_failure_category(
         self, exc: Exception, category: str
     ) -> None:
-        """REQ-002: each root-cause category is carried in the SKIPPED message."""
+        """REQ-002: each root-cause category is carried in the WARNING message."""
         rag_service = MagicMock()
         rag_service.consistency.side_effect = exc
 
         result = await _run_check_services(rag_service)
 
-        assert _rag_outcomes(result) == [StartupCheckStatus.SKIPPED]
-        skipped = [o for o in result.outcomes if o.source == "rag_consistency"]
-        assert category in skipped[0].message
-        assert type(exc).__name__ in skipped[0].message
+        assert _rag_outcomes(result) == [StartupCheckStatus.WARNING]
+        warned = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert category in warned[0].message
+        assert type(exc).__name__ in warned[0].message
         assert not result.has_fatal
