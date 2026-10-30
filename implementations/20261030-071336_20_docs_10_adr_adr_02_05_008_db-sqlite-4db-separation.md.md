@@ -65,10 +65,10 @@ Markdown edits only; keep existing section numbering stable so cross-refs from d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land after code rows per Plan sequencing |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Docs checkers only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs checker subset |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row is the documentation |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Land after code rows per Plan sequencing Edited ADR-008: replaced recreate-only Constraints bullet with forward-only migration contract for workflow/eventbus (verified-backup precondition, refusal classes, transactional rollback, schema_migrations ledger). Added 'Amendment (dbmig001)' H3 subsection and realized the Revisit Trigger. Front matter/INV/Known Deviations/Approval untouched. |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Docs checkers only Docs checkers only. check_docs_quality OK; check_docs_content_policy --strict OK; check_docs_structure OK (raised adr_02_05_008 ceiling 33647->34206 in check_docs_structure.py SIZE_EXCEPTIONS, documented); check_docs_japanese OK. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | Docs checker subset check_adr_preservation: 1 WARNING (Decision section text changed, intentional, mapped in commit). No ERROR. check_docs_consistency has no governance domain; ADRs validated via adr-* pre-commit hooks + preservation tool. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | This row is the documentation Procedure doc itself is the deliverable; archived after doc gates pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
