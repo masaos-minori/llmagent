@@ -125,7 +125,19 @@ def ensure_ledger(conn: sqlite3.Connection) -> None:
 
 
 def read_ledger(conn: sqlite3.Connection) -> list[LedgerRow]:
-    """Return every applied migration ordered by ``applied_at`` then id."""
+    """Return every applied migration ordered by ``applied_at`` then id.
+
+    Tolerates a database that predates the ledger (no ``schema_migrations`` table
+    yet): such a database has applied nothing, so an empty list is returned. Callers
+    planning a migration on an existing database therefore never need a separate
+    table-exists probe.
+    """
+    has_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+        (_LEDGER_TABLE,),
+    ).fetchone()
+    if has_table is None:
+        return []
     rows = conn.execute(
         f"SELECT id, applied_at, from_version, to_version FROM {_LEDGER_TABLE} "
         "ORDER BY applied_at, id"

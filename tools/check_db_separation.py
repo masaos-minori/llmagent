@@ -74,7 +74,9 @@ TABLE_OWNERSHIP: dict[str, frozenset[str]] = {
             "workflow_schema_version",
         }
     ),
-    "eventbus": frozenset({"events", "consumer_delivery", "consumer_offsets"}),
+    "eventbus": frozenset(
+        {"events", "consumer_delivery", "consumer_offsets", "schema_migrations"},
+    ),
 }
 
 # Virtual tables backed by the sqlite-vec extension, by owning database.

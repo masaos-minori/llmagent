@@ -57,10 +57,10 @@ New module only. SQL text mirrors the ledger DDL row that lands in `scripts/even
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests come from row 15's procedure document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-084500 | 20261030-084500 | Created scripts/eventbus/migrations.py: REGISTRY (eventbus_ledger_baseline 3->4 bootstrap), shared runner export, verify_backup (domain identity via required tables). Bumped schema.sql to v4 (ledger DDL) in same commit. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-084500 | 20261030-084500 | Tests come from row 15's procedure document Wrote tests/eventbus/test_eventbus_migrations.py (10 tests): registry, forward path, apply+preserve+fingerprint, resume, unknown/downgrade refusal, gate, dry-run. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-084500 | 20261030-084500 | ruff+mypy(478)+lint-imports(6/6)+check_db_separation+check_docstrings clean; 1897 db/eventbus/shared + 24 deploy pass. Fixed stale /tmp v3 caches; made read_ledger tolerant of pre-ledger DBs; added schema_migrations to table inventory. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-084500 | 20261030-084500 | N/A for this row Updated test_eventbus_schema_version pinned-version test to v4 (schema.sql baseline bump). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

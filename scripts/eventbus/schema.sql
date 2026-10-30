@@ -40,6 +40,16 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
     offset               INTEGER NOT NULL DEFAULT 0
 );
 
+-- Forward-only migration ledger (REQ-006): records each applied migration id and
+-- the version range it moved. New databases get this table here; existing
+-- databases receive it through the eventbus registry's bootstrap step.
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id               TEXT    PRIMARY KEY,
+    applied_at       TEXT,
+    from_version     INTEGER,
+    to_version       INTEGER
+);
+
 -- Schema version of this DDL. Bump it whenever the schema changes in a way that
 -- requires recreating the database; open_db() refuses a database stamped otherwise.
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;
