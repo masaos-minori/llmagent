@@ -97,6 +97,7 @@ def _patch_workflow_loader():
         await verify_fn()
 
     mock_engine_instance = MagicMock()
+    mock_engine_instance.current_attempt_number = 1
     mock_engine_instance.run = AsyncMock(side_effect=_engine_run)
 
     with (
@@ -761,6 +762,7 @@ class TestWorkflowResumeWithRealDB:
         existing_task = MagicMock()
         existing_task.task_id = "existing-task-id"
         existing_task.workflow_id = "existing-wf-id"
+        existing_task.status = "failed"
 
         ctx = _make_ctx()
 
@@ -788,6 +790,7 @@ class TestWorkflowResumeWithRealDB:
         existing_task = MagicMock()
         existing_task.task_id = "existing-task-id"
         existing_task.workflow_id = "existing-wf-id"
+        existing_task.status = "failed"
 
         ctx = _make_ctx()
 
@@ -839,6 +842,7 @@ class TestWorkflowResumeWithRealDB:
         existing_task = MagicMock()
         existing_task.task_id = "existing-task-id"
         existing_task.workflow_id = "existing-wf-id"
+        existing_task.status = "failed"
 
         ctx = _make_ctx()
         ctx.cfg.mdq_rag_mode = "rag"
@@ -880,6 +884,7 @@ class TestWorkflowResumeWithRealDB:
                 await verify_fn()
 
             engine = MagicMock()
+            engine.current_attempt_number = 1
             engine.run = AsyncMock(side_effect=_engine_run)
             orch._workflow_adapter._workflow_engine = engine
 
@@ -900,6 +905,7 @@ class TestWorkflowResumeWithRealDB:
         existing_task = MagicMock()
         existing_task.task_id = "existing-task-id"
         existing_task.workflow_id = "existing-wf-id"
+        existing_task.status = "failed"
 
         ctx = _make_ctx()
         ctx.cfg.mdq_rag_mode = "rag"
@@ -943,6 +949,7 @@ class TestWorkflowResumeWithRealDB:
                 raise WorkflowHaltError("execute stage halted after 3 attempts")
 
             engine = MagicMock()
+            engine.current_attempt_number = 1
             engine.run = AsyncMock(side_effect=_retry_then_halt)
             orch._workflow_adapter._workflow_engine = engine
 
@@ -974,6 +981,7 @@ class TestWorkflowResumeWithRealDB:
             captured_calls.append(len(captured_calls) + 1)
 
         mock_engine_instance = MagicMock()
+        mock_engine_instance.current_attempt_number = 1
         mock_engine_instance.run = AsyncMock(side_effect=_engine_run)
 
         orch._workflow_adapter._workflow_engine = mock_engine_instance

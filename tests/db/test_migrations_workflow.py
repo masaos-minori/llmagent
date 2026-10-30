@@ -59,8 +59,8 @@ def _make_db(path: Path, version: str = WORKFLOW_SCHEMA_VERSION) -> Path:
             " VALUES ('t1', '1', 'k1'), ('t2', '1', 'k2')"
         )
         conn.execute(
-            "INSERT INTO attempts (attempt_id, task_id, stage_id)"
-            " VALUES ('a1', 't1', 's1')"
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, attempt_number)"
+            " VALUES ('a1', 't1', 's1', 1)"
         )
         conn.commit()
     finally:

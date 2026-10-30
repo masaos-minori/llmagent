@@ -535,10 +535,10 @@ def _create_workflow_db(
             "CREATE TABLE tasks (task_id TEXT, session_id TEXT, workflow_id TEXT, status TEXT, created_at TEXT)"
         ),
         "attempts": (
-            "CREATE TABLE attempts (attempt_id TEXT, task_id TEXT, stage_id TEXT, status TEXT)"
+            "CREATE TABLE attempts (attempt_id TEXT, task_id TEXT, stage_id TEXT, status TEXT, attempt_number TEXT)"
         ),
         "processed_events": (
-            "CREATE TABLE processed_events (event_id TEXT, task_id TEXT)"
+            "CREATE TABLE processed_events (event_id TEXT, task_id TEXT, attempt_id TEXT, attempt_number TEXT)"
         ),
         "artifacts": "CREATE TABLE artifacts (artifact_id TEXT, task_id TEXT)",
     }
@@ -600,6 +600,22 @@ class TestCheckWorkflowSchema:
         result = check_workflow_schema(db_path=db_path)
         assert result.valid is False
         assert result.error is not None and "workflow_id" in result.error
+
+    @pytest.mark.parametrize(
+        ("table", "column"),
+        [
+            ("attempts", "attempt_number"),
+            ("processed_events", "attempt_id"),
+            ("processed_events", "attempt_number"),
+        ],
+    )
+    def test_missing_recovery_column_fails(
+        self, tmp_path: Any, table: str, column: str
+    ) -> None:
+        db_path = _create_workflow_db(tmp_path, missing_column=(table, column))
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and column in result.error
 
     def test_matching_schema_version_passes(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, schema_version=WORKFLOW_SCHEMA_VERSION)

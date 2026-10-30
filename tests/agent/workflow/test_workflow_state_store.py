@@ -14,8 +14,13 @@ from unittest.mock import patch
 
 import pytest
 from agent.workflow.artifact_ops import record_artifact
-from agent.workflow.attempt_ops import count_attempts, finish_attempt, start_attempt
-from agent.workflow.idempotency_ops import begin_stage_if_new, is_event_processed
+from agent.workflow.attempt_ops import count_attempts, finish_attempt, insert_attempt
+from agent.workflow.errors import AttemptTransitionError, StageAlreadyRunningError
+from agent.workflow.idempotency_ops import (
+    begin_stage_if_new,
+    complete_stage_attempt,
+    is_event_processed,
+)
 from agent.workflow.task_ops import (
     create_task,
     get_task_by_id,
@@ -23,6 +28,12 @@ from agent.workflow.task_ops import (
 )
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
+
+
+def start_running_attempt(db, task_id: str, stage_id: str):
+    """Insert a running attempt through the canonical in-transaction helper."""
+    with db.begin_immediate():
+        return insert_attempt(db, task_id, stage_id)
 
 
 def _make_cfg(db_path: str) -> DbConfig:
@@ -124,31 +135,53 @@ class TestUpdateTaskStatus:
 
 
 class TestAttempts:
-    def test_start_attempt_returns_record(self, store) -> None:
+    def test_start_running_attempt_returns_record(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        attempt = start_attempt(store._db, task.task_id, "plan")
+        attempt = start_running_attempt(store._db, task.task_id, "plan")
         assert attempt.task_id == task.task_id
         assert attempt.stage_id == "plan"
         assert attempt.status == "running"
 
     def test_count_attempts(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        start_attempt(store._db, task.task_id, "execute")
-        start_attempt(store._db, task.task_id, "execute")
+        start_running_attempt(store._db, task.task_id, "execute")
+        start_running_attempt(store._db, task.task_id, "execute")
         assert count_attempts(store._db, task.task_id, "execute") == 2
 
     def test_finish_attempt_completed(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        attempt = start_attempt(store._db, task.task_id, "plan")
+        attempt = start_running_attempt(store._db, task.task_id, "plan")
         finish_attempt(store._db, attempt.attempt_id, "completed")
         rows = store._db.fetchall(
             "SELECT status FROM attempts WHERE attempt_id=?", (attempt.attempt_id,)
         )
         assert rows[0][0] == "completed"
 
+    def test_finish_attempt_rejects_non_terminal_status(self, store) -> None:
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        attempt = start_running_attempt(store._db, task.task_id, "plan")
+        with pytest.raises(AttemptTransitionError):
+            finish_attempt(store._db, attempt.attempt_id, "running")
+
+    def test_finish_attempt_rejects_an_already_finished_attempt(self, store) -> None:
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        attempt = start_running_attempt(store._db, task.task_id, "plan")
+        finish_attempt(store._db, attempt.attempt_id, "completed")
+        with pytest.raises(AttemptTransitionError, match="completed"):
+            finish_attempt(store._db, attempt.attempt_id, "failed")
+
+    def test_attempt_numbers_are_monotonic_per_task_stage(self, store) -> None:
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        numbers = [
+            start_running_attempt(store._db, task.task_id, "execute").attempt_number,
+            start_running_attempt(store._db, task.task_id, "execute").attempt_number,
+            start_running_attempt(store._db, task.task_id, "plan").attempt_number,
+        ]
+        assert numbers == [1, 2, 1]
+
     def test_finish_attempt_with_error(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        attempt = start_attempt(store._db, task.task_id, "execute")
+        attempt = start_running_attempt(store._db, task.task_id, "execute")
         finish_attempt(store._db, attempt.attempt_id, "failed", "timeout")
         rows = store._db.fetchall(
             "SELECT status, error_msg FROM attempts WHERE attempt_id=?",
@@ -164,20 +197,32 @@ class TestIdempotency:
 
     def test_begin_stage_if_new_returns_attempt(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        result = begin_stage_if_new(store._db, "evt-1", task.task_id, "plan")
+        result = begin_stage_if_new(store._db, task.task_id, "plan")
         assert result is not None
         assert result.stage_id == "plan"
+        assert result.attempt_number == 1
 
-    def test_begin_stage_if_new_skips_duplicate(self, store) -> None:
+    def test_completed_stage_is_skipped(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        begin_stage_if_new(store._db, "evt-1", task.task_id, "plan")
-        result = begin_stage_if_new(store._db, "evt-1", task.task_id, "plan")
-        assert result is None
+        attempt = begin_stage_if_new(store._db, task.task_id, "plan")
+        assert attempt is not None
+        complete_stage_attempt(store._db, attempt)
+        assert begin_stage_if_new(store._db, task.task_id, "plan") is None
 
-    def test_event_processed_after_begin(self, store) -> None:
+    def test_second_start_while_running_is_rejected(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        begin_stage_if_new(store._db, "evt-2", task.task_id, "execute")
-        assert is_event_processed(store._db, "evt-2") is True
+        begin_stage_if_new(store._db, task.task_id, "plan")
+        with pytest.raises(StageAlreadyRunningError):
+            begin_stage_if_new(store._db, task.task_id, "plan")
+
+    def test_event_processed_only_after_completion(self, store) -> None:
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        attempt = begin_stage_if_new(store._db, task.task_id, "execute")
+        assert attempt is not None
+        event_id = f"{task.task_id}:execute:1"
+        assert is_event_processed(store._db, event_id) is False
+        complete_stage_attempt(store._db, attempt)
+        assert is_event_processed(store._db, event_id) is True
 
 
 class TestArtifacts:
@@ -218,9 +263,9 @@ class TestDiagnosticQueries:
 
     def test_get_execute_attempt_count_filters_by_stage(self, store) -> None:
         task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
-        start_attempt(store._db, task.task_id, "execute")
-        start_attempt(store._db, task.task_id, "execute")
-        start_attempt(store._db, task.task_id, "plan")
+        start_running_attempt(store._db, task.task_id, "execute")
+        start_running_attempt(store._db, task.task_id, "execute")
+        start_running_attempt(store._db, task.task_id, "plan")
 
         assert store.get_execute_attempt_count("sess-diag") == 2
         assert store.get_execute_attempt_count("sess-none") == 0
@@ -255,7 +300,7 @@ class TestRecoverStaleAttempts:
             (task_id, "sess-test", 1, f"{task_id}:1", "pending", "1.0.0", "wf-test"),
         )
         store._db.execute(
-            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, attempt_number) VALUES (?, ?, ?, ?, ?, (SELECT COUNT(*) + 1 FROM attempts))",
             (attempt_id, task_id, stage_id, status, started_at),
         )
         store._db.commit()
@@ -417,11 +462,11 @@ class TestRecoverStaleAttempts:
                 ),
             )
             conn.execute(
-                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, attempt_number) VALUES (?, ?, ?, 'running', ?, (SELECT COUNT(*) + 1 FROM attempts))",
                 ("att-multi-1", task_id, "execute", old_ts),
             )
             conn.execute(
-                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, attempt_number) VALUES (?, ?, ?, 'running', ?, (SELECT COUNT(*) + 1 FROM attempts))",
                 ("att-multi-2", task_id, "execute", old_ts),
             )
             conn.commit()
@@ -467,7 +512,7 @@ class TestRecoverStaleAttempts:
                 ),
             )
             conn.execute(
-                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, attempt_number) VALUES (?, ?, ?, 'running', ?, (SELECT COUNT(*) + 1 FROM attempts))",
                 ("att-none", task_id, "execute", now_ts),
             )
             conn.commit()
@@ -510,7 +555,7 @@ class TestStaleRecoveryConcurrency:
             ),
         )
         conn.execute(
-            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, attempt_number) VALUES (?, ?, ?, 'running', ?, (SELECT COUNT(*) + 1 FROM attempts))",
             (attempt_id, task_id, "execute", old_ts),
         )
         conn.commit()

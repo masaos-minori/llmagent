@@ -35,7 +35,7 @@ from agent.workflow import (
     WorkflowHaltError,
     WorkflowTimeoutError,
 )
-from agent.workflow.task_ops import create_task, get_task_by_id
+from agent.workflow.task_ops import assert_resumable, create_task, get_task_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -276,10 +276,7 @@ class WorkflowEngineAdapter:
                 _fetched = get_task_by_id(store._db, existing_task_id)
                 if _fetched is None:
                     raise RuntimeError(f"Task {existing_task_id} not found")
-                if _fetched.status == "halted":
-                    raise RuntimeError(
-                        f"Task {existing_task_id} is halted and cannot be automatically resumed"
-                    )
+                assert_resumable(_fetched)
                 task = _fetched
                 workflow_id = task.workflow_id or str(uuid.uuid4())
         finally:
@@ -371,6 +368,11 @@ class WorkflowEngineAdapter:
             elapsed_ms,
             workflow_id=workflow_id,
             session_id=session_id,
+            attempt_number=(
+                None
+                if self._workflow_engine is None
+                else self._workflow_engine.current_attempt_number
+            ),
         )
         return answer, error_kind, is_partial
 

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Bump this constant whenever the workflow schema changes; it must equal the last
 # `to_version` registered in db/migrations_workflow.py.
-WORKFLOW_SCHEMA_VERSION = "1.2.0"
+WORKFLOW_SCHEMA_VERSION = "1.3.0"
 
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
@@ -175,7 +175,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     workflow_id      TEXT,
     turn_number      INTEGER,
     workflow_version TEXT NOT NULL,
-    status           TEXT NOT NULL DEFAULT 'pending',
+    status           TEXT NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending', 'running', 'completed', 'failed', 'halted')),
     task_nonce       TEXT UNIQUE NOT NULL,
     created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -185,20 +186,27 @@ CREATE TABLE IF NOT EXISTS attempts (
     attempt_id   TEXT PRIMARY KEY,
     task_id      TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     stage_id     TEXT NOT NULL,
-    status       TEXT NOT NULL DEFAULT 'running',
+    status       TEXT NOT NULL DEFAULT 'running'
+                 CHECK (status IN ('running', 'completed', 'failed')),
     started_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     ended_at     TEXT,
     error_msg    TEXT,
     error_kind   TEXT,
-    error_detail TEXT
+    error_detail TEXT,
+    attempt_number INTEGER NOT NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_attempts_task_stage_number
+    ON attempts(task_id, stage_id, attempt_number);
 
 CREATE TABLE IF NOT EXISTS processed_events (
     event_id    TEXT PRIMARY KEY,
     task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     stage_id    TEXT NOT NULL,
     recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    workflow_id TEXT
+    workflow_id TEXT,
+    attempt_id  TEXT NOT NULL REFERENCES attempts(attempt_id) ON DELETE CASCADE,
+    attempt_number INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS artifacts (

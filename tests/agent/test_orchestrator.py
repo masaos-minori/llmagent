@@ -31,7 +31,19 @@ from agent.workflow import (
     WorkflowLoadError,
     WorkflowTimeoutError,
 )
-from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
+from agent.workflow.attempt_ops import max_attempt_number as _real_max_attempt_number
+from agent.workflow.idempotency_ops import (
+    begin_stage_if_new as _real_begin_stage_if_new,
+)
+from agent.workflow.idempotency_ops import (
+    complete_stage_attempt as _real_complete_stage_attempt,
+)
+from agent.workflow.models import (
+    AttemptRecord,
+    RetryPolicy,
+    StageDefinition,
+    WorkflowDef,
+)
 from agent.workflow.state_store import StateStore
 from agent.workflow.task_ops import create_task
 from agent.workflow.workflow_engine import WorkflowEngine
@@ -171,9 +183,41 @@ def _make_ctx() -> MagicMock:
     return ctx
 
 
+_STUB_ATTEMPTS: dict[tuple[str, str], int] = {}
+
+
+def _stub_begin(_db: Any, task_id: str, stage_id: str) -> AttemptRecord:
+    number = _STUB_ATTEMPTS.get((task_id, stage_id), 0) + 1
+    _STUB_ATTEMPTS[(task_id, stage_id)] = number
+    return AttemptRecord(
+        attempt_id=f"a-{number}",
+        task_id=task_id,
+        stage_id=stage_id,
+        status="running",
+        started_at="t",
+        attempt_number=number,
+    )
+
+
+def _stub_max(_db: Any, task_id: str, stage_id: str) -> int:
+    return _STUB_ATTEMPTS.get((task_id, stage_id), 0)
+
+
+def _stub_or_real(real: Any, stub: Any) -> Any:
+    """Call `real` when the first argument is a real SQLiteHelper, else `stub`."""
+
+    def call(db: Any, *args: Any, **kwargs: Any) -> Any:
+        if isinstance(db, SQLiteHelper):
+            return real(db, *args, **kwargs)
+        return stub(db, *args, **kwargs)
+
+    return call
+
+
 @pytest.fixture(autouse=True)
 def _patch_workflow_loader():
     """Patch workflow infrastructure so Orchestrator works without filesystem access."""
+    _STUB_ATTEMPTS.clear()
     mock_task = MagicMock()
     mock_task.task_id = "test-task-id"
     mock_task.workflow_id = "test-workflow-id"
@@ -194,6 +238,24 @@ def _patch_workflow_loader():
         patch(
             "agent.workflow_engine_adapter.WorkflowEngine",
             return_value=mock_engine_instance,
+        ),
+        # With a mocked state store the engine's persistence calls are stubbed (a
+        # per-pair counter stands in for the persisted attempt numbers); with a real
+        # database they run for real (the real-store tests below and
+        # tests/agent/workflow/ cover persistence).
+        patch(
+            "agent.workflow.workflow_engine.begin_stage_if_new",
+            side_effect=_stub_or_real(_real_begin_stage_if_new, _stub_begin),
+        ),
+        patch(
+            "agent.workflow.workflow_engine.complete_stage_attempt",
+            side_effect=_stub_or_real(
+                _real_complete_stage_attempt, lambda *a, **k: None
+            ),
+        ),
+        patch(
+            "agent.workflow.workflow_engine.max_attempt_number",
+            side_effect=_stub_or_real(_real_max_attempt_number, _stub_max),
         ),
     ):
         _default_wdef = WorkflowDef(
@@ -2044,6 +2106,7 @@ class TestInitWorkflowTaskResumeReuse:
 
         existing_task = MagicMock()
         existing_task.task_id = "existing-task-id"
+        existing_task.status = "failed"
         existing_task.workflow_id = "existing-wf-id"
 
         ctx = _make_ctx()
@@ -2072,6 +2135,7 @@ class TestInitWorkflowTaskResumeReuse:
 
         existing_task = MagicMock()
         existing_task.task_id = "existing-task-id"
+        existing_task.status = "failed"
         existing_task.workflow_id = "existing-wf-id"
 
         ctx = _make_ctx()
@@ -2116,6 +2180,32 @@ class TestInitWorkflowTaskResumeReuse:
             with pytest.raises(RuntimeError, match="halted"):
                 orch._workflow_adapter._init_workflow_task(
                     ctx, "test-session", existing_task_id="halted-task-id"
+                )
+            mock_create.assert_not_called()
+
+    @pytest.mark.parametrize("status", ["completed", "running"])
+    def test_resume_rejects_completed_and_running_tasks(self, status: str) -> None:
+        """Only a pending or failed task may be resumed; the error names the status."""
+        from unittest.mock import MagicMock, patch
+
+        task = MagicMock()
+        task.task_id = "t-id"
+        task.workflow_id = "wf-id"
+        task.status = status
+
+        ctx = _make_ctx()
+
+        with (
+            patch("agent.workflow_engine_adapter.get_task_by_id", return_value=task),
+            patch("agent.workflow_engine_adapter.create_task") as mock_create,
+            patch("agent.orchestrator.StateStore"),
+            patch("agent.workflow_engine_adapter.audit_workflow_start"),
+        ):
+            orch = Orchestrator(ctx)
+            orch._workflow_def = MagicMock(version="test-v1")
+            with pytest.raises(RuntimeError, match=status):
+                orch._workflow_adapter._init_workflow_task(
+                    ctx, "test-session", existing_task_id="t-id"
                 )
             mock_create.assert_not_called()
 
@@ -2956,6 +3046,10 @@ class _ProbeStateStore(StateStore):
         self._db = SQLiteHelper(db_path=db_path)
         self._db.open(write_mode=True, row_factory=True)
         self.calls: list[str] = []
+
+    def claim_task(self, task_id: str) -> None:
+        self.calls.append("running")
+        super().claim_task(task_id)
 
     def update_task_status(self, task_id: str, status: str) -> None:
         self.calls.append(status)

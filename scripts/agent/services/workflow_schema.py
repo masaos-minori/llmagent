@@ -45,8 +45,8 @@ def check_workflow_definition(workflows_dir: Path | None = None) -> None:
 
 REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
     "tasks": ["task_id", "session_id", "workflow_id", "status", "created_at"],
-    "attempts": ["attempt_id", "task_id", "stage_id", "status"],
-    "processed_events": ["event_id", "task_id"],
+    "attempts": ["attempt_id", "task_id", "stage_id", "status", "attempt_number"],
+    "processed_events": ["event_id", "task_id", "attempt_id", "attempt_number"],
     "artifacts": ["artifact_id", "task_id"],
     "workflow_schema_version": ["version", "applied_at"],
 }
@@ -115,8 +115,8 @@ def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
             return SchemaCheckResult(
                 valid=False,
                 error=f"Workflow schema version mismatch: expected {WORKFLOW_SCHEMA_VERSION!r}, "
-                f"found {actual_version!r}. Recreate the workflow database "
-                "(archive the file, then run deploy/init_db.sh).",
+                f"found {actual_version!r}. Migrate the workflow database "
+                "(stop the agent, then run scripts/db/migrate_db.py --apply).",
             )
 
         return SchemaCheckResult(valid=True)

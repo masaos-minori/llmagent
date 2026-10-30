@@ -8,8 +8,12 @@ import uuid
 
 import pytest
 from agent.workflow.artifact_ops import record_artifact
-from agent.workflow.attempt_ops import finish_attempt, start_attempt
-from agent.workflow.idempotency_ops import begin_stage_if_new
+from agent.workflow.attempt_ops import finish_attempt, insert_attempt
+from agent.workflow.errors import StageAlreadyRunningError
+from agent.workflow.idempotency_ops import (
+    begin_stage_if_new,
+    complete_stage_attempt,
+)
 from db.helper import SQLiteHelper
 from db.schema_sql import build_workflow_schema_sql
 
@@ -34,12 +38,18 @@ def _insert_task(db: SQLiteHelper, workflow_id: str = "wf-test-1") -> str:
     return task_id
 
 
+def _start(db: SQLiteHelper, task_id: str, stage_id: str):
+    """Insert a running attempt through the canonical in-transaction helper."""
+    with db.begin_immediate():
+        return insert_attempt(db, task_id, stage_id)
+
+
 # --- error_kind and error_detail in attempts ---
 
 
 def test_finish_attempt_persists_error_kind(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
-    rec = start_attempt(db, task_id, "stage1")
+    rec = _start(db, task_id, "stage1")
     finish_attempt(
         db,
         rec.attempt_id,
@@ -58,7 +68,7 @@ def test_finish_attempt_persists_error_kind(db: SQLiteHelper) -> None:
 
 def test_finish_attempt_null_error_kind_by_default(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
-    rec = start_attempt(db, task_id, "stage1")
+    rec = _start(db, task_id, "stage1")
     finish_attempt(db, rec.attempt_id, "completed")
     row = db.execute(
         "SELECT error_kind, error_detail FROM attempts WHERE attempt_id=?",
@@ -70,7 +80,7 @@ def test_finish_attempt_null_error_kind_by_default(db: SQLiteHelper) -> None:
 
 def test_finish_attempt_exception_kind(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
-    rec = start_attempt(db, task_id, "stage1")
+    rec = _start(db, task_id, "stage1")
     finish_attempt(
         db,
         rec.attempt_id,
@@ -116,26 +126,65 @@ def test_record_artifact_null_fields_by_default(db: SQLiteHelper) -> None:
     assert row[1] is None
 
 
-# --- workflow_id in processed_events ---
+# --- completed-stage ledger ---
 
 
-def test_begin_stage_if_new_persists_workflow_id(db: SQLiteHelper) -> None:
+def test_complete_stage_attempt_persists_workflow_id_and_link(db: SQLiteHelper) -> None:
     task_id = _insert_task(db, workflow_id="wf-idp-test")
-    event_id = str(uuid.uuid4())
-    result = begin_stage_if_new(
-        db, event_id, task_id, "stage1", workflow_id="wf-idp-test"
-    )
-    assert result is not None
+    attempt = begin_stage_if_new(db, task_id, "stage1")
+    assert attempt is not None
+    complete_stage_attempt(db, attempt, workflow_id="wf-idp-test")
     row = db.execute(
-        "SELECT workflow_id FROM processed_events WHERE event_id=?", (event_id,)
+        "SELECT event_id, workflow_id, attempt_id, attempt_number"
+        " FROM processed_events WHERE task_id=?",
+        (task_id,),
     ).fetchone()
-    assert row[0] == "wf-idp-test"
+    assert tuple(row) == (
+        f"{task_id}:stage1:1",
+        "wf-idp-test",
+        attempt.attempt_id,
+        1,
+    )
 
 
 def test_begin_stage_if_new_idempotent(db: SQLiteHelper) -> None:
+    """A completed stage is not started again; a second start while running is refused."""
     task_id = _insert_task(db)
-    event_id = str(uuid.uuid4())
-    first = begin_stage_if_new(db, event_id, task_id, "stage1")
-    second = begin_stage_if_new(db, event_id, task_id, "stage1")
+    first = begin_stage_if_new(db, task_id, "stage1")
     assert first is not None
-    assert second is None
+    with pytest.raises(StageAlreadyRunningError):
+        begin_stage_if_new(db, task_id, "stage1")
+    complete_stage_attempt(db, first)
+    assert begin_stage_if_new(db, task_id, "stage1") is None
+
+
+def test_started_attempt_leaves_no_ledger_row(db: SQLiteHelper) -> None:
+    task_id = _insert_task(db)
+    assert begin_stage_if_new(db, task_id, "stage1") is not None
+    rows = db.fetchall("SELECT 1 FROM processed_events WHERE task_id=?", (task_id,))
+    assert rows == []
+
+
+def test_completed_stage_is_skipped(db: SQLiteHelper) -> None:
+    task_id = _insert_task(db)
+    attempt = begin_stage_if_new(db, task_id, "stage1")
+    assert attempt is not None
+    complete_stage_attempt(db, attempt)
+    assert begin_stage_if_new(db, task_id, "stage1") is None
+
+
+def test_second_start_while_running_raises(db: SQLiteHelper) -> None:
+    task_id = _insert_task(db)
+    assert begin_stage_if_new(db, task_id, "stage1") is not None
+    with pytest.raises(StageAlreadyRunningError):
+        begin_stage_if_new(db, task_id, "stage1")
+
+
+def test_failed_attempt_does_not_suppress_the_next_attempt(db: SQLiteHelper) -> None:
+    task_id = _insert_task(db)
+    first = begin_stage_if_new(db, task_id, "stage1")
+    assert first is not None
+    finish_attempt(db, first.attempt_id, "failed", error_kind="exception")
+    second = begin_stage_if_new(db, task_id, "stage1")
+    assert second is not None
+    assert (first.attempt_number, second.attempt_number) == (1, 2)

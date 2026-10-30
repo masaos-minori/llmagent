@@ -16,7 +16,9 @@ from contextlib import nullcontext
 from typing import Protocol
 
 from agent.workflow.artifact_ops import record_artifact
-from agent.workflow.idempotency_ops import begin_stage_if_new
+from agent.workflow.attempt_ops import max_attempt_number
+from agent.workflow.errors import StageAlreadyRunningError
+from agent.workflow.idempotency_ops import begin_stage_if_new, complete_stage_attempt
 from agent.workflow.models import TaskRecord, WorkflowDef
 from agent.workflow.state_store import StateStore
 
@@ -98,6 +100,12 @@ class WorkflowEngine:
         self._wdef = workflow_def
         self._store = store
         self._tracer = tracer
+        self._current_attempt_number: int | None = None
+
+    @property
+    def current_attempt_number(self) -> int | None:
+        """Persisted attempt number of the stage attempt started most recently."""
+        return self._current_attempt_number
 
     def _span_ctx(self, name: str) -> _Span | nullcontext[_NoOpSpan]:
         """Return a span context manager; uses NoOpSpan when no tracer is available."""
@@ -118,7 +126,7 @@ class WorkflowEngine:
             span.set_attribute("workflow.version", task.workflow_version)
             span.set_attribute("workflow.workflow_id", task.workflow_id or "")
             span.set_attribute("workflow.session_id", task.session_id or "")
-            self._store.update_task_status(task.task_id, "running")
+            self._store.claim_task(task.task_id)
             try:
                 await self._run_stage_with_retry(task, "plan", plan_fn)
                 await self._run_stage_with_retry(task, "execute", execute_fn)
@@ -145,15 +153,21 @@ class WorkflowEngine:
             return
 
         policy = self._wdef.retry_policy
-        attempt = 0
+        db = self._store._db
         while True:
-            attempt += 1
+            used = max_attempt_number(db, task.task_id, stage_id)
+            if used >= policy.max_attempts:
+                raise WorkflowHaltError(
+                    f"{stage_id} stage halted: {used} of {policy.max_attempts} "
+                    "attempts already used"
+                )
             try:
-                await self._run_stage(task, stage_id, fn, attempt=attempt)
+                await self._run_stage(task, stage_id, fn)
                 return
-            except WorkflowTimeoutError:
+            except (WorkflowTimeoutError, StageAlreadyRunningError):
                 raise
             except Exception as exc:  # noqa: BLE001 — catch-all to apply retry/halt logic before re-raising
+                attempt = max_attempt_number(db, task.task_id, stage_id)
                 if attempt >= policy.max_attempts:
                     logger.error(
                         "Task %s: %s halted after %d attempts: %s",
@@ -190,35 +204,28 @@ class WorkflowEngine:
         task: TaskRecord,
         stage_id: str,
         fn: StageCallback,
-        attempt: int = 1,
     ) -> None:
-        """Run a single stage with idempotency check and timeout enforcement.
+        """Run a single stage attempt with a completed-stage check and timeout.
 
-        Note: Retry attempts use distinct event IDs in the format
-        '{task_id}:{stage_id}:{attempt}' where attempt is a 1-based
-        integer incremented for each retry. Each retry is treated as
-        a separate idempotency record.
+        The attempt number is persisted by `begin_stage_if_new`; a stage with a
+        completed attempt in the ledger is skipped.
         """
         with self._span_ctx("workflow.stage") as span:
             span.set_attribute("workflow.stage_id", stage_id)
-            span.set_attribute("workflow.attempt", attempt)
             span.set_attribute("workflow.workflow_id", task.workflow_id or "")
             stage_def = self._wdef.get_stage(stage_id)
             timeout = stage_def.timeout_sec if stage_def else 60
-            event_id = f"{task.task_id}:{stage_id}:{attempt}"
 
-            attempt_rec = begin_stage_if_new(
-                self._store._db,
-                event_id,
-                task.task_id,
-                stage_id,
-                workflow_id=task.workflow_id,
-            )
+            attempt_rec = begin_stage_if_new(self._store._db, task.task_id, stage_id)
             if attempt_rec is None:
                 logger.info(
-                    "Stage %s skipped (already processed): %s", stage_id, event_id
+                    "Stage %s skipped (already completed): task=%s",
+                    stage_id,
+                    task.task_id,
                 )
                 return
+            self._current_attempt_number = attempt_rec.attempt_number
+            span.set_attribute("workflow.attempt", attempt_rec.attempt_number)
 
             try:
                 artifact_uri = await asyncio.wait_for(fn(), timeout=timeout)
@@ -243,7 +250,9 @@ class WorkflowEngine:
                 )
                 raise
 
-            self._store.finish_attempt(attempt_rec.attempt_id, "completed")
+            complete_stage_attempt(
+                self._store._db, attempt_rec, workflow_id=task.workflow_id
+            )
             if artifact_uri:
                 record_artifact(
                     self._store._db,
@@ -251,6 +260,6 @@ class WorkflowEngine:
                     stage_id,
                     artifact_uri,
                     workflow_id=task.workflow_id,
-                    attempt_number=attempt,
+                    attempt_number=attempt_rec.attempt_number,
                 )
             logger.info("Stage %s completed: task=%s", stage_id, task.task_id)

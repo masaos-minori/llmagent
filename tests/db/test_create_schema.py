@@ -745,52 +745,115 @@ class TestWorkflowMigrationLedger:
         assert columns(build_workflow_schema_sql()) == columns(LEDGER_DDL)
 
 
-class TestTaskNonceMigration:
-    """The registered rename keeps every task row and its unique value."""
+_WORKFLOW_DDL_1_1_0 = """
+CREATE TABLE tasks (
+    task_id TEXT PRIMARY KEY, session_id TEXT, workflow_id TEXT, turn_number INTEGER,
+    workflow_version TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+    idempotency_key TEXT UNIQUE NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+CREATE TABLE attempts (
+    attempt_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'running',
+    started_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    ended_at TEXT, error_msg TEXT, error_kind TEXT, error_detail TEXT
+);
+CREATE TABLE processed_events (
+    event_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id TEXT NOT NULL,
+    recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    workflow_id TEXT
+);
+CREATE TABLE artifacts (
+    artifact_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id TEXT NOT NULL, uri TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    workflow_id TEXT, attempt_number INTEGER
+);
+CREATE TABLE workflow_schema_version (
+    version TEXT NOT NULL,
+    applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+"""
 
-    def _previous_version_db(self, path: Path) -> None:
-        from db.schema_sql import build_workflow_schema_sql
 
-        old_ddl = build_workflow_schema_sql().replace(
-            "task_nonce       TEXT", "idempotency_key  TEXT"
-        )
-        assert "idempotency_key" in old_ddl
+class TestWorkflowMigrationChain:
+    """The registered chain keeps every row from the 1.1.0 schema to the current one."""
+
+    def _previous_version_db(self, path: Path, *, task_status: str = "failed") -> None:
         conn = sqlite3.connect(str(path))
         try:
-            conn.executescript(old_ddl)
+            conn.executescript(_WORKFLOW_DDL_1_1_0)
             conn.execute(
                 "INSERT INTO workflow_schema_version (version) VALUES ('1.1.0')"
             )
             conn.executemany(
-                "INSERT INTO tasks (task_id, workflow_version, idempotency_key)"
-                " VALUES (?, '1', ?)",
-                [("t1", "nonce-1"), ("t2", "nonce-2")],
+                "INSERT INTO tasks (task_id, workflow_id, workflow_version, status,"
+                " idempotency_key) VALUES (?, 'wf', '1', ?, ?)",
+                [("t1", task_status, "nonce-1"), ("t2", "completed", "nonce-2")],
+            )
+            conn.executemany(
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status,"
+                " started_at, ended_at) VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    ("a1", "t1", "execute", "failed", "2026-01-01T00:00:01Z", "x"),
+                    ("a2", "t1", "execute", "completed", "2026-01-01T00:00:02Z", "y"),
+                    ("a3", "t1", "plan", "running", "2026-01-01T00:00:00Z", None),
+                    ("a4", "t2", "plan", "completed", "2026-01-01T00:00:00Z", "z"),
+                ],
+            )
+            conn.executemany(
+                "INSERT INTO processed_events (event_id, task_id, stage_id, workflow_id)"
+                " VALUES (?, ?, ?, 'wf')",
+                [
+                    ("t1:execute:1", "t1", "execute"),
+                    ("t1:execute:2", "t1", "execute"),
+                    ("t1:plan:1", "t1", "plan"),
+                ],
+            )
+            conn.execute(
+                "INSERT INTO artifacts (artifact_id, task_id, stage_id, uri)"
+                " VALUES ('r1', 't1', 'execute', 'file:///a')"
             )
             conn.commit()
         finally:
             conn.close()
 
-    def test_migration_preserves_rows_and_nonce_values(self, tmp_path: Path) -> None:
+    def _migrate(self, db_file: Path, tmp_path: Path):
         from db.migrations_workflow import MIGRATIONS, WORKFLOW_DOMAIN
         from db.schema_sql import WORKFLOW_SCHEMA_VERSION
         from shared.db_migrations import run_migrations
 
-        db_file = tmp_path / "old.sqlite"
-        self._previous_version_db(db_file)
-        report = run_migrations(
+        return run_migrations(
             db_file,
             WORKFLOW_DOMAIN,
             MIGRATIONS,
             WORKFLOW_SCHEMA_VERSION,
             tmp_path / "backups",
         )
-        assert report.applied == ("rename-task-nonce",)
+
+    def test_chain_preserves_rows_and_nonce_values(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "old.sqlite"
+        self._previous_version_db(db_file)
+        report = self._migrate(db_file, tmp_path)
+        assert report.applied == ("rename-task-nonce", "recovery-schema")
         conn = sqlite3.connect(str(db_file))
         try:
-            rows = conn.execute(
-                "SELECT task_id, task_nonce FROM tasks ORDER BY task_id"
-            ).fetchall()
-            assert rows == [("t1", "nonce-1"), ("t2", "nonce-2")]
+            assert conn.execute(
+                "SELECT task_id, task_nonce, status FROM tasks ORDER BY task_id"
+            ).fetchall() == [
+                ("t1", "nonce-1", "failed"),
+                ("t2", "nonce-2", "completed"),
+            ]
+            assert conn.execute("SELECT COUNT(*) FROM attempts").fetchone()[0] == 4
+            assert conn.execute("SELECT uri FROM artifacts").fetchall() == [
+                ("file:///a",)
+            ]
+            assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
             with pytest.raises(sqlite3.IntegrityError):
                 conn.execute(
                     "INSERT INTO tasks (task_id, workflow_version, task_nonce)"
@@ -798,6 +861,66 @@ class TestTaskNonceMigration:
                 )
         finally:
             conn.close()
+
+    def test_attempt_numbers_are_backfilled_by_started_order(
+        self, tmp_path: Path
+    ) -> None:
+        db_file = tmp_path / "old.sqlite"
+        self._previous_version_db(db_file)
+        self._migrate(db_file, tmp_path)
+        conn = sqlite3.connect(str(db_file))
+        try:
+            rows = dict(conn.execute("SELECT attempt_id, attempt_number FROM attempts"))
+        finally:
+            conn.close()
+        assert rows == {"a1": 1, "a2": 2, "a3": 1, "a4": 1}
+
+    def test_ledger_is_rebuilt_from_completed_attempts_only(
+        self, tmp_path: Path
+    ) -> None:
+        db_file = tmp_path / "old.sqlite"
+        self._previous_version_db(db_file)
+        self._migrate(db_file, tmp_path)
+        conn = sqlite3.connect(str(db_file))
+        try:
+            rows = conn.execute(
+                "SELECT event_id, attempt_id, attempt_number, workflow_id"
+                " FROM processed_events ORDER BY event_id"
+            ).fetchall()
+        finally:
+            conn.close()
+        # Started-only markers (t1:plan:1, t1:execute:1 of the failed attempt) are gone.
+        assert rows == [
+            ("t1:execute:2", "a2", 2, "wf"),
+            ("t2:plan:1", "a4", 1, "wf"),
+        ]
+
+    def test_unknown_status_stops_the_chain_at_the_last_good_version(
+        self, tmp_path: Path
+    ) -> None:
+        from shared.db_migrations import MigrationFailedError
+
+        db_file = tmp_path / "old.sqlite"
+        self._previous_version_db(db_file, task_status="weird")
+        with pytest.raises(MigrationFailedError, match="unknown status"):
+            self._migrate(db_file, tmp_path)
+        conn = sqlite3.connect(str(db_file))
+        try:
+            version = conn.execute(
+                "SELECT version FROM workflow_schema_version ORDER BY rowid DESC"
+            ).fetchone()[0]
+            ledger = [r[0] for r in conn.execute("SELECT id FROM schema_migrations")]
+            attempt_columns = {
+                r[1] for r in conn.execute("PRAGMA table_info(attempts)")
+            }
+            statuses = {r[0] for r in conn.execute("SELECT status FROM tasks")}
+        finally:
+            conn.close()
+        # The rename step committed; the rebuild step was refused before any change.
+        assert version == "1.2.0"
+        assert ledger == ["rename-task-nonce"]
+        assert "attempt_number" not in attempt_columns
+        assert "weird" in statuses
 
     def test_created_database_uses_the_new_column(self, tmp_path: Path) -> None:
         db_file = tmp_path / "new.sqlite"
@@ -808,6 +931,70 @@ class TestTaskNonceMigration:
         finally:
             conn.close()
         assert "task_nonce" in columns and "idempotency_key" not in columns
+
+
+class TestWorkflowStatusConstraints:
+    """The SQL status vocabulary equals the enums and rejects raw invalid writes."""
+
+    def _db(self) -> sqlite3.Connection:
+        from db.schema_sql import build_workflow_schema_sql
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(build_workflow_schema_sql())
+        return conn
+
+    def test_sql_vocabulary_equals_the_enums(self) -> None:
+        from agent.workflow.models import AttemptStatus, TaskStatus
+
+        conn = self._db()
+        sql = {
+            r[0]: r[1]
+            for r in conn.execute(
+                "SELECT name, sql FROM sqlite_master WHERE type='table'"
+            )
+        }
+        for status in TaskStatus:
+            assert f"'{status.value}'" in sql["tasks"]
+        for status in AttemptStatus:
+            assert f"'{status.value}'" in sql["attempts"]
+        assert sql["tasks"].count("'") >= 2 * len(TaskStatus)
+
+    def test_unknown_statuses_are_rejected(self) -> None:
+        conn = self._db()
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO tasks (task_id, workflow_version, status, task_nonce)"
+                " VALUES ('t', '1', 'bogus', 'n')"
+            )
+        conn.execute(
+            "INSERT INTO tasks (task_id, workflow_version, task_nonce)"
+            " VALUES ('t', '1', 'n')"
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status,"
+                " attempt_number) VALUES ('a', 't', 's', 'bogus', 1)"
+            )
+
+    def test_attempt_number_is_required_and_unique_per_task_stage(self) -> None:
+        conn = self._db()
+        conn.execute(
+            "INSERT INTO tasks (task_id, workflow_version, task_nonce)"
+            " VALUES ('t', '1', 'n')"
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO attempts (attempt_id, task_id, stage_id) VALUES ('a', 't', 's')"
+            )
+        conn.execute(
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, attempt_number)"
+            " VALUES ('a', 't', 's', 1)"
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, attempt_number)"
+                " VALUES ('b', 't', 's', 1)"
+            )
 
 
 class TestRagSchemaColumnIntegrity:

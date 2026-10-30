@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from agent.workflow.attempt_ops import count_attempts
+from agent.workflow.errors import TaskTransitionError
 from agent.workflow.idempotency_ops import is_event_processed
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 from agent.workflow.task_ops import (
@@ -183,7 +184,7 @@ class TestWorkflowEngineTimeout:
 
 class TestWorkflowEngineIdempotency:
     @pytest.mark.asyncio
-    async def test_skip_already_processed_stage(self, store) -> None:
+    async def test_completed_task_cannot_be_run_again(self, store) -> None:
         wdef = _make_wdef()
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
@@ -194,13 +195,127 @@ class TestWorkflowEngineIdempotency:
             call_count["n"] += 1
             return None
 
-        # First run
         await engine.run(task, counting_fn, counting_fn, counting_fn)
         first_count = call_count["n"]
 
-        # Second run — all event_ids already in processed_events → all skipped
-        await engine.run(task, counting_fn, counting_fn, counting_fn)
+        with pytest.raises(TaskTransitionError, match="completed"):
+            await engine.run(task, counting_fn, counting_fn, counting_fn)
         assert call_count["n"] == first_count  # no additional calls
+
+    @pytest.mark.asyncio
+    async def test_resume_of_a_failed_task_skips_only_completed_stages(
+        self, store
+    ) -> None:
+        wdef = _make_wdef(max_attempts=1)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+        calls: list[str] = []
+
+        def stage(name: str, fail: bool):
+            async def fn() -> str | None:
+                calls.append(name)
+                if fail:
+                    raise RuntimeError("boom")
+                return None
+
+            return fn
+
+        with pytest.raises(WorkflowHaltError):
+            await engine.run(
+                task,
+                stage("plan", False),
+                stage("execute", True),
+                stage("verify", False),
+            )
+        # The halt is terminal, so model a crash instead: the task is failed with the
+        # plan stage completed and the execute attempt failed.
+        store._db.execute(
+            "UPDATE tasks SET status='failed' WHERE task_id=?", (task.task_id,)
+        )
+        store._db.commit()
+        calls.clear()
+        wdef2 = _make_wdef(max_attempts=3)
+        engine2 = WorkflowEngine(wdef2, store)
+        await engine2.run(
+            task, stage("plan", False), stage("execute", False), stage("verify", False)
+        )
+        assert calls == ["execute", "verify"]  # plan was completed: skipped
+        rows = store._db.fetchall(
+            "SELECT attempt_number FROM attempts WHERE task_id=? AND stage_id='execute'"
+            " ORDER BY attempt_number",
+            (task.task_id,),
+        )
+        assert [r[0] for r in rows] == [1, 2]  # numbering continues across the restart
+        assert get_task_by_id(store._db, task.task_id).status == "completed"
+
+    @pytest.mark.asyncio
+    async def test_retry_budget_survives_a_restart(self, store) -> None:
+        wdef = _make_wdef(max_attempts=2)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        store._db.execute(
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at,"
+            " attempt_number) VALUES ('old', ?, 'execute', 'failed', 't', 1)",
+            (task.task_id,),
+        )
+        store._db.execute(
+            "UPDATE tasks SET status='failed' WHERE task_id=?", (task.task_id,)
+        )
+        store._db.commit()
+        engine = WorkflowEngine(wdef, store)
+        calls = {"n": 0}
+
+        async def failing() -> str | None:
+            calls["n"] += 1
+            raise RuntimeError("still failing")
+
+        async def ok() -> str | None:
+            return None
+
+        with pytest.raises(WorkflowHaltError):
+            await engine.run(task, ok, failing, ok)
+        # One attempt was already used before the restart, so only one more may run.
+        assert calls["n"] == 1
+        assert engine.current_attempt_number == 2
+
+    @pytest.mark.asyncio
+    async def test_exhausted_budget_halts_without_running_the_stage(
+        self, store
+    ) -> None:
+        wdef = _make_wdef(max_attempts=1)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        store._db.execute(
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at,"
+            " attempt_number) VALUES ('old', ?, 'execute', 'failed', 't', 1)",
+            (task.task_id,),
+        )
+        store._db.execute(
+            "UPDATE tasks SET status='failed' WHERE task_id=?", (task.task_id,)
+        )
+        store._db.commit()
+        engine = WorkflowEngine(wdef, store)
+        called = {"n": 0}
+
+        async def fn() -> str | None:
+            called["n"] += 1
+            return None
+
+        with pytest.raises(WorkflowHaltError, match="already used"):
+            await engine.run(task, fn, fn, fn)
+        assert called["n"] == 1  # plan ran; execute did not
+        assert get_task_by_id(store._db, task.task_id).status == "halted"
+
+    @pytest.mark.asyncio
+    async def test_running_task_cannot_be_claimed_twice(self, store) -> None:
+        wdef = _make_wdef()
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        store.claim_task(task.task_id)
+        engine = WorkflowEngine(wdef, store)
+
+        async def fn() -> str | None:
+            return None
+
+        with pytest.raises(TaskTransitionError, match="running"):
+            await engine.run(task, fn, fn, fn)
 
 
 class TestWorkflowEngineStages:

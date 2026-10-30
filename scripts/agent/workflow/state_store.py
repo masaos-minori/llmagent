@@ -8,16 +8,18 @@ from __future__ import annotations
 
 import logging
 import time
-import uuid
 
 from db.helper import SQLiteHelper
-from shared.json_utils import now_iso as _now
 
-from agent.workflow.models import AttemptRecord, TaskRecord
+from agent.workflow.attempt_ops import finish_attempt, mark_attempt_finished
+from agent.workflow.errors import AttemptTransitionError
+from agent.workflow.models import AttemptStatus, TaskRecord, TaskStatus
 from agent.workflow.task_ops import (
+    claim_task,
     create_task,
     get_task_count,
     get_workflow_count,
+    transition_task_in_txn,
     update_task_status,
 )
 
@@ -25,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 # Grace period in seconds — attempts younger than this are NOT considered stale.
 _STALE_GRACE_SEC = 30
+
+_ERROR_KIND_STALE_RECOVERED = "stale_recovered"
 
 
 class StateStore:
@@ -68,27 +72,6 @@ class StateStore:
 
     # ── Attempt ───────────────────────────────────────────────────────────────
 
-    def start_attempt(self, task_id: str, stage_id: str) -> AttemptRecord:
-        """Create a new attempt record with status 'running'."""
-        attempt_id = str(uuid.uuid4())
-        now = _now()
-        self._db.execute(
-            """
-
-            INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at)
-            VALUES (?, ?, ?, 'running', ?)
-            """,
-            (attempt_id, task_id, stage_id, now),
-        )
-        self._db.commit()
-        return AttemptRecord(
-            attempt_id=attempt_id,
-            task_id=task_id,
-            stage_id=stage_id,
-            status="running",
-            started_at=now,
-        )
-
     def finish_attempt(
         self,
         attempt_id: str,
@@ -97,12 +80,14 @@ class StateStore:
         error_kind: str | None = None,
         error_detail: str | None = None,
     ) -> None:
-        """Mark an attempt as completed with its final status and optional error details."""
-        self._db.execute(
-            "UPDATE attempts SET status=?, ended_at=?, error_msg=?, error_kind=?, error_detail=? WHERE attempt_id=?",
-            (status, _now(), error_msg, error_kind, error_detail, attempt_id),
+        """Move a running attempt to `completed` or `failed` (terminal-only, conditional)."""
+        finish_attempt(
+            self._db, attempt_id, status, error_msg, error_kind, error_detail
         )
-        self._db.commit()
+
+    def claim_task(self, task_id: str) -> None:
+        """Move a `pending` or `failed` task to `running`; reject every other status."""
+        claim_task(self._db, task_id)
 
     def count_attempts(self, task_id: str, stage_id: str) -> int:
         """Return the number of attempts recorded for a task-stage pair."""
@@ -182,40 +167,65 @@ class StateStore:
         return stale
 
     def recover_stale_attempts(self, db: SQLiteHelper) -> int:
-        """Mark stale running attempts as failed using optimistic locking.
+        """Mark stale running attempts failed and fail their running tasks.
 
-        An attempt is considered stale if it has been running longer than the
-        configured grace period (_STALE_GRACE_SEC). This method is called once
-        during process initialization before any turn processing begins.
+        An attempt is stale when it has been running longer than the grace period
+        (_STALE_GRACE_SEC). Called once during process initialization before any turn
+        processing begins. Each stale attempt is recovered in its own write
+        transaction: the attempt moves `running -> failed` (conditional, so a lost
+        race is skipped), then its task moves `running -> failed` when no other
+        attempt of the task is still `running`. A repeated call finds no `running`
+        stale attempt and changes nothing.
 
-        Returns the number of successfully transitioned attempts.
+        Returns the number of attempts actually transitioned.
         """
-        stale = self.find_stale_running_attempts(db)
         recovered_count = 0
-        for item in stale:
+        for item in self.find_stale_running_attempts(db):
             attempt_id = item["attempt_id"]
-            started_at = item["started_at"]
-            elapsed = item["elapsed_sec"]
             logger.warning(
                 "Attempting recovery of stale attempt %s (started_at=%s, elapsed=%.1fs)",
                 attempt_id,
-                started_at,
-                elapsed,
+                item["started_at"],
+                item["elapsed_sec"],
             )
-            # Optimistic lock: only update if status is still 'running'
-            cursor = db.execute(
-                "UPDATE attempts SET status='failed', ended_at=? WHERE attempt_id=? AND status='running'",
-                (_now(), attempt_id),
-            )
-            if cursor.rowcount == 1:
-                recovered_count += 1
-                logger.info("Successfully marked attempt %s as failed", attempt_id)
-            else:
+            try:
+                with db.begin_immediate():
+                    mark_attempt_finished(
+                        db,
+                        attempt_id,
+                        AttemptStatus.FAILED.value,
+                        error_msg="stale running attempt recovered at startup",
+                        error_kind=_ERROR_KIND_STALE_RECOVERED,
+                    )
+                    self._fail_task_without_running_attempts(db, attempt_id)
+            except AttemptTransitionError:
                 logger.info(
-                    "Failed to mark attempt %s as failed (already claimed or changed state)",
-                    attempt_id,
+                    "Attempt %s was already finished or claimed; skipped", attempt_id
                 )
-
-        if stale:
-            db.commit()
+                continue
+            recovered_count += 1
+            logger.info("Successfully marked attempt %s as failed", attempt_id)
         return recovered_count
+
+    @staticmethod
+    def _fail_task_without_running_attempts(db: SQLiteHelper, attempt_id: str) -> None:
+        """Move the attempt's task `running -> failed` when no attempt of it still runs."""
+        rows = db.fetchall(
+            "SELECT t.task_id, t.status FROM attempts a JOIN tasks t"
+            " ON t.task_id = a.task_id WHERE a.attempt_id=?",
+            (attempt_id,),
+        )
+        if not rows or rows[0]["status"] != TaskStatus.RUNNING.value:
+            return
+        task_id = rows[0]["task_id"]
+        other = db.fetchall(
+            "SELECT 1 FROM attempts WHERE task_id=? AND status=? LIMIT 1",
+            (task_id, AttemptStatus.RUNNING.value),
+        )
+        if not other:
+            transition_task_in_txn(
+                db,
+                task_id,
+                TaskStatus.FAILED.value,
+                expected=TaskStatus.RUNNING.value,
+            )

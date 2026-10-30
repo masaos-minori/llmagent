@@ -120,17 +120,8 @@ def transition_task(
 
 
 def update_task_status(db: SQLiteHelper, task_id: str, status: str) -> None:
-    """Update the status of a task record in the database.
-
-    Unconditional write kept for `WorkflowEngine.run()`, which still writes `running`
-    for any task; it becomes `transition_task` once the engine claims through
-    `claim_task`.
-    """
-    db.execute(
-        "UPDATE tasks SET status=?, updated_at=? WHERE task_id=?",
-        (status, _now(), task_id),
-    )
-    db.commit()
+    """Apply one validated task status change (see `transition_task`)."""
+    transition_task(db, task_id, status)
 
 
 def claim_task(db: SQLiteHelper, task_id: str) -> None:
