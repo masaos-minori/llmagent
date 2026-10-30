@@ -618,6 +618,9 @@ def _report(**overrides: Any) -> RagConsistencyReport:
         "fts_gap": 0,
         "fts_orphan_count": 0,
         "read_smoke_test_ok": True,
+        # New fatal-class fields default clean so the baseline report only ever
+        # surfaces the single issue *overrides* introduces.
+        "corpus_meta_verified": True,
     }
     base.update(overrides)
     base.setdefault("vec", base["chunks"])

@@ -6,14 +6,19 @@ import sqlite3
 from collections.abc import Callable, Iterable, Sequence
 
 from db.helper import SQLiteHelper
-from db.models import RagConsistencyReport
+from db.models import ConsistencyFinding, FindingSeverity, RagConsistencyReport
 from db.rag_consistency_queries import (
+    _check_corpus_meta,
+    _check_embedding_dimension,
+    _check_fk_consistency,
     _check_read_smoke_test,
+    _check_schema_recognition,
     _collect_affected_identifiers,
     _collect_basic_counts,
     _collect_document_checks,
     _collect_url_counts_and_mismatches,
 )
+from db.store_protocols import get_embedding_dims
 
 
 def check_rag_consistency(
@@ -79,6 +84,22 @@ def check_rag_consistency(
     except sqlite3.Error as e:
         diagnostic_errors.append(f"Affected identifiers collection failed: {e}")
 
+    # Fatal-class counters (doc 04). Structural reads are guarded: a missing or
+    # broken table is already surfaced as a diagnostic error by the collection
+    # stages above, so these leave their clean defaults and never add diagnostics.
+    fk_inconsistency_count = 0
+    dimension_mismatch = 0
+    unknown_schema = 0
+    try:
+        fk_inconsistency_count = _check_fk_consistency(db)
+        dimension_mismatch = (
+            0 if _check_embedding_dimension(db, get_embedding_dims()) else 1
+        )
+        unknown_schema = 0 if _check_schema_recognition(db) else 1
+    except sqlite3.Error:
+        pass
+    corpus_meta_verified = _corpus_meta_verifiable(db)
+
     report = RagConsistencyReport(
         chunks=chunks,
         fts=fts,
@@ -100,9 +121,28 @@ def check_rag_consistency(
         affected_chunks_without_vec=affected_chunks_without_vec,
         affected_duplicate_chunk_indices=affected_duplicate_chunk_indices,
         affected_url_mismatches=affected_url_mismatches,
+        fk_inconsistency_count=fk_inconsistency_count,
+        dimension_mismatch=dimension_mismatch,
+        unknown_schema=unknown_schema,
+        corpus_meta_verified=corpus_meta_verified,
         diagnostic_errors=tuple(diagnostic_errors) if diagnostic_errors else None,
     )
-    return dataclasses.replace(report, issues=tuple(summarize_issues(report)))
+    findings = tuple(
+        check.issue(report)
+        for check in _CHECKS
+        if check.issue is not None and not check.clean(report)
+    )
+    return dataclasses.replace(
+        report,
+        issues=tuple(summarize_issues(report)),
+        findings=findings,
+        fatal_count=sum(
+            1 for finding in findings if finding.severity == FindingSeverity.FATAL
+        ),
+        degraded_count=sum(
+            1 for finding in findings if finding.severity == FindingSeverity.DEGRADED
+        ),
+    )
 
 
 def is_consistent(report: RagConsistencyReport) -> bool:
@@ -153,80 +193,104 @@ def _urls_clause(
     return f" Affected URLs: [{rendered}{marker}]."
 
 
-def _fts_gap_issue(report: RagConsistencyReport) -> str:
+def _fts_gap_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     """FTS rows are missing for chunks that are in the chunk table."""
     detail = _ids_clause(
         report.affected_doc_ids, "doc_ids", limit=10, mark_at=10
     ) or _ids_clause(report.affected_chunk_ids, "chunk_ids", limit=10, mark_at=10)
-    return (
-        f"[WARNING] FTS gap detected (chunks={report.chunks}, fts={report.fts},"
-        f" gap={report.fts_gap}).{detail} Run '/session rag-rebuild-fts' to repair."
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            f"[WARNING] FTS gap detected (chunks={report.chunks}, fts={report.fts},"
+            f" gap={report.fts_gap}).{detail} Run '/session rag-rebuild-fts' to repair."
+        ),
+        repair_action="rebuild_fts",
     )
 
 
-def _fts_orphan_issue(report: RagConsistencyReport) -> str:
+def _fts_orphan_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     """The FTS index holds more entries than the chunk table, which indicates data loss."""
     detail = (
         _ids_clause(report.affected_orphan_chunk_ids, "chunk_ids", limit=10, mark_at=10)
         or _urls_clause(report.affected_orphan_urls, limit=5, mark_at=10)
         or ("" if report.affected_chunk_ids else _FTS_ORPHAN_NO_IDS_CLAUSE)
     )
-    return (
-        f"[CRITICAL] FTS index has more entries than chunks"
-        f" (fts={report.fts}, chunks={report.chunks}).{detail}"
-        f" Run '/session rag-rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            f"[CRITICAL] FTS index has more entries than chunks"
+            f" (fts={report.fts}, chunks={report.chunks}).{detail}"
+            f" Run '/session rag-rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
+        ),
+        repair_action="rebuild_fts",
     )
 
 
-def _orphan_vec_issue(report: RagConsistencyReport) -> str:
+def _orphan_vec_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     """chunks_vec holds rows whose chunk_id has no chunk row."""
     detail = _urls_clause(
         report.affected_orphan_urls, limit=5, mark_at=10
     ) or _ids_clause(
         report.affected_orphan_chunk_ids, "chunk_ids", limit=10, mark_at=None
     )
-    return (
-        f"[CRITICAL] Orphan vec rows detected (count={report.orphan_vec_count}).{detail}"
-        f" Re-run ingestion with 'ingester.py --force' for affected URLs."
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            f"[CRITICAL] Orphan vec rows detected (count={report.orphan_vec_count}).{detail}"
+            f" Re-run ingestion with 'ingester.py --force' for affected URLs."
+        ),
+        repair_action="rebuild_vec",
     )
 
 
-def _vector_mismatch_issue(report: RagConsistencyReport) -> str:
+def _vector_mismatch_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     """chunks_vec and chunks hold a different number of rows."""
     detail = _urls_clause(
         report.affected_orphan_urls, limit=5, mark_at=10
     ) or _ids_clause(
         report.affected_orphan_chunk_ids, "chunk_ids", limit=10, mark_at=None
     )
-    return (
-        f"[WARNING] Vector count mismatch (chunks={report.chunks}, vec={report.vec}).{detail}"
-        f" Re-run ingestion with 'ingester.py --force' for affected URLs."
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            f"[WARNING] Vector count mismatch (chunks={report.chunks}, vec={report.vec}).{detail}"
+            f" Re-run ingestion with 'ingester.py --force' for affected URLs."
+        ),
+        repair_action="rebuild_vec",
     )
 
 
-def _documents_without_chunks_issue(report: RagConsistencyReport) -> str:
+def _documents_without_chunks_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     """A document row has no chunk rows."""
     detail = _ids_clause(
         report.affected_docs_without_chunks, "doc_ids", limit=10, mark_at=None
     )
-    return (
-        f"[WARNING] Documents without chunks detected (count={report.documents_without_chunks_count}).{detail}"
-        f" Re-run ingestion for affected documents."
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            f"[WARNING] Documents without chunks detected (count={report.documents_without_chunks_count}).{detail}"
+            f" Re-run ingestion for affected documents."
+        ),
+        repair_action="rebuild_vec",
     )
 
 
-def _chunks_without_vec_issue(report: RagConsistencyReport) -> str:
+def _chunks_without_vec_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     """A chunk row has no vector row."""
     detail = _ids_clause(
         report.affected_chunks_without_vec, "chunk_ids", limit=10, mark_at=None
     )
-    return (
-        f"[CRITICAL] Chunks without vector rows detected (count={report.chunks_without_vec_count}).{detail}"
-        f" Re-run ingestion with 'ingester.py --force' for affected chunks."
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            f"[CRITICAL] Chunks without vector rows detected (count={report.chunks_without_vec_count}).{detail}"
+            f" Re-run ingestion with 'ingester.py --force' for affected chunks."
+        ),
+        repair_action="rebuild_vec",
     )
 
 
-def _duplicate_chunk_index_issue(report: RagConsistencyReport) -> str:
+def _duplicate_chunk_index_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     """The same (doc_id, chunk_index) pair appears more than once."""
     pairs = report.affected_duplicate_chunk_indices
     detail = (
@@ -234,20 +298,92 @@ def _duplicate_chunk_index_issue(report: RagConsistencyReport) -> str:
         if pairs
         else ""
     )
-    return (
-        f"[CRITICAL] Duplicate chunk_index values detected (count={report.duplicate_chunk_index_count}).{detail}"
-        f" Check ingestion logic; duplicate chunk indices indicate data corruption risk."
+    return ConsistencyFinding(
+        severity=FindingSeverity.FATAL,
+        message=(
+            f"[CRITICAL] Duplicate chunk_index values detected (count={report.duplicate_chunk_index_count}).{detail}"
+            f" Check ingestion logic; duplicate chunk indices indicate data corruption risk."
+        ),
+        repair_action="restore_from_backup",
     )
 
 
-def _url_mismatch_issue(report: RagConsistencyReport) -> str:
+def _url_mismatch_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     """At least one URL has a different number of chunk, vec, and fts rows."""
     mismatches = report.url_level_mismatches or {}
     detail = _urls_clause(mismatches, limit=5, mark_at=5)
-    return (
-        f"[WARNING] URL-level inconsistency detected (mismatched URLs={len(mismatches)}).{detail}"
-        f" Re-run ingestion for affected URLs."
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            f"[WARNING] URL-level inconsistency detected (mismatched URLs={len(mismatches)}).{detail}"
+            f" Re-run ingestion for affected URLs."
+        ),
+        repair_action="reconcile_url",
     )
+
+
+def _fk_inconsistency_issue(report: RagConsistencyReport) -> ConsistencyFinding:
+    """A chunk row references a doc_id with no matching documents row."""
+    return ConsistencyFinding(
+        severity=FindingSeverity.FATAL,
+        message=(
+            f"[CRITICAL] FK inconsistency detected"
+            f" (chunks referencing missing documents={report.fk_inconsistency_count})."
+        ),
+        repair_action="restore_from_backup",
+    )
+
+
+def _embedding_dimension_issue(report: RagConsistencyReport) -> ConsistencyFinding:
+    """Stored embedding vectors do not match the configured dimension."""
+    return ConsistencyFinding(
+        severity=FindingSeverity.FATAL,
+        message=(
+            f"[CRITICAL] Embedding dimension mismatch detected"
+            f" (expected={report.dimension_mismatch})."
+        ),
+        repair_action="restore_from_backup",
+    )
+
+
+def _unknown_schema_issue(report: RagConsistencyReport) -> ConsistencyFinding:
+    """The RAG schema shape is unrecognised (a required table is missing)."""
+    return ConsistencyFinding(
+        severity=FindingSeverity.FATAL,
+        message=(
+            f"[CRITICAL] Unknown RAG schema shape detected"
+            f" (missing tables={report.unknown_schema})."
+        ),
+        repair_action="restore_from_backup",
+    )
+
+
+def _unverifiable_corpus_issue(report: RagConsistencyReport) -> ConsistencyFinding:
+    """The single-row rag_corpus_meta table is missing or malformed."""
+    return ConsistencyFinding(
+        severity=FindingSeverity.FATAL,
+        message=(
+            f"[CRITICAL] Unverifiable corpus generation detected"
+            f" (corpus_meta_verified={int(report.corpus_meta_verified)})."
+        ),
+        repair_action="restore_from_backup",
+    )
+
+
+def _corpus_meta_verifiable(db: SQLiteHelper) -> bool:
+    """True when rag_corpus_meta verifies one corpus or is absent (pre-migration).
+
+    `_check_corpus_meta` reports a missing table as False; here absence is tolerated
+    until the rag corpus migration runs, while a present-but-malformed table (zero,
+    multiple, or id-less rows) stays the unverifiable-generation fatal class.
+    """
+    if _check_corpus_meta(db):
+        return True
+    try:
+        db.execute("SELECT 1 FROM rag_corpus_meta LIMIT 1")
+    except sqlite3.Error:
+        return True  # table absent before the migration runs
+    return False  # present but malformed
 
 
 @dataclasses.dataclass(frozen=True)
@@ -262,7 +398,7 @@ class _ConsistencyCheck:
     """
 
     clean: Callable[[RagConsistencyReport], bool]
-    issue: Callable[[RagConsistencyReport], str] | None = None
+    issue: Callable[[RagConsistencyReport], ConsistencyFinding] | None = None
 
 
 _CHECKS: tuple[_ConsistencyCheck, ...] = (
@@ -287,6 +423,16 @@ _CHECKS: tuple[_ConsistencyCheck, ...] = (
     _ConsistencyCheck(
         lambda report: not report.url_level_mismatches, _url_mismatch_issue
     ),
+    _ConsistencyCheck(
+        lambda report: report.fk_inconsistency_count == 0, _fk_inconsistency_issue
+    ),
+    _ConsistencyCheck(
+        lambda report: report.dimension_mismatch == 0, _embedding_dimension_issue
+    ),
+    _ConsistencyCheck(lambda report: report.unknown_schema == 0, _unknown_schema_issue),
+    _ConsistencyCheck(
+        lambda report: report.corpus_meta_verified, _unverifiable_corpus_issue
+    ),
     _ConsistencyCheck(lambda report: not report.diagnostic_errors),
     _ConsistencyCheck(lambda report: report.read_smoke_test_ok),
 )
@@ -296,11 +442,12 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
     """Return severity-prefixed descriptions of the `_CHECKS` rules that are not clean.
 
     The tuple order is the order the repair guidance assumes: FTS first, then vector
-    rows, then the document-level checks, then the URL-level check.
+    rows, then the document-level checks, then the URL-level check. Each finding keeps
+    its `[WARNING]`/`[CRITICAL]` prefix inside the message for human output.
     """
     issues: list[str] = []
     for check in _CHECKS:
         if check.issue is None or check.clean(report):
             continue
-        issues.append(check.issue(report))
+        issues.append(check.issue(report).message)
     return issues
