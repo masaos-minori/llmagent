@@ -69,9 +69,9 @@ identity-unverified warning (not fatal — fail-closed is enforced later at the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-073655 | 20261031-073655 | Phase 1: RAG findings routed by structural severity (FATAL aborts, DEGRADED warns with repair_action). SKIPPED removed per contract. Gates: ruff/mypy(482)/lint-imports(6/6)/ast-grep/bandit clean; tests/agent 3819, tests/db 372, MDQ-RAG boundary 5, diff-cover 100%. |
+| 2 | Apply the Implementation procedure | Completed | 20261031-073655 | 20261031-073655 | Phase 1: RAG findings routed by structural severity (FATAL aborts, DEGRADED warns with repair_action). SKIPPED removed per contract. Gates: ruff/mypy(482)/lint-imports(6/6)/ast-grep/bandit clean; tests/agent 3819, tests/db 372, MDQ-RAG boundary 5, diff-cover 100%. |
+| 3 | Run the Validation plan gates | Completed | 20261031-073655 | 20261031-073655 | Phase 1: RAG findings routed by structural severity (FATAL aborts, DEGRADED warns with repair_action). SKIPPED removed per contract. Gates: ruff/mypy(482)/lint-imports(6/6)/ast-grep/bandit clean; tests/agent 3819, tests/db 372, MDQ-RAG boundary 5, diff-cover 100%. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
