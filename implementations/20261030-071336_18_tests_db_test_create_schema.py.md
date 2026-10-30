@@ -64,10 +64,10 @@ Extend the module's existing tmp-DB fixture helpers; no new fixtures needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row is itself a test module |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Extended tests/db/test_create_schema.py with TestCreatePathLedgerCoverage: workflow fresh creation carries schema_migrations baseline ('workflow_ledger_baseline',0,1)+user_version=1+version marker; eventbus fresh creation carries baseline ('eventbus_ledger_baseline',4,4)+user_version=4; rag/session assert no schema_migrations. Refusal tests left unchanged. |
+| 2 | Add or update tests per Validation plan | Completed | — | — | This row is itself a test module Added the test module itself. 4 new tests pass; full module 72 pass; tests/db 372 pass; test_eventbus_schema_equivalence green. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format OK; ruff check OK; mypy clean. Coordinated with test_eventbus_schema_equivalence.py (fingerprint shape unchanged by row 04). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Out of scope: migration runner tests (rows 14,17), schema.sql (row 04), ledger DDL in Python (row 09). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
