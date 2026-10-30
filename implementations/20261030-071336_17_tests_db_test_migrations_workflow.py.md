@@ -63,10 +63,10 @@ pytest + tmp_path + subprocess argv per `rules/coding.md`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Wrote tests/db/test_migrations_workflow.py (18 tests): registry/path, bootstrap+preservation, resume, refusals (unknown/downgrade/unmapped/checkpoint/bad-backup/verify_backup), failing-step rollback, dry-run byte-identity, plus 6 subprocess CLI tests. |
+| 2 | Add or update tests per Validation plan | Completed | — | — | 18/18 pass; tests/db 362 pass; ruff/bandit/ast-grep/lint-imports clean; no new mypy regressions. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format+check clean; lint-imports 6 KEPT; bandit 0 med/high; ast-grep bare-except clean; pytest tests/db 362 passed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Out of scope: new file only; no docs/ADR touched. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
