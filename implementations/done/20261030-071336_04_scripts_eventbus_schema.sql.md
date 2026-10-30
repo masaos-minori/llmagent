@@ -56,10 +56,10 @@ Two additive text edits; apply before the row-02 registry commit lands (same com
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Updated by rows 15/16 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-084500 | 20261030-084500 | Already implemented in the row-02 commit (5b301eecb): ledger DDL (id/applied_at/from_version/to_version identical to row-01 contract) plus PRAGMA user_version = 4 baseline stamp. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-084500 | 20261030-084500 | Updated by rows 15/16 Covered by tests/db/test_eventbus_schema_equivalence.py + tests/eventbus/test_eventbus_schema_version.py (13 passed). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-084500 | 20261030-084500 | equivalence+version 13 passed; db+deploy 364 passed earlier. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-084500 | 20261030-084500 | N/A for this row N/A: no docs/00_index.md task-scope mapping for schema.sql. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

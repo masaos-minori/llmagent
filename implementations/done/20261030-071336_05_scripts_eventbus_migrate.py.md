@@ -56,10 +56,10 @@ New executable module mirroring the per-concern module style of `scripts/eventbu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests come from row 15 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-100000 | 20261030-100000 | Created scripts/eventbus/migrate.py: argparse --dry-run/--apply/--status via shared runner + REGISTRY + verify_backup; port-8015 service-busy guard; exit classes OK=0/gate-fail=1/refusal(downgrade/unknown/cycle)=2/service-busy=3. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-100000 | 20261030-100000 | Tests come from row 15 CLI coverage is row 15 (subprocess fixtures incl. fault injection + port-guard); hand smoke test here covers --status/--dry-run/--apply/port-guard/exit-class mapping. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-100000 | 20261030-100000 | ruff format+check clean; mypy(444) clean; lint-imports 6/6; check_db_separation + check_docstrings clean. Hand smoke: v3->v4 apply writes ledger row + preserves events; dry-run byte-identical; listener on 8015 -> exit 3; downgrade/unknown/cycle -> exit 2; gate fail -> exit 1. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-100000 | 20261030-100000 | N/A for this row N/A: no docs/00_index.md task-scope mapping for migrate.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
