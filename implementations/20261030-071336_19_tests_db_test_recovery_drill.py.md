@@ -58,10 +58,10 @@ pytest + tmp_path; invoke harness functions in-process, and one subprocess argv 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row is itself a test module |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Wrote tests/db/test_recovery_drill.py (6 tests): healthy all-four sweep, per-domain artifact schema fields + verdicts, live-DB byte-identity, and audited missing-ledger failure incl. 2 subprocess CLI exit-code cases. |
+| 2 | Add or update tests per Validation plan | Completed | — | — | This row is itself a test module 6/6 pass; tests/db green. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format+check clean; lint-imports 6 KEPT; bandit 0 med/high; ast-grep bare-except clean; check_db_separation no violations; check_docstrings no new; mypy no new regressions (12 pre-existing in other files). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Out of scope: new file only; deploy/init_db.sh drill wiring (row 13) left unchanged. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
