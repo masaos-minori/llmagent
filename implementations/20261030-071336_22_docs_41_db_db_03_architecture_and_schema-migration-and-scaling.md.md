@@ -63,10 +63,10 @@ Section-local text replacement; verify heading numbers referenced elsewhere stil
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land after code rows per Plan sequencing |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Docs checkers only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs checker subset |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row is the documentation |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Land after code rows per Plan sequencing Replaced recreate-only statements with forward-only migration contract for workflow (0->1) and eventbus (3->4): section 8a/8b headings+body, section 8e baseline text, recreation-impact table rows, section 9, and a new Migration guarantees subsection. Verified module paths (eventbus/migrations.py, db/migrations_workflow.py) and version numbers against source. |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Docs checkers only Doc gates: check_docs_quality OK; check_docs_content_policy --strict OK; check_docs_structure OK; check_docs_consistency --domain db OK; check_docs_japanese OK. Removed REQ-/AC- traceability markers per Current-Specification-Only Policy. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | Docs checker subset Out of scope: ADR amendment (row 20), recovery runbook (row 23), deploy wiring (row 13). Left unchanged. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | This row is the documentation Procedure doc itself is the deliverable; archived after doc gates pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
