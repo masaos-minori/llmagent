@@ -83,9 +83,9 @@ Make `scripts/agent/workflow/attempt_ops.py` the owner of attempt rows with pers
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `max_attempt_number` (new), `insert_attempt` (new), `mark_attempt_finished` (new); tighten `finish_attempt`; remove `start_attempt` | Pending | — | — | Plan Phase 3; gated on the schema row Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Test rows' documents |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement `max_attempt_number` (new), `insert_attempt` (new), `mark_attempt_finished` (new); tighten `finish_attempt`; remove `start_attempt` | Completed | 20261030-183035 | 20261030-183035 | Plan Phase 3; gated on the schema row Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) done in batch |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-183035 | 20261030-183035 | Test rows' documents done in batch |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-183035 | 20261030-183035 | executed in the Plan Phase 2-4 single batch; full suite 10516 passed, 1 unrelated flaky eventbus 503 (passes alone); production workflow.sqlite mtime unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

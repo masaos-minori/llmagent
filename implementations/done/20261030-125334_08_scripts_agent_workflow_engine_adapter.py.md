@@ -78,9 +78,9 @@ Make `scripts/agent/workflow_engine_adapter.py` use the task-resume contract fro
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delegate the resume guard; pass the attempt number to the audit call | Pending | — | — | Plan Phase 4; gated on Phases 2 and 3 Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Test rows' documents |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Delegate the resume guard; pass the attempt number to the audit call | Completed | 20261030-183035 | 20261030-183035 | Plan Phase 4; gated on Phases 2 and 3 Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) done in batch |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-183035 | 20261030-183035 | Test rows' documents done in batch |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-183035 | 20261030-183035 | executed in the Plan Phase 2-4 single batch; full suite 10516 passed, 1 unrelated flaky eventbus 503 (passes alone); production workflow.sqlite mtime unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

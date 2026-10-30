@@ -69,8 +69,8 @@ Extend `tests/db/test_create_schema.py` with the schema constraint and migration
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update and add the tests per Procedure | Pending | — | — | Plan Phase 2; with rows 10 and 26 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Update and add the tests per Procedure | Completed | 20261030-183035 | 20261030-183035 | Plan Phase 2; with rows 10 and 26 done in batch |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-183035 | 20261030-183035 | executed in the Plan Phase 2-4 single batch; full suite 10516 passed, 1 unrelated flaky eventbus 503 (passes alone); production workflow.sqlite mtime unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -85,10 +85,10 @@ Remove the attempt-start bypass from `StateStore`, route finishing and claiming 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove `start_attempt`; delegate `finish_attempt`; add `claim_task` (new) | Pending | — | — | Plan Phase 3; gated on the schema row Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) |
-| 2 | Rewrite `recover_stale_attempts` and fix comments | Pending | — | — |  |
-| 3 | Add or update tests per Validation plan | Pending | — | — | Test rows' documents |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Remove `start_attempt`; delegate `finish_attempt`; add `claim_task` (new) | Completed | 20261030-183035 | 20261030-183035 | Plan Phase 3; gated on the schema row Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) done in batch |
+| 2 | Rewrite `recover_stale_attempts` and fix comments | Completed | 20261030-183035 | 20261030-183035 | done in batch |
+| 3 | Add or update tests per Validation plan | Completed | 20261030-183035 | 20261030-183035 | Test rows' documents done in batch |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-183035 | 20261030-183035 | executed in the Plan Phase 2-4 single batch; full suite 10516 passed, 1 unrelated flaky eventbus 503 (passes alone); production workflow.sqlite mtime unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

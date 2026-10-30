@@ -75,9 +75,9 @@ Register the recovery-schema rebuild migration in `scripts/db/migrations_workflo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Register the recovery-schema spec and the foreign-key-off connection | Pending | — | — | Plan Phase 2; with rows 10 and 22 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by the row 22 document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Register the recovery-schema spec and the foreign-key-off connection | Completed | 20261030-183035 | 20261030-183035 | Plan Phase 2; with rows 10 and 22 done in batch |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-183035 | 20261030-183035 | Covered by the row 22 document done in batch |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-183035 | 20261030-183035 | executed in the Plan Phase 2-4 single batch; full suite 10516 passed, 1 unrelated flaky eventbus 503 (passes alone); production workflow.sqlite mtime unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -52,7 +52,7 @@ Correctness and durability defect in the persistence contract. The unconditional
 - `REQ-012`: No production or test caller uses an attempt-start path that bypasses the canonical transaction.
 
 ## Implementation Target Files
-**Freeze status**: Frozen (Amended 2026-10-30 (user-approved) after dbmig001 Phase 3 landed: row `scripts/db/migrations_workflow.py` appended after the last row (UNK-04 resolved); re-validated: file exists, concrete change, evidence checkable, linked to REQ-008, not in Reference Files. Original validation: Step 8 Implementation Target Files Validation passed on 2026-10-30: every row exists, or is a new file in an existing directory with "New file" stated, requires modification, cites checkable evidence, and links to a Requirement; existing paths confirmed on branch `docs/issues-workflow-persistence`).
+**Freeze status**: Frozen (Amended 2026-10-30 a second time (user-approved plan amendments for this release): row `tests/integration/test_orchestrator_integration.py` appended (additional target file discovery in the full-suite run of the Phase 2-4 batch); re-validated: file exists, concrete change, evidence reproduced, linked to REQ-007 and REQ-009, not in Reference Files. Earlier amendment and original validation follow: Amended 2026-10-30 (user-approved) after dbmig001 Phase 3 landed: row `scripts/db/migrations_workflow.py` appended after the last row (UNK-04 resolved); re-validated: file exists, concrete change, evidence checkable, linked to REQ-008, not in Reference Files. Original validation: Step 8 Implementation Target Files Validation passed on 2026-10-30: every row exists, or is a new file in an existing directory with "New file" stated, requires modification, cites checkable evidence, and links to a Requirement; existing paths confirmed on branch `docs/issues-workflow-persistence`).
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
@@ -84,6 +84,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Rewrite state semantics, resume, recovery sections | States "started (not completed)" and halted-only guard | REQ-010 / AC-11 | `agent_03_03_...md:31-33,35-42,143-146` (checked in Step 3) | docs checkers | Verified |
 | `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` | StateStore scope and `begin_stage_if_new` bullet | Describes the single-transaction started-event check | REQ-010 / AC-11 | `agent_04_03_...md:71,87` (checked in Step 3) | docs checkers | Verified |
 | `scripts/db/migrations_workflow.py` | Register the migration spec(s) that rebuild `tasks` and `attempts` with the status `CHECK` constraints and `attempt_number`, and add the `processed_events` link columns; bump the version | The registry exists (dbmig001 Phase 3 landed: `MIGRATIONS = ()`, `WORKFLOW_DOMAIN`); a DDL change without a registered forward path is refused at the version check, so the schema row cannot ship without it | REQ-008 / AC-10 | `scripts/db/migrations_workflow.py` (`MIGRATIONS`), `scripts/shared/db_migrations.py` (`MigrationSpec`, `run_migrations`) | `tests/db/test_create_schema.py` (migration test with existing rows) | Verified |
+| `tests/integration/test_orchestrator_integration.py` | Give the mocked resumed tasks a resumable status and the mocked engine an attempt number | The resume and audit tests build `MagicMock` tasks without a status and a `MagicMock` engine: the resume guard now rejects any task that is not `pending` or `failed`, and `audit_stage_completed` serializes the engine's `current_attempt_number` (7 failures in the full suite, 2026-10-30) | REQ-007, REQ-009 / AC-8 | `tests/integration/test_orchestrator_integration.py` (`TestWorkflowResumeWithRealDB`, `TestCompleteTurnExecution`); full-suite output | itself | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze) for the full validation procedure):
 - One row per file. No directory, glob, component name, file group, or vague phrase appears as a row.
@@ -240,9 +241,9 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Phase 1: Vocabulary, errors, and task transitions | Completed | — | 20261030-144830 |  |
-| 2 | Phase 2: Schema and migration | In Progress | — | — | Starts after dbmig001 Phase 3 |
-| 3 | Phase 3: Attempt lifecycle, ledger, and recovery | Pending | — | — |  |
-| 4 | Phase 4: Engine, adapter, and audit correlation | Pending | — | — |  |
+| 2 | Phase 2: Schema and migration | Completed | — | 20261030-183106 | Starts after dbmig001 Phase 3 |
+| 3 | Phase 3: Attempt lifecycle, ledger, and recovery | Completed | — | 20261030-183106 |  |
+| 4 | Phase 4: Engine, adapter, and audit correlation | Completed | — | 20261030-183106 |  |
 | 5 | Phase 5: Documentation and ADR | Pending | — | — |  |
 | 6 | Phase 6: Deployment & Verification | Pending | — | — |  |
 
@@ -255,9 +256,9 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
-| implementations/20261030-125334_10_scripts_db_schema_sql.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261030-125334_22_tests_db_test_create_schema.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261030-125334_26_scripts_db_migrations_workflow.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-125334_10_scripts_db_schema_sql.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261030-125334_22_tests_db_test_create_schema.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261030-125334_26_scripts_db_migrations_workflow.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -266,7 +267,7 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261030-114041
-- **Related target files**: `scripts/agent/workflow/models.py`, `scripts/agent/workflow/errors.py`, `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/attempt_ops.py`, `scripts/agent/workflow/idempotency_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow_engine_adapter.py`, `scripts/agent/tool_audit.py`, `scripts/db/schema_sql.py`, `scripts/agent/services/workflow_schema.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`, `tests/agent/workflow/test_workflow_models.py`, `tests/agent/workflow/test_workflow_recovery.py`, `tests/agent/workflow/test_workflow_concurrency.py`, `tests/agent/test_orchestrator.py`, `tests/agent/test_repl_health.py`, `tests/agent/test_tool_audit.py`, `tests/db/test_create_schema.py`, `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`, `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`, `scripts/db/migrations_workflow.py`
+- **Related target files**: `scripts/agent/workflow/models.py`, `scripts/agent/workflow/errors.py`, `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/attempt_ops.py`, `scripts/agent/workflow/idempotency_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow_engine_adapter.py`, `scripts/agent/tool_audit.py`, `scripts/db/schema_sql.py`, `scripts/agent/services/workflow_schema.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`, `tests/agent/workflow/test_workflow_models.py`, `tests/agent/workflow/test_workflow_recovery.py`, `tests/agent/workflow/test_workflow_concurrency.py`, `tests/agent/test_orchestrator.py`, `tests/agent/test_repl_health.py`, `tests/agent/test_tool_audit.py`, `tests/db/test_create_schema.py`, `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`, `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`, `scripts/db/migrations_workflow.py`, `tests/integration/test_orchestrator_integration.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -291,6 +292,7 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 | REQ-007 | Required Changes 8 | `scripts/agent/workflow/task_ops.py` | Phase 1 | AC-6 | `tests/agent/workflow/test_workflow_state_store.py` | Confirmed by repository evidence |
 | REQ-008 | Required Changes 2; Constraints | `scripts/db/schema_sql.py` | Phase 2 | AC-10 | `tests/db/test_create_schema.py` | Confirmed by repository evidence |
 | REQ-008 | Required Changes 2; Constraints | `scripts/db/migrations_workflow.py` | Phase 2 | AC-10 | `tests/db/test_create_schema.py` | Confirmed by repository evidence |
+| REQ-007 | Required Changes | `tests/integration/test_orchestrator_integration.py` | Phase 4 | AC-8 | the test file itself | Confirmed by repository evidence |
 | REQ-008 | Background (startup check) | `scripts/agent/services/workflow_schema.py` | Phase 2 | AC-10 | `tests/agent/test_repl_health.py` | Confirmed by repository evidence |
 | REQ-008 | Testing Expectations 4 | `tests/db/test_create_schema.py` | Phase 2 | AC-10 | `uv run pytest tests/db/` | Explicit in issue |
 | REQ-008 | Background (second finding) | `tests/agent/test_repl_health.py` | Phase 2 | AC-10 | `uv run pytest tests/agent/test_repl_health.py` | Confirmed by repository evidence |
