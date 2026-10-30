@@ -62,10 +62,10 @@ New module; imports stay inside the `db` layer plus `shared` (fingerprint, ledge
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests come from row 19 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Runbook text lands in row 23 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-110000 | 20261030-110000 | New module scripts/db/recovery_drill.py. Drills all four domains via rotation._archive_db_file (read-only backup-API copy), restores into an isolated copy, measures rto/rpo, verifies per domain through db.recovery helpers + eventbus assert_matches, writes one JSON artifact per domain. CLI main() exits 0 on all-pass, 1 on any fail. Read-only: live DBs never mutated. |
+| 2 | Add or update tests per Validation plan | Pending | — | — | Formal coverage is row 19 (tests/db/test_recovery_drill.py), not yet generated. Hand smoke test validated: rag/session (recreate) PASS, workflow (migrate, ledger present) PASS with baseline captured, eventbus fingerprint-mismatch FAIL with artifact still written, missing-source FAIL with error field. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-110000 | 20261030-110000 | ruff format+check clean; mypy clean; lint-imports 6/6 KEPT; check_db_separation no violations; check_docstrings OK (268 grandfathered). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-110000 | 20261030-110000 | N/A: runbook text is row 23's scope, outside this row. Module implementation and validation are complete here. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
