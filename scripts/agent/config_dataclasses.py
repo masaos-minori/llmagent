@@ -402,6 +402,7 @@ class AgentConfig:
     def __post_init__(self) -> None:
         """Validate cross-field dependencies between sub-configs."""
         self._validate_cross_field()
+        self._validate_memory_max_startup_snippets()
 
     def _validate_cross_field(self) -> None:
         """Validate interdependent settings that span sub-config boundaries."""
@@ -420,4 +421,11 @@ class AgentConfig:
         if self.memory.memory_embed_enabled and not self.rag.embed_url:
             raise ValueError(
                 "memory_embed_enabled=True requires embed_url to be non-empty",
+            )
+
+    def _validate_memory_max_startup_snippets(self) -> None:
+        """Raise ValueError when agent_memory_max_startup_snippets is not positive."""
+        if self.agent_memory_max_startup_snippets <= 0:
+            raise ValueError(
+                "agent_memory_max_startup_snippets must be >= 1",
             )

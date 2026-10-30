@@ -126,8 +126,8 @@ changing any other `Test*ConfigValidation` class; the prompt-setup regression su
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the tests described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the tests described in Implementation > Procedure/Method/Details | Completed | 20261030-104309 | 20261030-104309 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-104309 | 20261030-104309 | ruff/mypy/bandit clean; new + existing AgentConfig tests pass; full suite 10441 passed; diff-cover 100% on changed lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

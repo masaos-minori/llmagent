@@ -242,6 +242,32 @@ class TestAgentConfigValidation:
         assert cfg.diagnostics.encryption_key == ""
         assert cfg.diagnostics.retention_days == 30
 
+    def test_agent_config_max_startup_snippets_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="agent_memory_max_startup_snippets"):
+            AgentConfig(
+                agent_memory_max_startup_snippets=0,
+                rag=RAGConfig(embed_url="http://localhost:8080"),
+            )
+
+    def test_agent_config_max_startup_snippets_negative_raises(self) -> None:
+        with pytest.raises(ValueError, match="agent_memory_max_startup_snippets"):
+            AgentConfig(
+                agent_memory_max_startup_snippets=-1,
+                rag=RAGConfig(embed_url="http://localhost:8080"),
+            )
+
+    def test_agent_config_max_startup_snippets_positive_values_pass(self) -> None:
+        for value in (1, 5):
+            cfg = AgentConfig(
+                agent_memory_max_startup_snippets=value,
+                rag=RAGConfig(embed_url="http://localhost:8080"),
+            )
+            assert cfg.agent_memory_max_startup_snippets == value
+
+    def test_agent_config_max_startup_snippets_default_is_ten(self) -> None:
+        cfg = AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080"))
+        assert cfg.agent_memory_max_startup_snippets == 10
+
 
 # ── DiagnosticsConfig ─────────────────────────────────────────────────────────
 
