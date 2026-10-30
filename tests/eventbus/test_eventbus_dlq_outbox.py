@@ -88,7 +88,9 @@ def _worker(db: Any, deadletter_dir: str, cfg: Any = None) -> dict[str, int]:
     async def _runner(fn: Any) -> Any:
         return fn()
 
-    result: dict[str, int] = asyncio.run(process_outbox(db, deadletter_dir, cfg, _runner))
+    result: dict[str, int] = asyncio.run(
+        process_outbox(db, deadletter_dir, cfg, _runner)
+    )
     return result
 
 
@@ -176,7 +178,12 @@ def test_commit_then_crash_before_file(client: TestClient, tmp_path: Path) -> No
 
     generated_before = _counter("eventbus_dlq_outbox_generated_total")
     report = _worker(db, str(tmp_path / "deadletter"))
-    assert report == {"processed": 1, "generated": 1, "failed_attempts": 0, "terminal_failed": 0}
+    assert report == {
+        "processed": 1,
+        "generated": 1,
+        "failed_attempts": 0,
+        "terminal_failed": 0,
+    }
     assert _counter("eventbus_dlq_outbox_generated_total") - generated_before == 1
 
     target = tmp_path / "deadletter" / f"{ev['event_id']}.json"
@@ -333,7 +340,12 @@ def test_terminal_failed_after_bound(
     monkeypatch.setattr(dlq.os, "replace", original_replace)
     _advance_clock(db)
     report = _worker(db, deadletter, cfg)
-    assert report == {"processed": 0, "generated": 0, "failed_attempts": 0, "terminal_failed": 0}
+    assert report == {
+        "processed": 0,
+        "generated": 0,
+        "failed_attempts": 0,
+        "terminal_failed": 0,
+    }
     assert not (Path(deadletter) / f"{ev['event_id']}.json").exists()
 
 
@@ -354,7 +366,9 @@ def test_restart_with_pending_rows(
         **eventbus_test_tokens("test-token"),
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
-    schema_path = Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    schema_path = (
+        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+    )
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     ev = _event()
@@ -364,7 +378,9 @@ def test_restart_with_pending_rows(
         """Suspend the periodic loop: the test drives the first cycle explicitly."""
 
     with TestClient(eb_app.app) as c1:
-        c1.headers["Authorization"] = eventbus_auth_headers("publisher")["Authorization"]
+        c1.headers["Authorization"] = eventbus_auth_headers("publisher")[
+            "Authorization"
+        ]
         assert c1.post("/publish", json=ev).status_code == 200
         _make_promotable(db1, ev["event_id"])
         _promote(db1, str(tmp_path / "deadletter"), ev["event_id"])
@@ -384,9 +400,7 @@ def test_restart_with_pending_rows(
         assert c2 is not None  # lifespan active during the cycle
 
 
-def test_idempotent_reprocessing_no_rewrite(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_idempotent_reprocessing_no_rewrite(client: TestClient, tmp_path: Path) -> None:
     """A done artifact that is already canonical completes without touching the file."""
     from eventbus.db import open_db
 
@@ -490,18 +504,130 @@ def test_outbox_retry_backoff_delays_next_attempt(
     monkeypatch.setattr(dlq.os, "replace", _always_fail)
 
     report = _worker(db, deadletter)
-    assert report == {"processed": 1, "generated": 0, "failed_attempts": 1, "terminal_failed": 0}
+    assert report == {
+        "processed": 1,
+        "generated": 0,
+        "failed_attempts": 1,
+        "terminal_failed": 0,
+    }
 
     row = _outbox_row(db, ev["event_id"])
     assert row["status"] == "pending"
     assert row["next_attempt_at"] is not None  # backoff window scheduled
 
     report = _worker(db, deadletter)  # same cycle: not due yet
-    assert report == {"processed": 0, "generated": 0, "failed_attempts": 0, "terminal_failed": 0}
+    assert report == {
+        "processed": 0,
+        "generated": 0,
+        "failed_attempts": 0,
+        "terminal_failed": 0,
+    }
 
     _advance_clock(db)
     report = _worker(db, deadletter)
     assert report["failed_attempts"] == 1
     row = _outbox_row(db, ev["event_id"])
-    assert row["status"] == "pending"  # bounded but not yet terminal (max_attempts default 5)
+    assert (
+        row["status"] == "pending"
+    )  # bounded but not yet terminal (max_attempts default 5)
     assert row["attempts"] == 2
+
+
+def test_outbox_missing_event_row_records_terminal_attempt(
+    client: TestClient, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Defensive path (REQ-005): a pending row whose event row vanished logs,
+    records a bounded attempt, and turns terminal at the bound — generation is
+    never attempted and committed DLQ state is untouched."""
+    from eventbus import dlq_repo
+    from eventbus.db import open_db
+    from eventbus.dlq import now_iso
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    deadletter = str(tmp_path / "deadletter")
+    event_id = "outbox-missing-event-row"
+    db.execute(
+        "INSERT INTO events (event_id, topic, payload, producer, published_at, dlq_at)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            event_id,
+            "t",
+            '{"key": "value"}',
+            "test-producer",
+            "2026-01-01T00:00:00Z",
+            now_iso(),
+        ),
+    )
+    # attempts at bound-1: this cycle is the last one before the terminal mark.
+    db.execute(
+        "INSERT INTO dlq_outbox (event_id, requested_at, attempts) VALUES (?, ?, 4)",
+        (event_id, now_iso()),
+    )
+    db.commit()
+    db.execute("PRAGMA foreign_keys = OFF")  # simulate the defensive-only inconsistency
+    db.execute("DELETE FROM events WHERE event_id = ?", (event_id,))
+    db.execute("PRAGMA foreign_keys = ON")
+    db.commit()
+
+    attempt_before = _counter("eventbus_dlq_outbox_attempt_failure_total")
+    terminal_before = _counter("eventbus_dlq_outbox_failed_total")
+
+    with caplog.at_level("ERROR"):
+        report = _worker(db, deadletter)
+    assert report == {
+        "processed": 1,
+        "generated": 0,
+        "failed_attempts": 1,
+        "terminal_failed": 1,
+    }
+    assert "event row missing" in caplog.text
+
+    row = _outbox_row(db, event_id)
+    assert row["status"] == "failed"
+    assert row["attempts"] == 5
+    assert row["last_error"] == "dlq event row missing"
+    assert not (
+        Path(deadletter) / f"{event_id}.json"
+    ).exists()  # generation never attempted
+
+    assert _counter("eventbus_dlq_outbox_attempt_failure_total") - attempt_before == 1
+    assert _counter("eventbus_dlq_outbox_failed_total") - terminal_before == 1
+
+    # get_outbox_state exposes the row for operators, and None for absent ids.
+    state = dlq_repo.get_outbox_state(db, event_id)
+    assert state is not None
+    assert state["status"] == "failed"
+    assert state["attempts"] == 5
+    assert dlq_repo.get_outbox_state(db, "no-such-event") is None
+
+
+def test_reconcile_counts_corrupt_or_non_object_pair_as_mismatch(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A completed pair whose file cannot be confirmed equivalent (corrupt bytes
+    or a non-object JSON) is a mismatch, not an orphan, and is never rewritten."""
+    from eventbus.db import open_db
+    from eventbus.dlq import reconcile_missing_dlq_files
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    deadletter = str(tmp_path / "deadletter")
+    ev_a = _event("corrupt-a")
+    ev_b = _event("corrupt-b")
+    for ev in (ev_a, ev_b):
+        assert client.post("/publish", json=ev).status_code == 200
+        _make_promotable(db, ev["event_id"])
+        _promote(db, deadletter, ev["event_id"])
+    report = _worker(db, deadletter)
+    assert report["generated"] == 2
+
+    path_a = tmp_path / "deadletter" / f"{ev_a['event_id']}.json"
+    path_b = tmp_path / "deadletter" / f"{ev_b['event_id']}.json"
+    path_a.write_bytes(b"{ not valid json")
+    path_b.write_bytes(b"[1, 2]")  # parses, but is not a canonical JSON object
+
+    reconciled = reconcile_missing_dlq_files(db, deadletter)
+    assert reconciled["mismatch"] == 2
+    assert reconciled["orphans"] == 0
+    assert reconciled["rebuilt"] == 0
+    assert path_a.read_bytes() == b"{ not valid json"  # mismatch is report-only
+    assert path_b.read_bytes() == b"[1, 2]"

@@ -14,7 +14,12 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from eventbus.migrations import REGISTRY, verify_backup
+from eventbus.migrations import (
+    REGISTRY,
+    _postcondition_ledger_baseline,
+    _precondition_outbox_step,
+    verify_backup,
+)
 from eventbus.schema import _SCHEMA_PATH
 from shared.db_migrations import (
     MigrationRefusalError,
@@ -276,6 +281,84 @@ class TestEventbusOutboxStep:
             with pytest.raises(RuntimeError, match="already has dlq_outbox"):
                 runner.apply(conn, planned, _ok_verifier)
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 4  # untouched
+        finally:
+            conn.close()
+
+    def test_outbox_step_precondition_refuses_wrong_version(
+        self, tmp_path: Path
+    ) -> None:
+        # A pre-ledger (version-3) database is refused: the step applies only to
+        # a 4-stamped database (REQ-003 refusal before mutation).
+        conn = _baseline_v3_db(tmp_path / "eventbus.sqlite")
+        try:
+            with pytest.raises(
+                RuntimeError, match="applies only to a 4-stamped database"
+            ):
+                _precondition_outbox_step(conn)
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3  # untouched
+        finally:
+            conn.close()
+
+    def test_outbox_step_precondition_refuses_forged_stamp(
+        self, tmp_path: Path
+    ) -> None:
+        # A 4-stamped database with no migration ledger is a forged stamp.
+        conn = sqlite3.connect(str(tmp_path / "eventbus.sqlite"))
+        conn.execute("PRAGMA user_version = 4")  # nosec B608 — fixed test int
+        conn.commit()
+        try:
+            with pytest.raises(RuntimeError, match="forged stamp"):
+                _precondition_outbox_step(conn)
+        finally:
+            conn.close()
+
+    def test_outbox_step_precondition_refuses_missing_core_tables(
+        self, tmp_path: Path
+    ) -> None:
+        # A stamped, ledger-bearing database missing the core eventbus tables is
+        # not a valid eventbus database.
+        conn = sqlite3.connect(str(tmp_path / "eventbus.sqlite"))
+        conn.execute(
+            "CREATE TABLE schema_migrations (id TEXT PRIMARY KEY,"
+            " applied_at TEXT, from_version INTEGER, to_version INTEGER)"
+        )
+        conn.execute("PRAGMA user_version = 4")  # nosec B608 — fixed test int
+        conn.commit()
+        try:
+            with pytest.raises(RuntimeError, match="missing core tables"):
+                _precondition_outbox_step(conn)
+        finally:
+            conn.close()
+
+    def test_ledger_baseline_postcondition_refuses_unstamped_result(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        try:
+            with pytest.raises(
+                RuntimeError, match="not 4, after the ledger bootstrap step"
+            ):
+                _postcondition_ledger_baseline(conn)
+        finally:
+            conn.close()
+
+    def test_ledger_baseline_postcondition_refuses_missing_ledger(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.execute("PRAGMA user_version = 4")  # nosec B608 — fixed test int
+        try:
+            with pytest.raises(RuntimeError, match="did not create schema_migrations"):
+                _postcondition_ledger_baseline(conn)
+        finally:
+            conn.close()
+
+    def test_ledger_baseline_postcondition_refuses_missing_core_tables(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.execute(
+            "CREATE TABLE schema_migrations (id TEXT PRIMARY KEY,"
+            " applied_at TEXT, from_version INTEGER, to_version INTEGER)"
+        )
+        conn.execute("PRAGMA user_version = 4")  # nosec B608 — fixed test int
+        try:
+            with pytest.raises(RuntimeError, match="left core tables missing"):
+                _postcondition_ledger_baseline(conn)
         finally:
             conn.close()
 

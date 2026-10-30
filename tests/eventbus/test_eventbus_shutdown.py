@@ -323,7 +323,14 @@ async def test_shutdown_joins_inflight_outbox_cycle_before_closing_db(
     db.execute(
         "INSERT INTO events (event_id, topic, payload, producer, published_at, dlq_at)"
         " VALUES (?, ?, ?, ?, ?, ?)",
-        (event_id, "t", '{"key": "value"}', "test-producer", "2026-01-01T00:00:00Z", now_iso()),
+        (
+            event_id,
+            "t",
+            '{"key": "value"}',
+            "test-producer",
+            "2026-01-01T00:00:00Z",
+            now_iso(),
+        ),
     )
     db.execute(
         "INSERT INTO dlq_outbox (event_id, requested_at) VALUES (?, ?)",
@@ -375,5 +382,79 @@ async def test_shutdown_joins_inflight_outbox_cycle_before_closing_db(
         assert row["last_error"] is None
         due = real_fetch(db2, now_iso())
         assert [str(r["event_id"]) for r in due] == [event_id]
+    finally:
+        db2.close()
+
+
+@pytest.mark.asyncio
+async def test_dlq_loop_logs_outbox_and_reconcile_activity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """REQ-004/REQ-007: a dlq_loop cycle that processes outbox rows and finds an
+    outbox inconsistency logs both warnings; the pending row completes and the
+    orphan file is reported, never deleted."""
+    from eventbus import app as eb_app
+    from eventbus.db import open_db
+    from eventbus.dlq import now_iso
+
+    cfg = _make_config(tmp_path)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: _SCHEMA_PATH)
+    monkeypatch.setattr(eb_app, "_DLQ_INTERVAL", 3600.0)  # only the first cycle matters
+
+    # Seed a promoted event with a due pending outbox row, plus a stray DLQ file
+    # with no event row and no done outbox row (an orphan), before the app starts.
+    Path(cfg.deadletter_dir).mkdir(parents=True, exist_ok=True)
+    orphan_file = Path(cfg.deadletter_dir) / "no-such-event.json"
+    orphan_file.write_text('{"event_id": "no-such-event"}', encoding="utf-8")
+
+    db = open_db(cfg.db_path)
+    event_id = "outbox-loop-pending"
+    db.execute(
+        "INSERT INTO events (event_id, topic, payload, producer, published_at, dlq_at)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            event_id,
+            "t",
+            '{"key": "value"}',
+            "test-producer",
+            "2026-01-01T00:00:00Z",
+            now_iso(),
+        ),
+    )
+    db.execute(
+        "INSERT INTO dlq_outbox (event_id, requested_at) VALUES (?, ?)",
+        (event_id, now_iso()),
+    )
+    db.commit()
+    db.close()
+
+    reconcile_finished = threading.Event()
+    real_reconcile = eb_app.reconcile_missing_dlq_files
+
+    def _spy_reconcile(db_arg: Any, deadletter_dir: str) -> dict[str, int]:
+        result = real_reconcile(db_arg, deadletter_dir)
+        reconcile_finished.set()  # the cycle's last step has run
+        return result
+
+    monkeypatch.setattr(eb_app, "reconcile_missing_dlq_files", _spy_reconcile)
+
+    with caplog.at_level("WARNING"):
+        async with eb_app.lifespan(eb_app.app):
+            done = await asyncio.to_thread(reconcile_finished.wait, 10)
+            assert done, "dlq_loop first cycle did not complete"
+
+    assert "outbox processed=1 generated=1" in caplog.text
+    assert "reconcile checked=1" in caplog.text
+    assert "orphans=1" in caplog.text
+
+    db2 = open_db(cfg.db_path)
+    try:
+        row = db2.execute(
+            "SELECT status FROM dlq_outbox WHERE event_id = ?", (event_id,)
+        ).fetchone()
+        assert row["status"] == "done"
+        assert (Path(cfg.deadletter_dir) / f"{event_id}.json").exists()
+        assert orphan_file.exists()  # report-only: reconcile never deletes orphans
     finally:
         db2.close()
