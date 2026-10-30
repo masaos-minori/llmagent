@@ -36,7 +36,7 @@ Make task status changes validated, conditional, and race-safe in `scripts/agent
 ### Procedure
 
 1. Add `transition_task_in_txn` (new)(db, task_id, new_status, expected=None) that assumes the caller holds the write transaction, and `transition_task` (new)(db, task_id, new_status, expected=None) that wraps it in `begin_immediate()`. The in-transaction function reads the current status (`TaskNotFoundError` when absent), reject an unknown `new_status`, apply the matrix from `models.py`, honor `expected` when given, run the conditional `UPDATE`, require `rowcount == 1`, raise `TaskTransitionError` otherwise.
-2. Re-implement `update_task_status` (`:66`) as `transition_task` (new) with no `expected`.
+2. Keep `update_task_status` as the unconditional write until the engine row (07) claims through `claim_task` (new); only then re-implement it as `transition_task` (new) with no `expected`. Correction (Step 3a): `WorkflowEngine.run()` writes `running` for any task, including `completed` (`tests/agent/workflow/test_workflow_engine.py::test_skip_already_processed_stage` re-runs a completed task), so a strict `update_task_status` fails the existing suite before row 07 lands.
 3. Add `claim_task` (new)(db, task_id) that moves `pending` or `failed` to `running` through `transition_task` (new) with the claimable set, and rejects `running`, `completed`, and `halted`.
 4. Add `assert_resumable` (new)(task) for an already fetched `TaskRecord`, raising `TaskTransitionError` whose message names the status (for example `halted`).
 
@@ -49,13 +49,13 @@ Make task status changes validated, conditional, and race-safe in `scripts/agent
 
 ### Details
 
-- Callers write `pending -> halted` (adapter preparation failure) and `completed -> failed` (adapter overwrite) today; both are in the matrix, so no caller breaks.
+- Callers write `pending -> halted` (adapter preparation failure) and `completed -> failed` (adapter overwrite) today; both are in the matrix. The engine's unconditional `running` write is not (see Procedure step 2), which is why `update_task_status` stays unconditional in this row.
 - Two connections racing on `claim_task` (new) for one task: the second sees `running` and raises `TaskTransitionError`; this is what the concurrency test asserts.
 - Cited symbols and lines in this file may shift after the wftaskapi001 Plan's row 01; locate by symbol name.
 
 ## Compatibility considerations
 
-- Signature of `update_task_status` is unchanged; behavior is stricter (invalid transitions now raise). The existing adapter writes are in the matrix.
+- `update_task_status` is unchanged in this row (behavior and signature); the stricter behavior moves to the engine row (07).
 - `TaskTransitionError` subclasses `RuntimeError`, so the adapter's `RuntimeError` expectations hold.
 
 ## Security considerations
@@ -73,7 +73,7 @@ Make task status changes validated, conditional, and race-safe in `scripts/agent
 
 ## Completion criteria
 
-- An invalid status string, an invalid transition, and a zero-row update each raise a typed error.
+- An invalid status string, an invalid transition, and a zero-row update each raise a typed error from `transition_task` (new); `update_task_status` stays unconditional until row 07.
 - `claim_task` (new) accepts only `pending` and `failed`; two concurrent claims yield one winner.
 - `assert_resumable` (new) rejects `halted` with a message containing `halted`.
 
@@ -86,9 +86,9 @@ Make task status changes validated, conditional, and race-safe in `scripts/agent
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `transition_task` (new), `claim_task` (new), `assert_resumable` (new); re-implement `update_task_status` | Pending | — | — | Plan Phase 1; after rows 01 and 02 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Test rows' documents |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `transition_task` (new), `claim_task` (new), `assert_resumable` (new); re-implement `update_task_status` | Completed | 20261030-144808 | 20261030-144808 | Plan Phase 1; after rows 01 and 02 transition_task, claim_task, assert_resumable added; update_task_status kept unconditional (Step 3a correction) |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-144808 | 20261030-144808 | Test rows' documents tests/agent/workflow/test_workflow_task_transitions.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-144808 | 20261030-144808 | validators passed; full suite passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

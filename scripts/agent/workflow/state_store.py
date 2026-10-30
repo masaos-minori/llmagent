@@ -7,7 +7,6 @@ CRUD operations and idempotency enforcement for workflow.sqlite.
 from __future__ import annotations
 
 import logging
-import sqlite3
 import time
 import uuid
 
@@ -15,7 +14,12 @@ from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 
 from agent.workflow.models import AttemptRecord, TaskRecord
-from agent.workflow.task_ops import create_task
+from agent.workflow.task_ops import (
+    create_task,
+    get_task_count,
+    get_workflow_count,
+    update_task_status,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,66 +64,7 @@ class StateStore:
 
     def update_task_status(self, task_id: str, status: str) -> None:
         """Update the task's status and set updated_at timestamp."""
-        self._db.execute(
-            "UPDATE tasks SET status=?, updated_at=? WHERE task_id=?",
-            (status, _now(), task_id),
-        )
-        self._db.commit()
-
-    def _row_to_task(self, r: sqlite3.Row) -> TaskRecord:
-        """Convert a database row dict into a TaskRecord."""
-        row = dict(r)
-        return TaskRecord(
-            task_id=row["task_id"],
-            session_id=row["session_id"],
-            turn_number=row["turn_number"],
-            workflow_version=row["workflow_version"],
-            status=row["status"],
-            idempotency_key=row["idempotency_key"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-            workflow_id=row.get("workflow_id") or "",
-        )
-
-    def get_task_by_id(self, task_id: str) -> TaskRecord | None:
-        """Return the task record for the given task_id, or None if absent."""
-        rows = self._db.fetchall("SELECT * FROM tasks WHERE task_id=?", (task_id,))
-        if not rows:
-            return None
-        return self._row_to_task(rows[0])
-
-    def get_task_by_idempotency_key(self, key: str) -> TaskRecord | None:
-        """Return the task record matching the given idempotency key, or None if absent."""
-        rows = self._db.fetchall("SELECT * FROM tasks WHERE idempotency_key=?", (key,))
-        if not rows:
-            return None
-        return self._row_to_task(rows[0])
-
-    def get_task_by_session(self, session_id: str) -> list[TaskRecord]:
-        """Return all tasks for a session ordered by created_at ascending."""
-        rows = self._db.fetchall(
-            "SELECT * FROM tasks WHERE session_id=? ORDER BY created_at ASC",
-            (session_id,),
-        )
-        return [self._row_to_task(r) for r in rows]
-
-    def get_latest_task(self, session_id: str) -> TaskRecord | None:
-        """Return the most recently created task for a session."""
-        rows = self._db.fetchall(
-            "SELECT * FROM tasks WHERE session_id=? ORDER BY created_at DESC LIMIT 1",
-            (session_id,),
-        )
-        if not rows:
-            return None
-        return self._row_to_task(rows[0])
-
-    def list_tasks(self, limit: int = 50) -> list[TaskRecord]:
-        """Return up to `limit` tasks ordered by created_at descending."""
-        rows = self._db.fetchall(
-            "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-        )
-        return [self._row_to_task(r) for r in rows]
+        update_task_status(self._db, task_id, status)
 
     # ── Attempt ───────────────────────────────────────────────────────────────
 
@@ -176,18 +121,11 @@ class StateStore:
 
     def get_task_count(self, session_id: str) -> int:
         """Return the number of tasks associated with a session."""
-        return self._scalar_count(
-            "SELECT COUNT(*) as cnt FROM tasks WHERE session_id=?",
-            (session_id,),
-        )
+        return get_task_count(self._db, session_id)
 
     def get_workflow_count(self, session_id: str) -> int:
         """Return the number of distinct workflows for a session."""
-        return self._scalar_count(
-            "SELECT COUNT(DISTINCT workflow_id) as cnt"
-            " FROM tasks WHERE session_id=? AND workflow_id IS NOT NULL",
-            (session_id,),
-        )
+        return get_workflow_count(self._db, session_id)
 
     def get_execute_attempt_count(self, session_id: str) -> int:
         """Return the number of execute-stage attempts for tasks in a session.

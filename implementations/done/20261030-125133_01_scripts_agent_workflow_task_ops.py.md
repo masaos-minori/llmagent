@@ -79,7 +79,8 @@ Make `scripts/agent/workflow/task_ops.py` the single owner of task persistence: 
 
 ## Out of Scope
 
-- `StateStore` delegation (row 02), `TaskRecord` field (row 03), DDL and migration (row 04), tests and docs rows.
+- `StateStore` delegation (row 02), `TaskRecord` field (row 03), DDL and migration (row 04), docs rows.
+- Correction (Step 3a): no test-row documents exist, and deleting the lookups breaks `tests/agent/workflow/test_workflow_engine.py` and `test_workflow_state_store.py` (they import `get_task_by_idempotency_key`). Plan Phase 2 "Update tests" is therefore executed here: key lookups switch to `get_task_by_id`, lookup-only tests are removed.
 - Status transitions and attempt logic (wfrecovery001 Plan).
 
 ## Execution Status
@@ -87,10 +88,10 @@ Make `scripts/agent/workflow/task_ops.py` the single owner of task persistence: 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Caller search and record; add count functions; delete the four lookups | Pending | — | — | Not gated |
-| 2 | Rename the key to `task_nonce` (new) | Pending | — | — | Gated: only with row 03 and the schema row and migration, after dbmig001 Phase 3 |
-| 3 | Update tests per the test rows' documents | Pending | — | — | Covered by rows 05-11 documents |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Caller search and record; add count functions; delete the four lookups | Completed | 20261030-144830 | 20261030-144830 | Not gated counts added, four lookups removed; changed: task_ops.py, state_store.py, test_workflow_engine.py, test_workflow_state_store.py |
+| 2 | Rename the key to `task_nonce` (new) | Completed | 20261030-173958 | 20261030-173958 | Gated: only with row 03 and the schema row and migration, after dbmig001 Phase 3 Blocked: dbmig001 Phase 3 migration registry absent (no scripts/db/migrations_workflow.py) Gated: with documents 20261030-125133_04, _09, _12 and 125133_03 (one release unit) task_nonce in create_task and _row_to_task |
+| 3 | Update tests per the test rows' documents | Completed | 20261030-144830 | 20261030-144830 | Covered by rows 05-11 documents Executed here (Step 3a correction); lookup-only tests removed |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-173958 | 20261030-173958 | validators passed; full suite 10487 passed (wftaskapi001 release unit run); production workflow.sqlite mtime unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

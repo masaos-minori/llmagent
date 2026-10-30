@@ -5,12 +5,17 @@ Unit tests for agent/workflow/models.py — dataclass construction and WorkflowD
 from __future__ import annotations
 
 from agent.workflow.models import (
+    ATTEMPT_TERMINAL_STATUSES,
+    TASK_TRANSITIONS,
     ArtifactRef,
     AttemptRecord,
+    AttemptStatus,
     RetryPolicy,
     StageDefinition,
     TaskRecord,
+    TaskStatus,
     WorkflowDef,
+    is_task_transition_allowed,
 )
 
 
@@ -22,7 +27,7 @@ class TestTaskRecord:
             turn_number=3,
             workflow_version="1.0.0",
             status="pending",
-            idempotency_key="s1:3",
+            task_nonce="s1:3",
             created_at="2026-01-01T00:00:00+00:00",
             updated_at="2026-01-01T00:00:00+00:00",
         )
@@ -98,3 +103,56 @@ class TestWorkflowDef:
     def test_stages_default_empty(self) -> None:
         wdef = WorkflowDef(name="x", version="1.0.0")
         assert wdef.stages == []
+
+
+class TestStatusVocabulary:
+    def test_task_status_values(self) -> None:
+        assert {s.value for s in TaskStatus} == {
+            "pending",
+            "running",
+            "completed",
+            "failed",
+            "halted",
+        }
+
+    def test_attempt_status_values(self) -> None:
+        assert {s.value for s in AttemptStatus} == {"running", "completed", "failed"}
+
+    def test_members_equal_plain_strings(self) -> None:
+        assert TaskStatus.HALTED == "halted"
+        assert AttemptStatus.FAILED == "failed"
+
+    def test_attempt_terminal_statuses(self) -> None:
+        assert ATTEMPT_TERMINAL_STATUSES == {
+            AttemptStatus.COMPLETED,
+            AttemptStatus.FAILED,
+        }
+
+    def test_transition_matrix_edges(self) -> None:
+        edges = {(c, n) for c, nxt in TASK_TRANSITIONS.items() for n in nxt}
+        assert edges == {
+            (TaskStatus.PENDING, TaskStatus.RUNNING),
+            (TaskStatus.PENDING, TaskStatus.HALTED),
+            (TaskStatus.RUNNING, TaskStatus.COMPLETED),
+            (TaskStatus.RUNNING, TaskStatus.FAILED),
+            (TaskStatus.RUNNING, TaskStatus.HALTED),
+            (TaskStatus.FAILED, TaskStatus.RUNNING),
+            (TaskStatus.COMPLETED, TaskStatus.FAILED),
+        }
+
+    def test_is_task_transition_allowed(self) -> None:
+        assert is_task_transition_allowed(TaskStatus.PENDING, TaskStatus.RUNNING)
+        assert not is_task_transition_allowed(TaskStatus.HALTED, TaskStatus.RUNNING)
+        assert not is_task_transition_allowed(TaskStatus.COMPLETED, TaskStatus.RUNNING)
+
+
+class TestAttemptNumber:
+    def test_defaults_to_zero(self) -> None:
+        r = AttemptRecord(
+            attempt_id="a1",
+            task_id="t1",
+            stage_id="plan",
+            status="running",
+            started_at="2026-01-01T00:00:00+00:00",
+        )
+        assert r.attempt_number == 0

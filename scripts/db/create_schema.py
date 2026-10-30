@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/db/create_schema.py
 
-現行スキーマをDDLのみで作成する。スキーマ変更が必要な場合はDBを再作成すること。
+現行スキーマをDDLのみで作成する。workflow は scripts/db/migrate_db.py の登録済み経路でのみ移行できる（それ以外の変更はDBを再作成すること）。
 
 既存テーブルはIF NOT EXISTSで保護され、冪等再実行が可能。
 
@@ -10,7 +10,7 @@ SQLテンプレートはdb/schema_sql.pyに定義（正規DDLソース）。
 Functions:
   create_rag_schema()        — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
   create_session_schema()    — session.sqlite: sessions, messages, memory
-  create_workflow_schema()   — workflow.sqlite: tasks, attempts, processed_events, artifacts, workflow_schema_version
+  create_workflow_schema()   — workflow.sqlite: tasks, attempts, processed_events, artifacts, workflow_schema_version, schema_migrations (ledger)
   create_eventbus_schema()   — eventbus.sqlite: events
   create_schema()            — convenience wrapper calling all four
 """
@@ -78,6 +78,16 @@ def _record_workflow_schema_version(db: SQLiteHelper) -> None:
         )
 
 
+def _record_ledger_baseline(db: SQLiteHelper) -> None:
+    """Record the current schema as the ledger baseline when the ledger is empty."""
+    db.execute(
+        "INSERT INTO schema_migrations (id, applied_at, from_version, to_version)"
+        " SELECT 'baseline', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), ?, ?"
+        " WHERE NOT EXISTS (SELECT 1 FROM schema_migrations)",
+        (WORKFLOW_SCHEMA_VERSION, WORKFLOW_SCHEMA_VERSION),
+    )
+
+
 def create_rag_schema() -> None:
     """Create rag.sqlite tables, virtual tables, and triggers."""
     dims = get_embedding_dims()
@@ -99,6 +109,7 @@ def create_workflow_schema() -> None:
     with SQLiteHelper("workflow").open(write_mode=True) as db:
         _execute_schema_ddl(db, build_workflow_schema_sql(), "workflow")
         _record_workflow_schema_version(db)
+        _record_ledger_baseline(db)
         db.commit()
     logger.info("Workflow schema created successfully.")
 

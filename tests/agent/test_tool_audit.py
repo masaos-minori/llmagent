@@ -14,6 +14,7 @@ from agent.config_dataclasses import AgentConfig
 from agent.tool_audit import (
     AUDIT_ARGS_PREVIEW_MAX_CHARS,
     audit_approval,
+    audit_stage_completed,
     audit_tool_exec,
     log_approval_decision,
     write_round_exec,
@@ -130,6 +131,23 @@ class TestAuditApprovalInv11:
         assert event["decision"] == "denied"
         assert event["workflow_id"] == "wf-test-id"
         assert event["task_id"] == "turn-xyz"
+
+
+class TestAuditStageCompleted:
+    def _logged(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
+        audit_stage_completed(ctx, "t1", "execute", 12.5, **kwargs)
+        ctx.services_required.audit_logger.info.assert_called_once()
+        return json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+
+    def test_event_includes_attempt_number(self) -> None:
+        assert self._logged(attempt_number=2)["attempt_number"] == 2
+
+    def test_attempt_number_defaults_to_null(self) -> None:
+        event = self._logged()
+        assert event["event"] == "stage_completed"
+        assert event["attempt_number"] is None
 
 
 class TestAuditToolExec:

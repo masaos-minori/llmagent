@@ -9,7 +9,7 @@ Remove the attempt-start bypass from `StateStore`, route finishing and claiming 
 
 ## Assumptions
 
-- Plan Dependencies (`plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` Scope): Plan Phase 3, after the schema row (`Blocked` for this document set), rows 01-05, and after `plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md` Phase 2 (which removes the task SQL from this file); line numbers below are from the pre-change file, so locate by symbol name.
+- Plan Dependencies (`plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` Scope): Plan Phase 3, after the schema row (its procedure documents `20261030-125334_10`, `_22`, and `_26` exist since 2026-10-30), rows 01-05, and after `plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md` Phase 2 (which removes the task SQL from this file); line numbers below are from the pre-change file, so locate by symbol name.
 - Execution order follows the Plan's phases, not `seq`.
 - Plan overlap judgments (Step 8b): `state_store.py` is also a target of `plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md` (task delegation), `plans/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md` (tool-call state helpers), and `plans/20261030-114516_wflease001_stale-attempt-lease.md` (detection rewrite): different methods; sequencing; the later change rebases. The lease Plan rewrites `find_stale_running_attempts`; this document keeps its signature and return shape.
 - Owner decision (2026-10-30): recovery also fails the owning `running` task.
@@ -85,10 +85,10 @@ Remove the attempt-start bypass from `StateStore`, route finishing and claiming 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove `start_attempt`; delegate `finish_attempt`; add `claim_task` (new) | Pending | — | — | Plan Phase 3; gated on the schema row |
-| 2 | Rewrite `recover_stale_attempts` and fix comments | Pending | — | — | |
+| 1 | Remove `start_attempt`; delegate `finish_attempt`; add `claim_task` (new) | Pending | — | — | Plan Phase 3; gated on the schema row Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) |
+| 2 | Rewrite `recover_stale_attempts` and fix comments | Pending | — | — |  |
 | 3 | Add or update tests per Validation plan | Pending | — | — | Test rows' documents |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

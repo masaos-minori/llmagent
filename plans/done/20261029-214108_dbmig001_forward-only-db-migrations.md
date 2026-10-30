@@ -48,11 +48,11 @@ Treat migration and recovery as one lifecycle: no migration runs without a verif
 - `REQ-009`: `workflow.sqlite` and `eventbus.sqlite` schema upgrades on registered paths preserve canonical rows; unregistered paths keep today's refusal.
 
 ## Implementation Target Files
-**Freeze status**: Frozen (Step 8 Implementation Target Files Validation passed on 2026-10-29: every row exists-or-is-new-with-evidence, is linked to a Plan requirement, and is `Verified`; `check_workitem_structure.py` and `check_plan_target_overlaps.py` report no findings. Re-verified 2026-10-29 against `HEAD c5a8285dd` after a tree reorganization landed during planning (`f7f7616f3 refactor: reorganize scripts/ into domain-based packages`): every existing target path and evidence anchor re-confirmed against the reorganized tree; untracked pre-reorganization copies (`scripts/shared/{dlq,session_db,wiki_db,memory,user_profiles,terminal_lock_db,agent_token_store,skill_tools}.py`, `scripts/asset_service.py`, `configs/`) were cleaned from the working tree and never existed in git history — the plan never depended on them.)
+**Freeze status**: Frozen (Amended 2026-10-30: row `tools/check_db_separation.py` appended after the last row during `code-implementation` of the `scripts/db/schema_sql.py` row — an additional target file discovery; re-validated: file exists, concrete change, evidence reproduced, linked to REQ-001/REQ-006, no path overlap with Reference Files, `check_workitem_structure.py` re-run. Original validation: Step 8 Implementation Target Files Validation passed on 2026-10-29: every row exists-or-is-new-with-evidence, is linked to a Plan requirement, and is `Verified`; `check_workitem_structure.py` and `check_plan_target_overlaps.py` report no findings. Re-verified 2026-10-29 against `HEAD c5a8285dd` after a tree reorganization landed during planning (`f7f7616f3 refactor: reorganize scripts/ into domain-based packages`): every existing target path and evidence anchor re-confirmed against the reorganized tree; untracked pre-reorganization copies (`scripts/shared/{dlq,session_db,wiki_db,memory,user_profiles,terminal_lock_db,agent_token_store,skill_tools}.py`, `scripts/asset_service.py`, `configs/`) were cleaned from the working tree and never existed in git history — the plan never depended on them.)
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `shared/db_migrations.py` | New: domain-neutral migration framework (registry entry dataclass, runner, pre-migration checkpoint/backup/integrity gate, ledger write, dry-run, refusal semantics) | `.importlinter` forbids `eventbus` → `db`; both layers need one framework; `shared` is the only layer both may import | REQ-001, REQ-002, REQ-003, REQ-004, REQ-006 | `.importlinter` contracts `db-only-uses-shared`, `eventbus-is-isolated`; precedent `shared/eventbus_schema_fingerprint.py`, `shared/db_maintenance.py` | `tests/shared/test_db_migrations.py` | Verified |
+| `scripts/shared/db_migrations.py` | New: domain-neutral migration framework (registry entry dataclass, runner, pre-migration checkpoint/backup/integrity gate, ledger write, dry-run, refusal semantics) | `.importlinter` forbids `eventbus` → `db`; both layers need one framework; `shared` (`scripts/shared/`) is the only layer both may import | REQ-001, REQ-002, REQ-003, REQ-004, REQ-006 | `.importlinter` contracts `db-only-uses-shared`, `eventbus-is-isolated`; precedent `shared/eventbus_schema_fingerprint.py`, `shared/db_maintenance.py` | `tests/shared/test_db_migrations.py` | Verified |
 | `scripts/eventbus/migrations.py` | New: `eventbus.sqlite` migration registry (future version steps register here) | Domain-specific migrations must live in the `eventbus` layer | REQ-001, REQ-009 | `scripts/eventbus/schema.py:68-96` (version refusal today); `scripts/eventbus/schema.sql` stamps `PRAGMA user_version` | `tests/eventbus/test_eventbus_migrations.py` | Verified |
 | `scripts/eventbus/schema.py` | Replace recreate-refusal with framework lookup: registered forward path migrates (gate-gated), unknown/downgrade still refuses | Today `_init_schema` raises on version mismatch; must accept only registered paths | REQ-003, REQ-005, REQ-009 | `scripts/eventbus/schema.py::_init_schema` refusal text "recreate the database" | `tests/eventbus/test_eventbus_schema_version.py`, `tests/eventbus/test_eventbus_migrations.py` | Verified |
 | `scripts/eventbus/schema.sql` | Version-stamp baseline remains the post-migration fingerprint source; add ledger table DDL | Ledger table must exist for `eventbus.sqlite` | REQ-001, REQ-006 | `scripts/eventbus/schema.sql` read by `_SCHEMA_PATH` in `schema.py` | `tests/eventbus/test_eventbus_migrations.py`, `tests/db/test_eventbus_schema_equivalence.py` | Verified |
@@ -75,12 +75,13 @@ Treat migration and recovery as one lifecycle: no migration runs without a verif
 | `docs/10_adr/adr_01_index.md` | Record the ADR-008 amendment/approval row in the index | Approval record must be discoverable, not a silent edit | REQ-008 | Index lists ADR status/date rows including ADR-008 | docs checkers | Verified |
 | `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` | State the migration contract, pre-migration backup requirement, and failure behavior | Doc currently states recreate-only for `workflow.sqlite` | REQ-009 | Doc quoted in issue Background (verified present) | docs checkers | Verified |
 | `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` | Drill runbook: procedure, frequency placeholder, artifact retention location | Issue asks which runbook carries the procedure; this is the DB recovery/reference doc | REQ-007 | `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` is the DB recovery doc | docs checkers | Verified |
+| `tools/check_db_separation.py` | Register the `schema_migrations` ledger table in `TABLE_OWNERSHIP` for `workflow` and `eventbus` | The table-ownership check fails with `workflow.sqlite creates table 'schema_migrations', which is not in the inventory` as soon as the ledger DDL lands (reproduced 2026-10-30 while executing the `scripts/db/schema_sql.py` row); the file's own comment says to update the inventory when a table is added | REQ-001, REQ-006 | `tools/check_db_separation.py:55-77` (`TABLE_OWNERSHIP`); `uv run python tools/check_db_separation.py` output | `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations` (existing, unmodified) | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
 | `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` | Issue instruction: read ADR-008 before editing; decision text is the amendment base | REQ-008 |
-| `scripts/shared/eventbus_schema_fingerprint.py` | Shared fingerprint contract that migration postconditions must reuse, not duplicate | REQ-001 (`shared/db_migrations.py`) |
+| `scripts/shared/eventbus_schema_fingerprint.py` | Shared fingerprint contract that migration postconditions must reuse, not duplicate | REQ-001 (`scripts/shared/db_migrations.py`) |
 | `scripts/db/config.py` | `DbConfig` resolves all four database paths; drills and CLIs consume it | REQ-007 (`scripts/db/recovery_drill.py`) |
 | `scripts/db/recovery_restore.py` | Existing restore path drills must not duplicate | REQ-007 |
 | `scripts/db/recovery_verification.py` | Existing restore-verification path to reuse | REQ-007 |
@@ -109,11 +110,12 @@ Treat migration and recovery as one lifecycle: no migration runs without a verif
 Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_01_index.md` (REQ-008 approval record), `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` (REQ-009 migration contract), and `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` (REQ-007 drill runbook) are target rows. Task mapping follows `docs/00_index.md` "DB layer spec (schema, ops, known issues)" and the ADR index. Docs state intent, boundaries, constraints, and failure behavior only, per `skills/DESIGN.md` Docs content policy.
 
 ## Assumptions
+- Step 3a correction (2026-10-30): the Plan wrote `shared/db_migrations.py`; the importable package root is `scripts/` (`.importlinter` `root_packages`, `scripts/shared/` exists, `shared/` at the repository root does not), so the file is `scripts/shared/db_migrations.py`. `workflow.sqlite` migrations run through the CLI (`scripts/db/migrate_db.py`) only; `scripts/agent/services/workflow_schema.py` (a Reference File, not a target) keeps refusing a mismatched version at startup, and the migration records the new `workflow_schema_version` row so the check passes afterwards.
 - Framework home is `shared/` because `eventbus` cannot import `db` (`.importlinter` contract `eventbus-is-isolated`); `shared` holds DB-adjacent helpers already (`eventbus_schema_fingerprint.py`, `db_maintenance.py`).
 - Migration ledger is a new `schema_migrations` table in each canonical DB; the existing `workflow_schema_version` table stays as the baseline marker (issue's ledger-reuse question resolved this way; owner can veto).
 - `rag.sqlite` and `session.sqlite` receive drills only, no migrations (issue Out-of-Scope; owner has not extended scope).
 - RPO/RTO numeric targets and drill scheduling/retention ownership remain open (user decision 2026-10-29: proceed with them as open Unknowns; drills are built to *measure* them, not to a preset target).
-- No registered migration steps exist yet at framework landing; the first consumers are `toolexec001` (workflow tables) and `dlqbox001` (eventbus outbox table).
+- Step 3a correction (2026-10-30): one migration is registered at landing. Adding the `schema_migrations` ledger table to `scripts/eventbus/schema.sql` changes the canonical fingerprint, so the stamp moves from `PRAGMA user_version = 3` to 4 and the eventbus registry carries a `ledger-baseline` spec (3 to 4); without it every existing version 3 database would be refused (REQ-009). The workflow ledger is created idempotently by `ensure_ledger` and `WORKFLOW_SCHEMA_VERSION` is not bumped. The first other consumers are `toolexec001` (workflow tables) and `dlqbox001` (eventbus outbox table).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -125,7 +127,7 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
 |---|---|---|---|---|---|
-| `shared/db_migrations.py` | New module | Used by `db` and `eventbus` migration paths; shared-layer additions affect all layers | N/A (new) | High (single author) | Covered by `deploy.sh` whole-`scripts/`+shared sync; no `deploy.sh` edit |
+| `scripts/shared/db_migrations.py` | New module | Used by `db` and `eventbus` migration paths; shared-layer additions affect all layers | N/A (new) | High (single author) | Covered by `deploy.sh` whole-`scripts/`+shared sync; no `deploy.sh` edit |
 | `scripts/eventbus/schema.py` | Startup path change | EventBus startup/health; running service holds `eventbus.sqlite` (confirmed via `ss`/`fuser` 2026-10-29, port 8015) | 10 | High (single author) | Synced by `rsync scripts/`; needs service restart |
 | `scripts/eventbus/schema.sql` | Ledger DDL addition | Fingerprint baseline changes | 8 | High (single author) | Synced by `rsync scripts/` |
 | `scripts/db/schema_sql.py` | Ledger DDL addition | Workflow/session/rag DDL consumers | 11 | High (single author) | Synced by `rsync scripts/` |
@@ -139,16 +141,16 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
 | Other target rows (new CLIs, registries, tests) | New/extended | Scoped to their own test suites | N/A (new) or 3–15 | High (single author) | New scripts synced by `rsync scripts/` |
 
 ## Design
-- Framework in `shared/db_migrations.py`: a `MigrationSpec` (id, from_version, to_version, precondition SQL/checks, mutation SQL, postcondition fingerprint check) plus a runner that (1) reads current `PRAGMA user_version` and fingerprint, (2) resolves a unique ordered forward path, (3) checkpoints WAL, takes a SQLite backup-API copy, and runs `PRAGMA integrity_check` + domain-identity on the copy, (4) applies the path inside one transaction per migration step, (5) writes the ledger row and re-verifies the fingerprint, (6) on any error rolls back the step and leaves the DB at the last ledger-recorded version. Downgrade, cycle, and unknown targets are refusals, never repairs.
+- Framework in `scripts/shared/db_migrations.py`: a `MigrationSpec` (id, from_version, to_version, precondition SQL/checks, mutation SQL, postcondition fingerprint check) plus a runner that (1) reads the current version and fingerprint through a per-domain version accessor (`PRAGMA user_version` for `eventbus.sqlite`; the latest `workflow_schema_version` row for `workflow.sqlite` — Step 3a correction 2026-10-30) and the existing `build_fingerprint` helper of `scripts/shared/eventbus_schema_fingerprint.py` (connection-based, reusable against DDL applied to an in-memory database), (2) resolves a unique ordered forward path, (3) checkpoints WAL, takes a SQLite backup-API copy, and runs `PRAGMA integrity_check` + domain-identity on the copy, (4) applies the path inside one transaction per migration step, (5) writes the ledger row and re-verifies the fingerprint, (6) on any error rolls back the step and leaves the DB at the last ledger-recorded version. Downgrade, cycle, and unknown targets are refusals, never repairs.
 - Domain registries: `scripts/eventbus/migrations.py` and `scripts/db/migrations_workflow.py` register specs; startup code (`scripts/eventbus/schema.py`, workflow validation via `scripts/agent/services/workflow_schema.py`) consults the framework: registered path → migrate (with the gate); anything else → today's fail-closed refusal.
 - CLIs (`scripts/eventbus/migrate.py`, `scripts/db/migrate_db.py`): `--dry-run` (runner executes resolution + gate against a throwaway copy and mutates nothing), `--apply`, `--status` (ledger print). Exit codes distinguish refusal classes.
-- Ledger: `schema_migrations(id TEXT PRIMARY KEY, applied_at TEXT, from_version INTEGER, to_version INTEGER)` in each canonical DB; created at DB creation and at framework introduction on existing DBs (a version-0 stamping step, mirroring the existing unstamped-database stamping logic in `scripts/eventbus/schema.py`).
+- Ledger: `schema_migrations(id TEXT PRIMARY KEY, applied_at TEXT, from_version TEXT, to_version TEXT)` (Step 3a correction 2026-10-30: versions are TEXT because `workflow.sqlite` records the semver string `WORKFLOW_SCHEMA_VERSION = "1.1.0"` in `workflow_schema_version`, not `PRAGMA user_version`; `eventbus.sqlite` stores its integer `user_version` as text) in each canonical DB; created at DB creation and at framework introduction on existing DBs (a version-0 stamping step, mirroring the existing unstamped-database stamping logic in `scripts/eventbus/schema.py`).
 - Drills (`scripts/db/recovery_drill.py`): for each domain — rotate to a timestamped archive, verify with the `recovery.py` helpers, restore into an isolated temp copy (never the live file), run domain identity + fingerprint checks, record elapsed restore time and the data-loss window (archive timestamp vs drill time) into a JSON artifact under the archive directory. RPO/RTO are the measured outputs (UNK-01).
 - Failure-path invariant: original database files are only ever replaced by restore from a verified backup; migration failure paths never touch them beyond SQLite transaction rollback.
 
 ## Implementation steps
 1. **Phase 1: Framework core**
-   - [ ] Implement `shared/db_migrations.py` runner, spec, gate, ledger primitives (REQ-001, REQ-002, REQ-003, REQ-004, REQ-006; `shared/db_migrations.py`)
+   - [ ] Implement `scripts/shared/db_migrations.py` runner, spec, gate, ledger primitives (REQ-001, REQ-002, REQ-003, REQ-004, REQ-006; `scripts/shared/db_migrations.py`)
    - [ ] Write framework regression + fault-injection tests (REQ-001–REQ-004; `tests/shared/test_db_migrations.py`)
 2. **Phase 2: eventbus domain wiring**
    - [ ] Add ledger DDL to `scripts/eventbus/schema.sql`; registry in `scripts/eventbus/migrations.py` (REQ-001, REQ-006; those rows)
@@ -156,6 +158,7 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
    - [ ] Add `scripts/eventbus/migrate.py` CLI (REQ-001, REQ-002, REQ-004, REQ-006; `scripts/eventbus/migrate.py`)
    - [ ] Extend/new eventbus tests incl. fault injection (REQ-002, REQ-003, REQ-005, REQ-009; `tests/eventbus/test_eventbus_migrations.py`, `tests/eventbus/test_eventbus_schema_version.py`)
 3. **Phase 3: workflow domain wiring**
+   - [ ] Register the `schema_migrations` ledger in the table-ownership inventory (REQ-001, REQ-006; `tools/check_db_separation.py`), before the DDL rows of Phases 2 and 3
    - [ ] Add ledger DDL in `scripts/db/schema_sql.py` and bootstrap in `scripts/db/create_schema.py` (REQ-001, REQ-006; those rows)
    - [ ] Registry `scripts/db/migrations_workflow.py` + CLI `scripts/db/migrate_db.py` (REQ-001, REQ-002, REQ-004, REQ-006; those rows)
    - [ ] Tests incl. fault injection and migrated-schema fingerprint (REQ-002, REQ-003, REQ-009; `tests/db/test_migrations_workflow.py`, `tests/db/test_create_schema.py`)
@@ -173,7 +176,7 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
 ## Validation plan
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `shared/db_migrations.py` | Unit: success/failure/interruption/downgrade/unknown-path/dry-run | `uv run pytest tests/shared/test_db_migrations.py` | All pass; dry-run hash-identical |
+| `scripts/shared/db_migrations.py` | Unit: success/failure/interruption/downgrade/unknown-path/dry-run | `uv run pytest tests/shared/test_db_migrations.py` | All pass; dry-run hash-identical |
 | `scripts/eventbus/schema.py`, `scripts/eventbus/migrations.py`, `scripts/eventbus/migrate.py` | Unit + integration (file-based SQLite) | `uv run pytest tests/eventbus` | Registered path migrates; unknown/downgrade refused; startup stays fail-closed |
 | `scripts/db/create_schema.py`, `scripts/db/schema_sql.py`, `scripts/db/migrations_workflow.py`, `scripts/db/migrate_db.py` | Unit + integration | `uv run pytest tests/db` | Ledger created at bootstrap; migration preserves rows |
 | `scripts/db/rotation.py`, `scripts/db/recovery.py`, `scripts/db/recovery_drill.py` | Integration + fault injection | `uv run pytest tests/db/test_recovery_drill.py tests/db/test_db_maintenance.py tests/db/test_db_recovery.py` | Archives verified; drill artifacts for four domains |
@@ -193,12 +196,12 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Framework core | Pending | — | — | |
-| 2 | Phase 2: eventbus domain wiring | Pending | — | — | |
-| 3 | Phase 3: workflow domain wiring | Pending | — | — | |
-| 4 | Phase 4: Verified recovery points and drills | Pending | — | — | |
-| 5 | Phase 5: Deployment & Verification | Pending | — | — | |
-| 6 | Phase 6: Documentation & approval record | Pending | — | — | |
+| 1 | Phase 1: Framework core | Completed | — | 20261030-162056 |  |
+| 2 | Phase 2: eventbus domain wiring | In Progress | — | — |  |
+| 3 | Phase 3: workflow domain wiring | In Progress | — | — |  |
+| 4 | Phase 4: Verified recovery points and drills | In Progress | — | — |  |
+| 5 | Phase 5: Deployment & Verification | In Progress | — | — |  |
+| 6 | Phase 6: Documentation & approval record | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -208,7 +211,30 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261030-151746_01_scripts_shared_db_migrations.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261030-151746_02_scripts_eventbus_migrations.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-151746_03_scripts_eventbus_schema.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-151746_04_scripts_eventbus_schema.sql.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-151746_05_scripts_eventbus_migrate.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-151746_06_scripts_db_migrations_workflow.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-151746_07_scripts_db_migrate_db.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-151746_08_scripts_db_create_schema.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-151746_09_scripts_db_schema_sql.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-151746_10_scripts_db_recovery.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261030-151746_11_scripts_db_recovery_drill.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261030-151746_12_scripts_db_rotation.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261030-151746_13_deploy_init_db.sh.md | 5 | Procedure | Pending | — | — |
+| implementations/20261030-151746_14_tests_shared_test_db_migrations.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261030-151746_15_tests_eventbus_test_eventbus_migrations.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-151746_16_tests_eventbus_test_eventbus_schema_version.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-151746_17_tests_db_test_migrations_workflow.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-151746_18_tests_db_test_create_schema.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-151746_19_tests_db_test_recovery_drill.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261030-151746_20_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261030-151746_21_docs_10_adr_adr_01_index.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261030-151746_22_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261030-151746_23_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261030-151746_24_tools_check_db_separation.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -217,23 +243,23 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261029-214108
-- **Related target files**: `shared/db_migrations.py`, `scripts/eventbus/migrations.py`, `scripts/eventbus/schema.py`, `scripts/eventbus/schema.sql`, `scripts/eventbus/migrate.py`, `scripts/db/migrations_workflow.py`, `scripts/db/migrate_db.py`, `scripts/db/create_schema.py`, `scripts/db/schema_sql.py`, `scripts/db/recovery.py`, `scripts/db/recovery_drill.py`, `scripts/db/rotation.py`, `deploy/init_db.sh`, `tests/shared/test_db_migrations.py`, `tests/eventbus/test_eventbus_migrations.py`, `tests/eventbus/test_eventbus_schema_version.py`, `tests/db/test_migrations_workflow.py`, `tests/db/test_create_schema.py`, `tests/db/test_recovery_drill.py`, `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, `docs/10_adr/adr_01_index.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`
+- **Related target files**: `scripts/shared/db_migrations.py`, `scripts/eventbus/migrations.py`, `scripts/eventbus/schema.py`, `scripts/eventbus/schema.sql`, `scripts/eventbus/migrate.py`, `scripts/db/migrations_workflow.py`, `scripts/db/migrate_db.py`, `scripts/db/create_schema.py`, `scripts/db/schema_sql.py`, `scripts/db/recovery.py`, `scripts/db/recovery_drill.py`, `scripts/db/rotation.py`, `deploy/init_db.sh`, `tests/shared/test_db_migrations.py`, `tests/eventbus/test_eventbus_migrations.py`, `tests/eventbus/test_eventbus_schema_version.py`, `tests/db/test_migrations_workflow.py`, `tests/db/test_create_schema.py`, `tests/db/test_recovery_drill.py`, `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, `docs/10_adr/adr_01_index.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`, `tools/check_db_separation.py`, `tools/check_db_separation.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
 |---|---|---|---|---|---|---|
-| REQ-001 | Required Changes (migration framework) | `shared/db_migrations.py` | Phase 1 | AC-4 | Framework regression tests | Explicit in issue |
+| REQ-001 | Required Changes (migration framework) | `scripts/shared/db_migrations.py` | Phase 1 | AC-4 | Framework regression tests | Explicit in issue |
 | REQ-001 | Required Changes | `scripts/eventbus/migrations.py` | Phase 2 | AC-1 | `tests/eventbus/test_eventbus_migrations.py` | Explicit in issue |
 | REQ-001 | Required Changes | `scripts/eventbus/schema.sql` | Phase 2 | AC-1 | `tests/eventbus/test_eventbus_migrations.py` | Derived from confirmed evidence |
 | REQ-001 | Required Changes | `scripts/db/migrations_workflow.py` | Phase 3 | AC-1 | `tests/db/test_migrations_workflow.py` | Explicit in issue |
 | REQ-001 | Required Changes | `scripts/db/schema_sql.py` | Phase 3 | AC-1 | `tests/db/test_create_schema.py` | Derived from confirmed evidence |
-| REQ-002 | Required Changes (backup gate) | `shared/db_migrations.py` | Phase 1 | AC-4 | Fault-injection tests | Explicit in issue |
+| REQ-002 | Required Changes (backup gate) | `scripts/shared/db_migrations.py` | Phase 1 | AC-4 | Fault-injection tests | Explicit in issue |
 | REQ-002 | Required Changes | `scripts/eventbus/migrate.py` | Phase 2 | AC-4 | `tests/eventbus/test_eventbus_migrations.py` | Derived from confirmed evidence |
 | REQ-002 | Required Changes | `scripts/db/migrate_db.py` | Phase 3 | AC-4 | `tests/db/test_migrations_workflow.py` | Derived from confirmed evidence |
 | REQ-002 | Required Changes | `scripts/db/rotation.py` | Phase 4 | AC-6 | `tests/db/test_db_maintenance.py` | Confirmed by repository evidence |
 | REQ-003 | Required Changes (refusals) | `scripts/eventbus/schema.py` | Phase 2 | AC-2, AC-3 | `tests/eventbus/test_eventbus_schema_version.py` | Explicit in issue |
-| REQ-003 | Required Changes | `shared/db_migrations.py` | Phase 1 | AC-2 | Framework regression tests | Explicit in issue |
-| REQ-004 | Required Changes (dry-run) | `shared/db_migrations.py` | Phase 1 | AC-5 | Dry-run hash-compare test | Explicit in issue |
+| REQ-003 | Required Changes | `scripts/shared/db_migrations.py` | Phase 1 | AC-2 | Framework regression tests | Explicit in issue |
+| REQ-004 | Required Changes (dry-run) | `scripts/shared/db_migrations.py` | Phase 1 | AC-5 | Dry-run hash-compare test | Explicit in issue |
 | REQ-004 | Required Changes | `scripts/eventbus/migrate.py` | Phase 2 | AC-5 | `tests/eventbus/test_eventbus_migrations.py` | Derived from confirmed evidence |
 | REQ-004 | Required Changes | `scripts/db/migrate_db.py` | Phase 3 | AC-5 | `tests/db/test_migrations_workflow.py` | Derived from confirmed evidence |
 | REQ-005 | Constraints (fail-closed startup) | `scripts/eventbus/schema.py` | Phase 2 | AC-3 | `tests/eventbus/test_eventbus_schema_version.py` | Confirmed by repository evidence |
@@ -248,3 +274,6 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
 | REQ-009 | Acceptance Criteria (rows survive) | `scripts/eventbus/migrations.py` | Phase 2 | AC-1 | `tests/eventbus/test_eventbus_migrations.py` | Explicit in issue |
 | REQ-009 | Acceptance Criteria | `scripts/db/migrations_workflow.py` | Phase 3 | AC-1 | `tests/db/test_migrations_workflow.py` | Explicit in issue |
 | REQ-009 | Documentation Impact | `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` | Phase 6 | AC-1 | Docs checkers | Explicit in issue |
+| REQ-006 | Required Changes (ledger table) | `tools/check_db_separation.py` | Phase 3 | AC-1 | `tests/tools/test_check_db_separation.py` live-repository test | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261030-151746 -->

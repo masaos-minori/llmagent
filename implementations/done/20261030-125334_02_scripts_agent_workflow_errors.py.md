@@ -70,8 +70,8 @@ Create `scripts/agent/workflow/errors.py` with the typed workflow state errors (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the module with the five error classes | Pending | — | — | Plan Phase 1 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create the module with the five error classes | Completed | 20261030-144808 | 20261030-144808 | Plan Phase 1 errors.py created |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-144808 | 20261030-144808 | validators passed; tests/agent/workflow/test_workflow_errors.py; full suite passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

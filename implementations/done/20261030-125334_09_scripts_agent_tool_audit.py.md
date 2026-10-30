@@ -42,6 +42,8 @@ Add the attempt number to the `stage_completed` audit event in `scripts/agent/to
 
 ## Compatibility considerations
 
+- Correction (Step 3a): the generated `docs/23_agent/agent_13_reference-api-generated.md` grows by 16 B (25288 B) past the owner-accepted ceiling 25272 B in `tools/check_docs_structure.py`; the ceiling needs owner re-acceptance (the comment there forbids absorbing growth silently) before this row can land. Also regenerate with `uv run python tools/generate_reference_table.py --type agent`.
+
 - Additive audit field; existing log consumers that ignore unknown keys are unaffected.
 
 ## Security considerations
@@ -70,9 +72,9 @@ Add the attempt number to the `stage_completed` audit event in `scripts/agent/to
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `attempt_number` parameter and event field | Pending | — | — | Plan Phase 4 |
-| 2 | Add a test for the new field | Pending | — | — | Test row's document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the `attempt_number` parameter and event field | Completed | 20261030-152750 | 20261030-152750 | Plan Phase 4 Blocked: docs ceiling 25272 B in tools/check_docs_structure.py needs owner re-acceptance attempt_number param and event field added; tools/check_docs_structure.py ceiling re-accepted at 25288 (owner-approved option a); agent_13 regenerated |
+| 2 | Add a test for the new field | Completed | 20261030-152750 | 20261030-152750 | Test row's document tests/agent/test_tool_audit.py TestAuditStageCompleted |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-152750 | 20261030-152750 | validators, docs checkers, full suite 10453 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

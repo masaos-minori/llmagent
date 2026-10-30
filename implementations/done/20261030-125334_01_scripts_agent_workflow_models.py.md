@@ -80,9 +80,9 @@ Define the typed status vocabulary and the explicit transition matrix in `script
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add enums, transition mapping, terminal set, and `attempt_number` | Pending | — | — | Plan Phase 1 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add enums, transition mapping, terminal set, and `attempt_number` | Completed | 20261030-144808 | 20261030-144808 | Plan Phase 1 Enums, matrix, attempt_number added |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-144808 | 20261030-144808 | tests/agent/workflow/test_workflow_models.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-144808 | 20261030-144808 | validators passed; full suite passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

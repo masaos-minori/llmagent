@@ -82,9 +82,13 @@ def _write_config(tmp_path: pathlib.Path, db_dir: pathlib.Path) -> pathlib.Path:
     agent_toml = cfg_dir / "agent.toml"
     # agent.toml has no workflow_db_path key (production code defaults it to the
     # production path); the sandbox must pin it so the create_schema.py subprocess
-    # cannot fall back to /opt/llm/db.
-    with agent_toml.open("a", encoding="utf-8") as handle:
-        handle.write(f'\nworkflow_db_path = "{db_dir / "workflow.sqlite"}"\n')
+    # cannot fall back to /opt/llm/db. The key is prepended because agent.toml ends
+    # inside a table, where an appended key would not be a top-level setting.
+    original = agent_toml.read_text(encoding="utf-8")
+    agent_toml.write_text(
+        f'workflow_db_path = "{db_dir / "workflow.sqlite"}"\n{original}',
+        encoding="utf-8",
+    )
     return cfg_dir
 
 

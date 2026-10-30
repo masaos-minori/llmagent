@@ -9,7 +9,7 @@ Make `scripts/agent/workflow/attempt_ops.py` the owner of attempt rows with pers
 
 ## Assumptions
 
-- Plan Dependencies (`plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` Scope): Plan Phase 3. It requires the schema row (`attempts.attempt_number`, Phase 2, Plan row 10) to have landed first, and that row needs `plans/20261029-214108_dbmig001_forward-only-db-migrations.md` Phase 3. The schema row is `Blocked` for this document set (see the cycle report), so this document MUST NOT be executed before the schema row exists.
+- Plan Dependencies (`plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` Scope): Plan Phase 3. It requires the schema row (`attempts.attempt_number`, Phase 2, Plan row 10) to have landed first, and that row needs `plans/20261029-214108_dbmig001_forward-only-db-migrations.md` Phase 3. The schema row has procedure documents `20261030-125334_10`, `_22`, and `_26` (generated 2026-10-30), so this document MUST NOT be executed before the schema row exists.
 - Execution order follows the Plan's phases, not `seq`.
 - Plan overlap judgments (Step 8b): `attempt_ops.py` is also a target of `plans/20261030-114516_wflease001_stale-attempt-lease.md` (owner and lease at attempt start): sequencing dependency, that Plan adds columns to this contract after this one lands.
 - `begin_immediate()` holds the write transaction; functions that run inside it must not call `db.commit()`.
@@ -83,9 +83,9 @@ Make `scripts/agent/workflow/attempt_ops.py` the owner of attempt rows with pers
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `max_attempt_number` (new), `insert_attempt` (new), `mark_attempt_finished` (new); tighten `finish_attempt`; remove `start_attempt` | Pending | — | — | Plan Phase 3; gated on the schema row |
+| 1 | Implement `max_attempt_number` (new), `insert_attempt` (new), `mark_attempt_finished` (new); tighten `finish_attempt`; remove `start_attempt` | Pending | — | — | Plan Phase 3; gated on the schema row Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Test rows' documents |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

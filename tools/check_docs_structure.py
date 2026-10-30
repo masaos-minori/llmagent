@@ -115,7 +115,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 25272 (2026-10-27): the turn001 Phase 1 `turn_persistence.py` module added
     # two generated rows (`ConversationPersistenceError`, `TurnPersistence`). The ceiling again
     # equals the accepted size.
-    "agent_13_reference-api-generated.md": 25272,
+    # Re-accepted at 25288 (2026-10-30): the wfrecovery001 Phase 4 `audit_stage_completed`
+    # `attempt_number` parameter adds 16 bytes to a generated signature. The ceiling again
+    # equals the accepted size.
+    "agent_13_reference-api-generated.md": 25288,
     # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
     # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
     # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate

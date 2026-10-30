@@ -52,7 +52,7 @@ Correctness and durability defect in the persistence contract. The unconditional
 - `REQ-012`: No production or test caller uses an attempt-start path that bypasses the canonical transaction.
 
 ## Implementation Target Files
-**Freeze status**: Frozen (Step 8 Implementation Target Files Validation passed on 2026-10-30: every row exists, or is a new file in an existing directory with "New file" stated, requires modification, cites checkable evidence, and links to a Requirement; existing paths confirmed on branch `docs/issues-workflow-persistence`).
+**Freeze status**: Frozen (Amended 2026-10-30 (user-approved) after dbmig001 Phase 3 landed: row `scripts/db/migrations_workflow.py` appended after the last row (UNK-04 resolved); re-validated: file exists, concrete change, evidence checkable, linked to REQ-008, not in Reference Files. Original validation: Step 8 Implementation Target Files Validation passed on 2026-10-30: every row exists, or is a new file in an existing directory with "New file" stated, requires modification, cites checkable evidence, and links to a Requirement; existing paths confirmed on branch `docs/issues-workflow-persistence`).
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
@@ -83,6 +83,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` | Amend INV-07 / INV-08 and test-citation rows | Invariants fix the old event key and recovery | REQ-010 / AC-11 | `adr_02_02_001_...md:171-172,187-188` (checked in Step 3) | `tools/check_adr_preservation.py` | Verified |
 | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Rewrite state semantics, resume, recovery sections | States "started (not completed)" and halted-only guard | REQ-010 / AC-11 | `agent_03_03_...md:31-33,35-42,143-146` (checked in Step 3) | docs checkers | Verified |
 | `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` | StateStore scope and `begin_stage_if_new` bullet | Describes the single-transaction started-event check | REQ-010 / AC-11 | `agent_04_03_...md:71,87` (checked in Step 3) | docs checkers | Verified |
+| `scripts/db/migrations_workflow.py` | Register the migration spec(s) that rebuild `tasks` and `attempts` with the status `CHECK` constraints and `attempt_number`, and add the `processed_events` link columns; bump the version | The registry exists (dbmig001 Phase 3 landed: `MIGRATIONS = ()`, `WORKFLOW_DOMAIN`); a DDL change without a registered forward path is refused at the version check, so the schema row cannot ship without it | REQ-008 / AC-10 | `scripts/db/migrations_workflow.py` (`MIGRATIONS`), `scripts/shared/db_migrations.py` (`MigrationSpec`, `run_migrations`) | `tests/db/test_create_schema.py` (migration test with existing rows) | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze) for the full validation procedure):
 - One row per file. No directory, glob, component name, file group, or vague phrase appears as a row.
@@ -136,7 +137,7 @@ Yes: `REQ-010`. Targets (located through `docs/00_index.md` "Document References
 - Ordering note (second-pass verification): atomic recovery that fails the owning task (REQ-006) is safe in either landing order relative to wflease001, because today's recovery never fires on production timestamps and wflease001 Phase 1 replaces the 30-second rule with a conservative age before any attempt is recovered; wflease001 Phase 1 should still land no later than this Plan's Phase 3.
 - Verification record (second pass, 2026-10-30): no Implementation Target Files row changed on `origin/master` since the merge base; every `path:line` citation lies within its file; no non-vocabulary status seeds in tests (UNK-06); `begin_immediate()` and `execute()` cursor `rowcount` exist in `scripts/db/helper.py` as assumed.
 - Execution order (found while generating implementation procedures, 2026-10-30): the `Implementation steps` phases govern, not the `Implementation Target Files` row order. Row 10 (`scripts/db/schema_sql.py`, Phase 2) and its migration step must land before rows 03-07 (Phases 3 and 4) are executed, although they have a smaller table position; each generated procedure states this. Row 10 itself needs the dbmig001 registry module (`scripts/db/migrations_workflow.py`), which is not a row of this table, so its procedure is `Blocked: additional target file discovered` until dbmig001 is implemented and this Plan is amended with that file as a new row appended after the last row.
-- The migration registration module is defined by the dbmig001 plan (`scripts/db/migrations_workflow.py`, absent today) and is added to this Plan by amendment when it lands (UNK-04).
+- The migration registration module `scripts/db/migrations_workflow.py` exists (dbmig001 Phase 3 landed, 2026-10-30) and is a target row (amended 2026-10-30). Registry contract for the spec(s): `MigrationSpec(migration_id, from_version, to_version, apply, precondition, postcondition)` in `scripts/shared/db_migrations.py`; versions are the semver text of `workflow_schema_version` (`WORKFLOW_SCHEMA_VERSION`); `apply` must use `conn.execute` only (never `executescript`) inside the runner's single write transaction; the runner re-checks the fingerprint against `build_workflow_schema_sql()` at the current version. A table rebuild must keep `attempts` rows when `tasks` is replaced: `foreign_keys=ON` makes `DROP TABLE tasks` cascade-delete them, so the spec sets `PRAGMA defer_foreign_keys=ON` first or rebuilds in an order that never drops a referenced parent. Version chain coordination with `plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md`: the registry needs one linear chain, so whichever Plan lands second sets its spec's `from_version` to the first one's `to_version` (read `MIGRATIONS` at implementation time).
 - `config/adr_authority.toml` (adrauth001) does not exist yet, so no authority-registry entry needs changing now.
 
 ## Unknowns
@@ -145,7 +146,7 @@ Yes: `REQ-010`. Targets (located through `docs/00_index.md` "Document References
 | UNK-01 | (Decided by the owner on 2026-10-30) Resume contract: `pending` and `failed` tasks may be claimed; `running`, `completed`, and `halted` are rejected | Resolved: the owner chose the recommended contract; no caller passes `existing_task_id`, and the docs keep describing resume | Implement per REQ-007; no Needs Confirmation item is needed for it | False |
 | UNK-02 | Ledger choice: completed-event ledger vs. status-bearing attempt ledger | No owner decision | Default: completed-event ledger (keeps `processed_events`, which startup check, deploy check, and ADR name); alternative recorded in Design | False |
 | UNK-03 | (Decided by the owner on 2026-10-30) Recovery also fails the owning `running` task | Resolved: the owner chose yes; `agent_03_03` states recovery never changes task status, so that sentence is rewritten | Implement per REQ-006; rewrite the docs sentence in Phase 5 | False |
-| UNK-04 | dbmig001 registry API and registration module | `scripts/db/migrations_workflow.py` is planned, absent | Open dependency `plans/20261029-214108_dbmig001_forward-only-db-migrations.md` Phase 3; Phase 2 starts only after it; amend target files at procedure generation | False |
+| UNK-04 | dbmig001 registry API and registration module | `scripts/db/migrations_workflow.py` is planned, absent | Open dependency `plans/20261029-214108_dbmig001_forward-only-db-migrations.md` Phase 3; Phase 2 starts only after it; amend target files at procedure generation Resolved 2026-10-30: the registry landed (`scripts/db/migrations_workflow.py`, `scripts/shared/db_migrations.py`); the module is now a target row. | False |
 | UNK-05 | Whether wftaskapi001 Phase 2 lands first | Plan exists, rows Pending | Open dependency `plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md`; Phase 1 works in `task_ops` either way | False |
 | UNK-06 | (Resolved, second-pass verification 2026-10-30) Whether tests that insert raw status rows use only the five-status vocabulary | Resolved: raw INSERT seeds use `'running'` (attempts) and `pending` (tasks); no non-vocabulary status literal (`done`, `success`, `error`, `cancelled`, `stale`, `active`, `waiting`, `timeout`, `aborted`) exists in `tests/agent/workflow`, `tests/db`, or `tests/agent/test_orchestrator.py`; `?`-parameter seeds are re-checked in Phase 1 | Re-check parameter values with the new constraints in Phase 1 | False |
 | UNK-07 | Handling of retained rows that violate the new constraints (stale `running` attempts, markers without a completed attempt) | Production database not inspected (`rules/ai-execution.md` Repository Tool Usage item 7) | Precondition fails closed with the offending rows listed; owner decides on automatic mapping; backup gate from dbmig001 | False |
@@ -194,7 +195,7 @@ Yes: `REQ-010`. Targets (located through `docs/00_index.md` "Document References
    - [ ] Add conditional transition and claim functions with row-count checks (REQ-002, REQ-007; `scripts/agent/workflow/task_ops.py`); resolve UNK-06 by checking test seeds.
    - [ ] Tests for enums, matrix, errors, zero-row, and invalid statuses (REQ-001, REQ-002; `tests/agent/workflow/test_workflow_models.py`, `tests/agent/workflow/test_workflow_state_store.py`).
 2. **Phase 2: Schema and migration (starts after dbmig001 Phase 3)**
-   - [ ] Update DDL, version, and required columns (REQ-008; `scripts/db/schema_sql.py`, `scripts/agent/services/workflow_schema.py`); register the rebuild migration steps with precondition and rollback (registration module added by amendment, UNK-04).
+   - [ ] Update DDL, version, and required columns (REQ-008; `scripts/db/schema_sql.py`, `scripts/agent/services/workflow_schema.py`); register the rebuild migration steps with precondition and rollback (REQ-008; `scripts/db/migrations_workflow.py`).
    - [ ] Migration, constraint, and startup-check tests (REQ-008, REQ-011; `tests/db/test_create_schema.py`, `tests/agent/test_repl_health.py`).
 3. **Phase 3: Attempt lifecycle, ledger, and recovery**
    - [ ] Canonical attempt start with numbering, ledger-on-complete, terminal-only finish, bypass removal (REQ-003, REQ-004, REQ-005, REQ-012; `scripts/agent/workflow/attempt_ops.py`, `scripts/agent/workflow/idempotency_ops.py`, `scripts/agent/workflow/state_store.py`).
@@ -238,12 +239,12 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Vocabulary, errors, and task transitions | Pending | — | — | |
-| 2 | Phase 2: Schema and migration | Pending | — | — | Starts after dbmig001 Phase 3 |
-| 3 | Phase 3: Attempt lifecycle, ledger, and recovery | Pending | — | — | |
-| 4 | Phase 4: Engine, adapter, and audit correlation | Pending | — | — | |
-| 5 | Phase 5: Documentation and ADR | Pending | — | — | |
-| 6 | Phase 6: Deployment & Verification | Pending | — | — | |
+| 1 | Phase 1: Vocabulary, errors, and task transitions | Completed | — | 20261030-144830 |  |
+| 2 | Phase 2: Schema and migration | In Progress | — | — | Starts after dbmig001 Phase 3 |
+| 3 | Phase 3: Attempt lifecycle, ledger, and recovery | Pending | — | — |  |
+| 4 | Phase 4: Engine, adapter, and audit correlation | Pending | — | — |  |
+| 5 | Phase 5: Documentation and ADR | Pending | — | — |  |
+| 6 | Phase 6: Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -254,6 +255,9 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
+| implementations/20261030-125334_10_scripts_db_schema_sql.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-125334_22_tests_db_test_create_schema.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261030-125334_26_scripts_db_migrations_workflow.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -262,7 +266,7 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261030-114041
-- **Related target files**: `scripts/agent/workflow/models.py`, `scripts/agent/workflow/errors.py`, `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/attempt_ops.py`, `scripts/agent/workflow/idempotency_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow_engine_adapter.py`, `scripts/agent/tool_audit.py`, `scripts/db/schema_sql.py`, `scripts/agent/services/workflow_schema.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`, `tests/agent/workflow/test_workflow_models.py`, `tests/agent/workflow/test_workflow_recovery.py`, `tests/agent/workflow/test_workflow_concurrency.py`, `tests/agent/test_orchestrator.py`, `tests/agent/test_repl_health.py`, `tests/agent/test_tool_audit.py`, `tests/db/test_create_schema.py`, `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`, `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`
+- **Related target files**: `scripts/agent/workflow/models.py`, `scripts/agent/workflow/errors.py`, `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/attempt_ops.py`, `scripts/agent/workflow/idempotency_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow_engine_adapter.py`, `scripts/agent/tool_audit.py`, `scripts/db/schema_sql.py`, `scripts/agent/services/workflow_schema.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`, `tests/agent/workflow/test_workflow_models.py`, `tests/agent/workflow/test_workflow_recovery.py`, `tests/agent/workflow/test_workflow_concurrency.py`, `tests/agent/test_orchestrator.py`, `tests/agent/test_repl_health.py`, `tests/agent/test_tool_audit.py`, `tests/db/test_create_schema.py`, `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`, `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`, `scripts/db/migrations_workflow.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -286,6 +290,7 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 | REQ-007 | Required Changes 8 | `scripts/agent/workflow_engine_adapter.py` | Phase 4 | AC-6 | `tests/agent/test_orchestrator.py` | Confirmed by repository evidence |
 | REQ-007 | Required Changes 8 | `scripts/agent/workflow/task_ops.py` | Phase 1 | AC-6 | `tests/agent/workflow/test_workflow_state_store.py` | Confirmed by repository evidence |
 | REQ-008 | Required Changes 2; Constraints | `scripts/db/schema_sql.py` | Phase 2 | AC-10 | `tests/db/test_create_schema.py` | Confirmed by repository evidence |
+| REQ-008 | Required Changes 2; Constraints | `scripts/db/migrations_workflow.py` | Phase 2 | AC-10 | `tests/db/test_create_schema.py` | Confirmed by repository evidence |
 | REQ-008 | Background (startup check) | `scripts/agent/services/workflow_schema.py` | Phase 2 | AC-10 | `tests/agent/test_repl_health.py` | Confirmed by repository evidence |
 | REQ-008 | Testing Expectations 4 | `tests/db/test_create_schema.py` | Phase 2 | AC-10 | `uv run pytest tests/db/` | Explicit in issue |
 | REQ-008 | Background (second finding) | `tests/agent/test_repl_health.py` | Phase 2 | AC-10 | `uv run pytest tests/agent/test_repl_health.py` | Confirmed by repository evidence |

@@ -69,8 +69,8 @@ Rename `TaskRecord.idempotency_key` to `task_nonce` (new) (`REQ-003`, accurate k
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename the `TaskRecord` field | Pending | — | — | Gated: release unit with the schema row, after dbmig001 Phase 3 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rename the `TaskRecord` field | Completed | 20261030-173958 | 20261030-173958 | Gated: release unit with the schema row, after dbmig001 Phase 3 Blocked: gated on schema row and dbmig001 Phase 3 Gated: with documents 20261030-125133_04, _09, _12 and 125133_01 step 2 TaskRecord.task_nonce |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-173958 | 20261030-173958 | validators passed; full suite 10487 passed (wftaskapi001 release unit run); production workflow.sqlite mtime unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

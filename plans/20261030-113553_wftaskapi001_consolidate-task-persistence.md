@@ -38,7 +38,7 @@ The state-machine issue adds transition validation to task updates; writing it a
 - `REQ-007`: Before removing any API, run and record a repository-wide caller search for each removed name and for `idempotency_key` on tasks (`scripts/`, `tests/`, `tools/`, `docs/`, `deploy/`).
 
 ## Implementation Target Files
-**Freeze status**: Frozen (Step 8 Implementation Target Files Validation passed on 2026-10-30: every row exists, requires modification, cites checkable evidence, and links to a Requirement or Acceptance criterion; all paths confirmed present on branch `docs/issues-workflow-persistence`).
+**Freeze status**: Frozen (Amended 2026-10-30 (user-approved) a second time: row `tests/deploy/test_init_db_eventbus_schema.py` appended after the registry row (additional target file discovery while executing the `scripts/db/schema_sql.py` row: a deploy test depended on the production database); re-validated: file exists, concrete change, evidence reproduced, linked to REQ-004, not in Reference Files. Previous amendment and original validation follow: Amended 2026-10-30 (user-approved) after dbmig001 Phase 3 landed: row `scripts/db/migrations_workflow.py` appended after the last row (UNK-04 resolved); re-validated: file exists, concrete change, evidence checkable, linked to REQ-003 and REQ-004, not in Reference Files. Original validation: Step 8 Implementation Target Files Validation passed on 2026-10-30: every row exists, requires modification, cites checkable evidence, and links to a Requirement or Acceptance criterion; all paths confirmed present on branch `docs/issues-workflow-persistence`).
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
@@ -55,6 +55,8 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `tests/db/test_create_schema.py` | Update DDL copy and uniqueness test; add migration test | DDL copy `:359`; `test_tasks_idempotency_key_unique` `:495` | REQ-003, REQ-004 / AC-3, AC-4 | `test_create_schema.py:359,495` (checked in Step 3) | itself | Verified |
 | `docs/41_db/db_02_architecture_and_schema-schema-reference.md` | Task-key contract | Section 7 key paragraph describes the UUID4 `idempotency_key` | REQ-005 / AC-6 | `db_02_...md:48` (checked in Step 3) | docs checkers (Validation plan) | Verified |
 | `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` | Task-key contract and StateStore scope | Scope paragraph `:71` and "fresh, unique task keys" bullet `:86` | REQ-005 / AC-6 | `agent_04_03_...md:71,86` (checked in Step 3) | docs checkers (Validation plan) | Verified |
+| `scripts/db/migrations_workflow.py` | Register the migration spec that renames `tasks.idempotency_key` to `task_nonce` and bumps the version | The registry exists (dbmig001 Phase 3 landed: `MIGRATIONS = ()`, `WORKFLOW_DOMAIN`); the rename changes the DDL and `WORKFLOW_SCHEMA_VERSION`, and a version without a registered forward path is refused at startup, so the rename cannot ship without it | REQ-003, REQ-004 / AC-3, AC-4 | `scripts/db/migrations_workflow.py` (`MIGRATIONS`), `scripts/shared/db_migrations.py` (`MigrationSpec`, `run_migrations`) | `tests/db/test_create_schema.py` (migration test with existing rows) | Verified |
+| `tests/deploy/test_init_db_eventbus_schema.py` | Pin `workflow_db_path` at the top level of the sandbox `agent.toml` so the `create_schema.py` subprocess never reaches `/opt/llm/db/workflow.sqlite` | The helper `_write_config` appends the key at the end of the file, where it lands inside the last table (`[tool_definitions.function.parameters.properties.context_after]`), so the subprocess falls back to the production default; with the version bump the test fails against the production database (`schema version '1.1.0' differs from '1.2.0'`) and earlier runs wrote the ledger baseline into it (reproduced 2026-10-30) | REQ-004 / AC-4 | `tests/deploy/test_init_db_eventbus_schema.py` `_write_config`; `config/agent.toml:1964-1966` (last table); read-only inspection of `/opt/llm/db/workflow.sqlite` | itself | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze) for the full validation procedure):
 - One row per file. No directory, glob, component name, file group, or vague phrase appears as a row.
@@ -99,7 +101,7 @@ Yes. `REQ-005` updates `docs/41_db/db_02_architecture_and_schema-schema-referenc
 - Step 8b overlap judgments (`tools/check_plan_target_overlaps.py`, 2026-10-30): `state_store.py` and `test_workflow_engine.py` with toolexec001: compatible (toolexec001 adds tool-call state helpers and pending-detection tests; this Plan changes only task CRUD delegation and key lookups). `agent_04_03_...md` line 71 with toolexec001: sequencing dependency (both edit the same paragraph; toolexec001's REQ-010 preserves task-key semantics, which this Plan also preserves, but its text names `idempotency_key`; the later change reconciles the name). `schema_sql.py` with ragcorpus001: compatible (it adds a `rag_corpus_meta` DDL; this Plan changes one `tasks` column). `tests/db/test_create_schema.py` with dbmig001: compatible (additive tests).
 - Schema version numbering (second-pass verification, 2026-10-30): this Plan, wfrecovery001, wflease001, wftaskapi001, and toolexec001 each bump `WORKFLOW_SCHEMA_VERSION` from `1.1.0`. Version numbers are not fixed in the Plans; they are assigned in landing order when the migration steps are registered, and each step's source version equals the previous step's target version (the dbmig001 registry records source and target versions per migration). Two Plans must not target the same version.
 - Verification record (second pass, 2026-10-30): no Implementation Target Files row changed on `origin/master` since the merge base; every `path:line` citation lies within its file; SQLite 3.46.1 `RENAME COLUMN` keeps the `UNIQUE` constraint and the unique index (tested), so Phase 3 needs no backfill; no caller of the four removable lookup APIs exists in `tools/`, `deploy/`, or `config/`.
-- The migration registration module is defined by the dbmig001 plan (`scripts/db/migrations_workflow.py`, not yet present); it is not listed as a target here because it does not exist yet. When it lands, `plan-to-implementation-procedure` Step 2 revalidation amends this Plan with that row (UNK-04).
+- The migration registration module `scripts/db/migrations_workflow.py` exists (dbmig001 Phase 3 landed, 2026-10-30) and is a target row (amended 2026-10-30). Registry contract: `MigrationSpec(migration_id, from_version, to_version, apply, precondition, postcondition)` in `scripts/shared/db_migrations.py`; versions are the semver text of `workflow_schema_version`; `apply` uses `conn.execute` only (never `executescript`) inside the runner's single write transaction; the runner verifies the fingerprint against `build_workflow_schema_sql()` at the current version. The rename can use `ALTER TABLE tasks RENAME COLUMN idempotency_key TO task_nonce` (the column-level `UNIQUE` follows the column), so no table rebuild is needed. Version chain coordination with `plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md`: one linear chain, so whichever Plan lands second sets its spec's `from_version` to the first one's `to_version` (read `MIGRATIONS` at implementation time).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -107,7 +109,7 @@ Yes. `REQ-005` updates `docs/41_db/db_02_architecture_and_schema-schema-referenc
 | UNK-01 | Owner's preferred canonical module (`task_ops` vs `StateStore`) | No recorded owner decision; production call sites favor `task_ops` | Default to `task_ops`; owner may reverse before Phase 2 | False |
 | UNK-02 | Whether any external or planned caller needs caller-request deduplication | No such caller found in `scripts/`, `tools/`, `deploy/` | Default: rename path (REQ-003); revisit only if a caller is named | False |
 | UNK-03 | Final column name (`task_nonce`) and whether the redundant second unique column should be dropped instead | `DROP COLUMN` is unsupported for a `UNIQUE` column in SQLite 3.46.1, so a drop needs a table rebuild; owner preference unknown | Default: `RENAME COLUMN`; a drop is a later, separate change | False |
-| UNK-04 | Exact registration point and API of the dbmig001 workflow migration registry | `scripts/db/migrations_workflow.py` is planned in the dbmig001 plan but absent from the repository | Open dependency: `plans/20261029-214108_dbmig001_forward-only-db-migrations.md` Phase 3; Phase 3 of this Plan starts only after it; revalidate target files at procedure-generation time | False |
+| UNK-04 | Exact registration point and API of the dbmig001 workflow migration registry | `scripts/db/migrations_workflow.py` is planned in the dbmig001 plan but absent from the repository | Open dependency: `plans/20261029-214108_dbmig001_forward-only-db-migrations.md` Phase 3; Phase 3 of this Plan starts only after it; revalidate target files at procedure-generation time Resolved 2026-10-30: the registry landed (`scripts/db/migrations_workflow.py`, `scripts/shared/db_migrations.py`); the module is now a target row. | False |
 | UNK-05 | Whether the retained production `workflow.sqlite` holds rows the migration must preserve | Production database is not inspected during planning (`rules/ai-execution.md` Repository Tool Usage item 7) | Migration test uses fixture rows; the dbmig001 pre-migration backup gate covers production | False |
 
 ## Affected areas
@@ -140,7 +142,7 @@ Yes. `REQ-005` updates `docs/41_db/db_02_architecture_and_schema-schema-referenc
    - [ ] Delete the four zero-caller lookup APIs in both layers (REQ-002; `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`).
    - [ ] Update tests: remove lookup-only tests, switch key lookups to `get_task_by_id` (REQ-002; `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`).
 3. **Phase 3: Rename the task key with its migration (starts after dbmig001 Phase 3; one release unit)**
-   - [ ] Rename the field, DDL column, `create_task` and row-mapping use, and bump `WORKFLOW_SCHEMA_VERSION` (REQ-003, REQ-004; `scripts/agent/workflow/models.py`, `scripts/agent/workflow/task_ops.py`, `scripts/db/schema_sql.py`).
+   - [ ] Rename the field, DDL column, `create_task` and row-mapping use, and bump `WORKFLOW_SCHEMA_VERSION` (REQ-003, REQ-004; `scripts/agent/workflow/models.py`, `scripts/agent/workflow/task_ops.py`, `scripts/db/schema_sql.py`); register the rename migration spec (REQ-003, REQ-004; `scripts/db/migrations_workflow.py`); isolate the deploy test from the production database (REQ-004; `tests/deploy/test_init_db_eventbus_schema.py`).
    - [ ] Register the `RENAME COLUMN` migration step in the dbmig001 workflow registry (REQ-004; registration module added to this Plan by amendment, UNK-04).
    - [ ] Update tests: model, raw INSERTs, DDL copy, uniqueness test, migration test, duplicate-creation test (REQ-003, REQ-004, REQ-006; `tests/agent/workflow/test_workflow_models.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/db/test_create_schema.py`).
 4. **Phase 4: Documentation**
@@ -175,11 +177,11 @@ Baselines recorded 2026-10-30: radon cc on the target modules shows no grade C o
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Caller search and record | Pending | — | — | |
-| 2 | Phase 2: Consolidate task persistence | Pending | — | — | |
-| 3 | Phase 3: Rename the task key with its migration | Pending | — | — | Starts after dbmig001 Phase 3 |
-| 4 | Phase 4: Documentation | Pending | — | — | |
-| 5 | Phase 5: Deployment & Verification | Pending | — | — | |
+| 1 | Phase 1: Caller search and record | Pending | — | — |  |
+| 2 | Phase 2: Consolidate task persistence | Completed | — | 20261030-174017 |  |
+| 3 | Phase 3: Rename the task key with its migration | Completed | — | 20261030-174018 | Starts after dbmig001 Phase 3 |
+| 4 | Phase 4: Documentation | Pending | — | — |  |
+| 5 | Phase 5: Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -190,6 +192,10 @@ Baselines recorded 2026-10-30: radon cc on the target modules shows no grade C o
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
+| implementations/20261030-125133_04_scripts_db_schema_sql.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-125133_09_tests_db_test_create_schema.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-125133_12_scripts_db_migrations_workflow.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261030-125133_13_tests_deploy_test_init_db_eventbus_schema.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -198,7 +204,7 @@ Baselines recorded 2026-10-30: radon cc on the target modules shows no grade C o
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261030-113553
-- **Related target files**: `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/models.py`, `scripts/db/schema_sql.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`, `tests/agent/workflow/test_workflow_models.py`, `tests/db/test_create_schema.py`, `docs/41_db/db_02_architecture_and_schema-schema-reference.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`
+- **Related target files**: `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/models.py`, `scripts/db/schema_sql.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`, `tests/agent/workflow/test_workflow_models.py`, `tests/db/test_create_schema.py`, `docs/41_db/db_02_architecture_and_schema-schema-reference.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`, `scripts/db/migrations_workflow.py`, `tests/deploy/test_init_db_eventbus_schema.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -216,6 +222,8 @@ Baselines recorded 2026-10-30: radon cc on the target modules shows no grade C o
 | REQ-003 | Background (second finding) | `tests/agent/workflow/test_workflow_models.py` | Phase 3 | AC-3 | `uv run pytest tests/agent/workflow/` | Confirmed by repository evidence |
 | REQ-003 | Background (second finding) | `tests/db/test_create_schema.py` | Phase 3 | AC-3 | `uv run pytest tests/db/` | Confirmed by repository evidence |
 | REQ-004 | Constraints (migration); Dependencies | `scripts/db/schema_sql.py` | Phase 3, Phase 5 | AC-4 | migration test; `check_db_separation.py` | Derived from confirmed evidence |
+| REQ-003 | Required Changes 3 | `scripts/db/migrations_workflow.py` | Phase 3 | AC-3, AC-4 | `uv run pytest tests/db/` | Confirmed by repository evidence |
+| REQ-004 | Constraints (migration) | `tests/deploy/test_init_db_eventbus_schema.py` | Phase 3 | AC-4 | the test itself | Confirmed by repository evidence |
 | REQ-004 | Testing Expectations | `tests/db/test_create_schema.py` | Phase 3 | AC-4 | `uv run pytest tests/db/` | Derived from confirmed evidence |
 | REQ-005 | Documentation Impact | `docs/41_db/db_02_architecture_and_schema-schema-reference.md` | Phase 4 | AC-6 | docs checkers | Confirmed by repository evidence |
 | REQ-005 | Documentation Impact | `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` | Phase 4 | AC-6 | docs checkers | Confirmed by repository evidence |

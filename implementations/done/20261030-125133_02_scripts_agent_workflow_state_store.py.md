@@ -82,9 +82,9 @@ Remove the duplicated task SQL from `StateStore` so `task_ops` is the only owner
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delegate the four kept methods; delete the six unused methods; fix imports | Pending | — | — | After row 01 Step 1 |
-| 2 | Update tests per the test rows' documents | Pending | — | — | Covered by rows 05-11 documents |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delegate the four kept methods; delete the six unused methods; fix imports | Completed | 20261030-144808 | 20261030-144808 | After row 01 Step 1 Delegates in place; six methods removed |
+| 2 | Update tests per the test rows' documents | Completed | 20261030-144808 | 20261030-144808 | Covered by rows 05-11 documents N/A: no test change needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-144808 | 20261030-144808 | ruff/mypy/lint-imports/bandit/module-size passed; full suite 10451 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

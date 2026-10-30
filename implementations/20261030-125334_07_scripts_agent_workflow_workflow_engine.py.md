@@ -9,7 +9,7 @@ Make `scripts/agent/workflow/workflow_engine.py` claim tasks through the transit
 
 ## Assumptions
 
-- Plan Dependencies (`plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` Scope): Plan Phase 4, after the schema row (`Blocked` for this document set) and rows 01-06. This document MUST NOT be executed before the Phase 2 schema and Phase 3 rows exist.
+- Plan Dependencies (`plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` Scope): Plan Phase 4, after the schema row (its procedure documents `20261030-125334_10`, `_22`, and `_26` exist since 2026-10-30) and rows 01-06. This document MUST NOT be executed before the Phase 2 schema and Phase 3 rows exist.
 - Execution order follows the Plan's phases, not `seq`.
 - Plan overlap judgments (Step 8b): `workflow_engine.py` is also a target of `plans/20261030-114516_wflease001_stale-attempt-lease.md` (passes the lease at attempt start), `plans/20261030-114927_wfretry001_timeout-retry-failure-propagation.md` (eligibility, timeout classification, failure routing, in the same functions), and `plans/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md` (pending-call detection at turn entry): sequencing; this document lands first of the engine edits, the others rebase.
 - Owner decision (2026-10-30): resume contract is `pending` and `failed` claimable.
@@ -82,9 +82,9 @@ Make `scripts/agent/workflow/workflow_engine.py` claim tasks through the transit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Claim in `run()`; persisted attempt numbers and budget; `current_attempt_number` (new); ledger completion | Pending | — | — | Plan Phase 4; gated on Phases 2 and 3 |
+| 1 | Claim in `run()`; persisted attempt numbers and budget; `current_attempt_number` (new); ledger completion | Pending | — | — | Plan Phase 4; gated on Phases 2 and 3 Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Test rows' documents |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

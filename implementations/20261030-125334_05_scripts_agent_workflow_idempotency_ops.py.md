@@ -8,7 +8,7 @@ Turn `processed_events` into a completed-stage ledger and make `begin_stage_if_n
 
 ## Assumptions
 
-- Plan Dependencies (`plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` Scope): Plan Phase 3, after the schema row (`processed_events.attempt_id` and `attempt_number`, `attempts.attempt_number`; Plan row 10, `Blocked` for this document set) and rows 01, 02, and 04. This document MUST NOT be executed before the schema row exists.
+- Plan Dependencies (`plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` Scope): Plan Phase 3, after the schema row (`processed_events.attempt_id` and `attempt_number`, `attempts.attempt_number`; Plan row 10, document `20261030-125334_10`) and rows 01, 02, and 04. This document MUST NOT be executed before the schema row exists.
 - Execution order follows the Plan's phases, not `seq`.
 - Plan overlap judgments (Step 8b): `idempotency_ops.py` is also a target of `plans/20261030-114516_wflease001_stale-attempt-lease.md` (it passes the lease duration into the attempt-start transaction): sequencing dependency, added after this contract lands.
 - Owner decision default (Plan UNK-02): completed-event ledger, not a status-bearing attempt ledger; the table name `processed_events` stays (named by the startup check, the deploy check, and ADR-001).
@@ -82,9 +82,9 @@ Turn `processed_events` into a completed-stage ledger and make `begin_stage_if_n
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `begin_stage_if_new`; add `complete_stage_attempt` (new) and `is_stage_completed` (new); fix docstrings | Pending | — | — | Plan Phase 3; gated on the schema row |
+| 1 | Rewrite `begin_stage_if_new`; add `complete_stage_attempt` (new) and `is_stage_completed` (new); fix docstrings | Pending | — | — | Plan Phase 3; gated on the schema row Blocked: schema row (attempts.attempt_number) and dbmig001 Phase 3 not landed Gated: after schema documents 20261030-125334_10, _22, _26 are executed (Plan Phase 2) |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Test rows' documents |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

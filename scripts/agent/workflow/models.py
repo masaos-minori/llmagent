@@ -6,7 +6,50 @@ Dataclasses for the Metadata DB entities and workflow definition schema.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import StrEnum
+
+
+class TaskStatus(StrEnum):
+    """Task lifecycle states; values equal the persisted `tasks.status` text."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    HALTED = "halted"
+
+
+class AttemptStatus(StrEnum):
+    """Attempt lifecycle states; values equal the persisted `attempts.status` text."""
+
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+# Allowed task status edges. `completed -> failed` is transitional: the adapter
+# overwrites a completed task when a later failure is detected; the retry plan
+# removes that edge.
+TASK_TRANSITIONS: Mapping[TaskStatus, frozenset[TaskStatus]] = {
+    TaskStatus.PENDING: frozenset({TaskStatus.RUNNING, TaskStatus.HALTED}),
+    TaskStatus.RUNNING: frozenset(
+        {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.HALTED}
+    ),
+    TaskStatus.FAILED: frozenset({TaskStatus.RUNNING}),
+    TaskStatus.COMPLETED: frozenset({TaskStatus.FAILED}),
+    TaskStatus.HALTED: frozenset(),
+}
+
+ATTEMPT_TERMINAL_STATUSES: frozenset[AttemptStatus] = frozenset(
+    {AttemptStatus.COMPLETED, AttemptStatus.FAILED}
+)
+
+
+def is_task_transition_allowed(current: TaskStatus, new: TaskStatus) -> bool:
+    """Return True when the matrix allows moving a task from `current` to `new`."""
+    return new in TASK_TRANSITIONS.get(current, frozenset())
 
 
 @dataclass
@@ -18,7 +61,7 @@ class TaskRecord:
     turn_number: int | None
     workflow_version: str
     status: str  # pending | running | completed | failed | halted
-    idempotency_key: str
+    task_nonce: str
     created_at: str  # ISO-8601
     updated_at: str  # ISO-8601
     workflow_id: str = ""
@@ -35,6 +78,7 @@ class AttemptRecord:
     started_at: str  # ISO-8601
     ended_at: str | None = None
     error_msg: str | None = None
+    attempt_number: int = 0  # persisted per task-stage number; 0 = not yet assigned
 
 
 @dataclass

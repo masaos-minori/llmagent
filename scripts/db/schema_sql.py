@@ -20,9 +20,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Bump this constant whenever the workflow schema changes in a way that requires
-# recreating the database.
-WORKFLOW_SCHEMA_VERSION = "1.1.0"
+# Bump this constant whenever the workflow schema changes; it must equal the last
+# `to_version` registered in db/migrations_workflow.py.
+WORKFLOW_SCHEMA_VERSION = "1.2.0"
 
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     turn_number      INTEGER,
     workflow_version TEXT NOT NULL,
     status           TEXT NOT NULL DEFAULT 'pending',
-    idempotency_key  TEXT UNIQUE NOT NULL,
+    task_nonce       TEXT UNIQUE NOT NULL,
     created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -214,6 +214,14 @@ CREATE TABLE IF NOT EXISTS artifacts (
 CREATE TABLE IF NOT EXISTS workflow_schema_version (
     version    TEXT NOT NULL,
     applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+-- Applied-migration ledger; the same shape as LEDGER_DDL in shared/db_migrations.py.
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id           TEXT PRIMARY KEY,
+    applied_at   TEXT NOT NULL,
+    from_version TEXT NOT NULL,
+    to_version   TEXT NOT NULL
 );
 """
 

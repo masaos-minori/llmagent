@@ -356,7 +356,7 @@ _WORKFLOW_SCHEMA_NO_VEC0 = """
         turn_number      INTEGER,
         workflow_version TEXT NOT NULL,
         status           TEXT NOT NULL DEFAULT 'pending',
-        idempotency_key  TEXT UNIQUE NOT NULL,
+        task_nonce       TEXT UNIQUE NOT NULL,
         created_at       TEXT NOT NULL,
         updated_at       TEXT NOT NULL
     );
@@ -389,6 +389,13 @@ _WORKFLOW_SCHEMA_NO_VEC0 = """
     CREATE TABLE IF NOT EXISTS workflow_schema_version (
         version    TEXT NOT NULL,
         applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+        id           TEXT PRIMARY KEY,
+        applied_at   TEXT NOT NULL,
+        from_version TEXT NOT NULL,
+        to_version   TEXT NOT NULL
     );
 """
 
@@ -492,7 +499,7 @@ class TestCreateWorkflowSchema:
         assert workflow_id_count == 1
         conn.close()
 
-    def test_tasks_idempotency_key_unique(self, tmp_path: Path) -> None:
+    def test_tasks_task_nonce_unique(self, tmp_path: Path) -> None:
         db_file = tmp_path / "workflow3.sqlite"
         cfg = DbConfig(
             rag_db_path="/tmp/rag.sqlite",
@@ -676,6 +683,131 @@ class TestWorkflowSchemaVersionRecord:
         conn.close()
         assert "approvals" not in tables
         assert {"tasks", "attempts", "processed_events", "artifacts"} <= tables
+
+
+def _ledger_rows(db_file: Path) -> list[tuple[str, str, str]]:
+    conn = sqlite3.connect(str(db_file))
+    try:
+        rows = conn.execute(
+            "SELECT id, from_version, to_version FROM schema_migrations ORDER BY rowid"
+        ).fetchall()
+    finally:
+        conn.close()
+    return [(r[0], r[1], r[2]) for r in rows]
+
+
+class TestWorkflowMigrationLedger:
+    """A new workflow database carries the ledger with one baseline row."""
+
+    def test_new_database_has_one_baseline_row(self, tmp_path: Path) -> None:
+        from db.schema_sql import WORKFLOW_SCHEMA_VERSION
+
+        db_file = tmp_path / "ledger.sqlite"
+        _create_workflow_db(db_file)
+        assert _ledger_rows(db_file) == [
+            ("baseline", WORKFLOW_SCHEMA_VERSION, WORKFLOW_SCHEMA_VERSION)
+        ]
+
+    def test_rerun_adds_no_second_baseline_row(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "ledger_rerun.sqlite"
+        _create_workflow_db(db_file)
+        _create_workflow_db(db_file)
+        assert len(_ledger_rows(db_file)) == 1
+
+    def test_baseline_is_not_added_to_a_non_empty_ledger(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "ledger_nonempty.sqlite"
+        _create_workflow_db(db_file)
+        conn = sqlite3.connect(str(db_file))
+        conn.execute("DELETE FROM schema_migrations")
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES ('m-1', 't', '1.0.0', '1.1.0')"
+        )
+        conn.commit()
+        conn.close()
+        _create_workflow_db(db_file)
+        assert [r[0] for r in _ledger_rows(db_file)] == ["m-1"]
+
+    def test_workflow_ddl_ledger_matches_the_framework_ledger(self) -> None:
+        from db.schema_sql import build_workflow_schema_sql
+        from shared.db_migrations import LEDGER_DDL
+
+        def columns(ddl: str) -> list[tuple[object, ...]]:
+            conn = sqlite3.connect(":memory:")
+            try:
+                conn.executescript(ddl)
+                return [
+                    tuple(r)
+                    for r in conn.execute("PRAGMA table_info(schema_migrations)")
+                ]
+            finally:
+                conn.close()
+
+        assert columns(build_workflow_schema_sql()) == columns(LEDGER_DDL)
+
+
+class TestTaskNonceMigration:
+    """The registered rename keeps every task row and its unique value."""
+
+    def _previous_version_db(self, path: Path) -> None:
+        from db.schema_sql import build_workflow_schema_sql
+
+        old_ddl = build_workflow_schema_sql().replace(
+            "task_nonce       TEXT", "idempotency_key  TEXT"
+        )
+        assert "idempotency_key" in old_ddl
+        conn = sqlite3.connect(str(path))
+        try:
+            conn.executescript(old_ddl)
+            conn.execute(
+                "INSERT INTO workflow_schema_version (version) VALUES ('1.1.0')"
+            )
+            conn.executemany(
+                "INSERT INTO tasks (task_id, workflow_version, idempotency_key)"
+                " VALUES (?, '1', ?)",
+                [("t1", "nonce-1"), ("t2", "nonce-2")],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def test_migration_preserves_rows_and_nonce_values(self, tmp_path: Path) -> None:
+        from db.migrations_workflow import MIGRATIONS, WORKFLOW_DOMAIN
+        from db.schema_sql import WORKFLOW_SCHEMA_VERSION
+        from shared.db_migrations import run_migrations
+
+        db_file = tmp_path / "old.sqlite"
+        self._previous_version_db(db_file)
+        report = run_migrations(
+            db_file,
+            WORKFLOW_DOMAIN,
+            MIGRATIONS,
+            WORKFLOW_SCHEMA_VERSION,
+            tmp_path / "backups",
+        )
+        assert report.applied == ("rename-task-nonce",)
+        conn = sqlite3.connect(str(db_file))
+        try:
+            rows = conn.execute(
+                "SELECT task_id, task_nonce FROM tasks ORDER BY task_id"
+            ).fetchall()
+            assert rows == [("t1", "nonce-1"), ("t2", "nonce-2")]
+            with pytest.raises(sqlite3.IntegrityError):
+                conn.execute(
+                    "INSERT INTO tasks (task_id, workflow_version, task_nonce)"
+                    " VALUES ('t3', '1', 'nonce-1')"
+                )
+        finally:
+            conn.close()
+
+    def test_created_database_uses_the_new_column(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "new.sqlite"
+        _create_workflow_db(db_file)
+        conn = sqlite3.connect(str(db_file))
+        try:
+            columns = {r[1] for r in conn.execute("PRAGMA table_info(tasks)")}
+        finally:
+            conn.close()
+        assert "task_nonce" in columns and "idempotency_key" not in columns
 
 
 class TestRagSchemaColumnIntegrity:

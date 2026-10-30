@@ -128,6 +128,7 @@ def audit_stage_completed(
     elapsed_ms: float,
     workflow_id: str = "",
     session_id: str = "",
+    attempt_number: int | None = None,
 ) -> None:
     """Write stage_completed event to audit log."""
     if ctx.services_required.audit_logger is None:
@@ -140,6 +141,7 @@ def audit_stage_completed(
                 "workflow_id": workflow_id,
                 "session_id": session_id,
                 "stage_id": stage_id,
+                "attempt_number": attempt_number,
                 "elapsed_ms": elapsed_ms,
                 "ts": time.time(),
             }
