@@ -170,9 +170,9 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Presence/executable pre-flight (REQ-001) | Pending | — | — | `deploy/start_agent.sh` |
-| 2 | Optional stale + dict warnings (REQ-002, REQ-003) | Pending | — | — | `deploy/start_agent.sh` |
-| 3 | Tests, docs & verification (REQ-001, REQ-004) | Pending | — | — | `tests/deploy/test_start_agent_preflight.py`, `docs/90_deployment/deployment_01_deployment.md` |
+| 1 | Presence/executable pre-flight (REQ-001) | In Progress | — | — | `deploy/start_agent.sh` |
+| 2 | Optional stale + dict warnings (REQ-002, REQ-003) | In Progress | — | — | `deploy/start_agent.sh` |
+| 3 | Tests, docs & verification (REQ-001, REQ-004) | In Progress | — | — | `tests/deploy/test_start_agent_preflight.py`, `docs/90_deployment/deployment_01_deployment.md` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -182,7 +182,9 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261030-125450_01_deploy_start_agent.sh.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261030-125450_02_tests_deploy_test_start_agent_preflight.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261030-125450_03_docs_90_deployment_deployment_01_deployment.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -202,3 +204,4 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
 | REQ-003 | Implementation Intent (optional dict warning) | `deploy/start_agent.sh` | Step 2 | AC-004 | Optional test assertion | Explicit in issue |
 | REQ-004 | Testing Expectations | `tests/deploy/test_start_agent_preflight.py` | Step 3 | AC-005 | `uv run pytest tests/deploy/test_start_agent_preflight.py -v` | Explicit in issue |
 
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261030-125450 -->
