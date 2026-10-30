@@ -113,3 +113,54 @@ def test_database_stamped_one_is_refused(tmp_path: Path) -> None:
     raw.close()
     with pytest.raises(RuntimeError, match="recreate the database"):
         open_db(str(path))
+
+
+def test_registered_v3_database_migrates_at_startup(tmp_path: Path) -> None:
+    """A database at the pre-ledger baseline (user_version 3) migrates at startup.
+
+    The registered 3 -> 4 bootstrap step runs through the shared runner gate-gated
+    (row 03 wiring): startup succeeds, the ledger records the step, and the shared
+    fingerprint passes. This is the dbmig001 behaviour that replaces today's hard
+    refusal for a lower-but-registered version.
+    """
+    path = tmp_path / "eventbus.sqlite"
+    # Seed a realistic pre-migration database: the full current shape minus the
+    # ledger table, stamped at the pre-ledger baseline (user_version 3).
+    seed = sqlite3.connect(str(path))
+    try:
+        seed.execute("PRAGMA journal_mode=WAL")  # nosec B704 — WAL is required for the gate
+        seed.executescript(_SCHEMA_PATH.read_text(encoding="utf-8"))
+        seed.commit()
+        seed.execute("DROP TABLE schema_migrations")
+        seed.execute("PRAGMA user_version = 3")  # nosec B608 — fixed test int
+        seed.commit()
+    finally:
+        seed.close()
+
+    migrated = open_db(str(path))
+    try:
+        assert _version(path) == 4
+        rows = migrated.execute(
+            "SELECT id, from_version, to_version FROM schema_migrations ORDER BY id"
+        ).fetchall()
+        assert [(r[0], r[1], r[2]) for r in rows] == [
+            ("eventbus_ledger_baseline", 3, 4)
+        ]
+    finally:
+        migrated.close()
+
+
+def test_future_version_is_refused(tmp_path: Path) -> None:
+    """A database stamped beyond the baseline (user_version 5) refuses at startup.
+
+    No registered forward path reaches a target below the current version, so the
+    runner raises an unknown-path refusal and startup keeps the recreate guidance
+    (fail-closed, REQ-003/REQ-005).
+    """
+    path = tmp_path / "eventbus.sqlite"
+    open_db(str(path)).close()
+    raw = sqlite3.connect(path)
+    raw.execute("PRAGMA user_version = 5")
+    raw.close()
+    with pytest.raises(RuntimeError, match="recreate the database"):
+        open_db(str(path))

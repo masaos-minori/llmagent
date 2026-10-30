@@ -57,10 +57,10 @@ Single-function change plus imports of `shared.db_migrations` and `eventbus.migr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests come from rows 15/16 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-090500 | 20261030-090500 | Reworked _init_schema: registered lower-version path runs the shared runner gate-gated (plan+apply with verify_backup); unknown/cycle/downgrade keep fail-closed RuntimeError. Updated docstring. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-090500 | 20261030-090500 | Tests come from rows 15/16 Added tests/eventbus/test_eventbus_schema_version.py: registered v3->v4 startup migration (ledger row + fingerprint), future v5 refusal. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-090500 | 20261030-090500 | ruff+mypy(478)+lint-imports(6/6)+check_db_separation+check_docstrings clean; eventbus+shared 1559 + db+deploy 364 pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-090500 | 20261030-090500 | N/A for this row N/A: no docs/00_index.md task-scope mapping for schema.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

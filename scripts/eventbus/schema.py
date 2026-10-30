@@ -5,9 +5,15 @@ import sqlite3
 from pathlib import Path
 from sqlite3 import Connection
 
+from shared.db_migrations import MigrationRefusalError, MigrationRunner, read_ledger
 from shared.eventbus_schema_fingerprint import assert_matches
 
+from eventbus.migrations import REGISTRY, verify_backup
+
 logger = __import__("logging").getLogger(__name__)
+
+# Shared forward-only migration runner for the eventbus domain (dbmig001).
+_MIGRATIONS = MigrationRunner()
 
 # _SCHEMA_PATH is relative to the project root
 _SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
@@ -68,12 +74,14 @@ def _matches_current_schema(conn: Connection, sql: str) -> bool:
 def _init_schema(conn: Connection) -> None:
     """Create the schema when absent; verify the schema version when present.
 
-    A database stamped with a different version is refused (it must be recreated,
-    never migrated). A database stamped with the current version is additionally
-    validated against the shared schema fingerprint before returning, so a
-    correctly stamped but malformed database is refused. An existing unstamped
-    database (user_version 0) is stamped only after its tables match schema.sql
-    column for column.
+    A database stamped with the current version is validated against the shared
+    schema fingerprint before returning, so a correctly stamped but malformed
+    database is refused. An existing unstamped database (user_version 0) is
+    stamped only after its tables match schema.sql column for column. A database
+    at a lower-but-registered version takes the forward-only migration path
+    (dbmig001): the shared runner applies the registered steps gate-gated, and a
+    still-unregistered, cyclic, or downgrade case keeps today's fail-closed
+    refusal (it must be recreated, never migrated).
     """
     sql = _SCHEMA_PATH.read_text()
     cur = conn.execute(
@@ -90,7 +98,24 @@ def _init_schema(conn: Connection) -> None:
     if found == 0 and _matches_current_schema(conn, sql):
         conn.execute(f"PRAGMA user_version = {expected}")  # nosec B608 — expected is an int parsed from schema.sql
         return
-    raise RuntimeError(
-        f"eventbus.sqlite schema version {found} differs from {expected} or its "
-        "tables do not match schema.sql; recreate the database"
+    # Registered forward migration (dbmig001): a lower-but-registered version
+    # takes the runner path instead of today's hard refusal. Fail-closed for any
+    # unregistered, cyclic, or downgrade case (REQ-003/REQ-005); the gate runs
+    # before any mutation so a refusal leaves the database at its previous state.
+    try:
+        path = _MIGRATIONS.plan(
+            found, read_ledger(conn), REGISTRY, target_version=expected
+        )
+        applied = _MIGRATIONS.apply(conn, path, verify_backup)
+    except (MigrationRefusalError, sqlite3.Error) as exc:
+        raise RuntimeError(
+            f"eventbus.sqlite schema version {found} differs from {expected} or its "
+            "tables do not match schema.sql; recreate the database"
+        ) from exc
+    assert_matches(conn)
+    logger.info(
+        "eventbus.sqlite migrated %d -> %d (%d step(s)).",
+        found,
+        expected,
+        len(applied),
     )
