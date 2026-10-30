@@ -50,6 +50,26 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     to_version       INTEGER
 );
 
+-- DLQ promotion outbox (dlqbox001): durable generation record for DLQ->replay
+-- promotion requests. The worker consumes 'pending' rows ordered by next_attempt_at;
+-- 'done' rows are retained as the durable generation record for reconciliation.
+CREATE TABLE IF NOT EXISTS dlq_outbox (
+    event_id          TEXT    PRIMARY KEY REFERENCES events(event_id),
+    requested_at      TEXT    NOT NULL,
+    status            TEXT    NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending', 'done', 'failed')),
+    attempts          INTEGER NOT NULL DEFAULT 0,
+    last_error        TEXT,
+    next_attempt_at   TEXT,
+    completed_at      TEXT,
+    FOREIGN KEY (event_id) REFERENCES events(event_id)
+);
+
+-- Index for the worker's pending scan: status filter ordered by next_attempt_at
+CREATE INDEX IF NOT EXISTS idx_dlq_outbox_status
+    ON dlq_outbox(status, next_attempt_at);
+
 -- Schema version of this DDL. Bump it whenever the schema changes in a way that
 -- requires recreating the database; open_db() refuses a database stamped otherwise.
-PRAGMA user_version = 4;
+-- Existing databases upgrade only through the eventbus registry's registered steps.
+PRAGMA user_version = 5;

@@ -31,6 +31,14 @@ the dbmig001 framework (REQ-010; plan AC-7).
   (stamping lives inside the step SQL — the runner never writes `user_version` itself).
 - Registration is a plain append to the ordered `REGISTRY`; insertion order defines the path
   (dbmig001 row 02 design).
+- Corrected at implementation (2026-10-31): "the schema fingerprint passes" cannot be a
+  precondition of this step — mid-apply the database legitimately lacks `dlq_outbox`, and the
+  runner's `ensure_ledger` creates `schema_migrations` before any step precondition runs.
+  The implemented `_precondition_outbox_step` instead refuses unless: `user_version == 4`,
+  `schema_migrations` is present (rejects a forged stamp), the core eventbus tables are
+  present, and `dlq_outbox` is absent (step already applied). Full-shape fingerprint
+  validation stays where the document intends it: the step postcondition
+  (`assert_matches`) and startup `schema.py::_init_schema`.
 
 ## Alternatives considered
 - Ad-hoc `CREATE TABLE IF NOT EXISTS` at startup: forbidden by REQ-010 and rejected —
@@ -54,6 +62,16 @@ One spec constant + one registry append; SQL text byte-identical to row 01's app
   preserved, (b) a fresh baseline database and the migrated database are fingerprint-equal,
   (c) an outbox-then-ledger order is impossible (registry order enforced), (d) unknown
   targets still refuse.
+- Implemented at `452a7335b` (2026-10-31): dbmig001 landed on `origin/master`; registry head
+  is 4, so the appended step is `4 → 5` exactly as planned. The `mutation_sql` stamp
+  (`PRAGMA user_version = 5;`) lives inside the SQL string, matching the bootstrap step's
+  style. Ledger-content assertions in tests are order-insensitive (sets) because
+  `read_ledger` orders by `applied_at` then `id`, so same-second steps tie alphabetically.
+- The bootstrap step (`eventbus_ledger_baseline`) postcondition was re-scoped to
+  `_postcondition_ledger_baseline` (ledger + baseline tables) rather than full
+  `assert_matches`: once `dlq_outbox` joins schema.sql, the full fingerprint (built from
+  schema.sql) cannot match an intermediate version-4 database mid-path. The full-shape check
+  remains at the path end (this step's postcondition) and at startup.
 
 ## Compatibility considerations
 - Databases already at the new baseline (fresh installs) skip the step; version-3 databases
@@ -83,9 +101,9 @@ One spec constant + one registry append; SQL text byte-identical to row 01's app
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append `eventbus_dlq_outbox` (new) spec to `REGISTRY` | Pending | — | — | Gated on dbmig001 rows 01/02/04 |
-| 2 | Add migration tests to `tests/eventbus/test_eventbus_migrations.py` | Pending | — | — | Disclosed non-target test file (UNK-04) |
-| 3 | Run migration + equivalence tests | Pending | — | — | |
+| 1 | Append `eventbus_dlq_outbox` (new) spec to `REGISTRY` | Completed | 20261031-063000 | 20261031-064039 | Gated on dbmig001 rows 01/02/04 4->5 appended after eventbus_ledger_baseline; precondition corrected (version+ledger+core tables+no dlq_outbox) |
+| 2 | Add migration tests to `tests/eventbus/test_eventbus_migrations.py` | Completed | 20261031-063000 | 20261031-064039 | Disclosed non-target test file (UNK-04) TestEventbusOutboxStep: v4-with-data migration, fresh-vs-migrated fingerprint equality, registry-order refusal, precondition refusal |
+| 3 | Run migration + equivalence tests | Completed | 20261031-063000 | 20261031-064039 | targeted pytest passed; tests/db/test_eventbus_schema_equivalence.py 3 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

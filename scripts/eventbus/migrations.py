@@ -3,8 +3,8 @@
 Registers the ``eventbus.sqlite`` migration path on the domain-neutral framework
 in ``shared.db_migrations`` (REQ-001 migration framework, REQ-009 registered paths
 preserve rows). This is the domain-specific home where future EventBus version
-steps register; it currently holds one bootstrap step that adds the migration
-ledger and bumps the baseline to the post-ledger fingerprint source.
+steps register; it currently holds the ledger bootstrap step (3 -> 4) and the
+dlqbox001 ``dlq_outbox`` step (4 -> 5).
 
 This module imports only ``shared.db_migrations``, ``shared.eventbus_schema_fingerprint``,
 and the standard library, so the ``.importlinter`` contracts ``eventbus-is-isolated``
@@ -30,10 +30,13 @@ _REQUIRED_TABLES = ("events", "consumer_delivery", "consumer_offsets")
 # migration ledger lands (the value stamped by ``schema.sql`` prior to dbmig001).
 _BASELINE_VERSION = 3
 
-# Target ``PRAGMA user_version`` once the ledger DDL is applied. Must match the
-# ``PRAGMA user_version`` line in scripts/eventbus/schema.sql, which is the
-# fingerprint source the postcondition re-verifies.
-_TARGET_VERSION = 4
+# Target ``PRAGMA user_version`` of the ledger bootstrap step.
+_LEDGER_VERSION = 4
+
+# Target ``PRAGMA user_version`` once the dlq_outbox step lands (dlqbox001). Must
+# match the ``PRAGMA user_version`` line in scripts/eventbus/schema.sql, which is
+# the fingerprint source the post-outbox postcondition re-verifies.
+_OUTBOX_VERSION = 5
 
 _LEDGER_CREATE_SQL = (
     "CREATE TABLE IF NOT EXISTS schema_migrations ("
@@ -46,8 +49,27 @@ _LEDGER_CREATE_SQL = (
 
 # The bootstrap step stamps the ledger and bumps the baseline in one transaction.
 _BOOTSTRAP_MUTATION_SQL = (
-    f"{_LEDGER_CREATE_SQL} PRAGMA user_version = {_TARGET_VERSION};"
+    f"{_LEDGER_CREATE_SQL} PRAGMA user_version = {_LEDGER_VERSION};"
 )
+
+# dlq_outbox DDL + pending-scan index, byte-identical in shape to the same block
+# appended to scripts/eventbus/schema.sql, so baseline-created and migrated
+# databases are fingerprint-equal (dlqbox001 row 01 contract).
+_DLQ_OUTBOX_SQL = """CREATE TABLE IF NOT EXISTS dlq_outbox (
+    event_id          TEXT    PRIMARY KEY REFERENCES events(event_id),
+    requested_at      TEXT    NOT NULL,
+    status            TEXT    NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending', 'done', 'failed')),
+    attempts          INTEGER NOT NULL DEFAULT 0,
+    last_error        TEXT,
+    next_attempt_at   TEXT,
+    completed_at      TEXT,
+    FOREIGN KEY (event_id) REFERENCES events(event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_dlq_outbox_status
+    ON dlq_outbox(status, next_attempt_at);"""
+
+_OUTBOX_MUTATION_SQL = f"{_DLQ_OUTBOX_SQL} PRAGMA user_version = {_OUTBOX_VERSION};"
 
 
 def _precondition_baseline(conn: sqlite3.Connection) -> None:
@@ -60,8 +82,70 @@ def _precondition_baseline(conn: sqlite3.Connection) -> None:
         )
 
 
+def _table_names(conn: sqlite3.Connection) -> set[str]:
+    """Return the set of user table names in the database."""
+    return {
+        str(row[0])
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )
+    }
+
+
+def _precondition_outbox_step(conn: sqlite3.Connection) -> None:
+    """Refuse unless the database is a ledger-compatible post-bootstrap baseline.
+
+    Rejects: a database not exactly at the ledger version, a forged stamp (no
+    ``schema_migrations`` table), a database already carrying ``dlq_outbox``, and
+    a database missing the core eventbus tables.
+    """
+    current = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if current != _LEDGER_VERSION:
+        raise RuntimeError(
+            f"eventbus.sqlite is at user_version {current}; the dlq_outbox step "
+            f"applies only to a {_LEDGER_VERSION}-stamped database",
+        )
+    tables = _table_names(conn)
+    if "schema_migrations" not in tables:
+        raise RuntimeError(
+            "eventbus.sqlite is stamped 4 without a migration ledger; refusing a "
+            "forged stamp (migrate a version-3 database through the registered path)",
+        )
+    missing = sorted(set(_REQUIRED_TABLES) - tables)
+    if missing:
+        raise RuntimeError(f"eventbus.sqlite is missing core tables: {missing}")
+    if "dlq_outbox" in tables:
+        raise RuntimeError(
+            "eventbus.sqlite already has dlq_outbox; the step applies only to a "
+            "database without it"
+        )
+
+
+def _postcondition_ledger_baseline(conn: sqlite3.Connection) -> None:
+    """Re-verify this step's own effect: ledger present, core tables, stamp 4.
+
+    The full canonical fingerprint is intentionally NOT run here: schema.sql is
+    the fingerprint source and already contains shapes added by later registered
+    steps (dlq_outbox), so a full-shape assert would fail at this intermediate
+    version. Full-shape verification runs at path end (schema.py, migrate.py)
+    and in the post-outbox postcondition below.
+    """
+    current = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if current != _LEDGER_VERSION:
+        raise RuntimeError(
+            f"eventbus.sqlite is at user_version {current}, not {_LEDGER_VERSION}, "
+            "after the ledger bootstrap step",
+        )
+    tables = _table_names(conn)
+    if "schema_migrations" not in tables:
+        raise RuntimeError("ledger bootstrap did not create schema_migrations")
+    missing = sorted(set(_REQUIRED_TABLES) - tables)
+    if missing:
+        raise RuntimeError(f"ledger bootstrap left core tables missing: {missing}")
+
+
 def _postcondition_fingerprint(conn: sqlite3.Connection) -> None:
-    """Re-verify the canonical EventBus shape after the ledger lands."""
+    """Re-verify the canonical EventBus shape after the outbox lands."""
     assert_matches(conn, label="eventbus.sqlite")
 
 
@@ -72,9 +156,17 @@ REGISTRY: dict[str, MigrationSpec] = {
     "eventbus_ledger_baseline": MigrationSpec(
         id="eventbus_ledger_baseline",
         from_version=_BASELINE_VERSION,
-        to_version=_TARGET_VERSION,
+        to_version=_LEDGER_VERSION,
         preconditions=(_precondition_baseline,),
         mutation_sql=_BOOTSTRAP_MUTATION_SQL,
+        postcondition=_postcondition_ledger_baseline,
+    ),
+    "eventbus_dlq_outbox": MigrationSpec(
+        id="eventbus_dlq_outbox",
+        from_version=_LEDGER_VERSION,
+        to_version=_OUTBOX_VERSION,
+        preconditions=(_precondition_outbox_step,),
+        mutation_sql=_OUTBOX_MUTATION_SQL,
         postcondition=_postcondition_fingerprint,
     ),
 }

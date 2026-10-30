@@ -22,6 +22,9 @@ stamp to the post-outbox version, so a fresh `eventbus.sqlite` carries the outbo
   This row applies on top of the ledger baseline: stamp becomes `5` (registry head 4 + 1),
   per plan Assumption "baseline numbering follows dbmig001". If dbmig001 lands a different
   head version, use head + 1 and record the number here before implementing.
+- Re-verified at HEAD `452a7335b` (2026-10-31): dbmig001 has landed on `origin/master`;
+  `schema.sql` carried `PRAGMA user_version = 4;` and `eventbus/migrations.py` registry head
+  is 4. Baseline stamp implemented as `5` (head 4 + 1), as predicted.
 
 ## Design decisions
 - Column contract fixed by plan Design:
@@ -57,6 +60,12 @@ DDL-only edit; SQL text must be byte-identical to row 02's `mutation_sql` (new) 
 - `event_id` FK to `events(event_id)` mirrors the existing `events` DDL style; FKs are
   enforced at runtime (existing `PRAGMA foreign_keys` handling in `eventbus/db_conn.py`).
 - No changes to the other five tables or their indexes.
+- Implemented note (2026-10-31): the `dlq_outbox` block uses the DDL text byte-identical to
+  row 02's `_DLQ_OUTBOX_SQL` (spaced `CHECK (status IN ('pending', 'done', 'failed'))` plus
+  the trailing `FOREIGN KEY (event_id) REFERENCES events(event_id)` clause), so databases
+  created from schema.sql and databases migrated through the registry step are
+  fingerprint-equal. The Design decision column above lists the contract, not the exact SQL
+  text; the SQL text above is the canonical form for both files.
 
 ## Compatibility considerations
 - Existing databases at version 3/4 are untouched by this file; they upgrade only through
@@ -88,14 +97,14 @@ DDL-only edit; SQL text must be byte-identical to row 02's `mutation_sql` (new) 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `dlq_outbox` (new) DDL + index, bump stamp | Pending | — | — | Requires dbmig001 rows 01/02/04 implemented |
-| 2 | Run equivalence + migration tests | Pending | — | — | |
-| 3 | Run `uv run python tools/check_db_separation.py` | Pending | — | — | |
+| 1 | Add `dlq_outbox` (new) DDL + index, bump stamp | Completed | 20261031-063000 | 20261031-063946 | Requires dbmig001 rows 01/02/04 implemented Implemented at 452a7335b; stamp 5 = registry head 4 + 1; DDL text byte-identical to row 02 _DLQ_OUTBOX_SQL |
+| 2 | Run equivalence + migration tests | Completed | 20261031-063000 | 20261031-063946 | test_eventbus_migrations + test_eventbus_schema_version + test_eventbus_schema_equivalence all passed |
+| 3 | Run `uv run python tools/check_db_separation.py` | Completed | 20261031-063000 | 20261031-063946 | dlq_outbox added to TABLE_OWNERSHIP[eventbus]; no violations |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | dbmig001 ledger baseline (3→4) not yet implemented; baseline stamp value is head + 1 | No | — |
+| 1 | dbmig001 ledger baseline (3→4) not yet implemented; baseline stamp value is head + 1 | Yes | 20261031 (dbmig001 landed on origin/master at `452a7335b`; head=4, stamp=5) |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

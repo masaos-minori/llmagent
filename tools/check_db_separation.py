@@ -76,7 +76,13 @@ TABLE_OWNERSHIP: dict[str, frozenset[str]] = {
         }
     ),
     "eventbus": frozenset(
-        {"events", "consumer_delivery", "consumer_offsets", "schema_migrations"},
+        {
+            "events",
+            "consumer_delivery",
+            "consumer_offsets",
+            "schema_migrations",
+            "dlq_outbox",
+        },
     ),
 }
 
