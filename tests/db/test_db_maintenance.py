@@ -25,6 +25,7 @@ from db.maintenance import (
 from db.models import RecoveryResult
 from db.recovery import DbCondition, recover_corruption
 from db.rotation import (
+    _archive_db_file,
     rotate_all_dbs,
     rotate_eventbus_db,
     rotate_session_db,
@@ -126,10 +127,17 @@ class TestRetentionConfig:
 
 class TestPurgeOldSessions:
     def _make_real_sqlite(self, path: Path) -> None:
-        """Create a minimal valid SQLite database file."""
+        """Create a minimal valid SQLite database file.
+
+        Includes the required tables for every domain-identity check (rag needs
+        ``documents``, session needs ``sessions``) so the file passes archive
+        verification when archived under any target (dbmig001 row 12).
+        """
         import sqlite3
 
         conn = sqlite3.connect(str(path))
+        conn.execute("CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
         conn.commit()
         conn.close()
@@ -995,10 +1003,17 @@ class TestMaintenanceMode:
 
 class TestRotateWorkflowAndAll:
     def _make_real_sqlite(self, path: Path) -> None:
-        """Create a minimal valid SQLite database file."""
+        """Create a minimal valid SQLite database file.
+
+        Includes the required tables for every domain-identity check (rag needs
+        ``documents``, session needs ``sessions``) so the file passes archive
+        verification when archived under any target (dbmig001 row 12).
+        """
         import sqlite3
 
         conn = sqlite3.connect(str(path))
+        conn.execute("CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
         conn.commit()
         conn.close()
@@ -1097,3 +1112,118 @@ class TestRotateWorkflowAndAll:
 
         assert dest.exists()
         assert dest.name.startswith("eventbus_")
+
+
+# ── archive verification (dbmig001 row 12) ────────────────────────────────────
+
+
+class TestArchiveVerification:
+    """Every produced archive must pass integrity + domain-identity checks.
+
+    Row 12 threads a ``target`` through ``rotation._archive_db_file`` and verifies
+    the copy before returning it as a recovery point. These tests cover the
+    success path, a missing-required-table (wrong-domain) source, an injected
+    integrity failure, and ``rotate_all_dbs`` aborting mid-sequence.
+    """
+
+    def _make_domain_db(self, path: Path, *, with_documents: bool) -> None:
+        """Create a valid SQLite file.
+
+        rag identity requires a ``documents`` table; omitting it simulates a
+        wrong-domain/corrupt source that fails verification deterministically.
+        """
+        conn = sqlite3.connect(str(path))
+        conn.execute("CREATE TABLE sessions (id INTEGER PRIMARY KEY)")
+        if with_documents:
+            conn.execute("CREATE TABLE documents (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
+
+    def test_verified_archive_is_healthy(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from db.recovery import run_integrity_check
+
+        db_file = tmp_path / "rag.sqlite"
+        self._make_domain_db(db_file, with_documents=True)
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+        dest = _archive_db_file(db_file, archive_dir, target="rag")
+
+        assert dest.exists()
+        assert dest.name.startswith("rag_")
+        # The returned archive is itself a healthy database.
+        condition, detail = run_integrity_check(dest, "rag")
+        assert condition == DbCondition.HEALTHY
+        assert detail is None
+
+    def test_missing_required_table_aborts_rotation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A rag archive missing its required table raises with the detail."""
+        db_file = tmp_path / "rag.sqlite"
+        self._make_domain_db(db_file, with_documents=False)
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+        with pytest.raises(RuntimeError, match="archive verification failed"):
+            _archive_db_file(db_file, archive_dir, target="rag")
+
+    def test_injected_integrity_failure_aborts(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An integrity failure aborts the rotation with an integrity detail."""
+        import db.rotation as rotation
+
+        def _fake_integrity(db_path: object, target: str = "rag") -> tuple:
+            return (DbCondition.CORRUPTION, "injected malformed")
+
+        monkeypatch.setattr(rotation, "run_integrity_check", _fake_integrity)
+        db_file = tmp_path / "rag.sqlite"
+        self._make_domain_db(db_file, with_documents=True)
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+        with pytest.raises(RuntimeError, match="integrity check reported"):
+            _archive_db_file(db_file, archive_dir, target="rag")
+
+    def test_rotate_all_dbs_stops_on_middle_failure(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A failure on a middle domain aborts the sequence; later domains are
+        not archived (the failed archive is left in place for forensics)."""
+        import db.rotation as rotation
+
+        real_integrity = rotation.run_integrity_check
+
+        def _fake_integrity(db_path: object, target: str = "rag") -> tuple:
+            if target == "workflow":
+                return (DbCondition.CORRUPTION, "injected malformed")
+            return real_integrity(db_path, target)
+
+        monkeypatch.setattr(rotation, "run_integrity_check", _fake_integrity)
+        for name in ("rag", "session", "workflow", "eventbus"):
+            self._make_domain_db(
+                tmp_path / f"{name}.sqlite", with_documents=(name == "rag")
+            )
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(
+            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+        with pytest.raises(RuntimeError, match="archive verification failed"):
+            rotate_all_dbs(archive_dir=archive_dir)
+
+        archives = {p.name for p in archive_dir.glob("*.sqlite")}
+        # rag + session archived before workflow failed ...
+        assert any(n.startswith("rag_") for n in archives)
+        assert any(n.startswith("session_") for n in archives)
+        # ... eventbus never reached.
+        assert not any(n.startswith("eventbus_") for n in archives)

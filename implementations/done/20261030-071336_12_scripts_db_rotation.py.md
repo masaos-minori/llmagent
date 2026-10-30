@@ -61,10 +61,10 @@ Narrow in-function addition plus a keyword threading through existing wrappers.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Extension lands in existing tests/db/test_db_maintenance.py |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Rotation docs touched in row 22/23 scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-140000 | 20261030-140000 | Added keyword-only `target: str` to `_archive_db_file`; runs `_verify_archive` (integrity + domain identity) after the backup handles close and before the success log; extended the log with "verified". Threaded `target` through all five public callers (`rotate_session_db`, `rotate_workflow_db`, `rotate_eventbus_db`, `rotate_all_dbs`, `rotate_db`) plus the row-11 drill caller. New `target` is keyword-only so callers must name the domain. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-140000 | 20261030-140000 | Extended existing tests/db/test_db_maintenance.py: `_make_real_sqlite` now emits the rag/session required tables so archives pass identity; added TestArchiveVerification (5 tests) covering healthy-archive integrity, missing-required-table abort, injected integrity abort, and rotate_all_dbs mid-sequence abort with ordering assertion. 59/59 pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-140000 | 20261030-140000 | ruff format+check clean; mypy clean; lint-imports 6/6 KEPT; check_db_separation no violations; check_docstrings OK (268 grandfathered). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-140000 | 20261030-140000 | N/A: rotation prose lives in rows 22/23, outside this row's scope. This row only adds runtime verification; no doc update required here. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

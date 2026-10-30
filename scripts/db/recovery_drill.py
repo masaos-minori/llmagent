@@ -172,7 +172,7 @@ def _drill_one_domain(
     # Take the recovery point through the rotation code path (a read-only
     # backup-API copy; the live file is never rewritten).
     try:
-        recovery_point = _archive_db_file(live_path, archive_dir)
+        recovery_point = _archive_db_file(live_path, archive_dir, target=domain)
     except FileNotFoundError as exc:
         artifact["verification"] = {"missing_source": False}
         artifact["error"] = str(exc)
