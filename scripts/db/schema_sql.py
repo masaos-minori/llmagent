@@ -215,6 +215,16 @@ CREATE TABLE IF NOT EXISTS workflow_schema_version (
     version    TEXT NOT NULL,
     applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
+
+-- Forward-only migration ledger (dbmig001 row 09). Same column contract as the
+-- shared runner's LEDGER_CREATE and eventbus.schema.sql; kept IF NOT EXISTS so
+-- re-execution against an existing workflow database stays idempotent.
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id           TEXT PRIMARY KEY,
+    applied_at   TEXT,
+    from_version INTEGER,
+    to_version   INTEGER
+);
 """
 
 # eventbus.sqlite's DDL is owned by the EventBus service (ADR-008 INV-04). The db layer

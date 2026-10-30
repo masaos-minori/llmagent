@@ -72,6 +72,7 @@ TABLE_OWNERSHIP: dict[str, frozenset[str]] = {
             "processed_events",
             "artifacts",
             "workflow_schema_version",
+            "schema_migrations",
         }
     ),
     "eventbus": frozenset(

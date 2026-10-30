@@ -59,10 +59,10 @@ One additive DDL edit inside an existing string constant.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests come from rows 17/18 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-123000 | 20261030-123000 | Appended `CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TEXT, from_version INTEGER, to_version INTEGER)` to `_WORKFLOW_SCHEMA` after `workflow_schema_version`. Column contract byte-equivalent to shared `LEDGER_CREATE_SQL` and eventbus schema.sql. `WORKFLOW_SCHEMA_VERSION` marker untouched; no `PRAGMA user_version` added. |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-123000 | 20261030-123000 | Formal coverage rows 17/18 (`tests/db/test_migrations_workflow.py`, `test_create_schema.py`). Hand smoke test: `build_workflow_schema_sql()` output creates `schema_migrations` with columns matching the shared ledger primitive; fresh output contains both `workflow_schema_version` and `schema_migrations`. All 68 create_schema + public_api tests green. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-123000 | 20261030-123000 | ruff format+check clean; mypy clean; lint-imports 6/6 KEPT; check_db_separation no violations (updated `TABLE_OWNERSHIP` inventory to register `schema_migrations` under workflow as well as eventbus, per the tool's documented 'update when a table is added' rule); check_docstrings OK (268 grandfathered). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-123000 | 20261030-123000 | ADR prose update (migration mechanism now exists) is row 20's scope; this row only touches the check_db_separation inventory, which the tool explicitly maintains alongside the ADR. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
