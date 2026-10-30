@@ -7,7 +7,7 @@ Create the `eventbus.sqlite` migration registry `scripts/eventbus/migrations.py`
 
 ## Assumptions
 - `eventbus` may import `scripts/shared/` but never `scripts/db/` (`.importlinter` `eventbus-is-isolated`); this module imports only `shared.db_migrations` and stdlib.
-- Domain backup verification for the gate is supplied here as a callable wrapping `scripts/shared/eventbus_schema_fingerprint.py::assert_matches` plus the required-table check, so no `db`-layer import is needed.
+- Domain backup verification for the gate is supplied here as a callable that checks domain identity on the backup copy: required tables (`events`, `consumer_delivery`, `consumer_offsets`) present with expected columns, so no `db`-layer import is needed. It must not call `assert_matches` on a pre-migration copy: `assert_matches` compares against the current `scripts/eventbus/schema.sql` shape, which carries the ledger table once row 04 lands, and can never pass against a version-3 copy. `assert_matches` (verified present) is used only as the step postcondition, against the migrated shape.
 - Baseline versions: current baseline is `PRAGMA user_version = 3` (`scripts/eventbus/schema.sql:45`); after the ledger DDL lands (row 04) the baseline becomes 4, so this registry's bootstrap step is `3 → 4`.
 
 ## Design decisions
@@ -23,8 +23,8 @@ Create the `eventbus.sqlite` migration registry `scripts/eventbus/migrations.py`
 
 ### Procedure
 1. Import `MigrationSpec` from `shared.db_migrations`; define `REGISTRY` (new) as the ordered spec collection for this domain.
-2. Register the bootstrap spec `eventbus_ledger_baseline` (new): precondition — `PRAGMA user_version` == 3 and fingerprint passes; mutation — `CREATE TABLE IF NOT EXISTS schema_migrations` DDL (same contract as row 01) plus `PRAGMA user_version = 4`; postcondition — `assert_matches` passes.
-3. Export a `verify_backup(conn)` (new) helper implementing the injected backup-verification callable described in row 01 (integrity is done by the runner; here: domain identity via required tables + `assert_matches`).
+2. Register the bootstrap spec `eventbus_ledger_baseline` (new): precondition — `PRAGMA user_version` == 3 and the required tables are present in the pre-ledger shape (no `assert_matches`: it compares against the ledger-bearing canonical shape and cannot pass on a version-3 database); mutation — `CREATE TABLE IF NOT EXISTS schema_migrations` DDL (same contract as row 01) plus `PRAGMA user_version = 4`; postcondition — `assert_matches` passes against the ledger-bearing shape.
+3. Export a `verify_backup(conn)` (new) helper implementing the injected backup-verification callable described in row 01 (integrity is done by the runner; here: domain identity via required-table presence and expected columns, valid on both pre-ledger and ledger-bearing shapes; `assert_matches` is not part of the gate verifier — see Assumptions).
 
 ### Method
 New module only. SQL text mirrors the ledger DDL row that lands in `scripts/eventbus/schema.sql` (row 04) so baseline and step produce identical shape (fingerprint equivalence is checked by `tests/db/test_eventbus_schema_equivalence.py`). Introduce row 04's baseline bump in the same commit as this registry (DDL first), as the Plan's Phase 2 step orders them.

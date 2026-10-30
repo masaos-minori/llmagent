@@ -2,7 +2,7 @@
 Create the `workflow.sqlite` migration registry `scripts/db/migrations_workflow.py` (new): the domain-specific home where future workflow version steps register, built on the shared framework, and decide the string-version to integer-code mapping the Plan defers (REQ-001 migration framework, REQ-009 registered paths preserve rows).
 
 ## Scope
-- In scope: registry construction for the `workflow` domain — a `REGISTRY` (new) collection of `MigrationSpec` entries from row 01's framework, the version-code map for `WORKFLOW_SCHEMA_VERSION`, and a ledger-bootstrap step (new) that adds the `schema_migrations` table to an existing workflow database that only has the legacy `workflow_schema_version` string log.
+- In scope: registry construction for the `workflow` domain — a `REGISTRY` (new) collection of `MigrationSpec` entries from row 01's framework, the version-code map for `WORKFLOW_SCHEMA_VERSION`, and a ledger-bootstrap step (new) that adds the `schema_migrations` (new) table to an existing workflow database that only has the legacy `workflow_schema_version` string log.
 - Out of scope: ledger DDL in the workflow DDL set (row 09), create-path baseline (row 08), CLI (row 07).
 
 ## Assumptions
@@ -12,7 +12,7 @@ Create the `workflow.sqlite` migration registry `scripts/db/migrations_workflow.
 
 ## Design decisions
 - Registry is a module-level ordered spec collection consumed by the create path (row 08) and the CLI (row 07); same shape as row 02's eventbus registry.
-- The bootstrap step `workflow_ledger_baseline` (new) is itself a registered, gate-gated migration `1 → 1`: precondition — latest `workflow_schema_version.version` maps to a known code and no ledger exists; mutation — ledger DDL (identical to row 01/09 contract) plus a baseline row `(id='workflow_ledger_baseline', from_version=1, to_version=1)`; postcondition — ledger present and latest string maps to `WORKFLOW_TARGET_VERSION`. The string log stays as the compatibility marker (Plan Assumption: `WORKFLOW_SCHEMA_VERSION` remains the baseline marker).
+- The bootstrap step `workflow_ledger_baseline` (new) is itself a registered, gate-gated migration `1 → 1`: precondition — latest `workflow_schema_version.version` maps to a known code and no ledger exists; mutation — ledger DDL following the Plan's column contract, in the shape row 09 appends to `_WORKFLOW_SCHEMA` and row 01's `ensure_ledger` (new) creates, plus a baseline row `(id='workflow_ledger_baseline', from_version=1, to_version=1)`; postcondition — ledger present and latest string maps to `WORKFLOW_TARGET_VERSION`. The string log stays as the compatibility marker (Plan Assumption: `WORKFLOW_SCHEMA_VERSION` remains the baseline marker).
 
 ## Alternatives considered
 - Using `PRAGMA user_version` for workflow as eventbus does — rejected: existing workflow databases have `user_version 0` and the string table is the deployed marker; introducing a second marker would fork the source of truth (Plan Risk "version fragmentation").
@@ -33,6 +33,8 @@ New module inside the `db` layer; may import `shared` and sibling `db` modules (
 ### Details
 - `MigrationSpec`/`MigrationRunner` are created by row 01; this document assumes they exist when executed in `seq` order.
 - No content steps beyond baseline; future workflow steps (e.g. dlqbox001 outbox lands in eventbus, not here) append to `REGISTRY`.
+- `current_version` for the runner is derived by the caller (row 07 CLI): the latest `workflow_schema_version.version` string mapped through `WORKFLOW_VERSION_CODES` (new); an unmapped string is an UNKNOWN_PATH refusal raised before the gate.
+- Needs confirmation: row 01's `plan` resolves forward paths and refusal classes but does not define same-version semantics; the `workflow_ledger_baseline` `1 → 1` step must resolve as a registered path when the ledger is absent (not as a no-op or self-cycle refusal). Pin this down with row 01 during implementation.
 
 ## Compatibility considerations
 - Existing workflow databases keep working through `_record_workflow_schema_version` unchanged; the ledger is additive. `create_schema.py` refusal semantics (row 08 keeps them intact) must keep refusing unmapped strings.
