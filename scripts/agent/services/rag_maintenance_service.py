@@ -51,7 +51,15 @@ class RagMaintenanceService:
             is_consistent=is_consistent(report),
             issues=summarize_issues(report),
             report=report,
+            findings=report.findings,
+            fatal_count=report.fatal_count,
+            degraded_count=report.degraded_count,
         )
+
+    # NOTE (RAGCORPUS001, doc 06): `corpus_identity()` wrapping
+    # `rag.corpus_identity.ensure_corpus_meta` is added in Phase 2 once
+    # `scripts/rag/corpus_identity.py` exists (doc 01). It is intentionally absent
+    # here so this Phase 1 commit does not import a module that does not yet exist.
 
     def recover(self, backup_path: str | None) -> DbRecoverResult:
         """Run integrity check; restore from backup_path if corruption found."""
