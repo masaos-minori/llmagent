@@ -678,6 +678,69 @@ class TestWorkflowSchemaVersionRecord:
         assert {"tasks", "attempts", "processed_events", "artifacts"} <= tables
 
 
+class TestCreatePathLedgerCoverage:
+    """New workflow/eventbus databases carry the migration ledger + baseline row;
+    recreate-only rag/session domains record none (dbmig001 row 18)."""
+
+    def test_workflow_fresh_creation_carries_ledger_and_baseline(
+        self, tmp_path: Path
+    ) -> None:
+        from db.schema_sql import WORKFLOW_SCHEMA_VERSION
+
+        db_file = tmp_path / "ledger_workflow.sqlite"
+        _create_workflow_db(db_file)
+        conn = sqlite3.connect(str(db_file))
+        try:
+            assert "schema_migrations" in _table_names(conn)
+            row = conn.execute(
+                "SELECT id, from_version, to_version FROM schema_migrations "
+                "WHERE id='workflow_ledger_baseline'"
+            ).fetchone()
+            assert row == ("workflow_ledger_baseline", 0, 1)
+            latest = conn.execute(
+                "SELECT version FROM workflow_schema_version "
+                "ORDER BY applied_at DESC LIMIT 1"
+            ).fetchone()
+            assert latest is not None and latest[0] == WORKFLOW_SCHEMA_VERSION
+            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 1
+        finally:
+            conn.close()
+
+    def test_eventbus_fresh_creation_carries_ledger_and_baseline(
+        self, tmp_path: Path
+    ) -> None:
+        db_file = tmp_path / "ledger_eventbus.sqlite"
+        cfg = _make_db_config(db_file, "eventbus")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            assert "schema_migrations" in _table_names(conn)
+            row = conn.execute(
+                "SELECT id, from_version, to_version FROM schema_migrations "
+                "WHERE id='eventbus_ledger_baseline'"
+            ).fetchone()
+            assert row is not None
+            assert row[0] == "eventbus_ledger_baseline"
+            assert row[1] == row[2] == eventbus_schema_version()
+            assert (
+                int(conn.execute("PRAGMA user_version").fetchone()[0])
+                == eventbus_schema_version()
+            )
+        finally:
+            conn.close()
+
+    def test_rag_fresh_creation_has_no_ledger(
+        self, rag_tmp_db: sqlite3.Connection
+    ) -> None:
+        assert "schema_migrations" not in _table_names(rag_tmp_db)
+
+    def test_session_fresh_creation_has_no_ledger(
+        self, session_tmp_db: sqlite3.Connection
+    ) -> None:
+        assert "schema_migrations" not in _table_names(session_tmp_db)
+
+
 class TestRagSchemaColumnIntegrity:
     """Verify NOT NULL enforcement on the four target columns via real INSERT."""
 
