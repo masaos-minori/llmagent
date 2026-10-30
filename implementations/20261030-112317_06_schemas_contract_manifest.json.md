@@ -112,4 +112,4 @@ Generator code, manifest files themselves, CI wiring.
 - **Source plan**: `plans/20261030-001153_adrcov001_contract-manifests-invariant-coverage.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261030-112317
-- **Related target files**: `tools/schemas/contract_manifest.json` (plan row path; adopted target `schemas/contract_manifest.json` — see Assumptions)
+- **Related target files**: `schemas/contract_manifest.json` (plan row path was `tools/schemas/contract_manifest.json`; root `schemas/` adopted per convention — see Assumptions)

@@ -247,8 +247,14 @@ class TestTargetFileMismatch:
             "`scripts/eventbus/db.py`.",
             "\\`scripts/eventbus/db.py\\`",
             "`scripts/eventbus/db.py`, then verify",
+            "- `scripts/eventbus/db.py` (new)",
         ],
-        ids=["trailing-period", "escaped-backticks", "trailing-prose"],
+        ids=[
+            "trailing-period",
+            "escaped-backticks",
+            "trailing-prose",
+            "leading-bullet",
+        ],
     )
     def test_formatting_variants_of_the_same_path_report_no_finding(
         self,

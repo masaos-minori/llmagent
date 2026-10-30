@@ -93,6 +93,7 @@ RELATED_TARGET_FILES_FIELD_NAME = "Related target files"
 
 _TARGET_FILE_HEADING_RE = re.compile(r"(?m)^### Target file\s*$")
 _ANY_HEADING_RE = re.compile(r"(?m)^#+\s")
+_BULLET_LEAD_RE = re.compile(r"^[-*+]\s+")
 
 # (kind, directory relative to ROOT_DIR, is_done)
 _WORK_ITEM_DIRS: tuple[tuple[str, str, bool], ...] = (
@@ -229,6 +230,11 @@ def extract_related_target_files_value(text: str) -> str | None:
 def extract_target_file_value(text: str) -> str | None:
     """Return the cleaned value of the body's `### Target file` heading, or
     None if the heading is absent or nothing but another heading follows it.
+
+    A body section may list the path as a markdown list item with a leading
+    `-` bullet; that bullet is dropped before parsing so the parser reads the
+    path rather than the `-` token, which would otherwise be read as a literal
+    `-` and trip the target-file-mismatch check.
     """
     heading_match = _TARGET_FILE_HEADING_RE.search(text)
     if heading_match is None:
@@ -241,6 +247,11 @@ def extract_target_file_value(text: str) -> str | None:
             continue
         if _ANY_HEADING_RE.match(line):
             return None
+        # Tolerate a leading markdown list bullet (`-`, `*`, `+`) that some
+        # procedures append to the target-file path; drop exactly one so the
+        # first-token parse yields the path, not the bullet. A lone `-` (no
+        # trailing whitespace) is left intact and still reported as a mismatch.
+        stripped = _BULLET_LEAD_RE.sub("", stripped, count=1)
         return _clean_field_value(stripped)
     return None
 
