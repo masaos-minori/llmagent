@@ -71,7 +71,11 @@ class TestMdqRagBoundary:
         ALLOWED: set[str] = {
             # Shared EventBus schema-shape validator: opens only in-memory databases
             # and target connections passed by callers; never touches MDQ or RAG DB files.
-            "eventbus_schema_fingerprint.py"
+            "eventbus_schema_fingerprint.py",
+            # Shared domain-neutral migration framework: sqlite3.connect() only on
+            # tempfile.mkstemp() copies for the backup/dry-run gates; never opens
+            # mdq.sqlite or rag.sqlite. Added for dbmig001 (shared migration framework).
+            "db_migrations.py",
         }  # add a filename here only with an inline comment explaining the reviewed exception
         forbidden = ("mdq.sqlite", "rag.sqlite", "sqlite3.connect")
         violations = [

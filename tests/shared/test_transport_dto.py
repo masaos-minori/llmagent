@@ -91,7 +91,7 @@ class TestAvailabilityHint:
             output="ok", is_error=False, request_id="", server_key="mdq"
         )
         with pytest.raises(dataclasses.FrozenInstanceError):
-            result.availability_hint = None  # type: ignore[misc]
+            result.availability_hint = None  # type: ignore[misc] — frozen dataclass field write; mypy flags the direct assignment though the runtime FrozenInstanceError guard blocks it, which this assertion verifies.
         replaced = dataclasses.replace(
             result,
             availability_hint=DynamicAvailabilityHint(
