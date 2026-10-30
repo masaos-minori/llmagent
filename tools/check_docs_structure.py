@@ -132,6 +132,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # /opt/llm/DEPLOYED_REV is written only after a binary-gated deploy); the file sat exactly at
     # the 25861 ceiling, so this raises it to the new accepted size. Any further growth fails.
     "deployment_01_deployment.md": 26347,
+    # adr_01_index.md sat at 24576 (the default MAX_SIZE) until dbmig001 annotated the
+    # ADR-008 row status cell as "Accepted (amended 2026-10-30: ...)" and appended a dated
+    # amendment note for ADR-008 below the ADR List table (2026-10-30). The ceiling equals
+    # the accepted size, so any further growth fails.
+    "adr_01_index.md": 24826,
 }
 
 

@@ -49,7 +49,7 @@ This index records no deviations of its own. Open deviations are recorded in the
 | ADR-005 | Relationship Between RAG Canonical Data and Derived Indexes | Accepted | 06 rag | `10_adr/adr_02_06_005_rag-source-derived-index-relationships.md` |
 | ADR-006 | EventBus SQLite Persistence and SSE Delivery | Accepted | 04 eventbus | `10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` |
 | ADR-007 | Adoption of HTTP MCP and Non-Support of stdio | Accepted | 03 mcp | `10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md` |
-| ADR-008 | Separating SQLite into Four Databases | Accepted | 05 db | `10_adr/adr_02_05_008_db-sqlite-4db-separation.md` |
+| ADR-008 | Separating SQLite into Four Databases | Accepted (amended 2026-10-30: forward-only migration contract for workflow/eventbus) | 05 db | `10_adr/adr_02_05_008_db-sqlite-4db-separation.md` |
 | ADR-009 | Separating RAG FTS5 Search Text from LLM Presentation Text | Accepted | 06 rag | `10_adr/adr_02_06_009_rag-fts5-text-separation.md` |
 | ADR-010 | In-Process Fallback When External RAG Execution Fails | Accepted | 06 rag | `10_adr/adr_02_06_010_rag-fallback.md` |
 | ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | 03 mcp | `10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md` |
@@ -59,6 +59,8 @@ This index records no deviations of its own. Open deviations are recorded in the
 | ADR-016 | ADR Authority Model | Accepted | 07 docs | `10_adr/adr_02_07_016_adr-authority-model.md` |
 
 The number ADR-011 is unassigned: no ADR file carries it, and it is not referenced as a dependency by any ADR in this list.
+
+- ADR-008 (amended 2026-10-30, source dbmig001): the migration sub-decision for `workflow.sqlite` and `eventbus.sqlite` adopted forward-only migrations recorded in the `schema_migrations` ledger (verified-backup precondition, per-step transactional rollback); the `rag.sqlite`/`session.sqlite` recreate policy is unchanged. See the ADR-008 Amendment subsection.
 
 ## ADR Dependency Graph
 
