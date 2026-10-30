@@ -12,6 +12,27 @@ set -euo pipefail
 # Production never installs the dev dependency group and never rewrites uv.lock.
 UV_PROD_FLAGS=(--frozen --no-dev)
 
+# Pre-flight: fail fast with an actionable message when the compiled agent
+# binary is missing or not executable, instead of a bare bash ENOENT.
+check_agent_binary() {
+    local bin_path="$1"
+    if [[ ! -x "${bin_path}" ]]; then
+        echo "" >&2
+        echo "[FATAL] Agent binary not found or not executable: ${bin_path}" >&2
+        echo "Rebuild and redeploy the binaries:" >&2
+        echo "  1) deploy/build_binaries.sh            # rebuild from current source" >&2
+        echo "  2) deploy/build_binaries.sh --rollback # restore a prior deployed set" >&2
+        echo "  3) deploy/deploy.sh                     # deploy the resulting binaries" >&2
+        exit 1
+    fi
+}
+
+# Allow the script to be sourced by tests without running the main body.
+# When launched directly ${BASH_SOURCE[0]} == ${0}, so behavior is unchanged.
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+    return 0
+fi
+
 # production: /opt/llm/pyproject.toml が存在すればそちらを優先
 if [[ -f "/opt/llm/pyproject.toml" ]]; then
     REPO_ROOT="/opt/llm"
@@ -180,6 +201,29 @@ fi
 if ! PYTHONPATH="${PYTHONPATH}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
     echo "[FATAL] Workflow definition validation failed." >&2
     exit 1
+fi
+
+# REQ-001: fail fast with an actionable rebuild/redeploy message when the
+# compiled agent binary is missing or not executable, instead of a bare bash ENOENT.
+check_agent_binary "/opt/llm/bin/agent"
+
+# REQ-002: best-effort stale-binary warning. Never hard-fails without the
+# strictness flag; degrades to a warning when run outside the repo.
+if [[ "${DEPLOY_STRICT_BINARIES:-0}" == "1" ]]; then
+    if ! python3 "${REPO_ROOT}/tools/manage_binaries.py" check \
+         --bin-dir /opt/llm/bin --rev auto --repo "${REPO_ROOT}" --strict 2>/dev/null; then
+        echo "[FATAL] Strict binary freshness check failed." >&2
+        exit 1
+    fi
+else
+    python3 "${REPO_ROOT}/tools/manage_binaries.py" check \
+         --bin-dir /opt/llm/bin --rev auto --repo "${REPO_ROOT}" >/dev/null 2>&1 \
+    || echo "[WARN] Deployed agent binary may be stale or unverifiable; consider deploy/build_binaries.sh + deploy/deploy.sh." >&2
+fi
+
+# REQ-003: warn-only notice when the Sudachi dictionary was not deployed.
+if [[ ! -f "/opt/llm/dict/system.dic" ]]; then
+    echo "[WARN] Sudachi dictionary not found: /opt/llm/dict/system.dic (deploy via deploy/deploy.sh)." >&2
 fi
 
 # ── リゾルバー入力 (コンパイル済みバイナリ用) ────────────────────────────────────────────────────────────

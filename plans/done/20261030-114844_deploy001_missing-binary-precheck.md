@@ -170,9 +170,9 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Presence/executable pre-flight (REQ-001) | In Progress | — | — | `deploy/start_agent.sh` |
-| 2 | Optional stale + dict warnings (REQ-002, REQ-003) | In Progress | — | — | `deploy/start_agent.sh` |
-| 3 | Tests, docs & verification (REQ-001, REQ-004) | In Progress | — | — | `tests/deploy/test_start_agent_preflight.py`, `docs/90_deployment/deployment_01_deployment.md` |
+| 1 | Presence/executable pre-flight (REQ-001) | Completed | — | 20261030-150227 | `deploy/start_agent.sh` |
+| 2 | Optional stale + dict warnings (REQ-002, REQ-003) | Completed | — | 20261030-150227 | `deploy/start_agent.sh` |
+| 3 | Tests, docs & verification (REQ-001, REQ-004) | Completed | — | 20261030-153000 | `tests/deploy/test_start_agent_preflight.py`, `docs/90_deployment/deployment_01_deployment.md` test (seq 02) and doc (seq 03) procedures archived; deploy/start_agent.sh check (seq 01) implemented |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

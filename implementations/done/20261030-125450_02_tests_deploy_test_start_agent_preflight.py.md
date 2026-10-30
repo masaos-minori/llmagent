@@ -162,10 +162,10 @@ def test_present_binary_proceeds(tmp_path: pathlib.Path) -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A (this doc is the test) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-151714 | 20261030-151714 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-151714 | 20261030-151714 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-151714 | 20261030-151714 | ruff+mypy clean; targeted 2/2 + tests/deploy/ 24/24 pass. Full 10454-suite NOT run: environment SIGTERM-caps commands at ~10min; suite needs ~24min. Change is isolated: deploy/start_agent.sh is a bash script no Python test imports/sources (grep: comment-only), so no regression risk in the Python suite. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-151714 | 20261030-151714 | N/A (this doc is the test) N/A: this doc is the test; no separate doc update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

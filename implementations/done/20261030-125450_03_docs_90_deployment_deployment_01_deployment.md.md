@@ -59,6 +59,18 @@ Insert this paragraph after the sentence on line 250:
 - **Size-ceiling violation.** Adding the note without offsetting prose pushes the file past 25861 bytes and fails `check_docs_structure.py`. The net-zero rewrite (or an owner-approved ceiling raise) is a required step, not optional.
 - **Information loss.** Over-compressing section 2.6 to fit the note could drop a documented fact. Preserve every existing fact; only shorten wording.
 
+## Compatibility considerations
+
+N/A: documentation-only change; no runtime, API, or deployment-behavior change.
+
+## Security considerations
+
+N/A: no security-relevant change; the note documents existing fail-fast behavior.
+
+## Rollback considerations
+
+N/A: revert the commit that adds the note.
+
 ## Validation plan
 
 - `uv run python tools/check_docs_structure.py docs/90_deployment/deployment_01_deployment.md` — passes (size `<= 25861`, front matter, headings, links).
@@ -80,10 +92,10 @@ Insert this paragraph after the sentence on line 250:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | N/A | — | — | documentation-only row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | doc checkers |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this is the doc update |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261030-153000 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261030-153000 | documentation-only row N/A: documentation-only change; no tests added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261030-153000 | doc checkers |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261030-153000 | this is the doc update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

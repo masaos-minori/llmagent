@@ -121,7 +121,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate
     # is net 1330 bytes on a base that was already 45 bytes under MAX_SIZE. The ceiling equals
     # the accepted size, so any further growth fails.
-    "deployment_01_deployment.md": 25861,
+    # Grew again (2026-10-30) with the REQ-001 missing-binary pre-flight operational note added
+    # to section 2.6 (an empty /opt/llm/bin/ now fails fast with rebuild/redeploy guidance, and
+    # /opt/llm/DEPLOYED_REV is written only after a binary-gated deploy); the file sat exactly at
+    # the 25861 ceiling, so this raises it to the new accepted size. Any further growth fails.
+    "deployment_01_deployment.md": 26347,
 }
 
 
