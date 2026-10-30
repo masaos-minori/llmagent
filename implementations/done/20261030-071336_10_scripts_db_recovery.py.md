@@ -55,10 +55,10 @@ Additive functions only; verify with a diff that no existing body changed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Existing tests unchanged; new coverage from rows 15/17/19 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261030-130000 | 20261030-130000 | Added module-level `run_integrity_check`, `verify_domain_identity`, `backup_is_usable` wrappers in scripts/db/recovery.py delegating to `_run_integrity_check`, `_verify_domain_identity`, `_backup_is_usable`. Additive only; existing recovery bodies unchanged. `_REQUIRED_TABLE_BY_DOMAIN` keeps only rag/session (workflow check is row 06, eventbus is row 02). |
+| 2 | Add or update tests per Validation plan | Completed | 20261030-130000 | 20261030-130000 | Formal coverage rows 15/17/19 (not yet generated). Existing 68 test_db_recovery.py tests pass unchanged (regression gate). Hand smoke test confirms wrappers delegate: healthy rag backup usable, wrong-domain backup refused, unmapped target passes through. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261030-130000 | 20261030-130000 | ruff format+check clean; mypy clean; lint-imports 6/6 KEPT; check_db_separation no violations; check_docstrings OK (268 grandfathered). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261030-130000 | 20261030-130000 | Module docstring already accurate; no prose change needed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

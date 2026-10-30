@@ -191,6 +191,38 @@ def _backup_is_usable(backup: Path, target: str) -> tuple[str | None, str]:
     return None, ""
 
 
+def run_integrity_check(
+    db_path: Path, target: str = "rag"
+) -> tuple[DbCondition, str | None]:
+    """Cross-module entry point for a PRAGMA integrity check on ``db_path``.
+
+    Thin delegation over :func:`_run_integrity_check`; returns
+    ``(DbCondition.HEALTHY, None)`` when the database is healthy. Consumers are
+    the migration gate (rows 01/06), the drill harness (row 11), and rotation
+    verification (row 12).
+    """
+    return _run_integrity_check(db_path, target)
+
+
+def verify_domain_identity(backup: Path, target: str) -> tuple[bool, str | None]:
+    """Cross-module entry point for backup domain-identity verification.
+
+    Thin delegation over :func:`_verify_domain_identity`; returns ``(True, None)``
+    when the backup carries the required table for ``target``'s domain (or
+    ``target`` is unmapped and passes through).
+    """
+    return _verify_domain_identity(backup, target)
+
+
+def backup_is_usable(backup: Path, target: str) -> tuple[str | None, str]:
+    """Cross-module entry point for the pre-restore backup gate.
+
+    Thin delegation over :func:`_backup_is_usable`; returns ``(None, "")`` when
+    the backup may replace the target database.
+    """
+    return _backup_is_usable(backup, target)
+
+
 def _post_restore_failure(
     db_path: Path, target: str, dry_run: bool
 ) -> RecoveryResult | None:
