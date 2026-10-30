@@ -92,8 +92,8 @@ direct `promote_single` where gating is irrelevant.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create module with harness + seven cases | Pending | — | — | Fails-first until rows 03-06 land |
-| 2 | Determinism re-runs + mypy | Pending | — | — | |
+| 1 | Create module with harness + seven cases | Completed | 20261031-074833 | 20261031-074833 | Fails-first until rows 03-06 land New module, 8 crash-window cases (procedure's 7 + backoff-scheduling case) |
+| 2 | Determinism re-runs + mypy | Completed | 20261031-074833 | 20261031-074833 | 8 passed, determinism 3x; fixture disables periodic _dlq_loop; fault injection patches os.replace/os.unlink on the dlq module with originals captured |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -20,7 +20,7 @@ related:
 
 **SQLite is the canonical event store.** JSONL is derived data; no automated reconcile or rebuild tool exists (see Recovery Procedure).
 
-Authority model: SQLite is canonical for events and for DLQ state (`events.dlq_at`); the JSONL archive and the DLQ JSON files are derived artifacts; broker notification is best-effort and recoverable through SQLite replay; the publish guarantee is the database commit.
+Authority model: SQLite is canonical for events and for DLQ state (`events.dlq_at`); a committed DLQ state is paired with a durable DLQ outbox generation request committed in the same transaction; the JSONL archive and the DLQ JSON files are derived artifacts, fulfilled by the background DLQ outbox worker after the commit (see [eventbus_03](eventbus_03_dlq_operations.md)); broker notification is best-effort and recoverable through SQLite replay; the publish guarantee is the database commit.
 
 Rationale:
 1. The database commit is the publish success criterion — if the DB commit succeeds, the event is considered published.

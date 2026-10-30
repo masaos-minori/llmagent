@@ -64,6 +64,34 @@ def _get_field(client: TestClient, event_id: str, field: str) -> Any:
     return row[0] if row else None
 
 
+def _drain_outbox(db: Any, deadletter_dir: str) -> dict[str, int]:
+    """Run the dlq_outbox worker once, synchronously (dlqbox001).
+
+    Promotion paths are DB-only since dlqbox001; DLQ files are materialized by
+    process_outbox. Tests that assert file presence call this after a sweep or
+    an inline promotion to stand in for the periodic worker pass.
+    """
+    import asyncio
+
+    from eventbus.config import EventBusConfig
+    from eventbus.dlq import process_outbox
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(Path(deadletter_dir).parent / "eventbus.sqlite"),
+        storage_dir=str(Path(deadletter_dir).parent / "storage"),
+        deadletter_dir=deadletter_dir,
+        max_retry=2,
+        **eventbus_test_tokens("test-token"),
+    )
+
+    async def _runner(fn: Any) -> Any:
+        return fn()
+
+    result: dict[str, int] = asyncio.run(process_outbox(db, deadletter_dir, cfg, _runner))
+    return result
+
+
 class TestDLQPromotionSemantics:
     """Verify DLQ promotion gates on consumer_delivery_failure_count, not retry_count."""
 
@@ -133,6 +161,7 @@ class TestDLQPromotionSemantics:
         # Promote via the DLQ function
         n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
+        _drain_outbox(db, str(tmp_path / "deadletter"))
 
         dlq_file = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file.exists()
@@ -243,6 +272,7 @@ class TestDLQPromotionSemantics:
         )
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        _drain_outbox(db, str(tmp_path / "deadletter"))
 
         dlq_file_1 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_1.exists()
@@ -395,6 +425,7 @@ class TestMultiConsumerPromotion:
         _seed_delivery(db, "consumer-B", event_id, 0, 3)
 
         assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 1
+        _drain_outbox(db, str(tmp_path / "deadletter"))
         assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
         assert _get_field(client, event_id, "dlq_at") is not None
 
@@ -490,6 +521,7 @@ class TestMultiConsumerPromotion:
         )
         assert last.status_code == 200
         assert last.json().get("dlq_promoted") is True
+        _drain_outbox(db, str(tmp_path / "deadletter"))
         assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
         assert _get_field(client, event_id, "dlq_at") is not None
 
@@ -497,13 +529,18 @@ class TestMultiConsumerPromotion:
 class TestPromotionFailurePaths:
     """Failure points in the NACK and inline promotion paths."""
 
-    def test_nack_with_failing_inline_promotion_returns_200_and_sweep_promotes(
+    def test_nack_with_failing_writer_still_promotes_and_outbox_generates(
         self,
         client: TestClient,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """A failed inline promotion defers to the sweep: 200 without dlq_promoted, row live."""
+        """dlqbox001: promotion is DB-only, so a failing artifact writer cannot defer it.
+
+        The old path returned 200 without dlq_promoted and deferred to the sweep.
+        Since dlqbox001 the NACK commits dlq_at + the dlq_outbox request row in one
+        transaction regardless of file I/O; the outbox worker generates the artifact.
+        """
         from eventbus import dlq
         from eventbus.db import open_db
 
@@ -540,19 +577,22 @@ class TestPromotionFailurePaths:
         )
         assert last.status_code == 200
         assert last.json()["consumer_delivery_failure_count"] == 2
-        assert "dlq_promoted" not in last.json()
+        assert last.json().get("dlq_promoted") is True
 
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         row = db.execute(
             "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
         ).fetchone()
-        assert row["dlq_at"] is None
+        assert row["dlq_at"] is not None
+        outbox = db.execute(
+            "SELECT status FROM dlq_outbox WHERE event_id = ?", (event_id,)
+        ).fetchone()
+        assert outbox["status"] == "pending"
         assert not (tmp_path / "deadletter" / f"{event_id}.json").exists()
 
-        # Restore the writer: the sweep repairs the deferred promotion.
+        # Restore the writer: the outbox worker generates the artifact.
         monkeypatch.setattr(dlq, "_atomic_write", original)
-        promoted = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
-        assert promoted == 1
+        _drain_outbox(db, str(tmp_path / "deadletter"))
         assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
         row = db.execute(
             "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
@@ -652,7 +692,8 @@ class TestPromotionFailurePaths:
             )
             assert resp.status_code == 200
         assert resp.json().get("dlq_promoted") is True
-        assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
 
         db = open_db(str(tmp_path / "eventbus.sqlite"))
+        _drain_outbox(db, str(tmp_path / "deadletter"))
+        assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
         assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0

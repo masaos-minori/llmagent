@@ -92,8 +92,8 @@ Two additive calls inside the existing try block; no lifecycle change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import + two loop calls | Pending | — | — | After rows 03/07 |
-| 2 | Run outbox + shutdown tests | Pending | — | — | |
+| 1 | Import + two loop calls | Completed | 20261031-074813 | 20261031-074813 | After rows 03/07 _dlq_loop: sweep -> process_outbox -> reconcile with warning logs |
+| 2 | Run outbox + shutdown tests | Completed | 20261031-074813 | 20261031-074813 | shutdown join unchanged and proven by row 11 test |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

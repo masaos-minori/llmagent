@@ -85,9 +85,9 @@ Additive fields following the existing optional-field pattern end to end.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add fields, validation, key registries | Pending | — | — | |
-| 2 | Add config test cases | Pending | — | — | Disclosed non-target test file (UNK-04) |
-| 3 | Run `uv run pytest tests/eventbus/test_eventbus_config.py` | Pending | — | — | |
+| 1 | Add fields, validation, key registries | Completed | 20261031-074813 | 20261031-074813 | 3 outbox knobs added with validation |
+| 2 | Add config test cases | Completed | 20261031-074813 | 20261031-074813 | Disclosed non-target test file (UNK-04) 7 new tests + deploy tests green (75 passed) |
+| 3 | Run `uv run pytest tests/eventbus/test_eventbus_config.py` | Completed | 20261031-074813 | 20261031-074813 | ruff+mypy green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

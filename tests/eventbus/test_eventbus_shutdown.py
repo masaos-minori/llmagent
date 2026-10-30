@@ -298,3 +298,82 @@ async def test_second_lifecycle_opens_new_usable_connection(
 
     with pytest.raises(sqlite3.ProgrammingError):
         first_db.execute("SELECT 1")
+
+
+@pytest.mark.asyncio
+async def test_shutdown_joins_inflight_outbox_cycle_before_closing_db(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """REQ-008/AC-6: shutdown with an outbox cycle in flight joins dlq_task and
+    closes the connection only behind the lock; the pending row survives intact."""
+    from eventbus import app as eb_app
+    from eventbus import dlq
+    from eventbus.db import open_db
+    from eventbus.dlq import now_iso
+
+    cfg = _make_config(tmp_path)
+    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: _SCHEMA_PATH)
+    monkeypatch.setattr(eb_app, "_DLQ_INTERVAL", 3600.0)  # only the first cycle matters
+
+    # Seed a promoted event with a pending outbox row before the app starts,
+    # so the lifespan's first dlq_loop cycle enters process_outbox immediately.
+    db = open_db(cfg.db_path)
+    event_id = "outbox-shutdown-inflight"
+    db.execute(
+        "INSERT INTO events (event_id, topic, payload, producer, published_at, dlq_at)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (event_id, "t", '{"key": "value"}', "test-producer", "2026-01-01T00:00:00Z", now_iso()),
+    )
+    db.execute(
+        "INSERT INTO dlq_outbox (event_id, requested_at) VALUES (?, ?)",
+        (event_id, now_iso()),
+    )
+    db.commit()
+    db.close()
+
+    fetch_started = threading.Event()
+    release_fetch = threading.Event()
+    real_fetch = dlq.fetch_due_pending
+
+    def blocking_fetch(db_arg: Any, now: str) -> Any:
+        fetch_started.set()
+        # Hold the worker thread (and, via run_with_db_lock, get_db_lock())
+        # inside the outbox fetch, simulating a cycle still running at shutdown.
+        release_fetch.wait(timeout=5)
+        return real_fetch(db_arg, now)
+
+    monkeypatch.setattr(dlq, "fetch_due_pending", blocking_fetch)
+
+    async def _release_after_delay() -> None:
+        # Release shortly after lifespan's shutdown sequence has begun,
+        # simulating the in-flight cycle finishing while shutdown waits for it.
+        await asyncio.sleep(0.2)
+        release_fetch.set()
+
+    with caplog.at_level("ERROR"):
+        async with eb_app.lifespan(eb_app.app):
+            started = await asyncio.to_thread(fetch_started.wait, 5)
+            assert started, "outbox fetch thread did not start within the timeout"
+            release_task = asyncio.create_task(_release_after_delay())
+            # Exiting here runs the shutdown sequence while the cycle is in flight.
+        await release_task
+
+    # No closed-connection use anywhere in the shutdown sequence.
+    assert "ProgrammingError" not in caplog.text
+
+    # The cancelled cycle never touched the row: it stays a clean pending row,
+    # consumable by the next process (no half-committed state).
+    db2 = open_db(cfg.db_path)
+    try:
+        row = db2.execute(
+            "SELECT status, attempts, last_error FROM dlq_outbox WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()
+        assert row["status"] == "pending"
+        assert row["attempts"] == 0
+        assert row["last_error"] is None
+        due = real_fetch(db2, now_iso())
+        assert [str(r["event_id"]) for r in due] == [event_id]
+    finally:
+        db2.close()

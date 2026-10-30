@@ -107,6 +107,11 @@ class EventBusConfig:
     slow_consumer_threshold: int = 100
     subscriber_queue_maxsize: int = 1000
     backlog_health_threshold: int = 500
+    # DLQ outbox retry policy (dlqbox001): bounded attempts, exponential backoff clamped
+    # at the max. Consumed by the outbox worker in eventbus.dlq.
+    outbox_max_attempts: int = 5
+    outbox_backoff_base_seconds: int = 30
+    outbox_backoff_max_seconds: int = 900
 
     def __post_init__(self) -> None:
         """Validate configuration values after initialization."""
@@ -132,6 +137,19 @@ class EventBusConfig:
         if self.replay_batch_size < 1:
             raise ValueError(
                 f"replay_batch_size must be >= 1, got {self.replay_batch_size}"
+            )
+        if self.outbox_max_attempts < 1:
+            raise ValueError(
+                f"outbox_max_attempts must be >= 1, got {self.outbox_max_attempts}"
+            )
+        if self.outbox_backoff_base_seconds < 1:
+            raise ValueError(
+                f"outbox_backoff_base_seconds must be >= 1, got {self.outbox_backoff_base_seconds}"
+            )
+        if self.outbox_backoff_max_seconds < self.outbox_backoff_base_seconds:
+            raise ValueError(
+                "outbox_backoff_max_seconds must be >= outbox_backoff_base_seconds, "
+                f"got {self.outbox_backoff_max_seconds}"
             )
         if self.subscriber_count < 1:
             raise ValueError(
@@ -208,6 +226,9 @@ _KNOWN_CONFIG_KEYS = frozenset(
         "subscriber_queue_maxsize",
         "backlog_health_threshold",
         "replay_batch_size",
+        "outbox_max_attempts",
+        "outbox_backoff_base_seconds",
+        "outbox_backoff_max_seconds",
         "subscriber_count",
         "publish_rate",
         "consumer_authorization",
@@ -248,6 +269,9 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
     "subscriber_queue_maxsize": int,
     "backlog_health_threshold": int,
     "replay_batch_size": int,
+    "outbox_max_attempts": int,
+    "outbox_backoff_base_seconds": int,
+    "outbox_backoff_max_seconds": int,
     "subscriber_count": int,
     "publish_rate": float,
 }
@@ -353,6 +377,9 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         slow_consumer_threshold=int(data.get("slow_consumer_threshold", 100)),
         subscriber_queue_maxsize=int(data.get("subscriber_queue_maxsize", 1000)),
         backlog_health_threshold=int(data.get("backlog_health_threshold", 500)),
+        outbox_max_attempts=int(data.get("outbox_max_attempts", 5)),
+        outbox_backoff_base_seconds=int(data.get("outbox_backoff_base_seconds", 30)),
+        outbox_backoff_max_seconds=int(data.get("outbox_backoff_max_seconds", 900)),
     )
 
     _validate_cross_field(cfg)

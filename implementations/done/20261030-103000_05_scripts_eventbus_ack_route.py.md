@@ -83,8 +83,8 @@ Deletion of one handler; gating expression and log semantics around it unchanged
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the OSError deferral handler | Pending | — | — | After row 03 |
-| 2 | Run DLQ + ack/nack tests | Pending | — | — | |
+| 1 | Remove the OSError deferral handler | Completed | 20261031-074813 | 20261031-074813 | After row 03 OSError deferral removed; direct is_promotable+promote_single |
+| 2 | Run DLQ + ack/nack tests | Completed | 20261031-074813 | 20261031-074813 | nack/promotion tests green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

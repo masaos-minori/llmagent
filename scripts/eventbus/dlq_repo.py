@@ -6,6 +6,7 @@ import logging
 import sqlite3
 import uuid
 from dataclasses import dataclass
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -121,3 +122,96 @@ def redeliver_event(
         conn.rollback()
         raise
     return RequeueResult("success", True, False, new_event_id, new_seq)
+
+
+# -- dlq_outbox row operations (dlqbox001) ------------------------------------
+# None of these functions commit: the commit lives in the caller's transaction
+# (the promotion transaction for the insert, a locked closure for the updates),
+# mirroring redeliver_event's caller-managed transaction style.
+
+
+def insert_outbox_row(db: sqlite3.Connection, event_id: str, requested_at: str) -> None:
+    """Insert a pending dlq_outbox row inside the caller's promotion transaction.
+
+    REQ-002: the dlq_at UPDATE and this INSERT share one transaction so a committed
+    promotion always carries its durable generation request.
+    """
+    db.execute(
+        "INSERT INTO dlq_outbox (event_id, requested_at, status, attempts)"
+        " VALUES (?, ?, 'pending', 0)",
+        (event_id, requested_at),
+    )
+
+
+def fetch_due_pending(db: sqlite3.Connection, now: str) -> list[sqlite3.Row]:
+    """Return pending outbox rows due now, oldest request first.
+
+    A row is due when next_attempt_at is NULL (never attempted) or <= now.
+    REQ-004/REQ-005: the worker consumes exactly these rows each cycle. Whole rows
+    are returned so the worker reads event_id and attempts without a second query.
+
+    ``now`` is an ISO timestamp string; the name avoids shadowing the now_iso()
+    helper imported by this module.
+    """
+    return db.execute(
+        "SELECT event_id, requested_at, status, attempts, last_error,"
+        " next_attempt_at, completed_at"
+        " FROM dlq_outbox"
+        " WHERE status = 'pending'"
+        " AND (next_attempt_at IS NULL OR next_attempt_at <= ?)"
+        " ORDER BY requested_at",
+        (now,),
+    ).fetchall()
+
+
+def mark_done(db: sqlite3.Connection, event_id: str, completed_at: str) -> None:
+    """Mark one outbox row done inside the caller's locked transaction.
+
+    The status guard makes the write idempotent: only a pending row transitions,
+    so a repeated completion cannot overwrite a terminal or unattempted state.
+    """
+    db.execute(
+        "UPDATE dlq_outbox SET status = 'done', completed_at = ?"
+        " WHERE event_id = ? AND status = 'pending'",
+        (completed_at, event_id),
+    )
+
+
+def record_attempt_failure(
+    db: sqlite3.Connection,
+    event_id: str,
+    last_error: str,
+    next_attempt_at: str,
+    terminal: bool,
+) -> None:
+    """Persist one failed generation attempt for an outbox row.
+
+    increments attempts, stores last_error and the next due time; when terminal
+    the row becomes 'failed' and is never fetched again. Commit lives in the
+    caller's locked transaction.
+    """
+    status = "failed" if terminal else "pending"
+    db.execute(
+        "UPDATE dlq_outbox SET attempts = attempts + 1, last_error = ?,"
+        " next_attempt_at = ?, status = ?"
+        " WHERE event_id = ? AND status = 'pending'",
+        (last_error, next_attempt_at, status, event_id),
+    )
+
+
+def get_outbox_state(db: sqlite3.Connection, event_id: str) -> sqlite3.Row | None:
+    """Return the dlq_outbox row for one event, or None when absent."""
+    row = db.execute(
+        "SELECT event_id, requested_at, status, attempts, last_error,"
+        " next_attempt_at, completed_at"
+        " FROM dlq_outbox WHERE event_id = ?",
+        (event_id,),
+    ).fetchone()
+    return cast("sqlite3.Row | None", row)
+
+
+def done_outbox_event_ids(db: sqlite3.Connection) -> set[str]:
+    """Return event ids whose outbox row is done — the orphan classifier's set."""
+    return {
+        str(row[0]) for row in db.execute("SELECT event_id FROM dlq_outbox WHERE status = 'done'")
+    }

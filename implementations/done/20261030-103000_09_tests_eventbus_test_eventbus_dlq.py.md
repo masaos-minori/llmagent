@@ -86,9 +86,9 @@ assertion queries follow the file's existing patterns.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write failing-first promotion-transaction tests | Pending | — | — | Plan Phase 1 |
-| 2 | Update reconcile dict literals + new class tests | Pending | — | — | Plan Phase 4 |
-| 3 | Green after rows 01-06 land | Pending | — | — | |
+| 1 | Write failing-first promotion-transaction tests | Completed | 20261031-074833 | 20261031-074833 | Plan Phase 1 Helpers _drain_outbox/_outbox_failure_counter added; 12 old-contract tests converted |
+| 2 | Update reconcile dict literals + new class tests | Completed | 20261031-074833 | 20261031-074833 | Plan Phase 4 4 tests renamed/rewritten (promotion-transaction, outbox-failure counter, per-event isolation, sweep repair); 3 promotion + 4 reconcile tests added; 33 passed |
+| 3 | Green after rows 01-06 land | Completed | 20261031-074833 | 20261031-074833 | Ride-on updates: test_eventbus_dlq_promotion.py and test_eventbus_requeue_edge_cases.py converted to new contract |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

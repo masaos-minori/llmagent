@@ -72,8 +72,8 @@ Two-sentence-level edits; no section restructuring.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite DLQ durability clause | Pending | — | — | Plan Phase 6 |
-| 2 | Run docs checkers | Pending | — | — | |
+| 1 | Rewrite DLQ durability clause | Completed | 20261031-074833 | 20261031-074833 | Plan Phase 6 DLQ clause rewritten to committed-first + durable request; rationale bullets already file-neutral |
+| 2 | Run docs checkers | Completed | 20261031-074833 | 20261031-074833 | Docs checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

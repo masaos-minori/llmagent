@@ -36,6 +36,7 @@ Module-level reference for `scripts/eventbus/`. HTTP-level contracts (request/re
 ## Module Responsibilities
 
 - Route modules (`publish_route.py`, `subscribe_route.py`, `replay_route.py`, `ack_route.py`, `dlq_route.py`, `health_route.py`, `admin_route.py`) implement the HTTP endpoints; event, delivery and DLQ state changes are implemented in the repository modules (`event_repo.py`, `delivery_repo.py`, `dlq_repo.py`) and `dlq.py`.
+- `dlq.py` and `dlq_repo.py` own the DLQ lifecycle: the promotion paths commit `dlq_at` together with a `dlq_outbox` generation request, the outbox worker (`process_outbox`) fulfills those requests with retry bounded by `outbox_max_attempts`, `outbox_backoff_base_seconds`, and `outbox_backoff_max_seconds` and metered by `eventbus_dlq_outbox_generated_total`, `eventbus_dlq_outbox_attempt_failure_total`, and `eventbus_dlq_outbox_failed_total`, and `reconcile_missing_dlq_files` reports file/outbox divergences.
 - `broker.py` (`EventBroker`) is the in-memory live-delivery fan-out. It holds no durable state; SQLite is the replay source.
 - `config.py` (`EventBusConfig`) validates configuration at startup, including the unconditional loopback-only bind rule. Configuration semantics are in `eventbus_07_configuration-and-operations.md`.
 
@@ -97,11 +98,18 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | `scripts/eventbus/dlq.py` | `DlqEventRecord` | `class DlqEventRecord` | A single event record written to the dead-letter queue as a JSON file on disk. |
 |  | `is_promotable` | `def is_promotable(db, event_id, max_retry) -> bool` | Return True if the event is not yet in the DLQ and meets the promotion rule. |
 |  | `sweep_orphans` | `def sweep_orphans(db, deadletter_dir, max_retry) -> int` | Sweep events that meet the promotion rule but were not promoted inline. |
-|  | `reconcile_missing_dlq_files` | `def reconcile_missing_dlq_files(db, deadletter_dir) -> dict[str, int]` | Detect and rebuild DLQ files lost after promotion. |
+|  | `reconcile_missing_dlq_files` | `def reconcile_missing_dlq_files(db, deadletter_dir) -> dict[str, int]` | Detect and rebuild lost DLQ files, and classify outbox inconsistencies. |
 |  | `promote_single` | `def promote_single(db, deadletter_dir, event_id, consumer_failure_count) -> bool` | Promote one event to DLQ immediately (inline on nack threshold). |
+|  | `process_outbox` | `async def process_outbox(db, deadletter_dir, cfg, run_locked) -> dict[str, int]` | Consume due dlq_outbox rows and durably generate their DLQ artifacts. |
 |  | `archive_dlq_record` | `def archive_dlq_record(deadletter_dir, event_id) -> bool` | Move {deadletter_dir}/{event_id}.json to {deadletter_dir}/requeued/{event_id}_{timestamp}.json. |
 | `scripts/eventbus/dlq_repo.py` | `RequeueResult` | `class RequeueResult` | Typed result of a redeliver_event() call (replaces the (bool, str \| None) tuple). |
 |  | `redeliver_event` | `def redeliver_event(conn, event_id, now) -> RequeueResult` | Redeliver a dead-lettered event by inserting a new row with lineage. |
+|  | `insert_outbox_row` | `def insert_outbox_row(db, event_id, requested_at) -> None` | Insert a pending dlq_outbox row inside the caller's promotion transaction. |
+|  | `fetch_due_pending` | `def fetch_due_pending(db, now) -> list[sqlite3.Row]` | Return pending outbox rows due now, oldest request first. |
+|  | `mark_done` | `def mark_done(db, event_id, completed_at) -> None` | Mark one outbox row done inside the caller's locked transaction. |
+|  | `record_attempt_failure` | `def record_attempt_failure(db, event_id, last_error, next_attempt_at, terminal) -> None` | Persist one failed generation attempt for an outbox row. |
+|  | `get_outbox_state` | `def get_outbox_state(db, event_id) -> sqlite3.Row \| None` | Return the dlq_outbox row for one event, or None when absent. |
+|  | `done_outbox_event_ids` | `def done_outbox_event_ids(db) -> set[str]` | Return event ids whose outbox row is done — the orphan classifier's set. |
 | `scripts/eventbus/dlq_route.py` | `dlq_list` | `async def dlq_list(request, limit, offset) -> dict[str, Any]` | List dead-letter queue entries with pagination support (one snapshot). |
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id, principal) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active event queue. |
 | `scripts/eventbus/event_repo.py` | `insert_event` | `def insert_event(conn, event_id, topic, payload_str, producer, published_at) -> tuple[int \| None, bool, str]` | INSERT OR IGNORE. Returns (seq, inserted, status). |

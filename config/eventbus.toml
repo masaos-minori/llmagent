@@ -6,6 +6,14 @@ storage_dir = "/opt/llm/storage"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 
+# DLQ outbox retry policy (dlqbox001, values in seconds): the outbox worker retries a
+# pending generation row every cycle, waiting outbox_backoff_base_seconds * 2^(attempt-1)
+# clamped at outbox_backoff_max_seconds, and marks the row terminal after
+# outbox_max_attempts failed attempts.
+outbox_max_attempts = 5
+outbox_backoff_base_seconds = 30
+outbox_backoff_max_seconds = 900
+
 # Shared token (required). It is a control-plane credential: it holds only the
 # operator, monitoring, and admin roles. It holds no publisher or consumer role,
 # so it cannot publish, subscribe, ACK, or NACK.

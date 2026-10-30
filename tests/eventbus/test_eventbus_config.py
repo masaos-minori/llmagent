@@ -744,3 +744,119 @@ def test_load_config_duplicate_token_via_load_path_raises(tmp_path) -> None:
     assert "shared-dup" not in message
     for field in ("auth_token", "admin_token"):
         assert field in message
+
+
+# -- DLQ outbox retry knobs (dlqbox001) ----------------------------------------
+
+
+def test_outbox_retry_knobs_defaults() -> None:
+    """The outbox retry knobs default to 5 attempts / 30s base / 900s cap."""
+    cfg = EventBusConfig(
+        port=8015,
+        db_path="/tmp/eventbus.sqlite",
+        storage_dir="/tmp/storage",
+        deadletter_dir="/tmp/deadletter",
+        max_retry=3,
+        auth_token="test-token",
+    )
+    assert cfg.outbox_max_attempts == 5
+    assert cfg.outbox_backoff_base_seconds == 30
+    assert cfg.outbox_backoff_max_seconds == 900
+
+
+def test_invalid_outbox_max_attempts_zero() -> None:
+    with pytest.raises(ValueError, match="outbox_max_attempts must be >= 1"):
+        EventBusConfig(
+            port=8015,
+            db_path="",
+            storage_dir="",
+            deadletter_dir="",
+            max_retry=3,
+            auth_token="test-token",
+            outbox_max_attempts=0,
+        )
+
+
+def test_invalid_outbox_backoff_base_below_one() -> None:
+    with pytest.raises(ValueError, match="outbox_backoff_base_seconds must be >= 1"):
+        EventBusConfig(
+            port=8015,
+            db_path="",
+            storage_dir="",
+            deadletter_dir="",
+            max_retry=3,
+            auth_token="test-token",
+            outbox_backoff_base_seconds=0,
+        )
+
+
+def test_outbox_backoff_cap_below_base_raises() -> None:
+    with pytest.raises(
+        ValueError, match="outbox_backoff_max_seconds must be >= outbox_backoff_base_seconds"
+    ):
+        EventBusConfig(
+            port=8015,
+            db_path="",
+            storage_dir="",
+            deadletter_dir="",
+            max_retry=3,
+            auth_token="test-token",
+            outbox_backoff_base_seconds=100,
+            outbox_backoff_max_seconds=60,
+        )
+
+
+def test_load_config_accepts_outbox_keys(tmp_path: Path) -> None:
+    """Explicit outbox retry keys load and reach the config object."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-token"
+outbox_max_attempts = 7
+outbox_backoff_base_seconds = 45
+outbox_backoff_max_seconds = 600
+""")
+    cfg = load_config(config_file)
+    assert cfg.outbox_max_attempts == 7
+    assert cfg.outbox_backoff_base_seconds == 45
+    assert cfg.outbox_backoff_max_seconds == 600
+
+
+def test_load_config_outbox_keys_default_when_absent(tmp_path: Path) -> None:
+    """A deployed config without the new keys keeps loading with the defaults."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-token"
+""")
+    cfg = load_config(config_file)
+    assert cfg.outbox_max_attempts == 5
+    assert cfg.outbox_backoff_base_seconds == 30
+    assert cfg.outbox_backoff_max_seconds == 900
+
+
+def test_load_config_rejects_outbox_wrong_type(tmp_path: Path) -> None:
+    """Outbox keys are int-typed: a string value fails at load, like every int key."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-token"
+outbox_max_attempts = "five"
+""")
+    with pytest.raises(ValueError, match="type"):
+        load_config(config_file)

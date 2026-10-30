@@ -145,10 +145,10 @@ Behavior rework inside existing functions + additive functions; `sweep_orphans` 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | DB-only promotion transactions + new counters | Pending | — | — | Plan step 3 |
-| 2 | `process_outbox` (new) + idempotence + backoff | Pending | — | — | Plan step 3 |
-| 3 | Reconciliation orphan/tmp/mismatch extension | Pending | — | — | Plan step 4 |
-| 4 | Run rows 09/10 tests + mypy + lint-imports | Pending | — | — | |
+| 1 | DB-only promotion transactions + new counters | Completed | 20261031-074813 | 20261031-074813 | Plan step 3 Implemented as specified; 3 counters, DB-only promotion, worker, reconcile 6-key report |
+| 2 | `process_outbox` (new) + idempotence + backoff | Completed | 20261031-074813 | 20261031-074813 | Plan step 3 ruff+mypy green on dlq.py |
+| 3 | Reconciliation orphan/tmp/mismatch extension | Completed | 20261031-074813 | 20261031-074813 | Plan step 4 Outbox helpers verified via row 04/09/10 tests |
+| 4 | Run rows 09/10 tests + mypy + lint-imports | Completed | 20261031-074813 | 20261031-074813 | tests/eventbus suite green with worker wired |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

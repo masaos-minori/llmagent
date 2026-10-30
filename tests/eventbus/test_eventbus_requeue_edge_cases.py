@@ -53,6 +53,34 @@ def _event(topic: str = "requeue_test") -> dict[str, Any]:
     }
 
 
+def _drain_outbox(db: Any, deadletter_dir: str) -> dict[str, int]:
+    """Run the dlq_outbox worker once, synchronously (dlqbox001).
+
+    Promotion paths are DB-only since dlqbox001; DLQ files are materialized by
+    process_outbox. Tests that assert file presence call this after a sweep or
+    an inline promotion to stand in for the periodic worker pass.
+    """
+    import asyncio
+
+    from eventbus.config import EventBusConfig
+    from eventbus.dlq import process_outbox
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(Path(deadletter_dir).parent / "eventbus.sqlite"),
+        storage_dir=str(Path(deadletter_dir).parent / "storage"),
+        deadletter_dir=deadletter_dir,
+        max_retry=2,
+        **eventbus_test_tokens("test-token"),
+    )
+
+    async def _runner(fn: Any) -> Any:
+        return fn()
+
+    result: dict[str, int] = asyncio.run(process_outbox(db, deadletter_dir, cfg, _runner))
+    return result
+
+
 def _get_field(client: TestClient, event_id: str, field: str) -> Any:
     import eventbus.app as eb_app
 
@@ -244,6 +272,7 @@ class TestRequeueEdgeCases:
         )
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        _drain_outbox(db, str(tmp_path / "deadletter"))
 
         dlq_file_1 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_1.exists()

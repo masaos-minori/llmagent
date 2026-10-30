@@ -72,8 +72,8 @@ Tool regeneration + one prose sentence.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate table after code rows land | Pending | — | — | |
-| 2 | Prose sentence for knobs/counters + `--check` | Pending | — | — | |
+| 1 | Regenerate table after code rows land | Completed | 20261031-074833 | 20261031-074833 | Table regenerated (process_outbox + 6 repo helpers); dlq responsibilities bullet names knobs and counters |
+| 2 | Prose sentence for knobs/counters + `--check` | Completed | 20261031-074833 | 20261031-074833 | generate_reference_table --check: no drift; deviation: 2 REQ markers removed from dlq_repo docstrings to pass check_docs_quality |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

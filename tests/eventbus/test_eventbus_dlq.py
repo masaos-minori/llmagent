@@ -62,6 +62,19 @@ def _dlq_failure_counter() -> float:
     return REGISTRY.get_sample_value("eventbus_dlq_file_write_failure_total") or 0.0
 
 
+def _outbox_failure_counter() -> float:
+    """Current dlq_outbox attempt-failure counter, registering it if needed."""
+    from eventbus import dlq
+    from prometheus_client import REGISTRY
+
+    if dlq._dlq_outbox_attempt_failure_counter not in REGISTRY._collector_to_names:
+        try:
+            REGISTRY.register(dlq._dlq_outbox_attempt_failure_counter)
+        except ValueError:
+            pass
+    return REGISTRY.get_sample_value("eventbus_dlq_outbox_attempt_failure_total") or 0.0
+
+
 def _make_promotable(db: Any, event_id: str) -> None:
     """Insert a consumer_delivery record at the retry limit so the event is promotable."""
     db.execute(
@@ -69,6 +82,32 @@ def _make_promotable(db: Any, event_id: str) -> None:
         ("consumer-A", event_id),
     )
     db.commit()
+
+
+def _drain_outbox(db: Any, deadletter_dir: str) -> dict[str, int]:
+    """Run the dlq_outbox worker once, synchronously (dlqbox001).
+
+    Promotion paths are DB-only since dlqbox001; DLQ files are materialized by
+    process_outbox. Tests that assert file presence call this after a sweep or
+    an inline promotion to stand in for the periodic worker pass.
+    """
+    from eventbus.config import EventBusConfig
+    from eventbus.dlq import process_outbox
+
+    cfg = EventBusConfig(
+        port=8015,
+        db_path=str(Path(deadletter_dir).parent / "eventbus.sqlite"),
+        storage_dir=str(Path(deadletter_dir).parent / "storage"),
+        deadletter_dir=deadletter_dir,
+        max_retry=2,
+        **eventbus_test_tokens("test-token"),
+    )
+
+    async def _runner(fn: Any) -> Any:
+        return fn()
+
+    result: dict[str, int] = asyncio.run(process_outbox(db, deadletter_dir, cfg, _runner))
+    return result
 
 
 def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) -> None:
@@ -87,6 +126,8 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
 
     n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
     assert n == 1
+    # Sweep is DB-only (dlqbox001); the outbox worker materializes the file.
+    _drain_outbox(db, str(tmp_path / "deadletter"))
     dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
     assert dlq_file.exists()
     record = orjson.loads(dlq_file.read_bytes())
@@ -118,6 +159,92 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
     for item in body["items"]:
         assert "delivery_failure_count" not in item
         assert "cycle_failure_count" not in item
+
+
+# ---------------------------------------------------------------------------
+# dlqbox001 promotion transaction contracts (REQ-002/REQ-003, AC-1/AC-2)
+# ---------------------------------------------------------------------------
+
+
+def test_inline_promotion_inserts_pending_outbox_row_without_file(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """An inline NACK promotion commits dlq_at + a pending outbox row and writes no file."""
+    from eventbus.db import open_db
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+
+    for key in ("promotion-txn-nack-1", "promotion-txn-nack-2"):
+        r = client.post(
+            f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer"
+            f"&idempotency_key={key}",
+            headers=eventbus_auth_headers("consumer"),
+        )
+        assert r.status_code == 200
+    assert r.json().get("dlq_promoted") is True
+
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert row["dlq_at"] is not None
+    outbox = db.execute(
+        "SELECT status, attempts FROM dlq_outbox WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert outbox is not None
+    assert outbox["status"] == "pending"
+    assert outbox["attempts"] == 0
+    # AC-2: the inline path never writes the artifact itself.
+    assert not (tmp_path / "deadletter" / f"{ev['event_id']}.json").exists()
+
+
+def test_sweep_promotion_inserts_outbox_rows(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Sweep promotion carries its dlq_outbox request row in the same transaction."""
+    from eventbus.db import open_db
+    from eventbus.dlq import sweep_orphans
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+    _make_promotable(db, ev["event_id"])
+
+    assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 1
+
+    outbox = db.execute(
+        "SELECT status, requested_at FROM dlq_outbox WHERE event_id = ?",
+        (ev["event_id"],),
+    ).fetchone()
+    assert outbox is not None
+    assert outbox["status"] == "pending"
+    assert outbox["requested_at"] is not None
+    assert not (tmp_path / "deadletter" / f"{ev['event_id']}.json").exists()
+
+
+def test_racing_promotion_inserts_single_outbox_row(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """The rowcount guard means a second promotion attempt duplicates neither dlq_at nor the outbox row."""
+    from eventbus import dlq
+    from eventbus.db import open_db
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+    _make_promotable(db, ev["event_id"])
+
+    assert dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"]) is True
+    # A racing second attempt sees dlq_at already set: rowcount 0, no second row.
+    assert dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"]) is False
+    # The sweep likewise finds nothing left to promote.
+    assert dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0
+
+    count = db.execute(
+        "SELECT COUNT(*) AS c FROM dlq_outbox WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()["c"]
+    assert count == 1
 
 
 def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
@@ -222,6 +349,7 @@ def test_requeue_increments_dlq_requeue_count(
 
     n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
     assert n == 1
+    _drain_outbox(db, str(tmp_path / "deadletter"))
     dlq_file = tmp_path / "deadletter" / f"{new_event_id}.json"
     assert dlq_file.exists()
 
@@ -255,6 +383,8 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
     assert r.json()["consumer_delivery_failure_count"] == 2
     assert r.json().get("dlq_promoted") is True
 
+    # Inline promotion is DB-only (dlqbox001); the worker materializes the file.
+    _drain_outbox(db, str(tmp_path / "deadletter"))
     dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
     assert dlq_file.exists()
     record = orjson.loads(dlq_file.read_bytes())
@@ -324,6 +454,7 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     db.commit()
 
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    _drain_outbox(db, str(tmp_path / "deadletter"))
 
     # Nack an already-DLQ'd event — should return 409 Conflict, not increment count
     r = client.post(
@@ -394,34 +525,60 @@ def test_dlq_requeue_existing_not_in_dlq_returns_409(
     assert resp.json()["detail"] == "event is not in DLQ"
 
 
-def test_atomic_write_failure_leaves_db_row_unchanged(
+def test_promotion_commit_precedes_artifact_generation(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """dlqbox001 REQ-001: promotion commits dlq_at + outbox row before any file write.
+
+    The old inline write failure could leave the row live with a written file. Since
+    dlqbox001 the promotion path never touches the filesystem, so a later artifact
+    failure can never roll the promoted row back.
+    """
     from eventbus import dlq
     from eventbus.db import open_db
 
     ev = _event()
     client.post("/publish", json=ev)
     db = open_db(str(tmp_path / "eventbus.sqlite"))
+    _make_promotable(db, ev["event_id"])
 
     def _raise(*_args: object, **_kwargs: object) -> None:
         raise OSError("disk full")
 
-    before = _dlq_failure_counter()
-
     monkeypatch.setattr(dlq, "_atomic_write", _raise)
 
-    with pytest.raises(OSError):
-        dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"])
+    promoted = dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"])
+    assert promoted is True
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert row["dlq_at"] is not None
+    outbox = db.execute(
+        "SELECT status, attempts FROM dlq_outbox WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert outbox["status"] == "pending"
+    assert outbox["attempts"] == 0
 
-    # The inline write failure increments the failure counter exactly once.
-    assert _dlq_failure_counter() - before == 1
+    # The failure can now only happen in the worker, after the durable commit.
+    report = _drain_outbox(db, str(tmp_path / "deadletter"))
+    assert report["failed_attempts"] == 1
+    outbox = db.execute(
+        "SELECT status, attempts, last_error FROM dlq_outbox WHERE event_id = ?",
+        (ev["event_id"],),
+    ).fetchone()
+    assert outbox["status"] == "pending"
+    assert outbox["attempts"] == 1
+    assert "disk full" in str(outbox["last_error"])
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert row["dlq_at"] is not None  # the promoted row stands
 
 
-def test_inline_write_failure_increments_counter_and_raises(
+def test_outbox_write_failure_meters_counter_and_records_attempt(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """promote_single meters the file-write failure, re-raises, and leaves the row live."""
+    """The outbox worker meters the artifact failure, records a bounded attempt, and keeps the row promoted."""
     from eventbus import dlq
     from eventbus.db import open_db
 
@@ -429,29 +586,40 @@ def test_inline_write_failure_increments_counter_and_raises(
     ev = _event("dlq-inline-io")
     client.post("/publish", json=ev)
     _make_promotable(db, ev["event_id"])
+    dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     def _raise(*_args: object, **_kwargs: object) -> None:
         raise OSError("disk full")
 
     before = _dlq_failure_counter()
+    outbox_before = _outbox_failure_counter()
     monkeypatch.setattr(dlq, "_atomic_write", _raise)
 
-    with pytest.raises(OSError, match="disk full"):
-        dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"])
-
+    report = _drain_outbox(db, str(tmp_path / "deadletter"))
+    assert report["processed"] == 1
+    assert report["failed_attempts"] == 1
     assert _dlq_failure_counter() - before == 1
+    assert _outbox_failure_counter() - outbox_before == 1
     row = db.execute(
         "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
     ).fetchone()
-    assert row["dlq_at"] is None
+    assert row["dlq_at"] is not None
+    outbox = db.execute(
+        "SELECT attempts, next_attempt_at FROM dlq_outbox WHERE event_id = ?",
+        (ev["event_id"],),
+    ).fetchone()
+    assert outbox["attempts"] == 1
+    assert outbox["next_attempt_at"] is not None  # backoff scheduled (REQ-005)
     # No partial file is left behind by the failed atomic write.
-    assert not list((tmp_path / "deadletter").glob("*.json"))
+    assert not list((tmp_path / "deadletter").glob("*.json")) if (
+        tmp_path / "deadletter"
+    ).exists() else True
 
 
-def test_sweep_continues_after_one_event_write_failure(
+def test_outbox_continues_after_one_event_write_failure(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A failing file write in the sweep is metered, logged and skipped; the sweep continues."""
+    """A failing artifact write is metered, recorded as an attempt, and isolated per event."""
     from eventbus import dlq
     from eventbus.db import open_db
 
@@ -473,8 +641,14 @@ def test_sweep_continues_after_one_event_write_failure(
     monkeypatch.setattr(dlq, "_atomic_write", _flaky)
 
     before = _dlq_failure_counter()
+    # Sweep is DB-only: the flaky artifact write cannot make it skip a promotion.
     promoted = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
-    assert promoted == 1
+    assert promoted == 2
+
+    report = _drain_outbox(db, str(tmp_path / "deadletter"))
+    assert report["processed"] == 2
+    assert report["generated"] == 1
+    assert report["failed_attempts"] == 1
     assert _dlq_failure_counter() - before == 1
 
     rows = db.execute(
@@ -482,25 +656,41 @@ def test_sweep_continues_after_one_event_write_failure(
         (ev1["event_id"], ev2["event_id"]),
     ).fetchall()
     dlq_at = {r["event_id"]: r["dlq_at"] for r in rows}
-    assert dlq_at[ev1["event_id"]] is None  # skipped event stays live
+    assert dlq_at[ev1["event_id"]] is not None  # promoted row stands despite the failed write
     assert dlq_at[ev2["event_id"]] is not None
     assert (tmp_path / "deadletter" / f"{ev2['event_id']}.json").exists()
     assert not (tmp_path / "deadletter" / f"{ev1['event_id']}.json").exists()
-
-    # The next sweep repairs the skipped event.
-    monkeypatch.setattr(dlq, "_atomic_write", original)
-    promoted2 = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
-    assert promoted2 == 1
-    row = db.execute(
-        "SELECT dlq_at FROM events WHERE event_id = ?", (ev1["event_id"],)
+    outbox1 = db.execute(
+        "SELECT status, attempts, next_attempt_at FROM dlq_outbox WHERE event_id = ?",
+        (ev1["event_id"],),
     ).fetchone()
-    assert row["dlq_at"] is not None
+    assert outbox1["status"] == "pending"
+    assert outbox1["attempts"] == 1
+    assert outbox1["next_attempt_at"] is not None
+
+    # The pending row is due again once its backoff elapses; clearing it re-drives
+    # the generation and the next worker pass repairs the event.
+    db.execute(
+        "UPDATE dlq_outbox SET next_attempt_at = NULL WHERE event_id = ?",
+        (ev1["event_id"],),
+    )
+    db.commit()
+    monkeypatch.setattr(dlq, "_atomic_write", original)
+    report2 = _drain_outbox(db, str(tmp_path / "deadletter"))
+    assert report2["processed"] == 1
+    assert report2["generated"] == 1
+    assert (tmp_path / "deadletter" / f"{ev1['event_id']}.json").exists()
 
 
-def test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep(
+def test_db_failure_during_promotion_is_repaired_by_next_sweep(
     client: TestClient, tmp_path: Path
 ) -> None:
-    """A commit failure after the DLQ file write leaves the row live; the next sweep repairs it."""
+    """A commit failure mid-promotion leaves the row live; the next sweep re-promotes it.
+
+    dlqbox001: the promotion path writes no file, so the crash window that used to
+    leave a file behind with a live row can no longer occur — the failure leaves
+    neither dlq_at nor an outbox row committed.
+    """
     import sqlite3
 
     from eventbus import dlq
@@ -512,11 +702,10 @@ def test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep(
     _make_promotable(db, ev["event_id"])
 
     class _CommitFailingConn:
-        """Proxy connection whose first commit raises, simulating a crash after the file write."""
+        """Proxy connection whose first commit raises, simulating a crash at the promotion commit."""
 
         def __init__(self, inner: Any) -> None:
             self._inner = inner
-            self._failed = False
 
         def execute(self, sql: str, params: Any = ()) -> Any:
             return self._inner.execute(sql, params)
@@ -530,6 +719,8 @@ def test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep(
         def rollback(self) -> None:
             self._inner.rollback()
 
+        _failed = False
+
     before = _dlq_failure_counter()
     with pytest.raises(sqlite3.OperationalError, match="disk I/O error"):
         dlq.promote_single(
@@ -538,9 +729,9 @@ def test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep(
             ev["event_id"],
         )
 
-    # The file was written before the DB failure; only file-write failures move the counter.
+    # No file write happens on the promotion path; only file-write failures move the counter.
     dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
-    assert dlq_file.exists()
+    assert not dlq_file.exists()
     assert _dlq_failure_counter() - before == 0
 
     # The proxy shares one underlying connection: roll back the un-committed dlq_at UPDATE
@@ -550,6 +741,11 @@ def test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep(
         "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
     ).fetchone()
     assert row["dlq_at"] is None
+    # The outbox insert rolled back with the stamp: nothing durable survived.
+    count = db.execute(
+        "SELECT COUNT(*) AS c FROM dlq_outbox WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()["c"]
+    assert count == 0
 
     promoted = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
     assert promoted == 1
@@ -558,7 +754,8 @@ def test_db_failure_after_dlq_file_creation_is_repaired_by_next_sweep(
     ).fetchone()
     assert row["dlq_at"] is not None
 
-    # Repair is idempotent: exactly one valid JSON record, no extra counter movement.
+    # The worker generates the artifact once; exactly one valid JSON record, no counter movement.
+    _drain_outbox(db, str(tmp_path / "deadletter"))
     assert len(list((tmp_path / "deadletter").glob("*.json"))) == 1
     record = orjson.loads(dlq_file.read_bytes())
     assert record["event_id"] == ev["event_id"]
@@ -774,13 +971,22 @@ def test_reconcile_rebuilds_full_record_from_db(
     # Promote via sweep so the event has a DLQ record, then delete the file.
     _make_promotable(db, ev["event_id"])
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    _drain_outbox(db, str(tmp_path / "deadletter"))
 
     original_bytes = (tmp_path / "deadletter" / f"{ev['event_id']}.json").read_bytes()
     (tmp_path / "deadletter" / f"{ev['event_id']}.json").unlink()
 
-    # Reconcile returns {checked, rebuilt, failed}; the file is absent so it rebuilds.
+    # Reconcile returns {checked, rebuilt, failed, orphans, interrupted_tmp, mismatch};
+    # the file is absent so it rebuilds.
     reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
-    assert reconciled == {"checked": 1, "rebuilt": 1, "failed": 0}
+    assert reconciled == {
+        "checked": 1,
+        "rebuilt": 1,
+        "failed": 0,
+        "orphans": 0,
+        "interrupted_tmp": 0,
+        "mismatch": 0,
+    }
 
     rebuilt = (tmp_path / "deadletter" / f"{ev['event_id']}.json").read_bytes()
     assert rebuilt == original_bytes  # byte-for-byte identical to sweep-time record
@@ -798,7 +1004,14 @@ def test_reconcile_ignores_unpromoted_events(
     client.post("/publish", json=ev)
     # Never promoted: dlq_at stays NULL.
     reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
-    assert reconciled == {"checked": 0, "rebuilt": 0, "failed": 0}
+    assert reconciled == {
+        "checked": 0,
+        "rebuilt": 0,
+        "failed": 0,
+        "orphans": 0,
+        "interrupted_tmp": 0,
+        "mismatch": 0,
+    }
     assert not (tmp_path / "deadletter" / f"{ev['event_id']}.json").exists()
 
 
@@ -816,12 +1029,20 @@ def test_reconcile_is_idempotent_and_preserves_existing_file(
     # Promote via sweep; do NOT delete the file, so reconcile must skip it.
     _make_promotable(db, ev["event_id"])
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    _drain_outbox(db, str(tmp_path / "deadletter"))
 
     target = tmp_path / "deadletter" / f"{ev['event_id']}.json"
     stat_before = target.stat()
     reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
-    # File already present: counted as checked, but never rewritten (rebuilt == 0).
-    assert reconciled == {"checked": 1, "rebuilt": 0, "failed": 0}
+    # File already present and canonical: counted as checked, never rewritten.
+    assert reconciled == {
+        "checked": 1,
+        "rebuilt": 0,
+        "failed": 0,
+        "orphans": 0,
+        "interrupted_tmp": 0,
+        "mismatch": 0,
+    }
     stat_after = target.stat()
     assert (
         stat_before.st_mtime_ns == stat_after.st_mtime_ns
@@ -846,6 +1067,7 @@ def test_reconcile_isolates_single_event_write_failure(
     for ev in (ev1, ev2):
         _make_promotable(db, ev["event_id"])
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    _drain_outbox(db, str(tmp_path / "deadletter"))
 
     # Delete both files; both are now reconcile targets.
     for ev in (ev1, ev2):
@@ -862,7 +1084,14 @@ def test_reconcile_isolates_single_event_write_failure(
 
     reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
     # ev1 fails, ev2 succeeds: checked=2, rebuilt=1, failed=1.
-    assert reconciled == {"checked": 2, "rebuilt": 1, "failed": 1}
+    assert reconciled == {
+        "checked": 2,
+        "rebuilt": 1,
+        "failed": 1,
+        "orphans": 0,
+        "interrupted_tmp": 0,
+        "mismatch": 0,
+    }
 
     assert (tmp_path / "deadletter" / f"{ev2['event_id']}.json").exists()
     assert not (tmp_path / "deadletter" / f"{ev1['event_id']}.json").exists()
@@ -900,6 +1129,7 @@ def test_reconcile_concurrent_callers_under_db_lock(
     for ev in (ev_a, ev_b):
         _make_promotable(db, ev["event_id"])
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    _drain_outbox(db, str(tmp_path / "deadletter"))
 
     # Delete both files; both are now reconcile targets.
     for ev in (ev_a, ev_b):
@@ -925,6 +1155,105 @@ def test_reconcile_concurrent_callers_under_db_lock(
             "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
         ).fetchone()
         assert row["dlq_at"] is not None
+
+
+def test_reconcile_counts_orphan_file_without_deleting(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """REQ-007: a DLQ file with no promoted row and no done outbox row is counted, not deleted."""
+    from eventbus.db import open_db
+    from eventbus.dlq import reconcile_missing_dlq_files
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    deadletter = tmp_path / "deadletter"
+    deadletter.mkdir(parents=True, exist_ok=True)
+    orphan = deadletter / f"{uuid.uuid4()}.json"
+    orphan.write_bytes(orjson.dumps({"event_id": orphan.stem, "topic": "ghost"}))
+
+    reconciled = reconcile_missing_dlq_files(db, str(deadletter))
+    assert reconciled == {
+        "checked": 0,
+        "rebuilt": 0,
+        "failed": 0,
+        "orphans": 1,
+        "interrupted_tmp": 0,
+        "mismatch": 0,
+    }
+    assert orphan.exists()  # report-only: reconcile never deletes
+
+
+def test_reconcile_counts_interrupted_tmp_leftovers(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """REQ-007: .dlq_tmp_* leftovers from interrupted atomic writes are counted, not removed."""
+    from eventbus.db import open_db
+    from eventbus.dlq import reconcile_missing_dlq_files
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    deadletter = tmp_path / "deadletter"
+    deadletter.mkdir(parents=True, exist_ok=True)
+    leftover = deadletter / ".dlq_tmp_leftover_0001"
+    leftover.write_bytes(b'{"partial": true}')
+
+    reconciled = reconcile_missing_dlq_files(db, str(deadletter))
+    assert reconciled == {
+        "checked": 0,
+        "rebuilt": 0,
+        "failed": 0,
+        "orphans": 0,
+        "interrupted_tmp": 1,
+        "mismatch": 0,
+    }
+    assert leftover.exists()
+
+
+def test_reconcile_counts_mismatch_without_rewrite(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """REQ-007: a tampered existing file is reported as mismatch and never silently rewritten."""
+    from eventbus.db import open_db
+    from eventbus.dlq import reconcile_missing_dlq_files, sweep_orphans
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+    _make_promotable(db, ev["event_id"])
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    _drain_outbox(db, str(tmp_path / "deadletter"))
+
+    target = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+    tampered_record = orjson.loads(target.read_bytes())
+    tampered_record["producer"] = "tampered-producer"
+    tampered = orjson.dumps(tampered_record)  # canonical JSON, but a mismatched field
+    target.write_bytes(tampered)
+
+    reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
+    assert reconciled == {
+        "checked": 1,
+        "rebuilt": 0,
+        "failed": 0,
+        "orphans": 0,
+        "interrupted_tmp": 0,
+        "mismatch": 1,
+    }
+    assert target.read_bytes() == tampered  # counted, never rewritten
+
+
+def test_reconcile_audit_note_requeued_subdirectory_not_orphaned(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Files under requeued/ (archive_dlq_record target) are outside the orphan scan."""
+    from eventbus.db import open_db
+    from eventbus.dlq import reconcile_missing_dlq_files
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    requeued = tmp_path / "deadletter" / "requeued"
+    requeued.mkdir(parents=True, exist_ok=True)
+    archived = requeued / f"{uuid.uuid4()}_20260101T000000Z.json"
+    archived.write_bytes(orjson.dumps({"event_id": archived.stem}))
+
+    reconciled = reconcile_missing_dlq_files(db, str(tmp_path / "deadletter"))
+    assert reconciled["orphans"] == 0
 
 
 def test_requeue_audit_record_carries_actor_and_request_id(

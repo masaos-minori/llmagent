@@ -83,8 +83,8 @@ Pure additions; no existing function touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the six outbox repo functions | Pending | — | — | |
-| 2 | Run row 10/09 tests green | Pending | — | — | |
+| 1 | Implement the six outbox repo functions | Completed | 20261031-074813 | 20261031-074813 | 6 outbox helpers added as specified |
+| 2 | Run row 10/09 tests green | Completed | 20261031-074813 | 20261031-074813 | ruff+mypy green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

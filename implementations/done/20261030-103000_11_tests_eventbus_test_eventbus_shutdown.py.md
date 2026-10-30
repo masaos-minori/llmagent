@@ -73,8 +73,8 @@ reads after lifespan exit (the file's existing post-shutdown read pattern).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add in-flight-join test | Pending | — | — | Plan Phase 4 |
-| 2 | Run shutdown suite green incl. unchanged cases | Pending | — | — | |
+| 1 | Add in-flight-join test | Completed | 20261031-074833 | 20261031-074833 | Plan Phase 4 In-flight outbox join test added (blocked fetch_due_pending worker, lock-serialized close) |
+| 2 | Run shutdown suite green incl. unchanged cases | Completed | 20261031-074833 | 20261031-074833 | 9 passed incl. unchanged ebshutdown002 cases, determinism 3x |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

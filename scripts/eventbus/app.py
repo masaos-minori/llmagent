@@ -37,7 +37,11 @@ from eventbus.config import (
 )
 from eventbus.db import get_db_lock, open_db
 from eventbus.db_conn import clear_shutdown_flag, set_shutdown_flag
-from eventbus.dlq import sweep_orphans
+from eventbus.dlq import (
+    process_outbox,
+    reconcile_missing_dlq_files,
+    sweep_orphans,
+)
 from eventbus.dlq_route import (
     dlq_list as dlq_list_route,
 )
@@ -152,6 +156,40 @@ async def _dlq_loop(app: FastAPI) -> None:
             if n:
                 logger.warning(
                     "dlq_loop: swept %d orphan(s) missed by inline promotion", n
+                )
+
+            # dlqbox001: generate the DLQ artifacts requested by the promotion
+            # transactions. process_outbox schedules its own locked transactions.
+            outbox = await process_outbox(
+                db, cfg.deadletter_dir, cfg, run_with_db_lock
+            )
+            if outbox["processed"]:
+                logger.warning(
+                    "dlq_loop: outbox processed=%d generated=%d "
+                    "failed_attempts=%d terminal_failed=%d",
+                    outbox["processed"],
+                    outbox["generated"],
+                    outbox["failed_attempts"],
+                    outbox["terminal_failed"],
+                )
+
+            # Repair lost artifacts and report outbox inconsistencies (REQ-007).
+            reconciled = await run_with_db_lock(
+                lambda: reconcile_missing_dlq_files(db, cfg.deadletter_dir)
+            )
+            if any(
+                reconciled[k]
+                for k in ("rebuilt", "failed", "orphans", "interrupted_tmp", "mismatch")
+            ):
+                logger.warning(
+                    "dlq_loop: reconcile checked=%d rebuilt=%d failed=%d "
+                    "orphans=%d interrupted_tmp=%d mismatch=%d",
+                    reconciled["checked"],
+                    reconciled["rebuilt"],
+                    reconciled["failed"],
+                    reconciled["orphans"],
+                    reconciled["interrupted_tmp"],
+                    reconciled["mismatch"],
                 )
         except (OSError, sqlite3.Error):
             logger.exception("dlq_loop error")

@@ -88,8 +88,8 @@ In-place section edits; document structure (headings order) preserved.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite ordering + failure + reconcile sections | Pending | — | — | Plan Phase 6 |
-| 2 | Run docs checkers | Pending | — | — | |
+| 1 | Rewrite ordering + failure + reconcile sections | Completed | 20261031-074833 | 20261031-074833 | Plan Phase 6 Authority model, failed-inline-promotion, outbox lifecycle, 3 new reconcile report classes, failure-table row added |
+| 2 | Run docs checkers | Completed | 20261031-074833 | 20261031-074833 | check_docs_quality/structure/content_policy/consistency/japanese + reference-table --check all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
