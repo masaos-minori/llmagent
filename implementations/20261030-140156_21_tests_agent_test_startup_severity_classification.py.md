@@ -55,9 +55,9 @@ Extend the severity-classification coverage file with the RAG findings stream.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-073725 | 20261031-073725 | Phase 1: extended severity coverage with RAG findings stream (FATAL duplicate chunk_index aborts; DEGRADED FTS gap warns w/ rebuild_fts; check failure -> identity-unverified WARNING). |
+| 2 | Apply the Implementation procedure | Completed | 20261031-073725 | 20261031-073725 | Phase 1: extended severity coverage with RAG findings stream (FATAL duplicate chunk_index aborts; DEGRADED FTS gap warns w/ rebuild_fts; check failure -> identity-unverified WARNING). |
+| 3 | Run the Validation plan gates | Completed | 20261031-073725 | 20261031-073725 | Phase 1: extended severity coverage with RAG findings stream (FATAL duplicate chunk_index aborts; DEGRADED FTS gap warns w/ rebuild_fts; check failure -> identity-unverified WARNING). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
