@@ -9,6 +9,10 @@ Create `tests/tools/test_generate_adr_authority.py` (new): generator reproducibi
 - Precedent: `tools/generate_reference_table.py --check` is CI-tested for drift detection (marker constants at `:48-55`); its test precedent lives under `tests/` (locate the existing `generate_reference_table` test at implementation — absence in `tests/tools/` listing means the precedent may be under another tests subtree; adapt from whatever precedent exists).
 - Marker contract constants belong to row 03 (`<!-- AUTO-GENERATED: generate_adr_authority.py <section> -->` / `<!-- END AUTO-GENERATED -->`); this module pins them.
 
+### Verified 20261030 (adversarial pass)
+- Resolved: the precedent test lives at `tests/tools/test_generate_reference_table.py` (located 20261030) — read it before authoring; its mechanism (tmp sandbox doc + `--check` exit-code assertions) is the template for tests 2–4.
+- Corrected marker-constant line ref: `generate_reference_table.py` GUARD constants are at `:47-54` (not `:48-55`).
+
 ## Assumptions
 - Sandbox-first design: the core reproducibility tests run against a tmp sandbox copy of `adr_01_index.md` + fixture model (deterministic, no live-docs writes). One integration test runs `--check` against the live `docs/10_adr/adr_01_index.md` + live `config/adr_authority.toml` and asserts exit 0 — this test is the committed-state lock and only passes after rows 02/03/06 land (test-first contract: red until then).
 - "Byte-equals committed" is implemented as: render sections to strings from the fixture model; compare against the guarded blocks extracted from a sandbox index that contains them verbatim (fixture built by running the generator once into the sandbox, then tampering).
@@ -58,7 +62,7 @@ New pytest module; stdlib only; no writes outside tmp_path except the single rea
 ### Execution Status
 | Status | Started | Completed | Notes |
 |---|---|---|---|
-| Pending | — | — | — |
+| Completed | 20261030-193223 | 20261030-193223 | Adversarial verification complete 20261030: precedent test located at tests/tools/test_generate_reference_table.py; GUARD ref corrected. Lands after rows 03/06. |
 
 ### Blocker Log
 | Date | Blocker | Impact | Resolution |

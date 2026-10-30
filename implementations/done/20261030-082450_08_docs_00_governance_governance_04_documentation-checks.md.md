@@ -6,11 +6,18 @@ Register the two new ADR-authority checks in the Governance Verification Matrix 
 - Out of scope: tool code (rows 03–05), `routing.md` (row 09), `TOOL_DESCRIPTIONS.md` (row 10), `ci.yml` (row 11).
 
 ## Current shape (facts)
-- The matrix exists with rows shaped `| GV-NNN | Check | Class | Auto/Manual | Tool | Stage | Severity | Status | Notes |` (verified rows GV-001..GV-004 at `:273-276`); automated check items 1-14 exist under `## Automated Checks` (`:24`) with a numbered item at `:181` describing `check_adr_invariant_matrix.py`/`check_adr_reference.py`.
-- `tools/check_auto_check_inventory.py`'s docstring names this file as the authoritative enumeration of auto checks (plan evidence; tool exists — verified in `tools/`).
+- The matrix exists with rows shaped `| ID | Check | Class | Auto/Manual | Tool | Stage | Severity | Status | Notes |` (verified rows GV-001..GV-004 at `:273-276`); automated check items 1-14 exist under `## Automated Checks` (`:24`) with a numbered item at `:181` describing `check_adr_invariant_matrix.py`/`check_adr_reference.py`.
+- `tools/check_auto_check_inventory.py`'s docstring names this file as the authoritative enumeration of documented auto-checks.
+
+### Verified 20261030 (adversarial pass)
+- Corrected: numbered automated-check items run 1-20 (`### 1.` at `:28` … `### 15. Canonical Source Verification` at `:201`, manual-domain items 15-20); the ADR invariant/reference item is `### 12.` at `:179` (not `:181`), the canonical-registry item `### 13.` at `:185`.
+- Corrected: the Governance Verification Matrix section heading is at `:260`; rows run GV-001 (`:273`) through GV-023 (`:295`) — next free IDs are GV-024/GV-025. Header columns: `| ID | Check | Class | Auto/Manual | Tool | Stage | Severity | Status | Notes |` (verified at the GV-004 row `:276`).
+- Confirmed `check_auto_check_inventory.py` semantics (docstring): it parses Method=Auto cells of this matrix AND the `routing.md` tool table, resolves tokens against real scripts under `tools/`/`scripts/`; Warning-level, non-blocking. Registering `check_adr_authority.py` and `generate_adr_authority.py` here plus in `routing.md` (row 09) satisfies GV-014.
+- New: GV-012 (`:284`) already names `check_adr_reference.py` — the row 05 extension's behavior note belongs in item 12's prose and/or the new matrix rows' Notes, not a GV-012 rewrite.
+- New: a new numbered section `### 21. ADR Authority Model Checks` (`check_adr_authority.py`, `generate_adr_authority.py --check`) matches the doc's numbering discipline; extend item 12's text with one sentence about the front-matter cross-check. (The original fact line's tail — "auto checks (plan evidence; tool exists — verified in `tools/`)" — was merged here by this correction.)
 
 ## Assumptions
-- New rows continue GV numbering (implementation reads the current max GV number and appends two Auto rows: "ADR authority model validation" and "ADR index generated-section drift"). Needs confirmation: the exact next GV numbers at implementation time.
+- New rows continue GV numbering — resolved 20261030: last existing ID is GV-023 (`:295`), so the two new Auto rows are GV-024 (ADR authority model validation) and GV-025 (ADR index generated-section drift).
 - The extension of `check_adr_reference.py` (row 05) is folded into the existing GV item's description text (as `:181` already folds both tools into one item), not a new GV row — one GV row for the front-matter/model cross-check is added only if the inventory checker requires per-check granularity; verify by running `check_auto_check_inventory.py` after the first edit.
 
 ## Design decisions
@@ -60,7 +67,7 @@ Docs registration landing after rows 03–05 (tools exist as scripts before bein
 ### Execution Status
 | Status | Started | Completed | Notes |
 |---|---|---|---|
-| Pending | — | — | — |
+| Completed | 20261030-193223 | 20261030-193223 | Adversarial verification complete 20261030: items 1-20 (not 1-14), item 12 at :179, GV max = GV-023 → new GV-024/GV-025, inventory checker semantics confirmed. |
 
 ### Blocker Log
 | Date | Blocker | Impact | Resolution |

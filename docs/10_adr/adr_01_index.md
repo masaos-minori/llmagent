@@ -56,13 +56,18 @@ This index records no deviations of its own. Open deviations are recorded in the
 | ADR-013 | EventBus Authentication and Authorization | Accepted | 04 eventbus | `10_adr/adr_02_04_013_eventbus-authentication-authorization.md` |
 | ADR-014 | Responsibility Boundaries of the Agent Control Plane | Accepted | 02 agent | `10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md` |
 | ADR-015 | Reference Document Class Disposition | Accepted | 07 docs | `10_adr/adr_02_07_015_docs-reference-document-class-disposition.md` |
+| ADR-016 | ADR Authority Model | Accepted | 07 docs | `10_adr/adr_02_07_016_adr-authority-model.md` |
 
 The number ADR-011 is unassigned: no ADR file carries it, and it is not referenced as a dependency by any ADR in this list.
 
 ## ADR Dependency Graph
 
 `A → B` means that ADR-A lists ADR-B under its Related ADRs and refers to it in its body.
+This graph is generated from `config/adr_authority.toml`; normative and informational edges both appear here.
 ADR-015 references no other ADR.
+
+<!-- AUTO-GENERATED: generate_adr_authority.py adr-reference-graph -->
+Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`. Do not hand-edit between the guard comments; run `python tools/generate_adr_authority.py` to refresh.
 
 ```text
 ADR-001 → ADR-004, ADR-014
@@ -78,11 +83,54 @@ ADR-010 → ADR-002, ADR-004, ADR-005
 ADR-012 → ADR-007
 ADR-013 → ADR-002, ADR-006
 ADR-014 → ADR-001
+ADR-016 → ADR-015
 ```
+<!-- END AUTO-GENERATED -->
+
+### Authority Graph
+
+`ADR-A --Type--> ADR-B` names a normative edge (one of `Requires`, `Governs`,
+`Specializes`, `Extends`, `Exception-to`) from ADR-A's decision to ADR-B's; the
+table lists the primary authority and supplemental limits per governed decision
+target (ADR-016). This graph is acyclic and CI-enforced by
+`tools/check_adr_authority.py`.
+
+<!-- AUTO-GENERATED: generate_adr_authority.py adr-authority-graph -->
+Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`. Do not hand-edit between the guard comments; run `python tools/generate_adr_authority.py` to refresh.
+
+```text
+ADR-001 --Requires--> ADR-004
+ADR-004 --Requires--> ADR-002
+ADR-004 --Extends--> ADR-003
+ADR-010 --Exception-to--> ADR-004
+ADR-013 --Specializes--> ADR-006
+ADR-014 --Extends--> ADR-001
+```
+
+| Decision target | Primary ADR | Supplemental ADRs (authority limit) |
+|---|---|---|
+| `agent.component-responsibility` | ADR-014 | ADR-003 — RuntimeToolRegistry, Tool ownership, and Routing authority within the control plane |
+| `agent.dynamic-tool-health` | ADR-003 | ADR-004 — failure classification only |
+| `agent.llm-tool-visibility` | ADR-003 | ADR-004 — failure classification only |
+| `agent.tool-approval` | ADR-003 | ADR-012 — Git MCP server-side write enforcement only; client-side approval stays under ADR-003 |
+| `agent.tool-routing` | ADR-003 | ADR-004 — failure classification only |
+| `agent.workflow-control` | ADR-001 | ADR-004 — failure classification of missing or invalid workflows only |
+| `db.recovery-separation` | ADR-008 | — |
+| `docs.reference-generation` | ADR-015 | — |
+| `eventbus.authorization` | ADR-013 | ADR-006 — persistence and SSE delivery contract |
+| `eventbus.persistence` | ADR-006 | ADR-013 — authentication and authorization semantics only |
+| `mcp.technical-safety` | ADR-012 | ADR-007 — transport, authentication, and health-check responsibilities |
+| `mcp.transport` | ADR-007 | — |
+| `rag.canonical-data` | ADR-005 | ADR-010 — fallback behavior only |
+| `rag.fallback` | ADR-010 | ADR-004 — failure-classification contract; ADR-010 is the sole Fallback exception it permits; ADR-005 — canonical data selection |
+<!-- END AUTO-GENERATED -->
 
 ### Intentional Circular References
 
 The following bidirectional references are intentional, not defects:
+
+<!-- AUTO-GENERATED: generate_adr_authority.py adr-intentional-cycles -->
+Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`. Do not hand-edit between the guard comments; run `python tools/generate_adr_authority.py` to refresh.
 
 - ADR-001 ↔ ADR-004: ADR-004 classifies a missing or invalid workflow as a Fail-Fast failure; ADR-001 owns the mandatory workflow decision.
 - ADR-001 ↔ ADR-014: ADR-014 extends the responsibility boundaries to the components other than the Workflow Engine; ADR-001 owns the Workflow Engine's mandatoriness.
@@ -90,11 +138,14 @@ The following bidirectional references are intentional, not defects:
 - ADR-003 ↔ ADR-004: ADR-004 defines the failure-classification contract; ADR-003 remains the authority for RuntimeToolRegistry, Tool ownership, and Routing.
 - ADR-004 ↔ ADR-010: ADR-004 defines the failure-classification contract; ADR-010 is the sole Fallback it permits.
 - ADR-006 ↔ ADR-013: ADR-013 owns EventBus authentication and authorization; ADR-006 owns persistence and SSE delivery.
+<!-- END AUTO-GENERATED -->
 
 Each pair splits ownership by topic, so neither ADR's decision depends on the other's
 being changed first. The prohibition on circular dependencies in
 `governance_05_change-impact-and-dependency-graphs.md` applies to the area nodes of that
-graph (Agent, MCP, RAG, EventBus, Shared/DB), not to this ADR reference graph.
+graph (Agent, MCP, RAG, EventBus, Shared/DB), not to this ADR reference graph. The
+authority graph in the Authority Graph section above is a separate graph: its normative
+edges are acyclic by rule (ADR-016 INV-02) and CI-enforced by `tools/check_adr_authority.py`.
 
 ## ADR Invariant Verification Matrix
 

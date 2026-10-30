@@ -992,6 +992,20 @@ ROUTING_GATES: tuple[Gate, ...] = (
         mode=MODE_FAST,
         patterns=("docs/**",),
     ),
+    Gate(
+        name="check_adr_authority",
+        command=(("uv", "run", "python", "tools/check_adr_authority.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("docs/10_adr/**", "config/adr_authority.toml"),
+    ),
+    Gate(
+        name="generate_adr_authority",
+        command=(("uv", "run", "python", "tools/generate_adr_authority.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("docs/10_adr/**", "config/adr_authority.toml"),
+    ),
 )
 
 _ALL_GATES: tuple[Gate, ...] = (*ROUTING_GATES, *TOOLCHAIN_GATES)

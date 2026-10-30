@@ -327,10 +327,10 @@ class TestCheckUniqueAdrIds:
     def test_real_adr_files_give_unique_ids(self) -> None:
         adr_dir = Path(__file__).resolve().parents[2] / "docs" / "10_adr"
         files = sorted(adr_dir.glob("adr_02_*.md"))
-        assert len(files) == 14
+        assert len(files) == 15
         ids = [m.group(1) for f in files if (m := ADR_ID_RE.match(f.name))]
-        assert len(ids) == 14
-        assert len(set(ids)) == 14
+        assert len(ids) == 15
+        assert len(set(ids)) == 15
         assert check_unique_adr_ids(files) == []
 
     def test_non_adr_files_are_ignored(self, tmp_path: Path) -> None:

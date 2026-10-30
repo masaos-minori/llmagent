@@ -9,6 +9,7 @@ related:
   - 00_index.md
   - overview_00_document-guide.md
   - adr_02_07_015_docs-reference-document-class-disposition.md
+  - adr_02_07_016_adr-authority-model.md
   - governance_01_documentation-policy.md
 ---
 # ADR: Document Guide
@@ -40,6 +41,7 @@ Confirmed deviations are tracked in `docs/00_governance/governance_03_issue-and-
 | EventBus Authentication | `adr_02_04_013_eventbus-authentication-authorization.md` |
 | Agent Control Plane Boundaries | `adr_02_02_014_agent-control-plane-responsibility-boundaries.md` |
 | Reference Document Class Disposition | `adr_02_07_015_docs-reference-document-class-disposition.md` |
+| ADR Authority Model | `adr_02_07_016_adr-authority-model.md` |
 
 ## File Naming
 
@@ -58,7 +60,18 @@ Files in this directory follow `adr_NN_<name>.md`: `adr_00_` is this guide, `adr
 | 04 | eventbus | 006, 013 |
 | 05 | db | 008 |
 | 06 | rag | 005, 009, 010 |
-| 07 | docs | 015 |
+| 07 | docs | 015, 016 |
+
+## ADR Authority Model
+
+ADR precedence is recorded in the machine-readable model `config/adr_authority.toml` (ADR-016). Contributors maintain it alongside the ADR files:
+
+- Every governed decision target has exactly one primary ADR; supplemental ADRs carry an explicit authority limit.
+- Dependency edges are typed: `Requires`, `Governs`, `Specializes`, `Extends`, `Exception-to` are normative; `Reference` is informational. The authority graph (normative edges) must stay acyclic; the reference graph may contain documented intentional bidirectional pairs.
+- Adding an ADR, changing its front matter `related` list, or changing a target's authority requires a matching `config/adr_authority.toml` change in the same change set; CI reports violations as `DUP_PRIMARY`, `DANGLING_ADR`, `AUTHORITY_CYCLE`, or `FRONTMATTER_DIVERGENCE` findings.
+- The graph sections of `adr_01_index.md` sit between generated-content guard comments and are refreshed only by the generator; hand-editing inside the guards is prohibited and fails the CI drift check.
+
+The normative decision, edge semantics, and invariant list are in [ADR-016](adr_02_07_016_adr-authority-model.md).
 
 ## AI Query Routing
 

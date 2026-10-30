@@ -25,6 +25,15 @@ tools/check_adr_invariant_matrix.py's existence check — a different
 requirement (does the test exist) from this one (does the source file
 self-identify its ADR).
 
+A second section cross-checks ADR front matter `related` edges against the
+authority model `config/adr_authority.toml` (ADR-016 Decision 7,
+docs/00_governance/governance_04_documentation-checks.md GV-024): every
+`adr_02_*.md` front matter edge naming another ADR file must exist in the
+model, and every non-`Reference` model edge must appear in the owning ADR's
+front matter; model-only `Reference` edges are clean. `adr_01_index.md` and
+`adr_00_document-guide.md` front matter are navigation lists, not edges, and
+are excluded. Findings use the core's `FRONTMATTER_DIVERGENCE` code.
+
 Usage:
     python tools/check_adr_reference.py
     python tools/check_adr_reference.py --format json
@@ -45,6 +54,13 @@ import orjson
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tools._adr_authority_core import (
+    ADR_DIR,
+    MODEL_PATH,
+    AuthorityModelError,
+    check_frontmatter_consistency,
+    load_model,
+)
 from tools._docs_consistency_lib import Issue, report_and_exit
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -196,6 +212,35 @@ def check_adr_reference(refs: list[MatrixSourceRef]) -> list[Issue]:
     return issues
 
 
+def check_frontmatter_vs_model(
+    adr_dir: Path = ADR_DIR, model_path: Path = MODEL_PATH
+) -> list[Issue]:
+    """Front matter `related` ADR edges vs the authority model (ADR-016 Decision 7).
+
+    Thin adapter: the divergence rules live in tools/_adr_authority_core.py so
+    every consumer reports them identically."""
+    try:
+        model = load_model(model_path)
+    except AuthorityModelError as exc:
+        return [
+            Issue(
+                file=str(model_path.relative_to(REPO_ROOT)),
+                line_no=0,
+                severity="ERROR",
+                message=f"authority model is invalid, front matter cross-check aborted: {exc}",
+            )
+        ]
+    return [
+        Issue(
+            file=finding.location,
+            line_no=0,
+            severity="ERROR",
+            message=f"[{finding.code}] {finding.message}",
+        )
+        for finding in check_frontmatter_consistency(model, adr_dir)
+    ]
+
+
 def collect_issues() -> list[Issue]:
     if not ADR_INDEX.exists():
         return [
@@ -219,7 +264,7 @@ def collect_issues() -> list[Issue]:
                 ),
             )
         ]
-    return check_adr_reference(refs)
+    return check_adr_reference(refs) + check_frontmatter_vs_model()
 
 
 def render_json(issues: list[Issue]) -> str:

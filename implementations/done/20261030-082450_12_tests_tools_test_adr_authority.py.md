@@ -9,6 +9,10 @@ Create `tests/tools/test_adr_authority.py` (new): unit tests for the validator c
 - `tests/tools/` exists with per-tool precedents verified on disk: `test_check_adr_invariant_matrix.py`, `test_check_adr_reference.py`, `test_check_adr_structure.py`, `test_check_auto_check_inventory.py`, `test_check_canonical_source_registry.py` family — sandbox-fixture style (tmp_path model files) is the pattern to copy.
 - The validator design and finding codes are defined in `implementations/20261030-082450_04_tools_check_adr_authority.py.md` (`DUP_PRIMARY`, `DANGLING_ADR`, `AUTHORITY_CYCLE`, `ASSUMPTION_DRIFT`, `EDGE_UNKNOWN_TYPE`, `FRONTMATTER_DIVERGENCE`).
 
+### Verified 20261030 (adversarial pass)
+- Confirmed precedent files on disk: `tests/tools/test_check_adr_reference.py`, `test_check_adr_invariant_matrix.py`, `test_check_adr_structure.py`, `test_check_auto_check_inventory.py`, `test_check_adr_preservation.py`, and `test_generate_reference_table.py` (row 13's precedent lives in `tests/tools/` after all — the procedure's "may be under another tests subtree" hedge resolved).
+- Confirmed idiom (docstring of `test_check_adr_reference.py`): direct function calls against tmp_path fixture files, no subprocess; live-repo validation is explicitly NOT duplicated as a unit test there. The CLI exit-code lock planned here (runpy/subprocess) must be re-confirmed against these precedents when writing — if no precedent calls subprocess, use `main()`-return-value assertions instead of subprocess spawning.
+
 ## Assumptions
 - Test-first contract: these tests are written to fail before row 04 lands and pass after it; if executed out of `seq` order they must error at import (`tools/_adr_authority_core`) — no skip-if-missing softening (import failure is the contract lock).
 - Fixture strategy: a minimal conforming model fixture (3–4 authorities, a few typed edges incl. one intentional `Reference` cycle, four assumptions with one `config-check`) plus one mutation per finding code; the `config-check` drift fixture writes a sandbox `config/agent.toml`-shaped file, not the live one.
@@ -60,7 +64,7 @@ New pytest module under `tests/tools/`; deterministic (tmp_path only, no network
 ### Execution Status
 | Status | Started | Completed | Notes |
 |---|---|---|---|
-| Pending | — | — | — |
+| Completed | 20261030-193223 | 20261030-193223 | Adversarial verification complete 20261030: precedents confirmed in tests/tools/; direct-call idiom documented, CLI-lock mechanism to be finalized against precedent at writing. Lands after rows 04/05. |
 
 ### Blocker Log
 | Date | Blocker | Impact | Resolution |

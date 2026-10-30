@@ -178,7 +178,7 @@ class TestAdrFileNamePattern:
     def test_every_real_adr_file_matches(self) -> None:
         adr_dir = Path(__file__).resolve().parents[2] / "docs" / "10_adr"
         names = sorted(p.name for p in adr_dir.glob("adr_02_*.md"))
-        assert len(names) == 14
+        assert len(names) == 15
         assert [n for n in names if not _ADR_FILE_RE.match(n)] == []
 
     def test_old_shape_does_not_match(self) -> None:

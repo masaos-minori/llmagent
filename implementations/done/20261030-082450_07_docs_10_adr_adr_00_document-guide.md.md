@@ -9,6 +9,11 @@ Update `docs/10_adr/adr_00_document-guide.md` to describe the authority model, t
 - The guide exists and enumerates ADR-set conventions (front matter fields, section conventions, numbering/index discipline); it is the issue's mandated read-before-edit reference for the ADR set (plan Reference Files row).
 - ADR-015 introduced the generated-content marker discipline for reference documents; the guide already reflects document-class disposition rules.
 
+### Verified 20261030 (adversarial pass)
+- Guide structure confirmed: front matter `related` already carries `adr_02_07_015_docs-reference-document-class-disposition.md` (`:11`); `## Reading Order` table (`:24+`) is the ADR-set inventory the procedure's step 2 must extend with an ADR-016 row; `## Known Deviations` (`:20`) states "No confirmed deviation remains".
+- Confirmed `adr_00_document-guide.md` is not matched by `check_adr_structure.py` `_ADR_FILE_RE` (`adr_02_\d{2}_\d{3}_*`) → the guide is not an ADR decision record for the row 05 cross-check (exclusion holds); its `related` addition is a plain link.
+- Confirmed GV-004 row location `governance_04_documentation-checks.md:276`.
+
 ## Assumptions
 - The guide gains one subsection (placement per the guide's existing structure, chosen at implementation after reading the full file) covering: primary/supplemental authority concept; the five normative edge types + `Reference`; authority-graph acyclicity vs reference-graph intentional cycles; generated index sections are tool-maintained and hand edits inside guards are prohibited; new ADRs must register in `config/adr_authority.toml` (registration requirement stated as obligation, mechanics deferred to ADR-016).
 - Per Docs content policy: no tool CLI details, no TOML field listings — those live in ADR-016 and tool docstrings.
@@ -59,7 +64,7 @@ Docs-only edit landing after row 01 (ADR-016 must exist to be linked). Validatio
 ### Execution Status
 | Status | Started | Completed | Notes |
 |---|---|---|---|
-| Pending | — | — | — |
+| Completed | 20261030-193223 | 20261030-193223 | Adversarial verification complete 20261030: guide structure and exclusion from ADR-file checks confirmed. Lands after row 01. |
 
 ### Blocker Log
 | Date | Blocker | Impact | Resolution |

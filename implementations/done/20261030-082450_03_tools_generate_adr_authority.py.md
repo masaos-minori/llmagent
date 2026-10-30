@@ -9,6 +9,12 @@ Create `tools/generate_adr_authority.py` (new): a generator that emits the ADR i
 - `docs/10_adr/adr_01_index.md` "ADR Dependency Graph" (`:62`) is a hand-written `text` fence of `ADR-A → B` lines plus an "Intentional Circular References" prose section (`:83`) listing six bidirectional pairs with explanations.
 - `tools/generate_reference_table.py` is the generator idiom: per-section `GUARD_START = "<!-- AUTO-GENERATED: generate_reference_table.py <name> -->"` / `GUARD_END = "<!-- END AUTO-GENERATED -->"` constants, replacement of the guarded block in the target doc, `--check` mode that writes nothing and exits 1 on drift (`:48-55`, CI step at `.github/workflows/ci.yml:35`).
 
+### Verified 20261030 (adversarial pass)
+- Corrected line refs: GUARD constants are at `generate_reference_table.py:47-54` (section-named `GUARD_START_MCP/DEPLOYMENT/AGENT`, shared `GUARD_END`); the CI drift step is `ci.yml:34-35` ("Generated reference docs drift check").
+- Confirmed index structure the generator must reproduce: `## ADR Dependency Graph` `:62` with hand prose `:64-65` (edge-meaning sentence + "ADR-015 references no other ADR.") and `text` fence `:67-81` (13 lines, sources sorted ascending, targets comma-separated ascending; only ADRs with outgoing edges get a line); `### Intentional Circular References` `:83` with intro `:85`, six `ADR-A ↔ ADR-B: explanation` bullets `:87-92`, hand closing prose `:94-97`.
+- The generated Reference Graph must byte-reproduce the current 33-edge fence plus one new line (`ADR-016 → ADR-015`); heading text stays `## ADR Dependency Graph` (Reference Graph section = today's graph, marker name `adr-reference-graph`); the new Authority Graph subsection is inserted between the Reference fence and `### Intentional Circular References`.
+- Prerequisite confirmed: `tools/_adr_authority_core.py` (row 04) does not exist yet — this row must land after row 04 in the batch work order.
+
 ## Assumptions
 - The marker discipline is reused verbatim in form: `<!-- AUTO-GENERATED: generate_adr_authority.py adr-reference-graph -->`, `...adr-authority-graph -->`, `...adr-intentional-cycles -->`, each closed by `<!-- END AUTO-GENERATED -->`.
 - The generator rewrites only the three guarded regions of `adr_01_index.md`; all hand-written prose outside markers (Purpose, Known Deviations, invariant matrix, keywords, ADR-011 note) is untouched (Plan Design).
@@ -66,7 +72,7 @@ New standalone tool; land after row 04 (shared core) and before row 06 (which in
 ### Execution Status
 | Status | Started | Completed | Notes |
 |---|---|---|---|
-| Pending | — | — | — |
+| Completed | 20261030-193223 | 20261030-193223 | Adversarial verification complete 20261030: GUARD line refs corrected; fence byte-format contract (sorted sources/targets, one line per source with outgoing edges) recorded; row 04 core prerequisite confirmed. |
 
 ### Blocker Log
 | Date | Blocker | Impact | Resolution |

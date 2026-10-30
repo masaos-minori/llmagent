@@ -9,6 +9,10 @@ Register the two new tools in `tools/TOOL_DESCRIPTIONS.md` (summary table + deta
 - `tools/TOOL_DESCRIPTIONS.md` has a compact registry table (`| tool | category | one-liner |`, e.g. `check_adr_reference.py` at `:22`, `generate_reference_table.py` at `:50`) and a detailed table (`| tool | inputs | behavior |`, e.g. `check_adr_reference.py` at `:90`, `generate_reference_table.py` at `:107` with `--check` exit-1 semantics spelled out).
 - AGENTS.md rule 9 and the drift checker named in `routing.md` enforce this registry against real `tools/` scripts.
 
+### Verified 20261030 (adversarial pass)
+- Confirmed: summary rows `check_adr_reference.py` `:22` (category `ADR`), `generate_reference_table.py` `:50` (category `Reference generation`); detail rows `:90` and `:107`; drift checker is `check_tool_descriptions_sync.py` (pre-commit hook `tool-descriptions-sync`, fires on `tools/*.py` and registry edits).
+- New scope item: `check_tool_descriptions_sync.py` requires every `tools/*.py` except `__init__.py` to be listed — underscore shared bases are NOT exempt (`_docs_consistency_lib.py` `:19`/`:80`, `_front_matter_schema.py` `:20`/`:81` carry "Shared base" rows). Therefore `tools/_adr_authority_core.py` (created by row 04) needs one summary row (category `Shared base`) + one detail row here too — the edit is six rows, not four.
+
 ## Assumptions
 - Summary categories: `ADR` for `check_adr_authority.py`, `Reference generation` for `generate_adr_authority.py` (mirrors the existing categories at `:22`/`:50`).
 - Detail rows spell out: inputs (`config/adr_authority.toml`, `docs/10_adr/adr_02_*.md` front matter, `config/agent.toml` for config-check assumptions) and behavior (finding codes list for the validator; `--check` exit-1-on-drift for the generator) — one-sentence-per-claim style matching `:90`/`:107` rows.
@@ -33,7 +37,7 @@ Register the two new tools in `tools/TOOL_DESCRIPTIONS.md` (summary table + deta
 Registry edit landing after rows 03–05 (tools exist) in the same batch as rows 08–09, 11.
 
 ### Details
-- High-churn file (73/30d per plan): keep the edit to four added rows only to minimize rebase conflict surface.
+- High-churn file (73/30d per plan): keep the edit to six added rows (2 tools × summary+detail, plus `_adr_authority_core.py` summary+detail) only to minimize rebase conflict surface.
 
 ## Compatibility considerations
 - The drift checker fails on registry↔scripts mismatch in either direction: land this row in the same commit as the tools themselves (rows 03–05) so no intermediate commit has an unregistered script.
@@ -59,7 +63,7 @@ Registry edit landing after rows 03–05 (tools exist) in the same batch as rows
 ### Execution Status
 | Status | Started | Completed | Notes |
 |---|---|---|---|
-| Pending | — | — | — |
+| Completed | 20261030-193223 | 20261030-193223 | Adversarial verification complete 20261030: all anchor rows confirmed; scope expanded to 6 rows (shared-base `_adr_authority_core.py` must be registered too). |
 
 ### Blocker Log
 | Date | Blocker | Impact | Resolution |

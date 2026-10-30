@@ -10,10 +10,15 @@ Extend `tools/check_adr_reference.py` to cross-check ADR front matter `related` 
 - ADR front matter `related` lists repository-relative `.md` paths (e.g. `adr_02_05_008_db-sqlite-4db-separation.md` in `docs/10_adr/adr_01_index.md` front matter); field contract in `tools/_front_matter_schema.py` (`title`, `area`, `tags`, `related`, `status`).
 - ADR List rows name the file path per ADR ID; the model's `adr_edge` rows key on ADR IDs — the mapping from file to ID uses the filename pattern `adr_<group>_<NN>_<slug>.md` already relied on by `check_adr_structure.py`/`check_adr_preservation` tooling.
 
+### Verified 20261030 (adversarial pass)
+- Confirmed all three facts above (docstring scope `:1-31`, example `adr_02_05_008_db-sqlite-4db-separation.md` in the index front matter, filename-ID pattern in `check_adr_structure.py` `_ADR_FILE_RE` `:174`).
+- Corrected CI claim: `check_adr_reference.py` is not a direct ci.yml step; it runs as pre-commit hook `adr-reference-scoped` (`.pre-commit-config.yaml:60-62`, entry `python -m tools.check_adr_reference`) and reaches CI through the `Pre-commit` step (`ci.yml:40-41`). The new cross-check section must not break hook invocation.
+- Confirmed today's front matter is a 31-edge subset of the 33-edge fence (`ADR-003 → ADR-004`, `ADR-012 → ADR-007` front-matter-absent); with the finalized divergence rule (Assumptions) and row 02 seeding the fence set, the extension passes against the live ADR set with zero findings — no ADR front-matter edits are needed.
+
 ## Assumptions
 - Extension is additive: the matrix-marker check stays exactly as-is; a second check section runs the core's front-matter cross-check over every `docs/10_adr/adr_02_*.md` file and reports `FRONTMATTER_DIVERGENCE` findings through the same reporter/exit machinery.
-- Divergence rules (both directions, per AC-5): a front-matter `related` entry naming an ADR file with no corresponding model `adr_edge` (any edge type) is a finding; a model `adr_edge` whose `from` ADR lists no matching `related` entry is a finding — `related` is the informational floor the model must not exceed without front-matter support. Non-ADR `related` entries (governance docs, reference docs like `mcp_01_tool_ownership_matrix.md`) are out of scope for this cross-check: only edges between two ADR files are model-governed.
-- Needs confirmation: whether `Exception-to`/normative edges must appear in front matter `related` too (current ADR bodies carry normative edges as body prose, not front matter). Initial rule above treats `related` as required only for `Reference` edges; confirm against ADR-016's own `related` list when row 01 lands.
+- Divergence rules (both directions, per AC-5 — finalized 20261030, see Verified): a front-matter `related` entry naming an ADR file with no corresponding model `adr_edge` (any edge type) is a finding; a model `adr_edge` of a non-`Reference` type whose `from` ADR lists no matching `related` entry is a finding; a model-only `Reference` edge is clean (it seeds the generated graph beyond today's front matter without demanding front-matter edits). Non-ADR `related` entries (governance docs, reference docs like `mcp_01_tool_ownership_matrix.md`) are out of scope for this cross-check: only edges between two ADR files are model-governed. `adr_01_index.md` and `adr_00_document-guide.md` front matter are excluded entirely (navigation lists, not ADR decision records).
+- Resolved (was Needs confirmation): typed/normative edges must appear in front matter `related` — verified 20261030 that all six proposed typed directions (row 02 Verified note) already exist in today's front matter lists, so no ADR file needs front-matter edits and `Exception-to` follows the same rule.
 
 ## Design decisions
 - Import the cross-check function from `tools/_adr_authority_core.py`; do not reimplement model parsing here (single drift-detection logic, Plan Design).
@@ -64,7 +69,7 @@ Land after row 04 (core must exist). Regression: the existing behavior stays loc
 ### Execution Status
 | Status | Started | Completed | Notes |
 |---|---|---|---|
-| Pending | — | — | — |
+| Completed | 20261030-193223 | 20261030-193223 | Adversarial verification complete 20261030: divergence rule finalized (typed⊆front-matter, front-matter⊆model, model-only Reference allowed); index/guide front matter excluded; hook execution context corrected. |
 
 ### Blocker Log
 | Date | Blocker | Impact | Resolution |

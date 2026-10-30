@@ -1,0 +1,344 @@
+# ADR authority model (ADR-016).
+# Machine-readable index of who owns which governed decision target.
+# Semantics of this file are defined by ADR-016 (docs/10_adr/adr_02_07_016_adr-authority-model.md);
+# this file is an index only — ADR bodies remain the normative decisions.
+# Validation: tools/check_adr_authority.py (CI `lint` job).
+version = "1"
+
+# --- Authority matrix (ADR-016 Decision 1: exactly one primary ADR per target) ---
+# Transcribed 2026-10-30 from the prose authorities in docs/10_adr/adr_01_index.md (ADR List)
+# and the cited ADR bodies. Supplemental entries state the authority limit (ADR-016 Decision 2).
+
+[[authority]]
+decision_target = "agent.workflow-control"
+primary_adr = "ADR-001"
+supplemental_adrs = [
+  { adr = "ADR-004", limit = "failure classification of missing or invalid workflows only" },
+]
+
+[[authority]]
+decision_target = "agent.component-responsibility"
+primary_adr = "ADR-014"
+supplemental_adrs = [
+  { adr = "ADR-003", limit = "RuntimeToolRegistry, Tool ownership, and Routing authority within the control plane" },
+]
+
+[[authority]]
+decision_target = "agent.tool-routing"
+primary_adr = "ADR-003"
+supplemental_adrs = [
+  { adr = "ADR-004", limit = "failure classification only" },
+]
+
+[[authority]]
+decision_target = "agent.llm-tool-visibility"
+primary_adr = "ADR-003"
+supplemental_adrs = [
+  { adr = "ADR-004", limit = "failure classification only" },
+]
+
+[[authority]]
+decision_target = "agent.dynamic-tool-health"
+primary_adr = "ADR-003"
+supplemental_adrs = [
+  { adr = "ADR-004", limit = "failure classification only" },
+]
+
+[[authority]]
+decision_target = "agent.tool-approval"
+primary_adr = "ADR-003"
+supplemental_adrs = [
+  { adr = "ADR-012", limit = "Git MCP server-side write enforcement only; client-side approval stays under ADR-003" },
+]
+
+[[authority]]
+decision_target = "mcp.transport"
+primary_adr = "ADR-007"
+supplemental_adrs = []
+
+[[authority]]
+decision_target = "mcp.technical-safety"
+primary_adr = "ADR-012"
+supplemental_adrs = [
+  { adr = "ADR-007", limit = "transport, authentication, and health-check responsibilities" },
+]
+
+[[authority]]
+decision_target = "eventbus.persistence"
+primary_adr = "ADR-006"
+supplemental_adrs = [
+  { adr = "ADR-013", limit = "authentication and authorization semantics only" },
+]
+
+[[authority]]
+decision_target = "eventbus.authorization"
+primary_adr = "ADR-013"
+supplemental_adrs = [
+  { adr = "ADR-006", limit = "persistence and SSE delivery contract" },
+]
+
+[[authority]]
+decision_target = "db.recovery-separation"
+primary_adr = "ADR-008"
+supplemental_adrs = []
+
+[[authority]]
+decision_target = "rag.canonical-data"
+primary_adr = "ADR-005"
+supplemental_adrs = [
+  { adr = "ADR-010", limit = "fallback behavior only" },
+]
+
+[[authority]]
+decision_target = "rag.fallback"
+primary_adr = "ADR-010"
+supplemental_adrs = [
+  { adr = "ADR-004", limit = "failure-classification contract; ADR-010 is the sole Fallback exception it permits" },
+  { adr = "ADR-005", limit = "canonical data selection" },
+]
+
+[[authority]]
+decision_target = "docs.reference-generation"
+primary_adr = "ADR-015"
+supplemental_adrs = []
+
+# --- Typed ADR edges (ADR-016 Decision 3) ---
+# edge_type in {Requires, Governs, Specializes, Extends, Exception-to, Reference}.
+# The authority graph is the non-Reference edges and must be acyclic; Reference edges may
+# form the six bidirectional pairs below, each flagged intentional = true with the ownership
+# split recorded in `note` (rendered verbatim by tools/generate_adr_authority.py).
+
+[[adr_edge]]
+from = "ADR-001"
+to = "ADR-004"
+edge_type = "Requires"
+
+[[adr_edge]]
+from = "ADR-001"
+to = "ADR-014"
+edge_type = "Reference"
+intentional = true
+note = "ADR-014 extends the responsibility boundaries to the components other than the Workflow Engine; ADR-001 owns the Workflow Engine's mandatoriness."
+
+[[adr_edge]]
+from = "ADR-002"
+to = "ADR-001"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-002"
+to = "ADR-004"
+edge_type = "Reference"
+intentional = true
+note = "ADR-004 classifies a Config Isolation violation as a Fail-Fast failure; ADR-002 owns the isolation decision."
+
+[[adr_edge]]
+from = "ADR-003"
+to = "ADR-001"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-003"
+to = "ADR-002"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-003"
+to = "ADR-004"
+edge_type = "Reference"
+intentional = true
+note = "ADR-004 defines the failure-classification contract; ADR-003 remains the authority for RuntimeToolRegistry, Tool ownership, and Routing."
+
+[[adr_edge]]
+from = "ADR-004"
+to = "ADR-001"
+edge_type = "Reference"
+intentional = true
+note = "ADR-004 classifies a missing or invalid workflow as a Fail-Fast failure; ADR-001 owns the mandatory workflow decision."
+
+[[adr_edge]]
+from = "ADR-004"
+to = "ADR-002"
+edge_type = "Requires"
+
+[[adr_edge]]
+from = "ADR-004"
+to = "ADR-003"
+edge_type = "Extends"
+
+[[adr_edge]]
+from = "ADR-004"
+to = "ADR-010"
+edge_type = "Reference"
+intentional = true
+note = "ADR-004 defines the failure-classification contract; ADR-010 is the sole Fallback it permits."
+
+[[adr_edge]]
+from = "ADR-005"
+to = "ADR-002"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-005"
+to = "ADR-004"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-006"
+to = "ADR-002"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-006"
+to = "ADR-004"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-006"
+to = "ADR-013"
+edge_type = "Reference"
+intentional = true
+note = "ADR-013 owns EventBus authentication and authorization; ADR-006 owns persistence and SSE delivery."
+
+[[adr_edge]]
+from = "ADR-007"
+to = "ADR-002"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-007"
+to = "ADR-004"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-008"
+to = "ADR-002"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-008"
+to = "ADR-004"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-008"
+to = "ADR-005"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-008"
+to = "ADR-006"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-008"
+to = "ADR-013"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-009"
+to = "ADR-002"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-009"
+to = "ADR-004"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-009"
+to = "ADR-005"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-010"
+to = "ADR-002"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-010"
+to = "ADR-004"
+edge_type = "Exception-to"
+
+[[adr_edge]]
+from = "ADR-010"
+to = "ADR-005"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-012"
+to = "ADR-007"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-013"
+to = "ADR-002"
+edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-013"
+to = "ADR-006"
+edge_type = "Specializes"
+
+[[adr_edge]]
+from = "ADR-014"
+to = "ADR-001"
+edge_type = "Extends"
+
+[[adr_edge]]
+from = "ADR-016"
+to = "ADR-015"
+edge_type = "Reference"
+
+# --- Architecture-assumption registry (ADR-016 Decision 4) ---
+# Applicable-ADR lists record where the assumption is stated in ADR Context/Target Environment
+# sections. config-check assertions compare model current_value against config/agent.toml.
+
+[[assumption]]
+id = "ARCH-001"
+name = "Single-host deployment"
+current_value = "Execution on a single host with multiple processes; expected scale is limited concurrency"
+applicable_adrs = ["ADR-001", "ADR-002", "ADR-003", "ADR-004", "ADR-007", "ADR-014"]
+validation_method = "manual-review"
+owner = "Repository owner"
+review_triggers = [
+  "Deployment changes from a single host to multiple hosts or a distributed configuration",
+  "Expected scale exceeds limited concurrency",
+]
+
+[[assumption]]
+id = "ARCH-002"
+name = "Loopback-only MCP exposure"
+current_value = "All MCP servers bind only to 127.0.0.1 loopback addresses; exposure beyond localhost is not supported"
+applicable_adrs = ["ADR-006", "ADR-007", "ADR-013"]
+validation_method = "config-check"
+config_keys = ["mcp_servers.*.url"]
+owner = "Repository owner"
+review_triggers = [
+  "An MCP endpoint is exposed beyond localhost",
+  "TLS or external-client support is introduced",
+]
+
+[[assumption]]
+id = "ARCH-003"
+name = "Local SQLite storage"
+current_value = "All persistent platform state is stored in local SQLite database files under the ADR-008 four-database separation"
+applicable_adrs = ["ADR-006", "ADR-008", "ADR-009"]
+validation_method = "manual-review"
+owner = "Repository owner"
+review_triggers = [
+  "A persistent store moves to a server-based or remote database",
+  "The four-database separation changes",
+]
+
+[[assumption]]
+id = "ARCH-004"
+name = "Single Agent process"
+current_value = "One Agent process runs on the host; MCP servers run as separate processes"
+applicable_adrs = ["ADR-001", "ADR-003", "ADR-004", "ADR-012", "ADR-014"]
+validation_method = "manual-review"
+owner = "Repository owner"
+review_triggers = [
+  "Multiple Agent processes are introduced on the host",
+  "Agent-side trust boundaries change",
+]

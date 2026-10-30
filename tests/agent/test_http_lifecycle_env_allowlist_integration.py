@@ -51,10 +51,11 @@ _SUBPROCESS_REACHABLE_CONFIGS: frozenset[str] = frozenset(
 _SUBPROCESS_REACHABLE_PATTERNS: tuple[str, ...] = ("*_mcp_server.toml",)
 
 # Configuration files no subprocess server reads: eventbus.toml is read by eventbus.app, which
-# deploy/setup_services.sh starts directly, and documentation_canonical_sources.toml is read only
-# by tools/. Their references must not widen what a child process is given.
+# deploy/setup_services.sh starts directly, and documentation_canonical_sources.toml and
+# adr_authority.toml are read only by tools/. Their references must not widen what a child
+# process is given.
 _OTHER_PROCESS_CONFIGS: frozenset[str] = frozenset(
-    {"eventbus.toml", "documentation_canonical_sources.toml"}
+    {"eventbus.toml", "documentation_canonical_sources.toml", "adr_authority.toml"}
 )
 
 # Entry module for each `startup_mode = "subprocess"` server in config/agent.toml.

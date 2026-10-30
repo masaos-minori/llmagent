@@ -178,7 +178,7 @@ Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section ex
 
 ### 12. ADR Invariant Matrix Checks (`check_adr_invariant_matrix.py`, `check_adr_reference.py`)
 
-Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr_01_index.md`: every pytest node id or test path cited in a `Verification Status` cell, and every `file.py::node` citation in an ADR body, names an existing file and an existing class or function (checked by AST; a body citation without the full repository path fails the file check). `check_adr_invariant_matrix.py` also reports an empty `Implementation` cell in an ADR body's `### Automated Tests` table and an invariant whose body-cited test files are not covered by the citations of the matrix rows naming that invariant (containment; extra index citations on shared rows are not errors); each finding is an error that fails the check. `check_adr_reference.py` requires every `scripts/` source file cited there to carry a `# ADR-XXX` comment marker, and fails when the matrix yields no source references.
+Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr_01_index.md`: every pytest node id or test path cited in a `Verification Status` cell, and every `file.py::node` citation in an ADR body, names an existing file and an existing class or function (checked by AST; a body citation without the full repository path fails the file check). `check_adr_invariant_matrix.py` also reports an empty `Implementation` cell in an ADR body's `### Automated Tests` table and an invariant whose body-cited test files are not covered by the citations of the matrix rows naming that invariant (containment; extra index citations on shared rows are not errors); each finding is an error that fails the check. `check_adr_reference.py` requires every `scripts/` source file cited there to carry a `# ADR-XXX` comment marker, and fails when the matrix yields no source references. It also cross-checks ADR front matter `related` edges against the authority model `config/adr_authority.toml` (ADR-016 Decision 7): every ADR-to-ADR related edge must exist in the model as an edge, and every non-`Reference` model edge must appear in the owning ADR's front matter; a model-only `Reference` edge is clean.
 
 **Enforcement:** pre-commit.
 
@@ -194,11 +194,17 @@ Verifies `governance_03_issue-and-uncertainty-management.md` against its own tem
 
 **Enforcement:** `.github/workflows/governance-docs-consistency.yml`.
 
+### 15. ADR Authority Model Checks (`check_adr_authority.py`, `generate_adr_authority.py --check`)
+
+Validate `config/adr_authority.toml` (ADR-016): exactly one primary ADR per governed decision target, resolvable ADR IDs, an acyclic authority graph (normative edges), intentional bidirectional reference pairs flagged with ownership-split notes, known edge types, and `config-check` assumptions matching live configuration; and confirm the generated graph sections of `docs/10_adr/adr_01_index.md` match the model, so a hand edit inside the guard comments is detected as drift.
+
+**Enforcement:** `.github/workflows/ci.yml` (`lint` job).
+
 ## Manual Checks
 
-Numbering continues from `## Automated Checks` above (items 1-14); the manual checks are items 15-20.
+Numbering continues from `## Automated Checks` above (items 1-15); the manual checks are items 16-21.
 
-### 15. Canonical Source Verification
+### 16. Canonical Source Verification
 
 When conflicts arise between documentation and code/config, apply the precedence hierarchy defined in `governance_01_documentation-policy.md`:
 
@@ -206,7 +212,7 @@ When conflicts arise between documentation and code/config, apply the precedence
 2. Recency (review/modification/commit date) never determines canonical authority — see `governance_01_documentation-policy.md`'s Recency Is Not Authority subsection
 3. The area's document-guide identifies the canonical source within that area
 
-### 16. Evidence Label Validation
+### 17. Evidence Label Validation
 
 Verify evidence labels on statements match their actual grounding level:
 
@@ -219,11 +225,11 @@ Notation: write the label in parentheses, optionally followed by an em dash and 
 5. **Verified by test** — Confirmed through automated tests
 6. **Operationally observed** — Based on runtime behavior observations
 
-### 17. ADR Section Header Compliance
+### 18. ADR Section Header Compliance
 
 The heading list, heading order, template-instruction residue and global `INV-NNN` ids are verified automatically by `check_adr_structure.py` (section ADR Structure Check above). The headings are defined in [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization), which also lists the duplicate notes shared across all ADRs. The review below covers what the tool cannot check.
 
-### 18. Area Dependency Graph Validation
+### 19. Area Dependency Graph Validation
 
 Canonical source: the dependency-graph taxonomy (Software Runtime Dependency Graph,
 Deployment Management Graph, Documentation Reference Graph, Governance Applicability
@@ -242,7 +248,7 @@ tool — see each section's own cycle-tolerance statement in
 `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` — and remain subject to human review
 only.
 
-### 19. Merge Condition Validation
+### 20. Merge Condition Validation
 
 Merge is gated on [Policy's Merge Conditions](governance_01_documentation-policy.md#merge-conditions)
 (Blocking/Non-Blocking conditions and the Merge Workflow) — see that
@@ -253,7 +259,7 @@ A `GV-017` finding is not itself blocking, but every finding must be resolved or
 covered by an approved temporary exception before merge — an unexplained finding
 left neither fixed nor excepted is treated as incomplete review, not a passing PR.
 
-### 20. Cross-Area Reference Validation
+### 21. Cross-Area Reference Validation
 
 Verify cross-document links against the Link Rules in [governance_02_documentation-metadata.md](governance_02_documentation-metadata.md#link-rules).
 
@@ -266,7 +272,8 @@ tool and identifies follow-up work needed.
 Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **Meta**
 = `governance_02_documentation-metadata.md`, **Iss** =
 `governance_03_issue-and-uncertainty-management.md`, **Chk** = this document, **Imp** =
-`governance_05_change-impact-and-dependency-graphs.md`.
+`governance_05_change-impact-and-dependency-graphs.md`, **Adr** =
+`10_adr/adr_02_07_016_adr-authority-model.md`.
 
 | Rule ID | Rule | Doc | Method | Tool/Review | Timing | Gate | Status | Follow-up |
 |---------|------|-----|--------|--------------|--------|------|--------|-----------|
@@ -293,6 +300,8 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no Known Issue ID cited outside the ledger that lacks a ledger entry (Error; dangling ID in an ADR's Known Deviations: Warning), every Known Issue targeting an ADR is cited in that ADR's Known Deviations (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking (Error) / Warning | Existing | None |
 | GV-023 | Agent command docs match `_COMMANDS` by name, subcommand, and argument | Chk | Auto | `check_docs_consistency.py --domain agent` | PR | Blocking | Existing | None |
+| GV-024 | ADR authority model: one primary ADR per governed decision target, resolvable ADR IDs, acyclic authority graph, intentional reference pairs flagged with ownership-split notes, `config-check` assumptions match live configuration | Adr | Auto | `check_adr_authority.py` | PR | Blocking | Existing | None |
+| GV-025 | ADR index graph sections match the generated output of `config/adr_authority.toml`; hand edits inside the guard comments are detected as drift | Adr | Auto | `generate_adr_authority.py --check` | PR | Blocking | Existing | None |
 
 ### Follow-up Work Needed
 
