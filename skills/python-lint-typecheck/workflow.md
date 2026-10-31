@@ -15,7 +15,7 @@
 | `libcst` | semantic refactor safety | CST-based transforms preserving comments |
 | `pre-commit` | CI consistency validation | Aggregated hook runner; final gate |
 
-Run every Python tool through `uv run`, and check availability the same way (`SKILL.md` No Tool Hallucination; `command -v` is wrong for `pyright`, `pyre`, `tox`). The
+Run every Python tool through `uv run`, and check availability per `skills/DESIGN.md`, section "Tool availability guard". The
 commands below carry the prefix. If a tool fails to start under `uv run`, apply `skills/DESIGN.md`
 Tool availability guard and record the check as `Needs confirmation`.
 

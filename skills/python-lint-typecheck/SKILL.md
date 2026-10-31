@@ -22,7 +22,7 @@ Quality Rules below for the root-cause-first requirement).
 ## Core Quality Rules (Strictly Enforced for AI)
 
 - **Fix the Root Cause, Do Not Ignore**: Blindly adding `# type: ignore` or `# noqa` to resolve a type/lint error is a failure. You MUST first attempt to fix the underlying type signature or code structure.
-- **No Tool Hallucination**: applies to every tool a Step runs — `ruff`, `mypy`, `pyright`, `pyre`, `bandit`, `ast-grep`, `LibCST`, `lint-imports`, `tox`, `diff-cover` — see `skills/DESIGN.md` Tool availability guard. Run Python tools through `uv run`, and test availability the same way (`uv run <tool> --version`): `pyright`, `pyre`, and `tox` are not on PATH here but work under `uv run`, so `command -v` gives a false "not installed".
+- **No Tool Hallucination**: applies to every tool a Step runs — `ruff`, `mypy`, `pyright`, `pyre`, `bandit`, `ast-grep`, `LibCST`, `lint-imports`, `tox`, `diff-cover` — see `skills/DESIGN.md` Tool availability guard. Run Python tools through `uv run`; check availability per `skills/DESIGN.md`, section "Tool availability guard".
 - **Strict Diff Isolation**: When running automated formatters or fixers (`ruff check --fix`), keep changes scoped to the target issue — see `AGENTS.md` Global Rule 5. Review only your own changes with `git diff <path>`; MUST NOT `git stash` or reset in the working tree to isolate them (parallel sessions leave unstaged edits there), and revert an unwanted auto-fix hunk by editing the lines back.
 - **CI Parity, Not Stricter**: fix what the project's CI and pre-commit configuration report. A stricter run (for example `mypy --strict`) is investigation only; its extra findings are recorded, not fixed.
 
