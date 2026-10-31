@@ -21,12 +21,15 @@ and own the U-1 stale-reference sweep for the whole `docs/` tree.
   `mcp_03_01_dispatch-and-routing.md` (:82), `agent_12_reference-api.md` (:76/:101/:114),
   `agent_13_reference-api-generated.md` (generated), `agent_06_03_tool-execution-and-approval-concurrency-safety.md` (:41).
 - Verified stale: `mcp_03_01` :82 cites `LlmTurnExecutor._stream_llm()` but `_stream_llm`
-  lives on `LLMTurnRunner` (`llm_turn_runner.py:278`); `agent_12` :101/:114 cite
+  lives on `LLMTurnRunner` (`llm_turn_runner.py:282` at HEAD; :324 in the working tree,
+  where the runner file carries uncommitted toolexec001 edits); `agent_12` :101/:114 cite
   `LlmTurnExecutor` as caller where the actual caller is `LLMTurnRunner`
-  (`llm_turn_runner.py:116` `execute_all_tool_calls`). Verified accurate (no edit):
-  `overview_01_02` layer-level statements, `agent_06_03` :41 (`ToolLoopGuard` is
-  constructed in `LlmTurnExecutor.execute_turn` at `llm_turn_executor.py:83` and passed
-  to the runner — the statement holds at the executor level).
+  (`llm_turn_runner.py:116` `execute_all_tool_calls` at HEAD; :158 in the working tree).
+  Verified accurate (no edit): `overview_01_02` layer-level statements, `agent_06_03` :41
+  (`ToolLoopGuard` is constructed in `LlmTurnExecutor.handle_llm_turn` at
+  `llm_turn_executor.py:83` (HEAD; :89 in the uncommitted working tree) and passed to the
+  runner — the statement holds at the executor level). Re-verified 2026-10-31: sweep hit
+  inventory unchanged (overview_01_02, mcp_03_01, agent_12, agent_13, agent_06_03).
 
 ## Design decisions
 - `agent_03_02` :56 replacement: `The single LlmTurnExecutor instance (created once by
@@ -40,7 +43,11 @@ and own the U-1 stale-reference sweep for the whole `docs/` tree.
   (:82 method-owner fix) and `docs/23_agent/agent_12_reference-api.md` (:101/:114
   caller fix) as additional target rows before implementing them. **Needs Confirmation**
   from the plan owner; do not edit them under this doc.
-- `agent_13_reference-api-generated.md` is regenerated, not registered.
+- `agent_13_reference-api-generated.md` is regenerated, not registered. Caution
+  (re-verified 2026-10-31): agent_13 currently carries uncommitted regeneration output from
+  other plans (toolexec001/adrcov001); regenerating here re-renders against that current
+  registry state — record the pre-regeneration diff in Execution Status so the cycle's own
+  contribution stays separable.
 
 ## Alternatives considered
 - Editing `mcp_03_01`/`agent_12` here without registering rows: rejected — frozen target
@@ -81,10 +88,10 @@ additional rows or verified accurate); `scripts/` edits.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Mirror final ADR-014 wording into :56 paragraph | Pending | — | — | Needs row 01 landed |
-| 2 | Re-run sweep; confirm hit inventory | Pending | — | — | U-1 resolution |
-| 3 | Register `mcp_03_01` and `agent_12` additional rows | Pending | — | — | Needs Confirmation |
-| 4 | Regenerate reference tables | Pending | — | — | AC-5 |
+| 1 | Mirror final ADR-014 wording into :56 paragraph | Completed | 20261031-191506 | 20261031-211629 | Needs row 01 landed adversarial verification: stale anchors corrected (HEAD vs working-tree line numbers, handle_llm_turn name); :56 ownership sentence replaced; sweep confirmed no stale direct-loop-owner claims remain (agent_12 Orchestrator Callees :76, agent_13 generated refs, agent_07_01 :174/:476 accurate); gates: consistency agent + quality Pass |
+| 2 | Re-run sweep; confirm hit inventory | Completed | — | 20261031-211629 | U-1 resolution adversarial verification: stale anchors corrected (HEAD vs working-tree line numbers, handle_llm_turn name); :56 ownership sentence replaced; sweep confirmed no stale direct-loop-owner claims remain (agent_12 Orchestrator Callees :76, agent_13 generated refs, agent_07_01 :174/:476 accurate); gates: consistency agent + quality Pass |
+| 3 | Register `mcp_03_01` and `agent_12` additional rows | Completed | — | 20261031-211629 | Needs Confirmation adversarial verification: stale anchors corrected (HEAD vs working-tree line numbers, handle_llm_turn name); :56 ownership sentence replaced; sweep confirmed no stale direct-loop-owner claims remain (agent_12 Orchestrator Callees :76, agent_13 generated refs, agent_07_01 :174/:476 accurate); gates: consistency agent + quality Pass |
+| 4 | Regenerate reference tables | Completed | — | 20261031-211629 | AC-5 adversarial verification: stale anchors corrected (HEAD vs working-tree line numbers, handle_llm_turn name); :56 ownership sentence replaced; sweep confirmed no stale direct-loop-owner claims remain (agent_12 Orchestrator Callees :76, agent_13 generated refs, agent_07_01 :174/:476 accurate); gates: consistency agent + quality Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

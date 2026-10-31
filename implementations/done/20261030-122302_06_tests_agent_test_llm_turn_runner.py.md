@@ -11,8 +11,9 @@ when a gap is found.
 
 ## Scope
 - Trace re-verification (read-only): `llm_turn_executor.py:84` creates a local
-  `LLMTurnRunner` per `execute_turn()`; no `self._runner` attribute exists (verified at
-  procedure-generation time by grep); the runner is not stored on the executor.
+  `LLMTurnRunner` per `handle_llm_turn()` call (HEAD; :90 in the uncommitted working
+  tree); no `self._runner` attribute exists (verified at procedure-generation time and
+  re-verified 2026-10-31 by grep); the runner is not stored on the executor.
 - Conditional addition: one test method
   `test_executor_does_not_retain_llm_turn_runner` (new) in this file only if the trace
   shows a retention or authority gap.
@@ -26,7 +27,7 @@ when a gap is found.
 
 ## Design decisions
 - Decision gate at implementation time: run `grep -n "self._runner"
-  scripts/agent/llm_turn_executor.py` (must be empty) and inspect `execute_turn` for any
+  scripts/agent/llm_turn_executor.py` (must be empty) and inspect `handle_llm_turn` for any
   new retention. If both hold: record "no change required — trace verified" in Execution
   Status with the grep output. If a gap exists: add
   `test_executor_does_not_retain_llm_turn_runner` (new) constructing a real
@@ -68,8 +69,8 @@ Executor-side counting (row 05); ADR wording (row 01).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Trace gate (grep + inspect) | Pending | — | — | Default: no change |
-| 2 | Gap branch: add `test_executor_does_not_retain_llm_turn_runner` (new) | Pending | — | — | Only if gate fails |
+| 1 | Trace gate (grep + inspect) | Completed | — | 20261031-211949 | Default: no change trace gate PASSED = no change required: grep -n "self._runner" scripts/agent/llm_turn_executor.py returned no match (exit 1); runner is a local variable created per call in handle_llm_turn (guard :89, runner = LLMTurnRunner( :90) and never retained as an executor attribute; test_llm_turn_runner.py needs no new test |
+| 2 | Gap branch: add `test_executor_does_not_retain_llm_turn_runner` (new) | Completed | — | 20261031-211949 | Only if gate fails gap branch NOT triggered (trace gate passed); no test added by design |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -84,9 +84,9 @@ Runner-side assertions (row 06); `scripts/` production changes (the fixture is r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_orchestrator_constructs_llm_executor_exactly_once` (new) per Procedure | Pending | — | — | |
-| 2 | Fail-before proof + revert | Pending | — | — | AC-3 evidence |
-| 3 | pytest + ruff gates | Pending | — | — | |
+| 1 | Add `test_orchestrator_constructs_llm_executor_exactly_once` (new) per Procedure | Completed | — | 20261031-211913 | test added to TestSingleLlmTurnExecutorOwnership: monkeypatch agent.orchestrator.LlmTurnExecutor counting factory; asserts count==1, instance identity with orch._llm_executor and orch._workflow_adapter._llm_executor |
+| 2 | Fail-before proof + revert | Completed | — | 20261031-211913 | AC-3 evidence fail-before proof: temporary second LlmTurnExecutor construction in Orchestrator.__init__ -> test FAILED assert 2 == 1 (len of constructions list); temporary line removed, orchestrator.py verified clean vs git (no diff) |
+| 3 | pytest + ruff gates | Completed | — | 20261031-211914 | gates: uv run pytest tests/agent/test_orchestrator.py tests/agent/test_llm_turn_runner.py = 157 passed; uv run ruff check tests scripts = All checks passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

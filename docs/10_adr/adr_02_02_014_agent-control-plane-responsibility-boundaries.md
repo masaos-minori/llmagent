@@ -55,7 +55,7 @@ ADR-001 established that the Workflow Engine is the mandatory and sole workflow 
 
    - **Workflow Engine** (`scripts/agent/workflow/workflow_engine.py`): responsible for persistent business state (Task, Attempt), stage transitions (`plan -> execute -> verify -> complete/failed`) and retries. The mandatoriness and uniqueness defined by ADR-001 are maintained as is. Another retry concept (`ToolLoopGuard.check_retry()` in `scripts/agent/tool_loop_guard.py`) operates at a different granularity from the Workflow Engine `retry_policy` and is described in `docs/23_agent/agent_03_02_turn-processing-flow-llm-tool-loop.md`.
    - **Orchestrator** (`scripts/agent/orchestrator.py`): responsible for coordinating processing within a single turn. It performs only coordination that completes within a turn, such as delegating task initialization and startup to the Workflow Engine, managing conversation state, and emitting audit events, and delegates decisions about persistent business state to the Workflow Engine.
-    - **LlmTurnExecutor** (`scripts/agent/llm_turn_executor.py`): responsible for the short loop between the LLM and Tool Calls (streaming and Tool call round-trips within a turn). Creating and holding this loop is centralized in the component that actually drives the loop (currently `LlmTurnExecutor`), and no other component holds duplicate unused instances.
+    - **LlmTurnExecutor** (`scripts/agent/llm_turn_executor.py`): responsible for the short loop between the LLM and Tool Calls (streaming and Tool call round-trips within a turn). The logical owner of this loop is the WorkflowEngine side, which runs every turn through the single `LlmTurnExecutor` instance it holds; the `Orchestrator` is the construction owner, creating exactly one instance and injecting it. The per-turn loop body is delegated to a `LLMTurnRunner` (`scripts/agent/llm_turn_runner.py`) instance created fresh for each turn; the runner holds no independent authority and is not retained after the turn. No other component holds duplicate unused loop-executing instances.
     - **ToolExecutor** (`scripts/shared/tool_executor.py`): responsible for executing a single Tool Call (gate checks, lifecycle checks, transport resolution, execution records). State spanning multiple calls and per-turn coordination are left to the Orchestrator/LlmTurnExecutor.
    - **MCP Server** (under `scripts/mcp_servers/`, for example `shell/shell_service.py`, `tool_validators.py`): responsible for the technical safety of external operations (allowlist validation, path validation, sandboxed execution, resource limits, argument validation). These safety judgments are not taken over by the Orchestrator/ToolExecutor layers. Each MCP server validates its own security configuration at its own startup and publishes the result as a security posture on `GET /health`.
 
@@ -134,7 +134,7 @@ The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are a
 
 | Test | Verifies | Type | Blocking | Implementation |
 | --- | --- | --- | --- | --- |
-| A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance | INV-02 | Unit | No | `tests/agent/test_orchestrator.py` |
+| A regression test that `LlmTurnExecutor` is constructed exactly once by the `Orchestrator` and no component holds an unused or duplicate instance | INV-02 | Unit | No | `tests/agent/test_orchestrator.py` |
 | Agent-side posture contract validation, and no `RuntimeToolRegistry` entry for a server whose posture is not accepted (contract gate only; the INV-03 duplication rule itself stays review-verified) | INV-03 | Unit | No | `tests/agent/test_mcp_health_posture.py`, `tests/shared/test_runtime_tool_registry.py` |
 
 ### Startup Validation
@@ -161,7 +161,7 @@ INV-01 and INV-03 have no automated tests and depend only on code review (Manual
 
 ## Implementation Notes
 
-`Orchestrator` constructs a single `LlmTurnExecutor` instance and passes it to `WorkflowEngineAdapter`; turn handling reaches the LLM/Tool loop through that one instance (Explicit in code — `scripts/agent/orchestrator.py`).
+`Orchestrator` constructs a single `LlmTurnExecutor` instance and passes it to `WorkflowEngineAdapter`; turn handling reaches the LLM/Tool loop through that one instance (Explicit in code — `scripts/agent/orchestrator.py`). Each turn's loop body runs in a fresh `LLMTurnRunner` instance created by the `LlmTurnExecutor` and discarded at turn end; the runner holds no independent authority.
 
 See Implementation References for the current file/symbol list.
 

@@ -12,9 +12,11 @@ delegate (`LLMTurnRunner`) — without method-name dependence, preserving invari
 
 ## Scope
 - Decision Details `LlmTurnExecutor` bullet (:58).
-- INV-02 (:129).
-- Implementation Notes paragraph (:162-164).
-- Automated Tests table INV-02 row description (:135) — text only, coordinated with row 05's test extension.
+- INV-02 (:128; re-verified 2026-10-31 — was :129 at generation; 1-line drift from
+  post-generation commits).
+- Implementation Notes paragraph (:162 heading, :164 paragraph).
+- Automated Tests table INV-02 row description (:137; re-verified — was :135 at generation)
+  — text only, coordinated with row 05's test extension.
 - Not touched: INV-01, INV-03, headings, IDs, Approval, Related ADRs, Implementation References.
 
 ## Assumptions
@@ -45,16 +47,21 @@ delegate (`LLMTurnRunner`) — without method-name dependence, preserving invari
   created fresh for each turn; the runner holds no independent authority and is not
   retained after the turn. No other component holds duplicate unused loop-executing
   instances.`
-- Proposed INV-02 (replaces :129):
+- Proposed INV-02 (replaces :128) — **OVERRIDDEN by owner decision 2026-10-31 (Option A)**:
+  `check_adr_preservation.py` reports any INV text change as an unconditional ERROR with
+  no exemption (no governance precedent; dbmig001 kept INV bytes untouched). The INV-02
+  line stays byte-identical; the three-role model is carried by the Decision Details
+  bullet and Implementation Notes instead. The INV-02 ambiguity is resolved by the
+  Decision-section definition of the roles, not by rewording the invariant.
   `INV-02: LlmTurnExecutor instances are constructed only by the Orchestrator — exactly
   one shared instance, injected into the component that drives the LLM/Tool Call
   round-trip loop. No other component constructs, or holds unused or duplicate,
   LlmTurnExecutor instances; per-turn delegation to a fresh runner created by the
   executor does not create an additional loop authority.`
-- Proposed Implementation Notes addition (append sentence to :162 paragraph):
+- Proposed Implementation Notes addition (append sentence to :164 paragraph):
   `Each turn's loop body runs in a fresh LLMTurnRunner instance created by the
   LlmTurnExecutor and discarded at turn end; the runner holds no independent authority.`
-- Proposed INV-02 verification-row text (:135): `A regression test that LlmTurnExecutor
+- Proposed INV-02 verification-row text (:137): `A regression test that LlmTurnExecutor
   is constructed exactly once by the Orchestrator and no component holds an unused or
   duplicate instance` — lands in the same commit group as row 05's extended guard so the
   row always describes an existing test.
@@ -76,7 +83,8 @@ delegate (`LLMTurnRunner`) — without method-name dependence, preserving invari
    (`git diff` review against this doc).
 
 ## Compatibility considerations
-- The reworded invariant text is cited in `docs/10_adr/adr_01_index.md` :146 — row 07
+- The reworded invariant text is cited in `docs/10_adr/adr_01_index.md` :205 (index was
+  restructured after generation: rows moved from :145-147 to :204-206) — row 07
   refreshes that row in the same Phase 1 scope; land 01 before or with 07.
 - Other plans' index rows (dbmig001/adrauth001/mcpgate001/adrcov001) do not touch
   :145-147; no landing-order conflict beyond row 07.
@@ -105,14 +113,14 @@ INV-03; `scripts/` edits.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-trace anchors (read-only) | Pending | — | — | |
-| 2 | Apply four text edits per Design decisions | Pending | — | — | INV-02 row text lands with row 05 |
-| 3 | Diff review + preservation/structure checkers | Pending | — | — | |
+| 1 | Re-trace anchors (read-only) | Completed | 20261031-185258 | 20261031-185258 | Re-traced 2026-10-31 HEAD 662fd21db: anchors :128/:137 corrected in doc; :58/:162-164 confirmed |
+| 2 | Apply four text edits per Design decisions | Completed | 20261031-191421 | 20261031-191421 | INV-02 row text lands with row 05 Option A (owner 2026-10-31): INV-02 line kept byte-identical (preservation ERROR, no exemption; dbmig001 precedent). Applied Decision bullet :58, Verification row :137, Implementation Notes :164. Sentence mapping for commit report: old 'centralized in the component that actually drives the loop (currently LlmTurnExecutor)' -> three-role model (logical owner=WorkflowEngine side, construction owner=Orchestrator single injected instance, per-turn delegate=fresh LLMTurnRunner, no authority, not retained); constraint (no duplicate/unused instances) unchanged. |
+| 3 | Diff review + preservation/structure checkers | Completed | 20261031-191421 | 20261031-191421 | git diff: 3 changed lines (Decision bullet, Verification row, Impl Notes); INV-01/INV-02/INV-03 bytes unchanged, no heading/ID change. check_adr_preservation: 1 WARNING (Decision mapping recorded above). check_adr_structure/adr_invariant_matrix/adr_reference: OK. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 2 | Verification-row text (:135) must land in the same commit group as row 05's extended guard | No | — |
+| 2 | Verification-row text (:137) must land in the same commit group as row 05's extended guard | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -98,7 +98,7 @@ Full details: [agent_04_01_state-and-persistence-state-model.md](agent_04_01_sta
 
 - **Role:** HTTP communication with LLM. SSE streaming + retries.
 - **Primary API:** `await client.stream(url, history, tool_defs)`
-- **Caller:** `LlmTurnExecutor`, `SessionTitleService` (`HistoryManager` does not use it; see the HistoryManager section)
+- **Caller:** `LLMTurnRunner._stream_llm()` via `ctx.services_required.llm` (one persistent instance created by `factory.build_agent_context()`), `SessionTitleService` (`HistoryManager` does not use it; see the HistoryManager section)
 - **Callee:** `RobustSSEParser`, `httpx.AsyncClient`
 - **Configuration:** `cfg.llm.*`
 - **On Failure:** Raises `LLMTransportError` with `partial_text` upon stream failure.
@@ -111,7 +111,7 @@ Full details: [agent_05_llm-and-streaming.md](agent_05_llm-and-streaming.md)
 
 - **Role:** MCP tool routing and concurrency limits. (The side-effect tool set in `tool_executor_helpers.py` is not used by the execution path.)
 - **Primary API:** `await executor.execute(tool_name, args) -> ToolCallResult`
-- **Caller:** `LlmTurnExecutor` (via `execute_all_tool_calls`)
+- **Caller:** `LLMTurnRunner` (via `execute_all_tool_calls`)
 - **Callee:** `ToolRouteResolver`, `HttpTransport`, `McpServerHealthRegistry`
 - **Configuration:** `cfg.tool.*`, `cfg.mcp.*`
 - **On Failure:** Returns `ToolCallResult(is_error=True)` upon transport failure.

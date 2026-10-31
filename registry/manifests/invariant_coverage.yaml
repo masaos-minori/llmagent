@@ -277,6 +277,7 @@ entries:
   timing: Code Review
 - adr: ADR-014
   cited:
+  - tests/agent/test_orchestrator.py::TestSingleLlmTurnExecutorOwnership::test_orchestrator_constructs_llm_executor_exactly_once
   - tests/agent/test_orchestrator.py::TestSingleLlmTurnExecutorOwnership::test_orchestrator_creates_single_shared_llm_turn_executor
   gate: Unit Test
   invariant: INV-02

@@ -36,10 +36,10 @@ def helper() -> Any:
 
 
 def _fake_run(side_effect: Any) -> Any:
-    """Return a stand-in for ``_run_pytest`` mapping arg-lists to exit codes."""
+    """Return a stand-in for ``_run_pytest`` mapping arg-lists to ``(exit code, output)``."""
 
-    def _run(args: list[str]) -> int:
-        return int(side_effect(args))
+    def _run(args: list[str]) -> tuple[int, str]:
+        return int(side_effect(args)), ""
 
     return _run
 
@@ -133,5 +133,7 @@ class TestRealMatrixRegression:
 
     def test_matrix_has_expected_unique_citation_count(self, helper: Any) -> None:
         # Pins the matrix size; a drift that adds/removes citations fails here.
+        # 53 after 2026-10-31: ADR-014 INV-02 row gained the second counting-test
+        # citation (turnadr001 row 07; verified via check_adr_invariant_matrix.py).
         lines = helper.ADR_INDEX.read_text(encoding="utf-8").splitlines()
-        assert len(helper.extract_cited_node_ids(lines)) == 52
+        assert len(helper.extract_cited_node_ids(lines)) == 53

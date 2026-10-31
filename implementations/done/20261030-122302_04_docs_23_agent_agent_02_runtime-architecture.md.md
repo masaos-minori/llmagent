@@ -9,10 +9,12 @@ Confirm and, where needed, extend the dependency/ownership statements so `agent_
 carries the same three-role description as rows 01-03.
 
 ## Scope
-- :29 Allowed Dependency Direction: "Orchestrator depends on LlmTurnExecutor" — verified
-  accurate (construction + injection at `orchestrator.py:120/:150`); keep.
-- :30 Reason for Process Separation: "decoupling Orchestrator from LlmTurnExecutor
+- :28 Allowed Dependency Direction: "Orchestrator depends on LlmTurnExecutor" — verified
+  accurate (construction + injection at `orchestrator.py:120/:150`); keep. (Re-verified
+  2026-10-31: was cited as :29 at generation; 1-line drift.)
+- :29 Reason for Process Separation: "decoupling Orchestrator from LlmTurnExecutor
   separates turn-level coordination from LLM streaming and tool loop execution" — keep.
+  (Re-verified: was cited as :30.)
 - :101 Orchestrator section bullet "Delegates LLM streaming and the tool loop to
   `LlmTurnExecutor`" — extend with the per-turn lifecycle sentence.
 
@@ -32,7 +34,7 @@ carries the same three-role description as rows 01-03.
 
 ## Implementation
 1. Row 01 landed; mirror its phrasing.
-2. Apply the :101 bullet edit; leave :29/:30 unchanged after re-verification.
+2. Apply the :101 bullet edit; leave :28/:29 unchanged after re-verification.
 
 ## Compatibility considerations
 Consistency checkers cover cross-doc drift with rows 02/03.
@@ -59,9 +61,9 @@ Dependency-direction rules; other component sections.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify :29/:30 accuracy against HEAD | Pending | — | — | Read-only |
-| 2 | Apply :101 bullet edit | Pending | — | — | Needs row 01 |
-| 3 | Run Phase 2 checkers | Pending | — | — | |
+| 1 | Re-verify :28/:29 accuracy against HEAD | Completed | — | 20261031-211701 | Read-only verification: :28/:29 accuracy confirmed vs HEAD; :101 Orchestrator bullet updated to 3-role model per Option A owner decision (ADR :128 INV bytes untouched); :28/:29 component bullets left intact (accurate); gates: consistency agent + quality Pass |
+| 2 | Apply :101 bullet edit | Completed | — | 20261031-211701 | Needs row 01 verification: :28/:29 accuracy confirmed vs HEAD; :101 Orchestrator bullet updated to 3-role model per Option A owner decision (ADR :128 INV bytes untouched); :28/:29 component bullets left intact (accurate); gates: consistency agent + quality Pass |
+| 3 | Run Phase 2 checkers | Completed | — | 20261031-211701 | verification: :28/:29 accuracy confirmed vs HEAD; :101 Orchestrator bullet updated to 3-role model per Option A owner decision (ADR :128 INV bytes untouched); :28/:29 component bullets left intact (accurate); gates: consistency agent + quality Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

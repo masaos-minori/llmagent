@@ -58,8 +58,8 @@ Other sections of the file; generated docs.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert delegation annotation in the ⑤ block | Pending | — | — | Needs row 01 |
-| 2 | Run Phase 2 checkers | Pending | — | — | |
+| 1 | Insert delegation annotation in the ⑤ block | Completed | — | 20261031-211631 | Needs row 01 single delegation bullet added to flow overview; gates: consistency agent + quality Pass |
+| 2 | Run Phase 2 checkers | Completed | — | 20261031-211658 | single delegation bullet added to flow overview; gates: consistency agent + quality Pass single delegation bullet added to flow overview; gates: consistency agent + quality Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
