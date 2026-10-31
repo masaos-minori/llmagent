@@ -86,9 +86,7 @@ def _table_names(conn: sqlite3.Connection) -> set[str]:
     """Return the set of user table names in the database."""
     return {
         str(row[0])
-        for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
     }
 
 

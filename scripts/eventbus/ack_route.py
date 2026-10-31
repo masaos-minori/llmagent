@@ -204,9 +204,7 @@ async def nack(
         ):
             from eventbus.dlq import is_promotable, promote_single  # noqa: PLC0415
 
-            promoted = is_promotable(
-                db, event_id, cfg.max_retry
-            ) and promote_single(
+            promoted = is_promotable(db, event_id, cfg.max_retry) and promote_single(
                 db, cfg.deadletter_dir, event_id, consumer_failure_count
             )
         return ("ok", consumer_failure_count, promoted)

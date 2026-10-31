@@ -106,7 +106,9 @@ def _drain_outbox(db: Any, deadletter_dir: str) -> dict[str, int]:
     async def _runner(fn: Any) -> Any:
         return fn()
 
-    result: dict[str, int] = asyncio.run(process_outbox(db, deadletter_dir, cfg, _runner))
+    result: dict[str, int] = asyncio.run(
+        process_outbox(db, deadletter_dir, cfg, _runner)
+    )
     return result
 
 
@@ -611,9 +613,11 @@ def test_outbox_write_failure_meters_counter_and_records_attempt(
     assert outbox["attempts"] == 1
     assert outbox["next_attempt_at"] is not None  # backoff scheduled (REQ-005)
     # No partial file is left behind by the failed atomic write.
-    assert not list((tmp_path / "deadletter").glob("*.json")) if (
-        tmp_path / "deadletter"
-    ).exists() else True
+    assert (
+        not list((tmp_path / "deadletter").glob("*.json"))
+        if (tmp_path / "deadletter").exists()
+        else True
+    )
 
 
 def test_outbox_continues_after_one_event_write_failure(
@@ -656,7 +660,9 @@ def test_outbox_continues_after_one_event_write_failure(
         (ev1["event_id"], ev2["event_id"]),
     ).fetchall()
     dlq_at = {r["event_id"]: r["dlq_at"] for r in rows}
-    assert dlq_at[ev1["event_id"]] is not None  # promoted row stands despite the failed write
+    assert (
+        dlq_at[ev1["event_id"]] is not None
+    )  # promoted row stands despite the failed write
     assert dlq_at[ev2["event_id"]] is not None
     assert (tmp_path / "deadletter" / f"{ev2['event_id']}.json").exists()
     assert not (tmp_path / "deadletter" / f"{ev1['event_id']}.json").exists()

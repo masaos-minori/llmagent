@@ -533,9 +533,7 @@ class TestStaticVsDynamicDisplay:
     """
 
     @staticmethod
-    def _probe(
-        health: str, *, static_visibility: bool = True
-    ) -> McpProbeResult:
+    def _probe(health: str, *, static_visibility: bool = True) -> McpProbeResult:
         return McpProbeResult(
             key=SERVER_KEY,
             transport="http",
@@ -610,9 +608,7 @@ class TestStaticVsDynamicDisplay:
         assert dynamic_line == "Dynamic health: HEALTHY"
 
     def test_missing_registry_falls_back_to_reason_without_retry_after(self) -> None:
-        _, dynamic_line = _format_availability_display(
-            self._probe("UNAVAILABLE"), None
-        )
+        _, dynamic_line = _format_availability_display(self._probe("UNAVAILABLE"), None)
         assert dynamic_line == "Dynamic health: UNAVAILABLE reason=server_unavailable"
 
     def test_display_path_performs_no_state_transition(self) -> None:

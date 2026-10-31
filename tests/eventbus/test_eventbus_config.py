@@ -792,7 +792,8 @@ def test_invalid_outbox_backoff_base_below_one() -> None:
 
 def test_outbox_backoff_cap_below_base_raises() -> None:
     with pytest.raises(
-        ValueError, match="outbox_backoff_max_seconds must be >= outbox_backoff_base_seconds"
+        ValueError,
+        match="outbox_backoff_max_seconds must be >= outbox_backoff_base_seconds",
     ):
         EventBusConfig(
             port=8015,
