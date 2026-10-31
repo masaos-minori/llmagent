@@ -3,17 +3,17 @@
 **Plan**: `plans/done/20261030-013620_ragcorpus001_rag-corpus-identity.md` (REQ-001, REQ-010)
 
 ## Goal
-Add the `rag_corpus_meta` single-row DDL to the RAG schema definition, registered
-through the dbmig001 migration framework rather than appended to the bare DDL list.
+Add the `rag_corpus_meta` single-row DDL to the RAG schema definition, appended
+directly to `_RAG_SCHEMA_TEMPLATE` next to the existing `chunks` DDL. RAG is a
+recreate-only (`n`) domain (dbmig001 row 18); it has no forward-only migration
+ledger, so the table is created by the fresh-schema builder, not a migration step.
 
 ## Scope
 - `CREATE TABLE IF NOT EXISTS chunks` at `:38` (the placement landmark named in the
   frozen table).
 - `build_rag_schema_sql(dims)` `:158` — the RAG schema assembly point.
 - `WORKFLOW_SCHEMA_VERSION = "1.1.0"` `:25` — existing version-constant precedent.
-- dbmig001 procedure docs (`implementations/20261029-071336_*`, closed batch) define the
-  migration ledger registration API; the exact registration call name is fixed by that
-  landed code — read it at implementation time.
+- RAG is a recreate-only (`n`) domain (dbmig001 row 18; `test_rag_fresh_creation_has_no_ledger`). It has no forward-only migration ledger.
 
 ## Assumptions
 - Plan-level assumptions apply unchanged; see the Source plan Assumptions section.
@@ -23,20 +23,23 @@ through the dbmig001 migration framework rather than appended to the bare DDL li
   `index_generation INTEGER NOT NULL`, `embedding_model_id TEXT NOT NULL`,
   `normalization_version TEXT NOT NULL`, `chunking_policy_version TEXT NOT NULL`,
   `updated_at TEXT NOT NULL`; single-row enforcement via `CHECK (rowid = 1)` (SQLite
-  idiom; alternative `INTEGRITY CHECK` if the dbmig001 ledger prefers it — match the
-  landed ledger's DDL conventions).
-- Registration goes through the dbmig001 forward-only ledger entry, not a raw edit of
-  the `:38` region string, so existing databases receive it as a migration step.
+  idiom).
+- Append the DDL directly to `_RAG_SCHEMA_TEMPLATE` next to the existing `chunks` DDL
+  (`:38` region). RAG is recreate-only, so there is no migration step: the fresh-schema
+  builder (`build_rag_schema_sql`) creates the table on every fresh DB creation. Do NOT
+  route this through any dbmig001 ledger — that would violate the recreate-only contract
+  enforced by `test_rag_fresh_creation_has_no_ledger`.
 
 ## Alternatives considered
 - No file-level alternatives beyond those evaluated in the Source plan; this procedure executes the selected option.
 
 ## Implementation
-1. Implement only after dbmig001's ledger exists; define the migration entry with the
-   DDL above.
-2. Keep fresh-database creation (build_rag_schema_sql `:158`) equivalent to the ledger
-   end-state — the dbmig001 equivalence tests already enforce this; extend them with the
-   new table.
+1. Insert the `rag_corpus_meta` DDL directly into `_RAG_SCHEMA_TEMPLATE`, immediately
+   after the existing `chunks` table DDL at the `:38` landmark (first table in the
+   template). Preserve column order and the single-row `CHECK (rowid = 1)` constraint.
+2. Keep fresh-database creation (`build_rag_schema_sql` `:158`) correct — it renders
+   `_RAG_SCHEMA_TEMPLATE`, so the new table appears automatically. There is no separate
+   migration path; do not add one.
 
 ## Compatibility considerations
 **Dependencies**:
@@ -46,15 +49,18 @@ through the dbmig001 migration framework rather than appended to the bare DDL li
 - No new security surface beyond what the Source plan records.
 
 ## Rollback considerations
-- Forward-only migration ledger: rollback follows the dbmig001 ledger procedure, not a plain file revert.
+- Recreate-only domain: reverting means removing the DDL block from `_RAG_SCHEMA_TEMPLATE`.
+  No ledger row to undo. Coordinate with the recreate-only policy (any schema change
+  requires a fresh database).
 
 ## Validation plan
-- `uv run pytest tests/db` — dbmig001 migration equivalence tests extended with
-  `rag_corpus_meta` (Validation plan row for this file).
+- `uv run pytest tests/db` — `tests/db/test_create_schema.py` fresh-RAG-schema test
+  extended to assert `rag_corpus_meta` exists with the schema above (recreate-only
+  fresh-creation check, not a migration-equivalence test).
 
 ## Completion criteria
-- Fresh and migrated databases both contain `rag_corpus_meta` with identical schema;
-  no direct `CREATE TABLE` bypass left in the file.
+- Fresh RAG DB creation includes `rag_corpus_meta` with the schema above; the table is
+  defined exactly once in `_RAG_SCHEMA_TEMPLATE` with no duplicate or bypass DDL.
 
 ## Out of Scope
 - Everything outside the target file and the anchors recorded above; cross-plan boundaries and sequencing are recorded in the Source plan.
