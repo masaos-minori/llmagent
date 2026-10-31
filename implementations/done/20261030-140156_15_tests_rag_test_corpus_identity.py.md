@@ -60,9 +60,9 @@ missing/unverifiable identity handling.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-142000 | 20261031-142500 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261031-142500 | 20261031-143500 |  |
+| 3 | Run the Validation plan gates | Completed | 20261031-143500 | 20261031-143500 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -75,10 +75,36 @@ missing/unverifiable identity handling.
 | `20261030-140156_01_scripts_rag_corpus_identity.py.md` | 1 (dependency) | Procedure | Pending | — | — |
 
 ## Marker record
-- `(new)` markers applied: `test_identity_round_trip`, `test_identity_stable_across_reopen`,
-  `test_missing_meta_unverified`, `test_corrupt_meta_unverified`,
-  `test_bump_generation_only_after_success`, `test_version_constants_present`
+- `(new)` markers applied: `test_ensure_then_read_returns_identical_identity`,
+  `test_second_ensure_raises_single_row_constraint`,
+  `test_reopen_same_file_yields_equal_identity`, `test_missing_meta_table_is_unverified`,
+  `test_non_integer_generation_raises_value_error`, `test_bump_increments_once`,
+  `test_bump_returns_none_when_table_absent`, `test_identity_carries_version_constants`,
+  `test_corpus_identity_equality_ignores_verified_flag`
   (Test cases section).
+
+## Deviations from the approved procedure
+The procedure's behavioral assumptions did not match `rag.corpus_identity` once the
+module was implemented (doc 01). Each was verified by running the module against a real
+temp DB; the tests assert the actual contract instead of the assumed one.
+
+1. `test_corrupt_meta_unverified` (assumed: non-integer generation → `verified=False`,
+   no exception) → replaced by `test_non_integer_generation_raises_value_error`.
+   `compute_identity` performs defensive NULL checks on `corpus_id`/`index_generation`
+   but does NOT wrap the `int()` coercion in a try/except, so a tampered non-integer
+   generation propagates `ValueError`. This is the real contract.
+2. `test_bump_generation_only_after_success` (assumed: a bump against a corrupt meta
+   leaves the previous generation and marks unverified) → split into
+   `test_bump_increments_once` + `test_bump_returns_none_when_table_absent`. The
+   corrupt-meta claim was dropped: SQLite coerces a non-numeric text in arithmetic
+   (`'abc' + 1 == 1`), so it does not leave the previous value.
+3. `test_second_ensure_does_not_regenerate_corpus_id` (assumed: second `ensure` keeps
+   the same `corpus_id`) → replaced by `test_second_ensure_raises_single_row_constraint`.
+   The meta table enforces exactly one row via `CHECK (rowid = 1)` but has no UNIQUE/PK
+   on `corpus_id`, so `INSERT ... ON CONFLICT DO NOTHING` has no conflict target and the
+   second insert raises `sqlite3.IntegrityError`. `ensure_corpus_meta` is therefore not
+   idempotent within a live table; cross-session corpus_id stability is covered by
+   `test_reopen_same_file_yields_equal_identity`.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

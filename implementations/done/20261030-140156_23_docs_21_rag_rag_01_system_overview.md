@@ -31,7 +31,10 @@ is computed, where it is compared, and what happens on mismatch.
    by default.
 2. In the same note, keep the two-config-file path arrangement as fact; only the
    "undetected ... by any current automated check" claim changes, and add that the
-   startup consistency check reports fatal corpus corruption (docs 03/07).
+   startup consistency check reports fatal corpus corruption (docs 03/07). The fatal
+   severity class (including "unverifiable corpus generation") is established by
+   `docs/21_rag/rag_05_07-rag-index-consistency-checks.md` (row 24) in the same batch;
+   the statement is accurate once that row lands.
 3. In the `RagPipeline` bullet (`:176`), extend the fallback-chain phrase with "identity
    comparison before fallback acceptance".
 4. Add `corpus identity` to the Keywords list. Docs-only change
@@ -62,9 +65,9 @@ is computed, where it is compared, and what happens on mismatch.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-160500 | 20261031-163000 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261031-163000 | 20261031-164500 |  |
+| 3 | Run the Validation plan gates | Completed | 20261031-164500 | 20261031-165000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -77,8 +80,11 @@ is computed, where it is compared, and what happens on mismatch.
 | `20261030-140156_01_scripts_rag_corpus_identity.py.md` | 1 (dependency) | Procedure | Pending | — | — |
 
 ## Marker record
-- `(new)` markers applied: `rag_identity_mismatch_policy` (Procedure section) — name
-  introduced by doc 14.
+- `(new)` markers applied: `corpus identity` (Keywords); "identity comparison before
+  fallback acceptance" (RagPipeline bullet); `rag_identity_mismatch_policy` and the
+  identity-comparison contract (the `:180` note rewritten) — names introduced by doc 14 /
+  the identity gate. Two `[RAG Index Consistency Checks]` links to
+  `rag_05_07-rag-index-consistency-checks.md` added.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

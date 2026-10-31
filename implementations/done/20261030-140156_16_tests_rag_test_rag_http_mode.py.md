@@ -34,11 +34,11 @@ identity on either side, unverified state, and the auth-error no-fallback regres
   outcome with reason `identity_mismatch`, no local re-execution.
 - `test_identity_mismatch_degraded_policy` (new): policy `degraded` → fallback proceeds,
   result marked `identity_degraded=True`, generation recorded.
-- `test_missing_remote_identity_rejected` (new): legacy payload without identity fields →
-  rejected (fail-closed, Risk `:227`).
-- `test_missing_local_identity_rejected` (new): local meta corrupt → rejected.
-- `test_auth_error_still_never_falls_back` (new): HTTP 401/403 with matching identities
-  → still `RagPipelineError`, gate never consulted (REQ-009; complements the existing
+- `test_missing_remote_identity_preserves_fallback` (new): legacy payload without
+  identity fields → `remote_identity=None` → unverifiable → fallback proceeds (approved
+  2026-10-31 semantics; replaces the assumed `test_missing_remote_identity_rejected`).
+- `test_auth_error_still_never_falls_back` (new): HTTP 401/403 → still `RagPipelineError`,
+  gate never consulted (REQ-009; complements the existing
   `test_auth_error_fails_closed_without_in_process_fallback` at
   `tests/rag/test_pipeline_http_result_kind.py:186`).
 - `test_generation_recorded_on_fallback` (new): diagnostics carry
@@ -72,9 +72,9 @@ identity on either side, unverified state, and the auth-error no-fallback regres
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-144000 | 20261031-144500 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261031-144500 | 20261031-145500 |  |
+| 3 | Run the Validation plan gates | Completed | 20261031-145500 | 20261031-145500 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -89,9 +89,28 @@ identity on either side, unverified state, and the auth-error no-fallback regres
 ## Marker record
 - `(new)` markers applied: `test_identity_match_allows_fallback`,
   `test_identity_mismatch_rejected_by_default`, `test_identity_mismatch_degraded_policy`,
-  `test_missing_remote_identity_rejected`, `test_missing_local_identity_rejected`,
-  `test_auth_error_still_never_falls_back`, `test_generation_recorded_on_fallback`
+  `test_missing_remote_identity_preserves_fallback`, `test_generation_recorded_on_fallback`,
+  `test_auth_error_still_never_falls_back`
   (Test cases section).
+
+## Deviations from the approved procedure
+The procedure's two "missing identity → reject" cases did not match the user-approved
+2026-10-31 gate semantics (gate enforces `reject`/`degraded` ONLY when both remote and
+local identities are present and unequal; when either side is missing the fallback is
+preserved and the unverifiable state is recorded). Each was verified against the running
+gate:
+
+1. `test_missing_remote_identity_rejected` (assumed: legacy payload without identity →
+   hard reject) → replaced by `test_missing_remote_identity_preserves_fallback`. A
+   `transient_failure` payload without an injected `remote_identity` yields
+   `remote_identity=None`; the gate treats a missing remote side as unverifiable and
+   preserves the in-process fallback (`result_source == FALLBACK`). This is the
+   fallback-triggering path, which always carries `remote_identity=None`.
+2. `test_missing_local_identity_rejected` (assumed: local meta corrupt → reject) → not
+   landed. Constructing a corrupt/absent local meta would require seeding a second temp
+   DB with a broken `rag_corpus_meta` row; it contradicts the approved semantics (a
+   missing local side is also unverifiable → fallback preserved) and is covered at the
+   unit level by `tests/rag/test_corpus_identity.py::TestUnverifiedStates`.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

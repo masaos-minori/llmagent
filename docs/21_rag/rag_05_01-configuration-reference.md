@@ -91,6 +91,7 @@ Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `Ag
 
 - The Agent process consumes `embed_url` (memory embedding client and the `embed-llm` health check).
 - `rag_query_service_url` is not a key of `config/agent.toml`, and no production process sets it to a non-empty value (see `adr_02_06_010_rag-fallback.md` Scope).
+- `rag_identity_mismatch_policy` (`reject` by default; `degraded` only by explicit operator approval) selects how the `augment()` fallback identity gate labels a remote/local corpus-identity mismatch or an unverifiable identity: `reject` (default) refuses the fallback, `degraded` accepts it while marking the result degraded. It never changes the fallback trigger conditions (ADR-010). Any value other than `degraded` fails closed (rejects).
 
 (Explicit in code — `scripts/agent/config_builders.py`)
 

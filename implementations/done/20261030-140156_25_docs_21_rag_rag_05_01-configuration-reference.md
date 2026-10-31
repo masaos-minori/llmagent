@@ -56,9 +56,9 @@ Document the new `rag_identity_mismatch_policy` key in the configuration referen
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-173000 | 20261031-180000 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261031-173000 | 20261031-180000 |  |
+| 3 | Run the Validation plan gates | Completed | 20261031-173000 | 20261031-180000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -71,8 +71,20 @@ Document the new `rag_identity_mismatch_policy` key in the configuration referen
 | `20261030-140156_14_config_agent.toml.md` | 1 (dependency) | Procedure | Pending | — | — |
 
 ## Marker record
-- `(new)` markers applied: `rag_identity_mismatch_policy` (Procedure section) — same
-  key name as doc 14.
+- `(new)` markers applied: `rag_identity_mismatch_policy` (config/agent.toml bullet) —
+  same key name as doc 14; accepted values `reject`/`degraded`, default `reject`,
+  fail-closed for any other value.
+
+## Deviations from the approved procedure
+None. The approved procedure's placement (the `config/agent.toml` section), accepted
+values (`reject` default, `degraded`), and label-only semantics were all confirmed
+against source: the key is a top-level `config/agent.toml` entry (consumed by the RAG
+pipeline via `resolve_rag_config()` / `ConfigLoader().load_all()`, alongside `rag_db_path`),
+and `_identity_gate()` treats any value other than `"degraded"` as fail-closed reject.
+One pre-existing observation, not changed here (out of scope for this docs-only row):
+the production comment on the `agent.toml` key reads `accept|degraded`, but the code
+treats only `"degraded"` specially and rejects everything else — the word `accept` is
+stale/misleading. Flagged for a follow-up config-comment fix, not edited in this batch.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

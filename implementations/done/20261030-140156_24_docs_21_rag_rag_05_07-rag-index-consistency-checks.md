@@ -33,9 +33,12 @@ consequences and repair actions.
 2. Add a Severity Classes subsection: classification is fixed in code, not
    configuration; list the two classes with their finding sets (names exactly as docs
    03/04 define them).
-3. Repair actions: map each degraded finding to `rebuild_fts`, `rebuild_vec`,
-   `reconcile_url`, or the maintenance `recover` verb (doc 06); fatal findings take
-   restore-from-backup or re-ingest guidance, not the rebuild commands.
+3. Repair actions: map each degraded finding to `rebuild_fts`, `rebuild_vec`, or
+   `reconcile_url` (the three `repair_action` values the code emits); fatal findings
+   take `restore_from_backup` / re-ingest guidance, not the rebuild commands. Note: the
+   `recover` verb named in the approved procedure is `/session recover`, a session-DB
+   recovery command (`scripts/agent/commands/cmd_session.py`), NOT a rag-corpus repair
+   verb — no rag finding maps to it, so it is intentionally omitted.
 4. Keep the `fts_gap` warning example; add one fatal-abort example line. Docs-only
    change (`skills/DESIGN.md` Docs content policy).
 
@@ -64,9 +67,9 @@ consequences and repair actions.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-170000 | 20261031-173000 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261031-170000 | 20261031-173000 |  |
+| 3 | Run the Validation plan gates | Completed | 20261031-170000 | 20261031-173000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -79,10 +82,24 @@ consequences and repair actions.
 | `20261030-140156_03_scripts_db_rag_consistency.py.md` | 1 (dependency) | Procedure | Pending | — | — |
 
 ## Marker record
-- `(new)` markers applied: the five fatal finding names (duplicate `chunk_index`, FK
-  inconsistency, embedding-dimension mismatch, unknown schema, unverifiable corpus
-  generation) and `reconcile_url`, identity-unverified wording (Procedure section) —
-  names introduced by docs 03/04/06/07.
+- `(new)` markers applied: the two severity-class names (Degraded, Fatal), the five
+  fatal finding names (duplicate `chunk_index`, FK inconsistency, embedding-dimension
+  mismatch, unknown schema, unverifiable corpus generation), the `repair_action`
+  values (`rebuild_fts`, `rebuild_vec`, `reconcile_url`, `restore_from_backup`), and
+  identity-unverified wording (Procedure section) — names introduced by
+  `scripts/db/rag_consistency.py` / `scripts/agent/startup_validation.py` / `db.models`.
+
+## Deviations from the approved procedure
+1. The approved procedure item 3 named a fourth repair verb, `recover`, for degraded
+   findings. Verified against source: `recover` is `/session recover`, a session-DB
+   recovery command (`scripts/agent/commands/cmd_session.py`), not a rag-corpus repair
+   verb. No rag finding maps to it. Documented only the three `repair_action` values the
+   code actually emits for degraded findings (`rebuild_fts`, `rebuild_vec`,
+   `reconcile_url`) plus `restore_from_backup` for fatal findings. This is a wording
+   correction, not a scope change.
+2. The existing "Fixing Inconsistencies" repair-flow table was expanded (Severity,
+   `repair_action`, and all five fatal rows added) rather than replaced, so the
+   pre-existing FTS guidance is preserved alongside the new severity routing.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
