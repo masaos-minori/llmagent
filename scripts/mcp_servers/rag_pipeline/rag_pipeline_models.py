@@ -261,6 +261,10 @@ class RagRunResponse(BaseModel):
         default_factory=list,
         description="Final selected chunks; consumed by two-stage fetch callers.",
     )
+    corpus_identity: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Server corpus identity (RAGCORPUS001, REQ-002); additive wire field, always present.",
+    )
 
 
 class RagDebugResponse(RagRunResponse):

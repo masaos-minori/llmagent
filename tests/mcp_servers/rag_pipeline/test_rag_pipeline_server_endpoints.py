@@ -203,6 +203,86 @@ class TestRagDebugPipelineEndpoint:
         fake_service.run_debug_pipeline.assert_awaited_once()
 
 
+class TestCorpusIdentityExposure:
+    """RAGCORPUS001 REQ-002: health + search responses carry the server identity.
+
+    These tests lock the FastAPI wiring that attaches ``_identity_payload()`` to the
+    health ``details`` and to both search responses. ``_identity_payload`` is replaced
+    with a deterministic stub so the tests assert only the wiring (not the DB read);
+    the read itself is covered by
+    tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_identity.py.
+    """
+
+    _SENTINEL = {
+        "corpus_id": "sentinel-corpus",
+        "index_generation": 7,
+        "schema_version": "1",
+        "embedding_model_id": "test-embed-v1",
+        "normalization_version": "1",
+        "chunking_policy_version": "1",
+        "verified": True,
+    }
+
+    def _stub_identity(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(server, "_identity_payload", lambda: dict(self._SENTINEL))
+
+    def test_health_carries_corpus_identity(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._stub_identity(monkeypatch)
+        _stub_config(monkeypatch, {"embed_url": "http://embed.invalid:8081"})
+        _stub_probe(monkeypatch, "reachable")
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["details"]["corpus_identity"] == self._SENTINEL
+
+    def test_run_pipeline_carries_corpus_identity(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._stub_identity(monkeypatch)
+        fake_service.run_pipeline.return_value = RagRunResponse(
+            query="hello",
+            augmented_text="context block",
+            selected_hits=[{"id": 1}],
+        )
+        resp = client.post("/rag_run_pipeline", json={"query": "hello"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["corpus_identity"] == self._SENTINEL
+        # Pre-existing fields unchanged (AC-5).
+        assert body["query"] == "hello"
+        assert body["augmented_text"] == "context block"
+        assert body["selected_hits"] == [{"id": 1}]
+
+    def test_debug_pipeline_carries_corpus_identity_inherited(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._stub_identity(monkeypatch)
+        fake_service.run_debug_pipeline.return_value = RagDebugResponse(
+            query="hello",
+            augmented_text="context block",
+            selected_hits=[],
+            queries=["hello", "hello world"],
+            merged_hits=[{"id": 1}],
+            reranked_hits=[{"id": 1}],
+        )
+        resp = client.post("/rag_debug_pipeline", json={"query": "hello"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["corpus_identity"] == self._SENTINEL
+        # Pre-existing debug fields unchanged (AC-5); RagDebugResponse inherits the field.
+        assert body["queries"] == ["hello", "hello world"]
+        assert body["merged_hits"] == [{"id": 1}]
+        assert body["reranked_hits"] == [{"id": 1}]
+
+
 class TestHealthEndpoint:
     def test_config_load_failure_reports_degraded(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
