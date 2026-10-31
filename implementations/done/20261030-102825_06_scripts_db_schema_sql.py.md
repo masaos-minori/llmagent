@@ -20,9 +20,20 @@ tables; input to REQ-008 replay detection).
 
 ## Assumptions
 
-- Baseline stamp: dbmig001 registry head after its own steps is expected to be 4; this
-  step takes 5. Needs Confirmation of the actual head at implementation time (read the
-  registry, do not assume).
+- Baseline stamp (verified 2026-10-31 against landed dbmig001 code): the workflow ledger
+  head is 1 — `WORKFLOW_TARGET_VERSION = 1` and a single registered step
+  `workflow_ledger_baseline` (0 -> 1) in `scripts/db/migrations_workflow.py:40-46,139-148`.
+  This row's migration step registers 1 -> 2 with a new string code, mirroring the
+  dbmig001 row-06 rule "a future workflow schema change registers its step here"
+  (`implementations/done/20261030-071336_06_scripts_db_migrations_workflow.py.md`).
+- Scope finding (verified 2026-10-31): the 1 -> 2 registration edits
+  `scripts/db/migrations_workflow.py` (REGISTRY, WORKFLOW_VERSION_CODES,
+  WORKFLOW_TARGET_VERSION), table ownership registration edits
+  `tools/check_db_separation.py` `TABLE_OWNERSHIP["workflow"]` (`:68-77`), and the step-2
+  test extension edits `tests/db/test_migrations_workflow.py`. All three are outside this
+  procedure's target file and outside the plan's 21-row target table. Owner approved
+  2026-10-31: all three edits (plus bumping `WORKFLOW_SCHEMA_VERSION` to `"1.2.0"` in
+  this row) are authorized additional targets of the row 06 cycle.
 - `WORKFLOW_SCHEMA_VERSION = "1.1.0"` (`:25`) is the create-fresh constant; the plan's
   ledger rule (dbmig001) governs whether this constant is bumped for additive tables —
   follow the dbmig001 procedure docs (rows 01/06 of that plan), which this plan sequences
@@ -96,8 +107,8 @@ framework requires at the same landing (per its procedure docs, followed verbati
 
 ## Completion criteria
 
-- Fresh `workflow.sqlite` contains both tables + index; a v-4 baseline DB migrates to the
-  new stamp with rows preserved; fingerprint equivalence passes; checker green.
+- Fresh `workflow.sqlite` contains both tables + index; a v-1 (post-bootstrap) baseline DB
+  migrates 1 -> 2 with rows preserved; fingerprint equivalence passes; checker green.
 
 ## Out of Scope
 
@@ -108,14 +119,16 @@ framework requires at the same landing (per its procedure docs, followed verbati
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the DDL additions | Pending | — | — | Gated: dbmig001 rows 01-02 landed first |
-| 2 | Confirm migration-step tests exist in the dbmig001 harness (extension, not this file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the DDL additions | Completed | 20261031-165500 | 20261031-171452 | `execution_snapshots` + `tool_call_state` + `idx_tool_call_state_task_state` appended to the workflow template (columns exactly per Design decisions; `snapshot_id` FK inside workflow.sqlite, no FK on `task_id` per the design enumeration); `WORKFLOW_SCHEMA_VERSION` bumped to `"1.2.0"` (owner-approved). Registered step `workflow_tool_call_state` (1 -> 2) in `migrations_workflow.py` with the DDL duplicated byte-identically (dlqbox001 precedent) + marker replacement (`DELETE` + `INSERT`: the marker readers resolve "latest" by `applied_at` at one-second granularity, so a same-second second row would be ambiguous; delete+insert keeps a single latest row and the create path's fail-closed check accepts migrated DBs) + `PRAGMA user_version = 2`. Ledger constants restructured to the eventbus pattern (`_LEDGER_VERSION=1` for the bootstrap stamp, `_TOOL_STATE_VERSION=2` head, `WORKFLOW_VERSION_CODES` gains `"1.2.0": 2`). Fresh-create stamp moved to head code 2 (ensure_baseline), matching `dlq_outbox` fresh-stamp-5 precedent. `check_db_separation.py` `TABLE_OWNERSHIP["workflow"]` extended (owner-approved) |
+| 2 | Confirm migration-step tests exist in the dbmig001 harness (extension, not this file) | Completed | 20261031-165500 | 20261031-171452 | Test-first extension of `tests/db/test_migrations_workflow.py` (owner-approved): new `TestWorkflowToolCallStateStep` class (migrate+preserve+marker, resume-empty, forged-stamp refusal via missing baseline row, already-present-tables refusal, fresh-vs-migrated convergence incl. `PRAGMA table_info` equality); bootstrap-isolated existing tests via `target_version=1`; `_legacy_workflow_db` drops the lifecycle tables to reproduce the pre-step shape; CLI asserts updated to head version 2. Out-of-table characterization adjustments recorded here: `tests/db/test_create_schema.py` fresh-create stamp assert 1 -> 2; `tests/deploy/test_init_db_eventbus_schema.py` sandbox pinning bug fixed — the appended `workflow_db_path` landed inside the trailing `[tool_definitions.*]` table section so the subprocess had been falling back to the production workflow DB (silent until the 1.2.0 refusal exposed it; key is now prepended top-level) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-171452 | 20261031-171452 | Gates fast-mode all Pass (after `generate_reference_table.py --manifests` refreshed the stale `db_schema_versions.yaml` manifest from the version bump); lint-imports 6 kept (new sibling import `db.schema_sql` in `migrations_workflow.py` stays inside the db contract family); ruff format/check clean; mypy green on the 3 touched scripts files; bandit: 1 new Medium B608 from the step's f-string SQL suppressed with `# nosec B608 - fixed module constants, no user input`, back to the 3-issue master baseline; targeted 106 passed; full suite 10728 passed / 8 skipped; diff-cover 92% >= 90. Production note: `/opt/llm/db/workflow.sqlite` is at ledger 1 (marker 1.1.0); the next deploy must run `db/migrate_db.py --apply` to reach 2 (forward-only, rows preserved) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | dbmig001 Phases 1-2 not yet implemented (plan Blocker Log dependency) | No | — |
+| 1 | dbmig001 Phases 1-2 not yet implemented (plan Blocker Log dependency) | Yes | 2026-10-31 |
+| 1 | Additional-target-file finding (migrations_workflow.py / check_db_separation.py / test_migrations_workflow.py edits outside scope) | Yes | 2026-10-31 |
+| 1 | `scripts/db/migrate_db.py` CLI preflight evaluated every step's precondition against the current DB state, so a multi-step chain always refused at the second step. Owner decision 2026-10-31 (live approval): authorized as a fourth additional target; minimal fix = preflight evaluates only the chain-first step, later steps delegate to `apply()`'s per-step preconditions (same behavior as the eventbus CLI) | Yes | 2026-10-31 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

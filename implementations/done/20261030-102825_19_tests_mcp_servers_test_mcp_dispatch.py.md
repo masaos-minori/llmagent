@@ -110,9 +110,9 @@ Test-first for the new class; characterization for the rest.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend autouse fixture with tmp store wiring | Pending | — | — | Existing assertions untouched |
-| 2 | Add TestDurableDedup (reopen, refuse/allow, store-error) | Pending | — | — | Red until rows 02/04 land |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend autouse fixture with tmp store wiring | Completed | 2026-10-31 (row 04 cycle) | 2026-10-31 | Implementation shape: a class-scoped `durable` fixture in `TestDurableDedup` monkeypatches the dispatch module's store/config globals per test (tmp `mcp_dedup.sqlite`); the pre-existing autouse `_duplicate_cache` fixture stays untouched, which satisfies the characterization constraint even more strictly than the planned fixture-body edit. |
+| 2 | Add TestDurableDedup (reopen, refuse/allow, store-error) | Completed | 2026-10-31 (row 04 cycle) | 2026-10-31 | Cases landed: completed-hit-after-reopen without re-execution, overlay fast path, snapshot-mismatch fresh audited attempt, interrupted retryable replay, interrupted non_retryable refusal, durable args-hash rejection, store-unavailable (`store_error` marker for retryable / `dedup_store_error` fail-closed for non_retryable), once-per-process retention sweep, error/dry-run non-replayable-state clearing. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-31 | 2026-10-31 | `pytest tests/mcp_servers/test_mcp_dispatch.py` 26 passed; `mypy --no-namespace-packages` clean; import contract unchanged (`lint-imports` 6 kept, validated in the batch gate run). Red-then-green history from the row 04 cycle; whole-suite run covers this file in the batch full suite. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

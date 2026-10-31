@@ -79,8 +79,8 @@ Test-first: derivation-equality cases fail until row 01 lands.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Audit the four key sites; add derivation-equality assertions | Pending | — | — | Red until row 01 lands |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Audit the four key sites; add derivation-equality assertions | Completed | 20261031-134939 | 20261031-134939 | audit done: sites :236/:256/:349/:373 are presence/shape-agnostic, kept byte-identical; derivation-equality assertion added to TestHttpTransportIdempotencyRetry (captured key == locally re-derived key, uid=token hash) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-134939 | 20261031-134939 | covered in row 01 cycle validation: 120 targeted + 10685 full suite passed; diff-cover 97% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

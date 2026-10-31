@@ -25,6 +25,16 @@ a new turn).
   message.
 - `retry_class` (new) per row is read from the `tool_call_state` (new) row itself (written at record
   time per rows 06-07), so the engine does not load `config/mcp_dedup.toml` directly.
+- Wiring finding (verified 2026-10-31): `WorkflowEngine.run` (`:108` confirmed) is a stage
+  callback engine — it never imports or calls `LLMTurnRunner`. The shipped turn chain is
+  orchestrator → `agent/workflow_engine_adapter.py` (`orchestrator.py:145-148`) → engine
+  stage callbacks → `agent/llm_turn_executor.py` (`handle_llm_turn`, instantiates
+  `LLMTurnRunner` at `:84`) → `LLMTurnRunner.run`. Passing the control message from the
+  engine to the runner therefore crosses `workflow_engine_adapter.py` and
+  `llm_turn_executor.py`, neither of which is in the frozen target table. Owner decision
+  2026-10-31: `agent/llm_turn_executor.py` (and `agent/workflow_engine_adapter.py` only
+  if the callback contract proves insufficient) are approved additional targets of the
+  row 08 cycle for the message hand-off.
 
 ## Design decisions
 
@@ -106,14 +116,16 @@ No new imports above the workflow layer's existing contract (state_store is same
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement detection + control-message construction | Pending | — | — | Needs rows 06-07 landed |
-| 2 | Land row 20 tests (test-first) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement detection + control-message construction | Completed | 20261031-173000 | 20261031-175803 | `WorkflowEngine.build_turn_control_message(task_id)`: classify stale pending (timeout from `shared.mcp_dedup.load_dedup_config().pending_timeout_minutes` — the loader, not the TOML directly), then list the interrupted rows it transitioned: retryable -> re-issue instruction, non-retryable -> unreplayable manual-action text (`dedup_unreplayable` semantics, row 04). Store/config errors log and return None (turn path never raises). Fresh pending rows (inside the timeout window) are not listed — re-issuing them risks duplicating live work, and once-consumption is preserved because already-interrupted rows are never re-listed. Call site: `workflow_engine_adapter._run_execute_stage` (the parameterless `StageCallback` contract proved insufficient, so the two owner-approved additional targets `workflow_engine_adapter.py` and `llm_turn_executor.py` carry the message to `LLMTurnRunner.run`) |
+| 2 | Land row 20 tests (test-first) | Completed | 20261031-173000 | 20261031-175803 | 6 cases in `tests/agent/workflow/test_workflow_engine.py` (`TestBuildTurnControlMessage`, real temp DB): retryable replay section, non-retryable unreplayable section, no-rows None, fresh-pending not listed, consumed-once, store-failure returns None. Step 3 finalization (post-turn row finalization) is inert by design until the producer lands (see Blocker Log) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-173000 | 20261031-182400 | Batched with rows 07/09: gates fast all Pass, lint-imports 6 kept, ruff clean, mypy green, bandit at the 3-medium master baseline. Batch full suite (post orchestrator-test fix): 10744 passed / 8 skipped / 0 failed in 7m17s; `diff-cover --compare-branch=master --fail-under=90`: 92% (429 changed lines, 33 missing, all in `scripts/shared/mcp_dedup.py` defensive branches) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on rows 06-07 (gated on dbmig001 rows 01-02) | No | — |
+| 1 | Depends on rows 06-07 (gated on dbmig001 rows 01-02) | Yes | 2026-10-31 (dbmig001 plan fully Completed; rows 06-07 execute before row 08 in this batch) |
+| 1 | No producer records pending rows yet (write-trigger gap, row 07 Blocker Log). Owner decision 2026-10-31 (option B): mechanism lands inert; detection returns None in production until the follow-up producer (`issues/20261031-175803_toolstate001_tool-call-state-producer.md`) lands. Completion criteria that depend on a live interrupted row (kill-mid-call staging check) move to that follow-up | Yes | 2026-10-31 |
+| 2 | `tests/agent/test_orchestrator.py` stand-in engine `_RetryThenHaltEngine` (out-of-table characterization test) lacked `build_turn_control_message`, so the new adapter call raised inside every execute attempt (1 full-suite failure). Fixed by mirroring the new engine contract on the stand-in (returns None) | Yes | 2026-10-31 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
@@ -128,4 +140,4 @@ No new imports above the workflow layer's existing contract (state_store is same
 - **Source plan**: `plans/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261030-102825
-- **Related target files**: scripts/agent/workflow/workflow_engine.py
+- **Related target files**: scripts/agent/workflow/workflow_engine.py; owner-approved additional targets: scripts/agent/workflow_engine_adapter.py, scripts/agent/llm_turn_executor.py

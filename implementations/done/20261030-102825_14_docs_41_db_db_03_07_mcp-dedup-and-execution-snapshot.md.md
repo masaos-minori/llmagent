@@ -93,8 +93,8 @@ Docs prose + one DDL block matching row 06 exactly (copy columns verbatim after 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the new doc after rows 02/04/06 land | Pending | — | — | Naming + index registration per Assumptions |
-| 2 | Run the docs validation checkers (`routing.md` Tools) | Pending | — | — | |
+| 1 | Write the new doc after rows 02/04/06 land | Completed | 2026-10-31 | 2026-10-31 | Frozen `db_03_07` name kept (Assumption 1). `docs/00_index.md` untouched: the 41_db entries there are task-scope mapping rows, and `check_docs_structure` passes without an index entry (Assumption 2 resolved: not demanded). Deviation: the planned verbatim DDL block was replaced by a column-list prose pointing at the canonical DDL (`db/schema_sql.py`, `migrations_workflow.py`) because `check_docs_content_policy` flags any `sql` fence with CREATE TABLE/INDEX corpus-wide and CI runs `--strict`. `db_08_active_databases.md` still lacks `mcp_dedup.sqlite`; no frozen row owns that edit — flagged in the doc and here for the owner. |
+| 2 | Run the docs validation checkers (`routing.md` Tools) | Completed | 2026-10-31 | 2026-10-31 | `check_docs_quality`, `check_docs_structure docs/41_db/*.md`, `check_docs_content_policy`, `check_docs_consistency --domain db` all pass. Front matter `related:` must use plain basenames (checker), and a bare `time.time()` reference trips `check_docs_consistency` symbol scan — phrasing changed. `stale_detector` on this procedure reports only `new_target_exists` for the file this cycle created. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

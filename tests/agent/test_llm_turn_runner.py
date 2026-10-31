@@ -1092,3 +1092,58 @@ class TestAvailabilityHintTokenImpact:
             f"bound-summary cost={total_delta} tokens, "
             f"totals unhinted={base_total} hinted={hinted_total}"
         )
+
+
+class TestControlMessageInjection:
+    """run(control_message=...) per-request injection (toolexec001 row 09)."""
+
+    def _make_runner(self) -> LLMTurnRunner:
+        ctx = _make_ctx()
+        ctx.conv.history = [{"role": "user", "content": "hi"}]
+        return LLMTurnRunner(ctx, _make_guard())
+
+    def test_kwarg_exists_with_none_default(self) -> None:
+        import inspect
+
+        sig = inspect.signature(LLMTurnRunner.run)
+        param = sig.parameters["control_message"]
+        assert param.kind is inspect.Parameter.KEYWORD_ONLY
+        assert param.default is None
+
+    def test_build_entry_carries_message_text(self) -> None:
+        runner = self._make_runner()
+        entry = runner._build_control_entry("replay instructions")
+        assert entry is not None
+        assert entry["role"] == "system"
+        assert entry["content"] == "replay instructions"
+        assert set(entry) == {"role", "content"}
+
+    def test_build_entry_none_for_no_message(self) -> None:
+        runner = self._make_runner()
+        assert runner._build_control_entry(None) is None
+
+    def test_stream_appends_entry_without_mutating_history(self) -> None:
+        import asyncio
+
+        runner = self._make_runner()
+        original = list(runner._ctx.conv.history)
+        runner._control_entry = runner._build_control_entry("replay instructions")
+        expected = MagicMock()
+        runner._ctx.services_required.llm.stream = AsyncMock(return_value=expected)
+        result = asyncio.run(runner._stream_llm("http://llm", 0))
+        assert result is expected
+        sent_history = runner._ctx.services_required.llm.stream.await_args[0][1]
+        assert sent_history[:-1] == original
+        assert sent_history[-1]["content"] == "replay instructions"
+        # Persistent history untouched: completion criterion.
+        assert runner._ctx.conv.history == original
+
+    def test_no_entry_stream_history_identical(self) -> None:
+        import asyncio
+
+        runner = self._make_runner()
+        original = list(runner._ctx.conv.history)
+        runner._ctx.services_required.llm.stream = AsyncMock(return_value=MagicMock())
+        asyncio.run(runner._stream_llm("http://llm", 0))
+        sent_history = runner._ctx.services_required.llm.stream.await_args[0][1]
+        assert sent_history == original

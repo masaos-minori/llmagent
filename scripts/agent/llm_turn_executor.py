@@ -78,8 +78,14 @@ class LlmTurnExecutor:
         task_id: str = "",
         stage_id: str = "",
         attempt_id: str = "",
+        control_message: str | None = None,
     ) -> TurnResult:
-        """Execute one LLM turn and return the result."""
+        """Execute one LLM turn and return the result.
+
+        `control_message` (toolexec001 row 08 hand-off) is the workflow engine's
+        per-turn replay control text, constructed by WorkflowEngine and carried to
+        LLMTurnRunner unchanged; this module does not interpret it.
+        """
         guard = ToolLoopGuard(self._ctx)
         runner = LLMTurnRunner(
             self._ctx,
@@ -94,6 +100,7 @@ class LlmTurnExecutor:
                 task_id=task_id,
                 stage_id=stage_id,
                 attempt_id=attempt_id,
+                control_message=control_message,
             )
             if result.exception is not None:
                 self.call_on_error(result.exception)

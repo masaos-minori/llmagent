@@ -98,8 +98,8 @@ Test-first: red until row 03 lands.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create test file + five test classes | Pending | — | — | Red until row 03 lands |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create test file + five test classes | Completed | 2026-10-31 | 2026-10-31 | Landed with row 03 cycle (co-landing for the coverage gate); 6 classes incl. TestTolerance covering unreadable/malformed fallbacks; 28 tests |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-31 | 2026-10-31 | Targeted 28 passed; full suite 10678 passed; diff-cover 97% >= 90 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

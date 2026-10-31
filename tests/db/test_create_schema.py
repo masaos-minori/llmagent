@@ -729,7 +729,9 @@ class TestCreatePathLedgerCoverage:
                 "ORDER BY applied_at DESC LIMIT 1"
             ).fetchone()
             assert latest is not None and latest[0] == WORKFLOW_SCHEMA_VERSION
-            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 1
+            # Fresh create stamps the registry head code (toolexec001 row 06:
+            # the canonical template already carries the lifecycle tables).
+            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 2
         finally:
             conn.close()
 

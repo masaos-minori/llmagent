@@ -19,7 +19,20 @@ contract; REQ-005 replay states).
 
 - Docs describe operational behavior and failure semantics only (`skills/DESIGN.md` Docs
   content policy).
-- Land after rows 01-04 so the doc describes shipped behavior (plan Phase 6).
+- Land after rows 01-04 so the doc describes shipped behavior (plan Phase 6). Rows 01-04 are
+  landed/verifying in this batch: `derive_idempotency_key` shipped in `shared/http_transport.py:62-73`
+  (deterministic `sha256(method\n tool_name\n canonical-JSON(args)\n uid)`, replacing the previous
+  per-call `uuid.uuid4()`), durable store + bounded overlay shipped in `mcp_servers/dispatch.py` (staged).
+- Adversarial verification finding 2026-10-31: this file contains **no** existing idempotency-key,
+  UUID4, or cache text (`rg -i 'uuid|idempotency'` clean) — the Procedure's "update the existing
+  idempotency-key text" premise is false for this target. The shipped key/cache prose lives in
+  `docs/22_mcp/mcp_03_01_dispatch-and-routing.md:57-66` ("Idempotency and retry": key ownership,
+  cache keying, TTL/eviction), which is not a frozen target row. Owner decision 2026-10-31: keep
+  the frozen path; row 11 adds a new "Idempotency key derivation and durable dedup" section to
+  this file (it documents `HttpTransport`, which now derives and emits the key), and does **not**
+  silently edit `mcp_03_01`. If the post-landing stale detector flags the `mcp_03_01` cache/TTL
+  prose as outrunning shipped behavior (overlay is now store-fed), a minimal wording adjustment
+  there is authorized as an additional target of the row 11 cycle, recorded in this doc's Notes.
 
 ## Design decisions
 
@@ -82,8 +95,8 @@ Prose edits; keep the file's existing heading levels and terminology
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update key + dedup sections | Pending | — | — | After rows 01-04 |
-| 2 | Run the docs validation checkers (`routing.md` Tools) | Pending | — | — | |
+| 1 | Update key + dedup sections | Completed | 2026-10-31 | 2026-10-31 | Step 1's "update existing UUID4 text" premise stayed false (Assumption finding): file had no key text, so a new "Idempotency Key Derivation and Durable Dedup" subsection was added under HttpTransport per the owner decision. `mcp_03_01` not edited: the stale detector on this procedure is clean and `check_docs_consistency --domain mcp` reports no cross-doc conflict, so the authorized additional-target edit was not needed. Replay table not duplicated — cross-links `db_03_07`. Added `db_03_07_mcp-dedup-and-execution-snapshot.md` to front matter `related:`. |
+| 2 | Run the docs validation checkers (`routing.md` Tools) | Completed | 2026-10-31 | 2026-10-31 | `check_docs_structure` (target file), `check_docs_content_policy`, `check_docs_consistency --domain mcp`, `check_docs_quality` all pass; `stale_detector` on this procedure: not stale. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

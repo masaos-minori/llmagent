@@ -42,6 +42,10 @@ class CallToolResponse(BaseModel):
 
     result: str = Field(..., description="Formatted result text")
     is_error: bool = Field(..., description="True when the tool call failed")
+    dedup_state: str = Field(
+        default="",
+        description="Durable-dedup state tag for this call ('' when no dedup branch was taken)",
+    )
 
 
 class McpTool(TypedDict):

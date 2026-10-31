@@ -21,8 +21,10 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Bump this constant whenever the workflow schema changes in a way that requires
-# recreating the database.
-WORKFLOW_SCHEMA_VERSION = "1.1.0"
+# recreating the database. Additive tables land through the registered forward
+# migration (dbmig001 registry); the bumped value must match the registry's head
+# step (toolexec001 row 06: 1.2.0 <-> workflow_tool_call_state, code 2).
+WORKFLOW_SCHEMA_VERSION = "1.2.0"
 
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
@@ -220,6 +222,30 @@ CREATE TABLE IF NOT EXISTS artifacts (
     workflow_id    TEXT,
     attempt_number INTEGER
 );
+
+-- Tool-call lifecycle tables (toolexec001 REQ-007). Keyed on the tool-call
+-- idempotency key, not the task key (REQ-010: tasks.idempotency_key stays as-is).
+-- Byte-identical in shape to _TOOL_CALL_STATE_SQL in db.migrations_workflow, so
+-- fresh-created and migrated databases converge.
+CREATE TABLE IF NOT EXISTS execution_snapshots (
+    snapshot_id   TEXT PRIMARY KEY,
+    snapshot_json TEXT NOT NULL,
+    recorded_at   REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tool_call_state (
+    idempotency_key TEXT PRIMARY KEY,
+    task_id         TEXT NOT NULL,
+    tool            TEXT NOT NULL,
+    state           TEXT NOT NULL CHECK (state IN ('pending', 'completed', 'failed', 'interrupted')),
+    retry_class     TEXT NOT NULL,
+    snapshot_id     TEXT REFERENCES execution_snapshots(snapshot_id),
+    created_at      REAL NOT NULL,
+    updated_at      REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tool_call_state_task_state
+    ON tool_call_state(task_id, state);
 
 CREATE TABLE IF NOT EXISTS workflow_schema_version (
     version    TEXT NOT NULL,

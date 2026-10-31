@@ -80,8 +80,8 @@ Prose edits; preserve the file's section flow and the existing link
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update key-semantics + table inventory sections | Pending | — | — | After rows 06-07 |
-| 2 | Run the docs validation checkers (`routing.md` Tools) | Pending | — | — | |
+| 1 | Update key-semantics + table inventory sections | Completed | 2026-10-31 | 2026-10-31 | `:71` UUID4 task-key sentence preserved verbatim; StateStore scope sentence extended with tool-call lifecycle ownership; task-key vs tool-call-key distinction added; new "Workflow Lifecycle Tables (toolexec001)" inventory subsection (one-line responsibilities, pointer to `db_03_07`, producer-gap issue note). `db_03_07` added to front matter `related:`. |
+| 2 | Run the docs validation checkers (`routing.md` Tools) | Completed | 2026-10-31 | 2026-10-31 | `check_docs_structure` (target file), `check_docs_content_policy`, `check_docs_quality`, `check_docs_consistency --domain agent` pass; `stale_detector` on this procedure: not stale. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

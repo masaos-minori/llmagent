@@ -84,8 +84,8 @@ Test-first: these tests fail until row 01 lands (expected red state until then).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add deterministic + cross-process key tests | Pending | — | — | Red until row 01 lands |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add deterministic + cross-process key tests | Completed | 20261031-134939 | 20261031-134939 | Landed with row 01 cycle; TestDeriveIdempotencyKey: 7 tests (equality, insertion-order invariance, args/uid sensitivity, shape regex, two-transport header equality, subprocess cross-process determinism) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-134939 | 20261031-134939 | covered in row 01 cycle validation: 120 targeted + 10685 full suite passed; diff-cover 97% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

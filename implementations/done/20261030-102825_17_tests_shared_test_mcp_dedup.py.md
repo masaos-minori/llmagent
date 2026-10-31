@@ -101,8 +101,8 @@ Test-first: red until row 02 (and row 10 for config cases) land.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create test file + six test classes | Pending | — | — | Red until rows 02/10 land |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create test file + six test classes | Completed | 2026-10-31T05:08:44Z | 2026-10-31T05:09:03Z | 5 classes landed (21 tests incl. truncation + config validation, tmp_path only); full suite 10705 passed |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-31T05:08:44Z | 2026-10-31T05:09:03Z | TestCrossProcessSharing via subprocess second process on same file; diff-cover 93% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

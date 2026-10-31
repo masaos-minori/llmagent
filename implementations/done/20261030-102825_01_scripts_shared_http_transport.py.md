@@ -32,8 +32,8 @@ caller-supplied-key behavior).
 - Per UNK-01 (resolved by the plan at Phase 2): hash inputs are fixed as
   `method + tool_name + canonical-JSON(args) + uid`. `method` is the transport's fixed
   RPC name (`"call_tool"`); `uid` is derived from the transport's own identity
-  (`_session_id`, falling back to the auth token hash when absent) — Needs Confirmation
-  of the final uid source (the plan leaves per-user dedup open at UNK-01).
+  (`_session_id`, falling back to the auth token hash when absent) — Owner confirmed
+  2026-10-31: `_session_id` primary, auth-token hash fallback (UNK-01 closed).
 
 ## Design decisions
 
@@ -114,10 +114,10 @@ Pure function; no signature change to `call`, no config change, no new imports b
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `derive_idempotency_key` (new) + fallback-site swap | Pending | — | — | |
-| 2 | Land row 15/16 test updates (test-first) before or with this row | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update `docs/22_mcp/mcp_03_03_*` (row 11) after landing | Pending | — | — | |
+| 1 | Implement `derive_idempotency_key` (new) + fallback-site swap | Completed | 20261031-134857 | 20261031-134857 | derive_idempotency_key added; uuid4 fallback replaced (uid=_session_id primary, auth-token hash fallback); uuid import dropped; Method correction applied: hashlib/json were NOT pre-imported, added |
+| 2 | Land row 15/16 test updates (test-first) before or with this row | Completed | 20261031-134857 | 20261031-134857 | rows 15/16 test updates landed with this cycle (co-landing for the diff-cover coverage gate) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-134857 | 20261031-134857 | 120 targeted + 10685 full suite passed; diff-cover 97%; ruff/canonical-mypy/lint-imports/bandit(no new findings)/docstrings/module-size/mock-patch-targets clean |
+| 4 | Update `docs/22_mcp/mcp_03_03_*` (row 11) after landing | Skipped | — | — | Docs update owned by the dedicated row 11 procedure (Phase 6); not duplicated here |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

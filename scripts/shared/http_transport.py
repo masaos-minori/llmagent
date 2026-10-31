@@ -3,8 +3,9 @@
 
 import asyncio
 import dataclasses
+import hashlib
+import json
 import logging
-import uuid
 from typing import Any
 
 import httpx
@@ -56,6 +57,22 @@ _PRESEND_SAFE_ERRORS: tuple[type[BaseException], ...] = (
 # fulfillment and has no post-dispatch emitter in this repo, so it stays
 # retryable for all tools.
 _AMBIGUOUS_RETRY_STATUSES: frozenset[int] = frozenset({502, 503, 504})
+
+
+def derive_idempotency_key(
+    method: str, tool_name: str, args: dict[str, Any], uid: str
+) -> str:
+    """Derive a deterministic idempotency key for one logical tool call (REQ-001).
+
+    ``sha256(method \\n tool_name \\n canonical-JSON(args) \\n uid)``: an identical
+    logical call re-derives the byte-identical key across retries, processes, and
+    restarts. The canonical JSON (sorted keys, compact separators) makes dict
+    insertion order irrelevant. The result is 64-char hex, satisfying the house
+    key shape ``^[A-Za-z0-9_-]{1,64}$``.
+    """
+    canonical_args = json.dumps(args, sort_keys=True, separators=(",", ":"))
+    payload = f"{method}\n{tool_name}\n{canonical_args}\n{uid}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 class TransportError(Exception):
@@ -167,10 +184,17 @@ class HttpTransport:
         timeouts, invalid responses).  Tool-level errors from the MCP server
         are returned as-is with is_error=True in the result.
         """
-        # One idempotency key per logical call, generated here and reused across
-        # every retry (REQ-005). Sent as a header so the server can deduplicate a
-        # re-sent write via dispatch.py's _duplicate_cache.
-        idempotency_key = str(uuid.uuid4())
+        # One idempotency key per logical call, derived deterministically from
+        # (method, tool name, canonical args, uid) and reused across every retry
+        # (REQ-001 + REQ-005). uid is the transport's own identity: _session_id,
+        # falling back to the auth-token hash when no session id is set. Sent as
+        # a header so the server can deduplicate a re-sent write via dispatch.py's
+        # _duplicate_cache.
+        uid = (
+            self._session_id
+            or hashlib.sha256(self._auth_token.encode("utf-8")).hexdigest()
+        )
+        idempotency_key = derive_idempotency_key("call_tool", name, args, uid)
         headers: dict[str, str] = {}
         if self._auth_token:
             headers["Authorization"] = f"Bearer {self._auth_token}"

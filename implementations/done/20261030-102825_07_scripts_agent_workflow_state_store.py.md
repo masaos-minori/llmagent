@@ -20,7 +20,14 @@ turn entry can detect pending calls (REQ-008 persistence side).
   the helpers live directly on `StateStore` or in a new operation module (e.g.
   `tool_call_state_ops.py`) must match that pattern — the frozen row names this file, so
   direct methods are the default; Needs Confirmation if the owner wants an operation
-  module instead (that would be an additional target file).
+  module instead (that would be an additional target file). Verified 2026-10-31: the
+  landed `StateStore` is a facade delegating every CRUD operation to sibling modules
+  (`task_ops.create_task` import at `state_store.py:18,58`; `attempt_ops.py`,
+  `artifact_ops.py`, `idempotency_ops.py` siblings) — the operation-module variant
+  (`tool_call_state_ops.py`) is what the shipped pattern actually follows; direct methods
+  would deviate from it. Owner decision 2026-10-31: thin facade methods on `StateStore`
+  delegating to a new `scripts/agent/workflow/tool_call_state_ops.py` (approved additional
+  target of the row 07 cycle), matching the shipped ops-module pattern.
 - Table shape exactly as row 06 defines it.
 
 ## Design decisions
@@ -98,14 +105,15 @@ Pure SQL helpers; no new imports above the workflow layer's contract.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the helper methods | Pending | — | — | Needs row 06 tables present |
-| 2 | Extend workflow-store test coverage (with row 20) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the helper methods | Completed | 20261031-171911 | 20261031-175803 | Per the owner decision above: ops module `scripts/agent/workflow/tool_call_state_ops.py` (approved additional target) holds the four helpers plus `get_tool_call_state` (needed to return the full row after the stale transition), and `StateStore` carries thin facade methods delegating to it. Timestamps are REAL epoch seconds (`time.time()`), matching the row-06 table DDL. Fresh-pending rows are intentionally left untouched |
+| 2 | Extend workflow-store test coverage (with row 20) | Completed | 20261031-171911 | 20261031-175803 | 5 cases in `tests/agent/workflow/test_workflow_state_store.py` (`TestToolCallStateOps`, real temp DB via `create_workflow_schema`): record+task-isolation, duplicate-key ignore, finalize, created_at ordering, stale-classify once/idempotent. Row-20 engine coverage landed with row 08 (`TestBuildTurnControlMessage`) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-173000 | 20261031-182400 | Validation batched with rows 08-09 (same-phase cycles): gates fast all Pass (incl. `check_db_separation`, `generate_reference_table --check`), lint-imports 6 kept (agent -> shared import of the dedup config loader is inside the contract family), ruff clean, mypy green on the touched agent files, bandit at the 3-medium master baseline. Batch full suite (post orchestrator-test fix): 10744 passed / 8 skipped / 0 failed in 7m17s; `diff-cover --compare-branch=master --fail-under=90`: 92% (429 changed lines, 33 missing, all in `scripts/shared/mcp_dedup.py` defensive branches) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on row 06 DDL (itself gated on dbmig001 rows 01-02) | No | — |
+| 1 | Depends on row 06 DDL (itself gated on dbmig001 rows 01-02) | Yes | 2026-10-31 (dbmig001 plan fully Completed, all phases; row 06 executes in this batch before row 07) |
+| 1 | Write-trigger gap: no code path yet records pending rows when the agent issues a tool call (the helpers have no producer). Owner decision 2026-10-31 (option B): land the detection/injection mechanism only; producer wiring deferred to a follow-up raw issue `issues/20261031-175803_toolstate001_tool-call-state-producer.md` (the only viable site, `agent/tool_runner.py`, is outside the frozen target table and needs a key-identity + store-access design) | Yes | 2026-10-31 (deferred by owner decision; mechanism inert until the producer lands, REQ-010 preserved) |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
@@ -120,4 +128,4 @@ Pure SQL helpers; no new imports above the workflow layer's contract.
 - **Source plan**: `plans/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261030-102825
-- **Related target files**: scripts/agent/workflow/state_store.py
+- **Related target files**: scripts/agent/workflow/state_store.py; owner-approved additional target: scripts/agent/workflow/tool_call_state_ops.py

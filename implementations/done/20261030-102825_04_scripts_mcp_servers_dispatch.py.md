@@ -26,6 +26,9 @@ dispatcher cutover; REQ-005; REQ-009).
   crosses files outside the frozen table. This row only emits the fields on
   `DispatchResult` / the transport payload; if the executor call-site edit is needed it is
   an additional-target-file discovery to resolve with the plan owner before implementation.
+  Owner decision 2026-10-31: the agent-side `tool_runner.py` call-site edit (near `:216`)
+  is approved as a minimal additional target of the row 04/07 wiring — one record call
+  fed by the `DispatchResult` fields this row emits.
 - `_duplicate_cache` entry shape (`_CacheEntry` at `:98`) stays for the overlay; TTL 3600
   and `_IDEMPOTENCY_CACHE_MAX_ENTRIES = 1024` (`:78`) semantics stay as overlay bounds.
 
@@ -125,15 +128,16 @@ Store calls are sync row-02 functions; if event-loop stalls are measured, wrap v
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement store-backed lookup/policy + overlay demotion | Pending | — | — | |
-| 2 | Land row 19 test updates (test-first) before or with this row | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Staging check: restart dispatcher between identical calls (plan Phase 6) | Pending | — | — | |
+| 1 | Implement store-backed lookup/policy + overlay demotion | Completed | 20261031-104503 | 20261031-154755 | Staged implementation re-verified against Design decisions: overlay fast path kept, `DedupStore` lookup order, `record_pending`/`record_completed`/`record_failed` around the handler (no transaction spans `await handler`), one-shot `_purge_once`, `dedup_state` on every branch |
+| 2 | Land row 19 test updates (test-first) before or with this row | Completed | 20261031-104503 | 20261031-154755 | Row 19 tests landed (staged, `TestDurableDedup` at `:286` + `TestDurableDedupDryRunClear` at `:535`); full archival cycle runs as memo row 19 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-154755 | 20261031-154755 | Gates fast-mode all Pass; ruff format/check clean; mypy `--no-namespace-packages scripts/` green (19 batch-introduced `call-arg` errors fixed — see Blocker Log); lint-imports 6 contracts kept; bandit `-ll` Medium×3 confirmed pre-existing master baseline (`migrate_db.py`, `db_migrations.py`), batch files clean; targeted tests 153 passed; full suite 10718 passed / 8 skipped; diff-cover 93% ≥ 90. Transport-payload emission also touched `scripts/mcp_servers/models.py` (`CallToolResponse.dedup_state`) — not in the frozen table, recorded per Assumptions owner decision |
+| 4 | Staging check: restart dispatcher between identical calls (plan Phase 6) | Completed | 20261031-154755 | 20261031-154755 | Two-process check via `/tmp/opencode/dedup_restart_check.py` against a shared tmp store: process 1 executes (`dedup_state=""`, handler count 1); fresh process 2 (dispatcher restart) returns `dedup_state="duplicate_hit"`, stored output byte-identical, handler count stays 1 → completed-hit with zero handler invocations |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | `CallToolResponse.dedup_state` was emitted with positional `Field("")`; pydantic 2.13 typed-init treats it as required → 19 new mypy `call-arg` errors at direct-construction server call sites (contradicts this row's "callers unaffected" note: servers construct `CallToolResponse` directly, not only via `_to_call_tool_response`) | Yes | 2026-10-31 — switched to repo-convention keyword `Field(default="")` in `scripts/mcp_servers/models.py`; mypy `scripts/` green; runtime default verified |
+| 3 | `config/mcp_dedup.toml` shipped by row 10 has two loading defects: `[retry_class]` keys are REQ-006 server-group names (`file_write`, `git`...) while `mcp_dedup.retry_class()` looks up live dispatch tool names (`write_file`, `git_add`... → all default to `non_retryable`); and `db_path`/`retention_days`/`pending_timeout_minutes` sat top-level instead of under `[dedup]`, so the loader ignored them (defaults coincided). | Yes | 2026-10-31 — user-approved: keys expanded to the 24 live tool names preserving REQ-006 groups (`trigger_workflow` left unclassified → fail-safe `non_retryable` default); `[dedup]` section added; `load_dedup_config()` re-verified |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

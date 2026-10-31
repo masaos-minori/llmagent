@@ -561,7 +561,7 @@ entries:
   kind: function
   name: audit_tool_exec
   signature: def audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type,
-    artifact_uri, source, idempotency_key, task_linkage) -> None
+    artifact_uri, source, idempotency_key, task_linkage, dedup_state) -> None
   summary: Write a tool_exec event with mcp_request_id to the audit log.
 - file: scripts/agent/tool_audit.py
   kind: function

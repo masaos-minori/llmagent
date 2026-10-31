@@ -56,6 +56,41 @@ class LLMTurnRunner:
         self._guard = guard
         self._tracer = tracer
         self.llm_url: str = ""
+        self._control_entry: LLMMessage | None = None
+
+    def _build_control_entry(self, control_message: str | None) -> LLMMessage | None:
+        """Build the per-request system-role control entry, or None.
+
+        Validation-failure falls back to no injection (log-only): a malformed
+        control text must not crash the turn.
+        """
+        if not control_message:
+            return None
+        # Schema-strict entry (role+content only, the system-role whitelist):
+        # no `_ephemeral`/`source` keys — the entry is never persisted (per-request
+        # copy only) and message_schema restricts those keys to trusted sources.
+        # Provenance is carried by the message text itself (row 08 header).
+        entry: dict[str, object] = {
+            "role": "system",
+            "content": control_message,
+        }
+        try:
+            from agent.message_schema import validate_message
+
+            result = validate_message(entry)
+            if not result.success:
+                logger.warning(
+                    "Control message rejected by message validation (%s); proceeding without injection",
+                    result.reason,
+                )
+                return None
+        except Exception as exc:  # noqa: BLE001 — validation tooling failure must fall back to no injection, not crash the turn
+            logger.warning(
+                "Control message validation raised %s; proceeding without injection",
+                type(exc).__name__,
+            )
+            return None
+        return cast(LLMMessage, entry)
 
     # ── Public entry point ────────────────────────────────────────────────────
 
@@ -67,8 +102,14 @@ class LLMTurnRunner:
         task_id: str,
         stage_id: str,
         attempt_id: str,
+        control_message: str | None = None,
     ) -> TurnResult:
-        """Send ctx.conv.history to LLM, execute tool calls, return TurnResult."""
+        """Send ctx.conv.history to LLM, execute tool calls, return TurnResult.
+
+        `control_message` (toolexec001 row 09) is the workflow engine's per-turn
+        replay control text; when provided it is appended to the per-request
+        history copy only — persistent conversation history is never mutated.
+        """
         if not (workflow_id and task_id and stage_id and attempt_id):
             raise RuntimeError(
                 "LLMTurnRunner.run() requires non-empty workflow context: "
@@ -78,6 +119,7 @@ class LLMTurnRunner:
         self.llm_url = llm_url
         ctx = self._ctx
         state = TurnLoopState()
+        self._control_entry = self._build_control_entry(control_message)
 
         for turn in range(ctx.cfg.tool.max_tool_turns):
             try:
@@ -293,8 +335,13 @@ class LLMTurnRunner:
             if registry is not None
             else ctx.cfg.tool.tool_definitions
         )
+        history = ctx.conv.history
+        if self._control_entry is not None:
+            # Per-request copy: the control entry reaches this turn's LLM calls
+            # only; persistent history is untouched (row 09 contract).
+            history = [*ctx.conv.history, self._control_entry]
         return await ctx.services_required.llm.stream(
             llm_url,
-            ctx.conv.history,
+            history,
             tool_defs,
         )

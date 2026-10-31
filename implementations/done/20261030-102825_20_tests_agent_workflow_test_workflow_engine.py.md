@@ -18,10 +18,14 @@ control message to the runner (REQ-008), test-first for rows 07-08.
 
 ## Assumptions
 
-- Verified HEAD anchors: `TestRetryClassification:118`, `TestExecutionRouting:153`,
-  `test_terminal_state_wins:181`, `test_terminal_state_is_idempotent_on_replay:198`
-  — these stay byte-identical (characterization; REQ-010 stage-retry semantics
-  unchanged).
+- Anchor finding (re-verified 2026-10-31): the earlier claim of `TestRetryClassification:118`,
+  `TestExecutionRouting:153`, `test_terminal_state_wins:181`,
+  `test_terminal_state_is_idempotent_on_replay:198` is stale draft residue — those names do not
+  exist anywhere in `tests/`. The actual characterization set to keep byte-identical is the
+  file's existing classes: `TestWorkflowEngineHappyPath:87`, `TestWorkflowEngineRetry:109`,
+  `TestWorkflowEngineTimeout:161`, `TestWorkflowEngineIdempotency:184`
+  (`test_skip_already_processed_stage:186`), `TestWorkflowEngineStages:206`,
+  `TestRunStageWithRetryGeneralization:231` (REQ-010 stage-retry semantics unchanged).
 - The engine's stage hooks live in `agent/workflow/idempotency_ops.py`
   (`begin_stage_if_new:18`, `is_event_processed:12`, verified HEAD); new pending
   detection is a separate axis (tool-call state rows, not stage events) per row 08.
@@ -66,7 +70,7 @@ control message to the runner (REQ-008), test-first for rows 07-08.
 Test-first: red until rows 06-08 land (row 06 gated on dbmig001 — inherited gate).
 
 ### Details
-- Existing classes `:118-198` untouched.
+- Existing classes `:87-319` (per the corrected Assumptions anchor list) untouched.
 
 ## Compatibility considerations
 
@@ -101,13 +105,13 @@ Test-first: red until rows 06-08 land (row 06 gated on dbmig001 — inherited ga
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add four new test classes + seed helpers | Pending | — | — | Red until rows 06-08 land; inherits row 06 dbmig001 gate |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add four new test classes + seed helpers | Completed | 2026-10-31 (row 08 cycle) | 2026-10-31 | Deviation recorded: the landed design (row 08, owner-approved Notes) makes the engine build a control message from the rows its `classify_stale_pending` call just transitioned; it does not itself re-execute anything. The four proposed classes were therefore consolidated into one `TestBuildTurnControlMessage` (6 cases): retryable-interrupted -> replay section (= pending detection + replay-as-new-turn message naming tool + key), non_retryable -> unreplayable section surfaced (not replayed), no rows -> None, fresh pending never listed, transitioned rows consumed once, store failure -> None (no raise). The snapshot-equality axis is pinned at the dispatcher integration level instead (`tests/mcp_servers/test_mcp_dispatch.py::TestDurableDedup` snapshot-mismatch case), because the implemented engine path does not read `execution_snapshots`; re-execution itself awaits the producer follow-up issue `issues/20261031-175803_toolstate001_tool-call-state-producer.md`. Existing classes untouched and green. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-31 | 2026-10-31 | `pytest tests/agent/workflow/test_workflow_engine.py` 18 passed; `mypy --no-namespace-packages` clean (via `MYPYPATH=scripts`); `lint-imports` 6 kept in the batch gate run; whole-suite run covers this file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Row 06 gated on dbmig001 rows 01-02 implementation | No | — |
+| 1 | Row 06 gated on dbmig001 rows 01-02 implementation | Yes | 2026-10-31 (dbmig001 plan fully Completed) |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from db.migrations_workflow import REGISTRY, runner, verify_backup
+from db.migrations_workflow import REGISTRY, ensure_baseline, runner, verify_backup
 from db.schema_sql import build_workflow_schema_sql
 from shared.db_migrations import (
     MigrationRefusalError,
@@ -39,8 +39,9 @@ _PYTHON = sys.executable
 def _legacy_workflow_db(db_path: Path, marker: str = "1.1.0") -> sqlite3.Connection:
     """Open a legacy workflow.sqlite predating the migration ledger.
 
-    Built from the canonical workflow DDL, then the ledger dropped and the
-    integer version reset to 0 to reproduce the deployed marker-only shape.
+    Built from the canonical workflow DDL, then the ledger, the lifecycle tables
+    added by the ``workflow_tool_call_state`` step, and the integer version
+    dropped/reset to reproduce the deployed marker-only shape.
     The ``workflow_schema_version`` string is set to *marker* (default the
     baseline "1.1.0"; pass an unmapped value such as "2.0.0" for refusals).
     """
@@ -48,6 +49,8 @@ def _legacy_workflow_db(db_path: Path, marker: str = "1.1.0") -> sqlite3.Connect
     conn.executescript(build_workflow_schema_sql())
     conn.commit()
     conn.execute("DROP TABLE schema_migrations")  # nosec B608 — fixed table name
+    conn.execute("DROP TABLE IF EXISTS tool_call_state")  # nosec B608 — fixed name
+    conn.execute("DROP TABLE IF EXISTS execution_snapshots")  # nosec B608 — fixed name
     conn.execute("PRAGMA user_version = 0")  # nosec B608 — baseline is a fixed int
     conn.execute("DELETE FROM workflow_schema_version")
     conn.execute(
@@ -102,17 +105,27 @@ def _registry_with_steps(*specs: MigrationSpec) -> dict[str, MigrationSpec]:
 
 class TestWorkflowRegistry:
     def test_registry_holds_the_ledger_bootstrap_step(self) -> None:
-        assert set(REGISTRY) == {"workflow_ledger_baseline"}
+        assert set(REGISTRY) == {"workflow_ledger_baseline", "workflow_tool_call_state"}
         spec = REGISTRY["workflow_ledger_baseline"]
         assert spec.from_version == 0
         assert spec.to_version == 1
+        assert spec.mutation_sql  # non-empty mutation SQL
+
+    def test_registry_holds_the_tool_call_state_step(self) -> None:
+        spec = REGISTRY["workflow_tool_call_state"]
+        assert spec.from_version == 1
+        assert spec.to_version == 2
+        assert spec.preconditions
         assert spec.mutation_sql  # non-empty mutation SQL
 
     def test_runner_resolves_the_unique_forward_path(self, tmp_path: Path) -> None:
         conn = _legacy_workflow_db(tmp_path / "workflow.sqlite")
         try:
             planned = runner.plan(0, read_ledger(conn), REGISTRY)
-            assert [s.id for s in planned] == ["workflow_ledger_baseline"]
+            assert [s.id for s in planned] == [
+                "workflow_ledger_baseline",
+                "workflow_tool_call_state",
+            ]
         finally:
             conn.close()
 
@@ -129,7 +142,7 @@ class TestWorkflowBootstrap:
         before_hash = _hash_file(db)
 
         try:
-            planned = runner.plan(0, read_ledger(conn), REGISTRY)
+            planned = runner.plan(0, read_ledger(conn), REGISTRY, target_version=1)
             applied = runner.apply(conn, planned, _ok_verifier)
 
             assert [a.id for a in applied] == ["workflow_ledger_baseline"]
@@ -163,12 +176,167 @@ class TestWorkflowResume:
         conn = _legacy_workflow_db(db)
         try:
             runner.apply(
-                conn, runner.plan(0, read_ledger(conn), REGISTRY), _ok_verifier
+                conn,
+                runner.plan(0, read_ledger(conn), REGISTRY, target_version=1),
+                _ok_verifier,
             )
-            rest = runner.plan(1, read_ledger(conn), REGISTRY)
+            rest = runner.plan(1, read_ledger(conn), REGISTRY, target_version=1)
             assert rest == []
         finally:
             conn.close()
+
+
+# ── Tool-call lifecycle tables (toolexec001 row 06: 1 -> 2) ────────────────
+
+
+class TestWorkflowToolCallStateStep:
+    def _bootstrapped(self, tmp_path: Path) -> tuple[Path, sqlite3.Connection]:
+        """A post-bootstrap (code 1) workflow database with task rows."""
+        db = tmp_path / "workflow.sqlite"
+        conn = _legacy_workflow_db(db)
+        _populate_tasks(conn)
+        runner.apply(
+            conn,
+            runner.plan(0, read_ledger(conn), REGISTRY, target_version=1),
+            _ok_verifier,
+        )
+        return db, conn
+
+    def test_step_migrates_preserves_rows_and_stamps_marker(
+        self, tmp_path: Path
+    ) -> None:
+        db, conn = self._bootstrapped(tmp_path)
+        try:
+            planned = runner.plan(1, read_ledger(conn), REGISTRY)
+            assert [s.id for s in planned] == ["workflow_tool_call_state"]
+            applied = runner.apply(conn, planned, _ok_verifier)
+            assert [a.id for a in applied] == ["workflow_tool_call_state"]
+
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+            assert version == 2
+            tables = {
+                str(r[0])
+                for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            assert {"tool_call_state", "execution_snapshots"} <= tables
+            indexes = {
+                str(r[0])
+                for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index' "
+                    "AND name LIKE 'idx_tool_call_state%'"
+                )
+            }
+            assert indexes  # the (task_id, state) pending-scan index landed
+
+            # Task rows preserved; marker advanced to the post-step string.
+            task_count = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+            assert task_count == 2
+            latest = conn.execute(
+                "SELECT version FROM workflow_schema_version "
+                "ORDER BY applied_at DESC LIMIT 1"
+            ).fetchone()[0]
+            assert latest == "1.2.0"
+            assert [
+                (r.id, r.from_version, r.to_version) for r in read_ledger(conn)
+            ] == [
+                ("workflow_ledger_baseline", 0, 1),
+                ("workflow_tool_call_state", 1, 2),
+            ]
+        finally:
+            conn.close()
+
+    def test_resume_after_full_path_is_empty(self, tmp_path: Path) -> None:
+        _db, conn = self._bootstrapped(tmp_path)
+        try:
+            runner.apply(
+                conn, runner.plan(1, read_ledger(conn), REGISTRY), _ok_verifier
+            )
+            assert runner.plan(2, read_ledger(conn), REGISTRY) == []
+        finally:
+            conn.close()
+
+    def test_forged_stamp_without_ledger_refused(self, tmp_path: Path) -> None:
+        # A database stamped 1 that never went through the gated bootstrap
+        # (no ledger) cannot take the lifecycle step.
+        db = tmp_path / "workflow.sqlite"
+        conn = _legacy_workflow_db(db)
+        conn.execute("PRAGMA user_version = 1")  # nosec B608 — fixed int
+        conn.commit()
+        try:
+            planned = runner.plan(1, [], REGISTRY)
+            with pytest.raises(MigrationRefusalError):
+                runner.apply(conn, planned, _ok_verifier)
+            assert "workflow_tool_call_state" not in [r.id for r in read_ledger(conn)]
+        finally:
+            conn.close()
+
+    def test_step_refused_when_tables_already_present(self, tmp_path: Path) -> None:
+        _db, conn = self._bootstrapped(tmp_path)
+        conn.execute("CREATE TABLE tool_call_state (idempotency_key TEXT PRIMARY KEY)")  # nosec B608 — fixed DDL
+        conn.commit()
+        try:
+            with pytest.raises(MigrationRefusalError, match="tool_call_state"):
+                runner.apply(
+                    conn, runner.plan(1, read_ledger(conn), REGISTRY), _ok_verifier
+                )
+        finally:
+            conn.close()
+
+    def test_fresh_and_migrated_databases_converge(self, tmp_path: Path) -> None:
+        """Fresh-create and migrated shapes are identical (completion criterion)."""
+        fresh_conn = sqlite3.connect(str(tmp_path / "fresh.sqlite"))
+        fresh_conn.executescript(build_workflow_schema_sql())
+        fresh_conn.execute(
+            "INSERT INTO workflow_schema_version (version) VALUES (?)",
+            ("1.2.0",),
+        )
+        ensure_baseline(fresh_conn)
+        _db, migrated_conn = self._bootstrapped(
+            tmp_path,
+        )
+        try:
+            runner.apply(
+                migrated_conn,
+                runner.plan(1, read_ledger(migrated_conn), REGISTRY),
+                _ok_verifier,
+            )
+
+            def tables(conn: sqlite3.Connection) -> set[str]:
+                return {
+                    str(r[0])
+                    for r in conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                }
+
+            def columns(conn: sqlite3.Connection, table: str) -> list[tuple]:
+                return [
+                    (r[1], r[2], r[3], r[5])
+                    for r in conn.execute(f"PRAGMA table_info({table})")
+                ]
+
+            assert tables(fresh_conn) == tables(migrated_conn)
+            fresh_version = fresh_conn.execute("PRAGMA user_version").fetchone()[0]
+            migrated_version = migrated_conn.execute("PRAGMA user_version").fetchone()[
+                0
+            ]
+            assert fresh_version == migrated_version == 2
+            for table in ("tool_call_state", "execution_snapshots"):
+                assert columns(fresh_conn, table) == columns(migrated_conn, table)
+            fresh_marker = fresh_conn.execute(
+                "SELECT version FROM workflow_schema_version "
+                "ORDER BY applied_at DESC LIMIT 1"
+            ).fetchone()[0]
+            migrated_marker = migrated_conn.execute(
+                "SELECT version FROM workflow_schema_version "
+                "ORDER BY applied_at DESC LIMIT 1"
+            ).fetchone()[0]
+            assert fresh_marker == migrated_marker == "1.2.0"
+        finally:
+            fresh_conn.close()
+            migrated_conn.close()
 
 
 # ── Refusals ────────────────────────────────────────────────────────────────
@@ -397,12 +565,14 @@ class TestWorkflowCli:
         conn.close()
         apply = _run_cli(db, config_dir, "--apply")
         assert apply.returncode == 0
-        assert "user_version now 1" in apply.stdout
+        assert "user_version now 2" in apply.stdout
         status = _run_cli(db, config_dir, "--status")
         assert status.returncode == 0
-        assert "user_version=1" in status.stdout
+        assert "user_version=2" in status.stdout
         assert "workflow_ledger_baseline" in status.stdout
         assert "0 -> 1" in status.stdout
+        assert "workflow_tool_call_state" in status.stdout
+        assert "1 -> 2" in status.stdout
 
     def test_apply_is_idempotent_after_bootstrap(self, tmp_path: Path) -> None:
         config_dir = tmp_path / "config"

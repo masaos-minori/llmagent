@@ -29,21 +29,32 @@ running deployment captured at call start, used to decide replay of completed de
 
 ## Design decisions
 
-- API (all new): `build_execution_snapshot() -> dict[str, str]`,
-  `snapshot_json(snapshot) -> str` (canonical sorted JSON for storage),
-  `snapshots_equal(a, b) -> bool` (component-wise: any differing component → False; a
-  missing component on either side → False).
-- `deployed_rev` (new): read `/opt/llm/DEPLOYED_REV` tolerantly — JSON parse failure or missing
-  file → `"unknown"` (REQ-004). `git_sha` (new): the `commit` field of the same file when
+- API (all new): `build_execution_snapshot(*, deployed_rev_path=None, config_dir=None,
+  db_paths=None) -> dict[str, str]` (injectable keyword seams per row 18 — no constant
+  monkeypatching needed), `snapshot_json(snapshot) -> str` (canonical sorted JSON for
+  storage), `snapshots_equal(a, b) -> bool` (component-wise: any differing component → False; a
+  missing component on either side → False), and `mismatching_components(a, b) -> list[str]`
+  (named-component mismatch report required by row 18's comparator contract).
+- `deployed_rev` (new): SHA-256 of the raw `/opt/llm/DEPLOYED_REV` bytes, computed only when
+  the file parses as JSON — missing file or parse failure → `"unknown"` (REQ-004).
+  `git_sha` (new): the `commit` field of the same file when
   present; otherwise `"unknown"` (do not shell out to git — deployed runs must not depend
   on a repo).
 - `config_hash` (new): SHA-256 over `sorted(glob config/*.toml)` contents, path-delimited, in
   the repo-relative order so the same tree hashes identically from any cwd; path root
   resolved from an env-tunable base with the deployed default `/opt/llm/config` and repo
   fallback for tests (config-boundary rule: base path comes from config/env, not
-  hardcoded absolute reads beyond the documented DEPLOYED_REV path).
-- `schema_versions` (new): for each known DB path (config-provided), `PRAGMA user_version`
-  integer, joined; missing DB → `"absent"`. Read-only connections only.
+  hardcoded absolute reads beyond the documented DEPLOYED_REV path) — reuse
+  `shared.runtime_paths.resolve_config_dir`.
+- `schema_versions` (new): for each known DB path (`rag_db_path`, `session_db_path`,
+  `workflow_db_path`, `eventbus_db_path` read from `agent.toml`; defaults mirror
+  `db.config.DbConfig` because the shared-leaf import contract forbids importing `db`):
+  read the 4-byte big-endian `user_version` field at offset 60 of the SQLite file header —
+  no `sqlite3` use (corrected 2026-10-31: `tests/mcp_servers/mdq/test_mdq_rag_boundary.py
+  ::test_shared_layer_has_no_direct_mdq_rag_sqlite_access` forbids `sqlite3.connect` in
+  `scripts/shared/`; the header field equals `PRAGMA user_version` for committed DBs;
+  offset 60 verified empirically against `PRAGMA user_version`).
+  Missing/short/foreign file → `"absent"`.
 
 ## Alternatives considered
 
@@ -63,7 +74,7 @@ running deployment captured at call start, used to decide replay of completed de
 3. Implement `build_execution_snapshot` (new), `snapshot_json` (new), `snapshots_equal` (new).
 
 ### Method
-Stdlib only (`hashlib`, `json`, `tomllib`, `sqlite3`, `pathlib`); all file reads
+Stdlib only (`hashlib`, `json`, `tomllib`, `pathlib`); all file reads
 read-only and best-effort; no caching (fresh read per call keeps `config_hash` (new) live —
 Needs Confirmation whether a per-process TTL cache is worth it once recording volume is
 measured).
@@ -108,9 +119,9 @@ measured).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the snapshot builder module | Pending | — | — | |
-| 2 | Land row 18 tests (test-first) before or with this row | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the snapshot builder module | Completed | 2026-10-31 | 2026-10-31 | Module landed; dict snapshot + 4-component contract (deployed_rev/git_sha/config_hash/schema_versions); schema_versions reads the sqlite header at offset 60, verified empirically vs PRAGMA; no sqlite3 in scripts/shared |
+| 2 | Land row 18 tests with this row (original "before or with this row" wording; re-confirmed 2026-10-31: the Step 4 coverage gate (`diff-cover --fail-under=90`) fails any new source module whose tests are absent, so a separate later cycle is not executable. Row 18's own procedure is then closed via Step 1's all-steps-completed path immediately after this cycle) | Completed | 2026-10-31 | 2026-10-31 | Row 18 tests landed with this cycle (coverage gate diff-cover --fail-under=90); 28 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-31 | 2026-10-31 | ruff, canonical mypy (scripts/ tests/eventbus), lint-imports, bandit (no new findings; HEAD baseline identical), check_docstrings, check_module_size, check_mock_patch_targets, mdq/rag boundary test, completion-criteria script, full suite 10678 passed, diff-cover 97%; testmon unusable (baseline timeout) -> fallback scope tests/shared |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

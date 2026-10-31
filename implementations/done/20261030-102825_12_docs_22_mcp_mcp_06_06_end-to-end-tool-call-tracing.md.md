@@ -76,8 +76,8 @@ Prose edits preserving the file's existing walkthrough structure.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update trace field + outcome sections | Pending | — | — | After rows 04-05 |
-| 2 | Run the docs validation checkers (`routing.md` Tools) | Pending | — | — | |
+| 1 | Update trace field + outcome sections | Completed | 2026-10-31 | 2026-10-31 | New "Idempotency and Dedup Fields in the Audit Trace" section documents the shipped fields (`execution_snapshot_json` always, `dedup_state` when non-empty, `idempotency_key` on the event) plus the refusal outcome tags (`idempotency_key_reused`, `dedup_unreplayable`, `dedup_store_error`) and one synthetic example line. Snapshot-equality paragraph links `db_03_07` and `mcp_03_03`; both added to front matter `related:`. Note: the procedure listed `snapshot_mismatch` as an outcome tag — shipped code carries it as a `dedup_state` value, not an `error_type`; documented as such. |
+| 2 | Run the docs validation checkers (`routing.md` Tools) | Completed | 2026-10-31 | 2026-10-31 | `check_docs_structure` (target file), `check_docs_content_policy`, `check_docs_quality` pass; `stale_detector` on this procedure: not stale. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

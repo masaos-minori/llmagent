@@ -16,6 +16,8 @@ serialization).
 - `scripts/agent/shared/models.py` `ToolExecEvent` (`:45`) dataclass fields — kept
   untouched deliberately (see Design decisions); the producer wiring in
   `scripts/agent/tool_runner.py` (call site `:216-224`) is outside the frozen table.
+  Owner decision 2026-10-31: the `tool_runner.py` wiring edit is approved as an
+  additional target of the row 04/07 cycle, not of this row.
 
 ## Assumptions
 
@@ -110,9 +112,9 @@ tolerance (row 03 guarantees no raise) — no new try/except needed beyond mypy 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement parameter + snapshot capture + payload serialization | Pending | — | — | |
-| 2 | Extend `tests/agent/test_tool_audit.py` (test-first) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement parameter + snapshot capture + payload serialization | Completed | 20261031-162000 | 20261031-164500 | Payload-level design kept (no `ToolExecEvent` dataclass change): `execution_snapshot_json = snapshot_json(build_execution_snapshot())` inside the existing `extra` dict; `dedup_state: str = ""` keyword-only kwarg (additional target beyond the frozen table's description; existing callers unaffected); serialized only when non-empty per the procedure's "serialize when present" wording; ruff+mypy clean on both files |
+| 2 | Extend `tests/agent/test_tool_audit.py` (test-first) | Completed | 20261031-162000 | 20261031-164500 | `TestAuditToolExecSnapshotDedup` appended (4 cases: snapshot+stamp parse, dedup_state present, dedup_state absent, snapshot fields per `ExecutionSnapshot`); test-first red→green confirmed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-164500 | 20261031-164500 | Gates fast-mode all Pass; lint-imports 6 kept; targeted 24 passed; full suite 10722 passed / 8 skipped; diff-cover 93% ≥ 90. Two batch-wide failures surfaced here and were fixed: `tests/agent/test_audit_log_format.py::test_no_key_value_format_in_agent_log` scanned the whole payload for `session=` and tripped on the snapshot's legitimate `schema_versions` value (`session=0;`) — now parses the JSON and excludes the snapshot field before scanning (out-of-table characterization test adjustment, recorded here); reference-table drift (`registry/manifests/agent_api.yaml`) from the row-04 `mcp_dedup` references fixed via `tools/generate_reference_table.py --manifests` (updated `docs/23_agent/agent_13_reference-api-generated.md`) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -17,10 +17,11 @@ Carry the workflow engine's replay control message into the turn context sent to
 ## Assumptions
 
 - Sequencing (Needs Confirmation resolved by plan order): `plans/done/20261029-215111_toolhint001_dynamic-tool-health-hints.md` row 05
-  (`implementations/20261030-083821_05_scripts_agent_llm_turn_runner.py.md`) also targets
-  this file and lands first (toolhint001 precedes this plan in the batch order). This
-  procedure is written to apply on top of it; rebase against the file state after that row
-  implements.
+  (`implementations/done/20261030-083821_05_scripts_agent_llm_turn_runner.py.md`) also targets
+  this file and landed first — verified 2026-10-31: procedure archived in `implementations/done/`.
+  Rebase verification 2026-10-31 against the landed file: `run` at `:62`, workflow-context guard
+  at `:73-78`, `self.llm_url = llm_url` at `:78` and `state = TurnLoopState()` at `:80` — all
+  procedure anchors still exact; no `control_message` exists in the file yet.
 - `run`'s existing required workflow-context guard (`:73-78`) stays unchanged.
 
 ## Design decisions
@@ -96,9 +97,9 @@ Signature-optional parameter; no new imports; no config boundary.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the kwarg + injection | Pending | — | — | After toolhint001 row 05 lands |
-| 2 | Land row 21 tests (test-first) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the kwarg + injection | Completed | 20261031-173000 | 20261031-175803 | `control_message: str \| None = None` keyword-only on `run` (anchors `:62`/`:73-78` confirmed exact before edit). `_build_control_entry` validates via `agent.message_schema.validate_message`; the entry is schema-strict `{role: "system", content}` only — the intended `source`/`_ephemeral` provenance keys were rejected by the role whitelist/ephemeral-source policy (recorded deviation; provenance travels in the row-08 message header text instead). Injection is a per-request copy in `_stream_llm` (`[*ctx.conv.history, entry]`); persistent history and the `_stream_llm_final_answer` request are untouched. Validation failure logs and proceeds with no injection |
+| 2 | Land row 21 tests (test-first) | Completed | 20261031-173000 | 20261031-175803 | 5 cases in `tests/agent/test_llm_turn_runner.py` (`TestControlMessageInjection`): kwarg present keyword-only with None default, entry carries the message text, None for no message, `_stream_llm` appends to the sent copy while persistent history stays identical, no-entry sent history byte-identical |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-173000 | 20261031-182400 | Batched with rows 07/08: gates fast all Pass, lint-imports 6 kept, ruff clean, mypy green, bandit at the 3-medium master baseline. Batch full suite (post orchestrator-test fix): 10744 passed / 8 skipped / 0 failed in 7m17s; `diff-cover --compare-branch=master --fail-under=90`: 92% (429 changed lines, 33 missing, all in `scripts/shared/mcp_dedup.py` defensive branches) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

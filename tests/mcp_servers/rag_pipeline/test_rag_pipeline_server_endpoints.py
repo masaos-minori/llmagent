@@ -486,7 +486,7 @@ class TestCallToolEndpoint:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body == {"result": "ok result", "is_error": False}
+        assert body == {"result": "ok result", "is_error": False, "dedup_state": ""}
         handler.assert_awaited_once_with({"query": "hi"})
 
     def test_unknown_tool_returns_error_result(

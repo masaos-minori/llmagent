@@ -73,8 +73,11 @@ store; REQ-005 replay-policy building blocks; REQ-006 retry-class lookup; REQ-00
 
 ### Method
 `sqlite3` directly (shared layer may not import `db/` internals per `skills/DESIGN.md`
-import contract unless an existing shared-module precedent allows it); monotonic-safe
-timestamps as `time.time()` (same domain as the dispatcher's `_idem_now`).
+import contract unless an existing shared-module precedent allows it); persisted
+timestamps use wall-clock `time.time()`: `created_at`/`updated_at` live in durable SQLite
+rows and TTL/purge/interrupted comparisons span processes and restarts, so they cannot
+share the dispatcher's in-process `time.monotonic()` domain (`_idem_now`,
+`scripts/mcp_servers/dispatch.py:105-107` — verified 2026-10-31).
 
 ### Details
 - `lookup` never mutates; classification of interrupted rows is derived at read time via
@@ -125,9 +128,9 @@ timestamps as `time.time()` (same domain as the dispatcher's `_idem_now`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the store module per Procedure/Method/Details | Pending | — | — | |
-| 2 | Land row 17 tests (test-first) before or with this row | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the store module per Procedure/Method/Details | Completed | 2026-10-31T05:08:32Z | 2026-10-31T05:09:03Z | mcp_dedup.py landed; sqlite3.connect on own tool_call_state DB added to mdq boundary allowlist with reviewed-exception comment |
+| 2 | Land row 17 tests (test-first) before or with this row | Completed | 2026-10-31T05:08:32Z | 2026-10-31T05:09:03Z | snapshot typed Mapping[str,str] per landed execution_snapshot API; terminal-state regression guarded via ON CONFLICT WHERE; sync store (Lock+held conn) chosen, to_thread wrap deferred to row 04 per Needs-Confirmation |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-31T05:08:32Z | 2026-10-31T05:09:03Z | 26 targeted + 10705 full suite passed; mypy/ruff/bandit/docstrings clean; diff-cover 93% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

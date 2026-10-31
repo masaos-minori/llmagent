@@ -20,13 +20,13 @@ for row 09.
 
 - Sequencing (verified plan Context): `tests/agent/test_llm_turn_runner.py` is also
   targeted by toolhint001 row 11
-  (`implementations/20261030-083821_11_tests_agent_test_llm_turn_runner.py.md`).
-  toolhint001 precedes this plan in batch order, so this procedure applies on top of
-  that file state; rebase anchors before implementing (verified today: 870-line
-  file, classes `TestRun:387`,
-  `TestHistoryConstructionRoutedThroughAppendMessage:573`; all line anchors will
-  shift after toolhint001 lands — TestNormalizeForLLM, named in earlier drafts,
-  does not exist at HEAD and is not a target of this procedure).
+  (`implementations/done/20261030-083821_11_tests_agent_test_llm_turn_runner.py.md`).
+  toolhint001 precedes this plan in batch order and has landed — verified 2026-10-31: all 14
+  toolhint001 procedures are archived in `implementations/done/`. Rebase verification
+  2026-10-31 against the landed file (1094 lines): `TestRun:390`,
+  `TestHistoryConstructionRoutedThroughAppendMessage:580`, `TestRunRoundAtomicity:794`;
+  `TestControlMessageInjection` does not exist yet. `TestNormalizeForLLM`, named in earlier
+  drafts, does not exist at HEAD and is not a target of this procedure.
 - Red state: new cases fail until row 09 lands.
 
 ## Design decisions
@@ -98,14 +98,14 @@ Test-first: red until row 09 lands.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rebase anchors after toolhint001 row 11 lands | Pending | — | — | Prerequisite ordering |
-| 2 | Add TestControlMessageInjection (3 cases) | Pending | — | — | Red until row 09 lands |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rebase anchors after toolhint001 row 11 lands | Completed | 2026-10-31 | 2026-10-31 | toolhint001 archived; class appended at `:1097` after the rebased anchor classes; existing tests untouched (characterization). |
+| 2 | Add TestControlMessageInjection (3 cases) | Completed | 2026-10-31 (row 09 cycle) | 2026-10-31 | Landed as 5 cases instead of 3: kwarg exists KEYWORD_ONLY/None default (default-passthrough guard), `_build_control_entry` carries `{role:"system", content}` only (single-message cardinality + schema-strict key set), None input -> no entry, `_stream_llm` appends the entry to the per-request history copy sent to the mocked `llm.stream` (outgoing-payload assertion, position = last entry) while `ctx.conv.history` stays identical (non-mutation criterion), and no-entry stream history identical. Deviation noted: the schema-validation failure branch (invalid entry -> log + no injection) is exercised via the strict key-set assertion, not a dedicated invalid-input case. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-31 | 2026-10-31 | `pytest tests/agent/test_llm_turn_runner.py` 40 passed (whole file incl. toolhint001 additions). `mypy --no-namespace-packages` on this file alone reports 61 errors vs 57 on the HEAD version: the 4 new ones (`llm.stream =` method-assign, `await_args` index) follow the file's pre-existing mock pattern; `tests/agent` is outside the mypy CI scope (`scripts/` + `tests/eventbus`), which passes clean in the batch gate run. `lint-imports` 6 kept in the batch gate run. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on toolhint001 row 11 implementation landing first | No | — |
+| 1 | Depends on toolhint001 row 11 implementation landing first | Yes | 2026-10-31 (toolhint001 plan fully Completed, all procedures archived) |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
