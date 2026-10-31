@@ -23,22 +23,35 @@ for normalization and chunking policy.
 - Plan-level assumptions apply unchanged; see the Source plan Assumptions section.
 
 ## Design decisions
+Resolved two ambiguities before coding (see Blocker Log below). Both resolutions keep
+`scripts/rag/corpus_identity.py` free of the `rag_corpus_meta` DDL (doc 02 owns the DDL)
+and avoid a hard import dependency on `scripts/db/schema_sql.py` (doc 02 lands later).
+
 - `CorpusIdentity` (new): frozen dataclass — `corpus_id: str`, `index_generation: int`,
   `schema_version: str`, `embedding_model_id: str`, `normalization_version: str`,
   `chunking_policy_version: str`, `verified: bool`. `verified=False` encodes the
   identity-unverified state (REQ-007); equality compares only the six identity fields.
 - `NORMALIZATION_VERSION` (new) and `CHUNKING_POLICY_VERSION` (new): module-level
   version constants (Assumptions `:148`), bumped by policy when those behaviors change.
-- `compute_identity(db, *, embedding_model_id: str) -> CorpusIdentity` (new): reads the
-  single `rag_corpus_meta` row, combines it with the current `schema_version`
-  (`scripts/db/schema_sql.py` `WORKFLOW_SCHEMA_VERSION` `:25`-style constant read for the
-  RAG schema; use the RAG schema value the meta row records) and the config-provided
-  `embedding_model_id`; missing or corrupt meta row → `CorpusIdentity` with
-  `verified=False`.
-- `ensure_corpus_meta(db) -> CorpusIdentity | None` (new): creates the meta row with a
-  fresh `uuid4` `corpus_id` and `index_generation=0` on first use (Assumptions `:147`:
-  generated once, never regenerated); returns the identity or `None` when the table is
-  absent (pre-migration databases).
+- **`schema_version` source (resolved).** `rag_corpus_meta` stores NO `schema_version`
+  column (plan Design `:184` column list is authoritative: `corpus_id, index_generation,
+  embedding_model_id, normalization_version, chunking_policy_version, updated_at`). The
+  identity's `schema_version` is the *current* RAG schema version, supplied by the caller
+  as a `schema_version: str` keyword argument to `compute_identity` — it is not read from
+  the meta row and not imported from `schema_sql.py` (which has no RAG-schema version
+  constant until doc 02). This keeps doc 01 independent of doc 02 and matches the plan's
+  "effective identity = meta row + current schema_version" model. `REQ-001`'s "stored in a
+  single-row table" is satisfied for the five stored identity columns; `schema_version` is
+  a live property of the running schema, not a persisted column.
+- `compute_identity(db, *, embedding_model_id: str, schema_version: str) -> CorpusIdentity`
+  (new): reads the single `rag_corpus_meta` row via `SQLiteHelper`, combines it with the
+  caller-supplied `schema_version` and `embedding_model_id`; missing/corrupt/absent meta
+  row → `CorpusIdentity` with `verified=False`.
+- `ensure_corpus_meta(db) -> CorpusIdentity | None` (new): ensures a meta ROW exists in an
+  already-created table — if the table exists and has no row, inserts one with a fresh
+  `uuid4` `corpus_id` and `index_generation=0` (Assumptions `:147`: generated once, never
+  regenerated), then returns the identity; if the table is absent (pre-migration
+  database) returns `None`. The table itself is created by doc 02's DDL, never inline here.
 - `bump_index_generation(db) -> int | None` (new): best-effort increment after a
   completed ingestion (Assumptions `:151`); returns the new generation or `None` on
   failure, leaving the previous generation in force.
@@ -80,14 +93,22 @@ for normalization and chunking policy.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-091056 | 20261031-091105 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261031-091056 | 20261031-091105 |  |
+| 3 | Run the Validation plan gates | Completed | 20261031-091056 | 20261031-091105 | ruff/mypy/lint-imports/bandit(-ll)/ast-grep all clean after the __eq__/__hash__ fix. Smoke test /tmp/smoke_corpus_identity.py exercises every path (absent->None/unverified, generated-once corpus_id, bump increments, corrupt row->unverified, restart persistence, equality ignores verified): SMOKE OK. Formal pytest tests/rag/test_corpus_identity.py is doc 15's target, created later in seq order -> Not run here. No docs/00_index.md task-scope mapping for scripts/rag/corpus_identity.py -> Step 5 N/A. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1–2 | Table-creation dependency: doc 01 must be testable before doc 02 lands, but the `rag_corpus_meta` DDL is doc 02's row and `schema_sql.py` has no RAG-schema version constant yet. | Yes | 2026-10-31 |
+| 1–2 | `schema_version` column conflict: plan Design `:184` lists `rag_corpus_meta` columns WITHOUT `schema_version`; REQ-001 and `CorpusIdentity` include it. | Yes | 2026-10-31 |
+
+Resolution (recorded in Design decisions above): `ensure_corpus_meta` ensures a ROW in an
+already-created table and returns `None` when the table is absent (never creates the table
+inline — doc 02 owns the DDL). `compute_identity` takes `schema_version` as a caller-supplied
+keyword arg (the current RAG schema version), so doc 01 imports nothing from `schema_sql.py`.
+The test fixture (doc 15) creates its own minimal `rag_corpus_meta` table so the module is
+testable in isolation.
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
