@@ -14,8 +14,12 @@ docs 01-02).
   row missing cadence/expected-evidence → `_CADENCE_RULE_SEVERITY` (new) severity (doc 02);
   row with `Exception: <id>` marker → OK; malformed marker → reported.
 - Synthetic fixtures use the existing `_matrix(*rows)` builder
-  (`tests/tools/test_check_adr_invariant_matrix.py:26`) plus temp-dir fake test files
-  for the AST marker cases.
+  (`tests/tools/test_check_adr_invariant_matrix.py:28`, re-verified 2026-10-31) plus
+  temp-dir fake test files for the AST marker cases.
+- Add a negative case: a synthetic cited file carrying only
+  `pytestmark = pytest.mark.usefixtures(...)` must NOT trigger the marker rule — pins
+  the match to `skip`/`skipif`/`xfail` only (the live cited file
+  `tests/mcp_servers/shell/test_shell_server_auth.py` has exactly this marker).
 
 **Out of scope:**
 - Live-repo validation (already excluded by the module docstring convention at `:5-8`).
@@ -42,7 +46,7 @@ docs 01-02).
 1. Add `test_skipped_citation_reports_error` (new), `test_xfail_citation_reports_error` (new),
    `test_exception_marker_suppresses_skip_error` (new) backed by tmp synthetic test
    files.
-2. Add `test_missing_cadence_warning`, `test_cadence_present_ok` (new) driving the
+2. Add `test_missing_cadence_warning` (new), `test_cadence_present_ok` (new) driving the
    cadence rule against matrix rows built with `_matrix`.
 3. Add marker-grammar cases (valid/invalid `Exception:` strings).
 
@@ -77,8 +81,8 @@ Checker implementation, runner tests (doc 17).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | Test-first: red until doc 02 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261031-095642 | 20261031-095642 | Test-first: red until doc 02 Cases co-authored with doc 02 cycle |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261031-095642 | pytest 67 passed; ruff+mypy green; live checker green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

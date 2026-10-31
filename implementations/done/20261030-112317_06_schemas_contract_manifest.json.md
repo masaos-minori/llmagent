@@ -21,11 +21,11 @@ doc_front_matter.json convention").
 - Validator code (doc 05 consumes this schema).
 
 ## Assumptions
-- Needs Confirmation: the plan row says `tools/schemas/contract_manifest.json`, but the
-  repository has no `tools/schemas/` directory; the two existing schemas live at repo
-  root `schemas/` (`schemas/doc_front_matter.json`, `schemas/event_envelope.json`).
-  This document adopts root `schemas/contract_manifest.json` to follow the actual
-  convention; confirm before implementation.
+- Resolved 2026-10-31: root `schemas/contract_manifest.json` adopted per repo
+  convention (re-verified: the repo has no `tools/schemas/`; the two existing schemas
+  live at repo root `schemas/` — `schemas/doc_front_matter.json`,
+  `schemas/event_envelope.json`). This document's target path already names it; the
+  plan row's `tools/schemas/` path does not exist in the repo.
 - Verified: `jsonschema>=4.0` is already a project dependency (pyproject.toml), so
   validation needs no new install.
 - `registry/manifests/` was created as an empty scaffold during procedure generation
@@ -34,10 +34,14 @@ doc_front_matter.json convention").
 ## Design decisions
 - Draft-07 schema keyed by a required `manifest` enum (`tool_ownership`,
   `mcp_endpoints` (new), `eventbus_route_roles` (new), `db_schema_versions`, `config_ownership`,
-  `health_contracts`, `invariant_coverage`) so one file validates all seven and rejects
-  unknown manifest names (deferred names are added by their own plans, REQ-007).
+  `health_contracts`, `invariant_coverage`, plus the rendering manifests `agent_api` (new)
+  (new), `eventbus_api` (new), `memory_api` (new) — see doc 05 Design decisions) so one
+  file validates all ten and rejects unknown manifest names (deferred names are added by
+  their own plans, REQ-007).
 - `sources` is required and non-empty: every manifest must declare the live-code files
   it was generated from — this is what the manifest↔source drift check (doc 05) re-reads.
+- `generated_at` is defined but not required and not written by the generator (doc 14's
+  `git diff` freshness step requires byte-stable committed YAML).
 
 ## Alternatives considered
 - One schema file per manifest: rejected — seven files, seven registration points, no
@@ -79,8 +83,8 @@ N/A: delete the file (single target).
   `uv run python tools/generate_reference_table.py --manifests` against the live repo.
 
 ## Completion criteria
-All seven generated manifests validate against this schema; an entry with a missing key
-or an unknown manifest name is rejected.
+All generated manifests (seven contract manifests + three rendering manifests) validate
+against this schema; an entry with a missing key or an unknown manifest name is rejected.
 
 ## Out of Scope
 Generator code, manifest files themselves, CI wiring.
@@ -90,9 +94,9 @@ Generator code, manifest files themselves, CI wiring.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm target path (`schemas/` vs plan's `tools/schemas/`) with the requester | Pending | — | — | Needs Confirmation above |
-| 2 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Confirm target path (`schemas/` vs plan's `tools/schemas/`) with the requester | Completed | 20261031-094659 | 20261031-094659 | Needs Confirmation above Confirmed with requester 2026-10-31: root schemas/ adopted |
+| 2 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261031-101316 | 20261031-101316 | schemas/contract_manifest.json written; Draft7Validator.check_schema green; 13 valid + 18 rejection samples all pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-101316 | 20261031-101316 | JSON-only change: schema validation gates above; live ADR checkers (matrix/structure/authority/reference) green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

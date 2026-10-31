@@ -124,6 +124,14 @@ Documents carrying a generated guarded block (Explicit in code — `tools/genera
 
 See Implementation References for the tool list.
 
+### Contract Manifest Extension
+
+`generate_reference_table.py` manifest mode extends this document class with machine-readable outputs: `registry/manifests/*.yaml` (schema `schemas/contract_manifest.json`) hold the entries that the guarded Markdown blocks are rendered from, so the guard-block renderers consume manifests instead of regenerating tables directly. Manifests follow the same rule as the blocks — generated from live code, never hand-edited, drift-checked by the same tool: `--check` fails when a committed manifest diverges from its live sources or a guarded block diverges from its committed manifest.
+
+- Fact manifests: `tool_ownership`, `mcp_endpoints`, `eventbus_route_roles`, `db_schema_versions`, `config_ownership`, `health_contracts`, `invariant_coverage`.
+- Rendering manifests for the symbol reference documents (`agent_api`, `eventbus_api`, `memory_api`) are internal to the class mechanism; they are inputs to the guarded blocks, not separate published outputs.
+- Deferred manifests (`component_mandatoriness`, `adr_authority`, `architecture_assumptions`) are added only when their source modules land (mcpgate001 / adrauth001); their absence is an explicit deferred-state, not a pipeline failure.
+
 ## Known Deviations
 
 Not applicable

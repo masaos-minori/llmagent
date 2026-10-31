@@ -1,0 +1,34 @@
+entries:
+- config_key: eventbus_db_path
+  in_agent_toml: true
+  kind: db_path
+  name: eventbus.sqlite
+- config_key: rag_db_path
+  in_agent_toml: true
+  kind: db_path
+  name: rag.sqlite
+- config_key: session_db_path
+  in_agent_toml: true
+  kind: db_path
+  name: session.sqlite
+- config_key: workflow_db_path
+  in_agent_toml: false
+  kind: db_path
+  name: workflow.sqlite
+- content_hash: 6e959ed297ede0dff25b17b2d67c2a0e651cd6c0a92be4f2c3e3c1d488a8981c
+  kind: schema
+  name: eventbus
+  source: scripts/eventbus/schema.sql
+  version: 5
+- content_hash: e90c76cfdc04bc501afae8269f01a6f8605fa28039aa17efa72550267afd033e
+  kind: schema
+  name: workflow
+  source: scripts/db/schema_sql.py
+  version: 1.1.0
+generated_by: tools/generate_reference_table.py
+manifest: db_schema_versions
+sources:
+- scripts/db/config.py
+- scripts/db/schema_sql.py
+- scripts/eventbus/schema.sql
+version: 1

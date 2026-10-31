@@ -1,0 +1,304 @@
+entries:
+- adr: ADR-001
+  cited:
+  - tests/agent/test_orchestrator.py::TestWorkflowLoadFailureIsFatal
+  - tests/agent/test_startup_workflow_preflight.py::TestComponentInitializerWorkflowPreflight::test_aborts_on_missing_workflow_definition
+  gate: Unit Test
+  invariant: INV-01
+  status: Confirmed
+  timing: CI
+- adr: ADR-001
+  cited:
+  - tests/agent/workflow/test_workflow_stage_persistence.py::test_begin_stage_if_new_idempotent
+  gate: Unit Test
+  invariant: INV-08
+  status: Confirmed
+  timing: CI
+- adr: ADR-001
+  cited:
+  - tests/agent/workflow/test_workflow_loader.py::TestRequireApprovalKeyRejected
+  gate: Unit Test
+  invariant: INV-10
+  status: Confirmed
+  timing: CI
+- adr: ADR-001
+  cited:
+  - tests/agent/test_tool_audit.py::TestAuditApprovalInv11
+  gate: Unit Test
+  invariant: INV-11
+  status: Confirmed
+  timing: CI
+- adr: ADR-002
+  cited:
+  - tests/agent/test_security_audit_config_isolation.py::test_audit_dtos_hold_no_secret_fields
+  - tests/mcp_servers/test_config_isolation_fail_closed.py
+  - tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation
+  gate: Unit Test
+  invariant: INV-01
+  status: Confirmed
+  timing: CI
+- adr: ADR-002
+  cited:
+  - tests/shared/test_config_loader.py::TestRestrictToIsolation
+  gate: Unit Test
+  invariant: INV-01, INV-02
+  status: Confirmed
+  timing: CI
+- adr: ADR-002
+  cited:
+  - tests/agent/test_config_permission_cross_server.py::test_cross_server_config_load_raises_config_permission_error
+  - tests/shared/test_config_loader.py::TestRestrictToIsolation
+  gate: Unit Test
+  invariant: INV-02
+  status: Confirmed
+  timing: CI
+- adr: ADR-003
+  cited:
+  - tests/shared/test_route_resolver.py::TestRoutingSourceIsolation
+  gate: Unit Test
+  invariant: INV-02
+  status: Confirmed
+  timing: CI
+- adr: ADR-003
+  cited:
+  - tests/agent/services/test_mcp_tool_discovery.py::TestWriteClassificationFinding
+  - tests/agent/test_tool_policy_comprehensive.py::TestClassifyOperationType
+  gate: Unit Test
+  invariant: INV-03
+  status: Confirmed
+  timing: CI
+- adr: ADR-004
+  cadence: each deployment review.
+  expected_evidence: a recorded review confirming no environment-conditional weakening
+    of safety controls was introduced since the last review.
+  gate: Manual Review
+  invariant: INV-01, INV-02
+  status: Manual
+  timing: Startup
+- adr: ADR-004
+  cited:
+  - tests/agent/test_mcp_health_posture.py
+  gate: Startup Validation
+  invariant: INV-07, INV-10
+  status: Confirmed
+  timing: Startup
+- adr: ADR-004
+  cadence: each deployment review.
+  cited:
+  - tests/agent/test_failure_handling_policy_cross_cutting.py
+  - tests/agent/test_production_config_validator.py
+  expected_evidence: review notes confirming each unverified area still fails fast
+    or fails closed with no partial-availability path.
+  gate: Startup Validation
+  invariant: INV-07, INV-10
+  status: Partial
+  timing: Startup
+- adr: ADR-004
+  cited:
+  - tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers
+  gate: Startup Validation
+  invariant: INV-08
+  status: Confirmed
+  timing: Startup
+- adr: ADR-004
+  cited:
+  - tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers
+  - tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_subprocess_non_required_rejected
+  gate: Startup Validation
+  invariant: INV-09
+  status: Confirmed
+  timing: Startup
+- adr: ADR-004
+  cited:
+  - tests/shared/test_mcp_config.py::TestRequiredDefault::test_required_default_true_from_toml_absent_key
+  - tests/shared/test_mcp_config.py::TestRequiredDefault::test_required_default_true_on_direct_construction
+  gate: Startup Validation
+  invariant: INV-14
+  status: Confirmed
+  timing: Startup
+- adr: ADR-004
+  cadence: each release review.
+  cited:
+  - tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard
+  expected_evidence: a fallback audit record showing every fallback path in `scripts/`
+    traces to an Accepted ADR that explicitly defines it.
+  gate: Manual Review
+  invariant: INV-15, INV-16
+  status: Manual
+  timing: Release review
+- adr: ADR-005
+  cited:
+  - tests/agent/services/test_rag_index_integrity.py::test_delete_document_chain_no_orphan_vec
+  - tests/rag/ingestion/test_delete_chain.py::TestDeleteDocumentChain::test_delete_chunks_vec_before_documents
+  gate: Unit Test
+  invariant: INV-02
+  status: Confirmed
+  timing: CI
+- adr: ADR-006
+  cited:
+  - tests/eventbus/test_eventbus_publish.py::test_publish_sqlite_write_failure_reports_failure_without_side_effects
+  - tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::test_publish_succeeds_if_jsonl_append_fails
+  gate: Integration Test
+  invariant: INV-02
+  status: Confirmed
+  timing: CI
+- adr: ADR-006
+  cited:
+  - tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq
+  - tests/eventbus/test_eventbus_offsets.py::TestSqliteOffsetMonotonicity::test_older_seq_cannot_move_offset_backward
+  gate: Unit Test
+  invariant: INV-05, INV-09
+  status: Confirmed
+  timing: CI
+- adr: ADR-006
+  cited:
+  - tests/eventbus/test_eventbus_ack_nack.py::TestAckHttpBehavior::test_ack_lower_seq_keeps_offset
+  gate: Unit Test
+  invariant: INV-09
+  status: Confirmed
+  timing: CI
+- adr: ADR-006
+  cited:
+  - tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state
+  gate: Unit Test
+  invariant: INV-16
+  status: Confirmed
+  timing: CI
+- adr: ADR-007
+  cited:
+  - tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_stdio_transport_rejected
+  gate: Unit Test
+  invariant: INV-06
+  status: Confirmed
+  timing: CI
+- adr: ADR-007
+  cited:
+  - tests/agent/test_startup_severity_classification.py::TestCheckServicesSeverityClassification
+  - tests/mcp_servers/file/test_file_server_auth.py
+  - tests/mcp_servers/github/test_github_server_auth.py
+  - tests/mcp_servers/mdq/test_mdq_authentication.py::TestAuthentication
+  - tests/mcp_servers/mdq/test_mdq_authentication.py::TestStartupRequiresToken
+  - tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py::TestInboundAuth
+  - tests/mcp_servers/shell/test_shell_server_auth.py
+  - tests/mcp_servers/test_mcp_server_base.py::TestBindAddressValidation::test_private_lan_rejected
+  gate: Unit Test
+  invariant: INV-09
+  status: Confirmed
+  timing: CI
+- adr: ADR-007
+  cited:
+  - tests/shared/test_mcp_health.py
+  gate: Unit Test
+  invariant: INV-11
+  status: Confirmed
+  timing: CI
+- adr: ADR-007
+  cited:
+  - tests/mcp_servers/mdq/test_mdq_authentication.py::TestAuthenticationBeforeAuthorization
+  - tests/mcp_servers/mdq/test_mdq_path_jail.py
+  gate: Unit Test
+  invariant: INV-12
+  status: Confirmed
+  timing: CI
+- adr: ADR-008
+  cited:
+  - tests/db/test_create_schema.py::TestCreateSchemaWrapper
+  - tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path
+  gate: Unit Test
+  invariant: INV-01
+  status: Confirmed
+  timing: CI
+- adr: ADR-008
+  cited:
+  - tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations
+  gate: Static Check
+  invariant: INV-01 to INV-05
+  status: Confirmed
+  timing: CI, Pre-deploy
+- adr: ADR-009
+  cited:
+  - tests/agent/services/test_rag_index_integrity.py::test_rebuild_fts_uses_coalesce
+  - tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule
+  - tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_rebuild_fts_preserves_normalized_content_semantics
+  gate: Integration Test
+  invariant: INV-07
+  status: Confirmed
+  timing: CI
+- adr: ADR-009
+  cited:
+  - tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_real_normalized_content_attribute_excluded
+  - tests/rag/test_rag_pipeline_stage.py::TestAugmentStage::test_augment_stage_content_only_invariant
+  gate: Unit Test
+  invariant: INV-10
+  status: Confirmed
+  timing: CI
+- adr: ADR-010
+  cited:
+  - tests/rag/test_rag_http_mode.py::test_remote_empty_does_not_trigger_in_process
+  gate: Integration Test
+  invariant: INV-03
+  status: Confirmed
+  timing: CI
+- adr: ADR-010
+  cited:
+  - tests/rag/test_pipeline_http_result_kind.py::test_auth_error_fails_closed_without_in_process_fallback
+  - tests/rag/test_rag_http_mode.py
+  - tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling
+  gate: Integration Test
+  invariant: INV-04
+  status: Confirmed
+  timing: CI
+- adr: ADR-012
+  cited:
+  - tests/mcp_servers/git/test_git_service_dispatch.py::TestDestinationBasedProtection
+  - tests/mcp_servers/git/test_git_service_dispatch.py::TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot
+  - tests/mcp_servers/git/test_git_service_dispatch.py::TestWriteRefAllowlist::test_rejected_branch_forms
+  - tests/mcp_servers/git/test_repository_state.py::TestStage3DestinationProtection
+  gate: Unit/Integration Test
+  invariant: INV-01, INV-02, INV-03, INV-04
+  status: Confirmed
+  timing: CI
+- adr: ADR-013
+  cited:
+  - tests/eventbus/test_eventbus_auth.py::TestFailClosedConsumerAuthorization::test_shared_and_admin_tokens_have_no_consumer_bypass
+  - tests/eventbus/test_eventbus_consumer_authorization.py::TestConsumerPrincipalBinding
+  - tests/eventbus/test_eventbus_consumer_authorization.py::TestSharedAndAdminTokensHaveNoConsumerBypass
+  gate: Integration Test
+  invariant: INV-02, INV-07
+  status: Confirmed
+  timing: CI
+- adr: ADR-014
+  cadence: every change to Orchestrator, LlmTurnExecutor, or ToolExecutor.
+  expected_evidence: the code-review record showing no persistent Task/Attempt state,
+    stage transition, or retry decision outside WorkflowEngine.
+  gate: Manual Review
+  invariant: INV-01
+  status: Manual
+  timing: Code Review
+- adr: ADR-014
+  cited:
+  - tests/agent/test_orchestrator.py::TestSingleLlmTurnExecutorOwnership::test_orchestrator_creates_single_shared_llm_turn_executor
+  gate: Unit Test
+  invariant: INV-02
+  status: Confirmed
+  timing: CI
+- adr: ADR-014
+  cadence: every change to Orchestrator or ToolExecutor.
+  expected_evidence: the code-review record showing no server-side safety check duplicated
+    in Agent-side layers.
+  gate: Manual Review
+  invariant: INV-03
+  status: Manual
+  timing: Code Review
+- adr: ADR-015
+  cited:
+  - tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift
+  gate: Static Check
+  invariant: INV-01
+  status: Confirmed
+  timing: CI
+generated_by: tools/generate_reference_table.py
+manifest: invariant_coverage
+sources:
+- docs/10_adr/adr_01_index.md
+version: 1

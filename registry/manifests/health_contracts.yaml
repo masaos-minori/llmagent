@@ -1,0 +1,116 @@
+entries:
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.backend_available
+  - server.repo_allowlist
+  - server.workflow_allowlist
+  - server.workflow_pattern_valid
+  disposition: fail-fast
+  server: cicd
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.allowed_dirs_configured
+  - server.allowed_dirs_exist
+  - server.allowed_root_protected
+  - server.audit_log_writable
+  disposition: fail-fast
+  server: file_delete
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.allowed_dirs_configured
+  - server.allowed_dirs_exist
+  - server.max_read_bytes
+  disposition: fail-fast
+  server: file_read
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.allowed_dirs_configured
+  - server.allowed_dirs_exist
+  - server.max_write_bytes
+  - server.supported_extensions
+  - server.write_dirs_writable
+  disposition: fail-fast
+  server: file_write
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.protected_branch_config
+  - server.read_only_mode
+  - server.repo_allowlist
+  - server.repo_allowlist_resolvable
+  disposition: fail-fast
+  server: git
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.audit_log_writable
+  - server.force_push_policy
+  - server.max_file_size
+  - server.path_denylist
+  - server.per_page_bounds
+  - server.pr_review_required
+  - server.protected_branches
+  - server.repo_allowlist
+  disposition: fail-fast
+  server: github
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.allowed_dirs_configured
+  - server.allowed_dirs_exist
+  - server.auth_token_configured
+  - server.db_path_valid
+  - server.index_available
+  - server.schema_valid
+  disposition: fail-fast
+  server: mdq
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.embed_url_configured
+  - server.llm_url_configured
+  - server.min_score_valid
+  - server.rag_db_path_configured
+  - server.refiner_limits
+  - server.sqlite_vec_available
+  - server.top_k_bounds
+  disposition: fail-fast
+  server: rag_pipeline
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.command_allowlist
+  - server.resource_limits
+  - server.sandbox_backend
+  - server.sandbox_binary
+  disposition: fail-fast
+  server: shell
+- checks:
+  - common.auth_token
+  - common.own_config_only
+  - common.published_tools
+  - server.browser_allowlist
+  - server.browser_response_limit
+  - server.browser_timeout_valid
+  - server.results_bounds
+  - server.search_timeout_valid
+  disposition: fail-fast
+  server: web_search
+generated_by: tools/generate_reference_table.py
+manifest: health_contracts
+sources:
+- scripts/shared/security/posture_contract.py
+version: 1

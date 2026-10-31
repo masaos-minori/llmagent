@@ -1,0 +1,872 @@
+entries:
+- file: scripts/agent/audit_event_emitter.py
+  kind: function
+  name: format_session_id
+  signature: def format_session_id(session_id) -> str
+  summary: Format session_id for audit logs, returning empty string when None.
+- file: scripts/agent/audit_event_emitter.py
+  kind: class
+  name: AuditEventEmitter
+  signature: class AuditEventEmitter
+  summary: Constructs and emits audit events for turn lifecycle boundaries.
+- file: scripts/agent/bg_task_monitor.py
+  kind: class
+  name: BgTaskMonitor
+  signature: class BgTaskMonitor
+  summary: Monitors background task failures and enforces threshold-based policies.
+- file: scripts/agent/cli_view.py
+  kind: class
+  name: WriterBase
+  signature: class WriterBase
+  summary: Base class providing default implementations for output methods.
+- file: scripts/agent/cli_view.py
+  kind: class
+  name: Reader
+  signature: class Reader
+  summary: Input-side interface for multiline continuation prompts.
+- file: scripts/agent/cli_view.py
+  kind: class
+  name: CLIView
+  signature: class CLIView
+  summary: 'Manages terminal I/O: readline history, tab completion, multiline'
+- file: scripts/agent/config_builders.py
+  kind: function
+  name: resolved_config_dir
+  signature: def resolved_config_dir() -> Path
+  summary: Return the resolved agent config directory via the shared resolver.
+- file: scripts/agent/config_builders.py
+  kind: function
+  name: load_config
+  signature: def load_config() -> dict[str, Any]
+  summary: "Load configuration from files.  No module-level cache \u2014 always fresh."
+- file: scripts/agent/config_builders.py
+  kind: function
+  name: build_agent_config
+  signature: def build_agent_config(cfg_override) -> AgentConfig
+  summary: Construct AgentConfig from a config dict.
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: LLMConfig
+  signature: class LLMConfig
+  summary: LLM communication and context management settings.
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: RAGConfig
+  signature: class RAGConfig
+  summary: Agent-side RAG endpoint settings (the embedding endpoint).
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: ToolConfig
+  signature: class ToolConfig
+  summary: Tool execution, approval policy, and prompt settings.
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: MemoryConfig
+  signature: class MemoryConfig
+  summary: Persistent semantic memory layer settings.
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: MCPConfig
+  signature: class MCPConfig
+  summary: MCP server lifecycle settings.
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: ApprovalConfig
+  signature: class ApprovalConfig
+  summary: Risk-based tool approval policy settings.
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: ObservabilityConfig
+  signature: class ObservabilityConfig
+  summary: OpenTelemetry tracing, audit logging, and structured log settings.
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: DiagnosticsConfig
+  signature: class DiagnosticsConfig
+  summary: Diagnostic storage encryption and retention settings.
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: MessageRoleConfig
+  signature: class MessageRoleConfig
+  summary: Valid message roles for SessionMessageRepository.
+- file: scripts/agent/config_dataclasses.py
+  kind: class
+  name: AgentConfig
+  signature: class AgentConfig
+  summary: Mutable runtime configuration shared by all agent components.
+- file: scripts/agent/context.py
+  kind: class
+  name: ConversationState
+  signature: class ConversationState
+  summary: Per-session conversation fields.
+- file: scripts/agent/context.py
+  kind: class
+  name: TurnState
+  signature: class TurnState
+  summary: Per-turn transient state; reset each turn by Orchestrator.
+- file: scripts/agent/context.py
+  kind: class
+  name: RuntimeStats
+  signature: class RuntimeStats
+  summary: Accumulated session statistics.
+- file: scripts/agent/context.py
+  kind: class
+  name: WorkflowState
+  signature: class WorkflowState
+  summary: Per-session workflow runtime state; transient, not persisted.
+- file: scripts/agent/context.py
+  kind: class
+  name: AppServices
+  signature: class AppServices
+  summary: Fully-initialized service references built by factory.py.
+- file: scripts/agent/context.py
+  kind: class
+  name: AgentContext
+  signature: class AgentContext
+  summary: Mutable runtime state shared between AgentREPL and CommandRegistry.
+- file: scripts/agent/conversation_state_manager.py
+  kind: class
+  name: ConversationStateManager
+  signature: class ConversationStateManager
+  summary: Manages conversation history state across turns.
+- file: scripts/agent/diagnostic_store.py
+  kind: class
+  name: DiagnosticStore
+  signature: class DiagnosticStore
+  summary: Dedicated store for diagnostic messages, separate from conversation history.
+- file: scripts/agent/error_injection_service.py
+  kind: class
+  name: ErrorInjectionService
+  signature: class ErrorInjectionService
+  summary: Service for handling synthetic error injection in agent turns.
+- file: scripts/agent/eventbus_client.py
+  kind: class
+  name: EventBusPublishErrorKind
+  signature: class EventBusPublishErrorKind
+  summary: Enumeration of publish failure reasons.
+- file: scripts/agent/eventbus_client.py
+  kind: class
+  name: EventBusPublishResult
+  signature: class EventBusPublishResult
+  summary: Result of a publish attempt.
+- file: scripts/agent/eventbus_client.py
+  kind: class
+  name: EventBusClientConfig
+  signature: class EventBusClientConfig
+  summary: Configuration for the Event Bus publish client connection.
+- file: scripts/agent/eventbus_client.py
+  kind: class
+  name: EventBusClient
+  signature: class EventBusClient
+  summary: Async HTTP client for publishing events to Event Bus.
+- file: scripts/agent/eventbus_subscriber.py
+  kind: class
+  name: EventBusStreamError
+  signature: class EventBusStreamError
+  summary: Raised when the subscribe stream cannot be established or maintained
+- file: scripts/agent/eventbus_subscriber.py
+  kind: class
+  name: EventBusSubscriberConfig
+  signature: class EventBusSubscriberConfig
+  summary: Configuration for the Event Bus SSE subscribe client connection.
+- file: scripts/agent/eventbus_subscriber.py
+  kind: class
+  name: EventBusEvent
+  signature: class EventBusEvent
+  summary: One event received from the SSE stream.
+- file: scripts/agent/eventbus_subscriber.py
+  kind: class
+  name: EventBusSubscriber
+  signature: class EventBusSubscriber
+  summary: Async SSE client for Event Bus's /subscribe endpoint.
+- file: scripts/agent/eventbus_topic_admin_client.py
+  kind: class
+  name: EventBusTopicAdminErrorKind
+  signature: class EventBusTopicAdminErrorKind
+  summary: Enumeration of admin-update failure reasons.
+- file: scripts/agent/eventbus_topic_admin_client.py
+  kind: class
+  name: EventBusTopicAdminResult
+  signature: class EventBusTopicAdminResult
+  summary: Result of an authorization-update attempt.
+- file: scripts/agent/eventbus_topic_admin_client.py
+  kind: class
+  name: EventBusTopicAdminClientConfig
+  signature: class EventBusTopicAdminClientConfig
+  summary: Configuration for the Event Bus admin topics-authorization client.
+- file: scripts/agent/eventbus_topic_admin_client.py
+  kind: class
+  name: EventBusTopicAdminClient
+  signature: class EventBusTopicAdminClient
+  summary: Async HTTP client for Event Bus's admin topics-authorization endpoint.
+- file: scripts/agent/factory.py
+  kind: class
+  name: LlmClientResult
+  signature: class LlmClientResult
+  summary: Result of building httpx.AsyncClient and LLMClient.
+- file: scripts/agent/factory.py
+  kind: class
+  name: ToolExecutorResult
+  signature: class ToolExecutorResult
+  summary: Result of building ToolExecutor, lifecycle manager, and health registry.
+- file: scripts/agent/factory.py
+  kind: class
+  name: HistoryManagerResult
+  signature: class HistoryManagerResult
+  summary: Result of building HistoryManager.
+- file: scripts/agent/factory.py
+  kind: function
+  name: init_tracer
+  signature: def init_tracer(ctx) -> object
+  summary: Build and return an OTel tracer; returns a NoOp stub when otel_enabled=False.
+- file: scripts/agent/factory.py
+  kind: function
+  name: build_agent_context
+  signature: def build_agent_context(ctx, view) -> None
+  summary: Inject all services into ctx.services.
+- file: scripts/agent/history.py
+  kind: class
+  name: HistoryCompressionError
+  signature: class HistoryCompressionError
+  summary: Raised when LLM-based history compression fails.
+- file: scripts/agent/history.py
+  kind: class
+  name: CompressResult
+  signature: class CompressResult
+  summary: Metadata returned by compress() and force_compress().
+- file: scripts/agent/history.py
+  kind: class
+  name: HistoryManager
+  signature: class HistoryManager
+  summary: Manages conversation history size via LLM-based compression.
+- file: scripts/agent/history_selection_policy.py
+  kind: class
+  name: SelectionResult
+  signature: class SelectionResult
+  summary: Typed result of select_turns_to_compress().
+- file: scripts/agent/history_selection_policy.py
+  kind: class
+  name: HistorySelectionPolicy
+  signature: class HistorySelectionPolicy
+  summary: Determines which messages to compress based on importance scoring.
+- file: scripts/agent/http_lifecycle.py
+  kind: class
+  name: HttpServerLifecycleManager
+  signature: class HttpServerLifecycleManager
+  summary: 'Manages HTTP subprocess MCP servers: start, health-poll, restart, shutdown.'
+- file: scripts/agent/http_lifecycle_command_validator.py
+  kind: class
+  name: CommandValidator
+  signature: class CommandValidator
+  summary: Validates commands and filters environment variables for HTTP subprocess
+    MCP servers.
+- file: scripts/agent/http_lifecycle_errors.py
+  kind: class
+  name: StartupFailure
+  signature: class StartupFailure
+  summary: Records the full stderr output and reason when an HTTP subprocess fails
+    to start.
+- file: scripts/agent/http_lifecycle_errors.py
+  kind: class
+  name: HttpStartupError
+  signature: class HttpStartupError
+  summary: Raised when an HTTP subprocess MCP server fails to start.
+- file: scripts/agent/http_lifecycle_errors.py
+  kind: class
+  name: TerminationOutcome
+  signature: class TerminationOutcome
+  summary: What one MCP server termination attempt proved about the process.
+- file: scripts/agent/http_lifecycle_health_checker.py
+  kind: class
+  name: HealthChecker
+  signature: class HealthChecker
+  summary: Performs HTTP health checks against a running server.
+- file: scripts/agent/http_lifecycle_process_terminator.py
+  kind: class
+  name: ProcessTerminator
+  signature: class ProcessTerminator
+  summary: "Manages process termination with SIGTERM \u2192 SIGKILL escalation."
+- file: scripts/agent/http_lifecycle_shutdown_coordinator.py
+  kind: class
+  name: ShutdownCoordinator
+  signature: class ShutdownCoordinator
+  summary: Coordinates shutdown of HTTP server process and associated resources.
+- file: scripts/agent/http_lifecycle_stderr_log_manager.py
+  kind: class
+  name: StderrLogManager
+  signature: class StderrLogManager
+  summary: Manages stderr log files for HTTP subprocess MCP servers.
+- file: scripts/agent/http_lifecycle_subprocess_launcher.py
+  kind: class
+  name: SubprocessLauncher
+  signature: class SubprocessLauncher
+  summary: Creates and validates HTTP MCP subprocesses, releasing resources on failure.
+- file: scripts/agent/lifecycle.py
+  kind: class
+  name: LifecycleState
+  signature: class LifecycleState
+  summary: Transport state for HTTP MCP servers.
+- file: scripts/agent/lifecycle.py
+  kind: function
+  name: assert_valid_transition
+  signature: def assert_valid_transition(from_state, to_state) -> None
+  summary: Raise ValueError when the transition from_state -> to_state is not legal.
+- file: scripts/agent/lifecycle_protocol.py
+  kind: class
+  name: LifecycleManagerProtocol
+  signature: class LifecycleManagerProtocol
+  summary: Protocol for MCP server lifecycle managers.
+- file: scripts/agent/llm_transport_errors.py
+  kind: function
+  name: handle_llm_transport_error
+  signature: def handle_llm_transport_error(e, ctx, diagnostic_store) -> bool
+  summary: 'Handle LLM transport error: partial or non-partial.'
+- file: scripts/agent/llm_transport_errors.py
+  kind: function
+  name: handle_partial_completion
+  signature: def handle_partial_completion(e, ctx, diagnostic_store) -> None
+  summary: Save partial text to diagnostic channel only.
+- file: scripts/agent/llm_transport_errors.py
+  kind: function
+  name: handle_non_partial_error
+  signature: def handle_non_partial_error(e, ctx, diagnostic_store) -> None
+  summary: Save non-partial error to diagnostic channel and log.
+- file: scripts/agent/llm_turn_executor.py
+  kind: class
+  name: LlmTurnExecutor
+  signature: class LlmTurnExecutor
+  summary: 'Executes an LLM turn: streaming + inner tool-call loop.'
+- file: scripts/agent/llm_turn_runner.py
+  kind: class
+  name: LLMTurnRunner
+  signature: class LLMTurnRunner
+  summary: Manages the inner LLM streaming + tool-call loop for one agent turn.
+- file: scripts/agent/mdq_rag_classifier.py
+  kind: class
+  name: MdqRagMode
+  signature: class MdqRagMode
+  summary: Mode for selecting between MDQ and RAG search strategies.
+- file: scripts/agent/mdq_rag_classifier.py
+  kind: function
+  name: classify_query
+  signature: def classify_query(query) -> MdqRagMode
+  summary: Return MDQ if query contains Markdown-structural terms; RAG otherwise.
+- file: scripts/agent/mdq_rag_classifier.py
+  kind: function
+  name: resolve_mode
+  signature: def resolve_mode(query, config_mode) -> MdqRagMode
+  summary: Config override takes precedence; AUTO falls back to classifier heuristics.
+- file: scripts/agent/message_schema.py
+  kind: class
+  name: ValidationResult
+  signature: class ValidationResult
+  summary: Result of message schema validation.
+- file: scripts/agent/message_schema.py
+  kind: function
+  name: validate_message
+  signature: def validate_message(msg) -> ValidationResult
+  summary: Validate *msg* against the strict schema.
+- file: scripts/agent/message_schema.py
+  kind: function
+  name: is_trusted_source
+  signature: def is_trusted_source(source_id) -> bool
+  summary: Check if *source_id* is authorized to inject ephemeral keys.
+- file: scripts/agent/message_schema.py
+  kind: function
+  name: get_allowed_ephemeral_keys
+  signature: def get_allowed_ephemeral_keys(source_id) -> set[str]
+  summary: Get ephemeral keys allowed for a trusted source.
+- file: scripts/agent/mode_classification.py
+  kind: async function
+  name: classify_and_inject_mode
+  signature: async def classify_and_inject_mode(query, ctx) -> None
+  summary: Inject MDQ/RAG routing hint into system prompt based on query classification.
+- file: scripts/agent/orchestrator.py
+  kind: class
+  name: Orchestrator
+  signature: class Orchestrator
+  summary: 'Turn-level coordinator: compression -> LLM loop -> tool dispatch.'
+- file: scripts/agent/output_tags.py
+  kind: class
+  name: OutputTag
+  signature: class OutputTag
+  summary: Bracketed prefix tags for REPL/CLI status messages.
+- file: scripts/agent/production_config_validator.py
+  kind: class
+  name: ProductionConfigValidator
+  signature: class ProductionConfigValidator
+  summary: Validate configuration against production security requirements.
+- file: scripts/agent/repl.py
+  kind: function
+  name: builtin_command_names
+  signature: def builtin_command_names() -> frozenset[str]
+  summary: Return names of all built-in commands from _COMMANDS.
+- file: scripts/agent/repl.py
+  kind: function
+  name: reserved_repl_command_names
+  signature: def reserved_repl_command_names() -> frozenset[str]
+  summary: Return names of REPL-reserved commands.
+- file: scripts/agent/repl.py
+  kind: function
+  name: completion_command_names
+  signature: def completion_command_names() -> frozenset[str]
+  summary: Return all commands available for tab completion.
+- file: scripts/agent/repl.py
+  kind: class
+  name: AgentREPL
+  signature: class AgentREPL
+  summary: Thin composition facade over extracted REPL concern classes.
+- file: scripts/agent/repl.py
+  kind: function
+  name: main
+  signature: def main() -> None
+  summary: Start the interactive REPL.
+- file: scripts/agent/repl_input_loop.py
+  kind: class
+  name: ReplInputLoop
+  signature: class ReplInputLoop
+  summary: Manages REPL input reading, dispatch, and exit conditions.
+- file: scripts/agent/repository_gateway.py
+  kind: class
+  name: RepositoryGateway
+  signature: class RepositoryGateway
+  summary: Single write enforcement boundary for all repository mutation operations.
+- file: scripts/agent/resource_shutdown_coordinator.py
+  kind: class
+  name: ResourceShutdownCoordinator
+  signature: class ResourceShutdownCoordinator
+  summary: Coordinates resource shutdown across all subsystems.
+- file: scripts/agent/session.py
+  kind: class
+  name: SchemaMissingError
+  signature: class SchemaMissingError
+  summary: Raised when required SQLite schema tables are missing.
+- file: scripts/agent/session.py
+  kind: class
+  name: AgentSession
+  signature: class AgentSession
+  summary: Manages REPL session and message persistence in SQLite.
+- file: scripts/agent/session_message_repo.py
+  kind: class
+  name: SessionMessageRepository
+  signature: class SessionMessageRepository
+  summary: Repository for session message operations.
+- file: scripts/agent/session_persister.py
+  kind: class
+  name: SessionPersister
+  signature: class SessionPersister
+  summary: Handles persistence of session-level data at shutdown.
+- file: scripts/agent/signal_handler.py
+  kind: class
+  name: SignalHandler
+  signature: class SignalHandler
+  summary: Encapsulates platform-specific signal handling for graceful shutdown.
+- file: scripts/agent/startup.py
+  kind: class
+  name: StartupInterrupted
+  signature: class StartupInterrupted
+  summary: Raised when a SIGINT/SIGTERM shutdown request interrupts the startup sequence.
+- file: scripts/agent/startup.py
+  kind: class
+  name: StartupOrchestrator
+  signature: class StartupOrchestrator
+  summary: Runs the full agent startup sequence before the REPL input loop begins.
+- file: scripts/agent/startup_banner.py
+  kind: class
+  name: StartupBanner
+  signature: class StartupBanner
+  summary: Handles startup display and banner printing.
+- file: scripts/agent/startup_component_init.py
+  kind: class
+  name: ComponentInitializer
+  signature: class ComponentInitializer
+  summary: Owns DI wiring, command registry init, orchestrator construction, and workflow
+    preflight.
+- file: scripts/agent/startup_mcp_starter.py
+  kind: class
+  name: McpServerStarter
+  signature: class McpServerStarter
+  summary: Owns MCP subprocess startup, health verification, and retry-once-with-delay.
+- file: scripts/agent/startup_prompt_setup.py
+  kind: class
+  name: PromptSetup
+  signature: class PromptSetup
+  summary: Owns system prompt and memory setup.
+- file: scripts/agent/startup_reporter.py
+  kind: class
+  name: ReadinessReporter
+  signature: class ReadinessReporter
+  summary: Owns pipeline result display and readiness reporting.
+- file: scripts/agent/startup_validation.py
+  kind: class
+  name: StartupValidationPipeline
+  signature: class StartupValidationPipeline
+  summary: Owns the full service-validation pipeline.
+- file: scripts/agent/stdin_reader.py
+  kind: class
+  name: StdinReader
+  signature: class StdinReader
+  summary: Owns one daemon thread that performs one blocking read per request.
+- file: scripts/agent/tool_approval.py
+  kind: async function
+  name: check_approval
+  signature: async def check_approval(ctx, tool_name, args) -> bool
+  summary: Return True when the tool call may proceed.
+- file: scripts/agent/tool_approval.py
+  kind: async function
+  name: run_approval_checks
+  signature: async def run_approval_checks(ctx, prepared_calls) -> tuple[list[PreparedToolCall],
+    list[str]]
+  summary: Run plan-mode block and interactive approval for each prepared tool call.
+- file: scripts/agent/tool_arg_validator.py
+  kind: class
+  name: ValidationResult
+  signature: class ValidationResult
+  summary: Result of validating tool call arguments against an MCP input schema.
+- file: scripts/agent/tool_arg_validator.py
+  kind: function
+  name: validate_tool_arguments
+  signature: def validate_tool_arguments(tool_name, args, input_schema, allow_extra_fields)
+    -> ValidationResult
+  summary: Validate tool call arguments against the MCP tool's input schema.
+- file: scripts/agent/tool_arg_validator.py
+  kind: function
+  name: register_custom_validator
+  signature: def register_custom_validator(tool_name) -> Callable[[CustomValidator],
+    CustomValidator]
+  summary: Decorator that registers a custom validation hook for tool_name.
+- file: scripts/agent/tool_audit.py
+  kind: function
+  name: audit_approval
+  signature: def audit_approval(ctx, tool_name, risk, args, decision) -> None
+  summary: Write a structured tool_approval event to the audit log.
+- file: scripts/agent/tool_audit.py
+  kind: function
+  name: log_approval_decision
+  signature: def log_approval_decision(ctx, outcome) -> None
+  summary: Write a structured approval_decision event to the audit log.
+- file: scripts/agent/tool_audit.py
+  kind: function
+  name: audit_workflow_start
+  signature: def audit_workflow_start(ctx, task_id, workflow_version, workflow_id,
+    session_id) -> None
+  summary: Write workflow_start event to audit log.
+- file: scripts/agent/tool_audit.py
+  kind: function
+  name: audit_stage_completed
+  signature: def audit_stage_completed(ctx, task_id, stage_id, elapsed_ms, workflow_id,
+    session_id) -> None
+  summary: Write stage_completed event to audit log.
+- file: scripts/agent/tool_audit.py
+  kind: function
+  name: audit_tool_exec
+  signature: def audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type,
+    artifact_uri, source, idempotency_key, task_linkage) -> None
+  summary: Write a tool_exec event with mcp_request_id to the audit log.
+- file: scripts/agent/tool_audit.py
+  kind: function
+  name: write_round_exec
+  signature: def write_round_exec(ctx, *, round_id, tool_count, mode, has_side_effect,
+    trigger_tool, elapsed_ms, affected_tools, serial_reason, estimated_parallel_ms,
+    scheduling_mode) -> None
+  summary: Log a round-wide execution event, capturing serialization impact.
+- file: scripts/agent/tool_enums.py
+  kind: class
+  name: RiskLevel
+  signature: class RiskLevel
+  summary: Risk level classification for tool operations.
+- file: scripts/agent/tool_enums.py
+  kind: class
+  name: OperationType
+  signature: class OperationType
+  summary: Categorization of tool operation kinds.
+- file: scripts/agent/tool_enums.py
+  kind: class
+  name: ApprovalDecisionType
+  signature: class ApprovalDecisionType
+  summary: Possible outcomes of an approval gate evaluation.
+- file: scripts/agent/tool_enums.py
+  kind: class
+  name: GuardDecisionType
+  signature: class GuardDecisionType
+  summary: Decisions made by the tool guardrail system.
+- file: scripts/agent/tool_enums.py
+  kind: class
+  name: ToolCallStopReason
+  signature: class ToolCallStopReason
+  summary: Why a declared tool call was not executed in a round.
+- file: scripts/agent/tool_exceptions.py
+  kind: class
+  name: ToolArgumentsDecodeError
+  signature: class ToolArgumentsDecodeError
+  summary: Raised when tool call arguments cannot be decoded as JSON.
+- file: scripts/agent/tool_exceptions.py
+  kind: class
+  name: ToolExecutorUnavailableError
+  signature: class ToolExecutorUnavailableError
+  summary: Raised when ctx.services.tools is None at execution time.
+- file: scripts/agent/tool_exceptions.py
+  kind: class
+  name: PolicyViolationError
+  signature: class PolicyViolationError
+  summary: Raised when a pre-flight policy check denies the tool call.
+- file: scripts/agent/tool_exceptions.py
+  kind: class
+  name: ApprovalPreviewError
+  signature: class ApprovalPreviewError
+  summary: Raised when dry-run preview execution fails.
+- file: scripts/agent/tool_exceptions.py
+  kind: class
+  name: ApprovalPreviewBlockingError
+  signature: class ApprovalPreviewBlockingError
+  summary: Raised when dry-run preview returns an explicit error result.
+- file: scripts/agent/tool_exceptions.py
+  kind: class
+  name: AuditUnavailableError
+  signature: class AuditUnavailableError
+  summary: "Defined for completeness; not raised \u2014 silent return is the policy"
+- file: scripts/agent/tool_exceptions.py
+  kind: class
+  name: LifecycleConfigurationError
+  signature: class LifecycleConfigurationError
+  summary: Raised when a lifecycle operation is attempted with missing configuration.
+- file: scripts/agent/tool_loop_guard.py
+  kind: class
+  name: TurnLoopState
+  signature: class TurnLoopState
+  summary: Mutable per-turn loop state passed through each inner turn.
+- file: scripts/agent/tool_loop_guard.py
+  kind: class
+  name: ToolLoopGuard
+  signature: class ToolLoopGuard
+  summary: Guards the tool-call loop against dedup, cycle, retry, consecutive errors,
+    and progress stagnation.
+- file: scripts/agent/tool_models.py
+  kind: class
+  name: ToolCallRequest
+  signature: class ToolCallRequest
+  summary: Parsed, validated representation of a single LLM tool call.
+- file: scripts/agent/tool_models.py
+  kind: class
+  name: ToolMeta
+  signature: class ToolMeta
+  summary: Scheduling metadata for a single tool.
+- file: scripts/agent/tool_models.py
+  kind: class
+  name: ToolExecutionResult
+  signature: class ToolExecutionResult
+  summary: Result of executing one tool call.
+- file: scripts/agent/tool_models.py
+  kind: class
+  name: ApprovalOutcome
+  signature: class ApprovalOutcome
+  summary: Structured result of a single tool approval evaluation.
+- file: scripts/agent/tool_models.py
+  kind: class
+  name: GuardDecision
+  signature: class GuardDecision
+  summary: Result of a tool-loop guard check.
+- file: scripts/agent/tool_output.py
+  kind: function
+  name: emit_tool_call
+  signature: def emit_tool_call(name, args_json, output) -> None
+  summary: Write a tool invocation line.
+- file: scripts/agent/tool_output.py
+  kind: function
+  name: emit_tool_result
+  signature: def emit_tool_result(name, display, output) -> None
+  summary: Write a tool result summary line.
+- file: scripts/agent/tool_output.py
+  kind: function
+  name: emit_approval_prompt
+  signature: def emit_approval_prompt(risk, tool_name, preview, output) -> None
+  summary: Write the approval prompt header and preview.
+- file: scripts/agent/tool_output.py
+  kind: function
+  name: emit_denied
+  signature: def emit_denied(reason, output) -> None
+  summary: Write the denial line for a tool call. `reason` must include the tool name.
+- file: scripts/agent/tool_output.py
+  kind: function
+  name: emit_plan_blocked
+  signature: def emit_plan_blocked(tool_name, args_json, output) -> None
+  summary: Write plan-mode block notification.
+- file: scripts/agent/tool_output.py
+  kind: function
+  name: emit_skipped
+  signature: def emit_skipped(tool_name, output) -> None
+  summary: Write the 'skipped' confirmation after user denies a tool call.
+- file: scripts/agent/tool_policy.py
+  kind: function
+  name: classify_operation_type
+  signature: def classify_operation_type(tool_name, registry) -> OperationType
+  summary: Return the operation type for a tool.
+- file: scripts/agent/tool_policy.py
+  kind: function
+  name: check_write_classification
+  signature: def check_write_classification(registry) -> list[str]
+  summary: Return one finding per tool whose RuntimeTool write flag disagrees with
+    the static sets.
+- file: scripts/agent/tool_policy.py
+  kind: function
+  name: is_plan_mode_blocked
+  signature: def is_plan_mode_blocked(cfg, tool_name) -> bool
+  summary: Return True when plan mode must reject the tool call.
+- file: scripts/agent/tool_policy.py
+  kind: function
+  name: classify_risk
+  signature: def classify_risk(cfg, tool_name, args, registry) -> RiskLevel
+  summary: Return the risk level for a tool call.
+- file: scripts/agent/tool_policy.py
+  kind: function
+  name: check_allowed_root
+  signature: def check_allowed_root(cfg, tool_name, args) -> bool
+  summary: Return False when any path argument is outside cfg.approval.allowed_root.
+- file: scripts/agent/tool_policy.py
+  kind: function
+  name: check_allowed_repo
+  signature: def check_allowed_repo(cfg, tool_name, args) -> bool
+  summary: Return False when a GitHub write tool targets a repo not in the allowlist.
+- file: scripts/agent/tool_policy.py
+  kind: function
+  name: check_preflight
+  signature: def check_preflight(cfg, tool_name, args) -> None
+  summary: Raise PolicyViolationError when a pre-flight check denies the tool call.
+- file: scripts/agent/tool_preparation.py
+  kind: class
+  name: PreparedToolCall
+  signature: class PreparedToolCall
+  summary: A raw tool call that has passed preparation and is ready for approval/execution.
+- file: scripts/agent/tool_preparation.py
+  kind: function
+  name: prepare_tool_calls
+  signature: def prepare_tool_calls(ctx, tool_calls) -> tuple[list[PreparedToolCall],
+    list[_PrepFailure]]
+  summary: Prepare a batch of raw tool calls, in order.
+- file: scripts/agent/tool_result_formatter.py
+  kind: function
+  name: turn_limit_hint
+  signature: def turn_limit_hint(omitted_chars, omitted_lines, limit) -> str
+  summary: Build the hint shown to the LLM in place of a tool result dropped for
+- file: scripts/agent/tool_result_formatter.py
+  kind: function
+  name: build_execution_failure_text
+  signature: def build_execution_failure_text(exc) -> str
+  summary: Build the LLM-facing text for a tool call whose execution raised.
+- file: scripts/agent/tool_result_formatter.py
+  kind: function
+  name: mask_args
+  signature: def mask_args(args, masked_fields) -> dict[str, Any]
+  summary: Return a copy of args with masked_fields keys replaced by '***' at any
+    depth.
+- file: scripts/agent/tool_result_formatter.py
+  kind: function
+  name: build_github_preview
+  signature: def build_github_preview(args) -> str
+  summary: Build preview string for github_* tools showing repo and extra args.
+- file: scripts/agent/tool_result_formatter.py
+  kind: function
+  name: build_preview
+  signature: def build_preview(tool_name, args) -> str
+  summary: Build a human-readable operation preview shown before approval prompts.
+- file: scripts/agent/tool_result_pairing.py
+  kind: function
+  name: pair_round_results
+  signature: def pair_round_results(declared, answered, collected, stop_reason) ->
+    tuple[list[LLMMessage], list[tuple[str, str, None, str]]]
+  summary: Return (history entries, tool rows) for declared ids that have no result.
+- file: scripts/agent/tool_result_pairing.py
+  kind: function
+  name: build_denied_messages
+  signature: def build_denied_messages(denied_ids) -> tuple[list[LLMMessage], list[tuple[str,
+    str, None, str]]]
+  summary: Build history entries and tool_msgs for denied tool calls.
+- file: scripts/agent/tool_round_completion.py
+  kind: class
+  name: RoundState
+  signature: class RoundState
+  summary: What one round has produced so far, keyed by tool_call_id where it matters.
+- file: scripts/agent/tool_round_completion.py
+  kind: async function
+  name: complete_round
+  signature: async def complete_round(ctx, state, tool_calls, turn, out_failed_keys,
+    reason, collect) -> None
+  summary: Persist every row the round owes and answer each unanswered declared id.
+- file: scripts/agent/tool_run_recorder.py
+  kind: function
+  name: get_serialization_stats
+  signature: def get_serialization_stats() -> dict[str, int]
+  summary: Return current serialization statistics.
+- file: scripts/agent/tool_runner.py
+  kind: async function
+  name: execute_one_tool_call
+  signature: async def execute_one_tool_call(ctx, pc, guard) -> tuple[str, str, dict,
+    str, bool, str]
+  summary: Execute and truncate one already-prepared tool call.
+- file: scripts/agent/tool_runner.py
+  kind: async function
+  name: execute_all_tool_calls
+  signature: async def execute_all_tool_calls(ctx, tool_calls, turn, out_failed_keys,
+    *, guard) -> None
+  summary: Execute all tool calls then append results in original order.
+- file: scripts/agent/tool_scheduler.py
+  kind: class
+  name: MissingToolSpecError
+  signature: class MissingToolSpecError
+  summary: Raised when a tool call's call_id has no entry in the call_specs map
+- file: scripts/agent/tool_scheduler.py
+  kind: class
+  name: SerializationEvent
+  signature: class SerializationEvent
+  summary: Record of one serialization decision made while building an ExecutionPlan.
+- file: scripts/agent/tool_scheduler.py
+  kind: class
+  name: ScheduledGroup
+  signature: class ScheduledGroup
+  summary: One group of calls within a batch.
+- file: scripts/agent/tool_scheduler.py
+  kind: class
+  name: ScheduledBatch
+  signature: class ScheduledBatch
+  summary: One or more ScheduledGroups that run concurrently with each other.
+- file: scripts/agent/tool_scheduler.py
+  kind: class
+  name: ExecutionPlan
+  signature: class ExecutionPlan
+  summary: The full scheduling result for one batch of tool calls.
+- file: scripts/agent/tool_scheduler.py
+  kind: function
+  name: build_execution_groups
+  signature: def build_execution_groups(tool_calls, call_specs, *, force_serial) ->
+    ExecutionPlan
+  summary: Build the single-engine DAG execution plan for *tool_calls*.
+- file: scripts/agent/turn_persistence.py
+  kind: class
+  name: ConversationPersistenceError
+  signature: class ConversationPersistenceError
+  summary: Raised when a turn's session-DB persistence fails and is compensated.
+- file: scripts/agent/turn_persistence.py
+  kind: class
+  name: TurnPersistence
+  signature: class TurnPersistence
+  summary: Owns all session-DB writes of one agent turn (all-or-nothing).
+- file: scripts/agent/turn_result.py
+  kind: class
+  name: TurnResult
+  signature: class TurnResult
+  summary: Typed result of one LLM turn.
+- file: scripts/agent/wal_checkpoint_manager.py
+  kind: class
+  name: WalCheckpointManager
+  signature: class WalCheckpointManager
+  summary: WAL checkpoint and backup manager.
+- file: scripts/agent/workflow_engine_adapter.py
+  kind: class
+  name: WorkflowEngineAdapter
+  signature: class WorkflowEngineAdapter
+  summary: Wires workflow engine lifecycle around an LLM turn.
+generated_by: tools/generate_reference_table.py
+manifest: agent_api
+sources:
+- scripts/agent
+version: 1

@@ -65,8 +65,8 @@ Registry code, generator code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Generate and commit the manifest (after doc 05 lands) | Pending | — | — | Phase 3 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Generate and commit the manifest (after doc 05 lands) | Completed | 20261031-093000 | 20261031-105555 | 40 entries. Deviation note: builder switched to AST extraction per this procedure — the text regex had silently dropped a multi-line trailing-comma call (`tool_result_max_llm_chars`). Entry shape follows the doc-06 schema branch: field/section/hot_reloadable/validator |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-093000 | 20261031-105555 | Same doc-05/18-cycle gates after the AST fix; `--check` green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

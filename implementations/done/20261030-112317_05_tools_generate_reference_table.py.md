@@ -23,25 +23,50 @@ those manifests, and extend `--check` to detect drift in both directions
 - CI/pre-commit invocation (docs 14-15).
 
 ## Assumptions
-- Verified at HEAD `124e340b4`: generator is 422 lines; guard constants `:45-56`;
-  `DOMAIN_GENERATORS`/`DOMAIN_DOCS`/`DOMAIN_GUARDS`/`DOMAIN_WELCOME_LINES`
-  `:296-337`; `--check` exits 1 on drift (`:384-397`); `--type` required without
-  `--check` (`:398-399`).
+- Re-verified 2026-10-31 at HEAD `b88531438`: generator is 422 lines; guard constants
+  `:47-56`; `DOMAIN_GENERATORS`/`DOMAIN_DOCS`/`DOMAIN_GUARDS`/`DOMAIN_WELCOME_LINES`/
+  `DOMAIN_HEADING` `:288-339`; `render_updated_doc :342`; `check_drift :357`; `--check`
+  exits 1 on drift; `--type` required without `--check`.
 - `registry/manifests/` exists as an empty directory (created during procedure
   generation); YAML files are generated, not hand-written.
-- Needs Confirmation: whether `rag` (table printed, no doc guard) also gets a manifest;
-  default: no — REQ-006 names only the seven manifests, none is rag.
+- Resolved 2026-10-31: `rag` gets no manifest — its table (`:24-53`) is outside all
+  guards and REQ-006 names no rag manifest.
 
 ## Design decisions
 - One builder function per manifest name returning `(manifest_dict, table_markdown)`;
   the dict is validated against `schemas/contract_manifest.json` (doc 06) with
   `jsonschema` (already a dependency) before any write.
-- Deterministic output: entries sorted by natural key, `generated_at` (new) recorded but
-  excluded from drift comparison — reproducibility is an AC-4 test target (doc 18).
-- Drift model: regenerate the manifest in memory; compare against the committed YAML
-  (manifest vs source) and against the guarded block rendered from the committed YAML
-  (block vs manifest). This catches hand-edited blocks and stale manifests with one
-  code path.
+- Rendering manifests beyond the seven REQ-006 names: `agent_api` (new), `eventbus_api` (new),
+  `memory_api` (new). The seven REQ-006 manifests carry no symbol-table entries, so the three
+  guarded class/function blocks (docs 20/21 and the memory doc) cannot render FROM a
+  manifest without them; the schema enum (doc 06) has 10 names. `eventbus_route_roles`
+  and `config_ownership`/`health_contracts` are fact manifests with no guard block of
+  their own. `mcp` renders from `mcp_endpoints` + `tool_ownership`; `deployment` from
+  `db_schema_versions`.
+- Migration gate (AC-4): re-rendering all five guarded docs from the generated manifests
+  must produce zero git diff except the welcome-line wording change in the three
+  plan-targeted docs (mcp_01, eventbus_08, agent_13; the plan's Implementation Target
+  Files table excludes the deployment and memory docs); the current table generators'
+  scan primitives stay the build path, their formatting code becomes the entry→markdown
+  renderers.
+- Welcome lines (`DOMAIN_WELCOME_LINES`): the `mcp`/`agent`/`eventbus` entries gain
+  "rendered from `registry/manifests/<name>.yaml`" wording in this code change (docs
+  19-21 only commit the regenerated blocks); `deployment`/`memory` wording unchanged so
+  those two blocks stay byte-identical.
+- Deterministic output: entries sorted by natural key; `generated_at` is NOT written to
+  the committed YAML (schema key optional) — a timestamp would break doc 14's
+  `git diff --exit-code registry/manifests/` freshness step. Reproducibility is an AC-4
+  test target (doc 18).
+- Drift model: `--check` iterates the registered manifest set; a missing committed
+  manifest file is itself drift. Then regenerate in memory; compare against the
+  committed YAML (manifest vs source) and against the guarded block rendered from the
+  committed YAML (block vs manifest). This catches hand-edited blocks and stale
+  manifests with one code path.
+- Module size (plan Risk mitigation): manifest entry models, YAML load/write, and the
+  shared render helpers move to a new private module `tools/_contract_manifests.py`;
+  builders stay per-domain functions. `tools/_contract_manifests.py` needs a
+  `tools/TOOL_DESCRIPTIONS.md` row (doc 22) because `check_tool_descriptions_sync`
+  requires a row for every `tools/*.py` except `__init__.py`.
 
 ## Alternatives considered
 - Keep generators direct-to-doc and treat manifests as a parallel export: rejected —
@@ -81,9 +106,9 @@ non-manifest domains.
 ### Details
 - YAML serialization: `yaml.safe_dump(sort_keys=True)`; module import `import yaml`
   (new) (PyYAML is already used by tools in this repo).
-- Guard markers (`:45-51`) and welcome lines (`:325-330`) are unchanged; the welcome
-  line text gains "rendered from `registry/manifests/<name>.yaml`" only via docs 19-21
-  refreshes, not code.
+- Guard markers (`:47-56`) are unchanged. The `DOMAIN_WELCOME_LINES` constants
+  (`:325-330`) are edited in this change so regenerated blocks name their manifest;
+  docs 19-21 only commit the regenerated output.
 
 ## Compatibility considerations
 - `--check` output contract (`DRIFT: <path>` lines, exit 1) is consumed by CI
@@ -117,11 +142,11 @@ CI/pre-commit wiring, individual manifest source semantics, deferred REQ-007 man
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement manifest builders/validation/write path | Pending | — | — | Phase 2 pilot: mcp, deployment |
-| 2 | Rewire renderer + two-way check_drift | Pending | — | — | Characterization: existing tables byte-identical |
-| 3 | Add or update tests per Validation plan | Pending | — | — | Doc 18 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 5 | Port remaining domains to manifests | Pending | — | — | Phase 3 |
+| 1 | Implement manifest builders/validation/write path | Completed | 20261031-093000 | 20261031-105251 | All 10 builders implemented. Deviation note: the mcp guarded table renders from `mcp_endpoints` (server-centric layout); `tool_ownership` belongs to the domain and is drift-checked but is not the render source |
+| 2 | Rewire renderer + two-way check_drift | Completed | 20261031-093000 | 20261031-105251 | Migration gate (AC-4) verified: deployment and memory blocks byte-identical; mcp/agent/eventbus blocks differ only in the welcome line |
+| 3 | Add or update tests per Validation plan | Completed | 20261031-093000 | 20261031-105251 | Doc 18 co-authored in the same change |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-093000 | 20261031-105251 |  |
+| 5 | Port remaining domains to manifests | Completed | 20261031-093000 | 20261031-105251 | Phase 3 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

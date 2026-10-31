@@ -33,6 +33,10 @@ jobs:
         run: uv run python tools/check_db_separation.py
       - name: Generated reference docs drift check
         run: uv run python tools/generate_reference_table.py --check
+      - name: Regenerate contract manifests
+        run: uv run python tools/generate_reference_table.py --manifests
+      - name: Contract manifest drift check
+        run: git diff --exit-code registry/manifests/
       - name: ADR authority model check
         run: uv run python tools/check_adr_authority.py
       - name: ADR index generated sections drift check

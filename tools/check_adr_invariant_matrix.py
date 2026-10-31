@@ -77,6 +77,16 @@ _TABLE_SEPARATOR_RE = re.compile(r"^\|[\s:|-]+\|\s*$")
 # bare code reference like `` `config_loader.py` `` (no `::`) is not matched.
 _TEST_PATH_RE = re.compile(r"`([^`]+\.py)::([^`]+)`")
 
+# Skip-family markers nullify a cited node's execution evidence (REQ-002).
+_SKIP_MARKER_RE = re.compile(r"\bmark\.(?:skip|skipif|xfail)$")
+
+# Approved-exception reference grammar, shared with .github/run_cited_adr_tests.py
+# (row 03 imports this module by path); documented in adr_01_index.md vocabulary.
+_EXCEPTION_RE = re.compile(r"Exception: [A-Za-z0-9._-]+")
+
+# REQ-004 stepped enforcement: flip this constant to "ERROR" after the migration window.
+_CADENCE_RULE_SEVERITY = "WARNING"
+
 
 def _read_lines(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines()
@@ -161,12 +171,96 @@ def _citation_problem(file_part: str, node: str) -> str | None:
     return _node_problem(file_part, node)
 
 
+def _dotted_name(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        base = _dotted_name(node.value)
+        return f"{base}.{node.attr}" if base is not None else None
+    if isinstance(node, ast.Call):
+        return _dotted_name(node.func)
+    return None
+
+
+_MARKER_CACHE: dict[
+    tuple[Path, int, int], tuple[dict[str, frozenset[str]], bool] | None
+] = {}
+
+
+def _node_markers(path: Path) -> tuple[dict[str, frozenset[str]], bool] | None:
+    """Return (name -> skip-family decorator names, module-level pytestmark skip)
+    for class and function definitions in `path`, or None when it cannot be read
+    or parsed. Cached per (path, mtime, size)."""
+    try:
+        stat = path.stat()
+        key = (path, stat.st_mtime_ns, stat.st_size)
+        if key in _MARKER_CACHE:
+            return _MARKER_CACHE[key]
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return None
+    markers: dict[str, frozenset[str]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        found = {
+            dotted
+            for decorator in node.decorator_list
+            if (dotted := _dotted_name(decorator)) is not None
+            and _SKIP_MARKER_RE.search(dotted)
+        }
+        if found:
+            markers[node.name] = frozenset(found)
+    module_skipped = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "pytestmark" for t in node.targets
+        ):
+            values = (
+                node.value.elts
+                if isinstance(node.value, (ast.List, ast.Tuple))
+                else [node.value]
+            )
+            if any(
+                (dotted := _dotted_name(value)) is not None
+                and _SKIP_MARKER_RE.search(dotted)
+                for value in values
+            ):
+                module_skipped = True
+                break
+    _MARKER_CACHE[key] = (markers, module_skipped)
+    return _MARKER_CACHE[key]
+
+
+def _marker_problem(file_part: str, node: str) -> str | None:
+    """Return the skip-family marker name when a cited node is statically marked
+    skip/skipif/xfail (on itself, its class, or module-level `pytestmark`); None
+    otherwise. Non-skip markers (e.g. `usefixtures`) are not skip-family."""
+    result = _node_markers(REPO_ROOT / file_part)
+    if result is None:
+        return None
+    markers, module_skipped = result
+    if module_skipped:
+        return "pytestmark"
+    for segment in node.split("::"):
+        name = _NODE_SEGMENT_SUFFIX_RE.sub("", segment)
+        found = markers.get(name)
+        if found:
+            return sorted(found)[0]
+    return None
+
+
 def check_invariant_matrix_test_paths(lines: list[str]) -> list[Issue]:
-    """Fail for every cited pytest node id whose file or node does not exist."""
+    """Fail for every cited pytest node id whose file or node does not exist,
+    and for every cited node carrying a static skip-family marker when the row
+    records no `Exception: <id>` reference (REQ-002)."""
     issues: list[Issue] = []
     for line_no, row in _matrix_rows(lines):
+        status_cell = _split_row(row)[-1] if row.strip().endswith("|") else ""
+        exception_approved = bool(_EXCEPTION_RE.search(status_cell))
         for match in _TEST_PATH_RE.finditer(row):
-            problem = _citation_problem(match.group(1), match.group(2))
+            file_part, node = match.group(1), match.group(2)
+            problem = _citation_problem(file_part, node)
             if problem:
                 issues.append(
                     Issue(
@@ -174,6 +268,21 @@ def check_invariant_matrix_test_paths(lines: list[str]) -> list[Issue]:
                         line_no=line_no,
                         severity="ERROR",
                         message=problem,
+                    )
+                )
+                continue
+            marker = _marker_problem(file_part, node)
+            if marker and not exception_approved:
+                issues.append(
+                    Issue(
+                        file="adr_01_index.md",
+                        line_no=line_no,
+                        severity="ERROR",
+                        message=(
+                            f"cited node '{file_part}::{node}' carries a static "
+                            f"'{marker}' marker; the row records no approved "
+                            "'Exception: <id>' reference"
+                        ),
                     )
                 )
     return issues
@@ -216,6 +325,38 @@ _INDEX_NAME = "adr_01_index.md"
 
 def _split_row(line: str) -> list[str]:
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+_MANUAL_STATUSES = ("Manual", "Partial")
+_CADENCE_FIELDS = ("Cadence:", "Expected evidence:")
+
+
+def check_manual_partial_fields(lines: list[str]) -> list[Issue]:
+    """REQ-004: a Manual or Partial matrix row must carry `Cadence:` and
+    `Expected evidence:` inside its Verification Status cell; missing fields
+    report at `_CADENCE_RULE_SEVERITY` (WARNING during the migration window)."""
+    issues: list[Issue] = []
+    for line_no, row in _matrix_rows(lines):
+        cells = _split_row(row)
+        if not cells:
+            continue
+        status_cell = cells[-1]
+        if not status_cell.startswith(_MANUAL_STATUSES):
+            continue
+        for field in _CADENCE_FIELDS:
+            if field not in status_cell:
+                issues.append(
+                    Issue(
+                        file=_INDEX_NAME,
+                        line_no=line_no,
+                        severity=_CADENCE_RULE_SEVERITY,
+                        message=(
+                            f"Verification Status cell is missing the required "
+                            f"'{field}' field for a Manual/Partial row"
+                        ),
+                    )
+                )
+    return issues
 
 
 def _table_lines(lines: list[str], heading: str) -> list[tuple[int, str]]:
@@ -372,6 +513,7 @@ def collect_issues() -> list[Issue]:
         ]
     index_lines = _read_lines(ADR_INDEX)
     issues = check_invariant_matrix_test_paths(index_lines)
+    issues.extend(check_manual_partial_fields(index_lines))
     adr_files = _adr_file_map(index_lines)
     bodies: dict[str, list[str]] = {}
     for adr, relative in sorted(adr_files.items()):

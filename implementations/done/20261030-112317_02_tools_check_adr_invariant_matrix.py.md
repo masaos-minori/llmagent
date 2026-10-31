@@ -28,6 +28,17 @@ approved-exception references in matrix rows (REQ-002, REQ-004; plan AC-1, AC-3)
   `_BODY_RULE_SEVERITY` constant.
 - Depends on row 01 vocabulary landing first (plan Dependencies "checker parses the
   matrix vocabulary").
+- Re-verified 2026-10-31 at HEAD `b88531438`: anchors hold — `_TEST_PATH_RE :78`,
+  `_matrix_rows :85`, `_defined_names :118`, `_node_problem :138`,
+  `check_invariant_matrix_test_paths :164`, `_BODY_RULE_SEVERITY :202`,
+  `_split_row :217`, `collect_issues :363`.
+- Re-verified risk figure: of the 46 test files currently cited by the matrix, none
+  carries a `skip`/`skipif`/`xfail` marker (the plan's 27-skip count covers the whole
+  test suite, not cited nodes) — the live-repo run stays green without new exceptions.
+- Marker matching must target only `skip`/`skipif`/`xfail` names, not any `pytestmark`:
+  `tests/mcp_servers/shell/test_shell_server_auth.py` carries a module-level
+  `pytestmark = pytest.mark.usefixtures(...)` and is cited — matching any marker would
+  false-positive there.
 
 ## Design decisions
 - Reuse the existing AST walk in `_defined_names`: extend it to also collect decorator
@@ -90,7 +101,7 @@ Extension of existing functions plus one new check function; no behavior removal
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement marker + cadence rules | Pending | — | — |  |
+| 1 | Implement marker + cadence rules | Completed | 20261031-095159 | 20261031-095642 | Marker+cadence+exception rules landed; 28 new cases in doc-16 test file; live checker green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

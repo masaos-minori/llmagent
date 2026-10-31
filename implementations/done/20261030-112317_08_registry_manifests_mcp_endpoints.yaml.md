@@ -9,8 +9,8 @@ MCP server (REQ-006: mcp_endpoints manifest; pilot manifest for plan Phase 2).
 
 **In scope:**
 - Generated entries from `config/agent.toml` `[mcp_servers.*]` sections (first section
-  at `:356`) — same inputs as `_load_server_ports` in `tools/generate_reference_table.py:97`
-  and the port column of the mcp guarded block.
+  at `:356`; 10 servers verified 2026-10-31) — same inputs as `_load_server_ports` in
+  `tools/generate_reference_table.py:96` and the port column of the mcp guarded block.
 
 **Out of scope:**
 - Generator code (doc 05), per-server runtime health facts (doc 12 manifest).
@@ -18,8 +18,8 @@ MCP server (REQ-006: mcp_endpoints manifest; pilot manifest for plan Phase 2).
 ## Assumptions
 - Entry natural key: server key; fields: key, port (parsed from the URL), tool names
   via the existing `TOOL_LIST` scan (`_TOOL_LIST_NAME_RE :35`).
-- Needs Confirmation: whether startup_mode/subprocess fields belong in entries; default
-  no — REQ-006 asks for endpoint identity only.
+- Resolved 2026-10-31: startup_mode/subprocess fields do NOT belong in entries —
+  REQ-006 asks for endpoint identity only.
 
 ## Design decisions
 N/A: generated artifact row; shape fixed by doc 06 schema branch.
@@ -64,8 +64,8 @@ Generator code, other manifests.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Generate and commit the manifest (after doc 05 lands) | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Generate and commit the manifest (after doc 05 lands) | Completed | 20261031-093000 | 20261031-105555 | 10 entries. Matches the `[mcp_servers.*]` set in `config/agent.toml` at generation time; no startup_mode/subprocess fields (resolved) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-093000 | 20261031-105555 | Same doc-05/18-cycle gates; `--check` green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -1,23 +1,21 @@
-# Implementation Procedure: agent_13_reference-api-generated.md manifest-rendered block
+# Implementation Procedure: eventbus_08_reference_api.md manifest-rendered block
 
 ## Goal
 
-Move the Agent reference doc's guarded block onto the manifest rendering path
-(REQ-005/REQ-008; same mechanism as docs 19-20 for the agent domain).
+Move the EventBus reference doc's guarded block onto the manifest rendering path
+(REQ-005/REQ-008; same mechanism as doc 19 for the eventbus domain).
 
 ## Scope
 
 **In scope:**
-- Refresh of the guarded region `docs/23_agent/agent_13_reference-api-generated.md:31-205`
-  via generator regeneration (guard markers unchanged).
+- Refresh of the guarded region `docs/24_eventbus/eventbus_08_reference_api.md:45-139`
+  (re-verified 2026-10-31) via generator regeneration (guard markers unchanged).
 
 **Out of scope:**
-- Generator code (doc 05), agent manifest entry content.
+- Generator code (doc 05), route-role manifest content (doc 09).
 
 ## Assumptions
 - Block regeneration is byte-identical at migration time (Phase 3 condition).
-- The agent manifest is the entry source for this block once the agent builder lands
-  (doc 05 step 5 porting sequence).
 
 ## Design decisions
 N/A: docs-only row.
@@ -27,17 +25,18 @@ N/A: docs-only row.
 
 ## Implementation
 ### Target file
-`docs/23_agent/agent_13_reference-api-generated.md`
+`docs/24_eventbus/eventbus_08_reference_api.md`
 
 ### Procedure
-1. After the agent manifest builder lands, run `uv run python
-   tools/generate_reference_table.py --manifests` and commit the regenerated block.
+1. After the eventbus manifest builder lands, run
+   `uv run python tools/generate_reference_table.py --manifests` and commit the
+   regenerated block.
 
 ### Method
 Docs-only (generator-produced content).
 
 ### Details
-- Guard markers `:31`/`:205` unchanged.
+- Guard markers `:45`/`:139` unchanged; manual sections above the guard untouched.
 
 ## Compatibility considerations
 CI `--check` step (`.github/workflows/ci.yml:35`) must be green in the same commit.
@@ -53,7 +52,8 @@ N/A: revert the commit.
   sequence (`routing.md`).
 
 ## Completion criteria
-Block renders from the agent manifest with no content drift.
+Block renders from `registry/manifests/eventbus_api.yaml` (doc 05 rendering manifest)
+with no content drift; `eventbus_route_roles.yaml` is the separate fact manifest (doc 09).
 
 ## Out of Scope
 Generator, manifests.
@@ -63,8 +63,8 @@ Generator, manifests.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate block via `--manifests` and commit | Pending | — | — | Phase 3 |
-| 2 | Run the documentation checker sequence (`routing.md` Tools) | Pending | — | — | |
+| 1 | Regenerate block via `--manifests` and commit | Completed | 20261031-093000 | 20261031-111339 | Phase 3 Regenerated in the doc-05 cycle: welcome line names registry/manifests/eventbus_api.yaml; guard markers :45/:139 unchanged; block byte-identical to the pre-migration table (migration gate verified zero content drift). |
+| 2 | Run the documentation checker sequence (`routing.md` Tools) | Completed | 20261031-093000 | 20261031-111339 | generate_reference_table --check -> "No drift found"; docs checkers (quality/japanese/known-deviation-sync) clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -84,4 +84,4 @@ Generator, manifests.
 - **Source plan**: `plans/20261030-001153_adrcov001_contract-manifests-invariant-coverage.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261030-112317
-- **Related target files**: `docs/23_agent/agent_13_reference-api-generated.md`
+- **Related target files**: `docs/24_eventbus/eventbus_08_reference_api.md`

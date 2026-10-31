@@ -9,8 +9,9 @@ fixtures (REQ-005; test-side of docs 05-13).
 
 **In scope:**
 - New cases in `tests/tools/test_generate_reference_table.py`: schema validation of
-  generated manifests, byte-deterministic regeneration (two runs, ignoring
-  `generated_at` (new)), manifest-vs-source drift, and block-vs-manifest drift.
+  generated manifests, byte-deterministic regeneration (two runs, byte-identical — the
+  generator writes no `generated_at`, doc 05/06), manifest-vs-source drift, missing-
+  manifest drift, and block-vs-manifest drift.
 - Reuse the existing synthetic-repo fixture style of `TestCheckDrift`
   (`tests/tools/test_generate_reference_table.py:120`).
 
@@ -47,7 +48,8 @@ fixtures (REQ-005; test-side of docs 05-13).
 Pure additions; existing classes untouched.
 
 ### Details
-- Determinism comparison strips the `generated_at` (new) key before byte-compare.
+- Determinism: raw byte-compare of two `--manifests` runs (no `generated_at` is written;
+  `git diff --exit-code registry/manifests/` in CI relies on this).
 
 ## Compatibility considerations
 CI step `generate_reference_table.py --check` (`.github/workflows/ci.yml:35`) output
@@ -75,8 +77,8 @@ Generator code, manifest contents.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | Test-first: red until doc 05 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | 20261031-093000 | 20261031-105251 | Deviation note: the 2 synthetic-repo `TestCheckDrift` cases needed fixture extension (synthetic deployment sources + committed manifest) because `check_drift` is now manifest-coupled; their DRIFT-string assertions are unchanged. 6 new cases added |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-093000 | 20261031-105251 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

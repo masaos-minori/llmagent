@@ -75,8 +75,8 @@ Runner code, checker code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the test module per Procedure | Pending | — | — | Test-first: red until doc 03 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create the test module per Procedure | Completed | 20261031-100237 | 20261031-100237 | Test-first: red until doc 03 Co-authored with doc 03 cycle |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-100237 | 20261031-100237 | 13 passed; ruff green; live runner green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -18,9 +18,10 @@ manifest mode as an extension of the ADR-015 generated-reference document class
 - Any change to ADR-015 invariant text or its matrix rows (frozen per plan Excluded list).
 
 ## Assumptions
-- Needs Confirmation: exact insertion point (Implementation Notes vs References section);
-  `tools/check_adr_structure.py` enforces heading drift rules, so the subsection must
-  sit under an existing allowed heading.
+- Resolved 2026-10-31: insertion point fixed to a `### ` subsection under the existing
+  `## Implementation Notes` heading (`:115`), after the five-domain list and its
+  "See Implementation References" line — `tools/check_adr_structure.py` allows `###`
+  subsections there.
 
 ## Design decisions
 - Prose only, no new headings beyond the ADR's existing structure — keeps
@@ -72,8 +73,8 @@ All other ADR bodies; checker code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checker sequence (`routing.md` Tools) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261031-112000 | 20261031-111639 | "### Contract Manifest Extension" subsection added under ## Implementation Notes after the five-domain list + "See Implementation References" line (before ## Known Deviations). Names the 7 fact manifests, the 3 rendering manifests (agent_api/eventbus_api/memory_api) as internal to the class mechanism, and the 3 deferred manifests (component_mandatoriness/adr_authority/architecture_assumptions) as explicit deferred-state per REQ-007. Invariants/Verification text untouched. |
+| 2 | Run the documentation checker sequence (`routing.md` Tools) | Completed | 20261031-112000 | 20261031-111639 | check_adr_structure / check_adr_invariant_matrix / check_adr_reference / generate_adr_authority --check / check_docs_quality / check_known_deviation_sync all green. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

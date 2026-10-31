@@ -3,7 +3,7 @@
 ## Goal
 
 Ship the `db_schema_versions` contract manifest: per-DB schema identity and version
-(REQ-006: db_schema_versions manifest; U-2 static-hash form until dbmig001 lands).
+(REQ-006: db_schema_versions manifest, version+hash form — see Assumptions).
 
 ## Scope
 
@@ -11,23 +11,28 @@ Ship the `db_schema_versions` contract manifest: per-DB schema identity and vers
 - Entries for the four DBs sourced from `scripts/db/schema_sql.py` (schema templates;
   `WORKFLOW_SCHEMA_VERSION` at `:25`) and `scripts/eventbus/schema.sql`, plus the
   DB-path inventory already used by the deployment generator
-  (`_DB_PATH_FIELD_RE :37` over `scripts/db/config.py`).
+  (`_DB_PATH_FIELD_RE :36` over `scripts/db/config.py`).
 
 **Out of scope:**
-- Migration version tables from dbmig001 (sequenced dependency — add when its version
-  framework exists); generator code (doc 05).
+- Generator code (doc 05).
 
 ## Assumptions
-- Needs Confirmation: final entry shape depends on dbmig001's version framework; this
-  row ships the static-hash form (sha256 of each schema source text as `content_hash`)
-  and drops `generated_at` (new) from comparisons per doc 05.
-- Landing order: dbmig001 before this manifest is regenerated with real version rows
-  (plan Dependencies).
+- Re-verified 2026-10-31: dbmig001 has LANDED (`scripts/shared/db_migrations.py`
+  `MigrationSpec` ledger, `scripts/db/migrations_workflow.py`,
+  `scripts/eventbus/migrations.py` PRAGMA user_version steps). The U-2 "static hash
+  until dbmig001 lands" condition is obsolete: this manifest ships the version+hash
+  form directly.
+- Entry shape: `kind: db_path` rows (db name, config key, agent.toml presence — the
+  facts the deployment guard block renders) plus `kind: schema` rows (schema source
+  file, version marker — eventbus `PRAGMA user_version`, workflow
+  `WORKFLOW_SCHEMA_VERSION`, `content_hash` sha256 of the schema source text).
+  `generated_at` is never written (doc 05/06).
 
 ## Design decisions
-- Static hash instead of version numbers for now: a content hash is checkable today
-  without the migration framework and turns into drift the moment either schema file
-  changes unnoticed — the invariant REQ-006 wants.
+- Version+hash rows (dbmig001 has landed): version markers (`PRAGMA user_version`,
+  `WORKFLOW_SCHEMA_VERSION`) plus sha256 `content_hash` of the schema source text —
+  the hash turns unnoticed schema-file edits into drift the moment they happen, the
+  invariant REQ-006 wants.
 
 ## Alternatives considered
 N/A: generated artifact row.
@@ -38,9 +43,9 @@ N/A: generated artifact row.
 
 ### Procedure
 1. Produced by `generate_reference_table.py --manifests` (doc 05, deployment/db
-   builder); commit the generated file.
-2. After dbmig001 lands, regenerate with version-table entries added (follow-up under
-   the same row, no new file).
+   builder); commit the generated file. Version+hash rows ship directly (dbmig001
+   landed — Assumptions); the U-2 follow-up regeneration the plan anticipated is
+   obsolete.
 
 ### Method
 Generation, never hand-edit.
@@ -74,9 +79,8 @@ dbmig001 migration tables, generator code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Generate and commit the static-hash manifest | Pending | — | — | Phase 3 |
-| 2 | Regenerate with dbmig001 version rows once available | Pending | — | — | Sequenced dependency |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Generate and commit the version+hash manifest | Completed | 20261031-093000 | 20261031-105555 | 6 entries (4 db_path + 2 schema). content_hash verified against current `scripts/eventbus/schema.sql` and `scripts/db/schema_sql.py` text; versions 5 and 1.1.0; `sources` includes `scripts/db/config.py` (the db_path facts) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-093000 | 20261031-105555 | Same doc-05/18-cycle gates; `--check` green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

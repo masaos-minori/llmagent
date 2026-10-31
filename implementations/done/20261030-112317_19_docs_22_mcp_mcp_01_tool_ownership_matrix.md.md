@@ -68,8 +68,8 @@ Generator, manifest file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate block via `--manifests` and commit | Pending | — | — | After doc 05 |
-| 2 | Run the documentation checker sequence (`routing.md` Tools) | Pending | — | — | |
+| 1 | Regenerate block via `--manifests` and commit | Completed | 20261031-093000 | 20261031-111339 | After doc 05 Regenerated in the doc-05 cycle: welcome line names registry/manifests/mcp_endpoints.yaml; guard comment markers byte-identical (block content shifted from :82/:97 to :84/:99 by the step-2 prose sentence, markers and table unchanged). Prose sentence added under "## Tool-to-MCP Server Mapping": tool facts are machine-readable in tool_ownership.yaml; the Server Port & Tool Reference table renders from mcp_endpoints.yaml. |
+| 2 | Run the documentation checker sequence (`routing.md` Tools) | Completed | 20261031-093000 | 20261031-111339 | After the prose edit: generate_reference_table --check -> "No drift found"; check_docs_quality / check_docs_japanese / check_known_deviation_sync clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

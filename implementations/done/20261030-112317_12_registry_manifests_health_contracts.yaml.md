@@ -17,13 +17,14 @@ definitions (REQ-006: health_contracts manifest).
   code (doc 05).
 
 ## Assumptions
-- Needs Confirmation: REQ-006 names "posture/health contract definitions" without a
-  single source file. Working source set: per-server security check modules (e.g.
-  `scripts/mcp_servers/web_search/web_search_security_checks.py`) plus
-  `check_readiness` (`scripts/agent/services/mcp_health.py:334`) as the consumer-side
-  contract. Confirm the authoritative inventory before implementation.
-- Entry natural key: server key; fields: check names, disposition (fail-fast |
-  fail-closed).
+- Resolved 2026-10-31: the authoritative inventory is `REQUIRED_CHECK_IDS` in
+  `scripts/shared/security/posture_contract.py:35` — a `Mapping[server_key,
+  tuple[check_id, ...]]` covering all 10 shipped servers (`COMMON_CHECK_IDS` plus
+  per-server ids). Per-server modules are the implementers of those ids, not the
+  contract definition; the generator reads this one module via AST (docs 09/11
+  technique).
+- Entry natural key: server key; fields: sorted check-id list, disposition (fail-fast |
+  fail-closed) per the ADR-004 fail-fast policy the matrix rows cite.
 
 ## Design decisions
 - Derive entries from the servers' own check registries rather than from test files —
@@ -44,7 +45,8 @@ N/A: generated artifact row.
 Generation, never hand-edit.
 
 ### Details
-- `manifest: health_contracts` (new); `sources:` lists the per-server check modules.
+- `manifest: health_contracts` (new); `sources:
+  ["scripts/shared/security/posture_contract.py"]`.
 
 ## Compatibility considerations
 Manifest rows referenced from matrix Verification Status cells must match evidence
@@ -71,9 +73,9 @@ Health endpoint code, matrix text.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm authoritative posture-contract inventory | Pending | — | — | Needs Confirmation above |
-| 2 | Generate and commit the manifest | Pending | — | — | Phase 3 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Confirm authoritative posture-contract inventory | Completed | 20261031-093000 | 20261031-105555 | 10 servers from `REQUIRED_CHECK_IDS` via AST; `disposition: fail-fast` on every entry (ADR-004 Decision #14; no per-server literal exists in source) |
+| 2 | Generate and commit the manifest | Completed | 20261031-093000 | 20261031-105555 | Same doc-05/18-cycle gates; `--check` green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-093000 | 20261031-105731 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

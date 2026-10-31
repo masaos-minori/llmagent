@@ -44,8 +44,10 @@ Generation, never hand-edit.
   check fails when the map changes without regeneration.
 
 ## Compatibility considerations
-eventbus guarded block (`docs/24_eventbus/eventbus_08_reference_api.md:44-129`) keeps
-its current columns; route-role facts are manifest entries, not new columns.
+eventbus guarded block (`docs/24_eventbus/eventbus_08_reference_api.md:45-139`,
+re-verified 2026-10-31) keeps its current columns; route-role facts are manifest entries,
+not new columns. The signature table itself renders from the `eventbus_api` (new) rendering
+manifest (doc 05 Design decisions), not from this fact manifest.
 
 ## Security considerations
 Manifest exposes role→route matrix (already public in docs); no token material.
@@ -67,8 +69,8 @@ auth.py code, generator code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Generate and commit the manifest (after doc 05 lands) | Pending | — | — | Phase 3 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Generate and commit the manifest (after doc 05 lands) | Completed | 20261031-093000 | 20261031-105555 | 10 entries extracted from `_ROUTE_ROLE_MAP` via AST (no eventbus import at generation time); matches the map exactly |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-093000 | 20261031-105555 | Same doc-05/18-cycle gates; `--check` green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

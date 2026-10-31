@@ -69,6 +69,12 @@ repos:
         language: system
         pass_filenames: false
         types_or: [python, markdown]
+      - id: manifest-check
+        name: Check contract manifests against live sources
+        entry: python -m tools.generate_reference_table --check
+        language: system
+        pass_filenames: false
+        files: ^(registry/manifests/.*\.yaml|schemas/contract_manifest\.json|tools/generate_reference_table\.py|tools/_contract_manifests\.py|tools/check_adr_invariant_matrix\.py|config/agent\.toml|scripts/.*|docs/.*\.md)$
       - id: skills-references
         name: Check skills/rules/prompts file references resolve
         entry: python -m tools.check_skills_references

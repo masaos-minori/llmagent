@@ -1,0 +1,36 @@
+entries:
+- roles:
+  - CONSUMER
+  route: /ack
+- roles:
+  - ADMIN
+  route: /admin/*
+- roles:
+  - OPERATOR
+  route: /dlq
+- roles:
+  - OPERATOR
+  route: /dlq/requeue
+- roles:
+  - CONSUMER
+  route: /events
+- roles:
+  - MONITORING
+  route: /health
+- roles:
+  - CONSUMER
+  route: /nack
+- roles:
+  - PUBLISHER
+  route: /publish
+- roles:
+  - OPERATOR
+  route: /replay
+- roles:
+  - CONSUMER
+  route: /subscribe
+generated_by: tools/generate_reference_table.py
+manifest: eventbus_route_roles
+sources:
+- scripts/eventbus/auth.py
+version: 1

@@ -17,16 +17,19 @@ checker output).
 - Matrix text edits (doc 01); checker logic (doc 02); generator code (doc 05).
 
 ## Assumptions
-- Source: parse of `docs/10_adr/adr_01_index.md` matrix rows via the checker
-  (`tools/check_adr_invariant_matrix.py --format json`, supported at `:48`,
-  emitted at `:439` through the `--format json` convention in
-  `tools/_docs_consistency_lib.py`).
-- This manifest is the only one whose "source" is a docs file + checker, not code;
-  drift direction: matrix→manifest.
+- Re-verified 2026-10-31: the checker's `--format json` (`:430`, `:440`) emits Issue
+  findings through `tools/_docs_consistency_lib.py`, not matrix rows — it is not usable
+  as the manifest source. Correct mechanism: the invariant_coverage builder
+  path-imports `tools/check_adr_invariant_matrix.py` (same `importlib` pattern as the
+  runner's `_CHECKER`) and calls its row parsers `_matrix_rows` (`:85`) and `_split_row`
+  (`:217`) directly — single parsing implementation preserved.
+- This manifest is the only one whose "source" is a docs file + checker module, not
+  code; drift direction: matrix→manifest.
 
 ## Design decisions
-- Consume the checker's JSON output rather than re-parsing the table in the generator
-  — single parsing implementation (already the rule between checker and runner).
+- Consume the checker module's row-parsing functions in-process rather than re-parsing
+  the table in the generator — single parsing implementation (already the rule between
+  checker and runner).
 
 ## Alternatives considered
 N/A: generated artifact row.
@@ -37,7 +40,8 @@ N/A: generated artifact row.
 
 ### Procedure
 1. Produced by `generate_reference_table.py --manifests` (doc 05, Phase 3 builder) by
-   invoking the checker's JSON mode in-process; commit the generated file.
+   path-importing the checker module and calling `_matrix_rows`/`_split_row`
+   in-process; commit the generated file.
 
 ### Method
 Generation, never hand-edit.
@@ -70,8 +74,8 @@ Matrix text, checker code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Generate and commit the manifest (after docs 01-02, 05 land) | Pending | — | — | Phase 3 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Generate and commit the manifest (after docs 01-02, 05 land) | Completed | 20261031-093000 | 20261031-105555 | 37 entries agree 1:1 with the 37 matrix rows. Direct in-process import of `tools/check_adr_invariant_matrix.py` row parsers (single parsing implementation) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261031-093000 | 20261031-105555 | Same doc-05/18-cycle gates; `--check` green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
