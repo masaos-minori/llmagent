@@ -62,9 +62,9 @@ models, extending ADR-010 INV-06 result-source tracking.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-115014 | 20261031-115014 | stale_detector clean; anchors verified |
+| 2 | Apply the Implementation procedure | Completed | 20261031-115014 | 20261031-115014 | models_result.SearchDiagnostics.corpus_generation + identity_degraded appended; diagnostics.py is a separate legacy class (Reference Files), no edit needed |
+| 3 | Run the Validation plan gates | Completed | 20261031-115014 | 20261031-115014 | ruff(0)/mypy(0)/pytest 6 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

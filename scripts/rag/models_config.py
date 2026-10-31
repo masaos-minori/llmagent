@@ -41,3 +41,6 @@ class RagConfigImpl:
     mqe_prompt_template: str
     mqe_n_queries: int
     rerank_prompt_template: str
+    # RAGCORPUS001 REQ-003: identity-mismatch policy consumed by the fallback gate
+    # (doc 08). Fail-closed default; `degraded` only by explicit operator approval.
+    rag_identity_mismatch_policy: str = "reject"

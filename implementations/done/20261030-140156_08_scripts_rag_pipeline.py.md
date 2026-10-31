@@ -74,9 +74,9 @@ result.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261030-140156 | 20261031-131124 | Anchors re-verified against current source (pipeline.py augment/get_diagnostics, corpus_identity, diagnostics, models_result). |
+| 2 | Apply the Implementation procedure | Completed | 20261030-140156 | 20261031-131130 | Implemented additive fallback identity gate: _identity_gate pure helper, _local_identity (lazy, read from meta table), gate call in augment() fallback path, corpus_generation + identity_degraded surfaced via get_diagnostics post-process. |
+| 3 | Run the Validation plan gates | Completed | 20261030-140156 | 20261031-131136 | Gates passed: pytest tests/rag (615 incl. test_rag_http_mode 4) / mypy 448 files / ruff 0 / bandit pre-existing-only. User-approved gate semantics (reject/degraded only when both present+unequal) preserves fallback; test_in_process_fallback_sets_result_source_fallback green. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -88,7 +88,24 @@ result.
 |---------|--------------|------|--------|-------|----------|
 | `20261030-140156_01_scripts_rag_corpus_identity.py.md` | 1 (dependency) | Procedure | Pending | — | — |
 
-## Marker record
+## Post-archive refactor (module-size gate)
+
+The gate logic below was extracted from `scripts/rag/pipeline.py` into a dedicated
+leaf module `scripts/rag/identity_gate.py` after this procedure was archived, to keep
+`pipeline.py` under the `check_module_size` gate (was 21443 B > 20480 B after the
+additive gate; now 17669 B). Moved: `_META_TABLE`, `GateDecision`, `_identity_gate`,
+`_safe_corpus_id`, and the lazy `_local_identity` (now `compute_local_identity(db,
+*, schema_version)`). `SCHEMA_VERSION` stays in `pipeline.py` (doc 08 target file).
+
+- Fixed a latent bug uncovered by direct unit tests (`tests/rag/test_identity_gate.py`):
+  `GateDecision.reject` originally returned `not self.proceed`, which is also `True`
+  for a `degraded` mismatch. Since the pipeline checks `if gate.reject: return ""`
+  before `if gate.degraded`, the `degraded` policy was unreachable. `reject` now reads
+  `not self.proceed and self.reason != "identity_degraded"`, matching the design above
+  (degraded mismatch proceeds to local re-execution and marks the result degraded).
+  Dormant today — the fallback path carries `remote_identity=None` always — so no
+  existing test exercised it.
+
 - `(new)` markers applied: `_identity_gate`, `identity_mismatch` (Contract section).
 
 ## Traceability

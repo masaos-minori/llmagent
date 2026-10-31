@@ -13,17 +13,20 @@ created table and never emits the ``CREATE TABLE`` statement itself.
 
 Functions:
   compute_identity(db, *, embedding_model_id, schema_version) -> CorpusIdentity
+  parse_remote_identity(body) -> CorpusIdentity | None
   ensure_corpus_meta(db, *, embedding_model_id, schema_version) -> CorpusIdentity | None
   bump_index_generation(db) -> int | None
 
 This module imports only ``SQLiteHelper`` from ``db`` (``rag -> db`` layer contract) and
-stdlib.
+stdlib. It is a leaf: other ``rag.*`` modules (e.g. ``pipeline_service``, ``http_augment``)
+import ``parse_remote_identity`` from here to avoid a runtime import cycle.
 """
 
 import datetime
 import sqlite3
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 from db.helper import SQLiteHelper
 
@@ -151,6 +154,46 @@ def compute_identity(
         else str(chunking_policy_version),
         verified=True,
     )
+
+
+def parse_remote_identity(body: Any) -> CorpusIdentity | None:
+    """Parse a remote corpus identity from an HTTP response body.
+
+    Reads the nested ``corpus_identity`` object (snake_case wire fields) and returns a
+    :class:`CorpusIdentity`. Returns ``None`` when the body does not carry a complete
+    identity — missing ``corpus_identity`` key, a non-object value, or any missing
+    identity field — so callers treat it as unverifiable rather than guessing (REQ-002,
+    REQ-003). Type coercion is best-effort; a coercion failure also yields ``None``.
+    """
+    if not isinstance(body, dict):
+        return None
+    raw = body.get("corpus_identity")
+    if not isinstance(raw, dict):
+        return None
+    corpus_id = raw.get("corpus_id")
+    index_generation = raw.get("index_generation")
+    schema_version = raw.get("schema_version")
+    embedding_model_id = raw.get("embedding_model_id")
+    normalization_version = raw.get("normalization_version")
+    chunking_policy_version = raw.get("chunking_policy_version")
+    if corpus_id is None or index_generation is None or schema_version is None:
+        return None
+    if embedding_model_id is None or normalization_version is None:
+        return None
+    if chunking_policy_version is None:
+        return None
+    try:
+        return CorpusIdentity(
+            corpus_id=str(corpus_id),
+            index_generation=int(index_generation),
+            schema_version=str(schema_version),
+            embedding_model_id=str(embedding_model_id),
+            normalization_version=str(normalization_version),
+            chunking_policy_version=str(chunking_policy_version),
+            verified=bool(raw.get("verified", False)),
+        )
+    except (TypeError, ValueError):
+        return None
 
 
 def ensure_corpus_meta(

@@ -49,6 +49,16 @@ _RAG_SCHEMA_TEMPLATE: str = """
         CHECK (chunk_type IN ('text', 'code')),
         CHECK (length(content) > 0)
     );
+    CREATE TABLE IF NOT EXISTS rag_corpus_meta (
+        corpus_id                TEXT    NOT NULL,
+        index_generation         INTEGER NOT NULL,
+        embedding_model_id       TEXT    NOT NULL,
+        normalization_version    TEXT    NOT NULL,
+        chunking_policy_version  TEXT    NOT NULL,
+        updated_at               TEXT    NOT NULL,
+        -- Single-row: the corpus identity is a single configuration row.
+        CHECK (rowid = 1)
+    );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_vec USING vec0(
         chunk_id  INTEGER PRIMARY KEY,
         -- distance_metric is a column-level option, not a separate constructor arg (no comma)

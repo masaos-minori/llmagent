@@ -55,9 +55,9 @@ changing existing call semantics.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-120951 | 20261031-120951 | stale_detector clean; anchors verified |
+| 2 | Apply the Implementation procedure | Completed | 20261031-120951 | 20261031-120951 | run_http_augment stashes result.remote_identity into AugmentRefiner._last_remote_identity (verbatim None); read-only property added; no signature change |
+| 3 | Run the Validation plan gates | Completed | 20261031-120951 | 20261031-120951 | ruff(0)/mypy(0)/bandit(0)/pytest 32 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

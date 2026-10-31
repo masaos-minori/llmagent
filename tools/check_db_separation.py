@@ -53,7 +53,9 @@ if str(SCRIPTS_DIR) not in sys.path:
 # Canonical table ownership (ADR-008 Decision #1 to #4). Update together with the
 # ADR when a table is added to or moved between databases.
 TABLE_OWNERSHIP: dict[str, frozenset[str]] = {
-    "rag": frozenset({"documents", "chunks", "chunks_vec", "chunks_fts"}),
+    "rag": frozenset(
+        {"documents", "chunks", "rag_corpus_meta", "chunks_vec", "chunks_fts"}
+    ),
     "session": frozenset(
         {
             "sessions",

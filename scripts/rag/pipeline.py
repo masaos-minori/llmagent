@@ -38,6 +38,7 @@ from rag.db_connection import RagDatabaseConnection
 from rag.diagnostics import PipelineDiagnostics
 from rag.exceptions import RagPipelineError
 from rag.http_augment import _map_http_result_kind
+from rag.identity_gate import _identity_gate, _safe_corpus_id, compute_local_identity
 from rag.llm_client import RagLLM
 from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
@@ -50,6 +51,13 @@ from rag.stages.augment import (
 from rag.types import PipelineRunResult
 
 logger = logging.getLogger(__name__)
+
+# Schema version is not persisted in the ``rag_corpus_meta`` table (no column for it), so
+# the fallback gate supplies it as a module-level constant rather than reading it from
+# configuration (no runtime config source exists). It participates in identity equality
+# but never affects gate behavior while the remote side is unverifiable; bump only on a
+# breaking corpus-schema change so existing corpora keep a stable identity.
+SCHEMA_VERSION = "1"
 
 
 class RagPipeline:
@@ -84,6 +92,12 @@ class RagPipeline:
         # Cumulative search failure counters across all run() calls on this instance
         self.stat_search_embed_failed: int = 0
         self.stat_search_fts_errors: int = 0
+        # RAGCORPUS001 (REQ-004): corpus generation of the last accepted result, surfaced by
+        # get_diagnostics(); None when no verified local corpus produced the result.
+        self._last_corpus_generation: int | None = None
+        # RAGCORPUS001 (REQ-007): True when the fallback gate tolerated a mismatch under the
+        # ``degraded`` policy on the last execution.
+        self._identity_degraded: bool = False
 
         # Resolve configuration via delegate
         self._cfg = resolve_rag_config(cfg, module_cfg=module_cfg)
@@ -261,6 +275,47 @@ class RagPipeline:
                 sqlite_timeout=self._sqlite_timeout,
                 sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
             ) as db:
+                # RAGCORPUS001 Phase 3 fallback identity gate (REQ-003): compare the
+                # remote identity (parsed once upstream, doc 11) against the local
+                # identity before accepting a remote-to-local fallback. Reject/degrade
+                # only when both are present and unequal; otherwise preserve the
+                # existing fallback behavior and record the unverifiable state.
+                local_identity = compute_local_identity(
+                    db, schema_version=SCHEMA_VERSION
+                )
+                gate = _identity_gate(
+                    self._augment_refiner.last_remote_identity,
+                    local_identity,
+                    policy=self._cfg.rag_identity_mismatch_policy,
+                )
+                if gate.reject:
+                    self.last_stage_results.append(
+                        StageResult(
+                            stage_name="IdentityGate",
+                            status="failure",
+                            elapsed_seconds=0.0,
+                            fallback_reason=gate.reason,
+                        )
+                    )
+                    logger.warning(
+                        "RAG fallback rejected: remote=%s local=%s policy=%s",
+                        _safe_corpus_id(self._augment_refiner.last_remote_identity),
+                        _safe_corpus_id(local_identity),
+                        self._cfg.rag_identity_mismatch_policy,
+                    )
+                    return ""
+                if gate.degraded:
+                    self._identity_degraded = True
+                    logger.warning(
+                        "RAG fallback identity mismatch tolerated under 'degraded' "
+                        "policy: remote=%s local=%s",
+                        _safe_corpus_id(self._augment_refiner.last_remote_identity),
+                        _safe_corpus_id(local_identity),
+                    )
+                # REQ-004: record the generation of the corpus that will serve the result.
+                self._last_corpus_generation = (
+                    local_identity.index_generation if local_identity.verified else None
+                )
                 pipeline_result = await self.run(
                     query,
                     db,
@@ -306,7 +361,7 @@ class RagPipeline:
             http_result_kind = http_result_kind_raw
         else:
             http_result_kind = _map_http_result_kind(http_result_kind_raw)
-        return PipelineDiagnostics.to_dict(
+        diagnostics = PipelineDiagnostics.to_dict(
             PipelineDiagnostics.from_run_result(
                 embed_ok=self.last_search_diagnostics.embed_ok,
                 embed_failed=self.last_search_diagnostics.embed_failed,
@@ -319,3 +374,13 @@ class RagPipeline:
                 http_result_kind=http_result_kind,
             )
         )
+        # RAGCORPUS001 (REQ-004/REQ-007): surface the accepted corpus generation and the
+        # identity-degraded marker. Added here rather than in PipelineDiagnostics.to_dict()
+        # so the frozen diagnostics contract in tests/rag/test_diagnostics.py stays
+        # byte-for-byte stable. getattr defaults keep this safe when called before
+        # augment() (some tests build the pipeline via RagPipeline.__new__).
+        diagnostics["corpus_generation"] = getattr(
+            self, "_last_corpus_generation", None
+        )
+        diagnostics["identity_degraded"] = getattr(self, "_identity_degraded", False)
+        return diagnostics

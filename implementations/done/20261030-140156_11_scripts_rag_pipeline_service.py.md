@@ -16,8 +16,10 @@ pipeline gate can compare remote identity without re-parsing HTTP payloads.
 ## Design decisions
 - `CallRagResult` gains `remote_identity` (new): `CorpusIdentity | None`, defaulted
   `None`. Populated wherever this module already parses a remote response body (same
-  wire fields as doc 10 — share one parse helper if it lands in `http_augment.py`,
-  imported at the `rag.*` top-level layer).
+  wire fields as doc 10). The shared parse helper `parse_remote_identity(body)` lives
+  in the leaf module `scripts/rag/corpus_identity.py` (imports only `db.helper`; no
+  runtime import cycle with `pipeline_service`/`http_augment`) and is imported here at
+  the `rag.*` top-level layer.
 - All pre-existing fields and their semantics unchanged (REQ-009); retry/logging paths
   (`_log_retry` `:42`) untouched.
 
@@ -53,9 +55,9 @@ pipeline gate can compare remote identity without re-parsing HTTP payloads.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-115014 | 20261031-115014 | stale_detector clean; anchors re-verified against HEAD |
+| 2 | Apply the Implementation procedure | Completed | 20261031-115014 | 20261031-115014 | CallRagResult.remote_identity added (defaulted None); call_rag_service parses body on success/empty sites; auth_error/transient keep None |
+| 3 | Run the Validation plan gates | Completed | 20261031-115014 | 20261031-115014 | ruff(0)/mypy(0)/pytest 25 passed; parse_remote_identity pure helper in leaf corpus_identity.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

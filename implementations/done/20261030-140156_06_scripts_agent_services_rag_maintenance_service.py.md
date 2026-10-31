@@ -63,9 +63,9 @@ ensure/read the startup and the fallback gate use.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261031-110300 | 20261031-110300 | stale_detector clean; anchors verified |
+| 2 | Apply the Implementation procedure | Completed | 20261031-110300 | 20261031-110300 | corpus_identity() wrapper added; manage_binaries.py BINARY_SOURCES gained scripts/rag/ for agent->rag import |
+| 3 | Run the Validation plan gates | Completed | 20261031-110300 | 20261031-110300 | ruff/mypy/bandit(high/medium 0)/lint-imports(0 broken) pass; full suite 10611 passed; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

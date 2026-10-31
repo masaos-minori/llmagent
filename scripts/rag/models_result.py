@@ -111,3 +111,8 @@ class SearchDiagnostics:
     remote_status_code: int | None = None
     remote_latency_ms: float | None = None
     fallback_reason: str | None = None
+    # Corpus identity fields (new, RAGCORPUS001 REQ-004): the selected corpus
+    # ``index_generation`` and the gate's degraded-marker. ``corpus_generation`` is
+    # ``None`` when no remote identity was available.
+    corpus_generation: int | None = None
+    identity_degraded: bool = False

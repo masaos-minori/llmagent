@@ -49,6 +49,15 @@ _RAG_SCHEMA_NO_VEC0 = """
         chunk_type         TEXT    NOT NULL,
         source_file        TEXT    NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS rag_corpus_meta (
+        corpus_id                TEXT    NOT NULL,
+        index_generation         INTEGER NOT NULL,
+        embedding_model_id       TEXT    NOT NULL,
+        normalization_version    TEXT    NOT NULL,
+        chunking_policy_version  TEXT    NOT NULL,
+        updated_at               TEXT    NOT NULL,
+        CHECK (rowid = 1)
+    );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
         content,
         content       = 'chunks',
@@ -235,6 +244,24 @@ class TestCreateRagSchema:
 
     def test_creates_chunks_fts_table(self, rag_tmp_db: sqlite3.Connection) -> None:
         assert "chunks_fts" in _table_names(rag_tmp_db)
+
+    def test_creates_rag_corpus_meta_table(
+        self, rag_tmp_db: sqlite3.Connection
+    ) -> None:
+        """rag_corpus_meta is created by the fresh-RAG-schema builder (recreate-only)."""
+        table_names = _table_names(rag_tmp_db)
+        assert "rag_corpus_meta" in table_names
+        cols = {
+            row[1] for row in rag_tmp_db.execute("PRAGMA table_info(rag_corpus_meta)")
+        }
+        assert {
+            "corpus_id",
+            "index_generation",
+            "embedding_model_id",
+            "normalization_version",
+            "chunking_policy_version",
+            "updated_at",
+        } <= cols
 
     def test_no_schema_version_table(self, rag_tmp_db: sqlite3.Connection) -> None:
         assert "schema_version" not in _table_names(rag_tmp_db)
