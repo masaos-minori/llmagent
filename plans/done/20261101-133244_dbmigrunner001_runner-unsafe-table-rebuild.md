@@ -1,5 +1,5 @@
 ## Goal
-- Make `MigrationRunner` run every migration step in one explicit, runner-controlled write transaction (statements executed individually, ledger row written in the same transaction, optional foreign-key enforcement switch and pre-commit verification), pin the `workflow_tool_call_state` step to its own literal version `1.2.0`, and let `migrate_db.py` operate on a given database file, so that a later table-rebuild or version-bump step can be added without data loss or a wrong version marker.
+- Make `MigrationRunner` run every migration step in one explicit, runner-controlled write transaction (statements executed individually, ledger row written in the same transaction, optional foreign-key enforcement switch and pre-commit verification), pin each string-stamping workflow step to its own literal version (`1.2.0`, `1.3.0`, `1.4.0`), and let `migrate_db.py` operate on a given database file, so that a later table-rebuild or version-bump step can be added without data loss or a wrong version marker.
 
 ## Priority
 High
@@ -9,7 +9,7 @@ High
   - Per-step transaction contract in the shared runner: explicit `BEGIN` taken by the runner, statements run one by one (no `executescript`), `record_applied` written before the single `commit`, rollback leaves no partial step.
   - Opt-in `MigrationSpec` attribute for foreign-key enforcement off during a step (set before the transaction begins, restored in a `finally`), with `PRAGMA foreign_key_check` before commit and rollback on a violation.
   - Optional pre-commit verification callback on `MigrationSpec`; the existing `postcondition` keeps its current post-commit position (see UNK-01).
-  - Replace the f-string in `_TOOL_STATE_MUTATION_SQL` with the literal `1.2.0`.
+  - Replace the f-strings in `_TOOL_STATE_MUTATION_SQL`, `_TASK_NONCE_MUTATION_SQL` and `_ATTEMPT_LEASE_MUTATION_SQL` with each step's own literal version (`1.2.0`, `1.3.0`, `1.4.0`).
   - `migrate_db.py` option to run `--status`, `--dry-run` and `--apply` against a given database file.
   - Correct the `_apply_step` docstring and the database documentation of the per-step transaction behavior.
   - Failing-first tests for each acceptance criterion.
@@ -18,10 +18,10 @@ High
   - The eventbus migration registry's own steps (they must keep working unchanged on the new runner).
   - Changing the backup gate, its refusal semantics, or the `schema_migrations` ledger layout.
   - Adding steps or changing `WORKFLOW_SCHEMA_VERSION` / `WORKFLOW_VERSION_CODES`.
-- **Dependencies**: This work blocks the recovery-schema phases of `plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` (Phase 2 of its Issue) and `plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md` (Phase 3 of its Issue): both need a safe table rebuild and a version bump, so this Plan is implemented first; those Plans are not edited here. Related archived work: `plans/done/20261029-214108_dbmig001_forward-only-db-migrations.md` and `issues/done/20261029-104500_dbmig001_forward-only-db-migrations.md` (closed; no open ordering dependency).
+- **Dependencies**: This work blocks the remaining open recovery-schema work of `plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` (its 26 procedures `implementations/20261101-145309_*` are still pending; its version bump needs this runner fix first): this Plan is implemented first; that Plan is not edited here. Corrected 20261102: the other Plans named when this Plan was generated — `plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md` (Phase 3) and the wflease001 Plan — landed ahead of this Plan with steps 3 and 4 already registered on the unfixed runner, so only the wfrecovery001 ordering remains live. Related archived work: `plans/done/20261029-214108_dbmig001_forward-only-db-migrations.md` and `issues/done/20261029-104500_dbmig001_forward-only-db-migrations.md` (closed; no open ordering dependency).
 
 ## Background
-`MigrationRunner` (`shared.db_migrations`) is the safety layer for forward-only migrations of retained `workflow.sqlite` and `eventbus.sqlite` databases (landed by dbmig001). Its documentation claims each step is all-or-nothing, but `_apply_step` runs the step with `executescript` and commits afterwards. The operator CLI `migrate_db.py` opens the workflow database through `SQLiteHelper("workflow").open(write_mode=True)`, which turns `PRAGMA foreign_keys=ON` on, and takes the path only from configuration. `apply` writes the ledger row and re-checks the postcondition after the step's commit. `_TOOL_STATE_MUTATION_SQL` embeds the live `WORKFLOW_SCHEMA_VERSION` constant (`1.2.0` today). The recovery plans need steps that rebuild `tasks`, `attempts` and `processed_events` and rename a column. Their own Plans still describe `scripts/db/migrations_workflow.py` as absent; that is stale, the module exists (checked in Step 3).
+`MigrationRunner` (`shared.db_migrations`) is the safety layer for forward-only migrations of retained `workflow.sqlite` and `eventbus.sqlite` databases (landed by dbmig001). Its documentation claims each step is all-or-nothing, but `_apply_step` runs the step with `executescript` and commits afterwards. The operator CLI `migrate_db.py` opens the workflow database through `SQLiteHelper("workflow").open(write_mode=True)`, which turns `PRAGMA foreign_keys=ON` on, and takes the path only from configuration. `apply` writes the ledger row and re-checks the postcondition after the step's commit. `_TOOL_STATE_MUTATION_SQL`, `_TASK_NONCE_MUTATION_SQL` and `_ATTEMPT_LEASE_MUTATION_SQL` embed the live `WORKFLOW_SCHEMA_VERSION` constant (`1.4.0` today). The recovery plans need steps that rebuild `tasks`, `attempts` and `processed_events` and rename a column. Their own Plans still describe `scripts/db/migrations_workflow.py` as absent; that is stale, the module exists (checked in Step 3).
 
 ## Problem
 Confirmed this cycle (checked in Step 2, with throwaway scripts on temporary SQLite files only):
@@ -29,7 +29,7 @@ Confirmed this cycle (checked in Step 2, with throwaway scripts on temporary SQL
 2. With `foreign_keys=ON`, `DROP TABLE` of a parent deletes the rows of an `ON DELETE CASCADE` child (1 row before, 0 after), so a rebuild step on the CLI path would destroy child history.
 3. `PRAGMA foreign_keys=OFF` is a no-op inside an open transaction (confirmed: setting it after `BEGIN` leaves it unchanged), so the setting must be switched before the runner begins the transaction. Set before `BEGIN`, it takes effect, and `DROP TABLE` then leaves the child row.
 4. The ledger row and the postcondition are written and run after the step commit, in separate transactions; a crash between them leaves a step applied but unrecorded.
-5. `_TOOL_STATE_MUTATION_SQL` embeds `WORKFLOW_SCHEMA_VERSION`; raising that constant later would make the earlier step write the new version.
+5. `_TOOL_STATE_MUTATION_SQL`, `_TASK_NONCE_MUTATION_SQL` and `_ATTEMPT_LEASE_MUTATION_SQL` embed the live `WORKFLOW_SCHEMA_VERSION`; the defect is already live since steps 3 and 4 landed: a legacy database migrated today gets `1.4.0` written after the tool_call_state and after the task_nonce step, although those shapes correspond to `1.2.0` and `1.3.0`; a later bump (the pending wfrecovery001 one) would move the lease step's marker too.
 
 Also confirmed: DDL and `PRAGMA user_version` writes are rolled back together with an explicit transaction when statements are executed individually, so one transaction can hold a whole step including its version stamp.
 
@@ -37,18 +37,18 @@ Also confirmed: DDL and `PRAGMA user_version` writes are rolled back together wi
 The documented guarantee (atomic step, verified backup, recorded ledger) does not hold for the kind of step the next planned changes need, and the defects are invisible until such a step runs against real data. Fixing the runner first keeps the recovery plans from being its first test.
 
 ## Implementation Intent
-Give a step an explicit transaction contract owned by the runner. For each step: run the preconditions as today; if the step opts in, read the current foreign-key setting and switch enforcement off (outside any transaction); begin one write transaction; execute the statements of `mutation_sql` individually; write the ledger row in the same transaction; if enforcement was switched off, run `PRAGMA foreign_key_check` and fail on any violation; run the optional pre-commit verification; commit; and in a `finally` restore the foreign-key setting. A failure at any point rolls the whole step back (statements, ledger row, version stamp). Existing steps behave exactly as before. The step's `postcondition` is kept as the post-commit re-check. Pin the tool_call_state version literal. Add a database-file option to the CLI so a migration can be rehearsed on a copy. Correct the docstring and the database documentation.
+Give a step an explicit transaction contract owned by the runner. For each step: run the preconditions as today; if the step opts in, read the current foreign-key setting and switch enforcement off (outside any transaction); begin one write transaction; execute the statements of `mutation_sql` individually; write the ledger row in the same transaction; if enforcement was switched off, run `PRAGMA foreign_key_check` and fail on any violation; run the optional pre-commit verification; commit; and in a `finally` restore the foreign-key setting. A failure at any point rolls the whole step back (statements, ledger row, version stamp). Existing steps behave exactly as before. The step's `postcondition` is kept as the post-commit re-check. Pin each string-stamping step to its own literal version. Add a database-file option to the CLI so a migration can be rehearsed on a copy. Correct the docstring and the database documentation.
 
 ## Requirements
 - `REQ-001`: The runner runs each step in one explicit write transaction with statements executed individually (no `executescript`); a failure at any statement leaves no partial change and no ledger row.
 - `REQ-002`: The ledger row (and the step's version stamp) is committed in the same transaction as the step's statements, never in a separate later transaction.
 - `REQ-003`: A step may opt in to foreign-key enforcement being off during the step; the setting is switched before the transaction begins, `PRAGMA foreign_key_check` runs before commit and a violation rolls the step back, and the previous setting is restored after every step including failures.
 - `REQ-004`: A step may supply an optional pre-commit verification callback whose failure rolls the step back; the existing post-commit `postcondition` semantics for current steps are kept and the final order is documented (UNK-01).
-- `REQ-005`: `_TOOL_STATE_MUTATION_SQL` writes the literal `1.2.0` regardless of the current `WORKFLOW_SCHEMA_VERSION`.
+- `REQ-005`: Each registered step writes its own pinned literal version instead of the live `WORKFLOW_SCHEMA_VERSION`: `_TOOL_STATE_MUTATION_SQL` `1.2.0`, `_TASK_NONCE_MUTATION_SQL` `1.3.0`, `_ATTEMPT_LEASE_MUTATION_SQL` `1.4.0` (Corrected 20261102: steps 3 and 4 landed after this Plan was generated and carry the same defect; replacing all three also makes the `WORKFLOW_SCHEMA_VERSION` import in `scripts/db/migrations_workflow.py` unused).
 - `REQ-006`: `migrate_db.py` accepts a database file option and runs `--status`, `--dry-run` and `--apply` against that file instead of the configured database; the other modes and exit codes are unchanged, and a path that does not exist is refused rather than created (Derived: `sqlite3.connect` creates an empty file for a missing path).
 - `REQ-007`: The `_apply_step` docstring (and the `MigrationRunner.apply` docstring ordering text) and the database documentation describe the actual transaction behavior, the new CLI option, and the postcondition order.
-- `REQ-008`: Compatibility: the two registered workflow steps and the two eventbus steps produce results identical to today on a legacy database; the backup gate and its refusals, and the ledger table layout, are unchanged; `shared` still imports nothing from `db`; no steps or schema versions are added.
-- `REQ-009`: Tests, written first and failing on current code, cover: a multi-statement step failing midway leaves the database unchanged; a table-rebuild step with child rows keeps every child row and a dangling reference fails closed before commit; the foreign-key setting is restored after success and failure; the ledger row and version stamp commit together; raising the head-version constant does not change what the tool_call_state step writes; the CLI works on a database copy.
+- `REQ-008`: Compatibility: the four registered workflow steps and the two eventbus steps produce results identical to today on a legacy database; the backup gate and its refusals, and the ledger table layout, are unchanged; `shared` still imports nothing from `db`; no steps or schema versions are added (Corrected 20261102: `workflow_task_nonce` and `workflow_attempt_lease` landed after Plan generation).
+- `REQ-009`: Tests, written first and failing on current code, cover: a multi-statement step failing midway leaves the database unchanged; a table-rebuild step with child rows keeps every child row and a dangling reference fails closed before commit; the foreign-key setting is restored after success and failure; the ledger row and version stamp commit together; raising the head-version constant does not change what any string-stamping step writes; the CLI works on a database copy.
 
 ## Implementation Target Files
 **Freeze status**: Frozen
@@ -61,10 +61,10 @@ table — no other file may be treated as a modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/shared/db_migrations.py` | Runner transaction contract and `MigrationSpec` attributes | `_apply_step` uses `executescript`; `apply` writes the ledger row and runs the postcondition after commit; `MigrationSpec` has no foreign-key or pre-commit field; docstring is inaccurate | REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008; AC-1, AC-2, AC-3, AC-4, AC-7 | `MigrationSpec`, `MigrationRunner._apply_step`, `MigrationRunner.apply`, `record_applied` read in full; 15651 B against the 20480 B module-size gate (checked in Step 3) | `tests/shared/test_db_migrations.py`, `tests/eventbus/test_eventbus_migrations.py` | Verified |
-| `scripts/db/migrations_workflow.py` | tool_call_state version literal | `_TOOL_STATE_MUTATION_SQL` is an f-string over `WORKFLOW_SCHEMA_VERSION`; its import becomes unused once replaced | REQ-005; AC-5 | `_TOOL_STATE_MUTATION_SQL` and the only use of `WORKFLOW_SCHEMA_VERSION` in this module found with `rg` (checked in Step 3) | `tests/db/test_migrations_workflow.py` | Verified |
+| `scripts/db/migrations_workflow.py` | Step version literals | `_TOOL_STATE_MUTATION_SQL`, `_TASK_NONCE_MUTATION_SQL` and `_ATTEMPT_LEASE_MUTATION_SQL` are f-strings over `WORKFLOW_SCHEMA_VERSION`; its import becomes unused once all three are replaced (Corrected 20261102: steps 3 and 4 landed after this Plan was generated and carry the same defect) | REQ-005; AC-5 | All three mutation SQL constants and the only uses of `WORKFLOW_SCHEMA_VERSION` in this module found with `rg` (re-checked 20261102) | `tests/db/test_migrations_workflow.py` | Verified |
 | `scripts/db/migrate_db.py` | Database-file option | `main` always opens `SQLiteHelper("workflow")` from configuration; no path option | REQ-006; AC-6 | `main`; `SQLiteHelper.__init__` already accepts `db_path` and bypasses configuration when given (checked in Step 3) | `tests/db/test_migrations_workflow.py` | Verified |
 | `tests/shared/test_db_migrations.py` | Runner transaction tests | Add failing-first tests for partial step, child-row loss, foreign-key restore, ledger-in-transaction | REQ-001, REQ-002, REQ-003, REQ-004, REQ-009; AC-1, AC-2, AC-3, AC-8 | Existing `TestMigrationFramework` with `_toy_registry` and `_init_db` helpers; no foreign-key or rebuild test exists (checked in Step 3) | itself | Verified |
-| `tests/db/test_migrations_workflow.py` | Version-literal and CLI-copy tests | Add tests for the pinned `1.2.0` marker and `migrate_db.py` on a copy | REQ-005, REQ-006, REQ-009; AC-5, AC-6, AC-8 | `TestWorkflowToolCallStateStep`, `TestWorkflowCli` and `_run_cli` (sandboxed config dir, temporary database) exist (checked in Step 3) | itself | Verified |
+| `tests/db/test_migrations_workflow.py` | Version-literal and CLI-copy tests | Add tests for the pinned per-step markers (`1.2.0`, `1.3.0`, `1.4.0`) and `migrate_db.py` on a copy; the existing step tests assert the marker `1.4.0` after each individual step and must be updated to the pinned values (re-checked 20261102) | REQ-005, REQ-006, REQ-009; AC-5, AC-6, AC-8 | `TestWorkflowToolCallStateStep`, `TestWorkflowCli` and `_run_cli` (sandboxed config dir, temporary database) exist (checked in Step 3) | itself | Verified |
 | `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` | Document the per-step contract and CLI option | Section 8 text says "per-step transactionality" without stating the mechanism, ledger timing, foreign-key handling, the CLI option or the postcondition order | REQ-007; AC-7 | Shared-contract paragraph in section 8b and the 8a text read; no mention of the CLI database option (checked in Step 3) | `tools/check_docs_*` gates (Validation plan) | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
@@ -103,7 +103,7 @@ glob patterns, components, file groups, or vague phrases.
 - `AC-2` (REQ-003): a rebuild step with foreign-key enforcement off keeps all child rows, and a dangling reference makes the step fail before commit with the database unchanged.
 - `AC-3` (REQ-003): the foreign-key pragma holds its prior value after every step, including failures and a refused precondition.
 - `AC-4` (REQ-002, REQ-004): the ledger row and the version stamp are committed together with the step's changes, and a failing pre-commit verification rolls all of them back.
-- `AC-5` (REQ-005): the tool_call_state step writes `1.2.0` regardless of the current head constant.
+- `AC-5` (REQ-005): each string-stamping step writes its own pinned literal (`1.2.0`, `1.3.0`, `1.4.0`) regardless of the current head constant.
 - `AC-6` (REQ-006): `migrate_db.py` run against a database copy supports `--status`, `--dry-run` and `--apply` and never opens the configured database; a missing path is refused without creating a file.
 - `AC-7` (REQ-007): the runner docstring and `docs/41_db` describe the actual transaction behavior and the CLI option; the documentation checks pass.
 - `AC-8` (REQ-008, REQ-009): the new tests fail on the current code and pass after the change; the existing runner, workflow and eventbus migration tests still pass unchanged; `lint-imports` reports no broken contract and `tools/check_module_size.py` passes.
@@ -112,7 +112,7 @@ glob patterns, components, file groups, or vague phrases.
 - `REQ-009` / `REQ-001`: toy step with two statements whose second fails; assert schema, ledger and `user_version` unchanged (fails today because the first statement persists).
 - `REQ-009` / `REQ-003`: toy parent/child database opened with `foreign_keys=ON`; rebuild step with the opt-in keeps the child rows; a step that leaves a dangling reference fails and rolls back; the pragma value is read back after success, failure and refusal.
 - `REQ-009` / `REQ-002`, `REQ-004`: ledger row visible only after commit (failure injected via a failing pre-commit callback leaves no ledger row and no stamp).
-- `REQ-009` / `REQ-005`: with the head constant changed (module reloaded under a patched constant), migrating a legacy fixture still writes `1.2.0` to `workflow_schema_version`.
+- `REQ-009` / `REQ-005`: with the head constant changed (module reloaded under a patched constant), migrating a legacy fixture still writes `1.2.0` after the tool_call_state step, `1.3.0` after the task_nonce step, and `1.4.0` after the attempt_lease step to `workflow_schema_version`; the existing per-step marker assertions that today expect `1.4.0` after the tool_call_state and task_nonce steps are updated to `1.2.0` and `1.3.0` (the attempt_lease assertion keeps `1.4.0`, now pinned by its own literal).
 - `REQ-009` / `REQ-006`: `_run_cli` with the database-file option on a copy for `--status`, `--dry-run` (file byte-identical) and `--apply`; a missing path exits non-zero and creates nothing.
 - `REQ-008`: regression run of `tests/shared/test_db_migrations.py`, `tests/db/test_migrations_workflow.py`, `tests/eventbus/test_eventbus_migrations.py`, `tests/eventbus/test_eventbus_db_migration.py`, `tests/deploy/test_init_db_ledger_gate.py`.
 - All tests use temporary database files only; nothing opens the configured workflow database or any path under `/opt/llm`.
@@ -154,7 +154,7 @@ Design decisions (alternatives and compatibility impact):
 2. Statement splitting. Chosen: split by `sqlite3.complete_statement` accumulation, so trigger bodies survive. Alternative: split on `;` (rejected: breaks triggers). Impact: registered steps only contain simple statements.
 3. Foreign-key control. Chosen: opt-in `MigrationSpec` boolean (default off, i.e. enforcement untouched); switch off before `BEGIN`, `foreign_key_check` before commit, restore in `finally`. Alternative: always disable (rejected: changes existing steps). Impact: default steps are unaffected.
 4. Verification order. Chosen: new optional pre-commit callback plus unchanged post-commit `postcondition` (UNK-01 records the owner choice). Impact: the existing `_postcondition_fingerprint` and `_postcondition_tool_state` keep their meaning, since both run after commit and read the committed ledger and `user_version`.
-5. Version pinning. The tool_call_state step writes its own literal; `WORKFLOW_VERSION_CODES` and `create_schema` stay as they are (no schema change in this Plan).
+5. Version pinning. Each string-stamping step writes its own literal (`1.2.0`, `1.3.0`, `1.4.0`); `WORKFLOW_VERSION_CODES` and `create_schema` stay as they are (no schema change in this Plan).
 6. CLI database option. `SQLiteHelper("workflow", db_path=...)` already bypasses configuration, so no helper change is needed. A missing path is refused before opening.
 
 Module-size note: `scripts/shared/db_migrations.py` is 15651 B against the 20480 B gate; the added transaction code is expected to fit, and `tools/check_module_size.py` is part of the validation (RISK below if it does not).
@@ -167,8 +167,8 @@ Module-size note: `scripts/shared/db_migrations.py` is 15651 B against the 20480
    - [ ] Add the opt-in foreign-key attribute and the optional pre-commit verification field to `MigrationSpec` (REQ-003, REQ-004; `scripts/shared/db_migrations.py`).
    - [ ] Rework `_apply_step` and the ledger write in `apply` into one runner-owned transaction with `finally` restore of the foreign-key setting; keep preconditions and the post-commit `postcondition` order (REQ-001, REQ-002, REQ-003, REQ-008; `scripts/shared/db_migrations.py`).
    - [ ] Correct the `_apply_step` and `apply` docstrings (REQ-007; `scripts/shared/db_migrations.py`).
-3. **Phase 3: Version literal**
-   - [ ] Replace the f-string version with the literal `1.2.0` and drop the then-unused import (REQ-005; `scripts/db/migrations_workflow.py`).
+3. **Phase 3: Version literals**
+   - [ ] Replace the f-string version in `_TOOL_STATE_MUTATION_SQL`, `_TASK_NONCE_MUTATION_SQL` and `_ATTEMPT_LEASE_MUTATION_SQL` with the literals `1.2.0`, `1.3.0`, `1.4.0`, and drop the then-unused `WORKFLOW_SCHEMA_VERSION` import (REQ-005; `scripts/db/migrations_workflow.py`).
 4. **Phase 4: CLI database option**
    - [ ] Add the database-file option, refuse a missing path, keep modes and exit codes (REQ-006; `scripts/db/migrate_db.py`).
 5. **Phase 5: Documentation**
@@ -208,12 +208,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing-first tests (`tests/shared/test_db_migrations.py`, `tests/db/test_migrations_workflow.py`) | Pending | — | — | |
-| 2 | Runner transaction contract and docstrings (`scripts/shared/db_migrations.py`) | Pending | — | — | |
-| 3 | tool_call_state version literal (`scripts/db/migrations_workflow.py`) | Pending | — | — | |
-| 4 | CLI database-file option (`scripts/db/migrate_db.py`) | Pending | — | — | |
-| 5 | Database documentation (`docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`) | Pending | — | — | |
-| 6 | Validation and deployment hand-off (all target files) | Pending | — | — | |
+| 1 | Failing-first tests (`tests/shared/test_db_migrations.py`, `tests/db/test_migrations_workflow.py`) | In Progress | — | — |  |
+| 2 | Runner transaction contract and docstrings (`scripts/shared/db_migrations.py`) | In Progress | — | — |  |
+| 3 | Step version literals (`scripts/db/migrations_workflow.py`) | In Progress | — | — |  |
+| 4 | CLI database-file option (`scripts/db/migrate_db.py`) | In Progress | — | — |  |
+| 5 | Database documentation (`docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`) | In Progress | — | — |  |
+| 6 | Validation and deployment hand-off (all target files) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -223,7 +223,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261102-075324_01_scripts_shared_db_migrations.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261102-075324_02_scripts_db_migrations_workflow.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261102-075324_03_scripts_db_migrate_db.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261102-075324_04_tests_shared_test_db_migrations.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261102-075324_05_tests_db_test_migrations_workflow.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261102-075324_06_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -245,7 +250,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-003 | Same | `tests/shared/test_db_migrations.py` | Step 1 | AC-2, AC-3 | Child-row and restore tests | Confirmed by repository evidence |
 | REQ-004 | Issue Required Changes 3, Unresolved Question 1 | `scripts/shared/db_migrations.py` | Step 2 | AC-4 | Failing pre-commit callback test | Derived from confirmed evidence |
 | REQ-004 | Same | `tests/shared/test_db_migrations.py` | Step 1 | AC-4 | Failing pre-commit callback test | Derived from confirmed evidence |
-| REQ-005 | Issue Problem 5, Required Changes 4; `_TOOL_STATE_MUTATION_SQL` f-string | `scripts/db/migrations_workflow.py` | Step 3 | AC-5 | Pinned-literal test | Confirmed by repository evidence |
+| REQ-005 | Issue Problem 5, Required Changes 4; the three step mutation SQL f-strings (steps 3 and 4 landed after Plan generation) | `scripts/db/migrations_workflow.py` | Step 3 | AC-5 | Pinned-literal tests | Confirmed by repository evidence |
 | REQ-005 | Same | `tests/db/test_migrations_workflow.py` | Step 1 | AC-5 | Pinned-literal test | Confirmed by repository evidence |
 | REQ-006 | Issue Required Changes 5; `main` has no path option; `SQLiteHelper` accepts `db_path` | `scripts/db/migrate_db.py` | Step 4 | AC-6 | CLI-copy tests | Confirmed by repository evidence |
 | REQ-006 | Same | `tests/db/test_migrations_workflow.py` | Step 1 | AC-6 | CLI-copy tests | Confirmed by repository evidence |
@@ -255,3 +260,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-008 | Same | `scripts/db/migrations_workflow.py` | Step 3 | AC-8 | Workflow regression tests | Explicit in issue |
 | REQ-009 | Issue Required Changes 7, Testing Expectations, AI Implementation Instruction | `tests/shared/test_db_migrations.py` | Step 1 | AC-8 | Failing-first runs | Explicit in issue |
 | REQ-009 | Same | `tests/db/test_migrations_workflow.py` | Step 1 | AC-8 | Failing-first runs | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261102-075324 -->
