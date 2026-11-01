@@ -12,7 +12,7 @@ Rename the `TaskRecord` constructor argument in `tests/agent/workflow/test_workf
 
 ## Design decisions
 
-- Rename-in-place; round-trip and payload tests (`:61-119` region per Plan) keep their structure.
+- Rename-in-place; `TestTaskRecord.test_create` keeps its structure (the Plan's "`:61-119` round-trip/payload tests" cite is stale — see Verification Notes).
 
 ## Alternatives considered
 
@@ -68,6 +68,13 @@ Mechanical rename; land with row 03.
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
+
+### Verification Notes (2026-11-01)
+- Passed with correction: `TaskRecord(..., idempotency_key="s1:3")` at `:25`
+  confirmed (test file 100 lines). The Plan's "`:61-119` round-trip/payload
+  tests" do not exist in this file — the only task-key reference is `:25` in
+  `TestTaskRecord.test_create` (`:17-31`). No attribute-set test exists.
+- Cycle: cycle 2 only (lands with row 03's model rename).
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

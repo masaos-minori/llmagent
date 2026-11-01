@@ -71,15 +71,23 @@ Direct edit; `find_stale_running_attempts` (`:250-277`) and `recover_stale_attem
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 2026-11-01 | cycle 1 (delegation + API removal) |
+| 2 | Add or update tests per Validation plan | Completed | — | 2026-11-01 | row 05/06 cycle-1 test updates |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-01 | full suite green except 15 pre-existing lifecycle failures (fail at clean HEAD) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-01 | no docs in scope for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
+
+### Verification Notes (2026-11-01)
+- Passed. `create_task` delegate at `:63-71`, lookup delegates `:73-124`,
+  count methods `:210-223`, migration subselects `:225,239` all confirmed.
+  Zero production callers of the four lookup APIs (`rg` over `scripts/`).
+- Cycle split (shared row plan 01/02/05/06): delegation rewrite and lookup
+  removal run in cycle 1; the `task_nonce` kwarg rename in this file's
+  signatures runs in cycle 2 with the rename unit (rows 01/03/04/12).
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -75,6 +75,13 @@ Single-paragraph rewrite plus one added sentence; no headings added or removed.
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
 
+### Verification Notes (2026-11-01)
+- Passed against HEAD `6faf6c4cb`: the tasks key paragraph is at `:48` and
+  the neighboring version paragraph at `:46` names `tool_call_state` only.
+  `tool_call_state.idempotency_key` wording (section 7) stays (AC-3).
+- Cycle: cycle 3 (docs wave, after the rename unit lands, together with
+  row 11).
+
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|

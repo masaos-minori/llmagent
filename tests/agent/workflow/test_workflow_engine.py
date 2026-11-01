@@ -17,7 +17,7 @@ from agent.workflow.idempotency_ops import is_event_processed
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 from agent.workflow.task_ops import (
     create_task,
-    get_task_by_idempotency_key,
+    get_task_by_id,
 )
 from agent.workflow.workflow_engine import (
     WorkflowEngine,
@@ -93,7 +93,7 @@ class TestWorkflowEngineHappyPath:
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
         await engine.run(task, _noop, _noop, _noop)
-        found = get_task_by_idempotency_key(store._db, task.idempotency_key)
+        found = get_task_by_id(store._db, task.task_id)
         assert found is not None
         assert found.status == "completed"
 
@@ -124,7 +124,7 @@ class TestWorkflowEngineRetry:
             return None
 
         await engine.run(task, _noop, flaky_execute, _noop)
-        found = get_task_by_idempotency_key(store._db, task.idempotency_key)
+        found = get_task_by_id(store._db, task.task_id)
         assert found is not None
         assert found.status == "completed"
         assert calls["n"] == 2
@@ -141,7 +141,7 @@ class TestWorkflowEngineRetry:
         with pytest.raises(WorkflowHaltError):
             await engine.run(task, _noop, always_fail, _noop)
 
-        found = get_task_by_idempotency_key(store._db, task.idempotency_key)
+        found = get_task_by_id(store._db, task.task_id)
         assert found is not None
         assert found.status == "halted"
 
@@ -295,7 +295,7 @@ class TestRunStageWithRetryGeneralization:
         with pytest.raises(RuntimeError, match="verify always fails"):
             await engine.run(task, _noop, _noop, failing_verify)
 
-        found = get_task_by_idempotency_key(store._db, task.idempotency_key)
+        found = get_task_by_id(store._db, task.task_id)
         assert found is not None
         assert found.status == "failed"
 

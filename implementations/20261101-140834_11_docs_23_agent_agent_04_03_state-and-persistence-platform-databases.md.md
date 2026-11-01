@@ -76,6 +76,13 @@ Two targeted paragraph edits in one commit.
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
 
+### Verification Notes (2026-11-01)
+- Passed against HEAD `6faf6c4cb`: scope paragraph at `:72`,
+  `tool_call_state` table row at `:78`, Operational Notes bullet at `:99`
+  all confirmed; Keywords section contains no `idempotency_key` term.
+- Cycle: cycle 3 (docs wave, together with row 10 and the db_03 update from
+  row 12's verification notes).
+
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|

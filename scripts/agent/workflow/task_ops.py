@@ -96,38 +96,26 @@ def get_task_by_id(db: SQLiteHelper, task_id: str) -> TaskRecord | None:
     return _row_to_task(rows[0])
 
 
-def get_task_by_idempotency_key(db: SQLiteHelper, key: str) -> TaskRecord | None:
-    """Look up a task by its idempotency key; returns None if not found."""
-    rows = db.fetchall("SELECT * FROM tasks WHERE idempotency_key=?", (key,))
-    if not rows:
-        return None
-    return _row_to_task(rows[0])
+def _scalar_count(db: SQLiteHelper, sql: str, params: tuple[object, ...]) -> int:
+    """Run a `COUNT(*) as cnt`-style query and return the scalar result."""
+    rows = db.fetchall(sql, params)
+    return int(rows[0]["cnt"]) if rows else 0
 
 
-def get_task_by_session(db: SQLiteHelper, session_id: str) -> list[TaskRecord]:
-    """Return all tasks for a session ordered by created_at ascending."""
-    rows = db.fetchall(
-        "SELECT * FROM tasks WHERE session_id=? ORDER BY created_at ASC",
+def get_task_count(db: SQLiteHelper, session_id: str) -> int:
+    """Return the number of tasks associated with a session."""
+    return _scalar_count(
+        db,
+        "SELECT COUNT(*) as cnt FROM tasks WHERE session_id=?",
         (session_id,),
     )
-    return [_row_to_task(r) for r in rows]
 
 
-def get_latest_task(db: SQLiteHelper, session_id: str) -> TaskRecord | None:
-    """Return the most recently created task for a session."""
-    rows = db.fetchall(
-        "SELECT * FROM tasks WHERE session_id=? ORDER BY created_at DESC LIMIT 1",
+def get_workflow_count(db: SQLiteHelper, session_id: str) -> int:
+    """Return the number of distinct workflows for a session."""
+    return _scalar_count(
+        db,
+        "SELECT COUNT(DISTINCT workflow_id) as cnt"
+        " FROM tasks WHERE session_id=? AND workflow_id IS NOT NULL",
         (session_id,),
     )
-    if not rows:
-        return None
-    return _row_to_task(rows[0])
-
-
-def list_tasks(db: SQLiteHelper, limit: int = 50) -> list[TaskRecord]:
-    """Return up to `limit` tasks ordered by created_at descending."""
-    rows = db.fetchall(
-        "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?",
-        (limit,),
-    )
-    return [_row_to_task(r) for r in rows]

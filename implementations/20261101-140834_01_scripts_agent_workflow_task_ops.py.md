@@ -77,15 +77,27 @@ Direct edit; no signature changes for surviving functions (`create_task`, `updat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | In Progress | 2026-11-01 | — | cycle 1 done (lookup APIs deleted, count functions added); rename sites deferred to cycle 2 |
+| 2 | Add or update tests per Validation plan | In Progress | 2026-11-01 | — | cycle 1 test updates landed (rows 05/06) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | In Progress | 2026-11-01 | — | cycle 1 validation passed; cycle 2 pending |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
+
+### Verification Notes (2026-11-01)
+- Passed. Cites confirmed against `task_ops.py` (133 lines): rename sites
+  `:30,38,47,59,84`, four lookup APIs `:99-133`, docstring `:1-9`.
+- Correction: the schema-shape guards are
+  `scripts/agent/services/workflow_schema.py:100-119` and
+  `scripts/db/create_schema.py:54-77`; no `scripts/db/workflow_schema.py`
+  exists. Count functions port from `state_store.py:210-223`.
+- Cycle split (shared row plan 01/02/05/06): lookup-API deletion and count
+  additions run in cycle 1 (no schema contact); the `idempotency_key` →
+  `task_nonce` rename in this file (all five sites plus the docstring) runs
+  in cycle 2 as one commit with rows 03/04/12 and row 06's engine kwarg.
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -11,7 +11,7 @@ Update the workflow DDL copy and uniqueness test in `tests/db/test_create_schema
 ## Assumptions
 
 - Re-verified 2026-11-01: cites shifted from the Plan's original `:359`/`:495` to `:386`/`:522` (toolexec001 landed between); the Plan row was corrected in the 2026-11-01 re-verification.
-- Plan overlap judgment (re-recorded): `test_create_schema.py` with dbmig001 — compatible (additive tests); the migration test may reuse the registry harness pattern from `tests/db/test_migrations_workflow.py` as a reference (read-only; that file is not modified).
+- Plan overlap judgment (re-recorded): `test_create_schema.py` with dbmig001 — compatible (additive tests); the migration test mirrors the registry harness pattern from `tests/db/test_migrations_workflow.py`. That file IS modified by row 12 (legacy fixture and version/registry assertions must track the new step), so this row borrows its fixtures but does not depend on them staying byte-identical.
 
 ## Design decisions
 
@@ -76,6 +76,22 @@ Extend the existing create-schema test fixtures; mirror the ledger/backup-gate s
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
 
+### Verification Notes (2026-11-01)
+- Passed. DDL copy `idempotency_key` line confirmed at `:386`;
+  `test_tasks_idempotency_key_unique` confirmed at `:522`
+  (`TestCreateWorkflowSchema` spans `:423-~666`).
+- Correction to Assumptions: `tests/db/test_migrations_workflow.py` is not a
+  read-only reference — row 12 must update its legacy fixture, registry set
+  assertion, forward-path list, version assertions, and CLI ledger
+  assertions (see row 12's Verification Notes). No `tests/db/test_migrations.py`
+  exists.
+- Consistency addition (agreed during verification): `tests/db/test_recovery_drill.py:52`
+  fixture DDL uses `idempotency_key` in a hand-rolled legacy tasks table. It
+  stays valid after the rename (the drill checks table presence only), but
+  row 09 renames it to `task_nonce` (new) in the same commit for repo-wide
+  consistency (AC-3 wording "no remaining references" would otherwise leave
+  a confusing literal).
+
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
@@ -89,4 +105,4 @@ Extend the existing create-schema test fixtures; mirror the ledger/backup-gate s
 - **Source plan**: plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261101-140834
-- **Related target files**: tests/db/test_create_schema.py
+- **Related target files**: tests/db/test_create_schema.py, tests/db/test_recovery_drill.py (verification addition, `:52` fixture DDL consistency)

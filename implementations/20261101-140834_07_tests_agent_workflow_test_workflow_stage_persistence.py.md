@@ -69,6 +69,12 @@ One-line edit; if the fixture value is derived from session/turn text (the histo
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
 
+### Verification Notes (2026-11-01)
+- Passed. Fixture INSERT confirmed at `:29`; no other task-key reference in
+  this 141-line file.
+- Cycle: cycle 2 only (rename unit with rows 01/03/04/12 — the renamed
+  column must exist before this fixture runs).
+
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|

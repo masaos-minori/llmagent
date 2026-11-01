@@ -72,6 +72,16 @@ Single-field rename; rely on type-checker errors to surface every construction s
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
 
+### Verification Notes (2026-11-01)
+- Passed. `TaskRecord.idempotency_key` at `models.py:21` (file 81 lines);
+  test literals at `test_workflow_state_store.py:76-85,121-125` and
+  `test_workflow_models.py:25`.
+- Clarification: `workflow_engine.py:148,157` reference `idempotency_key`
+  only for `ToolCallState`, which this rename does not touch. The engine's
+  `create_task(..., idempotency_key=...)` keyword calls (`:96,127,144,298`)
+  are renamed in the same cycle-2 commit as this row.
+- Cycle: cycle 2 (rename unit with rows 01 rename part, 04, 12).
+
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|

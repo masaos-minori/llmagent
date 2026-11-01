@@ -27,7 +27,12 @@ Rename the `tasks.idempotency_key` column in the workflow DDL and bump `WORKFLOW
 ### Procedure
 1. In the `tasks` table template, rename the column at `:191` to `task_nonce` (new) (keep `TEXT UNIQUE NOT NULL`).
 2. Bump `WORKFLOW_SCHEMA_VERSION` at `:27` to the version string paired with row 12's ledger code.
-3. Update any comment in the file that names the key (keep the `tool_call_state.idempotency_key` DDL and its REQ-010 comment untouched).
+3. Reword the REQ-010 comment at `:227` — it currently reads
+   `REQ-010: tasks.idempotency_key stays as-is` and names the task key, so it
+   must drop the tasks reference and keep only the `tool_call_state`
+   `idempotency_key` statement (the `tool_call_state` DDL at `:237` stays
+   untouched). The historical `TASKS_DDL_V1` block (from the
+   `workflow_tool_call_state` migration era) stays as-is.
 
 ### Method
 Two-text edit in one commit with rows 01-03 and 12.
@@ -76,6 +81,13 @@ Two-text edit in one commit with rows 01-03 and 12.
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
+
+### Verification Notes (2026-11-01)
+- Passed. `WORKFLOW_SCHEMA_VERSION = "1.2.0"` at `:27`, tasks DDL key column
+  at `:191` confirmed. Version string for this batch is `1.3.0` (ledger code
+  3, paired with row 12); no other pending batch has landed since.
+- Additional edit found during verification: the REQ-010 comment at `:227`
+  names `tasks.idempotency_key` and is folded into Procedure step 3.
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -30,13 +30,21 @@ Register the `tasks.idempotency_key` → `task_nonce` (new) rename as a new `wor
 3. Add `_postcondition_task_nonce(conn)`: assert `tasks` has `task_nonce` (new) and not `idempotency_key`, `user_version == 3`, and the `workflow_schema_version` latest row equals the new `WORKFLOW_SCHEMA_VERSION` — mirrors `_postcondition_tool_state` (`:231-242`).
 4. Append `"workflow_task_nonce": MigrationSpec(id="workflow_task_nonce", from_version=2, to_version=3, preconditions=(_precondition_task_nonce,), mutation_sql=_TASK_NONCE_MUTATION_SQL, postcondition=_postcondition_task_nonce)` to `REGISTRY` after `workflow_tool_call_state`.
 5. Bump `WORKFLOW_VERSION_CODES` and `WORKFLOW_TARGET_VERSION` (`:42,48`).
+6. Update `tests/db/test_migrations_workflow.py` (verification addition — this file tracks the registry and currently hard-codes the code-2 head state):
+   - Fixture `_legacy_workflow_db` (`:39-61`): after building with the renamed canonical template (row 04), run `ALTER TABLE tasks RENAME COLUMN task_nonce TO idempotency_key` so the fixture reproduces the true code-2 shape; `_populate_tasks` (`:67-73`) keeps its `idempotency_key` INSERTs.
+   - Registry-set assertion (`:108`) and forward-path list (`:125-128`): include `workflow_task_nonce` / the `2 -> 3` step.
+   - `test_step_migrates_preserves_rows_and_marker` (`:210-246`): pin to `target_version=2` (isolates the tool-state step) and update the version-marker expectation to `1.3.0` only for tests that run the full path (`:240`).
+   - `test_resume_after_full_path_is_empty` (`:256`): plan against `3`.
+   - `test_fresh_and_migrated_databases_converge` (`:287-336`): expected `user_version` `2` → `3` (`:325`) and add the `tasks` column list to the shape comparison.
+   - CLI test expectations (`:546-575`): final `user_version` 3 and the `2 -> 3` ledger rows. The forged-stamp baseline tests (`:582-620`) plan against target 2 and stay unchanged.
+   - New test `test_step_task_nonce_preserves_rows_and_refuses_rerun`: seed a code-2 database with task rows, migrate to 3, assert every row's key value now sits in `task_nonce` with unchanged `task_id`, and assert a second run refuses (idempotent precondition refusal).
 
 ### Method
 One new spec block + registry append + constant bump in a single commit with rows 01-04.
 
 ### Details
 - Row-count preservation is asserted by the rename step's tests (row 09, AC-4): a database seeded at code 2, migrated to 3, keeps every `tasks` row with identical `task_id`/`task_nonce` (new) values (`RENAME COLUMN` never touches values).
-- `ensure_baseline` (`shared.db_migrations` usage in this module) stamps fresh databases at head; a freshly created database at the new `WORKFLOW_SCHEMA_VERSION` must not run this step (precondition refuses `user_version != 2`).
+- `ensure_baseline` (defined in this module at `migrations_workflow.py:293-321`, not in `shared.db_migrations`) stamps fresh databases at head; a freshly created database at the new `WORKFLOW_SCHEMA_VERSION` must not run this step (precondition refuses `user_version != 2`).
 
 ## Compatibility considerations
 
@@ -78,6 +86,26 @@ One new spec block + registry append + constant bump in a single commit with row
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
 
+### Verification Notes (2026-11-01)
+- Passed. Cites confirmed: `WORKFLOW_VERSION_CODES` `:42`,
+  `WORKFLOW_TARGET_VERSION` `:48`, `_TOOL_STATE_MUTATION_SQL` `:112`,
+  `_precondition_tool_state` `:190-214`, `_postcondition_tool_state`
+  `:231-242`, `REGISTRY` `:246-263`.
+- Correction to Details: `ensure_baseline` is defined in this module
+  (`:293-321`), not in `shared.db_migrations`.
+- Verification addition 1 (procedure step 6): `tests/db/test_migrations_workflow.py`
+  hard-codes the code-2 head state (fixture, registry set, forward path,
+  version markers, CLI expectations) and must be updated with this row, or
+  the rename unit breaks it. Its legacy fixture also needs the
+  rename-back trick to remain a true code-2 shape once row 04 renames the
+  canonical DDL.
+- Verification addition 2 (docs, executed in cycle 3 with rows 10/11):
+  `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`
+  section 8a (`:44`) describes workflow migration as only the `0 -> 1`
+  bootstrap; update to the `0 -> 1 -> 2 -> 3` chain including the rename
+  step after this row lands.
+- Cycle: cycle 2 (rename unit with rows 01 rename part, 03, 04, 09).
+
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
@@ -91,4 +119,4 @@ One new spec block + registry append + constant bump in a single commit with row
 - **Source plan**: plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261101-140834
-- **Related target files**: scripts/db/migrations_workflow.py
+- **Related target files**: scripts/db/migrations_workflow.py, tests/db/test_migrations_workflow.py (verification addition), docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md (verification addition, executed in cycle 3)

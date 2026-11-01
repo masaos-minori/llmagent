@@ -20,7 +20,6 @@ from agent.workflow.idempotency_ops import begin_stage_if_new, is_event_processe
 from agent.workflow.task_ops import (
     create_task,
     get_task_by_id,
-    get_task_by_idempotency_key,
     update_task_status,
 )
 from db.config import DbConfig
@@ -84,15 +83,6 @@ class TestCreateTask:
         assert uuid.UUID(t1.idempotency_key)
         assert uuid.UUID(t2.idempotency_key)
 
-    def test_get_by_idempotency_key(self, store) -> None:
-        original = create_task(store._db, "sess2", 5, "1.0.0", "wf-test")
-        found = get_task_by_idempotency_key(store._db, original.idempotency_key)
-        assert found is not None
-        assert found.task_id == original.task_id
-
-    def test_get_by_idempotency_key_missing(self, store) -> None:
-        assert get_task_by_idempotency_key(store._db, "nosuchkey") is None
-
     def test_create_task_without_session_id(self, store) -> None:
         task = create_task(store._db, None, None, "1.0.0", "wf-test")
         assert task.session_id is None
@@ -108,7 +98,7 @@ class TestCreateTask:
         )
         store._db.commit()
         fresh = create_task(store._db, "sess-new", 1, "1.0.0", "wf-new")
-        old_row = get_task_by_idempotency_key(store._db, old_key)
+        old_row = get_task_by_id(store._db, "old-task")
         assert old_row is not None
         assert old_row.task_id == "old-task"
         fresh_row = get_task_by_id(store._db, fresh.task_id)
@@ -123,13 +113,14 @@ class TestCreateTask:
         assert first.idempotency_key != second.idempotency_key
         assert first.idempotency_key != "X:1"
         assert second.idempotency_key != "X:1"
+        assert first.task_id != second.task_id  # REQ-006: duplicate call is a new task
 
 
 class TestUpdateTaskStatus:
     def test_update_status(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "running")
-        found = get_task_by_idempotency_key(store._db, task.idempotency_key)
+        found = get_task_by_id(store._db, task.task_id)
         assert found is not None
         assert found.status == "running"
 

@@ -63,14 +63,23 @@ Mechanical rewrite; run the file after rows 01-05 land.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 2026-11-01 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 2026-11-01 | no new tests required; lookups re-pointed to get_task_by_id |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-01 | targeted + full suite; no cycle-2 edit needed (no task-key text remains) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
+
+### Verification Notes (2026-11-01)
+- Passed. Import at `:20`; the four lookup call sites at `:96`, `:127`,
+  `:144`, `:298` confirmed. `tool_call_state` key uses at `:330`, `:342`,
+  `:348`, `:360` confirmed out of scope. File is 391 lines.
+- Cycle split: the lookup rewrite (this row's whole procedure) runs in cycle
+  1 with rows 01/02/05; no `task_nonce` text appears in this file because
+  the engine tests assert identity via `get_task_by_id`, so no cycle-2 edit
+  is needed here.
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
