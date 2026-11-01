@@ -49,6 +49,7 @@ _ALL_FIELDS = frozenset(
         "mqe_prompt_template",
         "mqe_n_queries",
         "rerank_prompt_template",
+        "rag_identity_mismatch_policy",
     }
 )
 
@@ -81,6 +82,7 @@ _DEFAULTS_FOR_ALL = {
     "mqe_prompt_template": "Expand query: {query}",
     "mqe_n_queries": 3,
     "rerank_prompt_template": "Rerank results for: {query}",
+    "rag_identity_mismatch_policy": "reject",
 }
 
 

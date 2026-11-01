@@ -160,9 +160,7 @@ async def _dlq_loop(app: FastAPI) -> None:
 
             # dlqbox001: generate the DLQ artifacts requested by the promotion
             # transactions. process_outbox schedules its own locked transactions.
-            outbox = await process_outbox(
-                db, cfg.deadletter_dir, cfg, run_with_db_lock
-            )
+            outbox = await process_outbox(db, cfg.deadletter_dir, cfg, run_with_db_lock)
             if outbox["processed"]:
                 logger.warning(
                     "dlq_loop: outbox processed=%d generated=%d "

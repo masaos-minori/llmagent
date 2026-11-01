@@ -13,6 +13,8 @@ from rag.pipeline_service import CallRagKind, CallRagResult, call_rag_service
 
 if TYPE_CHECKING:
     import httpx
+
+    from rag.corpus_identity import CorpusIdentity
 from rag.models_result import HttpResultKind
 from rag.stage import PipelineContext, StageResult
 
@@ -59,12 +61,16 @@ class HttpAugmentResult:
         http_result_kind: Literal[
             "remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"
         ],
+        remote_identity: CorpusIdentity | None = None,
     ) -> None:
         """Initialize with result content, HTTP status, latency, and kind classification."""
         self.result = result
         self.status_code = status_code
         self.latency_ms = latency_ms
         self.http_result_kind = http_result_kind
+        # Copy of CallRagResult.remote_identity (parsed once by call_rag_service in doc 11).
+        # None when the remote identity is missing/malformed (unverifiable).
+        self.remote_identity = remote_identity
 
 
 class HttpAugment:
@@ -162,6 +168,7 @@ class HttpAugment:
             status_code=status_code,
             latency_ms=latency_ms,
             http_result_kind=self._http_result_kind,
+            remote_identity=outcome.remote_identity,
         )
 
     @property

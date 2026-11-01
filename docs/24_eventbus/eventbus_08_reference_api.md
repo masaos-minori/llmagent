@@ -43,7 +43,7 @@ Module-level reference for `scripts/eventbus/`. HTTP-level contracts (request/re
 ## Module Class/Function Reference (auto-generated)
 
 <!-- AUTO-GENERATED: generate_reference_table.py eventbus-class-function-reference -->
-Generated from `scripts/eventbus/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type eventbus` to refresh.
+Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.
 
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|

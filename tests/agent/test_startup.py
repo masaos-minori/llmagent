@@ -12,6 +12,7 @@ this file's own copies as stale duplicates that were removed.
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -25,6 +26,7 @@ from agent.shared.health_models import (
     StartupValidationResult,
 )
 from agent.startup import StartupOrchestrator
+from db.models import ConsistencyFinding, FindingSeverity
 from shared.mcp_config import (
     McpServerConfig,
     SecurityProfile,
@@ -557,13 +559,92 @@ class TestCheckServicesSeverityClassification:
             StartupCheckOutcome("rag_consistency", StartupCheckStatus.OK)
         ]
 
+
+class TestRagConsistencySeverityStartup:
+    """Startup routes RAG findings by structural severity (docs 05/03/04/06/07):
+    a FATAL finding aborts startup, DEGRADED findings warn with the repair action
+    named, and a timeout or unexpected failure marks the corpus identity-unverified
+    without aborting (the gate enforces fail-closed, REQ-007)."""
+
+    @staticmethod
+    def _rag_result(*, is_consistent: bool, findings) -> MagicMock:
+        return MagicMock(is_consistent=is_consistent, findings=findings, issues=[])
+
     @pytest.mark.asyncio
-    async def test_rag_consistency_warning_per_issue(self) -> None:
+    async def test_consistent_ok(self) -> None:
         ctx = _make_startup_ctx()
         rag_service = MagicMock()
-        rag_service.consistency.return_value = MagicMock(
-            is_consistent=False, issues=["orphaned chunk 123"]
+        rag_service.consistency.return_value = self._rag_result(
+            is_consistent=True, findings=[]
         )
+        pipeline, exc = await _run_check_services(
+            ctx, RagMaintenanceService=MagicMock(return_value=rag_service)
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
+        assert outcomes == [
+            StartupCheckOutcome("rag_consistency", StartupCheckStatus.OK)
+        ]
+
+    @pytest.mark.asyncio
+    async def test_fatal_finding_aborts_startup(self) -> None:
+        ctx = _make_startup_ctx()
+        rag_service = MagicMock()
+        rag_service.consistency.return_value = self._rag_result(
+            is_consistent=False,
+            findings=[
+                ConsistencyFinding(
+                    severity=FindingSeverity.FATAL,
+                    message="[CRITICAL] Duplicate chunk_index detected.",
+                    repair_action="restore_from_backup",
+                ),
+            ],
+        )
+        pipeline, exc = await _run_check_services(
+            ctx, RagMaintenanceService=MagicMock(return_value=rag_service)
+        )
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.FATAL
+        assert "restore_from_backup" in outcomes[0].message
+
+    @pytest.mark.asyncio
+    async def test_degraded_findings_warn_with_repair_action(self) -> None:
+        ctx = _make_startup_ctx()
+        rag_service = MagicMock()
+        rag_service.consistency.return_value = self._rag_result(
+            is_consistent=False,
+            findings=[
+                ConsistencyFinding(
+                    severity=FindingSeverity.DEGRADED,
+                    message="[WARNING] FTS gap detected.",
+                    repair_action="rebuild_fts",
+                ),
+                ConsistencyFinding(
+                    severity=FindingSeverity.DEGRADED,
+                    message="[WARNING] Vector count mismatch.",
+                    repair_action="rebuild_vec",
+                ),
+            ],
+        )
+        pipeline, exc = await _run_check_services(
+            ctx, RagMaintenanceService=MagicMock(return_value=rag_service)
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
+        assert len(outcomes) == 2
+        assert all(o.status == StartupCheckStatus.WARNING for o in outcomes)
+        repair_actions = {verb for o in outcomes for verb in o.message.split()}
+        assert {"rebuild_fts", "rebuild_vec"} <= repair_actions
+
+    @pytest.mark.asyncio
+    async def test_timeout_marks_unverified_not_fatal(self) -> None:
+        ctx = _make_startup_ctx()
+        rag_service = MagicMock()
+        # A raised TimeoutError is what asyncio.wait_for surfaces when the 30s
+        # budget elapses; the RAG block catches it on the unverified-warning path.
+        rag_service.consistency.side_effect = TimeoutError()
         pipeline, exc = await _run_check_services(
             ctx, RagMaintenanceService=MagicMock(return_value=rag_service)
         )
@@ -571,48 +652,23 @@ class TestCheckServicesSeverityClassification:
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.WARNING
+        assert "identity-unverified" in outcomes[0].message
 
     @pytest.mark.asyncio
-    async def test_rag_consistency_skipped_on_exception(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """`logger` is created locally inside check_services() (agent.startup_validation)
-        as `Logger(__name__, ...)`, whose underlying stdlib logger has
-        propagate=False -- caplog's handler must be attached directly to it,
-        not relied on via propagation to the root logger."""
-        import logging as _logging
-
+    async def test_unexpected_exception_marks_unverified(self) -> None:
         ctx = _make_startup_ctx()
-        target_logger = _logging.getLogger("agent.startup_validation")
-        target_logger.addHandler(caplog.handler)
-        previous_level = target_logger.level
-        target_logger.setLevel("WARNING")
-        try:
-            pipeline, exc = await _run_check_services(
-                ctx,
-                RagMaintenanceService=MagicMock(side_effect=RuntimeError("db locked")),
-            )
-        finally:
-            target_logger.removeHandler(caplog.handler)
-            target_logger.setLevel(previous_level)
+        rag_service = MagicMock()
+        rag_service.consistency.side_effect = sqlite3.Error("db locked")
+        pipeline, exc = await _run_check_services(
+            ctx, RagMaintenanceService=MagicMock(return_value=rag_service)
+        )
         assert exc is None
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
         assert len(outcomes) == 1
-        assert outcomes[0].status == StartupCheckStatus.SKIPPED
-        assert "db locked" in outcomes[0].message
-
-        # Verify the exception is logged as a warning (non-fatal maintenance check).
-        # >=1 rather than ==1: pytest's own log-capture plugin may additionally
-        # attach a handler to this logger across the test session, independent
-        # of this test's own explicit handler above -- the count is not the
-        # point, only that the warning was logged with the expected content.
-        warning_records = [
-            r
-            for r in caplog.records
-            if r.levelname == "WARNING" and "RAG consistency check failed" in r.message
-        ]
-        assert len(warning_records) >= 1
-        assert "db locked" in warning_records[0].message
+        assert outcomes[0].status == StartupCheckStatus.WARNING
+        assert "identity-unverified" in outcomes[0].message
+        # _classify_rag_failure maps sqlite3.Error to DATABASE_OR_IO, retained verbatim.
+        assert "DATABASE_OR_IO" in outcomes[0].message
 
 
 # ── StartupOrchestrator._setup_prompt() memory failure ─────────────────────────

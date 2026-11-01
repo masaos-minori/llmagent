@@ -486,7 +486,12 @@ async def process_outbox(
     """
     now = now_iso()
     rows = await run_locked(lambda: fetch_due_pending(db, now))
-    report = {"processed": 0, "generated": 0, "failed_attempts": 0, "terminal_failed": 0}
+    report = {
+        "processed": 0,
+        "generated": 0,
+        "failed_attempts": 0,
+        "terminal_failed": 0,
+    }
 
     for row in rows:
         event_id = str(row["event_id"])

@@ -338,12 +338,16 @@ class WorkflowEngineAdapter:
         _prepare_turn_input (REQ-002). Returns (answer, error_kind, is_partial)
         with the same contract as the removed _process_turn().
         """
+        # Turn-entry replay detection (toolexec001 row 08): the engine owns the
+        # decision; the adapter only carries the constructed message to the runner.
+        control_message = self._workflow_engine.build_turn_control_message(task_id)
         result = await self._llm_executor.handle_llm_turn(
             ctx.conv.llm_url,
             workflow_id=ctx.workflow.workflow_id or "",
             task_id=ctx.workflow.current_task_id or "",
             stage_id="execute",
             attempt_id=ctx.turn.current_turn_id or "",
+            control_message=control_message,
         )
         answer = result.answer
         error_kind: str | None = None

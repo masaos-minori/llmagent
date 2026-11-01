@@ -60,6 +60,7 @@ User input (line)
          │
          ⑤ LLM Turn Processing                    [WorkflowEngine's execute stage — per-attempt, retried per policy]
           │    → LlmTurnExecutor.handle_llm_turn(llm_url)
+         │         → per-turn loop body delegated to a fresh LLMTurnRunner (created per turn, not retained)
          │         ├─ LLMClient.stream(url, history, tool_defs)
          │         │    → SSE streaming → on_token callback → CLIView.write_token()
          │         │    → Collect content_parts + tool_calls_map

@@ -15,6 +15,8 @@ from typing import Any, Literal
 import httpx
 from shared.json_utils import parse_http_json
 
+from rag.corpus_identity import CorpusIdentity, parse_remote_identity
+
 logger = logging.getLogger(__name__)
 
 _MAX_ATTEMPTS = 3
@@ -37,6 +39,10 @@ class CallRagResult:
     result: str | None
     status_code: int | None
     latency_ms: float
+    # Remote corpus identity parsed from the decoded response body (new, REQ-002).
+    # Populated on success-decoding sites; failure/timeout outcomes keep ``None`` so the
+    # fallback gate can compare identity without re-parsing HTTP payloads.
+    remote_identity: CorpusIdentity | None = None
 
 
 def _log_retry(rag_url: str, attempt: int, error: Exception) -> None:
@@ -159,10 +165,17 @@ async def call_rag_service(
                 return CallRagResult("transient_failure", None, status_code, elapsed_ms)
             selected_hits = body.get("selected_hits")
             result_raw = body.get("result")
+            remote_identity = parse_remote_identity(body)
             if result_raw is None:
                 if selected_hits:
                     _set_fetch_result(set_fetch_result, selected_hits)
-                return CallRagResult("empty", "", status_code, elapsed_ms)
+                return CallRagResult(
+                    "empty",
+                    "",
+                    status_code,
+                    elapsed_ms,
+                    remote_identity=remote_identity,
+                )
             if not isinstance(result_raw, str):
                 raise ValueError(
                     f"RAG service 'result' field must be str, got {type(result_raw).__name__}"
@@ -170,7 +183,13 @@ async def call_rag_service(
             if selected_hits:
                 _set_fetch_result(set_fetch_result, selected_hits)
             kind: CallRagKind = "success" if result_raw else "empty"
-            return CallRagResult(kind, result_raw, status_code, elapsed_ms)
+            return CallRagResult(
+                kind,
+                result_raw,
+                status_code,
+                elapsed_ms,
+                remote_identity=remote_identity,
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code in (401, 403):
                 logger.warning(

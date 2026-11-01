@@ -213,5 +213,6 @@ def get_outbox_state(db: sqlite3.Connection, event_id: str) -> sqlite3.Row | Non
 def done_outbox_event_ids(db: sqlite3.Connection) -> set[str]:
     """Return event ids whose outbox row is done — the orphan classifier's set."""
     return {
-        str(row[0]) for row in db.execute("SELECT event_id FROM dlq_outbox WHERE status = 'done'")
+        str(row[0])
+        for row in db.execute("SELECT event_id FROM dlq_outbox WHERE status = 'done'")
     }

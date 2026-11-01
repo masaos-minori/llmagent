@@ -188,6 +188,10 @@ def _get_valid_production_keys() -> frozenset[str]:
         {
             "eventbus_db_path",
             "rag_db_path",
+            # RAGCORPUS001 (REQ-003): identity-mismatch policy consumed by the fallback
+            # gate (scripts/rag/pipeline.py) via resolve_rag_config(); shares agent.toml
+            # but is not part of any AgentConfig sub-dataclass.
+            "rag_identity_mismatch_policy",
             "session_db_path",
             "sqlite_archive_dir",
             "sqlite_busy_timeout_ms",

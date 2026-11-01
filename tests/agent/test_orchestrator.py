@@ -2945,6 +2945,27 @@ class TestSingleLlmTurnExecutorOwnership:
         # Passed by reference to the adapter — no second instance is created.
         assert orch._workflow_adapter._llm_executor is orch._llm_executor
 
+    def test_orchestrator_constructs_llm_executor_exactly_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Counting the LlmTurnExecutor constructions inside the Orchestrator
+        proves there is exactly one — the INV-02 single-creation contract."""
+        ctx = _make_ctx()
+        real = LlmTurnExecutor
+        constructions: list[LlmTurnExecutor] = []
+
+        def counting_factory(*args: Any, **kwargs: Any) -> LlmTurnExecutor:
+            instance = real(*args, **kwargs)
+            constructions.append(instance)
+            return instance
+
+        monkeypatch.setattr("agent.orchestrator.LlmTurnExecutor", counting_factory)
+        orch = _make_orchestrator(ctx)
+
+        assert len(constructions) == 1
+        assert constructions[0] is orch._llm_executor
+        assert orch._workflow_adapter._llm_executor is orch._llm_executor
+
 
 # ── Task status per turn outcome (real WorkflowEngine + real StateStore) ──────
 
@@ -3444,6 +3465,10 @@ class _RetryThenHaltEngine:
 
     def __init__(self, wdef: Any) -> None:
         self._wdef = wdef
+
+    def build_turn_control_message(self, task_id: str) -> str | None:
+        """Mirror the WorkflowEngine turn-entry detection contract (toolexec001 row 08); no state here."""
+        return None
 
     async def run(
         self, task: Any, plan_fn: Any, execute_fn: Any, verify_fn: Any

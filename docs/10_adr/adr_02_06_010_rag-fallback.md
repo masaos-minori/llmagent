@@ -74,8 +74,12 @@ This problem applies only to a process that delegates over HTTP. No production p
 8. The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
 9. Parse errors are logged and treated as empty results.
 10. Local DB access uses only `rag.sqlite`.
-11. Result consistency between the external RAG and the local RAG is not guaranteed, because each mode reads the corpus from its own configured database path.
+11. Result consistency between the external RAG and the local RAG is detected on every fallback: the remote and local corpus identities are compared before a fallback result is accepted (doc 08), and a mismatch or an unverifiable identity is enforced per `rag_identity_mismatch_policy` (doc 14, `reject` default). This detects a divergence; it is not corpus synchronization. The two modes still read from their own configured database paths, and the availability-first fallback is unchanged.
 12. The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `auth_error` (internal to `HttpAugment`), and the public enums `ResultSource` and `HttpResultKind` (`SUCCESS`, `EMPTY`, `ERROR`, `NOT_USED`, `AUTH_ERROR`).
+
+### Amendment (ragcorpus001, 2026-10-31)
+
+This ADR previously stated in Decision Details item 11 that result consistency between the external and local RAG "is not guaranteed" and recorded no mechanism to detect a divergence. The RAGCORPUS001 identity-contract plan adopted an identity-contract amendment: a fallback result is accepted only after the remote and local corpus identities are compared (doc 08), and a mismatch or an unverifiable identity is enforced per `rag_identity_mismatch_policy` (doc 14, `reject` default). This records that detection contract as Decision Details item 11; it is a detection contract, not corpus synchronization. The availability-first trade-off, the "Corpus synchronization protocol" Out of Scope line, and the Alternative C rejection (separate local corpus, rejected to prioritize Availability) are unchanged. This adoption is made under the task-level approval decision referenced in this Approval Record and links `20261030-013620_ragcorpus001_rag-corpus-identity.md`.
 
 ### Scope
 
@@ -261,6 +265,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
 - The external RAG service and the in-process RAG must return consistent results
+- The `rag_identity_mismatch_policy` is changed below `reject`, or the remote/local identity-comparison gate (doc 08) is extended to a fallback path other than the HTTP delegation path
 - The set of failures that trigger the fallback (including the 401/403 handling) changes
 - Fallback to a destination other than the in-process RAG is proposed
 

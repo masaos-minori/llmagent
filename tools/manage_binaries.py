@@ -69,6 +69,7 @@ BINARY_SOURCES: dict[str, tuple[str, ...]] = {
         "scripts/agent/",
         "scripts/db/",
         "scripts/shared/",
+        "scripts/rag/",
         "scripts/mcp_servers/",
         "pyproject.toml",
         "uv.lock",

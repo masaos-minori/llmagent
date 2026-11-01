@@ -168,7 +168,7 @@ class TestCallToolEndpoint:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body == {"result": "run triggered", "is_error": False}
+        assert body == {"result": "run triggered", "is_error": False, "dedup_state": ""}
         handler.assert_awaited_once_with({"repo": "acme/widgets", "workflow": "ci.yml"})
 
     def test_audit_record_keeps_session_and_request_context_in_order(

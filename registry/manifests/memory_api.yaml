@@ -1,0 +1,327 @@
+entries:
+- file: scripts/agent/memory/config_path.py
+  kind: function
+  name: resolve_memory_jsonl_dir
+  signature: def resolve_memory_jsonl_dir() -> str
+  summary: Return the flat ``memory_jsonl_dir`` path using the builder default.
+- file: scripts/agent/memory/count_ops.py
+  kind: function
+  name: count_by_type
+  signature: def count_by_type() -> dict[str, int]
+  summary: 'Return {memory_type: count} for all rows in memories. Diagnostic use only.'
+- file: scripts/agent/memory/count_ops.py
+  kind: function
+  name: count_by_source_type
+  signature: def count_by_source_type() -> dict[str, int]
+  summary: 'Return {source_type: count} for all rows in memories. Diagnostic use only.'
+- file: scripts/agent/memory/count_ops.py
+  kind: function
+  name: count_vec
+  signature: def count_vec() -> int
+  summary: Return total entry count in memories_vec. Raises sqlite3.OperationalError
+    if unavailable.
+- file: scripts/agent/memory/count_ops.py
+  kind: function
+  name: count_entries
+  signature: def count_entries() -> int
+  summary: Return total entry count across all types. Raises sqlite3.OperationalError
+    on DB error.
+- file: scripts/agent/memory/count_ops.py
+  kind: function
+  name: count_prunable
+  signature: def count_prunable(days) -> int
+  summary: Return count of entries older than `days` days. Raises sqlite3.OperationalError
+    on DB error.
+- file: scripts/agent/memory/embedding_client.py
+  kind: class
+  name: EmbeddingClientConfig
+  signature: class EmbeddingClientConfig
+  summary: Configuration for the embedding client connection.
+- file: scripts/agent/memory/embedding_client.py
+  kind: class
+  name: EmbeddingClientStatus
+  signature: class EmbeddingClientStatus
+  summary: Runtime health status of the embedding client.
+- file: scripts/agent/memory/embedding_client.py
+  kind: class
+  name: EmbeddingClient
+  signature: class EmbeddingClient
+  summary: Async HTTP client for embedding generation.
+- file: scripts/agent/memory/enums.py
+  kind: class
+  name: MemoryType
+  signature: class MemoryType
+  summary: Types of persistent memory supported by the agent.
+- file: scripts/agent/memory/enums.py
+  kind: class
+  name: RetrievalMode
+  signature: class RetrievalMode
+  summary: Modes for retrieving memory entries.
+- file: scripts/agent/memory/enums.py
+  kind: class
+  name: ExtractionDecision
+  signature: class ExtractionDecision
+  summary: Decisions made during memory extraction.
+- file: scripts/agent/memory/enums.py
+  kind: class
+  name: DedupAction
+  signature: class DedupAction
+  summary: Actions taken when a near-duplicate is detected.
+- file: scripts/agent/memory/enums.py
+  kind: class
+  name: DedupPolicy
+  signature: class DedupPolicy
+  summary: Configuration for deduplication behavior.
+- file: scripts/agent/memory/exceptions.py
+  kind: class
+  name: MemorySchemaError
+  signature: class MemorySchemaError
+  summary: Raised when a memory row or field fails schema validation.
+- file: scripts/agent/memory/exceptions.py
+  kind: class
+  name: UnknownMemoryTypeError
+  signature: class UnknownMemoryTypeError
+  summary: Raised when an unrecognized memory_type value is encountered.
+- file: scripts/agent/memory/exceptions.py
+  kind: class
+  name: MemoryStorageError
+  signature: class MemoryStorageError
+  summary: Raised when a DB write operation fails.
+- file: scripts/agent/memory/exceptions.py
+  kind: class
+  name: JsonlFormatError
+  signature: class JsonlFormatError
+  summary: Raised when a JSONL line cannot be parsed or fails schema validation.
+- file: scripts/agent/memory/exceptions.py
+  kind: class
+  name: MemoryConsistencyError
+  signature: class MemoryConsistencyError
+  summary: Raised when memories / memories_fts / memories_vec counts are inconsistent.
+- file: scripts/agent/memory/exceptions.py
+  kind: class
+  name: EmbeddingTransportError
+  signature: class EmbeddingTransportError
+  summary: Raised when an HTTP-level error prevents embedding retrieval.
+- file: scripts/agent/memory/exceptions.py
+  kind: class
+  name: EmbeddingProtocolError
+  signature: class EmbeddingProtocolError
+  summary: Raised when the embedding service response violates the expected schema.
+- file: scripts/agent/memory/exceptions.py
+  kind: class
+  name: ExtractionError
+  signature: class ExtractionError
+  summary: Raised when memory extraction from conversation history fails.
+- file: scripts/agent/memory/exceptions.py
+  kind: class
+  name: InjectionValidationError
+  signature: class InjectionValidationError
+  summary: Raised when injection inputs fail validation (e.g. empty query).
+- file: scripts/agent/memory/extract.py
+  kind: class
+  name: ExtractionPolicy
+  signature: class ExtractionPolicy
+  summary: Configurable thresholds for memory extraction.
+- file: scripts/agent/memory/extract.py
+  kind: function
+  name: extract_memories
+  signature: def extract_memories(history, session_id, turn_id, project, repo, branch,
+    max_content_chars, policy) -> list[MemoryEntry]
+  summary: Extract MemoryEntry candidates from a conversation history list.
+- file: scripts/agent/memory/fts_query.py
+  kind: function
+  name: build_fts_query
+  signature: def build_fts_query(text) -> str
+  summary: Build FTS5 MATCH query with token quoting to escape reserved terms.
+- file: scripts/agent/memory/import_ops.py
+  kind: function
+  name: import_from_jsonl
+  signature: def import_from_jsonl(jsonl_store, *, dry_run, embed_dim, backup, allow_loss)
+    -> tuple[int, int]
+  summary: Import entries from a JSONL archive into SQLite memories/FTS/vec tables.
+- file: scripts/agent/memory/ingestion.py
+  kind: class
+  name: MemoryIngestionService
+  signature: class MemoryIngestionService
+  summary: Extracts, deduplicates, and persists memory entries from session history.
+- file: scripts/agent/memory/injection.py
+  kind: class
+  name: InjectionPolicy
+  signature: class InjectionPolicy
+  summary: Controls how many semantic/episodic memories are injected per turn.
+- file: scripts/agent/memory/injection.py
+  kind: class
+  name: MemoryInjectionService
+  signature: class MemoryInjectionService
+  summary: Injects relevant memory snippets into the LLM context per lifecycle hook.
+- file: scripts/agent/memory/jsonl_store.py
+  kind: class
+  name: JsonlMemoryStore
+  signature: class JsonlMemoryStore
+  summary: "Append-only JSONL store.  Thread-unsafe \u2014 use from a single asyncio\
+    \ event loop."
+- file: scripts/agent/memory/mapper.py
+  kind: function
+  name: row_to_entry
+  signature: def row_to_entry(row) -> MemoryEntry
+  summary: Convert a sqlite3.Row or dict to MemoryEntry.
+- file: scripts/agent/memory/models.py
+  kind: class
+  name: HistoryMessage
+  signature: class HistoryMessage
+  summary: Memory-local representation of one conversation message.
+- file: scripts/agent/memory/models.py
+  kind: class
+  name: JsonlRecord
+  signature: class JsonlRecord
+  summary: One deserialized record from the JSONL memory store.
+- file: scripts/agent/memory/models.py
+  kind: class
+  name: ConsistencyReport
+  signature: class ConsistencyReport
+  summary: Row counts across memories / memories_fts / memories_vec tables.
+- file: scripts/agent/memory/models.py
+  kind: class
+  name: MemorySnippet
+  signature: class MemorySnippet
+  summary: One memory snippet ready for LLM context injection.
+- file: scripts/agent/memory/pin_ops.py
+  kind: function
+  name: pin
+  signature: def pin(memory_id, conn) -> bool
+  summary: Set pinned=1 for memory_id; return True when found.
+- file: scripts/agent/memory/pin_ops.py
+  kind: function
+  name: unpin
+  signature: def unpin(memory_id, conn) -> bool
+  summary: Set pinned=0 for memory_id; return True when found.
+- file: scripts/agent/memory/rebuild_ops.py
+  kind: function
+  name: rebuild_fts
+  signature: def rebuild_fts() -> int
+  summary: Rebuild memories_fts from the memories table. Returns number of rows inserted.
+- file: scripts/agent/memory/rebuild_ops.py
+  kind: function
+  name: rebuild_vec
+  signature: def rebuild_vec() -> int
+  summary: Rebuild memories_vec from the memories table. Returns number of rows inserted.
+- file: scripts/agent/memory/rebuild_ops.py
+  kind: function
+  name: reindex
+  signature: def reindex(index_type) -> int
+  summary: Rebuild a single memory index ('fts' or 'vec'); return rows inserted.
+- file: scripts/agent/memory/retriever.py
+  kind: class
+  name: FtsRetriever
+  signature: class FtsRetriever
+  summary: FTS5 BM25 search with importance / pin / recency rescoring.
+- file: scripts/agent/memory/retriever.py
+  kind: class
+  name: VectorRetriever
+  signature: class VectorRetriever
+  summary: KNN search on memories_vec using sqlite-vec extension.
+- file: scripts/agent/memory/retriever.py
+  kind: class
+  name: HybridRetriever
+  signature: class HybridRetriever
+  summary: FTS5 + optional KNN hybrid search with RRF merge.
+- file: scripts/agent/memory/rrf.py
+  kind: function
+  name: rrf_merge
+  signature: def rrf_merge(hit_lists, k) -> list[MemoryHit]
+  summary: 'Reciprocal Rank Fusion: merge multiple ranked hit lists by rank position.'
+- file: scripts/agent/memory/scoring.py
+  kind: function
+  name: recency_boost
+  signature: def recency_boost(created_at, recency_days) -> float
+  summary: "Return 0.0\u2013_RECENCY_MAX_BOOST based on age in days (newer = higher)."
+- file: scripts/agent/memory/scoring.py
+  kind: function
+  name: context_boost
+  signature: def context_boost(entry, project, repo, branch) -> float
+  summary: Return a context match boost based on branch, project, or repo match.
+- file: scripts/agent/memory/scoring.py
+  kind: function
+  name: score
+  signature: def score(bm25_rank, entry, project, repo, recency_days, branch) -> float
+  summary: Combined score; higher is better.
+- file: scripts/agent/memory/services.py
+  kind: class
+  name: MemoryServices
+  signature: class MemoryServices
+  summary: Facade over memory sub-services; injected into AppServices.memory.
+- file: scripts/agent/memory/snippet_filter.py
+  kind: class
+  name: FilteredSnippet
+  signature: class FilteredSnippet
+  summary: Result of PII filtering on a snippet.
+- file: scripts/agent/memory/snippet_filter.py
+  kind: class
+  name: TruncatedSnippet
+  signature: class TruncatedSnippet
+  summary: Result of length enforcement on a snippet.
+- file: scripts/agent/memory/snippet_filter.py
+  kind: function
+  name: filter_pii
+  signature: def filter_pii(text) -> FilteredSnippet
+  summary: Redact PII from *text* using regex-based patterns.
+- file: scripts/agent/memory/snippet_filter.py
+  kind: function
+  name: truncate_snippet
+  signature: def truncate_snippet(text, max_length) -> TruncatedSnippet
+  summary: Truncate *text* to *max_length* characters with an indicator suffix.
+- file: scripts/agent/memory/store.py
+  kind: class
+  name: MemoryStore
+  signature: class MemoryStore
+  summary: CRUD operations for memories, memories_fts, and memories_vec tables.
+- file: scripts/agent/memory/types.py
+  kind: class
+  name: SourceType
+  signature: class SourceType
+  summary: Taxonomy of memory source types.
+- file: scripts/agent/memory/types.py
+  kind: class
+  name: EmbeddingErrorKind
+  signature: class EmbeddingErrorKind
+  summary: Enumeration of embedding failure reasons.
+- file: scripts/agent/memory/types.py
+  kind: class
+  name: MemoryEntry
+  signature: class MemoryEntry
+  summary: One persistent memory unit stored in JSONL and indexed in SQLite.
+- file: scripts/agent/memory/types.py
+  kind: class
+  name: MemoryQuery
+  signature: class MemoryQuery
+  summary: Search parameters for memory retrieval.
+- file: scripts/agent/memory/types.py
+  kind: class
+  name: MemoryHit
+  signature: class MemoryHit
+  summary: One ranked result from memory retrieval.
+- file: scripts/agent/memory/types.py
+  kind: class
+  name: EmbeddingResult
+  signature: class EmbeddingResult
+  summary: Result of an embedding generation attempt.
+- file: scripts/agent/memory/write_ops.py
+  kind: function
+  name: add
+  signature: def add(entry, embedding, embed_dim) -> None
+  summary: Insert a new MemoryEntry; sets created_at/updated_at if empty.
+- file: scripts/agent/memory/write_ops.py
+  kind: function
+  name: upsert
+  signature: def upsert(entry, embedding, embed_dim) -> None
+  summary: Insert or replace a MemoryEntry; updates updated_at.
+- file: scripts/agent/memory/write_ops.py
+  kind: function
+  name: delete
+  signature: def delete(memory_id) -> bool
+  summary: Delete one entry by memory_id; return True when found and deleted.
+generated_by: tools/generate_reference_table.py
+manifest: memory_api
+sources:
+- scripts/agent/memory
+version: 1

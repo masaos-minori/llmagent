@@ -1,0 +1,479 @@
+entries:
+- file: scripts/eventbus/ack_route.py
+  kind: async function
+  name: authorize_event_pair
+  signature: async def authorize_event_pair(request, db, principal, event_id, consumer_id)
+    -> None
+  summary: Authorize the (consumer_id, event topic) pair before any delivery write.
+- file: scripts/eventbus/ack_route.py
+  kind: async function
+  name: ack_event
+  signature: async def ack_event(request, event_id, consumer_id, _principal, _identity)
+    -> dict[str, Any]
+  summary: Acknowledge an event as successfully processed by a consumer.
+- file: scripts/eventbus/ack_route.py
+  kind: async function
+  name: nack
+  signature: async def nack(request, event_id, consumer_id, idempotency_key, _principal,
+    _identity) -> dict[str, Any]
+  summary: Negatively acknowledge an event, triggering retry logic.
+- file: scripts/eventbus/admin_route.py
+  kind: async function
+  name: update_topics_authorization
+  signature: async def update_topics_authorization(request, principal) -> dict[str,
+    Any]
+  summary: Update `consumer_authorization`/`topic_authorization` at runtime and
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: lifespan
+  signature: async def lifespan(app) -> AsyncGenerator[None]
+  summary: 'FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up
+    on shutdown.'
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: resolve_subscribe_identity
+  signature: async def resolve_subscribe_identity(request, consumer_id, topic, principal)
+    -> Principal
+  summary: "\u2014"
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: health
+  signature: async def health(request, _principal) -> JSONResponse
+  summary: Health check endpoint for the event bus service.
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: publish
+  signature: async def publish(request, _principal) -> dict[str, Any]
+  summary: Publish a new event to the event bus.
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: replay
+  signature: async def replay(request, since_seq, fmt, limit, offset, _principal)
+    -> Any
+  summary: Replay events from a given sequence number via SSE or JSON.
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: subscribe
+  signature: async def subscribe(request, topic, since_seq, consumer_id, _principal,
+    _identity) -> Any
+  summary: Subscribe to events matching the specified topics via SSE.
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: dlq_list
+  signature: async def dlq_list(request, limit, offset, _principal) -> dict[str, Any]
+  summary: List dead-letter queue entries with pagination support.
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: dlq_requeue
+  signature: async def dlq_requeue(request, event_id, _principal) -> dict[str, Any]
+  summary: Requeue a dead-letter queue entry back into the active queue.
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: ack_event
+  signature: async def ack_event(request, event_id, consumer_id, _principal) -> dict[str,
+    Any]
+  summary: Acknowledge an event as successfully processed by a consumer.
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: nack
+  signature: async def nack(request, event_id, consumer_id, idempotency_key, _principal)
+    -> dict[str, Any]
+  summary: Negatively acknowledge an event, triggering retry logic.
+- file: scripts/eventbus/app.py
+  kind: async function
+  name: admin_topics_authorization
+  signature: async def admin_topics_authorization(request, _principal) -> dict[str,
+    Any]
+  summary: Update consumer_authorization/topic_authorization at runtime.
+- file: scripts/eventbus/audit.py
+  kind: class
+  name: AuditRecord
+  signature: class AuditRecord
+  summary: Structured payload for one EventBus audit record.
+- file: scripts/eventbus/audit.py
+  kind: function
+  name: log_auth_failure
+  signature: def log_auth_failure(consumer_id, request_id, route, target, error_type,
+    detail) -> None
+  summary: Emit one JSON-lines audit record for an authorization failure.
+- file: scripts/eventbus/audit.py
+  kind: function
+  name: log_privileged_action
+  signature: def log_privileged_action(consumer_id, request_id, route, target, detail,
+    actor) -> None
+  summary: Emit one JSON-lines audit record for a privileged action.
+- file: scripts/eventbus/auth.py
+  kind: class
+  name: Role
+  signature: class Role
+  summary: "\u2014"
+- file: scripts/eventbus/auth.py
+  kind: class
+  name: Principal
+  signature: class Principal
+  summary: Authenticated identity carrying roles, consumer grants, and token fingerprint.
+- file: scripts/eventbus/auth.py
+  kind: function
+  name: unauthorized_response
+  signature: def unauthorized_response(detail) -> JSONResponse
+  summary: Return a standardized HTTP 401 Unauthorized response.
+- file: scripts/eventbus/auth.py
+  kind: function
+  name: publish_principals
+  signature: def publish_principals(new_map) -> None
+  summary: Atomically publish a fully built principal map.
+- file: scripts/eventbus/auth.py
+  kind: function
+  name: get_auth_token
+  signature: def get_auth_token(config) -> str
+  summary: Return the auth_token from EventBusConfig, or raise ValueError if missing.
+- file: scripts/eventbus/auth.py
+  kind: async function
+  name: resolve_principal
+  signature: async def resolve_principal(request, credentials) -> Principal
+  summary: Resolve a bearer token to a Principal, or raise 401.
+- file: scripts/eventbus/auth.py
+  kind: function
+  name: require_role
+  signature: def require_role(role)
+  summary: 'FastAPI dependency factory: verify caller''s principal has the required
+    role.'
+- file: scripts/eventbus/auth.py
+  kind: function
+  name: authorize_consumer_access
+  signature: def authorize_consumer_access(request, principal, consumer_id, topics)
+    -> None
+  summary: Raise HTTP 403 unless every (consumer_id, topic) pair is granted.
+- file: scripts/eventbus/auth.py
+  kind: function
+  name: effective_topics
+  signature: def effective_topics(principal, consumer_id, requested) -> list[str]
+  summary: Return the requested topics, or the consumer's granted topics when none.
+- file: scripts/eventbus/auth.py
+  kind: async function
+  name: require_consumer_identity
+  signature: async def require_consumer_identity(request, consumer_id, topics, principal)
+    -> Principal
+  summary: 'FastAPI dependency: verify caller is authorized for consumer_id and topics.'
+- file: scripts/eventbus/auth.py
+  kind: function
+  name: attach_auth_middleware
+  signature: def attach_auth_middleware(app) -> None
+  summary: Register X-Request-Id middleware on a FastAPI app.
+- file: scripts/eventbus/broker.py
+  kind: class
+  name: ConsumerAlreadyConnectedError
+  signature: class ConsumerAlreadyConnectedError
+  summary: Raised when a second connection attempts the same non-empty consumer_id.
+- file: scripts/eventbus/broker.py
+  kind: class
+  name: EventBroker
+  signature: class EventBroker
+  summary: In-memory pub/sub broker with per-subscriber queues and topic filtering.
+- file: scripts/eventbus/config.py
+  kind: function
+  name: get_config_path
+  signature: def get_config_path() -> Path
+  summary: Return the path to the Event Bus TOML configuration file.
+- file: scripts/eventbus/config.py
+  kind: function
+  name: get_schema_path
+  signature: def get_schema_path() -> Path
+  summary: Return the path to the Event Envelope JSON schema file.
+- file: scripts/eventbus/config.py
+  kind: class
+  name: EventBusConfig
+  signature: class EventBusConfig
+  summary: Immutable configuration for the Event Bus service.
+- file: scripts/eventbus/config.py
+  kind: function
+  name: load_config
+  signature: def load_config(path) -> EventBusConfig
+  summary: Load and validate the EventBus TOML configuration file.
+- file: scripts/eventbus/db_conn.py
+  kind: function
+  name: get_db_lock
+  signature: def get_db_lock() -> threading.Lock
+  summary: Return the lock that must be held for all DB operations.
+- file: scripts/eventbus/db_conn.py
+  kind: function
+  name: set_shutdown_flag
+  signature: def set_shutdown_flag() -> None
+  summary: Mark shutdown as begun.
+- file: scripts/eventbus/db_conn.py
+  kind: function
+  name: is_shutting_down
+  signature: def is_shutting_down() -> bool
+  summary: Return True once shutdown has begun.
+- file: scripts/eventbus/db_conn.py
+  kind: function
+  name: clear_shutdown_flag
+  signature: def clear_shutdown_flag() -> None
+  summary: Reset the shutdown flag at the start of a fresh app lifecycle.
+- file: scripts/eventbus/db_conn.py
+  kind: function
+  name: bump_active_db_user
+  signature: def bump_active_db_user() -> None
+  summary: Increment the count of live DB users (called by run_with_db_lock()).
+- file: scripts/eventbus/db_conn.py
+  kind: function
+  name: release_active_db_user
+  signature: def release_active_db_user() -> None
+  summary: Decrement the count of live DB users after the locked critical section.
+- file: scripts/eventbus/db_conn.py
+  kind: function
+  name: open_db
+  signature: def open_db(db_path) -> sqlite3.Connection
+  summary: Return a shared SQLite connection for the Event Bus.
+- file: scripts/eventbus/db_conn.py
+  kind: function
+  name: check_db
+  signature: def check_db(conn) -> bool
+  summary: Return True if the DB connection is usable.
+- file: scripts/eventbus/delivery_repo.py
+  kind: class
+  name: NackResult
+  signature: class NackResult
+  summary: Return value for nack_event().
+- file: scripts/eventbus/delivery_repo.py
+  kind: function
+  name: nack_event
+  signature: def nack_event(conn, event_id, consumer_id, last_nack_attempt) -> NackResult
+  summary: Record a per-consumer NACK failure for an event.
+- file: scripts/eventbus/delivery_repo.py
+  kind: function
+  name: ack_event_for_consumer
+  signature: def ack_event_for_consumer(conn, event_id, consumer_id, now) -> tuple[bool,
+    bool, int | None]
+  summary: Acknowledge an event for a specific consumer atomically.
+- file: scripts/eventbus/delivery_repo.py
+  kind: function
+  name: get_consumer_offset
+  signature: def get_consumer_offset(conn, consumer_id) -> int
+  summary: Return the last-committed sequence offset for a consumer, or 0 if none
+    exists.
+- file: scripts/eventbus/delivery_repo.py
+  kind: function
+  name: get_resume_position
+  signature: def get_resume_position(conn, consumer_id) -> int
+  summary: Compute the resume position for a reconnecting consumer.
+- file: scripts/eventbus/dlq.py
+  kind: class
+  name: DlqEventRecord
+  signature: class DlqEventRecord
+  summary: A single event record written to the dead-letter queue as a JSON file on
+    disk.
+- file: scripts/eventbus/dlq.py
+  kind: function
+  name: is_promotable
+  signature: def is_promotable(db, event_id, max_retry) -> bool
+  summary: Return True if the event is not yet in the DLQ and meets the promotion
+    rule.
+- file: scripts/eventbus/dlq.py
+  kind: function
+  name: sweep_orphans
+  signature: def sweep_orphans(db, deadletter_dir, max_retry) -> int
+  summary: Sweep events that meet the promotion rule but were not promoted inline.
+- file: scripts/eventbus/dlq.py
+  kind: function
+  name: reconcile_missing_dlq_files
+  signature: def reconcile_missing_dlq_files(db, deadletter_dir) -> dict[str, int]
+  summary: Detect and rebuild lost DLQ files, and classify outbox inconsistencies.
+- file: scripts/eventbus/dlq.py
+  kind: function
+  name: promote_single
+  signature: def promote_single(db, deadletter_dir, event_id, consumer_failure_count)
+    -> bool
+  summary: Promote one event to DLQ immediately (inline on nack threshold).
+- file: scripts/eventbus/dlq.py
+  kind: async function
+  name: process_outbox
+  signature: async def process_outbox(db, deadletter_dir, cfg, run_locked) -> dict[str,
+    int]
+  summary: Consume due dlq_outbox rows and durably generate their DLQ artifacts.
+- file: scripts/eventbus/dlq.py
+  kind: function
+  name: archive_dlq_record
+  signature: def archive_dlq_record(deadletter_dir, event_id) -> bool
+  summary: Move {deadletter_dir}/{event_id}.json to {deadletter_dir}/requeued/{event_id}_{timestamp}.json.
+- file: scripts/eventbus/dlq_repo.py
+  kind: class
+  name: RequeueResult
+  signature: class RequeueResult
+  summary: Typed result of a redeliver_event() call (replaces the (bool, str | None)
+    tuple).
+- file: scripts/eventbus/dlq_repo.py
+  kind: function
+  name: redeliver_event
+  signature: def redeliver_event(conn, event_id, now) -> RequeueResult
+  summary: Redeliver a dead-lettered event by inserting a new row with lineage.
+- file: scripts/eventbus/dlq_repo.py
+  kind: function
+  name: insert_outbox_row
+  signature: def insert_outbox_row(db, event_id, requested_at) -> None
+  summary: Insert a pending dlq_outbox row inside the caller's promotion transaction.
+- file: scripts/eventbus/dlq_repo.py
+  kind: function
+  name: fetch_due_pending
+  signature: def fetch_due_pending(db, now) -> list[sqlite3.Row]
+  summary: Return pending outbox rows due now, oldest request first.
+- file: scripts/eventbus/dlq_repo.py
+  kind: function
+  name: mark_done
+  signature: def mark_done(db, event_id, completed_at) -> None
+  summary: Mark one outbox row done inside the caller's locked transaction.
+- file: scripts/eventbus/dlq_repo.py
+  kind: function
+  name: record_attempt_failure
+  signature: def record_attempt_failure(db, event_id, last_error, next_attempt_at,
+    terminal) -> None
+  summary: Persist one failed generation attempt for an outbox row.
+- file: scripts/eventbus/dlq_repo.py
+  kind: function
+  name: get_outbox_state
+  signature: def get_outbox_state(db, event_id) -> sqlite3.Row | None
+  summary: Return the dlq_outbox row for one event, or None when absent.
+- file: scripts/eventbus/dlq_repo.py
+  kind: function
+  name: done_outbox_event_ids
+  signature: def done_outbox_event_ids(db) -> set[str]
+  summary: "Return event ids whose outbox row is done \u2014 the orphan classifier's\
+    \ set."
+- file: scripts/eventbus/dlq_route.py
+  kind: async function
+  name: dlq_list
+  signature: async def dlq_list(request, limit, offset) -> dict[str, Any]
+  summary: List dead-letter queue entries with pagination support (one snapshot).
+- file: scripts/eventbus/dlq_route.py
+  kind: async function
+  name: dlq_requeue
+  signature: async def dlq_requeue(request, event_id, principal) -> dict[str, Any]
+  summary: Requeue a dead-letter queue entry back into the active event queue.
+- file: scripts/eventbus/event_repo.py
+  kind: function
+  name: insert_event
+  signature: def insert_event(conn, event_id, topic, payload_str, producer, published_at)
+    -> tuple[int | None, bool, str]
+  summary: INSERT OR IGNORE. Returns (seq, inserted, status).
+- file: scripts/eventbus/event_repo.py
+  kind: function
+  name: get_seq
+  signature: def get_seq(conn, event_id) -> int
+  summary: Return the seq for an existing event_id; 0 if not found.
+- file: scripts/eventbus/event_repo.py
+  kind: function
+  name: get_event_topic
+  signature: def get_event_topic(conn, event_id) -> str | None
+  summary: Return the topic of an existing event_id; None if not found.
+- file: scripts/eventbus/event_repo.py
+  kind: function
+  name: fetch_events_since
+  signature: def fetch_events_since(conn, since_seq, topics, limit, offset) -> list[sqlite3.Row]
+  summary: Return events with seq > since_seq, optionally filtered by topics.
+- file: scripts/eventbus/event_repo.py
+  kind: function
+  name: fetch_dlq
+  signature: def fetch_dlq(conn, limit, offset) -> list[sqlite3.Row]
+  summary: Return events currently in the DLQ (dlq_at IS NOT NULL).
+- file: scripts/eventbus/event_repo.py
+  kind: function
+  name: count_dlq
+  signature: def count_dlq(conn) -> int
+  summary: Return the number of events currently in the DLQ.
+- file: scripts/eventbus/health_route.py
+  kind: function
+  name: is_ready
+  signature: def is_ready(liveness, readiness) -> bool
+  summary: Return the readiness gate predicate used by the deployment gate.
+- file: scripts/eventbus/health_route.py
+  kind: async function
+  name: health_check
+  signature: async def health_check(request) -> JSONResponse
+  summary: Return DB/broker/DLQ task health status as a JSON response.
+- file: scripts/eventbus/json_utils.py
+  kind: function
+  name: dumps
+  signature: def dumps(obj, option) -> str
+  summary: "\u2014"
+- file: scripts/eventbus/json_utils.py
+  kind: function
+  name: now_iso
+  signature: def now_iso() -> str
+  summary: "\u2014"
+- file: scripts/eventbus/migrate.py
+  kind: function
+  name: main
+  signature: def main(argv) -> int
+  summary: Parse flags, guard against a live service, and run the migration mode.
+- file: scripts/eventbus/migrations.py
+  kind: function
+  name: verify_backup
+  signature: def verify_backup(conn, _backup_path) -> None
+  summary: 'Injected backup verifier: confirm the backup is a real eventbus database.'
+- file: scripts/eventbus/publish_route.py
+  kind: async function
+  name: publish
+  signature: async def publish(request) -> dict[str, Any]
+  summary: Publish an event after validating its envelope against the configured schema.
+- file: scripts/eventbus/replay_route.py
+  kind: async function
+  name: replay
+  signature: async def replay(request, principal, since_seq, fmt, limit, offset) ->
+    Any
+  summary: Replay events from a given sequence number via SSE or JSON response.
+- file: scripts/eventbus/route_helpers.py
+  kind: function
+  name: get_histogram_avg
+  signature: def get_histogram_avg(hist) -> float
+  summary: Return the average observation for a Histogram via the public API.
+- file: scripts/eventbus/route_helpers.py
+  kind: function
+  name: get_counter_value
+  signature: def get_counter_value(counter) -> int
+  summary: Return the current value of a Counter via the public API.
+- file: scripts/eventbus/route_helpers.py
+  kind: function
+  name: get_db
+  signature: def get_db(request) -> Any
+  summary: Return the app state DB connection or raise RuntimeError.
+- file: scripts/eventbus/route_helpers.py
+  kind: function
+  name: get_config
+  signature: def get_config(request) -> Any
+  summary: Return the app state config or raise RuntimeError.
+- file: scripts/eventbus/route_helpers.py
+  kind: function
+  name: get_broker
+  signature: def get_broker(request) -> 'EventBroker'
+  summary: Return the app state broker or raise RuntimeError.
+- file: scripts/eventbus/route_helpers.py
+  kind: function
+  name: app_get_db
+  signature: def app_get_db(app) -> Any
+  summary: Return app.state.db or raise RuntimeError.
+- file: scripts/eventbus/route_helpers.py
+  kind: function
+  name: app_get_config
+  signature: def app_get_config(app) -> Any
+  summary: Return app.state.config or raise RuntimeError.
+- file: scripts/eventbus/route_helpers.py
+  kind: function
+  name: app_get_broker
+  signature: def app_get_broker(app) -> 'EventBroker'
+  summary: Return app.state.broker or raise RuntimeError.
+- file: scripts/eventbus/route_helpers.py
+  kind: async function
+  name: run_with_db_lock
+  signature: async def run_with_db_lock(func) -> Any
+  summary: Execute a function inside get_db_lock() via asyncio.to_thread.
+- file: scripts/eventbus/subscribe_route.py
+  kind: async function
+  name: subscribe
+  signature: async def subscribe(request, topic, since_seq, consumer_id, _principal,
+    _identity) -> Any
+  summary: Subscribe to events via SSE with optional topic filtering and offset recovery.
+generated_by: tools/generate_reference_table.py
+manifest: eventbus_api
+sources:
+- scripts/eventbus
+version: 1

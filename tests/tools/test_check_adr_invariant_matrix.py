@@ -512,3 +512,209 @@ class TestBodyCitations:
     def test_text_without_a_node_citation_is_ignored(self, cited_repo: Path) -> None:
         lines = ["See `tests/a/test_a.py` and `scripts/x.py` and `fetch_tools()`."]
         assert checker.check_adr_body_citations("adr_x.md", lines) == []
+
+
+# ---------------------------------------------------------------------------
+# Static skip-family marker detection (REQ-002)
+# ---------------------------------------------------------------------------
+
+_MARKED_MODULE = """\
+import pytest
+
+
+@pytest.mark.skip(reason="needs an optional capability")
+def test_skipped() -> None:
+    pass
+
+
+@pytest.mark.skipif(True, reason="environment gate")
+def test_skipif() -> None:
+    pass
+
+
+@pytest.mark.xfail(reason="known gap")
+def test_xfail() -> None:
+    pass
+
+
+@pytest.mark.parametrize("x", [1])
+def test_parametrized(x: int) -> None:
+    pass
+
+
+@pytest.mark.skip
+class TestSkippedClass:
+    def test_method(self) -> None:
+        pass
+"""
+
+
+@pytest.fixture
+def marked_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A throwaway repository root with one module carrying skip-family markers."""
+    module = tmp_path / "tests" / "a" / "test_a.py"
+    module.parent.mkdir(parents=True)
+    module.write_text(_MARKED_MODULE, encoding="utf-8")
+    monkeypatch.setattr(checker, "REPO_ROOT", tmp_path)
+    return tmp_path
+
+
+class TestSkippedCitation:
+    def test_skipped_citation_reports_error(self, marked_repo: Path) -> None:
+        issues = check_invariant_matrix_test_paths(_cited("test_skipped"))
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert "skip" in issues[0].message
+        assert "Exception: <id>" in issues[0].message
+
+    def test_skipif_citation_reports_error(self, marked_repo: Path) -> None:
+        issues = check_invariant_matrix_test_paths(_cited("test_skipif"))
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert "skipif" in issues[0].message
+
+    def test_xfail_citation_reports_error(self, marked_repo: Path) -> None:
+        issues = check_invariant_matrix_test_paths(_cited("test_xfail"))
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert "xfail" in issues[0].message
+
+    def test_class_level_marker_marks_cited_method(self, marked_repo: Path) -> None:
+        issues = check_invariant_matrix_test_paths(
+            _cited("TestSkippedClass::test_method")
+        )
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert "skip" in issues[0].message
+
+    def test_unmarked_citation_in_marked_file_is_clean(self, marked_repo: Path) -> None:
+        assert check_invariant_matrix_test_paths(_cited("test_parametrized")) == []
+
+    def test_module_pytestmark_skipif_marks_every_node(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        module = tmp_path / "tests" / "a" / "test_a.py"
+        module.parent.mkdir(parents=True)
+        module.write_text(
+            "import pytest\n\n"
+            "pytestmark = pytest.mark.skipif(True, reason='env gate')\n\n"
+            "def test_function() -> None:\n    pass\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(checker, "REPO_ROOT", tmp_path)
+        issues = check_invariant_matrix_test_paths(_cited("test_function"))
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert "pytestmark" in issues[0].message
+
+    def test_non_skip_pytestmark_is_accepted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pins the match to skip/skipif/xfail only: a `usefixtures` pytestmark
+        (as in tests/mcp_servers/shell/test_shell_server_auth.py) is not skip-family."""
+        module = tmp_path / "tests" / "a" / "test_a.py"
+        module.parent.mkdir(parents=True)
+        module.write_text(
+            "import pytest\n\n"
+            'pytestmark = pytest.mark.usefixtures("firejail_on_path")\n\n'
+            "def test_function() -> None:\n    pass\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(checker, "REPO_ROOT", tmp_path)
+        assert check_invariant_matrix_test_paths(_cited("test_function")) == []
+
+    def test_exception_marker_suppresses_skip_error(self, marked_repo: Path) -> None:
+        lines = _matrix(
+            "| INV-001 | ADR-001 | x | Unit Test | CI | Blocking | "
+            "Confirmed (`tests/a/test_a.py::test_skipped`; Exception: EXC-001) |"
+        )
+        assert check_invariant_matrix_test_paths(lines) == []
+
+    @pytest.mark.parametrize(
+        "reference",
+        ["Exception:", "Exception: !bad", "Exceptions: EXC-001"],
+    )
+    def test_malformed_exception_reference_is_reported(
+        self, marked_repo: Path, reference: str
+    ) -> None:
+        lines = _matrix(
+            "| INV-001 | ADR-001 | x | Unit Test | CI | Blocking | "
+            f"Confirmed (`tests/a/test_a.py::test_skipped`; {reference}) |"
+        )
+        issues = check_invariant_matrix_test_paths(lines)
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+
+# ---------------------------------------------------------------------------
+# Cadence / expected-evidence rules (REQ-004)
+# ---------------------------------------------------------------------------
+
+
+def _status_row(status: str) -> str:
+    return f"| ADR-001 INV-01 | s | Manual Review | CI | Non-Blocking | {status} |"
+
+
+class TestManualPartialCadence:
+    def test_missing_cadence_warning(self) -> None:
+        lines = _matrix(
+            _status_row("Manual — procedure: code review. Owner: Repository owner")
+        )
+        issues = checker.check_manual_partial_fields(lines)
+        assert [i.severity for i in issues] == ["WARNING", "WARNING"]
+        assert {i.line_no for i in issues} == {5}
+        assert any("Cadence:" in i.message for i in issues)
+        assert any("Expected evidence:" in i.message for i in issues)
+
+    def test_cadence_present_ok(self) -> None:
+        lines = _matrix(
+            _status_row(
+                "Manual — procedure: code review. Cadence: each release review. "
+                "Expected evidence: a review record. Owner: Repository owner"
+            )
+        )
+        assert checker.check_manual_partial_fields(lines) == []
+
+    def test_partial_row_missing_expected_evidence_warns_once(self) -> None:
+        lines = _matrix(
+            _status_row(
+                "Partial — scope: x. Cadence: each deployment review. Owner: Owner"
+            )
+        )
+        issues = checker.check_manual_partial_fields(lines)
+        assert len(issues) == 1
+        assert "Expected evidence:" in issues[0].message
+
+    def test_confirmed_row_needs_no_cadence(self) -> None:
+        lines = _matrix(_status_row("Confirmed (`tests/a/test_a.py::t`)"))
+        assert checker.check_manual_partial_fields(lines) == []
+
+    def test_severity_flips_with_module_constant(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(checker, "_CADENCE_RULE_SEVERITY", "ERROR")
+        lines = _matrix(_status_row("Manual — procedure: review. Owner: Owner"))
+        assert {i.severity for i in checker.check_manual_partial_fields(lines)} == {
+            "ERROR"
+        }
+
+
+# ---------------------------------------------------------------------------
+# Exception reference grammar (shared with the CI runner, row 03)
+# ---------------------------------------------------------------------------
+
+
+class TestExceptionGrammar:
+    @pytest.mark.parametrize(
+        "cell",
+        [
+            "Confirmed (Exception: EXC-001)",
+            "Exception: a.b_c-d1",
+        ],
+    )
+    def test_valid_references_match(self, cell: str) -> None:
+        assert checker._EXCEPTION_RE.search(cell) is not None
+
+    @pytest.mark.parametrize("cell", ["Exception:", "Exception: !x"])
+    def test_invalid_references_do_not_match(self, cell: str) -> None:
+        assert checker._EXCEPTION_RE.search(cell) is None

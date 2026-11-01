@@ -8,6 +8,8 @@ report is built from:
   _query_ids_or_none / _query_pairs: top-10 identifier readers
   _collect_affected_identifiers: the affected-identifier set for each consistency rule
   _check_read_smoke_test: one COUNT(*) read per required RAG table
+  _check_fk_consistency / _check_embedding_dimension / _check_schema_recognition /
+  _check_corpus_meta: the fatal-class probes added for RAGCORPUS001
 
 Extracted from rag_consistency.py so that module keeps report assembly, the `_CHECKS`
 rule registry, and issue rendering only. Each query is read-only: it returns None or an
@@ -223,3 +225,67 @@ def _check_read_smoke_test(db: SQLiteHelper) -> bool:
         except sqlite3.Error:
             return False
     return True
+
+
+def _check_fk_consistency(db: SQLiteHelper) -> int:
+    """Return the number of chunk rows whose doc_id has no matching documents row.
+
+    0 means the chunks->documents foreign key is intact. Lets sqlite3.Error
+    propagate so check_rag_consistency records a missing-table read as a
+    diagnostic error (caught by the schema-recognition check).
+    """
+    count: int = db.execute(
+        "SELECT COUNT(*) FROM chunks WHERE doc_id NOT IN (SELECT doc_id FROM documents)"
+    ).fetchone()[0]
+    return count
+
+
+def _check_embedding_dimension(db: SQLiteHelper, expected_dims: int) -> bool:
+    """Return True when stored embedding vectors match the configured dimension.
+
+    A vec0 vector is stored as float32, so the byte length divided by 4 is the
+    dimension. An empty chunks_vec has nothing to contradict the config and is
+    therefore clean.
+    """
+    row = db.execute("SELECT length(embedding) FROM chunks_vec LIMIT 1").fetchone()
+    if row is None or row[0] is None:
+        return True
+    dim_bytes: int = row[0]
+    return (dim_bytes // 4) == expected_dims
+
+
+def _check_schema_recognition(db: SQLiteHelper) -> bool:
+    """Return True when every expected RAG table is present.
+
+    A missing required table means the schema shape is unrecognised, which is the
+    fatal class check_rag_consistency guards against. Mirrors the required-table
+    set of _check_read_smoke_test.
+    """
+    expected_tables = ("documents", "chunks", "chunks_vec", "chunks_fts_docsize")
+    present = {
+        name
+        for name, type_ in db.execute(
+            "SELECT name, type FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    return all(table in present for table in expected_tables)
+
+
+def _check_corpus_meta(db: SQLiteHelper) -> bool:
+    """Return True when the single-row rag_corpus_meta table is well formed.
+
+    Presence of exactly one row with a non-null corpus_id marks a verifiable
+    corpus generation. A missing or multi-row table is the unverifiable-generation
+    fatal class; a missing table is reported as False rather than raised so
+    check_rag_consistency can apply the ledger-based pre-migration tolerance.
+    """
+    try:
+        row_count = db.execute("SELECT COUNT(*) FROM rag_corpus_meta").fetchone()[0]
+    except sqlite3.Error:
+        return False
+    if row_count != 1:
+        return False
+    corpus_id = db.execute("SELECT corpus_id FROM rag_corpus_meta LIMIT 1").fetchone()[
+        0
+    ]
+    return corpus_id is not None

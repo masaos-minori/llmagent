@@ -13,6 +13,7 @@ import orjson
 import pytest
 import rag
 import respx
+from rag.corpus_identity import CorpusIdentity
 from rag.models_data import TwoStageFetchResult
 from rag.pipeline_service import call_rag_service
 
@@ -201,6 +202,98 @@ class TestResponseParsing:
         assert result is None
         assert status == 400
         assert route.call_count == 1
+
+
+# ── CallRagResult identity fields (RAGCORPUS001 REQ-002) ──────────────────────
+
+
+class TestCallRagResultIdentityFields:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_identity_parsed_from_response_envelope(self) -> None:
+        body = {
+            "result": "ctx",
+            "is_error": False,
+            "corpus_identity": {
+                "corpus_id": "cid-1",
+                "index_generation": 7,
+                "schema_version": "1",
+                "embedding_model_id": "emb-x",
+                "normalization_version": "1",
+                "chunking_policy_version": "1",
+            },
+        }
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(200, content=orjson.dumps(body))
+        )
+        async with httpx.AsyncClient() as client:
+            outcome = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+            )
+        expected = CorpusIdentity(
+            corpus_id="cid-1",
+            index_generation=7,
+            schema_version="1",
+            embedding_model_id="emb-x",
+            normalization_version="1",
+            chunking_policy_version="1",
+        )
+        assert outcome.remote_identity == expected
+        assert outcome.remote_identity is not None
+        assert outcome.remote_identity.verified is False
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_identity_absent_is_none(self) -> None:
+        body = {"result": "ctx", "is_error": False}
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(200, content=orjson.dumps(body))
+        )
+        async with httpx.AsyncClient() as client:
+            outcome = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+            )
+        assert outcome.result == "ctx"
+        assert outcome.remote_identity is None
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_malformed_identity_is_none_not_partial(self) -> None:
+        body = {
+            "result": "ctx",
+            "is_error": False,
+            "corpus_identity": {
+                "corpus_id": "cid-1",
+                "index_generation": "not-an-int",
+                "schema_version": "1",
+                "embedding_model_id": "emb-x",
+                "normalization_version": "1",
+                "chunking_policy_version": "1",
+            },
+        }
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(200, content=orjson.dumps(body))
+        )
+        async with httpx.AsyncClient() as client:
+            outcome = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+            )
+        assert outcome.result == "ctx"
+        # Best-effort coercion fails on the non-integer generation; the whole
+        # identity is dropped rather than returning a partial object.
+        assert outcome.remote_identity is None
 
 
 # ── Fallback reason callback and status code ───────────────────────────────────

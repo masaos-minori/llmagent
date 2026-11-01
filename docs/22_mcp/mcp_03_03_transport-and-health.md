@@ -11,6 +11,7 @@ related:
   - mcp_03_02_tool-registry.md
   - mcp_03_04_tool-call-tracing-and-lifecycle.md
   - mcp_03_05_lifecycle-and-new-server.md
+  - db_03_07_mcp-dedup-and-execution-snapshot.md
 ---
 
 # HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys
@@ -28,6 +29,39 @@ related:
 - **Retries:** Retries are performed on HTTP 429/502/503/504 and on non-timeout `httpx.RequestError` (e.g. connection errors). For side-effecting tools (`_WRITE_TOOLS`), the ambiguous classes — post-send `httpx.RequestError` and the statuses `502`/`503`/`504` — raise `TransportError` immediately (fail-closed, ADR-004); pre-send connection errors and `429` stay retryable. The number of attempts is bounded, the delay between attempts for retryable HTTP statuses increases exponentially, and no sleep follows the last attempt. Only the final result (success or `TransportError` after all retries exhausted) is recorded in the McpServerHealthRegistry. The `TransportError` message (`"[Retry exhausted] ..."`) includes the tool name, the last retryable HTTP status (if any), the last request-error cause (`last_error=<class>: <message>`, when a non-timeout `httpx.RequestError` was retried), and the attempt count, in that order; raw response bodies are not included.
 - **Non-retryable errors:** HTTP timeouts (`httpx.TimeoutException`) and `HTTPStatusError` for status codes other than 429/502/503/504 are propagated immediately without retries.
 - **Tool-level vs. Transport-level errors:** Tool-level errors (`error_type == "tool"`) are treated as successful transport calls, triggering `record_success()` and incrementing the `stat_tool_errors` counter. Transport-level errors trigger `record_failure()` and increment the `stat_transport_errors` counter. Both counters are tracked independently.
+
+### Idempotency Key Derivation and Durable Dedup
+
+`HttpTransport` derives one idempotency key per logical tool call and sends it as the
+`X-Idempotency-Key` header on every attempt (retries reuse the same key; they do not
+re-derive it). The key is deterministic — `derive_idempotency_key(method, tool_name, args, uid)`
+computes a sha256 over the method, tool name, canonical JSON of the arguments (sorted keys),
+and a caller-stable `uid` (the transport session id, falling back to the auth-token hash) —
+so an identical logical call re-derives the byte-identical key across retries, processes, and
+restarts. This replaces the previous per-call random key: before this change a retried or
+re-sent side-effecting call was invisible to server-side dedup because each attempt carried a
+fresh key.
+
+Server side (`scripts/mcp_servers/dispatch.py`), a caller-supplied non-empty key takes
+precedence over any derived value (caller-key precedence). For side-effecting tools the key
+feeds two layers:
+
+- A bounded in-process fast-path overlay (`_duplicate_cache`, TTL/eviction: see
+  [mcp_03_01](mcp_03_01_dispatch-and-routing.md)) that now serves as a cache in front of the
+  durable store, not the durability mechanism itself.
+- The durable dedup store in `mcp_dedup.sqlite` (`shared/mcp_dedup.py`), whose states
+  (`pending` / `completed` / `failed` / `interrupted`), replay decision table, retry
+  classification, retention, and concurrency contract are documented in
+  [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md).
+
+Failure semantics at the dispatcher boundary: a key reused with different content (different
+tool or arguments) is rejected as `error_type="idempotency_key_reused"` before dispatch, on both
+the overlay and the durable row. An `interrupted` call is replayed only for tools classified
+`retryable` in `config/mcp_dedup.toml`; `non_retryable` tools are refused with
+`error_type="dedup_unreplayable"`. Store unavailability never stalls retryable tools (the call
+proceeds with an audited `dedup_state="store_error"` marker) but fails closed for
+`non_retryable` tools (`error_type="dedup_store_error"`). Only real, successful, non-dry-run
+results are cached; dry-run outcomes clear the key.
 ---
 
 ## McpServerHealthRegistry (`shared/mcp_health.py`)

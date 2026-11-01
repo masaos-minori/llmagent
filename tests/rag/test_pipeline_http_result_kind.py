@@ -8,11 +8,43 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from db.helper import SQLiteHelper
 from rag.exceptions import RagPipelineError
 from rag.models_result import HttpResultKind, ResultSource
 from rag.pipeline import RagPipeline, SearchDiagnostics
 from rag.pipeline_service import CallRagResult
 from rag.types import PipelineRunResult
+
+_META_DDL = """
+CREATE TABLE IF NOT EXISTS rag_corpus_meta (
+    corpus_id                TEXT    NOT NULL,
+    index_generation         INTEGER NOT NULL,
+    embedding_model_id       TEXT    NOT NULL,
+    normalization_version    TEXT    NOT NULL,
+    chunking_policy_version  TEXT    NOT NULL,
+    updated_at               TEXT    NOT NULL,
+    CHECK (rowid = 1)
+);
+"""
+
+
+def _seed_local_db(tmp_path, *, generation) -> str:
+    """Create a temp RAG DB with one ``rag_corpus_meta`` row at ``generation``.
+
+    Returns the DB path wired into a pipeline via ``pipeline._rag_db_path``.
+    """
+    db_path = str(tmp_path / "generation.db")
+    db = SQLiteHelper(db_path=db_path, sqlite_vec_so="")
+    db.open()
+    db.executescript(_META_DDL)
+    db.commit()
+    db.execute(
+        "INSERT INTO rag_corpus_meta VALUES (?, ?, ?, ?, ?, ?)",
+        ("known-cid", generation, "emb-x", "1", "1", "now"),
+    )
+    db.commit()
+    db.close()
+    return db_path
 
 
 def _make_pipeline(rag_query_service_url: str = "http://rag.local") -> RagPipeline:
@@ -52,6 +84,10 @@ async def test_remote_nonempty(monkeypatch) -> None:
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] == HttpResultKind.SUCCESS
+    # Remote-served results return before the fallback identity gate runs, so no
+    # local corpus generation is recorded (REQ-004 records generation only on the
+    # fallback path). This is the real contract, not the assumed "records remote".
+    assert diag["corpus_generation"] is None
     sd = pipeline.last_search_diagnostics
     assert sd.result_source == ResultSource.REMOTE
     assert sd.remote_status_code == 200
@@ -90,6 +126,8 @@ async def test_remote_empty(monkeypatch) -> None:
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] == HttpResultKind.EMPTY
+    # remote_empty also returns before the gate; no local generation recorded.
+    assert diag["corpus_generation"] is None
     sd = pipeline.last_search_diagnostics
     assert sd.result_source == ResultSource.REMOTE
     assert sd.http_result_kind == HttpResultKind.EMPTY
@@ -143,6 +181,10 @@ async def test_in_process_fallback(monkeypatch) -> None:
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] == HttpResultKind.ERROR
+    # This test mocks SQLiteHelper.open, so the local corpus is unverified and no
+    # generation is recorded. The verified-local generation path is covered by
+    # test_generation_records_local_on_verified_fallback with a seeded DB.
+    assert diag["corpus_generation"] is None
     sd = pipeline.last_search_diagnostics
     assert sd.result_source == ResultSource.FALLBACK
     assert sd.http_result_kind == HttpResultKind.ERROR
@@ -179,6 +221,9 @@ async def test_no_http_mode(monkeypatch) -> None:
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] == HttpResultKind.NOT_USED
+    # No HTTP mode still enters the fallback gate path; with the mocked (unverified)
+    # DB no generation is recorded. The verified path is covered separately.
+    assert diag["corpus_generation"] is None
 
 
 @pytest.mark.asyncio
@@ -205,3 +250,78 @@ async def test_auth_error_fails_closed_without_in_process_fallback(
     sd = pipeline.last_search_diagnostics
     assert sd.http_result_kind == HttpResultKind.AUTH_ERROR
     assert sd.remote_status_code == status
+
+
+# ── Recorded corpus generation per result kind (RAGCORPUS001 REQ-004/007) ───────
+
+
+@pytest.mark.asyncio
+async def test_generation_records_local_on_verified_fallback(
+    tmp_path, monkeypatch
+) -> None:
+    """Fallback on a verified local corpus records the LOCAL generation (REQ-004)."""
+    pipeline = _make_pipeline()
+    pipeline._rag_db_path = _seed_local_db(tmp_path, generation=7)
+    run_mock = AsyncMock(
+        return_value=PipelineRunResult(
+            queries=["query"],
+            search_results=[],
+            merged=[],
+            reranked=[],
+            stage_results=[],
+            diagnostics=SearchDiagnostics(),
+        )
+    )
+    monkeypatch.setattr(pipeline, "run", run_mock)
+
+    async def mock_call_rag_service(*args, **kwargs):
+        if kwargs.get("set_fallback_reason"):
+            kwargs["set_fallback_reason"]("connection error")
+        return CallRagResult("transient_failure", None, 503, 100.0)
+
+    with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
+        await pipeline.augment("query")
+
+    diag = pipeline.get_diagnostics()
+    # Records the generation of the corpus that serves the result (the local one).
+    assert diag["corpus_generation"] == 7
+    assert diag["identity_degraded"] is False
+    run_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_generation_none_when_unverified(tmp_path, monkeypatch) -> None:
+    """A corrupt (unverifiable) local corpus records no generation (REQ-007)."""
+    pipeline = _make_pipeline(rag_query_service_url="")
+    # Non-integer index_generation makes compute_identity raise; compute_local_identity
+    # treats it as unverified, so no generation is recorded.
+    db_path = str(tmp_path / "corrupt.db")
+    db = SQLiteHelper(db_path=db_path, sqlite_vec_so="")
+    db.open()
+    db.executescript(_META_DDL)
+    db.commit()
+    db.execute(
+        "INSERT INTO rag_corpus_meta VALUES (?, ?, ?, ?, ?, ?)",
+        ("known-cid", "not-an-int", "emb-x", "1", "1", "now"),
+    )
+    db.commit()
+    db.close()
+    pipeline._rag_db_path = db_path
+    run_mock = AsyncMock(
+        return_value=PipelineRunResult(
+            queries=["query"],
+            search_results=[],
+            merged=[],
+            reranked=[],
+            stage_results=[],
+            diagnostics=SearchDiagnostics(),
+        )
+    )
+    monkeypatch.setattr(pipeline, "run", run_mock)
+
+    await pipeline.augment("query")
+
+    diag = pipeline.get_diagnostics()
+    assert diag["corpus_generation"] is None
+    assert diag["identity_degraded"] is False
+    run_mock.assert_awaited_once()

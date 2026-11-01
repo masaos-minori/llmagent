@@ -1,0 +1,50 @@
+# mcp_dedup configuration (toolexec001)
+#
+# Durable dedup store for the shared MCP dispatcher (dispatch_tool) and the
+# per-tool retry classes. retry_class values are the REQ-006 owner
+# classification: dispatch-capable HTTP tools retryable; external-side-effect
+# tools non_retryable. Keys are live dispatch tool names (verified 2026-10-31
+# against scripts/shared/tool_constants.py; the plan REQ-006 group names are
+# expanded here so retry_class(tool_name) lookups hit instead of defaulting).
+# Unknown tools default to non_retryable: trigger_workflow and any future tool
+# are fail-safe unreplayable until explicitly classified.
+# Loader and validation live in scripts/shared/mcp_dedup.py.
+
+[dedup]
+db_path = "/opt/llm/db/mcp_dedup.sqlite"
+retention_days = 14
+pending_timeout_minutes = 10
+
+[retry_class]
+# file_write server (REQ-006 group: file_write)
+write_file = "retryable"
+edit_file = "retryable"
+create_directory = "retryable"
+move_file = "retryable"
+# file_delete server (REQ-006 group: file_delete)
+delete_file = "retryable"
+delete_directory = "retryable"
+# git server (REQ-006 group: git)
+git_add = "retryable"
+git_commit = "retryable"
+git_checkout = "retryable"
+git_pull = "retryable"
+git_push = "retryable"
+# github server (REQ-006 group: github)
+github_add_issue_comment = "retryable"
+github_create_branch = "retryable"
+github_create_issue = "retryable"
+github_create_or_update_file = "retryable"
+github_delete_file = "retryable"
+github_merge_pull_request = "retryable"
+github_push_files = "retryable"
+github_update_pull_request = "retryable"
+# mdq server (REQ-006 group: mdq)
+index_paths = "retryable"
+refresh_index = "retryable"
+# rag_pipeline server (REQ-006 group: rag_pipeline)
+rag_delete_document = "retryable"
+# shell server (REQ-006 group: shell)
+shell_run = "non_retryable"
+# web_search (REQ-006 group: web_search)
+web_search = "non_retryable"

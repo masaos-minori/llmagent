@@ -193,12 +193,12 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Framework core | In Progress | — | — |  |
-| 2 | Phase 2: eventbus domain wiring | In Progress | — | — |  |
-| 3 | Phase 3: workflow domain wiring | In Progress | — | — |  |
-| 4 | Phase 4: Verified recovery points and drills | In Progress | — | — |  |
-| 5 | Phase 5: Deployment & Verification | In Progress | — | — |  |
-| 6 | Phase 6: Documentation & approval record | In Progress | — | — |  |
+| 1 | Phase 1: Framework core | Completed | — | 20261031-133517 | all 071336 batch procedures archived in implementations/done/ (status sync 2026-10-31) |
+| 2 | Phase 2: eventbus domain wiring | Completed | — | 20261031-133517 | all 071336 batch procedures archived in implementations/done/ (status sync 2026-10-31) |
+| 3 | Phase 3: workflow domain wiring | Completed | — | 20261031-133517 | all 071336 batch procedures archived in implementations/done/ (status sync 2026-10-31) |
+| 4 | Phase 4: Verified recovery points and drills | Completed | — | — | Rows 10-12 archived; row 11 closed 2026-10-31 with drill tests 6/6 pass. |
+| 5 | Phase 5: Deployment & Verification | Completed | — | 20261031-133517 | all 071336 batch procedures archived in implementations/done/ (status sync 2026-10-31) |
+| 6 | Phase 6: Documentation & approval record | Completed | — | 20261031-133517 | all 071336 batch procedures archived in implementations/done/ (status sync 2026-10-31) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -218,7 +218,7 @@ Yes. `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` + `docs/10_adr/adr_
 | `implementations/20261030-071336_08_scripts_db_create_schema.py.md` | 3 | Procedure | Pending | — | — |
 | `implementations/20261030-071336_09_scripts_db_schema_sql.py.md` | 3 | Procedure | Pending | — | — |
 | `implementations/20261030-071336_10_scripts_db_recovery.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261030-071336_11_scripts_db_recovery_drill.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261030-071336_11_scripts_db_recovery_drill.py.md` | 4 | Procedure | Completed | — | — |
 | `implementations/20261030-071336_12_scripts_db_rotation.py.md` | 4 | Procedure | Pending | — | — |
 | `implementations/20261030-071336_13_deploy_init_db.sh.md` | 5 | Procedure | Pending | — | — |
 | `implementations/20261030-071336_14_tests_shared_test_db_migrations.py.md` | 1 | Procedure | Pending | — | — |

@@ -246,7 +246,9 @@ class TestRetryAfterDerivation:
         assert registry.retry_after_seconds("unknown-key") is None
         assert registry.cooldown_remaining("unknown-key") == 0.0
 
-    def test_half_open_carries_no_retry_after(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_half_open_carries_no_retry_after(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         registry, clock = self._unavailable_registry(monkeypatch)
         clock["now"] = 1031.0
         assert registry.is_unavailable("srv") is False  # UNAVAILABLE -> HALF_OPEN

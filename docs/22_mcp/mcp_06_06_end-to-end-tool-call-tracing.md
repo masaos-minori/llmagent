@@ -7,6 +7,8 @@ tags:
   - observability
 related:
   - mcp_06_01_configuration-file-inventory.md
+  - mcp_03_03_transport-and-health.md
+  - db_03_07_mcp-dedup-and-execution-snapshot.md
 ---
 # End-to-End Tool Call Tracing
 
@@ -38,6 +40,38 @@ failures from tool-level failures — see `scripts/agent/tool_audit.py` for the 
 values and their assignment logic.
 
 `error_type` is `transport` (server or network issue) or `tool` (tool-level failure); filter with `grep '"error_type":"transport"' <log_dir>/audit.log`.
+
+## Idempotency and Dedup Fields in the Audit Trace
+
+Every agent-side `tool_exec` record carries two additional fields (toolexec001):
+
+| Field | Presence | Content |
+|---|---|---|
+| `execution_snapshot_json` | always | Canonical JSON of the deployment fingerprint captured at call start: `deployed_rev`, `git_sha`, `config_hash`, per-DB `schema_versions`. Values are hashes only — never config contents or result bodies. |
+| `dedup_state` | only when non-empty | The dispatcher dedup branch taken: `duplicate_hit`, `snapshot_mismatch`, `result_truncated`, `replayed`, `unreplayable`, `store_error`. Empty for freshly executed or non-dispatch-originated calls. |
+
+The record also carries `idempotency_key` (the key the call was dispatched under) so an audit
+line can be matched against the durable store row and the workflow `tool_call_state` row.
+
+Dedup outcome tags arrive through `error_type` when the dispatcher refuses a call:
+`idempotency_key_reused` (key seen with different content), `dedup_unreplayable` (interrupted
+call refused for a `non_retryable` tool), and `dedup_store_error` (store unavailable,
+`non_retryable` tool fails closed). Filter with, for example,
+`grep '"error_type":"dedup_unreplayable"' <log_dir>/audit.log`.
+
+Snapshot equality decides replay: a completed row is served from the store only when its stored
+snapshot equals the snapshot built at the new call's start, compared per component —
+`mismatching_components` names each differing component, so ops can tell a config-only change
+from a code-revision change. Tolerant readers record `"unknown"` (missing revision file) or
+`"absent"` (missing DB) instead of failing. Storage and replay semantics:
+[db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md); transport-side key derivation:
+[mcp_03_03](mcp_03_03_transport-and-health.md).
+
+Example line (synthetic values) — a replayed completed-hit served from the durable store:
+
+``` text
+{"event":"tool_exec","tool":"write_file","is_error":false,"error_type":"","mcp_request_id":"req-000000000000","idempotency_key":"a1b2c3d4e5f60718293a4b5c6d7e8f9012345678901234567890123456789012","dedup_state":"duplicate_hit","execution_snapshot_json":"{\"config_hash\":\"…\",\"deployed_rev\":\"…\",\"git_sha\":\"…\",\"schema_versions\":{…}}","ts":1761900000.0}
+```
 
 ## Per-Server Error Counters
 

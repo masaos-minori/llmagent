@@ -18,7 +18,9 @@ class DynamicAvailabilityHint:
 
     reason: Literal["server_unavailable", "half_open_trial_in_progress"]
     circuit_state: McpServerHealthState
-    retry_after_seconds: int | None  # seconds, never negative; None when no timing applies
+    retry_after_seconds: (
+        int | None
+    )  # seconds, never negative; None when no timing applies
 
 
 @dataclass(frozen=True)
@@ -35,9 +37,9 @@ class ToolCallResult:
     server_key: str  # server key that handled the call
     source: str = ""  # "mcp" for MCP tools, "" for error paths
     error_type: str = ""  # "transport" | "tool" | "routing" | "" (empty on success)
-    availability_hint: (
-        DynamicAvailabilityHint | None
-    ) = None  # advisory dynamic health signal; None means no signal
+    availability_hint: DynamicAvailabilityHint | None = (
+        None  # advisory dynamic health signal; None means no signal
+    )
 
     @classmethod
     def from_transport(
