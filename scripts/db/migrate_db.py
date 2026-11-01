@@ -54,7 +54,7 @@ def _legacy_marker(conn: sqlite3.Connection) -> str | None:
     """
     try:
         row = conn.execute(
-            f"SELECT version FROM {_WORKFLOW_VERSION_TABLE} "
+            f"SELECT version FROM {_WORKFLOW_VERSION_TABLE} "  # nosec B608 — table name is a module-level constant, no user input
             "ORDER BY applied_at DESC LIMIT 1"
         ).fetchone()
     except sqlite3.OperationalError:
