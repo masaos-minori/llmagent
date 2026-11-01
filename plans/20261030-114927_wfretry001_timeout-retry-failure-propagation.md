@@ -40,7 +40,7 @@ Retry eligibility and outward failure reporting are one contract; operators cann
 - `REQ-003`: Retry semantics: every failed attempt consumes one unit of `max_attempts`; a failed attempt whose kind is not in `retry_on` is terminal at once; an eligible kind retries until the budget is exhausted and then halts; the shipped configuration is pinned by a test (timeout not retried, exception retried).
 - `REQ-004`: `execute_turn()` returns a typed failure for a halted or timed-out workflow: `error_kind` `workflow_halted` or `workflow_timeout`, with and without `on_error`; the orchestrator's turn-end audit therefore carries it; `on_error` is still called as before and never carries the sole signal.
 - `REQ-005`: An LLM-level failure result (`result.action != "continue"`) enters the engine as a stage failure of kind `llm_failure` carrying the answer, partial flag, and result `error_kind`; it is retried only when `retry_on` includes `llm_failure`; terminal, the engine writes `failed` once and the adapter returns the same outward `error_kind` as today; the `completed` then `failed` overwrite is removed.
-- `REQ-006`: Add a per-attempt side-effect flag to `TurnState`, set by `tool_runner` before any non-READ tool call executes (the classification is hoisted above the gateway branch of `_execute_prepared_call`, which returns at `tool_runner.py:153` before `classify_operation_type` runs at `:155`, so production calls through the gateway would otherwise never set it) and cleared at each attempt start; when an attempt fails with the flag set, retry is suppressed and the failure is terminal (`workflow_halted`), regardless of `retry_on`.
+- `REQ-006`: Add a per-attempt side-effect flag to `TurnState`, set by `tool_runner` before any non-READ tool call executes (the classification is hoisted above the gateway branch of `_execute_prepared_call`, which returns at `tool_runner.py:153` before `classify_operation_type` runs at `:155`, so production calls through the gateway would otherwise never set it; re-verified 2026-11-01 on `master`: the gateway return is at `tool_runner.py:212-213` and the classification at `:215`) and cleared at each attempt start; when an attempt fails with the flag set, retry is suppressed and the failure is terminal (`workflow_halted`), regardless of `retry_on`.
 - `REQ-007`: Attempt-level `error_kind` values persisted in `attempts` keep `timeout` and `exception` and gain `llm_failure`; the outward turn kinds `workflow_timeout` and `workflow_halted` are distinct from them.
 - `REQ-008`: No turn ends with an empty answer, `error_kind` `None`, and a task status of `halted` or `failed`; a test enforces the invariant for halt, timeout, LLM failure, and cancellation paths.
 - `REQ-009`: Tests: engine (timeout then success when configured, timeout exhaustion, exception exhaustion, non-retryable kind, inner `TimeoutError`, LLM-failure result, side-effect suppression), adapter and orchestrator (halt and timeout with and without callback; returned tuple, task status, turn-end audit), loader (valid, absent, unknown kinds), tool runner (flag), and the rewritten `test_timeout_raises_workflow_timeout_error`.
@@ -48,22 +48,22 @@ Retry eligibility and outward failure reporting are one contract; operators cann
 - `REQ-011`: Deployment compatibility: the new policy field is optional, the deployed `/opt/llm/config/workflows/default.json` is updated by the normal config sync, and the pre-flight `python -m agent.workflow.validate` passes on it.
 
 ## Implementation Target Files
-**Freeze status**: Frozen (Step 8 Implementation Target Files Validation passed on 2026-10-30: every row exists, requires modification, cites checkable evidence, and links to a Requirement; existing paths confirmed on branch `docs/issues-workflow-persistence`).
+**Freeze status**: Frozen (Step 8 Implementation Target Files Validation passed on 2026-10-30: every row exists, requires modification, cites checkable evidence, and links to a Requirement; existing paths confirmed on branch `docs/issues-workflow-persistence`). Re-verified 2026-11-01 against `master`: all 12 row paths still exist on `master`, and no row requires replacement; drifted `path:line` citations were refreshed in place with `(re-verified 2026-11-01)` markers.
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/agent/workflow/workflow_engine.py` | Retry eligibility by kind, deadline-versus-inner timeout, stage-failure routing, terminal kinds | `except WorkflowTimeoutError: raise` bypasses the budget; `except TimeoutError` conflates inner timeouts | REQ-002, REQ-003, REQ-005, REQ-006, REQ-007 / AC-2, AC-3, AC-5, AC-6 | `workflow_engine.py:134-181,188-256` (checked in Step 3) | `tests/agent/workflow/test_workflow_engine.py` | Verified |
+| `scripts/agent/workflow/workflow_engine.py` | Retry eligibility by kind, deadline-versus-inner timeout, stage-failure routing, terminal kinds | `except WorkflowTimeoutError: raise` bypasses the budget; `except TimeoutError` conflates inner timeouts | REQ-002, REQ-003, REQ-005, REQ-006, REQ-007 / AC-2, AC-3, AC-5, AC-6 | `workflow_engine.py:162-186,188-240,242-309` (checked in Step 3; re-verified 2026-11-01: `except WorkflowTimeoutError: raise` at `:208-209`, `except TimeoutError` conflates inner timeouts at `:279`) | `tests/agent/workflow/test_workflow_engine.py` | Verified |
 | `scripts/agent/workflow/models.py` | `RetryPolicy.retry_on` | Policy has only `max_attempts`, `backoff_sec` | REQ-001 / AC-1 | `models.py:61-67` (checked in Step 3) | `tests/agent/workflow/test_workflow_loader.py` | Verified |
 | `scripts/agent/workflow/workflow_loader.py` | Parse and validate `retry_on` in a helper | `_validate` ignores unknown keys; grade C (18) | REQ-001 / AC-1 | `workflow_loader.py:47-48,56-96` (checked in Step 3) | `tests/agent/workflow/test_workflow_loader.py` | Verified |
 | `config/workflows/default.json` | Explicit shipped `retry_on` | Shipped behavior must be readable from configuration | REQ-001, REQ-003, REQ-011 / AC-1, AC-3, AC-9 | `default.json:6-24` (checked in Step 3) | `tests/agent/workflow/test_workflow_loader.py` | Verified |
-| `scripts/agent/workflow_engine_adapter.py` | Typed failure result, stage failure from `_run_execute_stage`, attempt flag reset, status writes limited to cancellation | Halt returns `("", None, False)`; completed-then-failed overwrite | REQ-004, REQ-005, REQ-006, REQ-008 / AC-4, AC-5, AC-6, AC-8 | `workflow_engine_adapter.py:49-59,149-222,303-308,327-375` (checked in Step 3) | `tests/agent/test_orchestrator.py` | Verified |
+| `scripts/agent/workflow_engine_adapter.py` | Typed failure result, stage failure from `_run_execute_stage`, attempt flag reset, status writes limited to cancellation | Halt returns `("", None, False)`; completed-then-failed overwrite | REQ-004, REQ-005, REQ-006, REQ-008 / AC-4, AC-5, AC-6, AC-8 | `workflow_engine_adapter.py:49-60,149-222,307-313,331-383` (checked in Step 3; re-verified 2026-11-01: halt returns `("", None, False)` at `:157-159,210-222`; completed-then-failed overwrite at `_status_for_exit` `:58-59`) | `tests/agent/test_orchestrator.py` | Verified |
 | `scripts/agent/context.py` | `TurnState` side-effect flag | No per-attempt side-effect record exists | REQ-006 / AC-6 | `context.py:213-226` (checked in Step 3) | `tests/agent/test_tool_runner.py` | Verified |
-| `scripts/agent/tool_runner.py` | Set the flag before a non-READ call executes, ahead of the gateway branch | Classification happens only in the no-gateway branch (`:155`); the gateway branch returns first (`:151-153`), and production always has a gateway | REQ-006 / AC-6 | `tool_runner.py:134-166` (`op != OperationType.READ` at `:156`) (checked in Step 3) | `tests/agent/test_tool_runner.py` | Verified |
-| `tests/agent/workflow/test_workflow_engine.py` | Engine tests; rewrite the timeout test | Existing test accepts either exception type | REQ-002, REQ-003, REQ-005, REQ-006, REQ-009 / AC-2, AC-3, AC-5, AC-6 | `test_workflow_engine.py:161-185` (checked in Step 3) | itself | Verified |
+| `scripts/agent/tool_runner.py` | Set the flag before a non-READ call executes, ahead of the gateway branch | Classification happens only in the no-gateway branch (`:215`); the gateway branch returns first (`:212-213`), and production always has a gateway (re-verified 2026-11-01) | REQ-006 / AC-6 | `tool_runner.py:199-221` (`op != OperationType.READ` at `:216`, gateway return at `:212-213`) (checked in Step 3; re-verified 2026-11-01: classification runs only in the no-gateway branch) | `tests/agent/test_tool_runner.py` | Verified |
+| `tests/agent/workflow/test_workflow_engine.py` | Engine tests; rewrite the timeout test | Existing test accepts either exception type | REQ-002, REQ-003, REQ-005, REQ-006, REQ-009 / AC-2, AC-3, AC-5, AC-6 | `test_workflow_engine.py:161-181` (checked in Step 3; re-verified 2026-11-01: `test_timeout_raises_workflow_timeout_error` accepts `pytest.raises((WorkflowHaltError, WorkflowTimeoutError))`) | itself | Verified |
 | `tests/agent/workflow/test_workflow_loader.py` | `retry_on` loader tests | Loader tests cover required keys only | REQ-001, REQ-009 / AC-1 | `test_workflow_loader.py` (churn 3 in 30 days; exists) (checked in Step 3) | itself | Verified |
-| `tests/agent/test_orchestrator.py` | Halt and timeout outcome, callback present and absent, status and audit | Halt tests assert status only (`:667,764`) | REQ-004, REQ-005, REQ-008, REQ-009 / AC-4, AC-5, AC-8 | `test_orchestrator.py:667,764,2627-2765` (checked in Step 3) | itself | Verified |
+| `tests/agent/test_orchestrator.py` | Halt and timeout outcome, callback present and absent, status and audit | Halt tests assert status only (`:667,764`) | REQ-004, REQ-005, REQ-008, REQ-009 / AC-4, AC-5, AC-8 | `test_orchestrator.py:663-667,764,2627-2765` (checked in Step 3; re-verified 2026-11-01: the halt test asserts task status and the `on_error` callback, not the returned tuple) | itself | Verified |
 | `tests/agent/test_tool_runner.py` | Flag set for non-READ calls only | No flag exists | REQ-006, REQ-009 / AC-6 | `test_tool_runner.py` (exists; churn 11) (checked in Step 3) | itself | Verified |
 | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Transitions table, retry mechanism, operational notes | Describe today's timeout-not-retried behavior | REQ-010 / AC-10 | `agent_03_03_...md:74-94,119-129,149-150` (checked in Step 3) | docs checkers | Verified |
 
@@ -82,8 +82,8 @@ Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation 
 | `scripts/agent/tool_policy.py` | `classify_operation_type` and `OperationType` used for the flag | REQ-006 |
 | `scripts/agent/workflow/validate.py` | Pre-flight validation entry run by deploy (`python -m agent.workflow.validate`) | REQ-011 |
 | `deploy/setup_services.sh` | Runs the workflow definition validation before start | REQ-011 |
-| `plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` | Attempt and status contract this Plan builds on | REQ-003, REQ-005 |
-| `plans/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md` | Replay protocol that may later relax the side-effect rule | REQ-006 |
+| `plans/done/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` | Attempt and status contract this Plan builds on (archived 2026-11-01; Phase 4 attempt/budget contract landed on `master`) | REQ-003, REQ-005 |
+| `plans/done/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md` | Replay protocol that may later relax the side-effect rule (archived; tool-call snapshot/dedup landed on `master` 2026-11-01) | REQ-006 |
 
 ## Acceptance Criteria
 - AC-1 (REQ-001): the shipped `default.json` carries `retry_on`; a definition without the key loads with the default `["exception"]`; an unknown kind raises `WorkflowLoadError`.
@@ -108,12 +108,17 @@ Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation 
 Yes: `REQ-010`. `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` (located through `docs/00_index.md` "Document References by Task"): the Task Status Transitions table, the Retry Mechanism section, and the Operational Notes bullet on `halted`; intent and failure behavior only, no code restatement. `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` decision 6 stays true under the shipped configuration and is not a target; amend it (ADR change protocol) only if the owner changes the outcome. UNK-01 and UNK-02 are settled by the owner, so no Needs Confirmation item is required for them.
 
 ## Assumptions
-- The owner chose on 2026-10-30 to keep today's retry behavior (UNK-01, UNK-02); the defaults preserve it, and `retry_on` can be changed later by configuration.
+- The owner chose on 2026-10-30 to keep today's retry behavior (UNK-01, UNK-02); the defaults preserve it, and `retry_on` can be changed later by configuration. Re-verified 2026-11-01: the landed engine already treats timeouts as terminal (`workflow_engine.py:208-209`), matching these defaults.
 - The side-effect rule treats every non-READ operation, including unclassified ones, as a side effect (conservative) until the toolexec001 replay protocol exists (UNK-06).
 - Step 8b overlap judgments (`tools/check_plan_target_overlaps.py`, 2026-10-30), one per reported file: `scripts/agent/workflow/workflow_engine.py` with wfrecovery001, wflease001, toolexec001: sequencing dependency (wfrecovery001 changes the claim and attempt numbering in `run()` and the retry loop; wflease001 passes the lease at attempt start; toolexec001 adds pending-call detection at turn entry; this Plan changes eligibility, timeout classification, and failure routing in the same functions; the designs do not contradict, this Plan lands after wfrecovery001 Phase 4 and rebases on the others). `scripts/agent/workflow/models.py` with wftaskapi001 and wfrecovery001: sequencing dependency (key rename and status enums versus a new `RetryPolicy` field; distinct dataclasses, no contradiction). `scripts/agent/workflow_engine_adapter.py` with wfrecovery001: sequencing dependency (wfrecovery001 aligns the resume guard with the transition API and passes the attempt number to the audit; this Plan changes the failure return, stage-failure raising, and status writes; the two edit different methods of `execute_turn` and `_run_execute_stage`, and the later change rebases). `tests/agent/workflow/test_workflow_engine.py` with toolexec001, wftaskapi001, wfrecovery001, wflease001: compatible (additive tests in different classes). `tests/agent/test_orchestrator.py` with wfrecovery001 and turnadr001: compatible (status-write and resume tests, halt-outcome tests, and a guard test are in different regions). `docs/23_agent/agent_03_03_...md` with wfrecovery001 and wflease001: sequencing dependency (different sections: state semantics and resume, startup recovery, and retry and transitions here; the transitions table is edited by both wfrecovery001 and this Plan, so the later change reconciles the rows).
 - Verification record (second pass, 2026-10-30): no Implementation Target Files row changed on `origin/master` since the merge base; every `path:line` citation lies within its file; on Python 3.13.5 `asyncio.timeout()` reports `expired()` false for an inner `TimeoutError` and true when the deadline fires (tested); `classify_operation_type` returns `UNKNOWN` (non-READ) for unregistered tools and when no registry is given, so the conservative side-effect assumption holds; `workflow_loader._validate` ignores unknown keys, so older deployed loaders accept `retry_on`.
 - The wfrecovery001 matrix keeps a transitional `completed -> failed` edge; this Plan's REQ-005 makes it unused, and that edge is removed in a follow-up edit of the wfrecovery001 implementation or after it lands.
 - `Orchestrator`, `startup_component_init.py`, and `cli_view.py` need no change because the adapter returns the error kind and the existing callback wiring remains (checked in Step 3).
+- Re-verification record (adversarial verification on `master`, 2026-11-01):
+  - All 12 Implementation Target Files rows exist on `master`; no row was replaced or removed. Drifted `path:line` citations were refreshed in place with `(re-verified 2026-11-01)` markers.
+  - None of this Plan's code changes has landed on `master`: `retry_policy.retry_on` is absent from `RetryPolicy`, the loader, and `config/workflows/default.json`; the outward kinds `workflow_timeout` / `workflow_halted` and the attempt kind `llm_failure` do not exist; `TurnState` has no side-effect flag; the timeout test still accepts either exception type (`tests/agent/workflow/test_workflow_engine.py:161-181`); the halt path still returns `("", None, False)` (`workflow_engine_adapter.py:157-159,210-222`) and the `completed`-then-`failed` overwrite still exists (`_status_for_exit` `:58-59`). The Plan remains fully actionable.
+  - Dependency status: wfrecovery001 (archived, Phase 4 attempt/budget contract landed; its 26 implementation procedures on `master` are Pending) and toolexec001 (archived, snapshot/dedup landed). The Phase 2 prerequisite gate for this Plan is open; procedure batches still land in plan order (wftaskapi001 20261101-140834, wfrecovery001 20261101-145309, wflease001 20261101-163219, then this Plan) so shared-file edits rebase predictably.
+  - The procedure batch this Plan's Work Items Created previously referenced (`implementations/20261030-130229_*`) was committed only on the unmerged branch `origin/docs/issues-workflow-persistence` (commit `267a7c953`) and does not exist on `master`; it is replaced by the batch generated 2026-11-01.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -122,8 +127,8 @@ Yes: `REQ-010`. `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.
 | UNK-02 | (Decided by the owner on 2026-10-30) LLM-level failure results are not retried by default | Resolved: the owner chose to keep today's behavior | `retry_on` excludes `llm_failure`; one config edit flips it later | False |
 | UNK-03 | How the view port renders `write_llm_error` versus a returned `error_kind` | `error_kind` has no consumer in `repl.py` or `cli_view.py`; view port not read | Keep the existing callback display; no new rendering; revisit if a duplicate notice is observed | False |
 | UNK-04 | Owner preference between a typed failure result and exception propagation as the single mechanism | Not recorded | Default: typed result at the boundary, exception routing inside the engine (Design) | False |
-| UNK-05 | Landing order against wfrecovery001 | That Plan's rows are Pending | Open dependency `plans/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md`; this Plan starts after its Phase 4 | False |
-| UNK-06 | Whether the toolexec001 replay protocol will let retries follow side effects | That Plan's rows are Pending | Open dependency `plans/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md`; the conservative rule stays until it lands | False |
+| UNK-05 | Landing order against wfrecovery001 | Resolved 2026-11-01: that Plan is archived at `plans/done/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md` and its Phase 4 attempt/budget contract is landed on `master` (`begin_stage_if_new` at `workflow_engine.py:264`, per-attempt event ids `{task_id}:{stage_id}:{attempt}`, `finish_attempt` error kinds) | Phase 2 gate is open; this Plan's procedures rebase on the landed engine semantics and on the Pending wfrecovery001 implementation procedures (landing order of procedure batches) | False |
+| UNK-06 | Whether the toolexec001 replay protocol will let retries follow side effects | Partially resolved 2026-11-01: toolexec001 is archived at `plans/done/` and its snapshot/dedup protocol is landed on `master` (turn-entry replay detection at `workflow_engine_adapter.py:345-347`, `WorkflowEngine.build_turn_control_message`); whether retries may follow side effects is not decided | The conservative rule stays until the owner decides a relaxation; revisit after the landed replay protocol is exercised in production | False |
 | UNK-07 | Whether production stage callbacks ever raise an inner `TimeoutError` | Not shown by current evidence | REQ-002 makes the classification correct either way | False |
 
 ## Affected areas
@@ -197,11 +202,11 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Policy schema and loader | In Progress | — | — | Independent |
-| 2 | Phase 2: Engine semantics | In Progress | — | — | After wfrecovery001 Phase 4 |
-| 3 | Phase 3: Side-effect rule | In Progress | — | — |  |
-| 4 | Phase 4: Boundary contract | In Progress | — | — |  |
-| 5 | Phase 5: Documentation | In Progress | — | — |  |
+| 1 | Phase 1: Policy schema and loader | Pending | — | — | Independent |
+| 2 | Phase 2: Engine semantics | Pending | — | — | After wfrecovery001 Phase 4 (gate open: contract landed on `master` 2026-11-01) |
+| 3 | Phase 3: Side-effect rule | Pending | — | — |  |
+| 4 | Phase 4: Boundary contract | Pending | — | — |  |
+| 5 | Phase 5: Documentation | Pending | — | — |  |
 | 6 | Phase 6: Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -212,18 +217,18 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261030-130229_01_scripts_agent_workflow_workflow_engine.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261030-130229_02_scripts_agent_workflow_models.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261030-130229_03_scripts_agent_workflow_workflow_loader.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261030-130229_04_config_workflows_default.json.md | 1 | Procedure | Pending | — | — |
-| implementations/20261030-130229_05_scripts_agent_workflow_engine_adapter.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261030-130229_06_scripts_agent_context.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261030-130229_07_scripts_agent_tool_runner.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261030-130229_08_tests_agent_workflow_test_workflow_engine.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261030-130229_09_tests_agent_workflow_test_workflow_loader.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261030-130229_10_tests_agent_test_orchestrator.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261030-130229_11_tests_agent_test_tool_runner.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261030-130229_12_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261101-165312_01_scripts_agent_workflow_workflow_engine.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261101-165312_02_scripts_agent_workflow_models.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261101-165312_03_scripts_agent_workflow_workflow_loader.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261101-165312_04_config_workflows_default.json.md | 1 | Procedure | Pending | — | — |
+| implementations/20261101-165312_05_scripts_agent_workflow_engine_adapter.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261101-165312_06_scripts_agent_context.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261101-165312_07_scripts_agent_tool_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261101-165312_08_tests_agent_workflow_test_workflow_engine.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261101-165312_09_tests_agent_workflow_test_workflow_loader.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261101-165312_10_tests_agent_test_orchestrator.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261101-165312_11_tests_agent_test_tool_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261101-165312_12_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -263,3 +268,5 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 | REQ-010 | Documentation Impact | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Phase 5 | AC-10 | docs checkers | Confirmed by repository evidence |
 | REQ-011 | Constraints 1; Background (loader) | `config/workflows/default.json` | Phase 1, Phase 6 | AC-9 | `python -m agent.workflow.validate` | Confirmed by repository evidence |
 | REQ-011 | Constraints 1 | `scripts/agent/workflow/workflow_loader.py` | Phase 1 | AC-9 | `python -m agent.workflow.validate` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261101-165312 -->
