@@ -139,7 +139,7 @@ def read_ledger(conn: sqlite3.Connection) -> list[LedgerRow]:
     if has_table is None:
         return []
     rows = conn.execute(
-        f"SELECT id, applied_at, from_version, to_version FROM {_LEDGER_TABLE} "
+        f"SELECT id, applied_at, from_version, to_version FROM {_LEDGER_TABLE} "  # nosec B608 — table name is a module-level constant, no user input
         "ORDER BY applied_at, id"
     ).fetchall()
     return [
@@ -167,10 +167,12 @@ def record_applied(
         applied_at: Optional explicit timestamp (tests); defaults to an
             ISO-8601 UTC ``strftime`` stamp.
     """
+    applied_at_sql = "?" if applied_at else _LEDGER_APPLIED_AT
+    applied_at_params: tuple[str, ...] = (applied_at,) if applied_at else ()
     conn.execute(
-        f"INSERT INTO {_LEDGER_TABLE} (id, applied_at, from_version, to_version) "
-        f"VALUES (?, {applied_at or _LEDGER_APPLIED_AT}, ?, ?)",
-        (spec.id, spec.from_version, spec.to_version),
+        f"INSERT INTO {_LEDGER_TABLE} (id, applied_at, from_version, to_version) "  # nosec B608 — table name and applied_at_sql are module constants or "?"; the caller's timestamp is bound as a parameter
+        f"VALUES (?, {applied_at_sql}, ?, ?)",
+        (spec.id, *applied_at_params, spec.from_version, spec.to_version),
     )
 
 

@@ -110,7 +110,7 @@ CREATE INDEX IF NOT EXISTS idx_tool_call_state_task_state
     ON tool_call_state(task_id, state);"""
 
 _TOOL_STATE_MUTATION_SQL = (
-    f"{_TOOL_CALL_STATE_SQL} "  # nosec B608 - fixed module constants, no user input
+    f"{_TOOL_CALL_STATE_SQL} "  # nosec B608 — fixed module constants, no user input
     "DELETE FROM workflow_schema_version; "
     f"INSERT INTO workflow_schema_version (version) VALUES ('{WORKFLOW_SCHEMA_VERSION}'); "
     f"PRAGMA user_version = {_TOOL_STATE_VERSION};"
