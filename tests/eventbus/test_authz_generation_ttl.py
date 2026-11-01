@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from eventbus.auth import current_generation
+from eventbus.auth import AuthzGeneration, current_generation
 from eventbus.authz_ttl import sweep_expired_authorizations
 from eventbus.config import authorization_baseline_hash
 from fastapi.testclient import TestClient
@@ -38,7 +38,7 @@ def gen_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         yield client
 
 
-def _require_generation() -> Any:
+def _require_generation() -> AuthzGeneration:
     generation = current_generation()
     assert generation is not None
     return generation
@@ -72,9 +72,9 @@ class TestGenerationSemantics:
         gen = _require_generation()
         assert current_generation() is gen
         with pytest.raises(dataclasses.FrozenInstanceError):
-            gen.generation = gen.generation + 1  # type: ignore[misc]
+            gen.generation = gen.generation + 1  # type: ignore[misc]  # — the assignment to a frozen dataclass field is the behavior under test
         with pytest.raises(dataclasses.FrozenInstanceError):
-            gen.baseline_hash = "0" * 64  # type: ignore[misc]
+            gen.baseline_hash = "0" * 64  # type: ignore[misc]  # — the assignment to a frozen dataclass field is the behavior under test
         assert current_generation() is gen
 
     def test_racing_updates_publish_one_generation(
@@ -203,7 +203,7 @@ class TestTTLExpirySweep:
 
         assert result is None
         assert mock_log.call_count == 0
-        bumped = current_generation()
+        bumped = _require_generation()
         assert bumped.generation == granted.generation + 100
         # The bump did not remove the grant: the sweep aborted before publishing.
         assert ("c1", "ttl-topic") in principal_map()[CONSUMER_TOKEN].consumer_grants
