@@ -20,7 +20,7 @@ The two turn-path callers of `DiagnosticStore.save()` do not catch the `RuntimeE
 
 Callers:
 - `LLMTurnRunner._handle_llm_error` (`scripts/agent/llm_turn_runner.py` ~line 202 and ~line 218): saves transport-failure / partial-text diagnostics with no `try/except` around the `save()` calls.
-- `ToolLoopGuard._save_guard_hint` (`scripts/agent/tool_loop_guard.py` ~line 151): called from `check_empty_result_repeat`, `check_dedup`, `check_retry`, `check_cycle`, and `_check_progress_stagnation`; none wrap the `save()` call.
+- `ToolLoopGuard._save_guard_hint` (`scripts/agent/tool_loop_guard.py` ~line 151): called from `check_empty_result_repeat`, `check_unavailable_repeat`, `check_dedup`, `check_retry`, `check_cycle`, and `_check_progress_stagnation`; none wrap the `save()` call. Five of these run inside `ToolLoopGuard.check_all` (`scripts/agent/tool_loop_guard.py` lines 433-444); `check_unavailable_repeat` is invoked directly from `LLMTurnRunner.run()` (`scripts/agent/llm_turn_runner.py` line 173), so it is on the turn path even though it is not part of `check_all`.
 
 Propagation path:
 `save()` raises → `LLMTurnRunner.run()` (only `except LLMTransportError`, line 127) → `LlmTurnExecutor.handle_llm_turn` (`try/finally` only, `scripts/agent/llm_turn_executor.py` lines 95-108) → `WorkflowEngineAdapter._run_execute_stage` (`scripts/agent/workflow_engine_adapter.py` line 344) → REPL generic handler → `_surface_turn_error` → `view.write_fatal(f"{exc.__class__.__name__}: {exc}")`.
