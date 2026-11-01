@@ -13,7 +13,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from eventbus.auth import _derive_token_fingerprint, current_generation
+from eventbus.auth import (
+    AuthzGeneration,
+    _derive_token_fingerprint,
+    current_generation,
+)
 from fastapi.testclient import TestClient
 
 from tests.eventbus.eventbus_helpers import post_topics_authorization, principal_map
@@ -61,7 +65,7 @@ def admin_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         yield c
 
 
-def _require_generation() -> Any:
+def _require_generation() -> AuthzGeneration:
     """Return the in-force AuthzGeneration, failing loudly if none exists."""
     generation = current_generation()
     assert generation is not None
@@ -383,7 +387,7 @@ class TestTTLValidation:
         # Body matches the baseline grant -> no-op -> no generation, no expiries.
         assert resp.status_code == 200
         assert resp.json()["changed"] is False
-        assert current_generation().expiries == frozenset()
+        assert _require_generation().expiries == frozenset()
 
 
 class TestAuditGenerationFields:

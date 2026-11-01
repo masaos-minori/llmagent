@@ -168,8 +168,7 @@ code that the discrepancy it describes no longer applies.
 ## Prohibited behavior (all tasks)
 
 - comments and log messages: see Mandatory conventions above (English only)
-- staging: see `skills/git-commit-and-sync/SKILL.md` Core rules (explicit paths by
-  default; `git add -A` only when the user explicitly requests staging all changes)
+- staging: See `skills/git-commit-and-sync/SKILL.md`, section "Core rules".
 - do not commit with `--no-verify`
 - suppression justification: see Suppression governance above
 - do not add global ignores to `pyproject.toml` without justification
