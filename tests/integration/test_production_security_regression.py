@@ -274,6 +274,7 @@ def test_disabled_tool_excluded_from_llm_visibility() -> None:
     registry = RuntimeToolRegistry(
         tools={"kept_tool": kept, "excluded_tool": excluded},
         unavailable_servers=frozenset({"unavailable_server"}),
+        allowed_servers=frozenset({"healthy_server", "unavailable_server"}),
     )
 
     names = {d["name"] for d in registry.llm_tool_definitions()}

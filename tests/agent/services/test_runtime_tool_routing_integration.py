@@ -106,7 +106,10 @@ def _make_runtime_registry(
             enabled_for_llm=True,
             capabilities=(),
         )
-    return RuntimeToolRegistry(tools=tools)
+    return RuntimeToolRegistry(
+        tools=tools,
+        allowed_servers=frozenset(tool.server_key for tool in tools.values()),
+    )
 
 
 # ── 1. RuntimeToolRegistry → Routing Layer Wiring ────────────────────────────
@@ -149,7 +152,7 @@ class TestRuntimeRegistryPriorityInResolve:
 
     def test_empty_runtime_registry_raises_for_all_tools(self) -> None:
         """Empty RuntimeToolRegistry means no tool can resolve."""
-        empty_reg = RuntimeToolRegistry()
+        empty_reg = RuntimeToolRegistry(allowed_servers=frozenset())
         resolver = ToolRouteResolver(runtime_registry=empty_reg)
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("read_text_file")
@@ -180,7 +183,10 @@ class TestRuntimeRegistryPriorityInResolve:
             enabled_for_llm=True,
             capabilities=(),
         )
-        reg = RuntimeToolRegistry(tools={"tool_a": tool_a, "tool_b": tool_b})
+        reg = RuntimeToolRegistry(
+            tools={"tool_a": tool_a, "tool_b": tool_b},
+            allowed_servers=frozenset({"srv_a", "srv_b"}),
+        )
         resolver = ToolRouteResolver(runtime_registry=reg)
         assert resolver.resolve("tool_a") == "srv_a"
         assert resolver.resolve("tool_b") == "srv_b"

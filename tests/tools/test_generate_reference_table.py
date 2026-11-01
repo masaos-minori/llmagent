@@ -191,6 +191,30 @@ _FULL_SOURCES: dict[str, str] = {
         "Manual — procedure: review scripts/. Cadence: nightly Expected evidence: "
         "a recorded review Owner: qa Exception: exc-002 |\n"
     ),
+    "registry/component_mandatoriness.yaml": (
+        "version: 1\n"
+        "entries:\n"
+        "  - component_id: alpha\n"
+        "    classification: required\n"
+        "    failure_category: safety-integrity\n"
+        "    safety_role: Alpha server safety role\n"
+        "    safely_disableable_functions: [fn_a]\n"
+        "    startup_consequence: abort_startup\n"
+        "    observability: [ServiceWarning, metric_drop]\n"
+        "    owner: alpha-owner\n"
+        "    authority_adr: ADR-004\n"
+        "    rationale: Required because it touches safety-critical paths\n"
+        "  - component_id: beta\n"
+        "    classification: non_required\n"
+        "    failure_category: availability\n"
+        "    safety_role: Beta server safety role\n"
+        "    safely_disableable_functions: []\n"
+        "    startup_consequence: log_warning\n"
+        "    observability: []\n"
+        "    owner: beta-owner\n"
+        "    authority_adr: ADR-004\n"
+        "    rationale: Non-required optional helper\n"
+    ),
     "scripts/agent/widget.py": _FIXTURE_MODULE,
     "scripts/eventbus/widget.py": _FIXTURE_MODULE,
     "scripts/agent/memory/widget.py": _FIXTURE_MODULE,
@@ -237,6 +261,11 @@ def _synthetic_repo(
 
     monkeypatch.setattr(
         matrix_mod, "ADR_INDEX", tmp_path / "docs" / "10_adr" / "adr_01_index.md"
+    )
+    monkeypatch.setattr(
+        grt,
+        "COMPONENT_MANDATORINESS_REGISTRY",
+        tmp_path / "registry" / "component_mandatoriness.yaml",
     )
 
 
@@ -306,6 +335,13 @@ class TestManifestGeneration:
         assert [e["adr"] for e in coverage] == ["ADR-001", "ADR-002"]
         assert coverage[1]["exception"] == "exc-002"
         assert coverage[1]["cadence"] == "nightly"
+        mand = grt.build_manifest("component_mandatoriness")["entries"]
+        assert [e["component_id"] for e in mand] == ["alpha", "beta"]
+        assert mand[0]["classification"] == "required"
+        assert mand[0]["observability"] == ["ServiceWarning", "metric_drop"]
+        assert mand[0]["safely_disableable_functions"] == ["fn_a"]
+        assert mand[1]["classification"] == "non_required"
+        assert mand[1]["observability"] == []
 
     def test_unknown_manifest_name_rejected(self) -> None:
         with pytest.raises(cm.ManifestError):

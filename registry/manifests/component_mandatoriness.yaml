@@ -1,0 +1,134 @@
+entries:
+- authority_adr: ADR-004
+  classification: required
+  component_id: cicd
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: Controls CI/CD pipeline tool exposure; fail-closed blocks high-impact
+    automation on posture failure.
+  startup_consequence: abort_startup
+- authority_adr: ADR-004
+  classification: required
+  component_id: file_delete
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: Removes files; fail-closed prevents destructive loss on posture failure.
+  startup_consequence: abort_startup
+- authority_adr: ADR-004
+  classification: required
+  component_id: file_read
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: Reads files; fail-closed restricts data access on posture failure.
+  startup_consequence: abort_startup
+- authority_adr: ADR-004
+  classification: required
+  component_id: file_write
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: Writes files; fail-closed prevents uncontrolled mutation on posture
+    failure.
+  startup_consequence: abort_startup
+- authority_adr: ADR-004
+  classification: required
+  component_id: git
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: Performs git operations; fail-closed prevents source-control changes
+    on posture failure.
+  startup_consequence: abort_startup
+- authority_adr: ADR-004
+  classification: required
+  component_id: github
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: Interacts with GitHub; fail-closed prevents repository actions on posture
+    failure.
+  startup_consequence: abort_startup
+- authority_adr: ADR-004
+  classification: required
+  component_id: mdq
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: MDQ corpus processing; fail-closed prevents data-plane work on posture
+    failure.
+  startup_consequence: abort_startup
+- authority_adr: ADR-004
+  classification: required
+  component_id: rag_pipeline
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: RAG document ingestion; fail-closed prevents index corruption on posture
+    failure.
+  startup_consequence: abort_startup
+- authority_adr: ADR-004
+  classification: required
+  component_id: shell
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: Arbitrary command execution; fail-closed prevents arbitrary code execution
+    on posture failure.
+  startup_consequence: abort_startup
+- authority_adr: ADR-004
+  classification: required
+  component_id: web_search
+  failure_category: safety-integrity
+  observability:
+  - ServiceWarning
+  - pipeline fatal outcome
+  owner: agent-architecture-owner
+  rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+  safely_disableable_functions: []
+  safety_role: Performs web searches; fail-closed restricts network egress on posture
+    failure.
+  startup_consequence: abort_startup
+generated_by: tools/generate_reference_table.py
+manifest: component_mandatoriness
+sources:
+- registry/component_mandatoriness.yaml
+version: 1

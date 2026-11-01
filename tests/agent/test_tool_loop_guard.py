@@ -609,7 +609,10 @@ class TestStaticFieldImmutability:
             resource_scope_keys=("path",),
             enabled_for_llm=True,
         )
-        registry = RuntimeToolRegistry({tool_a.name: tool_a, tool_b.name: tool_b})
+        registry = RuntimeToolRegistry(
+            {tool_a.name: tool_a, tool_b.name: tool_b},
+            allowed_servers=frozenset({"srv"}),
+        )
         tool_snapshot = list(registry.all_tools())
         definition_snapshot = registry.llm_tool_definitions()
         assert definition_snapshot  # non-empty: both tools are LLM-visible

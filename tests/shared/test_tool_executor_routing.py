@@ -46,7 +46,9 @@ def _runtime_registry_for(tool_to_server: dict[str, str]) -> RuntimeToolRegistry
         )
         for name, server_key in tool_to_server.items()
     }
-    return RuntimeToolRegistry(tools=tools)
+    return RuntimeToolRegistry(
+        tools=tools, allowed_servers=frozenset(tool_to_server.values())
+    )
 
 
 # Tool routes this test file exercises via ex.execute()/ex._raw_execute(); wired into
@@ -976,6 +978,7 @@ class TestExecuteRoutingResults:
         return RuntimeToolRegistry(
             tools={"unavailable_tool": tool},
             unavailable_servers=frozenset({"unavailable_srv"}),
+            allowed_servers=frozenset({"unavailable_srv"}),
         )
 
     @pytest.mark.asyncio

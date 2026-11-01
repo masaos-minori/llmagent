@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (56 modules)
+## Index (57 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -28,6 +28,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `check_canonical_source_conflicts.py` | Canonical Source | Detect semantic conflicts in the Canonical Source Registry |
 | `check_canonical_source_registry.py` | Canonical Source | Validate the Canonical Source Registry schema |
 | `check_compat_shims.py` | Consistency checker | Detect leftover backward-compatibility stubs and shims, including removed import and construction paths via syntax-tree rules |
+| `check_component_mandatoriness.py` | Consistency checker | Three-way drift check: component-mandatoriness registry vs the generated `agent_08_04` classification table vs `config/agent.toml` `required` values (ADR-004 Decision Group 3 item 13) |
 | `check_docs_consistency.py` | Consistency checker | Cross-check `docs/` claims (ports, config keys, symbol references, command contracts) against `config/agent.toml` and `scripts/`, per `--domain` |
 | `check_docs_content_policy.py` | Docs policy | Detect implementation-detail content that violates `skills/DESIGN.md` "Docs content policy — remove" and "Avoid implementation-reference duplication" (16 categories) |
 | `check_adr_preservation.py` | ADR lightweighting | Compare changed `docs/10_adr/*.md` files with a Git ref and report content-preservation errors plus before/after sizes |

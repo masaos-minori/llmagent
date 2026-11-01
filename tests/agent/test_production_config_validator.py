@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import pytest
 from agent.production_config_validator import ProductionConfigValidator
+from shared.component_mandatoriness import (
+    ComponentClassification,
+    load_component_mandatoriness,
+)
 from shared.mcp_config import SecurityProfile
 
 
@@ -520,3 +524,80 @@ def test_integration_real_config_agent_toml() -> None:
     prod_result = ProductionConfigValidator().validate(cfg)
     assert prod_result.ok is True
     assert len(prod_result.errors) == 0
+
+
+def _mandatoriness_entry(
+    component_id: str, classification: str
+) -> ComponentClassification:
+    """A structurally complete ComponentClassification for synthetic registries."""
+
+    return ComponentClassification(
+        component_id=component_id,
+        classification=classification,
+        failure_category="safety-integrity",
+        safety_role="Baseline safety role.",
+        safely_disableable_functions=frozenset(),
+        startup_consequence="abort_startup",
+        observability=frozenset(),
+        owner="agent-architecture-owner",
+        authority_adr="ADR-004",
+        rationale="Baseline rationale text.",
+    )
+
+
+class TestComponentMandatorinessCrossCheck:
+    """REQ-004 / AC-3: validate_against_registry fail-closed regressions."""
+
+    def test_required_false_conflicts_with_registry_required(self) -> None:
+        registry = {"cicd": _mandatoriness_entry("cicd", "required")}
+        errors = ProductionConfigValidator().validate_against_registry(
+            registry, {"cicd": False}
+        )
+
+        assert len(errors) == 1
+        err = errors[0]
+        assert "cicd" in err
+        assert "classification 'required'" in err
+        assert "required=False" in err
+        assert "registry/component_mandatoriness.yaml" in err
+
+    def test_configured_server_absent_from_registry_is_error(self) -> None:
+        registry: dict[str, ComponentClassification] = {}
+        errors = ProductionConfigValidator().validate_against_registry(
+            registry, {"ghost_server": True}
+        )
+
+        assert len(errors) == 1
+        assert "ghost_server" in errors[0]
+        assert "absent from the mandatoriness registry" in errors[0]
+        assert "registry/component_mandatoriness.yaml" in errors[0]
+
+    def test_non_required_server_configured_false_is_no_error(self) -> None:
+        registry = {"web_search": _mandatoriness_entry("web_search", "non_required")}
+        errors = ProductionConfigValidator().validate_against_registry(
+            registry, {"web_search": False}
+        )
+
+        assert errors == []
+
+    def test_orphan_registry_entry_is_not_an_error(self) -> None:
+        registry = {
+            "cicd": _mandatoriness_entry("cicd", "required"),
+            "ghost": _mandatoriness_entry("ghost", "required"),
+        }
+        errors = ProductionConfigValidator().validate_against_registry(
+            registry, {"cicd": True}
+        )
+
+        # 'ghost' is classified but has no configured server -> warning, not error.
+        assert errors == []
+
+    def test_live_registry_agrees_with_all_required_config(self) -> None:
+        registry = load_component_mandatoriness()
+        mcp_required = {component_id: True for component_id in registry}
+        errors = ProductionConfigValidator().validate_against_registry(
+            registry, mcp_required
+        )
+
+        # AC-6 guard: the shipped registry and shipped config actually agree.
+        assert errors == []

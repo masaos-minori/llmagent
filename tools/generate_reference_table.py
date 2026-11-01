@@ -26,12 +26,15 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools._contract_manifests import (
     ManifestError,
     envelope,
+    escape_table_cell,
     load_manifest,
     render_symbol_table,
     write_manifest,
@@ -57,6 +60,9 @@ CONFIG_FIELD_REGISTRY_SRC = (
 )
 POSTURE_CONTRACT_SRC = (
     REPO_ROOT / "scripts" / "shared" / "security" / "posture_contract.py"
+)
+COMPONENT_MANDATORINESS_REGISTRY = (
+    REPO_ROOT / "registry" / "component_mandatoriness.yaml"
 )
 ADR_INDEX_SRC = REPO_ROOT / "docs" / "10_adr" / "adr_01_index.md"
 
@@ -85,6 +91,7 @@ GUARD_START_DEPLOYMENT = (
 GUARD_START_AGENT = "<!-- AUTO-GENERATED: generate_reference_table.py agent-class-function-reference -->"
 GUARD_START_EVENTBUS = "<!-- AUTO-GENERATED: generate_reference_table.py eventbus-class-function-reference -->"
 GUARD_START_MEMORY = "<!-- AUTO-GENERATED: generate_reference_table.py memory-class-function-reference -->"
+GUARD_START_MANDATORINESS = "<!-- AUTO-GENERATED: generate_reference_table.py component-mandatoriness-reference -->"
 
 REFERENCE_DOC_MCP = REPO_ROOT / "docs" / "22_mcp" / "mcp_01_tool_ownership_matrix.md"
 REFERENCE_DOC_DEPLOYMENT = (
@@ -98,6 +105,9 @@ REFERENCE_DOC_EVENTBUS = (
 )
 REFERENCE_DOC_MEMORY = (
     REPO_ROOT / "docs" / "23_agent" / "agent_11_04_memory-module-reference-generated.md"
+)
+REFERENCE_DOC_MANDATORINESS = (
+    REPO_ROOT / "docs" / "23_agent" / "agent_08_04_configuration-mcp-approval-obs.md"
 )
 
 # ---------------------------------------------------------------------------
@@ -236,6 +246,26 @@ def _render_deployment_table(entries: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _render_mandatoriness_table(entries: list[dict[str, Any]]) -> str:
+    """Render the component-mandatoriness classification table
+    (`Server` | `Classification` | `Rationale`) from manifest entries.
+
+    Entry order follows the registry (sorted by `component_id`); the committed
+    manifest is a byte-stable mirror, so this matches the manifest-vs-source
+    drift check. Pipe characters in cell text are escaped.
+    """
+    lines = [
+        "| Server (`config/agent.toml` key) | Classification | Rationale |",
+        "|---|---|---|",
+    ]
+    for entry in entries:
+        server = escape_table_cell(entry["component_id"])
+        classification = escape_table_cell(entry["classification"] or "")
+        rationale = escape_table_cell(entry["rationale"] or "")
+        lines.append(f"| `{server}` | {classification} | {rationale} |")
+    return "\n".join(lines)
+
+
 def generate_deployment_reference_table() -> str:
     return _render_deployment_table(_db_path_entries())
 
@@ -347,6 +377,17 @@ def generate_memory_reference_table() -> str:
     return _generate_class_function_reference_table(MEMORY_DIR)
 
 
+def generate_mandatoriness_reference_table() -> str:
+    """Render the component-mandatoriness classification table from its manifest.
+
+    `component_mandatoriness` is a fact manifest (like `invariant_coverage`);
+    `_domain_table` already renders it via the manifest branch, so this exists
+    only to satisfy the `DOMAIN_GENERATORS["mandatoriness"]` tuple required by
+    the `--type` entry point.
+    """
+    return _domain_table("mandatoriness")
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -370,6 +411,10 @@ DOMAIN_GENERATORS = {
         "Memory module class/function reference table",
         generate_memory_reference_table,
     ),
+    "mandatoriness": (
+        "Component mandatoriness classification reference table",
+        generate_mandatoriness_reference_table,
+    ),
 }
 
 DOMAIN_DOCS = {
@@ -378,6 +423,7 @@ DOMAIN_DOCS = {
     "agent": REFERENCE_DOC_AGENT,
     "eventbus": REFERENCE_DOC_EVENTBUS,
     "memory": REFERENCE_DOC_MEMORY,
+    "mandatoriness": REFERENCE_DOC_MANDATORINESS,
 }
 
 DOMAIN_GUARDS = {
@@ -386,6 +432,7 @@ DOMAIN_GUARDS = {
     "agent": (GUARD_START_AGENT, GUARD_END),
     "eventbus": (GUARD_START_EVENTBUS, GUARD_END),
     "memory": (GUARD_START_MEMORY, GUARD_END),
+    "mandatoriness": (GUARD_START_MANDATORINESS, GUARD_END),
 }
 
 DOMAIN_WELCOME_LINES = {
@@ -394,6 +441,7 @@ DOMAIN_WELCOME_LINES = {
     "agent": "Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
     "eventbus": "Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
     "memory": "Generated from `scripts/agent/memory/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type memory` to refresh.",
+    "mandatoriness": "Generated from `registry/component_mandatoriness.yaml`. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type mandatoriness` to refresh.",
 }
 
 DOMAIN_HEADING = {
@@ -423,6 +471,7 @@ _MANIFEST_SOURCES: dict[str, list[str]] = {
     "config_ownership": ["scripts/agent/services/config_field_registry.py"],
     "health_contracts": ["scripts/shared/security/posture_contract.py"],
     "invariant_coverage": ["docs/10_adr/adr_01_index.md"],
+    "component_mandatoriness": ["registry/component_mandatoriness.yaml"],
     "agent_api": ["scripts/agent"],
     "eventbus_api": ["scripts/eventbus"],
     "memory_api": ["scripts/agent/memory"],
@@ -434,12 +483,14 @@ MANIFESTS_BY_DOMAIN: dict[str, tuple[str, ...]] = {
     "agent": ("agent_api",),
     "eventbus": ("eventbus_api", "eventbus_route_roles"),
     "memory": ("memory_api",),
+    "mandatoriness": ("component_mandatoriness",),
 }
 
 UNBOUND_MANIFESTS: tuple[str, ...] = (
     "config_ownership",
     "health_contracts",
     "invariant_coverage",
+    "component_mandatoriness",
 )
 
 # Manifest each domain's guarded table renders FROM. For `mcp` this is
@@ -452,6 +503,7 @@ _RENDER_MANIFEST: dict[str, str] = {
     "agent": "agent_api",
     "eventbus": "eventbus_api",
     "memory": "memory_api",
+    "mandatoriness": "component_mandatoriness",
 }
 
 
@@ -738,6 +790,61 @@ def _invariant_coverage_entries() -> list[dict[str, Any]]:
     return entries
 
 
+def _component_mandatoriness_entries() -> list[dict[str, Any]]:
+    """Return one manifest entry per registry row, mirroring the registry field
+    vocabulary (loader: scripts/shared/component_mandatoriness.py).
+
+    Reads the raw YAML directly so the committed manifest stays a faithful,
+    byte-stable mirror of the registry: any field change is caught by the
+    manifest-vs-source drift check. Entry order is sorted by component_id for
+    byte-stable output; inner list order follows the source.
+    """
+    raw = yaml.safe_load(COMPONENT_MANDATORINESS_REGISTRY.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict) or not isinstance(raw.get("entries"), list):
+        raise ManifestError(
+            "component-mandatoriness registry top level must define 'entries' as a list"
+        )
+    entries: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry_raw in raw["entries"]:
+        if not isinstance(entry_raw, dict):
+            raise ManifestError(
+                "component-mandatoriness registry rows must be mappings, "
+                f"got {type(entry_raw).__name__}"
+            )
+        component_id = entry_raw.get("component_id")
+        if not isinstance(component_id, str) or not component_id:
+            raise ManifestError(
+                f"component-mandatoriness registry row is missing a string "
+                f"'component_id': {entry_raw!r}"
+            )
+        if component_id in seen:
+            raise ManifestError(
+                f"duplicate component_id {component_id!r} in "
+                "component-mandatoriness registry"
+            )
+        seen.add(component_id)
+        entries.append(
+            {
+                "component_id": component_id,
+                "classification": entry_raw.get("classification"),
+                "failure_category": entry_raw.get("failure_category"),
+                "safety_role": entry_raw.get("safety_role"),
+                "safely_disableable_functions": entry_raw.get(
+                    "safely_disableable_functions"
+                )
+                or [],
+                "startup_consequence": entry_raw.get("startup_consequence"),
+                "observability": entry_raw.get("observability") or [],
+                "owner": entry_raw.get("owner"),
+                "authority_adr": entry_raw.get("authority_adr"),
+                "rationale": entry_raw.get("rationale"),
+            }
+        )
+    entries.sort(key=lambda e: e["component_id"])
+    return entries
+
+
 def _api_manifest_entries(domain: str) -> list[dict[str, Any]]:
     dirs = {"agent": AGENT_DIR, "eventbus": EVENTBUS_DIR, "memory": MEMORY_DIR}
     return _symbol_entries(dirs[domain])
@@ -751,6 +858,7 @@ _MANIFEST_BUILDERS: dict[str, Callable[[], list[dict[str, Any]]]] = {
     "config_ownership": _config_ownership_entries,
     "health_contracts": _health_contract_entries,
     "invariant_coverage": _invariant_coverage_entries,
+    "component_mandatoriness": _component_mandatoriness_entries,
     "agent_api": lambda: _api_manifest_entries("agent"),
     "eventbus_api": lambda: _api_manifest_entries("eventbus"),
     "memory_api": lambda: _api_manifest_entries("memory"),
@@ -768,6 +876,8 @@ def _table_from_entries(domain: str, entries: list[dict[str, Any]]) -> str:
         return _render_mcp_table(entries)
     if domain == "deployment":
         return _render_deployment_table([e for e in entries if e["kind"] == "db_path"])
+    if domain == "mandatoriness":
+        return _render_mandatoriness_table(entries)
     return render_symbol_table(entries)
 
 

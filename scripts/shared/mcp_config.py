@@ -97,9 +97,7 @@ class McpServerConfig:
     )
     max_stderr_log_size_mb: float = 100.0  # max size in MB before rotation
     max_stderr_log_files: int = 3  # number of rotated files to keep
-    required: bool = (
-        True  # Startup criticality: FATAL vs WARNING escalation at discovery
-    )
+    required: bool = True  # Startup criticality: FATAL vs WARNING escalation at discovery. Effective value validated against `registry/component_mandatoriness.yaml` at startup; cannot weaken the approved classification (ADR-004 Group 3 item 13).
     failure_policy: FailurePolicy = FailurePolicy.FAIL_FAST  # Reserved: runtime call-failure behavior; currently single-valued (FAIL_FAST) with no branching
 
     @property
@@ -323,6 +321,8 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         cmd=cmd,
         env=env,
         key=key,
-        required=bool(v.get("required", True)),
+        required=bool(
+            v.get("required", True)
+        ),  # checked against `registry/component_mandatoriness.yaml` in scripts/agent/startup_validation.py
         failure_policy=FailurePolicy(v.get("failure_policy", "fail-fast")),
     )

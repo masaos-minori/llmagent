@@ -599,7 +599,9 @@ class TestRuntimeToolPolicyReapplication:
                 enabled_for_llm=True,
             ),
         }
-        real_registry = RuntimeToolRegistry(tools=tools)
+        real_registry = RuntimeToolRegistry(
+            tools=tools, allowed_servers=frozenset({"fs"})
+        )
         ctx.services_required.runtime_tools = real_registry  # type: ignore[attr-defined]
         ctx.services_required.http = MagicMock()  # type: ignore[attr-defined]
         ctx.cfg.tool.allowed_tools = ["read_file"]  # type: ignore[attr-defined]

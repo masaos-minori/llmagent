@@ -50,18 +50,22 @@ assumed non-required (Decision Group 3 item 12).
 
 Approved classification of each MCP server (ADR-004 Decision Group 3 item 13); the `required` value in `config/agent.toml` must match it.
 
+<!-- AUTO-GENERATED: generate_reference_table.py component-mandatoriness-reference -->
+Generated from `registry/component_mandatoriness.yaml`. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type mandatoriness` to refresh.
+
 | Server (`config/agent.toml` key) | Classification | Rationale |
 |---|---|---|
-| `shell` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
-| `git` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
-| `web_search` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
-| `file_delete` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
-| `file_write` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
-| `file_read` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
-| `github` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
 | `cicd` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
-| `rag_pipeline` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `file_delete` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `file_read` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `file_write` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `git` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `github` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
 | `mdq` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `rag_pipeline` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `shell` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+| `web_search` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
+<!-- END AUTO-GENERATED -->
 
 Subprocess servers must stay required (ADR-004 Exceptions; `McpServerConfig` rejects `required = false` with `startup_mode = "subprocess"`). A non-required reclassification requires an explicit owner decision and an update to this table, per ADR-004 Decision Group 3 item 13.
 

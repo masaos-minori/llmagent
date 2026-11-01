@@ -18,9 +18,10 @@
         "invariant_coverage",
         "agent_api",
         "eventbus_api",
-        "memory_api"
+        "memory_api",
+        "component_mandatoriness"
       ],
-      "description": "Manifest identity — one of the seven REQ-006 contract manifests or the three rendering manifests (agent_api/eventbus_api/memory_api). Deferred REQ-007 names (component_mandatoriness, adr_authority, architecture_assumptions) are added by their own plans."
+      "description": "Manifest identity — the REQ-006 contract manifests plus the three rendering manifests (agent_api/eventbus_api/memory_api) and the REQ-007 component_mandatoriness manifest (added by mcpgate001 row 09). Deferred REQ-007 names (adr_authority, architecture_assumptions) are added by their own plans."
     },
     "version": {
       "type": "integer",
@@ -261,6 +262,32 @@
                 "kind": { "type": "string", "enum": ["class", "function", "async function"] },
                 "signature": { "type": "string", "minLength": 1, "description": "Rendered signature text (class X / [async] def name(args) -> returns)." },
                 "summary": { "type": "string", "description": "First docstring line; an em dash when the symbol has no docstring." }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "manifest": { "const": "component_mandatoriness" } }, "required": ["manifest"] },
+      "then": {
+        "properties": {
+          "entries": {
+            "items": {
+              "type": "object",
+              "required": ["component_id", "classification", "rationale"],
+              "additionalProperties": false,
+              "properties": {
+                "component_id": { "type": "string", "minLength": 1, "description": "Natural key: MCP server config key from the registry." },
+                "classification": { "type": "string", "enum": ["required", "non_required"], "description": "ADR-004 Decision Group 3 item 13 classification." },
+                "failure_category": { "type": "string", "minLength": 1 },
+                "safety_role": { "type": "string", "minLength": 1 },
+                "safely_disableable_functions": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Server functions that can be safely disabled; empty when none." },
+                "startup_consequence": { "type": "string", "minLength": 1 },
+                "observability": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                "owner": { "type": "string", "minLength": 1 },
+                "authority_adr": { "type": "string", "pattern": "^ADR-[0-9]{3}$" },
+                "rationale": { "type": "string", "minLength": 1, "description": "Rendered as the reference table's third column." }
               }
             }
           }

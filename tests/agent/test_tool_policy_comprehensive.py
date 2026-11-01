@@ -194,7 +194,9 @@ class TestClassifyOperationType:
                 enabled_for_llm=True,
                 capabilities=(),
             )
-        return RuntimeToolRegistry(tools=tool_map)
+        return RuntimeToolRegistry(
+            tools=tool_map, allowed_servers=frozenset({"test_server"})
+        )
 
     def test_registered_write_tool_outside_static_sets_is_not_read(self) -> None:
         """ADR-003 INV-03: a registry write tool is never classified as READ."""

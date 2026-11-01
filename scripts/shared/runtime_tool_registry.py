@@ -46,15 +46,21 @@ class RuntimeToolRegistry:
         tools: dict[str, RuntimeTool] | None = None,
         unavailable_servers: frozenset[str] | None = None,
         server_configs: dict[str, Any] | None = None,
-        allowed_servers: frozenset[str] | None = None,
+        *,
+        allowed_servers: frozenset[str],
     ) -> None:
         """Register `tools`, dropping every tool whose server is excluded.
 
-        `allowed_servers` is the Security Posture gate: `None` means no gate was supplied and today's
-        behavior is kept, a provided set is authoritative and a `server_key` absent from it is excluded,
-        and an empty set registers nothing. It arrives as plain keys because `shared` is a leaf and
-        cannot read the Agent's posture DTOs.
+        `allowed_servers` is the Security Posture gate and is mandatory: omitting it (or passing
+        `None`) raises `TypeError`. A provided set is authoritative and a `server_key` absent from it
+        is excluded, and an empty set registers nothing. It arrives as plain keys because `shared` is a
+        leaf and cannot read the Agent's posture DTOs.
         """
+        if allowed_servers is None:
+            raise TypeError(
+                "allowed_servers is mandatory: the Security Posture gate must be "
+                "supplied explicitly; pass frozenset() to deny all servers"
+            )
         self._unavailable_servers = unavailable_servers or frozenset()
         self._server_configs = server_configs or {}
         self._allowed_servers = allowed_servers
@@ -87,10 +93,7 @@ class RuntimeToolRegistry:
         cfg = self._server_configs.get(server_key)
         if cfg is not None and getattr(cfg, "is_disabled", False):
             return "disabled"
-        if (
-            self._allowed_servers is not None
-            and server_key not in self._allowed_servers
-        ):
+        if server_key not in self._allowed_servers:
             self._posture_excluded.add(server_key)
             return "posture"
         return None

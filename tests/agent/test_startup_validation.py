@@ -143,3 +143,61 @@ class TestRagConsistencyTimeout:
         assert category in warned[0].message
         assert type(exc).__name__ in warned[0].message
         assert not result.has_fatal
+
+
+@pytest.mark.asyncio
+async def test_runtime_registry_published_after_posture_gate() -> None:
+    """AC-5: runtime_tools is published only after the posture gate completes.
+
+    Records the call order of the mandatoriness cross-check, the posture
+    collection, and the discovery/publication step inside the real
+    ``check_services`` body and asserts the fail-closed sequence
+    mandatoriness -> posture -> publication.
+    """
+
+    order: list[str] = []
+
+    async def _collect_posture(_ctx: object) -> dict:
+        order.append("posture")
+        return {}
+
+    async def _discover() -> MagicMock:
+        order.append("publication")
+        return MagicMock(registry=MagicMock(), findings=[], unreachable=[])
+
+    ctx = _make_ctx()
+    discovery = MagicMock()
+    discovery.discover_all = AsyncMock(side_effect=_discover)
+
+    mocks: dict[str, object] = {
+        "check_readiness": AsyncMock(return_value=HealthCheckResult()),
+        "McpToolDiscoveryService": MagicMock(return_value=discovery),
+        "check_routing_drift": MagicMock(return_value=[]),
+        "check_routing_safety_tiers": MagicMock(return_value=[]),
+        "RagMaintenanceService": MagicMock(return_value=MagicMock()),
+        "_check_component_mandatoriness": MagicMock(
+            side_effect=lambda _c, _p: order.append("mandatoriness")
+        ),
+    }
+    with ExitStack() as stack:
+        for name, mock_obj in mocks.items():
+            stack.enter_context(patch(f"agent.startup_validation.{name}", mock_obj))
+        stack.enter_context(
+            patch(
+                "agent.startup_validation.collect_server_postures",
+                side_effect=_collect_posture,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "db.config.build_db_config",
+                return_value=MagicMock(embedding_dims=768),
+            )
+        )
+        # check_services() builds its own Logger; keep it from touching log files.
+        stack.enter_context(patch("shared.logger.Logger", MagicMock()))
+        result = await StartupValidationPipeline(ctx, MagicMock()).check_services()
+
+    assert not result.has_fatal
+    assert order.index("mandatoriness") < order.index("posture")
+    assert order.index("posture") < order.index("publication")

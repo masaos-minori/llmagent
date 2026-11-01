@@ -264,7 +264,9 @@ class TestCheckServicesSeverityClassification:
             "web": MagicMock(auth_token="valid-token"),
             "shell": MagicMock(auth_token="also-valid"),
         }
-        pipeline, exc = await _run_check_services(ctx)
+        pipeline, exc = await _run_check_services(
+            ctx, _check_component_mandatoriness=MagicMock()
+        )
         assert exc is None
         outcomes = [o for o in pipeline.outcomes if o.source == "mcp_auth"]
         assert any(o.status == StartupCheckStatus.OK for o in outcomes)

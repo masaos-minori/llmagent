@@ -44,7 +44,11 @@ with design meaning are:
 
 - `required`: startup criticality (ADR-004). An unavailable required server aborts startup; a non-required
   server unreachable at tool discovery is disabled (its tools are excluded) and startup continues with a
-  WARNING. A subprocess server that fails to spawn aborts startup regardless of `required`
+  WARNING. The effective `required` value is validated against `registry/component_mandatoriness.yaml` at
+  startup: a `required = false` that contradicts a registry-`required` classification aborts startup with
+  the fatal `component_mandatoriness`, and a configured server absent from the registry is likewise fatal
+  (ADR-004 Group 4 "Undeterminable component mandatoriness"). A subprocess server that fails to spawn aborts
+  startup regardless of `required`
   (see mcp_06_03), so `McpServerConfig` rejects `required = false` with `startup_mode = "subprocess"`.
 - `failure_policy`: reserved for runtime call-failure behavior. Only `fail-fast` exists and nothing branches on it.
 
