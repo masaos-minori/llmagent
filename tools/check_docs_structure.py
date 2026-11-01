@@ -126,7 +126,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 25322 (2026-11-01): the adrcov001 contract-manifest and ADR-014
     # loop-ownership alignment regenerated the table with longer rows; the ceiling equals
     # the accepted size.
-    "agent_13_reference-api-generated.md": 25322,
+    # Re-accepted at 25438 (2026-11-01): the toolstate001 producer added the
+    # ToolCallRecorder Protocol and the tool_runner recording helpers to the generated
+    # agent_api table; the ceiling equals the accepted size.
+    "agent_13_reference-api-generated.md": 25438,
     # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
     # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
     # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate
