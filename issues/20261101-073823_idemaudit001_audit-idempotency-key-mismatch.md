@@ -9,7 +9,7 @@ Medium
 ## Background
 Found during an adversarial review (`python-code-review`) of the agent's MCP call path.
 - `tool_runner._idempotency_key` builds the derived key and `execute_one_tool_call` passes it only to `audit_tool_exec`. `ToolExecutor.execute`, `ToolTransportInvoker.invoke` and `HttpTransport.call` do not accept a key from the caller.
-- On the current branch `HttpTransport.call` creates `uuid.uuid4()` once per logical call and reuses it on its internal HTTP retries; the server's duplicate cache (`mcp_servers/dispatch.py`) keys on that header. On `origin/master` (toolexec001) the header is instead `derive_idempotency_key("call_tool", name, args, uid)`, where uid is the transport session id (or an auth-token hash): deterministic for the same tool, arguments and session. The audit key still differs from it there.
+- `HttpTransport.call` sends `derive_idempotency_key("call_tool", name, args, uid)` as `X-Idempotency-Key`, where uid is the transport session id (or an auth-token hash): deterministic for the same tool, arguments and session, and reused on the call's internal HTTP retries; the server's dedup store (`mcp_servers/dispatch.py`) keys on that header. The audit key (`workflow:task:turn:call_id`) never equals it.
 - The audit model (`agent/shared/models.py`, `ToolExecEvent.idempotency_key`) describes the field as a stable, retry-invariant key for deduplication.
 - `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` documents the transport-generated key and its reuse across retries of one call. No document describes the derived key.
 - The archived issue `issues/done/20261007-153753_idem01_fix-mcp-idempotency-cache-and-retry-coupling.md` set the contract "the caller owns key generation, one key per logical call, reused across retries of that call"; the transport-generated key satisfies it. The derived key was added later for the audit event.
@@ -20,7 +20,7 @@ Evidence (`Explicit in code`; no run was needed): the derived key's only consume
 
 Effects:
 - Anyone searching the server's audit or access data for the audit event's `idempotency_key` finds nothing, and anyone searching for a header value finds no agent record.
-- The audit field suggests that a repeated logical call (the same call id replayed) is deduplicated by that key; it is not. On the current branch a call replayed with the same id gets a new random key and executes again; on `origin/master` an identical replay in the same session is deduplicated by the derived key, but the audit key still never equals it.
+- The audit field suggests that a repeated logical call (the same call id replayed) is deduplicated by that key; it is not. An identical replay in the same session is deduplicated by the transport's derived key, but that key is not the one in the audit record, so the audit field still cannot be used to answer "same call or a second one?".
 - Two keys with the same name and different meanings invite a future change to rely on the wrong one.
 
 ## Reason for Change
@@ -67,10 +67,10 @@ Update `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` (key ownership) to name t
 - Other audit fields.
 
 ## Dependencies
-`issues/20261031-175803_toolstate001_tool-call-state-producer.md` (on `origin/master`, not yet merged here) overlaps: decide the key's owner there first. `issues/done/20261007-153753_idem01_fix-mcp-idempotency-cache-and-retry-coupling.md` is archived background. `issues/20261101-073608_inflightcancel001_cancelled-call-reported-unexecuted.md` concerns repeated writes after an interrupted call and would benefit from this key being stable across a replay, but neither issue blocks the other.
+`issues/20261031-175803_toolstate001_tool-call-state-producer.md` overlaps: decide the key's owner there first. `issues/done/20261007-153753_idem01_fix-mcp-idempotency-cache-and-retry-coupling.md` is archived background. `issues/20261101-073608_inflightcancel001_cancelled-call-reported-unexecuted.md` concerns repeated writes after an interrupted call and would benefit from this key being stable across a replay, but neither issue blocks the other.
 
 ## Unresolved Questions
-- Which design is wanted: the transport reporting the key it used back in the result, or the agent re-deriving the transport's key with the same uid: a design choice for the owner. `issues/20261031-175803_toolstate001_tool-call-state-producer.md` (on `origin/master`) names the same mismatch and requires `tool_call_state.idempotency_key` to equal the deterministic transport key, so its decision settles this issue; this issue may be subsumed by it or ordered after it.
+- Which design is wanted: the transport reporting the key it used back in the result, or the agent re-deriving the transport's key with the same uid: a design choice for the owner. `issues/20261031-175803_toolstate001_tool-call-state-producer.md` names the same mismatch and requires `tool_call_state.idempotency_key` to equal the deterministic transport key, so its decision settles this issue; this issue may be subsumed by it or ordered after it.
 - Whether any consumer reads the audit `idempotency_key` today: `Needs confirmation`; none was found in `scripts/` (not searched in operational tooling outside the repository).
 
 ## AI Implementation Instruction

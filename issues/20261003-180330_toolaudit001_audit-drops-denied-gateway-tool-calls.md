@@ -46,7 +46,7 @@ N/A: no operator-facing documentation describes this specific audit-logging gap 
 - Any change to how workflow approval state is set or cleared.
 
 ## Dependencies
-Shares `audit_tool_exec` with `issues/20261003-180336_assertaudit001_audit-assert-risks-post-execution-crash.md` and `issues/20261101-073823_idemaudit001_audit-idempotency-key-mismatch.md`, and `implementations/20261030-102825_05_scripts_agent_tool_audit.py.md` also edits it; `origin/master` adds `dedup_state` and `execution_snapshot_json` to the same function. Coordinate the order of changes.
+Shares `audit_tool_exec` with `issues/20261003-180336_assertaudit001_audit-assert-risks-post-execution-crash.md` and `issues/20261101-073823_idemaudit001_audit-idempotency-key-mismatch.md`, and `implementations/20261030-102825_05_scripts_agent_tool_audit.py.md` also edits it; the function now also emits `dedup_state` and `execution_snapshot_json`; the early-return guard is unchanged. Coordinate the order of changes.
 
 ## Unresolved Questions
 N/A: none — the early-return condition and `_denied_result()`'s `source=""` default were both confirmed by reading `tool_audit.py` and `repository_gateway.py` directly.

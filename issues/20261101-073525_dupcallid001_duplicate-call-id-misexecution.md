@@ -17,7 +17,7 @@ Found during an adversarial review (`python-code-review`) of the agent's MCP cal
 Reproduction (throwaway script, not committed): two prepared write calls with the same id and different arguments, a stub gateway that records the arguments it receives, and `_execute_with_dag` with the real scheduler. Observed: the stub received the second call's arguments twice, in order, and never received the first call's; the collected results held one entry for the shared id. No real tool server or database was used.
 
 Effects:
-- A write the user approved is silently not performed, while a different write is performed twice. On the current branch each execution uses a fresh random idempotency key at the transport, so the server does not deduplicate them; on `origin/master` the key is derived from tool name, arguments and session, so the duplicated run is deduplicated server-side, but the first call's arguments are still never executed and the history is still wrong.
+- A write the user approved is silently not performed, while a different write is performed twice. The transport's idempotency key is derived from tool name, arguments and session, so the duplicated run (identical arguments) is deduplicated server-side for tools that use the dedup store; the first call's arguments are still never executed and the history still answers two declared calls with one result.
 - The history then has two declared calls and one answer for that id, which is an inconsistent pairing for the next request.
 - Model output is untrusted input at this boundary: the id is chosen by the model or by the serving layer, and uniqueness is a convention, not something this code enforces. Whether a given model or server emits duplicate ids is `Needs confirmation`.
 

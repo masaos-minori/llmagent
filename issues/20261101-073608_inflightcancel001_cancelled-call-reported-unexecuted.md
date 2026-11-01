@@ -18,7 +18,7 @@ Found during an adversarial review (`python-code-review`) of the agent's MCP cal
 Reproduction (throwaway script, not committed): a stub gateway that records the call and then waits, `_execute_with_dag` run as a task, the task cancelled after the gateway received the call, and `pair_round_results` with the resulting `collected` and `ROUND_NOT_COMPLETED`. Observed: the gateway had received the call (the request is "sent"), `collected` was empty, and the synthesized row text was "Tool call not executed: the tool round did not complete." No real server or database was used.
 
 Effects:
-- For a write, delete, or API-write tool, the model and the user are told the operation did not run when it may have. On the current branch a repeat uses a new random idempotency key at the transport, so the server does not deduplicate it and the result can be a duplicate write; on `origin/master` the transport key is derived from tool name, arguments and session, so an identical replay in the same session is deduplicated, but the recorded statement is still wrong and a replay with different arguments is not covered.
+- For a write, delete, or API-write tool, the model and the user are told the operation did not run when it may have. The transport's idempotency key is derived from tool name, arguments and session (`derive_idempotency_key`), so an identical replay in the same session is deduplicated server-side; the recorded statement is still wrong, and a replay with different arguments (or in another session) is not covered and can duplicate a write.
 - For a read tool, the statement is also inaccurate, though a repeat is harmless.
 - The row is persisted, so the wrong statement survives a restart.
 
@@ -71,7 +71,7 @@ Update `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md`, whi
 N/A: none. No open issue or plan targets round completion or pairing. `issues/done/20261026-224729_turn002_repair-orphan-tool-call-rows.md` is archived background only.
 
 ## Unresolved Questions
-- The repair of unpaired rows at session load (`services/session_restore.py`) uses different wording ("[interrupted] tool call did not complete before session termination"), so it does not make the "not executed" claim (`Explicit in code`). `issues/20261031-175803_toolstate001_tool-call-state-producer.md` (on `origin/master`) covers the kill-mid-call and replay flow by a different mechanism (pending and finalize rows); treat it as related, not as a duplicate.
+- The repair of unpaired rows at session load (`services/session_restore.py`) uses different wording ("[interrupted] tool call did not complete before session termination"), so it does not make the "not executed" claim (`Explicit in code`). `issues/20261031-175803_toolstate001_tool-call-state-producer.md` covers the kill-mid-call and replay flow by a different mechanism (pending and finalize rows); treat it as related, not as a duplicate.
 - Whether in-flight write calls should be awaited to completion during graceful shutdown instead of cancelled: a design choice for the owner.
 
 ## AI Implementation Instruction
