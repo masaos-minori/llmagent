@@ -22,7 +22,7 @@ Add a repository-specific checklist for changes to persisted SQLite schema (DDL,
 Whether a persisted-schema Plan covers the cascade, versioning, fingerprint, default, and data-meaning questions depends on the author's memory. The cost of a miss is a wrong design in a Frozen Plan or, in the cascade case, silent loss of child rows.
 
 ## Reason for Change
-Several persisted-state Plans are open (`toolexec001`, `wflease001`, `dlqbox001`, `ragcorpus001`), each will change a `*.sqlite` schema, and the repository now has a migration framework whose preconditions are specific enough to list.
+Verification (2026-11-02): `toolexec001`, `wflease001`, `dlqbox001`, and `ragcorpus001` are already archived under `plans/done/`; the open schema work is `plans/20261101-133244_dbmigrunner001_runner-unsafe-table-rebuild.md` and later Plans. Each persisted-state Plan changes a `*.sqlite` schema, and the repository now has a migration framework whose preconditions are specific enough to list.
 
 ## Implementation Intent
 Write the checklist once, as a short rule file, and load it from the places where schema changes are planned and designed. Each item states the pitfall, why it matters here, and how to verify it (a command, a test, or a probe). The checklist is guidance, not a gate. Evaluate separately whether a scratch-database probe (apply a candidate change to a seeded copy, report row counts, foreign-key check, and fingerprint difference) is reusable enough to deserve a tool, or whether a short documented recipe is sufficient.

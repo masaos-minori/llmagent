@@ -11,6 +11,7 @@ Add a session-level check that fails a test run when files under `/opt/llm/db/` 
 - `Explicit in code`: `tests/conftest.py` `_forbid_production_paths` patches `sqlite3.connect` and `logging.FileHandler.__init__` inside the test process. A subprocess is outside both patches, and the helper `_run` in the test above builds its environment from only `PATH` and `HOME`, so the isolation variables set by `conftest.py` (`LLMAGENT_CONFIG_DIR` and the others) are not inherited.
 - `Explicit in code`: in that test the sandbox config was meant to pin `workflow_db_path`, but the key was appended after the last table of `config/agent.toml`, so it was not a top-level key and the subprocess fell back to the production default. The cause was fixed in the test on 2026-10-30; the missing detection is the subject here.
 - `Explicit in code`: commit `1574a44bc` ("test: isolate the test suite from production state under /opt/llm") introduced the existing isolation; the gap above is the part it does not cover. `tests/conftest.py` already defines `pytest_sessionfinish`.
+- `Explicit in code` (verification 2026-11-02): the current production `workflow.sqlite` has no `schema_migrations` table and its modification time is 2026-09-20, so the earlier contamination is no longer present in the file; only the missing detection remains. `tools/check_conftest_integrity.py` verifies required autouse fixtures only, and `pytest_sessionfinish` in `tests/conftest.py` is a hook that already exists (it removes the isolation root), so a detection that `check_conftest_integrity.py` can require must be a session-scoped autouse fixture, or the checker must be extended.
 - `Operationally observed`: after the fix, the modification time of the production file stayed unchanged across a full-suite run; the same check can be made automatic.
 
 ## Problem
@@ -31,7 +32,7 @@ Add a detection that does not depend on test authors. At session start, record a
 
 ## Required Changes
 - Implement the session fingerprint and comparison, with an explicit opt-out marker for tests that legitimately use production state (the existing marker `production_paths_allowed`).
-- Make `check_conftest_integrity.py` require the new hook so it cannot be removed silently.
+- Make `check_conftest_integrity.py` require the new detection so it cannot be removed silently: implement it as a session-scoped autouse fixture and add its name to the checker's required-fixture list (preferred), because the checker does not inspect hooks.
 - Evaluate and, if adopted, add the isolated-subprocess-environment helper and use it in the deploy test.
 - Add a regression test that a write to a temporary stand-in "production" directory is detected.
 

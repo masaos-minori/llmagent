@@ -16,7 +16,7 @@ Let a Plan declare which phases must land together (a release unit), and give `c
 Plans describe phases as independent, while some phases can only be validated together. The executor must either break the per-cycle rule without a sanctioned procedure or split a coupled change into states that cannot be tested, and the Plan's phase status cannot express a group.
 
 ## Reason for Change
-Persisted-schema changes always couple the schema row to its write path, so the situation recurs with every such Plan (`toolexec001`, `wflease001`, `dlqbox001` are queued). An explicit unit makes the exception reviewable, bounded, and cheaper than repeated full runs.
+Persisted-schema changes always couple the schema row to its write path, so the situation recurs with every such Plan (verification 2026-11-02: those three are already archived; the recurrence argument rests on the open schema Plans such as `plans/20261101-133244_dbmigrunner001_runner-unsafe-table-rebuild.md`). An explicit unit makes the exception reviewable, bounded, and cheaper than repeated full runs.
 
 ## Implementation Intent
 Make the coupling a declared, checkable fact rather than an ad hoc decision. The Plan names the unit and states why its members cannot be green alone. Procedure documents carry the unit name. Batch mode keeps every safeguard that matters: cycles still run in Plan phase order, static validators (format, lint, types, import contracts) and impact-selected tests still run per cycle, a failure not attributable to a later member of the unit still stops the cycle, the Attempt Limit and Failure Log still apply, and the full suite and coverage gate run once at the end. Archival and Plan status updates happen for the whole unit after it passes.

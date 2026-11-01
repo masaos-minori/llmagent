@@ -19,7 +19,7 @@ Add a consumer-scan step to `issue-to-plan` for changes to persisted schema, pub
 A Frozen Plan's target table is the only scope the later phases may touch. When it omits an indirect consumer, the implementation cycle stops, the Plan is amended, and the work waits for approval, while the cause (a consumer the author could not see by name) was knowable at planning time with a search.
 
 ## Reason for Change
-Schema, DDL, and public-API changes are the most common change class in this repository, and each one has the same blind spot. The cost was three amendments in one release; it will recur with every persisted-state Plan, including the ones already queued (`toolexec001`, `wflease001`, `dlqbox001`).
+Schema, DDL, and public-API changes are the most common change class in this repository, and each one has the same blind spot. The cost was three amendments in one release; it will recur with every persisted-state Plan. Verification (2026-11-02): `toolexec001`, `wflease001`, and `dlqbox001` are already archived under `plans/done/`; the open persisted-state work is now `plans/20261101-133244_dbmigrunner001_runner-unsafe-table-rebuild.md` and later schema Plans.
 
 ## Implementation Intent
 Treat consumer discovery as a planning step with a tool, not as the author's memory. The tool takes "change seeds" (a symbol, a column or table name, a constant, or a file) and reports candidate consumers by category: direct textual references, files that patch or mock the module containing the seed, inventory-style checkers and pinned constants (for example table inventories, size ceilings, ADR test citations), deploy scripts, and documents. It is heuristic and read-only; its output is a candidate list that the Plan author classifies as a target row, a reference row, or "not affected" with a reason, never a verdict. One candidate source to evaluate is the `pytest-testmon` dependency data, which records which tests execute which source files and would expose mock-based consumers that a text search cannot see.
@@ -68,9 +68,11 @@ Yes. `skills/issue-to-plan/workflow.md` and `templates/plan.md` state the new st
 N/A: none. No open issue or Plan targets these files (checked with `rg` over `issues/*.md` and `plans/*.md`, 2026-10-30). Related, filed together: `issues/20261030-191057_flowimp002_plan-release-units.md`.
 
 ## Unresolved Questions
-- `不明`: whether `.testmondata` is reliable enough as a source. The local file exists (ignored by git) but was last updated on 2026-10-25; how it is refreshed in a normal workflow is not confirmed.
+- `不明`: whether `.testmondata` is reliable enough as a source. Verification (2026-11-02): no `.testmondata*` file exists in the repository root or one level below (`find`), although `pytest-testmon` is a declared dependency and `.gitignore` ignores the file. The tool therefore MUST treat the testmon source as absent by default and report that state; how the file is refreshed in a normal workflow is not confirmed.
 - `不明`: how much of the mock-based case (a test builds a `MagicMock` of a changed object) a text search can catch without the testmon data.
 - Assumption: recall on the three historical omissions can be measured after the fact and is an acceptable quality bar for a heuristic tool.
+- Verification (2026-11-02, plain `rg` over the three named files with the three seeds): `tools/check_db_separation.py` has a direct seed hit; `tests/deploy/test_init_db_eventbus_schema.py` and `tests/integration/test_orchestrator_integration.py` have none, so a direct text search reaches one of the three. The other two are reachable only through the deploy-script and mock-based categories, so recall on this seed set is expected to be partial and MUST be reported, not assumed.
+- Verification (2026-11-02): registering a new tool in `routing.md` makes `tools/run_validation_gates.py drift` fail unless the gate runner also has a mapping entry for it (`drift_report`); `tools/run_validation_gates.py` is therefore an additional target of this change.
 
 ## AI Implementation Instruction
 Implement the tool and the skill step only. Do not change Plan Freeze semantics or any existing checker. Keep the tool read-only and label every result as a candidate. If a category cannot be detected reliably, report that limit in the tool output rather than guessing. Stop and report if the testmon data cannot be used safely.
