@@ -33,7 +33,7 @@ class ToolCallState:
 
 
 def _row_to_state(r: object) -> ToolCallState:
-    row = dict(r)  # type: ignore[call-overload]
+    row = dict(r)  # type: ignore[call-overload]  # — r is a sqlite3.Row at runtime; the parameter is typed object
     return ToolCallState(
         idempotency_key=row["idempotency_key"],
         task_id=row["task_id"],
