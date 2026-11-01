@@ -26,6 +26,7 @@ from agent.workflow.workflow_engine import (
 )
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
+from shared.json_utils import parse_iso_utc
 
 
 def _make_cfg(db_path: str) -> DbConfig:
@@ -86,6 +87,29 @@ async def _noop() -> str | None:
     return None
 
 
+def _attempt_lease_rows(
+    db_path: Path, task_id: str, stage_id: str
+) -> list[sqlite3.Row]:
+    """Read persisted attempt rows for a task/stage (AC-5 asserts the stored row)."""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.row_factory = sqlite3.Row
+        return conn.execute(
+            "SELECT started_at, owner_id, lease_expires_at FROM attempts "
+            "WHERE task_id=? AND stage_id=? ORDER BY started_at, attempt_id",
+            (task_id, stage_id),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def _lease_delta_sec(row: sqlite3.Row) -> float:
+    """lease_expires_at minus started_at, both parsed with parse_iso_utc (REQ-009)."""
+    return (
+        parse_iso_utc(row["lease_expires_at"]) - parse_iso_utc(row["started_at"])
+    ).total_seconds()
+
+
 class TestWorkflowEngineHappyPath:
     @pytest.mark.asyncio
     async def test_run_sets_task_status_completed(self, store) -> None:
@@ -110,7 +134,7 @@ class TestWorkflowEngineHappyPath:
 
 class TestWorkflowEngineRetry:
     @pytest.mark.asyncio
-    async def test_retry_succeeds_on_second_attempt(self, store) -> None:
+    async def test_retry_succeeds_on_second_attempt(self, store, workflow_db: Path) -> None:
         wdef = _make_wdef(max_attempts=3, backoff_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
@@ -128,6 +152,14 @@ class TestWorkflowEngineRetry:
         assert found is not None
         assert found.status == "completed"
         assert calls["n"] == 2
+
+        # AC-5: both execute attempts carry an owner stamp and a
+        # timeout(5)+margin(30) lease horizon (wflease001 REQ-005).
+        rows = _attempt_lease_rows(workflow_db, task.task_id, "execute")
+        assert len(rows) == 2
+        for row in rows:
+            assert row["owner_id"]
+            assert _lease_delta_sec(row) == 35
 
     @pytest.mark.asyncio
     async def test_halt_after_max_attempts(self, store) -> None:
@@ -162,7 +194,7 @@ class TestWorkflowEngineRetry:
 
 class TestWorkflowEngineTimeout:
     @pytest.mark.asyncio
-    async def test_timeout_raises_workflow_timeout_error(self, store) -> None:
+    async def test_timeout_raises_workflow_timeout_error(self, store, workflow_db: Path) -> None:
         stages = [
             StageDefinition(id="plan", timeout_sec=5, retryable=False),
             StageDefinition(id="execute", timeout_sec=1, retryable=True),
@@ -181,6 +213,32 @@ class TestWorkflowEngineTimeout:
 
         with pytest.raises((WorkflowHaltError, WorkflowTimeoutError)):
             await engine.run(task, _noop, slow_execute, _noop)
+
+        # AC-5: the timed-out attempt row still carries the stamped lease
+        # horizon: timeout(1)+margin(30).
+        rows = _attempt_lease_rows(workflow_db, task.task_id, "execute")
+        assert len(rows) == 1
+        assert rows[0]["owner_id"]
+        assert _lease_delta_sec(rows[0]) == 31
+
+
+class TestWorkflowEngineLeaseStamping:
+    """AC-5: every engine-started attempt carries owner_id and a timeout+30 lease."""
+
+    @pytest.mark.asyncio
+    async def test_attempt_start_stamps_lease(self, store, workflow_db: Path) -> None:
+        wdef = _make_wdef()
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+        await engine.run(task, _noop, _noop, _noop)
+
+        for stage in ("plan", "execute", "verify"):
+            rows = _attempt_lease_rows(workflow_db, task.task_id, stage)
+            assert len(rows) == 1, stage
+            row = rows[0]
+            assert row["owner_id"], stage
+            # Stage fixtures use timeout_sec=5; expected horizon 35 s.
+            assert _lease_delta_sec(row) == 35, stage
 
 
 class TestWorkflowEngineIdempotency:

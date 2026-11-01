@@ -61,6 +61,44 @@ def now_iso_raw() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def parse_iso_utc(value: str) -> datetime:
+    """Parse a strict UTC ISO-8601 timestamp into a timezone-aware UTC datetime.
+
+    Accepted forms: ``YYYY-MM-DDTHH:MM:SSZ`` (the production :func:`now_iso`
+    format), explicit offsets (``+09:00``-style, converted to UTC), and
+    optional fractional seconds.
+
+    Naive strings (no ``Z``/offset), malformed strings, and non-``str`` input
+    raise ``ValueError``. This is the only ISO parser the workflow package may
+    use: a stored timestamp must never be reinterpreted as a local time.
+
+    Args:
+        value: ISO-8601 timestamp string with ``Z`` or an explicit offset.
+
+    Returns:
+        Timezone-aware UTC datetime.
+
+    Raises:
+        ValueError: If the value is not a str, is naive, or is malformed.
+    """
+    if not isinstance(value, str):
+        raise ValueError(
+            f"parse_iso_utc: expected str, got {type(value).__name__}: {value!r}"
+        )
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError(
+            f"parse_iso_utc: malformed timestamp {value!r}: {exc}"
+        ) from exc
+    if parsed.tzinfo is None:
+        raise ValueError(
+            f"parse_iso_utc: naive timestamp {value!r} (expected 'Z' or an offset)"
+        )
+    return parsed.astimezone(UTC)
+
+
 def serialized_length(obj: object) -> int:
     """Return the byte length of obj when serialized to JSON.
 

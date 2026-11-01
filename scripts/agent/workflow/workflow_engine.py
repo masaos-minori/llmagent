@@ -27,6 +27,12 @@ logger = logging.getLogger(__name__)
 _ERROR_KIND_TIMEOUT = "timeout"
 _ERROR_KIND_EXCEPTION = "exception"
 
+# Lease horizon added on top of a stage's enforced timeout (wflease001
+# REQ-005, Plan UNK-03: named constant, not configuration). A normal stage
+# is bounded by asyncio.wait_for, so the lease only outlives the stage by
+# this margin; no heartbeat renewal exists (Plan UNK-02).
+_LEASE_MARGIN_SEC = 30
+
 StageCallback = Callable[[], Awaitable[str | None]]  # returns artifact URI or None
 
 
@@ -267,6 +273,7 @@ class WorkflowEngine:
                 task.task_id,
                 stage_id,
                 workflow_id=task.workflow_id,
+                lease_duration_sec=timeout + _LEASE_MARGIN_SEC,
             )
             if attempt_rec is None:
                 logger.info(

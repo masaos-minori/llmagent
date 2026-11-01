@@ -18,6 +18,7 @@ from shared.json_utils import (
     now_iso,
     now_iso_raw,
     parse_http_json,
+    parse_iso_utc,
     serialized_length,
     tool_call_serialized_length,
 )
@@ -512,6 +513,52 @@ class TestNowIsoRaw:
         # Verify it's valid ISO format with UTC offset
         assert "T" in result
         assert "+00:00" in result
+
+
+class TestParseIsoUtc:
+    """Verify parse_iso_utc() strict UTC parsing (REQ-001 / AC-1)."""
+
+    def test_z_format_round_trips_now_iso_output(self) -> None:
+        value = now_iso()
+        parsed = parse_iso_utc(value)
+        assert parsed.tzinfo is not None
+        assert parsed.utcoffset() == datetime.timedelta(0)
+        assert parsed.strftime("%Y-%m-%dT%H:%M:%SZ") == value
+
+    def test_z_format_exact_instant(self) -> None:
+        parsed = parse_iso_utc("2026-01-01T00:00:00Z")
+        assert parsed == datetime.datetime(2026, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+
+    def test_offset_converted_to_utc_instant(self) -> None:
+        offset = parse_iso_utc("2026-01-01T09:00:00+09:00")
+        utc = parse_iso_utc("2026-01-01T00:00:00Z")
+        assert offset == utc
+        assert offset.utcoffset() == datetime.timedelta(0)
+
+    def test_negative_offset_converted_to_utc_instant(self) -> None:
+        parsed = parse_iso_utc("2026-01-01T01:00:00-01:00")
+        assert parsed == datetime.datetime(2026, 1, 1, 2, 0, 0, tzinfo=datetime.UTC)
+
+    def test_fractional_seconds_accepted(self) -> None:
+        parsed = parse_iso_utc("2026-01-01T00:00:00.123456Z")
+        assert parsed.microsecond == 123456
+        assert parsed.tzinfo is not None
+
+    def test_naive_string_rejected(self) -> None:
+        with pytest.raises(ValueError, match="naive"):
+            parse_iso_utc("2026-01-01T00:00:00")
+
+    def test_malformed_string_rejected(self) -> None:
+        with pytest.raises(ValueError, match="malformed"):
+            parse_iso_utc("not-a-date")
+
+    def test_non_string_rejected(self) -> None:
+        with pytest.raises(ValueError, match="expected str"):
+            parse_iso_utc(1767225600)  # type: ignore[arg-type]
+
+    def test_result_is_aware_utc(self) -> None:
+        parsed = parse_iso_utc("2026-06-30T23:59:59+00:00")
+        assert parsed.tzinfo == datetime.UTC
 
 
 class TestToolCallSerializedLength:

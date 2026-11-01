@@ -20,11 +20,11 @@ entries:
   name: eventbus
   source: scripts/eventbus/schema.sql
   version: 5
-- content_hash: fc276a16c412e206ec06f8becbd93238b906d26e42e32ad08d09cf87a1c2412e
+- content_hash: 5e53ef07466f18d6cdfc8246182d2d7436c23ac0bf2ff6b01e8e5ef558419a13
   kind: schema
   name: workflow
   source: scripts/db/schema_sql.py
-  version: 1.3.0
+  version: 1.4.0
 generated_by: tools/generate_reference_table.py
 manifest: db_schema_versions
 sources:

@@ -535,7 +535,8 @@ def _create_workflow_db(
             "CREATE TABLE tasks (task_id TEXT, session_id TEXT, workflow_id TEXT, status TEXT, created_at TEXT)"
         ),
         "attempts": (
-            "CREATE TABLE attempts (attempt_id TEXT, task_id TEXT, stage_id TEXT, status TEXT)"
+            "CREATE TABLE attempts (attempt_id TEXT, task_id TEXT, stage_id TEXT, "
+            "status TEXT, owner_id TEXT, lease_expires_at TEXT)"
         ),
         "processed_events": (
             "CREATE TABLE processed_events (event_id TEXT, task_id TEXT)"
@@ -600,6 +601,14 @@ class TestCheckWorkflowSchema:
         result = check_workflow_schema(db_path=db_path)
         assert result.valid is False
         assert result.error is not None and "workflow_id" in result.error
+
+    def test_missing_attempt_lease_column_fails(self, tmp_path: Any) -> None:
+        # AC-8: an un-migrated attempts table missing the lease columns is
+        # caught at startup, naming the column (procedure 15 runbook path).
+        db_path = _create_workflow_db(tmp_path, missing_column=("attempts", "owner_id"))
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "attempts.owner_id" in result.error
 
     def test_matching_schema_version_passes(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, schema_version=WORKFLOW_SCHEMA_VERSION)

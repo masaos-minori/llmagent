@@ -55,6 +55,10 @@ This system executes tasks planned by the LLM. Some tools have side effects, som
 
 ## Decision
 
+### Amendment (wflease001, 2026-11-01)
+
+INV-07's "interrupted Attempts" is now defined by lease expiry, not by wall-clock age. Each attempt row carries `owner_id` and `lease_expires_at`, stamped at attempt start from the stage `timeout_sec` plus a 30 s margin (`workflow_engine._LEASE_MARGIN_SEC`); `recover_stale_attempts()` recovers only lease-expired rows (or lease-less pre-migration rows older than 3600 s) and never recovers an attempt whose lease is still live. Rationale: the previous elapsed-time rule compared host-local timestamps (a timezone defect) and could steal a legitimately long-running attempt from a live owner. The recover-as-`failed` outcome and the never-repairs-task-status guarantee of INV-07 are unchanged; only the definition of "interrupted" was refined, by Plan `plans/20261030-114516_wflease001_stale-attempt-lease.md`.
+
 ### Decision Details
 
 1. The WorkflowEngine is mandatory. The workflow definition file is a mandatory deployment artifact. If it is missing or fails validation, Agent startup is aborted.
@@ -184,7 +188,7 @@ An approval stage placed after the `execute` stage cannot prevent anything: when
 | Startup-failure test when the required DB Schema is inconsistent | INV-06 | Integration | Yes | `tests/agent/test_startup_workflow_preflight.py::TestComponentInitializerWorkflowPreflight::test_aborts_on_invalid_workflow_schema`, `tests/agent/test_repl_health.py::TestCheckWorkflowSchema` |
 | Test that no external state-change path bypasses the Workflow Engine | INV-02 | Regression | Yes | Not verified (no automated test asserts that no external state-change path bypasses the Workflow Engine) |
 | `test_execute_success_verify_failure_marks_task_failed` (confirms that when verify fails after a successful execute, the task state becomes `failed`, not `completed`) | INV-03 | Unit | Yes | `tests/agent/workflow/test_workflow_engine.py::TestRunStageWithRetryGeneralization::test_execute_success_verify_failure_marks_task_failed` |
-| Optimistic-locking and recovery behavior test for `recover_stale_attempts()` | INV-07 | Unit | Yes | `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py` |
+| Optimistic-locking and recovery behavior test for `recover_stale_attempts()` | INV-07 | Unit | Yes | `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_stale_recovery_lease.py` |
 | `test_begin_stage_if_new_idempotent` (confirms that a double start of `begin_stage_if_new()` with the same event_id is rejected, passing) | INV-08 | Unit | Yes | `tests/agent/workflow/test_workflow_stage_persistence.py` |
 | The loader rejects a workflow definition that contains the `require_approval` key, for any value | INV-10 | Unit | Yes | `tests/agent/workflow/test_workflow_loader.py::TestRequireApprovalKeyRejected` |
 | A tool-level approval decision, approved or denied, is written as a `tool_approval` event with the `workflow_id` and the turn ID in `task_id` | INV-11 | Unit | Yes | `tests/agent/test_tool_audit.py::TestAuditApprovalInv11` |

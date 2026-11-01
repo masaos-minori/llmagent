@@ -45,7 +45,14 @@ def check_workflow_definition(workflows_dir: Path | None = None) -> None:
 
 REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
     "tasks": ["task_id", "session_id", "workflow_id", "status", "created_at"],
-    "attempts": ["attempt_id", "task_id", "stage_id", "status"],
+    "attempts": [
+        "attempt_id",
+        "task_id",
+        "stage_id",
+        "status",
+        "owner_id",
+        "lease_expires_at",
+    ],
     "processed_events": ["event_id", "task_id"],
     "artifacts": ["artifact_id", "task_id"],
     "workflow_schema_version": ["version", "applied_at"],

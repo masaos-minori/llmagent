@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 # Bump this constant whenever the workflow schema changes in a way that requires
 # recreating the database. Additive tables land through the registered forward
 # migration (dbmig001 registry); the bumped value must match the registry's head
-# step (wftaskapi001 row 12: 1.3.0 <-> workflow_task_nonce, code 3).
-WORKFLOW_SCHEMA_VERSION = "1.3.0"
+# step (wflease001 row 17: 1.4.0 <-> workflow_attempt_lease, code 4).
+WORKFLOW_SCHEMA_VERSION = "1.4.0"
 
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
@@ -202,7 +202,9 @@ CREATE TABLE IF NOT EXISTS attempts (
     ended_at     TEXT,
     error_msg    TEXT,
     error_kind   TEXT,
-    error_detail TEXT
+    error_detail TEXT,
+    owner_id         TEXT,
+    lease_expires_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS processed_events (

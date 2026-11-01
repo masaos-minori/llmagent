@@ -1,13 +1,11 @@
 ## Goal
 
-## Goal
-
 Add the `owner_id` and `lease_expires_at` columns to the canonical `attempts` DDL and set the workflow schema version string in `scripts/db/schema_sql.py` (REQ-004 / AC-8).
 
 ## Scope
 
 - Extend the `attempts` CREATE block (`schema_sql.py:197-206`) with `owner_id TEXT` and `lease_expires_at TEXT` (both nullable, no CHECK, no index).
-- Bump `WORKFLOW_SCHEMA_VERSION` (`:27`) from the current `"1.2.0"` to the landing-order value: `"1.3.0"` if this Plan's migration step registers before wftaskapi001's pending step, else `"1.4.0"` (Plan Assumptions, ledger landing order).
+- Bump `WORKFLOW_SCHEMA_VERSION` (`:27`) from the landed `"1.3.0"` to `"1.4.0"` — the value fixed by the 2026-11-01 verification (procedure 17 registers registry code 4).
 
 ## Assumptions
 
@@ -15,7 +13,7 @@ Add the `owner_id` and `lease_expires_at` columns to the canonical `attempts` DD
 - All baseline cites below were re-verified against branch `master` on 2026-11-01 (Plan Assumptions 'Re-verification record').
 - Canonical semantics come from the Plan REQs (Plan `:37-46`): `parse_iso_utc` rejects naive input (REQ-001); no `mktime`/`strptime`/local time in recovery (REQ-002); unparseable timestamps are reported with distinct counts (REQ-003); nullable `owner_id`/`lease_expires_at` via a registered migration (REQ-004); owner and lease stamped at attempt start from the stage timeout plus a 30 s margin constant (REQ-005); staleness means lease expiry and `_STALE_GRACE_SEC` is removed (REQ-006); takeover is a conditional update requiring one row (REQ-007); legacy rows without a lease use the 3600 s age (REQ-008); tests use the production timestamp format (REQ-009); docs and ADR-001 INV-07 are amended (REQ-010).
 - Owner decision (Plan UNK-02, 2026-10-30): deadline lease only — no heartbeat renewal, because `asyncio.wait_for` already bounds a normal stage.
-- Ledger landing order (Plan UNK-06): `master` records code 2 / "1.2.0" (`migrations_workflow.py:42`); wftaskapi001 procedure 12 (`implementations/20261101-140834_12_scripts_db_migrations_workflow.py.md`, Pending) reserves the next slot. This Plan takes code 3 / "1.3.0" only if its step registers before wftaskapi001's, otherwise 4 / "1.4.0" (same rule as `implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md`).
+- Ledger landing order (Plan UNK-06; fixed by the 2026-11-01 pre-execution verification): wftaskapi001 procedure 12 has landed (`implementations/done/20261101-140834_12_scripts_db_migrations_workflow.py.md`) and registered code 3 / "1.3.0" (`migrations_workflow.py:42`, `WORKFLOW_TARGET_VERSION` = 3 at `:49`). This Plan takes code 4 / "1.4.0": procedure 17 registers `workflow_attempt_lease` with `from_version=3, to_version=4`, and procedure 06 sets `WORKFLOW_SCHEMA_VERSION` to "1.4.0". The still-Pending wfrecovery001 procedure 26 (`implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md`) takes 5 / "1.5.0" when it lands after this Plan.
 - Fencing dependency (Plan UNK-06): REQ-007's rejection of a late finish by the fenced owner lands with the wfrecovery001 conditional `finish_attempt` procedure (`implementations/20261101-145309_04_scripts_agent_workflow_attempt_ops.py.md`, Pending); at `master` `finish_attempt` is still unconditional (`attempt_ops.py:44-45`).
 - `schema_sql.py` is row 6 of the frozen table and must land before rows 3-5 and the lease part of row 2 even though its table position is later (Plan Assumptions execution-order item); this document states that rule.
 
@@ -34,7 +32,7 @@ Add the `owner_id` and `lease_expires_at` columns to the canonical `attempts` DD
 
 ### Procedure
 1. Add the two columns to the `attempts` CREATE text (`:197-206`).
-2. Update `WORKFLOW_SCHEMA_VERSION` (`:27`) to the agreed landing-order value at implementation time (coordinate with `implementations/20261101-140834_12_scripts_db_migrations_workflow.py.md` and `implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md`).
+2. Set `WORKFLOW_SCHEMA_VERSION` (`:27`) to `"1.4.0"` (landing order fixed by the 2026-11-01 verification; see Assumptions).
 
 ### Method
 DDL string and constant edits in the canonical schema template.
@@ -63,7 +61,7 @@ DDL string and constant edits in the canonical schema template.
 
 ## Completion criteria
 
-- AC-8: the version constant differs from `"1.2.0"` and the new columns appear in the canonical DDL.
+- AC-8: the version constant differs from `"1.3.0"` (it becomes `"1.4.0"`) and the new columns appear in the canonical DDL.
 
 ## Out of Scope
 
@@ -74,10 +72,10 @@ DDL string and constant edits in the canonical schema template.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | attempts += owner_id/lease_expires_at; WORKFLOW_SCHEMA_VERSION=1.4.0 |
+| 2 | Add or update tests per Validation plan | Completed | — | — | validated via tests/db suite (392 passed) incl. procedures 13/18 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | full suite 10889 passed; diff-cover 100%; ruff/lint-imports/bandit/db-separation/module-size OK; mypy clean on changed files |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | manifest db_schema_versions.yaml regenerated at 1.4.0; docs/41 lists table names only (N/A) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

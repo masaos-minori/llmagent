@@ -7,11 +7,13 @@ CRUD operations and idempotency enforcement for workflow.sqlite.
 from __future__ import annotations
 
 import logging
-import time
 import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
+from shared.json_utils import parse_iso_utc
 
 from agent.workflow import tool_call_state_ops
 from agent.workflow.models import AttemptRecord, TaskRecord
@@ -26,8 +28,19 @@ from agent.workflow.tool_call_state_ops import ToolCallState
 
 logger = logging.getLogger(__name__)
 
-# Grace period in seconds — attempts younger than this are NOT considered stale.
-_STALE_GRACE_SEC = 30
+# Attempts created before the lease migration carry no lease; they are stale
+# once older than this many seconds (Plan REQ-008 interim safety net).
+_LEGACY_STALE_AGE_SEC = 3600
+
+
+@dataclass(frozen=True)
+class RecoveryReport:
+    """Classification counts from the last ``recover_stale_attempts()`` run."""
+
+    recovered: int = 0
+    still_live: int = 0
+    legacy_recovered: int = 0
+    unparseable: int = 0
 
 
 class StateStore:
@@ -37,6 +50,7 @@ class StateStore:
         """Initialize the state store by opening the workflow SQLite database in write mode."""
         self._db = SQLiteHelper(target="workflow")
         self._db.open(write_mode=True, row_factory=True)
+        self.last_recovery_report = RecoveryReport()
 
     def close(self) -> None:
         """Close the underlying database connection."""
@@ -191,62 +205,70 @@ class StateStore:
     # ── Startup Recovery ─────────────────────────────────────────────────────
 
     def find_stale_running_attempts(self, db: SQLiteHelper) -> list[dict]:
-        """Find running attempts that exceed the configured grace period.
+        """Find running attempts whose lease expired, or that are lease-less
+        and older than ``_LEGACY_STALE_AGE_SEC``.
 
-        Returns a list of dicts with keys: attempt_id, started_at, elapsed_sec.
-        Only returns attempts older than _STALE_GRACE_SEC seconds.
+        Returns a list of dicts with keys: attempt_id, started_at, elapsed_sec,
+        owner_id, lease_expires_at. Rows whose timestamps cannot be parsed are
+        reported (logged and counted in ``last_recovery_report``) but never
+        returned as stale (REQ-003).
         """
-        rows = db.fetchall(
-            "SELECT attempt_id, started_at FROM attempts WHERE status='running'",
-        )
-        stale = []
-        now_ts = time.time()
-        for row in rows:
-            attempt_id = row["attempt_id"]
-            started_at = row["started_at"]
-            try:
-                started_ts = time.mktime(time.strptime(started_at, "%Y-%m-%dT%H:%M:%S"))
-            except ValueError:
-                continue
-            elapsed = now_ts - started_ts
-            if elapsed > _STALE_GRACE_SEC:
-                stale.append(
-                    {
-                        "attempt_id": attempt_id,
-                        "started_at": started_at,
-                        "elapsed_sec": elapsed,
-                    }
-                )
-        return stale
+        return [
+            row
+            for row in _classify_running_attempts(db)
+            if row["classification"] == "stale"
+        ]
 
     def recover_stale_attempts(self, db: SQLiteHelper) -> int:
-        """Mark stale running attempts as failed using optimistic locking.
+        """Mark lease-expired (or lease-less and old) running attempts as failed.
 
-        An attempt is considered stale if it has been running longer than the
-        configured grace period (_STALE_GRACE_SEC). This method is called once
-        during process initialization before any turn processing begins.
+        An attempt is stale when its ``lease_expires_at`` is in the past, or —
+        for rows that predate the lease migration and have no lease — when
+        ``started_at`` is older than ``_LEGACY_STALE_AGE_SEC``. A live lease is
+        never recovered, including by another process (REQ-006 / AC-4). This
+        method is called once during process initialization before any turn
+        processing begins.
 
-        Returns the number of successfully transitioned attempts.
+        Takeover is a conditional compare-and-swap UPDATE pinned to the exact
+        ``owner_id``/``lease_expires_at`` values seen by the classify pass
+        (REQ-007): ``rowcount == 0`` means another recoverer won the race and
+        the row is skipped. The four-way classification counts land in
+        ``last_recovery_report``; the return value stays the recovered count.
         """
-        stale = self.find_stale_running_attempts(db)
-        recovered_count = 0
+        classified = _classify_running_attempts(db)
+        unparseable = sum(1 for r in classified if r["classification"] == "unparseable")
+        still_live = sum(1 for r in classified if r["classification"] == "live")
+        stale = [r for r in classified if r["classification"] == "stale"]
+        recovered = 0
+        legacy_recovered = 0
         for item in stale:
             attempt_id = item["attempt_id"]
-            started_at = item["started_at"]
-            elapsed = item["elapsed_sec"]
             logger.warning(
                 "Attempting recovery of stale attempt %s (started_at=%s, elapsed=%.1fs)",
                 attempt_id,
-                started_at,
-                elapsed,
+                item["started_at"],
+                item["elapsed_sec"],
             )
-            # Optimistic lock: only update if status is still 'running'
+            if item["lease_expires_at"] is None:
+                reason = f"legacy attempt older than {_LEGACY_STALE_AGE_SEC}s"
+            else:
+                reason = "lease expired"
             cursor = db.execute(
-                "UPDATE attempts SET status='failed', ended_at=? WHERE attempt_id=? AND status='running'",
-                (_now(), attempt_id),
+                "UPDATE attempts SET status='failed', ended_at=?, error_msg=? "
+                "WHERE attempt_id=? AND status='running' AND owner_id IS ? "
+                "AND lease_expires_at IS ?",
+                (
+                    _now(),
+                    f"recovered at startup: {reason}",
+                    attempt_id,
+                    item["owner_id"],
+                    item["lease_expires_at"],
+                ),
             )
             if cursor.rowcount == 1:
-                recovered_count += 1
+                recovered += 1
+                if item["lease_expires_at"] is None:
+                    legacy_recovered += 1
                 logger.info("Successfully marked attempt %s as failed", attempt_id)
             else:
                 logger.info(
@@ -256,4 +278,66 @@ class StateStore:
 
         if stale:
             db.commit()
-        return recovered_count
+        self.last_recovery_report = RecoveryReport(
+            recovered=recovered,
+            still_live=still_live,
+            legacy_recovered=legacy_recovered,
+            unparseable=unparseable,
+        )
+        return recovered
+
+
+def _classify_running_attempts(db: SQLiteHelper) -> list[dict]:
+    """Classify every running attempt row as stale, live, or unparseable.
+
+    Staleness is decided from ``lease_expires_at`` when present (expired =
+    stale); lease-less rows fall back to the legacy age rule (REQ-008). All
+    comparisons use aware UTC datetimes via ``parse_iso_utc`` — no host-local
+    time anywhere (REQ-002 / AC-2). Unparseable ``started_at`` or
+    ``lease_expires_at`` values are logged with the attempt id and raw value
+    and classified ``unparseable`` — the row is neither recovered nor silently
+    skipped (REQ-003 / AC-3).
+    """
+    rows = db.fetchall(
+        "SELECT attempt_id, started_at, owner_id, lease_expires_at "
+        "FROM attempts WHERE status='running'"
+    )
+    now_utc = datetime.now(UTC)
+    classified: list[dict] = []
+    for row in rows:
+        attempt_id = row["attempt_id"]
+        started_at = row["started_at"]
+        lease_expires_at = row["lease_expires_at"]
+        entry = {
+            "attempt_id": attempt_id,
+            "started_at": started_at,
+            "owner_id": row["owner_id"],
+            "lease_expires_at": lease_expires_at,
+        }
+        try:
+            started_dt = parse_iso_utc(started_at)
+        except ValueError:
+            logger.warning(
+                "unparseable workflow attempt timestamp: attempt_id=%s value=%s",
+                attempt_id,
+                started_at,
+            )
+            classified.append({**entry, "classification": "unparseable"})
+            continue
+        entry["elapsed_sec"] = (now_utc - started_dt).total_seconds()
+        if lease_expires_at is not None:
+            try:
+                lease_dt = parse_iso_utc(lease_expires_at)
+            except ValueError:
+                logger.warning(
+                    "unparseable workflow attempt timestamp: attempt_id=%s value=%s",
+                    attempt_id,
+                    lease_expires_at,
+                )
+                classified.append({**entry, "classification": "unparseable"})
+                continue
+            stale = lease_dt < now_utc
+        else:
+            stale = entry["elapsed_sec"] > _LEGACY_STALE_AGE_SEC
+        classified.append({**entry, "classification": "stale" if stale else "live"})
+    return classified

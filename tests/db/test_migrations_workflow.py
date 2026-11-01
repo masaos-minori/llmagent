@@ -19,7 +19,16 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from db.migrations_workflow import REGISTRY, ensure_baseline, runner, verify_backup
+from db.migrations_workflow import (
+    REGISTRY,
+    WORKFLOW_TARGET_VERSION,
+    WORKFLOW_VERSION_CODES,
+    _postcondition_attempt_lease,
+    _precondition_attempt_lease,
+    ensure_baseline,
+    runner,
+    verify_backup,
+)
 from db.schema_sql import build_workflow_schema_sql
 from shared.db_migrations import (
     MigrationRefusalError,
@@ -40,7 +49,8 @@ def _legacy_workflow_db(db_path: Path, marker: str = "1.1.0") -> sqlite3.Connect
     """Open a legacy workflow.sqlite predating the migration ledger.
 
     Built from the canonical workflow DDL, then the ``tasks`` key column is
-    renamed back to ``idempotency_key`` (the pre-wftaskapi001 shape), and the
+    renamed back to ``idempotency_key`` (the pre-wftaskapi001 shape), the
+    ``attempts`` lease columns are dropped (the pre-wflease001 shape), and the
     ledger, the lifecycle tables added by the ``workflow_tool_call_state``
     step, and the integer version are dropped/reset to reproduce the deployed
     marker-only shape.
@@ -51,6 +61,8 @@ def _legacy_workflow_db(db_path: Path, marker: str = "1.1.0") -> sqlite3.Connect
     conn.executescript(build_workflow_schema_sql())
     conn.commit()
     conn.execute("ALTER TABLE tasks RENAME COLUMN task_nonce TO idempotency_key")  # nosec B608 — fixed names
+    conn.execute("ALTER TABLE attempts DROP COLUMN owner_id")  # nosec B608 — fixed names
+    conn.execute("ALTER TABLE attempts DROP COLUMN lease_expires_at")  # nosec B608 — fixed names
     conn.execute("DROP TABLE schema_migrations")  # nosec B608 — fixed table name
     conn.execute("DROP TABLE IF EXISTS tool_call_state")  # nosec B608 — fixed name
     conn.execute("DROP TABLE IF EXISTS execution_snapshots")  # nosec B608 — fixed name
@@ -112,6 +124,7 @@ class TestWorkflowRegistry:
             "workflow_ledger_baseline",
             "workflow_tool_call_state",
             "workflow_task_nonce",
+            "workflow_attempt_lease",
         }
         spec = REGISTRY["workflow_ledger_baseline"]
         assert spec.from_version == 0
@@ -132,6 +145,26 @@ class TestWorkflowRegistry:
         assert spec.preconditions
         assert spec.mutation_sql  # non-empty mutation SQL
 
+    def test_registry_holds_the_attempt_lease_step(self) -> None:
+        spec = REGISTRY["workflow_attempt_lease"]
+        assert spec.from_version == 3
+        assert spec.to_version == 4
+        assert spec.preconditions
+        assert spec.postcondition is not None
+        assert spec.mutation_sql  # non-empty mutation SQL
+
+    def test_version_codes_and_target_include_the_lease_code(self) -> None:
+        assert WORKFLOW_VERSION_CODES == {
+            "1.1.0": 0,
+            "1.2.0": 2,
+            "1.3.0": 3,
+            "1.4.0": 4,
+        }
+        assert WORKFLOW_TARGET_VERSION == 4
+        assert max(spec.to_version for spec in REGISTRY.values()) == (
+            WORKFLOW_TARGET_VERSION
+        )
+
     def test_runner_resolves_the_unique_forward_path(self, tmp_path: Path) -> None:
         conn = _legacy_workflow_db(tmp_path / "workflow.sqlite")
         try:
@@ -140,6 +173,7 @@ class TestWorkflowRegistry:
                 "workflow_ledger_baseline",
                 "workflow_tool_call_state",
                 "workflow_task_nonce",
+                "workflow_attempt_lease",
             ]
         finally:
             conn.close()
@@ -253,7 +287,7 @@ class TestWorkflowToolCallStateStep:
                 "SELECT version FROM workflow_schema_version "
                 "ORDER BY applied_at DESC LIMIT 1"
             ).fetchone()[0]
-            assert latest == "1.3.0"
+            assert latest == "1.4.0"
             assert [
                 (r.id, r.from_version, r.to_version) for r in read_ledger(conn)
             ] == [
@@ -306,7 +340,7 @@ class TestWorkflowToolCallStateStep:
         fresh_conn.executescript(build_workflow_schema_sql())
         fresh_conn.execute(
             "INSERT INTO workflow_schema_version (version) VALUES (?)",
-            ("1.3.0",),
+            ("1.4.0",),
         )
         ensure_baseline(fresh_conn)
         _db, migrated_conn = self._bootstrapped(
@@ -338,8 +372,13 @@ class TestWorkflowToolCallStateStep:
             migrated_version = migrated_conn.execute("PRAGMA user_version").fetchone()[
                 0
             ]
-            assert fresh_version == migrated_version == 3
-            for table in ("tasks", "tool_call_state", "execution_snapshots"):
+            assert fresh_version == migrated_version == 4
+            for table in (
+                "tasks",
+                "tool_call_state",
+                "execution_snapshots",
+                "attempts",
+            ):
                 assert columns(fresh_conn, table) == columns(migrated_conn, table)
             fresh_marker = fresh_conn.execute(
                 "SELECT version FROM workflow_schema_version "
@@ -349,7 +388,7 @@ class TestWorkflowToolCallStateStep:
                 "SELECT version FROM workflow_schema_version "
                 "ORDER BY applied_at DESC LIMIT 1"
             ).fetchone()[0]
-            assert fresh_marker == migrated_marker == "1.3.0"
+            assert fresh_marker == migrated_marker == "1.4.0"
         finally:
             fresh_conn.close()
             migrated_conn.close()
@@ -374,7 +413,7 @@ class TestWorkflowTaskNonceStep:
     def test_step_renames_column_and_preserves_rows(self, tmp_path: Path) -> None:
         _db, conn = self._at_code_2(tmp_path)
         try:
-            planned = runner.plan(2, read_ledger(conn), REGISTRY)
+            planned = runner.plan(2, read_ledger(conn), REGISTRY, target_version=3)
             assert [s.id for s in planned] == ["workflow_task_nonce"]
             applied = runner.apply(conn, planned, _ok_verifier)
             assert [a.id for a in applied] == ["workflow_task_nonce"]
@@ -392,7 +431,7 @@ class TestWorkflowTaskNonceStep:
                 "SELECT version FROM workflow_schema_version "
                 "ORDER BY applied_at DESC LIMIT 1"
             ).fetchone()[0]
-            assert latest == "1.3.0"
+            assert latest == "1.4.0"
             # read_ledger orders by (applied_at, id); rows written in the same
             # second tie-break by id, so compare as a sorted set of rows.
             assert sorted(
@@ -430,6 +469,174 @@ class TestWorkflowTaskNonceStep:
                 conn, runner.plan(2, read_ledger(conn), REGISTRY), _ok_verifier
             )
             assert runner.plan(3, read_ledger(conn), REGISTRY) == []
+        finally:
+            conn.close()
+
+
+# ── Attempt-lease columns (wflease001 row 17: 3 -> 4) ───────────────────────
+
+
+class TestWorkflowAttemptLeaseStep:
+    def _at_code_3(self, tmp_path: Path) -> tuple[Path, sqlite3.Connection]:
+        """A migrated task-nonce (code 3) database with a seeded running attempt.
+
+        The attempt row is seeded with the exact production ``Z`` timestamp
+        format (REQ-009) so the migrated row also feeds procedure 02's legacy
+        age branch.
+        """
+        db = tmp_path / "workflow.sqlite"
+        conn = _legacy_workflow_db(db)
+        _populate_tasks(conn)
+        runner.apply(
+            conn,
+            runner.plan(0, read_ledger(conn), REGISTRY, target_version=3),
+            _ok_verifier,
+        )
+        conn.execute(
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, "
+            "started_at) VALUES ('a1', 't1', 's1', 'running', "
+            "'2026-10-30T00:00:00Z')"
+        )
+        conn.commit()
+        return db, conn
+
+    def test_step_adds_columns_and_preserves_running_rows(self, tmp_path: Path) -> None:
+        _db, conn = self._at_code_3(tmp_path)
+        try:
+            planned = runner.plan(3, read_ledger(conn), REGISTRY)
+            assert [s.id for s in planned] == ["workflow_attempt_lease"]
+            applied = runner.apply(conn, planned, _ok_verifier)
+            assert [a.id for a in applied] == ["workflow_attempt_lease"]
+
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
+            columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(attempts)")}
+            assert {"owner_id", "lease_expires_at"} <= columns
+            # ADD COLUMN never touches stored values; both new columns are
+            # null on the pre-existing running row (AC-8).
+            row = conn.execute(
+                "SELECT attempt_id, task_id, stage_id, status, started_at, "
+                "owner_id, lease_expires_at FROM attempts"
+            ).fetchone()
+            assert row == (
+                "a1",
+                "t1",
+                "s1",
+                "running",
+                "2026-10-30T00:00:00Z",
+                None,
+                None,
+            )
+            latest = conn.execute(
+                "SELECT version FROM workflow_schema_version "
+                "ORDER BY applied_at DESC LIMIT 1"
+            ).fetchone()[0]
+            assert latest == "1.4.0"
+            assert sorted(
+                (r.id, r.from_version, r.to_version) for r in read_ledger(conn)
+            ) == sorted(
+                [
+                    ("workflow_ledger_baseline", 0, 1),
+                    ("workflow_tool_call_state", 1, 2),
+                    ("workflow_task_nonce", 2, 3),
+                    ("workflow_attempt_lease", 3, 4),
+                ]
+            )
+        finally:
+            conn.close()
+
+    def test_resume_after_full_path_skips_lease_step(self, tmp_path: Path) -> None:
+        _db, conn = self._at_code_3(tmp_path)
+        try:
+            runner.apply(
+                conn, runner.plan(3, read_ledger(conn), REGISTRY), _ok_verifier
+            )
+            assert runner.plan(4, read_ledger(conn), REGISTRY) == []
+        finally:
+            conn.close()
+
+    def test_step_refused_when_lease_columns_already_present(
+        self, tmp_path: Path
+    ) -> None:
+        _db, conn = self._at_code_3(tmp_path)
+        # Add a lease column by hand (no ledger row): the precondition must
+        # refuse instead of re-running, and the ledger stays unmutated.
+        conn.execute("ALTER TABLE attempts ADD COLUMN owner_id TEXT")  # nosec B608 — fixed DDL
+        conn.commit()
+        try:
+            with pytest.raises(MigrationRefusalError, match="lease"):
+                runner.apply(
+                    conn, runner.plan(3, read_ledger(conn), REGISTRY), _ok_verifier
+                )
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3  # untouched
+            assert "workflow_attempt_lease" not in [r.id for r in read_ledger(conn)]
+        finally:
+            conn.close()
+
+    def test_forged_stamp_without_ledger_refused(self, tmp_path: Path) -> None:
+        # A database stamped 3 that never went through the gated bootstrap
+        # (no baseline ledger row) cannot take the lease step (pattern of the
+        # lifecycle step's forged-stamp refusal).
+        db = tmp_path / "workflow.sqlite"
+        conn = _legacy_workflow_db(db)
+        conn.execute("PRAGMA user_version = 3")  # nosec B608 — fixed int
+        conn.commit()
+        try:
+            planned = runner.plan(3, [], REGISTRY)
+            with pytest.raises(MigrationRefusalError, match="workflow_attempt_lease"):
+                runner.apply(conn, planned, _ok_verifier)
+            assert "workflow_attempt_lease" not in [r.id for r in read_ledger(conn)]
+        finally:
+            conn.close()
+
+    def test_precondition_refuses_a_database_at_another_version(
+        self, tmp_path: Path
+    ) -> None:
+        _db, conn = self._at_code_3(tmp_path)
+        try:
+            # The happy path first: a 3-stamped database passes unchanged.
+            _precondition_attempt_lease(conn)
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+            for forged in (2, 4):
+                conn.execute(f"PRAGMA user_version = {forged}")  # nosec B608 — fixed int
+                with pytest.raises(
+                    MigrationRefusalError, match="applies only to a 3-stamped"
+                ):
+                    _precondition_attempt_lease(conn)
+        finally:
+            conn.close()
+
+    def test_precondition_names_the_missing_attempts_table(
+        self, tmp_path: Path
+    ) -> None:
+        _db, conn = self._at_code_3(tmp_path)
+        try:
+            conn.execute("DROP TABLE attempts")  # nosec B608 — fixed name
+            with pytest.raises(MigrationRefusalError, match="missing required table"):
+                _precondition_attempt_lease(conn)
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3  # untouched
+        finally:
+            conn.close()
+
+    def test_postcondition_refuses_a_stale_version_stamp(self, tmp_path: Path) -> None:
+        # Postconditions run after the mutation: a mismatch is an integrity
+        # violation, raised as RuntimeError, not a refusal.
+        _db, conn = self._at_code_3(tmp_path)
+        try:
+            with pytest.raises(RuntimeError, match="not 4"):
+                _postcondition_attempt_lease(conn)
+        finally:
+            conn.close()
+
+    def test_postcondition_refuses_a_forged_stamp_without_columns(
+        self, tmp_path: Path
+    ) -> None:
+        # The stamp moved to 4 but the columns did not — a half-applied
+        # database the postcondition must surface instead of blessing.
+        _db, conn = self._at_code_3(tmp_path)
+        try:
+            conn.execute("PRAGMA user_version = 4")  # nosec B608 — fixed int
+            with pytest.raises(RuntimeError, match="did not add"):
+                _postcondition_attempt_lease(conn)
         finally:
             conn.close()
 
@@ -660,16 +867,18 @@ class TestWorkflowCli:
         conn.close()
         apply = _run_cli(db, config_dir, "--apply")
         assert apply.returncode == 0
-        assert "user_version now 3" in apply.stdout
+        assert "user_version now 4" in apply.stdout
         status = _run_cli(db, config_dir, "--status")
         assert status.returncode == 0
-        assert "user_version=3" in status.stdout
+        assert "user_version=4" in status.stdout
         assert "workflow_ledger_baseline" in status.stdout
         assert "0 -> 1" in status.stdout
         assert "workflow_tool_call_state" in status.stdout
         assert "1 -> 2" in status.stdout
         assert "workflow_task_nonce" in status.stdout
         assert "2 -> 3" in status.stdout
+        assert "workflow_attempt_lease" in status.stdout
+        assert "3 -> 4" in status.stdout
 
     def test_apply_is_idempotent_after_bootstrap(self, tmp_path: Path) -> None:
         config_dir = tmp_path / "config"

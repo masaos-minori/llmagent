@@ -395,7 +395,9 @@ _WORKFLOW_SCHEMA_NO_VEC0 = """
         status      TEXT NOT NULL DEFAULT 'running',
         started_at  TEXT NOT NULL,
         ended_at    TEXT,
-        error_msg   TEXT
+        error_msg   TEXT,
+        owner_id           TEXT,
+        lease_expires_at   TEXT
     );
 
     CREATE TABLE IF NOT EXISTS processed_events (
@@ -582,6 +584,27 @@ class TestCreateWorkflowSchema:
         assert rows == []
         conn.close()
 
+    def test_attempts_carries_the_lease_columns(self, tmp_path: Path) -> None:
+        """Fresh create with the real DDL carries the lease columns, nullable so
+        migrated and pre-existing rows stay null (AC-8, REQ-004)."""
+        db_file = tmp_path / "workflow_lease.sqlite"
+        cfg = _make_db_config(db_file, "workflow")
+        # The real workflow DDL has no vec0 dependency, so it is checked as-is.
+        with patch("db.helper.build_db_config", return_value=cfg):
+            cs.create_workflow_schema()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            columns = {
+                str(r[1]): r for r in conn.execute("PRAGMA table_info(attempts)")
+            }
+            assert {"owner_id", "lease_expires_at"} <= set(columns)
+            for name in ("owner_id", "lease_expires_at"):
+                assert columns[name][2] == "TEXT"  # type
+                assert columns[name][3] == 0  # nullable, no NOT NULL
+                assert columns[name][4] is None  # no DEFAULT
+        finally:
+            conn.close()
+
 
 # ── rag schema column integrity ─────────────────────────────────────────────────────
 
@@ -729,9 +752,9 @@ class TestCreatePathLedgerCoverage:
                 "ORDER BY applied_at DESC LIMIT 1"
             ).fetchone()
             assert latest is not None and latest[0] == WORKFLOW_SCHEMA_VERSION
-            # Fresh create stamps the registry head code (toolexec001 row 06:
-            # the canonical template already carries the lifecycle tables).
-            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 3
+            # Fresh create stamps the registry head code (wflease001 row 17:
+            # the canonical template already carries the lease columns).
+            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 4
         finally:
             conn.close()
 

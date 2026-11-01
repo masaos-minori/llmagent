@@ -1,7 +1,5 @@
 ## Goal
 
-## Goal
-
 Carry the lease duration into the attempt-start transaction in `scripts/agent/workflow/idempotency_ops.py` so the idempotent stage-start path stamps the same ownership fields (REQ-005 / AC-5).
 
 ## Scope
@@ -14,7 +12,7 @@ Carry the lease duration into the attempt-start transaction in `scripts/agent/wo
 - All baseline cites below were re-verified against branch `master` on 2026-11-01 (Plan Assumptions 'Re-verification record').
 - Canonical semantics come from the Plan REQs (Plan `:37-46`): `parse_iso_utc` rejects naive input (REQ-001); no `mktime`/`strptime`/local time in recovery (REQ-002); unparseable timestamps are reported with distinct counts (REQ-003); nullable `owner_id`/`lease_expires_at` via a registered migration (REQ-004); owner and lease stamped at attempt start from the stage timeout plus a 30 s margin constant (REQ-005); staleness means lease expiry and `_STALE_GRACE_SEC` is removed (REQ-006); takeover is a conditional update requiring one row (REQ-007); legacy rows without a lease use the 3600 s age (REQ-008); tests use the production timestamp format (REQ-009); docs and ADR-001 INV-07 are amended (REQ-010).
 - Owner decision (Plan UNK-02, 2026-10-30): deadline lease only — no heartbeat renewal, because `asyncio.wait_for` already bounds a normal stage.
-- Ledger landing order (Plan UNK-06): `master` records code 2 / "1.2.0" (`migrations_workflow.py:42`); wftaskapi001 procedure 12 (`implementations/20261101-140834_12_scripts_db_migrations_workflow.py.md`, Pending) reserves the next slot. This Plan takes code 3 / "1.3.0" only if its step registers before wftaskapi001's, otherwise 4 / "1.4.0" (same rule as `implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md`).
+- Ledger landing order (Plan UNK-06; fixed by the 2026-11-01 pre-execution verification): wftaskapi001 procedure 12 has landed (`implementations/done/20261101-140834_12_scripts_db_migrations_workflow.py.md`) and registered code 3 / "1.3.0" (`migrations_workflow.py:42`, `WORKFLOW_TARGET_VERSION` = 3 at `:49`). This Plan takes code 4 / "1.4.0": procedure 17 registers `workflow_attempt_lease` with `from_version=3, to_version=4`, and procedure 06 sets `WORKFLOW_SCHEMA_VERSION` to "1.4.0". The still-Pending wfrecovery001 procedure 26 (`implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md`) takes 5 / "1.5.0" when it lands after this Plan.
 - Fencing dependency (Plan UNK-06): REQ-007's rejection of a late finish by the fenced owner lands with the wfrecovery001 conditional `finish_attempt` procedure (`implementations/20261101-145309_04_scripts_agent_workflow_attempt_ops.py.md`, Pending); at `master` `finish_attempt` is still unconditional (`attempt_ops.py:44-45`).
 - Engine calls always pass a concrete `lease_duration_sec` (procedure 05); the `None` default exists only so direct unit callers stay compilable.
 
@@ -72,10 +70,10 @@ One signature extension plus one INSERT edit; transaction structure untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Implemented per procedure (lease_duration_sec threaded through begin_stage_if_new). |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Covered by tests/agent/workflow/test_workflow_engine.py lease tests and test_stale_recovery_lease.py. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff + mypy (changed files) + lint-imports 6 kept + bandit 0 + check_module_size OK + full suite 10908 passed, diff-cover exit 0. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: documentation updates owned by procedures 15 and 16. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

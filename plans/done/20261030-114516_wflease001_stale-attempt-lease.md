@@ -206,11 +206,11 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Timezone-safe parsing and conservative detection | Pending | — | — | Independent of the other phases |
-| 2 | Phase 2: Schema | Pending | — | — | Starts after dbmig001 Phase 3 and wfrecovery001 Phase 2 |
-| 3 | Phase 3: Ownership and lease-based recovery | Pending | — | — | After wfrecovery001 Phase 3 |
-| 4 | Phase 4: Documentation and ADR | Pending | — | — | |
-| 5 | Phase 5: Deployment & Verification | Pending | — | — | |
+| 1 | Phase 1: Timezone-safe parsing and conservative detection | Completed | — | — | Independent of the other phases Procedures 01,08,10 landed (shared clock, timestamp parse, recovery tests). Full suite green. |
+| 2 | Phase 2: Schema | Completed | — | — | Starts after dbmig001 Phase 3 and wfrecovery001 Phase 2 Procedures 06,07,13,14,17,18 landed: lease columns, schema 1.4.0, migration code 4 registered, manifest regenerated. |
+| 3 | Phase 3: Ownership and lease-based recovery | Completed | — | — | After wfrecovery001 Phase 3 Procedures 02,03,04,05,09,11,12 landed: lease stamping at start sites and lease-based recovery with compare-and-swap takeover. |
+| 4 | Phase 4: Documentation and ADR | Completed | — | — | Procedures 15,16 landed: Startup Recovery rewrite and ADR-001 Amendment; docs checkers and check_adr_preservation exit 0. |
+| 5 | Phase 5: Deployment & Verification | Pending | — | — | Verification half done (full suite 10908 passed, diff-cover exit 0, static gates green). Production deployment not executed: memo3 scope was procedure implementation only. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -220,24 +220,24 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| 20261101-163219_01_scripts_shared_json_utils.py.md | 1 | implementation-procedure | Pending | — | — |
-| 20261101-163219_02_scripts_agent_workflow_state_store.py.md | 1, 3 | implementation-procedure | Pending | — | — |
-| 20261101-163219_03_scripts_agent_workflow_attempt_ops.py.md | 3 | implementation-procedure | Pending | — | — |
-| 20261101-163219_04_scripts_agent_workflow_idempotency_ops.py.md | 3 | implementation-procedure | Pending | — | — |
-| 20261101-163219_05_scripts_agent_workflow_workflow_engine.py.md | 3 | implementation-procedure | Pending | — | — |
-| 20261101-163219_06_scripts_db_schema_sql.py.md | 2 | implementation-procedure | Pending | — | — |
-| 20261101-163219_07_scripts_agent_services_workflow_schema.py.md | 2 | implementation-procedure | Pending | — | — |
-| 20261101-163219_08_tests_shared_test_json_utils.py.md | 1 | implementation-procedure | Pending | — | — |
-| 20261101-163219_09_tests_agent_workflow_test_workflow_state_store.py.md | 1, 3 | implementation-procedure | Pending | — | — |
-| 20261101-163219_10_tests_agent_workflow_test_state_store.py.md | 1 | implementation-procedure | Pending | — | — |
-| 20261101-163219_11_tests_agent_workflow_test_workflow_engine.py.md | 3 | implementation-procedure | Pending | — | — |
-| 20261101-163219_12_tests_agent_workflow_test_stale_recovery_lease.py.md | 3 | implementation-procedure | Pending | — | — |
-| 20261101-163219_13_tests_db_test_create_schema.py.md | 2 | implementation-procedure | Pending | — | — |
-| 20261101-163219_14_tests_agent_test_repl_health.py.md | 2 | implementation-procedure | Pending | — | — |
-| 20261101-163219_15_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md | 4 | implementation-procedure | Pending | — | — |
-| 20261101-163219_16_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 4 | implementation-procedure | Pending | — | — |
-| 20261101-163219_17_scripts_db_migrations_workflow.py.md | 2 | implementation-procedure | Pending | — | — |
-| 20261101-163219_18_tests_db_test_migrations_workflow.py.md | 2 | implementation-procedure | Pending | — | — |
+| 20261101-163219_01_scripts_shared_json_utils.py.md | 1 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_02_scripts_agent_workflow_state_store.py.md | 1, 3 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_03_scripts_agent_workflow_attempt_ops.py.md | 3 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_04_scripts_agent_workflow_idempotency_ops.py.md | 3 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_05_scripts_agent_workflow_workflow_engine.py.md | 3 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_06_scripts_db_schema_sql.py.md | 2 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_07_scripts_agent_services_workflow_schema.py.md | 2 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_08_tests_shared_test_json_utils.py.md | 1 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_09_tests_agent_workflow_test_workflow_state_store.py.md | 1, 3 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_10_tests_agent_workflow_test_state_store.py.md | 1 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_11_tests_agent_workflow_test_workflow_engine.py.md | 3 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_12_tests_agent_workflow_test_stale_recovery_lease.py.md | 3 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_13_tests_db_test_create_schema.py.md | 2 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_14_tests_agent_test_repl_health.py.md | 2 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_15_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md | 4 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_16_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 4 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_17_scripts_db_migrations_workflow.py.md | 2 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
+| 20261101-163219_18_tests_db_test_migrations_workflow.py.md | 2 | implementation-procedure | Completed | 20261101-230501 | 20261101-230501 | Archived to implementations/done/ |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

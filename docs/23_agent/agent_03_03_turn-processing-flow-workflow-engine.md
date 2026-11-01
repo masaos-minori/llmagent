@@ -142,7 +142,16 @@ See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observabi
 
 ### Startup Recovery
 
-During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is called. This searches for active attempts during process startup and marks them as `failed`. It repairs attempt records only: it never changes the persisted task status, so a task left `running` or `halted` by an earlier process stays as it was.
+During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is called with the store's connection. It classifies every `running` attempt row and repairs attempt records only: it never changes the persisted task status, so a task left `running` or `halted` by an earlier process stays as it was.
+
+- Expired lease means stale. An attempt is stale when its `lease_expires_at` is in the past. The lease is stamped at attempt start as `started_at` plus the stage `timeout_sec` plus a 30 s margin (`workflow_engine._LEASE_MARGIN_SEC`), so a lease never expires while its own stage is still executing. A live lease is never recovered, even when `started_at` is hours old.
+- Lease-less (pre-migration) rows use the age rule: they are stale only when `started_at` is older than 3600 s.
+- Unparseable timestamps are reported, not touched: rows whose `started_at` or `lease_expires_at` cannot be parsed are counted in `StateStore.last_recovery_report` (`unparseable`), logged with the attempt id, and left `running` for the manual path below.
+- Takeover is a conditional compare-and-swap UPDATE pinned to the `owner_id` and `lease_expires_at` values seen by the classify pass, with `status='running'` required; concurrent recoverers converge to exactly one winner.
+
+Timestamp contract: workflow timestamps are written as `YYYY-MM-DDTHH:MM:SSZ` by the shared clock and parsed only by `scripts/shared/json_utils.parse_iso_utc`, which rejects naive input; recovery never uses host-local time.
+
+Manual recovery for rows left `running` (unparseable or lease-less and young): identify the owning process from `owner_id` (`hostname-pid-random`), confirm the process is gone, then correct the row via manual SQL against the workflow database. There is no automated takeover for these rows.
 
 ## Operational Notes
 
@@ -153,7 +162,7 @@ During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is calle
 ## Known Limitations
 
 - Only "fixed" backoff strategy is implemented for retries.
-- A cancelled turn leaves its in-flight attempt open until the next process start, when startup recovery closes it after the stale grace period. The task record itself is not repaired by that pass.
+- A cancelled turn leaves its in-flight attempt open until the next process start, when startup recovery closes it after the attempt's lease expires. The task record itself is not repaired by that pass.
 
 ---
 

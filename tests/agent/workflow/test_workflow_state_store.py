@@ -5,10 +5,12 @@ Uses a temp workflow.sqlite to avoid touching /opt/llm/db/.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import threading
 import time
 import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -31,6 +33,20 @@ def _make_cfg(db_path: str) -> DbConfig:
         rag_db_path="/opt/llm/db/rag.sqlite",
         session_db_path="/opt/llm/db/session.sqlite",
         workflow_db_path=db_path,
+    )
+
+
+def _iso(seconds_ago: float) -> str:
+    """Production-format Z timestamp N seconds in the past (REQ-009)."""
+    return (datetime.now(UTC) - timedelta(seconds=seconds_ago)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+
+def _iso_future(seconds: float) -> str:
+    """Production-format Z timestamp N seconds in the future."""
+    return (datetime.now(UTC) + timedelta(seconds=seconds)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
     )
 
 
@@ -248,8 +264,18 @@ class TestStateStoreGetConnection:
 
 
 class TestRecoverStaleAttempts:
+    """Recovery on the real fixture DB under lease semantics (wflease001)."""
+
     def _insert_task_and_attempt(
-        self, store, attempt_id, task_id, stage_id, status, started_at
+        self,
+        store,
+        attempt_id,
+        task_id,
+        stage_id,
+        status,
+        started_at,
+        owner_id=None,
+        lease_expires_at=None,
     ):
         """Helper to insert a task and its attempt together."""
         store._db.execute(
@@ -257,50 +283,52 @@ class TestRecoverStaleAttempts:
             (task_id, "sess-test", 1, f"{task_id}:1", "pending", "1.0.0", "wf-test"),
         )
         store._db.execute(
-            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, ?, ?)",
-            (attempt_id, task_id, stage_id, status, started_at),
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, owner_id, lease_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                attempt_id,
+                task_id,
+                stage_id,
+                status,
+                started_at,
+                owner_id,
+                lease_expires_at,
+            ),
         )
         store._db.commit()
 
-    def test_stale_attempt_marked_failed(self, workflow_db) -> None:
-        """An attempt older than the grace period is marked as failed."""
-        from unittest.mock import patch
-
+    def _open_store(self, workflow_db):
         from agent.workflow.state_store import StateStore
 
         with patch(
             "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
         ):
-            s = StateStore()
+            return StateStore()
+
+    def test_stale_attempt_marked_failed(self, workflow_db) -> None:
+        """A lease-less attempt older than the legacy age is marked as failed."""
+        s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
-                s, "att-stale", "task-1", "execute", "running", "2026-01-01T00:00:00"
+                s, "att-stale", "task-1", "execute", "running", "2026-01-01T00:00:00Z"
             )
 
-            s.recover_stale_attempts(s._db)
+            count = s.recover_stale_attempts(s._db)
+            assert count == 1
 
             rows = s._db.fetchall(
                 "SELECT status FROM attempts WHERE attempt_id='att-stale'"
             )
             assert rows[0][0] == "failed"
+            assert s.last_recovery_report.legacy_recovered == 1
         finally:
             s.close()
 
     def test_fresh_attempt_not_marked_failed(self, workflow_db) -> None:
-        """An attempt within the grace period is NOT marked as failed."""
-        from unittest.mock import patch
-
-        from agent.workflow.state_store import StateStore
-
-        with patch(
-            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
-        ):
-            s = StateStore()
+        """A lease-less attempt within the legacy age is NOT marked as failed."""
+        s = self._open_store(workflow_db)
         try:
-            # Use current time so it's definitely within the grace period
-            now_ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
             self._insert_task_and_attempt(
-                s, "att-fresh", "task-2", "execute", "running", now_ts
+                s, "att-fresh", "task-2", "execute", "running", _iso(5)
             )
 
             s.recover_stale_attempts(s._db)
@@ -309,22 +337,16 @@ class TestRecoverStaleAttempts:
                 "SELECT status FROM attempts WHERE attempt_id='att-fresh'"
             )
             assert rows[0][0] == "running"
+            assert s.last_recovery_report.still_live == 1
         finally:
             s.close()
 
     def test_completed_attempt_not_modified(self, workflow_db) -> None:
         """A completed attempt is not modified by recovery."""
-        from unittest.mock import patch
-
-        from agent.workflow.state_store import StateStore
-
-        with patch(
-            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
-        ):
-            s = StateStore()
+        s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
-                s, "att-done", "task-3", "plan", "completed", "2026-01-01T00:00:00"
+                s, "att-done", "task-3", "plan", "completed", "2026-01-01T00:00:00Z"
             )
 
             s.recover_stale_attempts(s._db)
@@ -336,23 +358,158 @@ class TestRecoverStaleAttempts:
         finally:
             s.close()
 
-    def test_find_stale_returns_only_old_attempts(self, workflow_db) -> None:
-        """find_stale_running_attempts returns only attempts exceeding the grace period."""
-        from unittest.mock import patch
-
-        from agent.workflow.state_store import StateStore
-
-        with patch(
-            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
-        ):
-            s = StateStore()
+    def test_expired_lease_attempt_marked_failed(self, workflow_db) -> None:
+        """AC-4/AC-6: an expired lease is stale even when the row is young."""
+        s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
-                s, "att-1", "task-1", "execute", "running", "2026-01-01T00:00:00"
+                s,
+                "att-lease",
+                "task-5",
+                "execute",
+                "running",
+                _iso(60),
+                owner_id="host-a",
+                lease_expires_at=_iso(30),
             )
-            now_ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
+
+            count = s.recover_stale_attempts(s._db)
+            assert count == 1
+
+            rows = s._db.fetchall(
+                "SELECT status, error_msg FROM attempts WHERE attempt_id='att-lease'"
+            )
+            assert rows[0][0] == "failed"
+            assert "lease expired" in (rows[0][1] or "")
+            assert s.last_recovery_report.legacy_recovered == 0
+        finally:
+            s.close()
+
+    def test_live_lease_attempt_not_recovered(self, workflow_db) -> None:
+        """AC-4: an unexpired lease is live no matter how old the row is."""
+        s = self._open_store(workflow_db)
+        try:
             self._insert_task_and_attempt(
-                s, "att-2", "task-2", "execute", "running", now_ts
+                s,
+                "att-live",
+                "task-6",
+                "execute",
+                "running",
+                "2026-01-01T00:00:00Z",
+                owner_id="host-a",
+                lease_expires_at=_iso_future(600),
+            )
+
+            count = s.recover_stale_attempts(s._db)
+            assert count == 0
+
+            rows = s._db.fetchall(
+                "SELECT status FROM attempts WHERE attempt_id='att-live'"
+            )
+            assert rows[0][0] == "running"
+        finally:
+            s.close()
+
+    def test_unparseable_timestamp_reported_and_row_left_running(
+        self, workflow_db, caplog
+    ) -> None:
+        """AC-3: an unparseable started_at is reported, never recovered or skipped."""
+        import logging
+
+        s = self._open_store(workflow_db)
+        try:
+            self._insert_task_and_attempt(
+                s, "att-bad", "task-7", "execute", "running", "not-a-date"
+            )
+            with caplog.at_level(logging.WARNING, logger="agent.workflow.state_store"):
+                count = s.recover_stale_attempts(s._db)
+            assert count == 0
+            rows = s._db.fetchall(
+                "SELECT status FROM attempts WHERE attempt_id='att-bad'"
+            )
+            assert rows[0][0] == "running"
+            assert s.last_recovery_report.unparseable == 1
+            assert any(
+                "unparseable workflow attempt timestamp" in rec.getMessage()
+                for rec in caplog.records
+            )
+        finally:
+            s.close()
+
+    @pytest.mark.parametrize("tz_name", ["UTC", "Asia/Tokyo"])
+    def test_recovery_is_timezone_independent(
+        self, workflow_db, monkeypatch, request, tz_name: str
+    ) -> None:
+        """AC-2: identical seeds classify identically under UTC and non-UTC TZ."""
+        if not hasattr(time, "tzset"):
+            pytest.skip("time.tzset() is POSIX-only")
+        previous_tz = os.environ.get("TZ")
+
+        def _restore_tz() -> None:
+            if previous_tz is None:
+                os.environ.pop("TZ", None)
+            else:
+                os.environ["TZ"] = previous_tz
+            time.tzset()
+
+        request.addfinalizer(_restore_tz)
+        monkeypatch.setenv("TZ", tz_name)
+        time.tzset()
+
+        s = self._open_store(workflow_db)
+        try:
+            self._insert_task_and_attempt(
+                s, "att-tz-legacy", "task-tz1", "execute", "running", _iso(7200)
+            )
+            self._insert_task_and_attempt(
+                s,
+                "att-tz-lease",
+                "task-tz2",
+                "execute",
+                "running",
+                _iso(60),
+                owner_id="host-a",
+                lease_expires_at=_iso(30),
+            )
+            self._insert_task_and_attempt(
+                s,
+                "att-tz-live",
+                "task-tz3",
+                "execute",
+                "running",
+                _iso(60),
+                owner_id="host-a",
+                lease_expires_at=_iso_future(600),
+            )
+
+            count = s.recover_stale_attempts(s._db)
+            assert count == 2
+
+            statuses = {
+                row[0]: row[1]
+                for row in s._db.fetchall(
+                    "SELECT attempt_id, status FROM attempts "
+                    "WHERE attempt_id IN ('att-tz-legacy', 'att-tz-lease', 'att-tz-live')"
+                )
+            }
+            assert statuses["att-tz-legacy"] == "failed"
+            assert statuses["att-tz-lease"] == "failed"
+            assert statuses["att-tz-live"] == "running"
+            report = s.last_recovery_report
+            assert (report.recovered, report.still_live) == (2, 1)
+            assert (report.legacy_recovered, report.unparseable) == (1, 0)
+        finally:
+            s.close()
+
+    def test_find_stale_returns_only_old_attempts(self, workflow_db) -> None:
+        """find_stale_running_attempts returns only lease-expired or legacy-old attempts."""
+        s = self._open_store(workflow_db)
+        try:
+            self._insert_task_and_attempt(
+                s, "att-1", "task-1", "execute", "running", "2026-01-01T00:00:00Z"
+            )
+            self._insert_task_and_attempt(
+                s, "att-2", "task-2", "execute", "running", _iso(5)
             )
 
             stale = s.find_stale_running_attempts(s._db)
@@ -365,17 +522,10 @@ class TestRecoverStaleAttempts:
 
     def test_recovered_attempt_has_ended_at_set(self, workflow_db) -> None:
         """A recovered stale attempt has ended_at populated."""
-        from unittest.mock import patch
-
-        from agent.workflow.state_store import StateStore
-
-        with patch(
-            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
-        ):
-            s = StateStore()
+        s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
-                s, "att-end", "task-4", "execute", "running", "2026-01-01T00:00:00"
+                s, "att-end", "task-4", "execute", "running", "2026-01-01T00:00:00Z"
             )
 
             s.recover_stale_attempts(s._db)
@@ -389,18 +539,9 @@ class TestRecoverStaleAttempts:
 
     def test_recover_multiple_stale_attempts(self, workflow_db) -> None:
         """Multiple stale attempts should all be marked as failed."""
-        from unittest.mock import patch
-
-        from agent.workflow.state_store import StateStore
-
-        with patch(
-            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
-        ):
-            s = StateStore()
+        s = self._open_store(workflow_db)
         try:
-            old_ts = time.strftime(
-                "%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 100)
-            )
+            old_ts = _iso(7200)
 
             task_id = "task-multi"
             conn = sqlite3.connect(str(workflow_db))
@@ -442,16 +583,9 @@ class TestRecoverStaleAttempts:
 
     def test_recover_no_stale_attempts(self, workflow_db) -> None:
         """Calling recover_stale_attempts when none are stale should return 0."""
-        from unittest.mock import patch
-
-        from agent.workflow.state_store import StateStore
-
-        with patch(
-            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
-        ):
-            s = StateStore()
+        s = self._open_store(workflow_db)
         try:
-            now_ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
+            now_ts = _iso(5)
             task_id = "task-none"
             conn = sqlite3.connect(str(workflow_db))
             conn.execute(
@@ -484,14 +618,14 @@ class TestRecoverStaleAttempts:
 class TestStaleRecoveryConcurrency:
     def test_concurrent_recovery_claims_only_once(self, workflow_db: Path) -> None:
         import sqlite3
-        import time
         from unittest.mock import patch
 
         from agent.workflow.state_store import StateStore
         from db.config import DbConfig
 
-        # Setup: create a stale attempt manually in the DB
-        old_ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 100))
+        # Setup: create a legacy-stale attempt (lease-less, older than the
+        # 3600 s legacy age) directly in the DB.
+        old_ts = _iso(7200)
 
         # Use raw connection to seed data
         conn = sqlite3.connect(str(workflow_db))

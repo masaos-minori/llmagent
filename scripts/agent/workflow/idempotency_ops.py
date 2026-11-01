@@ -6,6 +6,7 @@ import uuid
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 
+from agent.workflow.attempt_ops import get_owner_id, lease_expires_from
 from agent.workflow.models import AttemptRecord
 
 
@@ -21,6 +22,7 @@ def begin_stage_if_new(
     task_id: str,
     stage_id: str,
     workflow_id: str | None = None,
+    lease_duration_sec: int | None = None,
 ) -> AttemptRecord | None:
     """Atomically check event_id and start attempt if new.
 
@@ -31,6 +33,11 @@ def begin_stage_if_new(
     Uses begin_immediate to hold the write lock across the check-then-insert.
     Returns AttemptRecord if the stage should run, None if already processed.
     No explicit commit() is called — begin_immediate handles the transaction.
+
+    With ``lease_duration_sec`` set, the attempt row is stamped with this
+    process's ``owner_id`` and a ``lease_expires_at`` derived from
+    ``started_at`` inside the same transaction (REQ-005). With ``None``,
+    both lease columns stay NULL for legacy callers.
     """
     # processed_events semantics:
     # - Contains event IDs for attempts that have been STARTED (not necessarily completed)
@@ -39,16 +46,21 @@ def begin_stage_if_new(
     # - Recovery logic marks stale running attempts as failed and removes their event IDs
     attempt_id = str(uuid.uuid4())
     now = _now()
+    owner_id: str | None = None
+    lease_expires_at: str | None = None
+    if lease_duration_sec is not None:
+        owner_id = get_owner_id()
+        lease_expires_at = lease_expires_from(now, lease_duration_sec)
     with db.begin_immediate():
         if is_event_processed(db, event_id):
             return None
         db.execute(
             """
 
-            INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at)
-            VALUES (?, ?, ?, 'running', ?)
+            INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, owner_id, lease_expires_at)
+            VALUES (?, ?, ?, 'running', ?, ?, ?)
             """,
-            (attempt_id, task_id, stage_id, now),
+            (attempt_id, task_id, stage_id, now, owner_id, lease_expires_at),
         )
         db.execute(
             """

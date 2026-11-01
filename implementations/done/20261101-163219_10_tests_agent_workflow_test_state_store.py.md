@@ -1,12 +1,10 @@
 ## Goal
 
-## Goal
-
 Replace the mocked detection/recovery tests in `tests/agent/workflow/test_state_store.py` with real-database report and race tests (REQ-003, REQ-009 / AC-2, AC-3).
 
 ## Scope
 
-- Replace the mock-based tests (`find_stale_running_attempts` lambdas at `:26-167`) with real-`StateStore` tests against the fixture DB: single stale recovery, non-stale untouched, mixed stale/live, multiple stale, no-running-attempts.
+- Replace the mock-based tests (`find_stale_running_attempts` lambdas at `:39-229`) with real-`StateStore` tests against the fixture DB: single stale recovery, non-stale untouched, mixed stale/live, multiple stale, no-running-attempts.
 - Replace the `"not-a-date"` test (`:217`): an unparseable `started_at` (and a new unparseable `lease_expires_at` case) yields a warning log (captured with `caplog`), an `unparseable` count in `last_recovery_report`, and a row still `running` (REQ-003 / AC-3).
 - Keep the concurrency-flavored test (`test_recover_concurrent_calls_only_one_succeeds`, `:74`) but re-express it against the conditional update: two sequential recover calls produce one takeover (`rowcount` path), deep two-connection racing belongs to procedure 12.
 
@@ -16,7 +14,7 @@ Replace the mocked detection/recovery tests in `tests/agent/workflow/test_state_
 - All baseline cites below were re-verified against branch `master` on 2026-11-01 (Plan Assumptions 'Re-verification record').
 - Canonical semantics come from the Plan REQs (Plan `:37-46`): `parse_iso_utc` rejects naive input (REQ-001); no `mktime`/`strptime`/local time in recovery (REQ-002); unparseable timestamps are reported with distinct counts (REQ-003); nullable `owner_id`/`lease_expires_at` via a registered migration (REQ-004); owner and lease stamped at attempt start from the stage timeout plus a 30 s margin constant (REQ-005); staleness means lease expiry and `_STALE_GRACE_SEC` is removed (REQ-006); takeover is a conditional update requiring one row (REQ-007); legacy rows without a lease use the 3600 s age (REQ-008); tests use the production timestamp format (REQ-009); docs and ADR-001 INV-07 are amended (REQ-010).
 - Owner decision (Plan UNK-02, 2026-10-30): deadline lease only — no heartbeat renewal, because `asyncio.wait_for` already bounds a normal stage.
-- Ledger landing order (Plan UNK-06): `master` records code 2 / "1.2.0" (`migrations_workflow.py:42`); wftaskapi001 procedure 12 (`implementations/20261101-140834_12_scripts_db_migrations_workflow.py.md`, Pending) reserves the next slot. This Plan takes code 3 / "1.3.0" only if its step registers before wftaskapi001's, otherwise 4 / "1.4.0" (same rule as `implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md`).
+- Ledger landing order (Plan UNK-06; fixed by the 2026-11-01 pre-execution verification): wftaskapi001 procedure 12 has landed (`implementations/done/20261101-140834_12_scripts_db_migrations_workflow.py.md`) and registered code 3 / "1.3.0" (`migrations_workflow.py:42`, `WORKFLOW_TARGET_VERSION` = 3 at `:49`). This Plan takes code 4 / "1.4.0": procedure 17 registers `workflow_attempt_lease` with `from_version=3, to_version=4`, and procedure 06 sets `WORKFLOW_SCHEMA_VERSION` to "1.4.0". The still-Pending wfrecovery001 procedure 26 (`implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md`) takes 5 / "1.5.0" when it lands after this Plan.
 - Fencing dependency (Plan UNK-06): REQ-007's rejection of a late finish by the fenced owner lands with the wfrecovery001 conditional `finish_attempt` procedure (`implementations/20261101-145309_04_scripts_agent_workflow_attempt_ops.py.md`, Pending); at `master` `finish_attempt` is still unconditional (`attempt_ops.py:44-45`).
 - This file imports the same fixture helpers as procedure 09's file so seeds stay in one style.
 
@@ -72,10 +70,10 @@ Test rewrite in place; same test-class skeleton names.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | test_state_store.py rewritten on real temp workflow DBs: legacy recovery, lease-less fresh survives, expired lease recovered despite young started_at, unexpired lease survives, single-claim idempotency, AC-2 epoch-regex guard, 4 timezone params, unparseable, terminal rows immutable, report exposed at init, alias equivalence |
+| 2 | Add or update tests per Validation plan | Completed | — | — | pytest tests/agent/workflow/test_state_store.py -q: 12 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format/check green; mypy clean on changed files; targeted pytest green; full suite 10898 passed / 8 skipped; diff-cover 100%; lint-imports 6 kept; bandit clean; check_module_size OK |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: test-only procedure, no docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
