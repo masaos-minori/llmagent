@@ -60,6 +60,7 @@ Needs confirmation: check whether the agent startup documentation describes the 
 - Related to `issues/20261031-135634_validorder001_config-validation-after-spawn.md`: that issue may move the `mcp_auth` check (it reads configuration only) into an earlier stage. The two changes touch the same function; apply this one first or rebase the other on it. No other open issue or in-flight plan targets `scripts/agent/startup_validation.py` for this behavior.
 
 ## Unresolved Questions
+- `_check_component_mandatoriness` (added to `check_services`) loops over every configured server, disabled ones included, and treats an unknown server as fatal: whether a disabled server needs the same exemption is `Needs confirmation` (separate from this issue's `mcp_auth` filter).
 - Whether an enabled server with an empty token can be produced by a path other than `_build_single_server` (for example a config reload or programmatic construction). If it cannot, the check is dead for enabled servers; deciding whether to keep it is a separate question (see Out of Scope). `Needs confirmation`.
 
 ## AI Implementation Instruction

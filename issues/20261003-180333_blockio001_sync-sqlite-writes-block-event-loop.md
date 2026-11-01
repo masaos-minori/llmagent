@@ -48,7 +48,7 @@ N/A: no operator-facing documentation describes this call path's concurrency beh
 - `DiagnosticStore`'s SQL schema or transaction logic.
 
 ## Dependencies
-N/A: none. The related `walsleep001` issue was closed because `WalCheckpointManager` already runs its steps on a worker thread.
+Related to `issues/20261101-111720_diagstore001_diagnostic-save-crashes-turn.md`: both change the diagnostic save call sites (`ToolLoopGuard._save_guard_hint`, `LLMTurnRunner._handle_llm_error`) and should be planned together; that issue wraps the saves against runtime errors, this one moves them off the event loop. The related `walsleep001` issue was closed because `WalCheckpointManager` already runs its steps on a worker thread.
 
 ## Unresolved Questions
 N/A: none; the direct calls were confirmed by reading the files listed above.
