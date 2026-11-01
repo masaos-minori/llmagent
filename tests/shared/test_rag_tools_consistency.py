@@ -27,7 +27,8 @@ class TestRagToolsInRegistry:
                     capabilities=(),
                 )
                 for tool_name in RAG_TOOLS
-            }
+            },
+            allowed_servers=frozenset({"rag_pipeline"}),
         )
 
     def test_rag_run_pipeline_registered(self) -> None:
@@ -69,7 +70,8 @@ class TestRagToolsInRegistry:
                     capabilities=(),
                 )
                 for tool_name in RAG_TOOLS
-            }
+            },
+            allowed_servers=frozenset({"rag_pipeline"}),
         )
         resolver = ToolRouteResolver(
             runtime_registry=runtime_registry,

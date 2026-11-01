@@ -100,7 +100,9 @@ class TestClassifyRisk:
                 enabled_for_llm=True,
                 capabilities=(),
             )
-        return RuntimeToolRegistry(tools=tool_map)
+        return RuntimeToolRegistry(
+            tools=tool_map, allowed_servers=frozenset({"test_server"})
+        )
 
     def test_force_flag_returns_high(self) -> None:
         cfg = _cfg()

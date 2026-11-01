@@ -6,6 +6,8 @@ Uses a temp workflow.sqlite and mocks stage callbacks.
 from __future__ import annotations
 
 import asyncio
+import sqlite3
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -317,3 +319,73 @@ class TestRunStageWithRetryGeneralization:
         await engine.run(task, _noop, flaky_execute, _noop)
         assert calls["n"] == 2
         assert count_attempts(store._db, task.task_id, "execute") == 2
+
+
+class TestBuildTurnControlMessage:
+    """Turn-entry replay detection (toolexec001 REQ-008, row 08)."""
+
+    def _stale_row(self, store, task_id: str, key: str, tool: str, retry_class: str):
+        store.record_tool_call(task_id, key, tool, retry_class)
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=? WHERE idempotency_key=?",
+            (time.time() - 3600, key),
+        )
+        store._db.commit()
+
+    def test_retryable_interrupted_yields_replay_section(self, store) -> None:
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        self._stale_row(store, task.task_id, "k1", "calculator__calculate", "retryable")
+        engine = WorkflowEngine(_make_wdef(), store)
+        msg = engine.build_turn_control_message(task.task_id)
+        assert msg is not None
+        assert (
+            "replay: tool=calculator__calculate idempotency_key=k1 state=interrupted"
+            in msg
+        )
+        assert "unreplayable" not in msg
+        # Row was classified interrupted exactly once.
+        row = store._db.execute(
+            "SELECT state FROM tool_call_state WHERE idempotency_key='k1'"
+        ).fetchone()
+        assert row["state"] == "interrupted"
+
+    def test_non_retryable_yields_unreplayable_section_not_replay(self, store) -> None:
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        self._stale_row(
+            store, task.task_id, "k2", "filesystem__write_file", "non_retryable"
+        )
+        engine = WorkflowEngine(_make_wdef(), store)
+        msg = engine.build_turn_control_message(task.task_id)
+        assert msg is not None
+        assert "unreplayable: tool=filesystem__write_file idempotency_key=k2" in msg
+        assert "replay: tool=filesystem__write_file" not in msg
+
+    def test_no_rows_yields_none(self, store) -> None:
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        engine = WorkflowEngine(_make_wdef(), store)
+        assert engine.build_turn_control_message(task.task_id) is None
+
+    def test_fresh_pending_is_not_listed(self, store) -> None:
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        store.record_tool_call(task.task_id, "k3", "calculator__calculate", "retryable")
+        engine = WorkflowEngine(_make_wdef(), store)
+        assert engine.build_turn_control_message(task.task_id) is None
+        assert len(store.pending_tool_calls(task.task_id)) == 1
+
+    def test_interrupted_rows_are_consumed_once(self, store) -> None:
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        self._stale_row(store, task.task_id, "k4", "calculator__calculate", "retryable")
+        engine = WorkflowEngine(_make_wdef(), store)
+        assert engine.build_turn_control_message(task.task_id) is not None
+        # Second turn-entry: the row is already interrupted, not re-listed.
+        assert engine.build_turn_control_message(task.task_id) is None
+
+    def test_store_failure_returns_none_not_raise(self, store) -> None:
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        engine = WorkflowEngine(_make_wdef(), store)
+        with patch.object(
+            type(store),
+            "classify_stale_pending",
+            side_effect=sqlite3.OperationalError("boom"),
+        ):
+            assert engine.build_turn_control_message(task.task_id) is None

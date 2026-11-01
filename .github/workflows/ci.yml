@@ -33,6 +33,10 @@ jobs:
         run: uv run python tools/check_db_separation.py
       - name: Generated reference docs drift check
         run: uv run python tools/generate_reference_table.py --check
+      - name: Regenerate contract manifests
+        run: uv run python tools/generate_reference_table.py --manifests
+      - name: Contract manifest drift check
+        run: git diff --exit-code registry/manifests/
       - name: ADR authority model check
         run: uv run python tools/check_adr_authority.py
       - name: ADR index generated sections drift check
@@ -50,6 +54,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -75,4 +81,4 @@ jobs:
         run: |
           uv run coverage run -m pytest tests/
           uv run coverage xml
-          uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
+          uv run diff-cover coverage.xml --compare-branch=origin/master --fail-under=90

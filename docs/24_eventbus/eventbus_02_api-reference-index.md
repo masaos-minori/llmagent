@@ -43,7 +43,7 @@ The available roles are:
 | CONSUMER | `${CONSUMER_TOKEN}` | Subscribe, ACK, NACK |
 | OPERATOR | `${OPERATOR_TOKEN}` | Replay, DLQ management |
 | MONITORING | `${MONITORING_TOKEN}` | Health checks |
-| ADMIN | `${ADMIN_TOKEN}` | Admin endpoints (`/admin/*`, e.g. `POST /admin/topics/authorization`) |
+| ADMIN | `${ADMIN_TOKEN}` | Admin endpoints (`/admin/*`, e.g. `POST /admin/topics/authorization` — optimistic concurrency: required `expected_generation`, HTTP 409 `generation_conflict` on mismatch, response carries `previous_generation`/`new_generation`, optional `ttl_seconds`; see `eventbus_08_reference_api.md`) |
 
 Each per-role token grants only its own role. The shared `auth_token` and the `admin_token` are control-plane credentials: they hold only the OPERATOR, MONITORING, and ADMIN roles, hold no PUBLISHER or CONSUMER role, and receive HTTP 403 on `/publish`, `/subscribe`, `/events/{event_id}/ack`, and `/nack`. Consumer routes admit only a CONSUMER-role token with explicit `consumer_id` and topic authorizations; no token bypasses them. (Explicit in code — `scripts/eventbus/auth.py`; see ADR-013)
 

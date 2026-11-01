@@ -80,16 +80,17 @@ class TestRagConsistencyTimeout:
 
     @pytest.mark.asyncio
     async def test_rag_check_timeout_enforced(self) -> None:
-        """REQ-002: a timed-out RAG consistency check is skipped, not fatal."""
+        """REQ-002: a timed-out RAG consistency check warns identity-unverified, not fatal."""
         rag_service = MagicMock()
         result = await _run_check_services(
             rag_service,
             wait_for_side_effect=TimeoutError("timed out"),
         )
 
-        assert _rag_outcomes(result) == [StartupCheckStatus.SKIPPED]
-        skipped = [o for o in result.outcomes if o.source == "rag_consistency"]
-        assert "timeout" in skipped[0].message
+        assert _rag_outcomes(result) == [StartupCheckStatus.WARNING]
+        warned = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert "timed out" in warned[0].message
+        assert "identity-unverified" in warned[0].message
         assert not result.has_fatal
 
     @pytest.mark.asyncio
@@ -105,16 +106,17 @@ class TestRagConsistencyTimeout:
 
     @pytest.mark.asyncio
     async def test_rag_check_programming_error_classified(self) -> None:
-        """REQ-004: a programming-error exception is recorded as a classified SKIPPED."""
+        """REQ-004: a programming-error exception is recorded as a classified WARNING."""
         rag_service = MagicMock()
         rag_service.consistency.side_effect = KeyError("missing key")
 
         result = await _run_check_services(rag_service)
 
-        assert _rag_outcomes(result) == [StartupCheckStatus.SKIPPED]
-        skipped = [o for o in result.outcomes if o.source == "rag_consistency"]
-        assert "PROGRAMMING_ERROR" in skipped[0].message
-        assert "KeyError" in skipped[0].message
+        assert _rag_outcomes(result) == [StartupCheckStatus.WARNING]
+        warned = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert "PROGRAMMING_ERROR" in warned[0].message
+        assert "KeyError" in warned[0].message
+        assert "identity-unverified" in warned[0].message
         assert not result.has_fatal
 
     @pytest.mark.asyncio
@@ -130,14 +132,72 @@ class TestRagConsistencyTimeout:
     async def test_rag_check_failure_category(
         self, exc: Exception, category: str
     ) -> None:
-        """REQ-002: each root-cause category is carried in the SKIPPED message."""
+        """REQ-002: each root-cause category is carried in the WARNING message."""
         rag_service = MagicMock()
         rag_service.consistency.side_effect = exc
 
         result = await _run_check_services(rag_service)
 
-        assert _rag_outcomes(result) == [StartupCheckStatus.SKIPPED]
-        skipped = [o for o in result.outcomes if o.source == "rag_consistency"]
-        assert category in skipped[0].message
-        assert type(exc).__name__ in skipped[0].message
+        assert _rag_outcomes(result) == [StartupCheckStatus.WARNING]
+        warned = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert category in warned[0].message
+        assert type(exc).__name__ in warned[0].message
         assert not result.has_fatal
+
+
+@pytest.mark.asyncio
+async def test_runtime_registry_published_after_posture_gate() -> None:
+    """AC-5: runtime_tools is published only after the posture gate completes.
+
+    Records the call order of the mandatoriness cross-check, the posture
+    collection, and the discovery/publication step inside the real
+    ``check_services`` body and asserts the fail-closed sequence
+    mandatoriness -> posture -> publication.
+    """
+
+    order: list[str] = []
+
+    async def _collect_posture(_ctx: object) -> dict:
+        order.append("posture")
+        return {}
+
+    async def _discover() -> MagicMock:
+        order.append("publication")
+        return MagicMock(registry=MagicMock(), findings=[], unreachable=[])
+
+    ctx = _make_ctx()
+    discovery = MagicMock()
+    discovery.discover_all = AsyncMock(side_effect=_discover)
+
+    mocks: dict[str, object] = {
+        "check_readiness": AsyncMock(return_value=HealthCheckResult()),
+        "McpToolDiscoveryService": MagicMock(return_value=discovery),
+        "check_routing_drift": MagicMock(return_value=[]),
+        "check_routing_safety_tiers": MagicMock(return_value=[]),
+        "RagMaintenanceService": MagicMock(return_value=MagicMock()),
+        "_check_component_mandatoriness": MagicMock(
+            side_effect=lambda _c, _p: order.append("mandatoriness")
+        ),
+    }
+    with ExitStack() as stack:
+        for name, mock_obj in mocks.items():
+            stack.enter_context(patch(f"agent.startup_validation.{name}", mock_obj))
+        stack.enter_context(
+            patch(
+                "agent.startup_validation.collect_server_postures",
+                side_effect=_collect_posture,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "db.config.build_db_config",
+                return_value=MagicMock(embedding_dims=768),
+            )
+        )
+        # check_services() builds its own Logger; keep it from touching log files.
+        stack.enter_context(patch("shared.logger.Logger", MagicMock()))
+        result = await StartupValidationPipeline(ctx, MagicMock()).check_services()
+
+    assert not result.has_fatal
+    assert order.index("mandatoriness") < order.index("posture")
+    assert order.index("posture") < order.index("publication")

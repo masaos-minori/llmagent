@@ -25,7 +25,9 @@ def _runtime_registry_for(tool_to_server: dict[str, str]) -> RuntimeToolRegistry
         )
         for name, server_key in tool_to_server.items()
     }
-    return RuntimeToolRegistry(tools=tools)
+    return RuntimeToolRegistry(
+        tools=tools, allowed_servers=frozenset(tool_to_server.values())
+    )
 
 
 class TestRegistryRouting:
@@ -228,7 +230,7 @@ class TestRoutingFailureKinds:
     @staticmethod
     def _registry(
         tools: dict[str, str],
-        allowed_servers: frozenset[str] | None = None,
+        allowed_servers: frozenset[str],
         unavailable_servers: frozenset[str] | None = None,
     ) -> RuntimeToolRegistry:
         built = {
@@ -260,7 +262,10 @@ class TestRoutingFailureKinds:
         assert exc_info.value.kind == "not_ready"
 
     def test_unknown_name_raises_unknown_tool(self) -> None:
-        registry = TestRoutingFailureKinds._registry({"read_text_file": "file_read"})
+        registry = TestRoutingFailureKinds._registry(
+            {"read_text_file": "file_read"},
+            allowed_servers=frozenset(["file_read"]),
+        )
         resolver = ToolRouteResolver(runtime_registry=registry)
         with pytest.raises(ValueError) as exc_info:
             resolver.resolve("never_registered")
@@ -279,6 +284,7 @@ class TestRoutingFailureKinds:
         registry = TestRoutingFailureKinds._registry(
             {"read_text_file": "file_read"},
             unavailable_servers=frozenset(["file_read"]),
+            allowed_servers=frozenset(["file_read"]),
         )
         resolver = ToolRouteResolver(runtime_registry=registry)
         with pytest.raises(ValueError) as exc_info:

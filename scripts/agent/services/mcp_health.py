@@ -97,7 +97,7 @@ class PostureGate:
 
     Fields:
         server_key:       Config key of the probed server.
-        required:         Config flag deciding error versus warning for an Availability failure; a Safety or Integrity failure is an error whatever it says.
+        required:         Config flag deciding error versus warning for an Availability failure; a Safety or Integrity failure is an error whatever it says. Classification source: `registry/component_mandatoriness.yaml` (validated against config at startup).
         reachable:        An HTTP response was received.
         posture_accepted: The published posture satisfied the shared contract.
         ready:            The posture's own ready flag; False when the posture was rejected.
@@ -142,7 +142,9 @@ def _is_fatal_gate(gate: PostureGate) -> bool:
     A Safety or Integrity posture failure blocks startup whatever `required` says: ADR-004 Group 2
     item 6 and INV-09/INV-10 permit partial availability only for an availability failure of a
     component classified non-mandatory. `required` therefore decides the fate of an Availability
-    failure alone.
+    failure alone; the mandatory/non-mandatory classification itself comes from the machine-readable
+    registry `registry/component_mandatoriness.yaml` (ADR-004 Group 3 item 13: criteria in ADR-004,
+    classification in the registry, derived table in `agent_08_04`).
     """
     return gate.required or gate.failure_class in _SAFETY_INTEGRITY_CLASSES
 
@@ -271,7 +273,9 @@ def _remediation(errors: list[ServiceWarning]) -> str:
     if any(w.label.startswith(_POSTURE_LABEL_PREFIX) for w in errors):
         parts.append(
             "Fix the MCP server security posture (see its /health security block) "
-            "or set its startup_mode to none."
+            "or set its startup_mode to none. A `required=false` that contradicts the "
+            "mandatoriness registry (`registry/component_mandatoriness.yaml`) is aborted "
+            "at startup, so correct the registry classification, not the config."
         )
     if not parts:
         return ""

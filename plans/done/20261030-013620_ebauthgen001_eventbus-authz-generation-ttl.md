@@ -209,9 +209,9 @@ Yes. Per `docs/00_index.md` task-scope mapping (EventBus + ADR rows): ADR-013 ga
 ## Execution Status
 | Phase | Status | Procedure Docs |
 |---|---|---|
-| Phase 1 | procedure generated | 20261030-141000_01 (auth.py generation core), _02 (config.py hash + TTL bounds), _03 (admin_route.py expected_generation + response), _08 (admin test matrix), _11 (eventbus_helpers.py shared fixtures; also consumed by Phase 2) |
-| Phase 2 | procedure generated | 20261030-141000_04 (authz_ttl.py sweep), _05 (app.py lifespan + restart audit), _06 (audit.py additive fields), _07 (eventbus.toml bounds), _09 (test_authz_generation_ttl.py), _10 (test_eventbus_auth.py hygiene) |
-| Phase 3 | procedure generated | 20261030-141000_12 (ADR-013 incl. :93 fix), _13 (eventbus_08 tables via generator), _14 (eventbus_02 index), _15 (eventbus_07 ops) |
+| Phase 1 | all target rows implemented 20261101 (_01, _02, _03, _08, _11 archived to implementations/done/) | 20261030-141000_01 (auth.py generation core), _02 (config.py hash + TTL bounds), _03 (admin_route.py expected_generation + response), _08 (admin test matrix), _11 (eventbus_helpers.py shared fixtures; also consumed by Phase 2) |
+| Phase 2 | all target rows implemented 20261101 (_04, _05, _06, _07, _09, _10 archived to implementations/done/) | 20261030-141000_04 (authz_ttl.py sweep), _05 (app.py lifespan + restart audit), _06 (audit.py additive fields), _07 (eventbus.toml bounds), _09 (test_authz_generation_ttl.py), _10 (test_eventbus_auth.py hygiene); follow-up cleanup: transitional `publish_principals` alias removed from auth.py after admin_route migrated to publish_generation (doc 03 row landed) |
+| Phase 3 | all target rows implemented 20261101 (_12, _13, _14, _15 archived to implementations/done/) | 20261030-141000_12 (ADR-013 incl. :93 fix), _13 (eventbus_08 tables via generator), _14 (eventbus_02 index), _15 (eventbus_07 ops) |
 | Phase 4 | validation only — no target-file row; sequence per Tests section runs at implementation | — |
 
 ## Blocker Log
@@ -220,8 +220,8 @@ Yes. Per `docs/00_index.md` task-scope mapping (EventBus + ADR rows): ADR-013 ga
 | UNK-01 max TTL default | Default cap 86400s recorded in docs 02/07/15 | open — owner confirms before production enablement |
 | UNK-02 sweep interval | Default 60s recorded in docs 02/04/07 | open — tune after first operational use |
 | UNK-03 cross-restart number persistence | Resolution is the plan Assumption (no persistence; restart audit + baseline hash correlate); docs 01/15 carry it | recorded — revisit only if an Accepted ADR changes the persistence contract |
-| Baseline generation number | 0-based numbering is a proposal recorded in doc 01 (`Numbering choice 0-based is a proposal; Needs Confirmation.`) | open — Needs Confirmation before implementation |
-| conftest reset mitigation | `tests/eventbus/conftest.py` is Reference Files only (must NOT be edited); generation reset is provided by the new `reset_generation_state` fixture in eventbus_helpers.py (doc 11), recorded as Needs-Confirmation in docs 01/11 | open — confirm mitigation or authorize a narrow conftest edit at implementation |
+| Baseline generation number | 0-based numbering approved by the owner 2026-11-01; carried in doc 01 | resolved 2026-11-01 |
+| conftest reset mitigation | `tests/eventbus/conftest.py` is Reference Files only (must NOT be edited); generation reset provided by the new `reset_generation_state` fixture in eventbus_helpers.py (doc 11), owner-approved 2026-11-01; `_TOKEN_PRINCIPAL_MAP` kept as shared-object compatibility alias, `resolve_principal` keeps reading it | resolved 2026-11-01 |
 | eventbus_08 generator gate | `docs/24_eventbus/eventbus_08_reference_api.md` is auto-generated; doc 13 edits the generator source and runs `generate_reference_table.py --type eventbus`, never the generated file; landing order with other plans touching the same generator: adrcov001 doc 05 before mcpgate001 doc 09 before this doc 13 | recorded in doc 13 |
 
 ## Work Items Created

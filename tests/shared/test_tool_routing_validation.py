@@ -13,7 +13,10 @@ from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
 
 def _registry_with(*tools: RuntimeTool) -> RuntimeToolRegistry:
-    return RuntimeToolRegistry({tool.name: tool for tool in tools})
+    return RuntimeToolRegistry(
+        {tool.name: tool for tool in tools},
+        allowed_servers=frozenset({tool.server_key for tool in tools}),
+    )
 
 
 class TestRoutingAuthority:
@@ -234,6 +237,7 @@ class TestRoutingAuthority:
         reg = RuntimeToolRegistry(
             tools={"tool_a": tool_a, "tool_b": tool_b},
             unavailable_servers=frozenset(["unreachable_server"]),
+            allowed_servers=frozenset(["unreachable_server", "healthy_server"]),
         )
         assert reg.resolve("tool_a") is None
         assert reg.resolve("tool_b") == "healthy_server"
@@ -251,6 +255,7 @@ class TestRoutingAuthority:
         reg = RuntimeToolRegistry(
             tools={"tool_a": tool_a, "tool_b": tool_b},
             unavailable_servers=frozenset(["unavailable"]),
+            allowed_servers=frozenset(["unavailable", "healthy"]),
         )
         defs = reg.llm_tool_definitions()
         assert len(defs) == 1
@@ -267,6 +272,7 @@ class TestRoutingAuthority:
         reg = RuntimeToolRegistry(
             tools={"tool_a": tool_a, "tool_b": tool_b},
             unavailable_servers=frozenset(["unavailable"]),
+            allowed_servers=frozenset(["unavailable", "healthy"]),
         )
         rows = reg.diagnostics()
         assert len(rows) == 1
@@ -309,6 +315,7 @@ class TestDisabledServerExclusion:
         reg = RuntimeToolRegistry(
             {tool.name: tool},
             server_configs={"disabled_srv": disabled_cfg},
+            allowed_servers=frozenset(["disabled_srv"]),
         )
         assert "write_file" not in reg.all_tools()
 
@@ -323,6 +330,7 @@ class TestDisabledServerExclusion:
         reg = RuntimeToolRegistry(
             {tool.name: tool},
             server_configs={"enabled_srv": enabled_cfg},
+            allowed_servers=frozenset(["enabled_srv"]),
         )
         tool_names = {t.name for t in reg.all_tools()}
         assert "read_file" in tool_names

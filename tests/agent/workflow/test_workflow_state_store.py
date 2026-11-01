@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from agent.workflow import tool_call_state_ops
 from agent.workflow.artifact_ops import record_artifact
 from agent.workflow.attempt_ops import count_attempts, finish_attempt, start_attempt
 from agent.workflow.idempotency_ops import begin_stage_if_new, is_event_processed
@@ -566,3 +567,80 @@ class TestStaleRecoveryConcurrency:
         ).fetchall()
         assert rows[0][0] == "failed"
         conn.close()
+
+
+class TestToolCallStateOps:
+    """tool_call_state helpers (toolexec001 row 07): record, pending, finalize, stale."""
+
+    def test_record_then_pending_returns_row_for_that_task_only(self, store) -> None:
+        t1 = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        t2 = create_task(store._db, "sess2", 2, "1.0.0", "wf-test")
+        store.record_tool_call(
+            t1.task_id, "key-1", "calculator__calculate", "retryable"
+        )
+        pending1 = store.pending_tool_calls(t1.task_id)
+        assert [c.idempotency_key for c in pending1] == ["key-1"]
+        assert pending1[0].state == "pending"
+        assert pending1[0].tool == "calculator__calculate"
+        assert pending1[0].retry_class == "retryable"
+        assert pending1[0].snapshot_id is None
+        # Task isolation: the other task sees nothing (completion criterion).
+        assert store.pending_tool_calls(t2.task_id) == []
+
+    def test_record_duplicate_key_is_ignored(self, store) -> None:
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        store.record_tool_call(
+            task.task_id, "key-dup", "deepresearch__search", "retryable"
+        )
+        store.record_tool_call(
+            task.task_id, "key-dup", "deepresearch__search", "retryable"
+        )
+        assert len(store.pending_tool_calls(task.task_id)) == 1
+
+    def test_finalize_moves_state_and_bumps_updated_at(self, store) -> None:
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        store.record_tool_call(
+            task.task_id, "key-f", "calculator__calculate", "non_retryable"
+        )
+        before = store.pending_tool_calls(task.task_id)[0]
+        store.finalize_tool_call("key-f", "failed")
+        row = tool_call_state_ops.get_tool_call_state(store._db, "key-f")
+        assert row is not None and row.state == "failed"
+        assert row.updated_at >= before.updated_at
+        assert store.pending_tool_calls(task.task_id) == []
+
+    def test_pending_ordered_by_created_at(self, store) -> None:
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        for i in range(3):
+            store.record_tool_call(
+                task.task_id, f"key-{i}", "calculator__calculate", "retryable"
+            )
+            time.sleep(0.01)
+        keys = [c.idempotency_key for c in store.pending_tool_calls(task.task_id)]
+        assert keys == ["key-0", "key-1", "key-2"]
+
+    def test_classify_stale_pending_only_expired_rows_and_idempotent(
+        self, store
+    ) -> None:
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        store.record_tool_call(
+            task.task_id, "old", "calculator__calculate", "retryable"
+        )
+        store.record_tool_call(
+            task.task_id, "fresh", "calculator__calculate", "retryable"
+        )
+        # Backdate 'old' past the timeout.
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=? WHERE idempotency_key='old'",
+            (time.time() - 120,),
+        )
+        store._db.commit()
+        stale = store.classify_stale_pending(task.task_id, 60.0)
+        assert [c.idempotency_key for c in stale] == ["old"]
+        assert stale[0].state == "interrupted"
+        # Fresh row still pending; expired row interrupted.
+        assert [c.idempotency_key for c in store.pending_tool_calls(task.task_id)] == [
+            "fresh"
+        ]
+        # Idempotent on re-run: nothing transitions twice.
+        assert store.classify_stale_pending(task.task_id, 60.0) == []

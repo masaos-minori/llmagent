@@ -19,6 +19,7 @@ from shared.http_transport import (
     _WRITE_TOOLS,
     HttpTransport,
     TransportError,
+    derive_idempotency_key,
 )
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
@@ -222,3 +223,104 @@ async def test_429_retried_for_write_tool() -> None:
 
 def test_write_tools_mirror_dispatch_write_tools() -> None:
     assert frozenset(_write_tools) == _WRITE_TOOLS
+
+
+class TestDeriveIdempotencyKey:
+    """Row 15: deterministic key derivation pins (REQ-001 / REQ-010, row 01)."""
+
+    def test_same_call_rederives_same_key(self) -> None:
+        from shared.http_transport import derive_idempotency_key
+
+        key_a = derive_idempotency_key(
+            "call_tool", "write_file", {"path": "/a", "n": 1}, "sess-1"
+        )
+        key_b = derive_idempotency_key(
+            "call_tool", "write_file", {"path": "/a", "n": 1}, "sess-1"
+        )
+        assert key_a == key_b
+
+    def test_arg_insertion_order_irrelevant(self) -> None:
+        from shared.http_transport import derive_idempotency_key
+
+        key_a = derive_idempotency_key("call_tool", "t", {"x": 1, "y": 2}, "u")
+        key_b = derive_idempotency_key("call_tool", "t", {"y": 2, "x": 1}, "u")
+        assert key_a == key_b
+
+    def test_different_args_change_key(self) -> None:
+        from shared.http_transport import derive_idempotency_key
+
+        key_a = derive_idempotency_key("call_tool", "t", {"x": 1}, "u")
+        key_b = derive_idempotency_key("call_tool", "t", {"x": 2}, "u")
+        assert key_a != key_b
+
+    def test_different_uid_change_key(self) -> None:
+        from shared.http_transport import derive_idempotency_key
+
+        key_a = derive_idempotency_key("call_tool", "t", {}, "sess-1")
+        key_b = derive_idempotency_key("call_tool", "t", {}, "sess-2")
+        assert key_a != key_b
+
+    def test_key_matches_house_shape(self) -> None:
+        import re
+
+        from shared.http_transport import derive_idempotency_key
+
+        key = derive_idempotency_key("call_tool", "t", {"k": "v"}, "u")
+        assert re.fullmatch(r"[A-Za-z0-9_-]{1,64}", key)
+        assert len(key) == 64
+
+    @pytest.mark.asyncio
+    async def test_two_calls_capture_same_header_key(self) -> None:
+        """Two transports, identical logical call -> identical X-Idempotency-Key."""
+        captured: list[str] = []
+
+        async def _one_call() -> None:
+            transport = HttpTransport(
+                http=MagicMock(spec=httpx.AsyncClient),
+                base_url="http://127.0.0.1:8000",
+                server_key="srv",
+                cfg=_http_cfg(),
+            )
+            mock_post = AsyncMock()
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.content = b'{"result":"ok","is_error":false}'
+            resp.raise_for_status = MagicMock()
+            resp.headers = {}
+            mock_post.return_value = resp
+            setattr(transport._http, "post", mock_post)
+            transport.set_session_id("sess-pin")
+            await transport.call("write_file", {"path": "/p"})
+            captured.append(mock_post.call_args.kwargs["headers"]["X-Idempotency-Key"])
+
+        await _one_call()
+        await _one_call()
+        assert captured[0] == captured[1]
+
+    def test_cross_process_determinism(self) -> None:
+        """REQ-010: the derivation is stable across separate processes."""
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        repo_scripts = str(Path(__file__).resolve().parents[2] / "scripts")
+        snippet = (
+            "import sys; sys.path.insert(0, sys.argv[1]); "
+            "from shared.http_transport import derive_idempotency_key; "
+            "print(derive_idempotency_key('call_tool', 'write_file', "
+            "{'path': '/a', 'n': 1}, 'sess-1'))"
+        )
+        outs = [
+            subprocess.run(
+                [sys.executable, "-c", snippet, repo_scripts],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            for _ in range(2)
+        ]
+        assert outs[0] == outs[1]
+        local = derive_idempotency_key(
+            "call_tool", "write_file", {"path": "/a", "n": 1}, "sess-1"
+        )
+        assert outs[0] == local

@@ -129,13 +129,15 @@ Dependencies.)
 
 | File Path | Change Type | Notes | Priority | Dependencies | Estimated Complexity |
 |---|---|---|---|---|---|
-| docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md | docs | :58 Decision Details, Implementation Notes, INV-02 reword (meaning preserved) | P1 | owner decision (recorded) | Low |
+| docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md | docs | :58 Decision Details, Implementation Notes; INV-02 row kept byte-identical per owner decision 2026-10-31 (preservation ERROR, no exemption) — roles carried by Decision/Impl Notes | P1 | owner decision (recorded) | Low |
 | docs/23_agent/agent_03_02_turn-processing-flow-llm-tool-loop.md | docs | loop ownership/lifecycle wording alignment | P1 | ADR-014 edit | Low |
 | docs/23_agent/agent_03_01_turn-processing-flow-overview.md | docs | same | P1 | ADR-014 edit | Low |
 | docs/23_agent/agent_02_runtime-architecture.md | docs | same | P1 | ADR-014 edit | Low |
 | tests/agent/test_orchestrator.py | test | extend `TestSingleLlmTurnExecutorOwnership` with factory-count / unused-retention detection | P1 | - | Medium |
 | tests/agent/test_llm_turn_runner.py | test | per-turn lifecycle assertion only if the trace requires it (runner holds no authority) | P2 | - | Low |
-| docs/10_adr/adr_01_index.md | docs | refresh ADR-014 invariant matrix rows (:145-147) if cited verification text changes | P2 | ADR-014 edit | Low |
+| docs/10_adr/adr_01_index.md | docs | refresh ADR-014 invariant matrix rows (:204-206 after post-generation restructure) if cited verification text changes | P2 | ADR-014 edit | Low |
+| docs/22_mcp/mcp_03_01_dispatch-and-routing.md | docs | additional row registered 2026-10-31 (owner confirmed, doc 02 U-1 sweep): :82 `_stream_llm` method-owner fix (`LLMTurnRunner`) | P2 | ADR-014 edit | Low |
+| docs/23_agent/agent_12_reference-api.md | docs | additional row registered 2026-10-31 (owner confirmed, doc 02 U-1 sweep): :101/:114 caller fix (`LLMTurnRunner`) | P2 | ADR-014 edit | Low |
 
 Explicitly excluded from target files:
 - `scripts/agent/orchestrator.py`, `workflow_engine_adapter.py`, `llm_turn_executor.py`,
@@ -244,14 +246,20 @@ factory so future renames do not blind it.
 ## Execution Status
 | Phase | Status | Procedure Docs |
 |---|---|---|
-| Phase 1 | procedure generated | 20261030-122302_01 (ADR-014 reword), 20261030-122302_07 (index refresh) |
-| Phase 2 | procedure generated | 20261030-122302_02, _03, _04 (flow docs) |
-| Phase 3 | procedure generated | 20261030-122302_05, _06 (guard tests) |
+| Phase 1 | completed 2026-10-31 (all procedures archived to `implementations/done/`) | 20261030-122302_01 (ADR-014 edit, Option A: INV-02 byte-identical), 20261030-122302_07 (index refresh: claim unchanged, Confirmed cell cites both passing tests) |
+| Phase 2 | completed 2026-10-31 (all procedures archived to `implementations/done/`) | 20261030-122302_02, _03, _04 (flow docs), _08/_09 (additional registered rows) |
+| Phase 3 | completed 2026-10-31 (all procedures archived to `implementations/done/`) | 20261030-122302_05 (new counting test, fail-before proof: assert 2 == 1, fixture reverted), _06 (trace gate passed — no change required, runner never retained: grep `self._runner` no match, executor :89/:90 local creation) |
+
+AC status: AC-1 met (three-role model in Decision Details/Impl Notes; INV-02 text untouched per Option A — method-name-independence
+delivered via the Decision-section bullet instead of INV text). AC-2 met for the ADR body file (preservation check scoped to
+adr_02_02_014: WARNING-only, Decision mapping recorded in the archived row 01 procedure; INV bytes unchanged = no ERROR).
+AC-3 met (fail-before demonstrated then reverted, orchestrator.py verified clean). AC-4 met (flow docs + mcp_03_01 + agent_12
+match the traced call path; consistency/quality gates pass). AC-5 (index matrix): matrix checker + authority-graph check green.
 
 ## Blocker Log
 | Item | Detail | Status |
 |---|---|---|
-| Frozen-table gap (U-1 sweep) | Verified-stale references outside the frozen table: `docs/22_mcp/mcp_03_01_dispatch-and-routing.md:82` (`_stream_llm` lives on `LLMTurnRunner`) and `docs/23_agent/agent_12_reference-api.md:101/:114`. Registered as Needs-Confirmation additional target rows in doc 02; not edited by this batch | open — Needs Confirmation before implementation |
+| Frozen-table gap (U-1 sweep) | Verified-stale references outside the frozen table: `docs/22_mcp/mcp_03_01_dispatch-and-routing.md:82` (`_stream_llm` lives on `LLMTurnRunner`) and `docs/23_agent/agent_12_reference-api.md:101/:114`. Registered as Needs-Confirmation additional target rows in doc 02; not edited by this batch | resolved 2026-10-31 — owner confirmed registration; rows 20261030-122302_08/_09 added to the target table |
 | Commit-group ordering | Doc 01's INV-02 verification-row text (:135) must land in the same commit group as doc 05's new test; doc 07 (index refresh) must land after doc 05 so the Confirmed-cell citation matches the landed test | recorded in docs 01/05/07 |
 
 ## Work Items Created
@@ -264,6 +272,8 @@ factory so future renames do not blind it.
 | 20261030-122302_05_tests_agent_test_orchestrator.py.md | tests/agent/test_orchestrator.py | Phase 3 |
 | 20261030-122302_06_tests_agent_test_llm_turn_runner.py.md | tests/agent/test_llm_turn_runner.py | Phase 3 |
 | 20261030-122302_07_docs_10_adr_adr_01_index.md.md | docs/10_adr/adr_01_index.md | Phase 1 |
+| 20261030-122302_08_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | docs/22_mcp/mcp_03_01_dispatch-and-routing.md | Phase 2 (additional row, registered 2026-10-31) |
+| 20261030-122302_09_docs_23_agent_agent_12_reference-api.md.md | docs/23_agent/agent_12_reference-api.md | Phase 2 (additional row, registered 2026-10-31) |
 
 ## Traceability
 - Issue source: `issues/20261029-104510_turnadr001_align-adr014-loop-ownership.md`

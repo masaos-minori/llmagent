@@ -288,3 +288,69 @@ class TestWriteRoundExec:
             trigger_tool=None,
             elapsed_ms=5.0,
         )  # must not raise
+
+
+class TestAuditToolExecSnapshotDedup:
+    """toolexec001 row 05: execution_snapshot_json + dedup_state in the tool_exec record."""
+
+    def _ctx(self) -> Any:
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
+        return ctx
+
+    def test_snapshot_key_present_and_parseable(self) -> None:
+        ctx = self._ctx()
+        audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/f"}, False, "req-123")
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
+        payload = json.loads(logged)
+        snapshot = json.loads(payload["execution_snapshot_json"])
+        assert isinstance(snapshot, dict)
+        assert {"deployed_rev", "git_sha", "config_hash", "schema_versions"} <= set(
+            snapshot
+        )
+
+    def test_dedup_state_omitted_when_empty(self) -> None:
+        ctx = self._ctx()
+        audit_tool_exec(ctx, "read_text_file", {}, False, "req-123")
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert "dedup_state" not in payload
+
+    def test_dedup_state_serialized_when_provided(self) -> None:
+        ctx = self._ctx()
+        audit_tool_exec(
+            ctx,
+            "write_file",
+            {"path": "/p"},
+            False,
+            "req-9",
+            dedup_state="duplicate_hit",
+        )
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert payload["dedup_state"] == "duplicate_hit"
+
+    def test_existing_record_fields_byte_stable(self) -> None:
+        ctx = self._ctx()
+        audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/f"}, False, "req-123")
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        expected = {
+            "event",
+            "task_id",
+            "tool",
+            "operation_type",
+            "resource_scope",
+            "mcp_request_id",
+            "is_error",
+            "args_preview",
+            "ts",
+            "source",
+            "error_type",
+            "workflow_id",
+            "session_id",
+            "idempotency_key",
+            "task_linkage",
+            "artifact_uri",
+        }
+        assert expected <= set(payload)
+        assert set(payload) == expected | {"execution_snapshot_json"}

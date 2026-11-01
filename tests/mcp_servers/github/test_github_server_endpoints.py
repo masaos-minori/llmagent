@@ -115,7 +115,7 @@ class TestCallToolEndpoint:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body == {"result": "42 stars", "is_error": False}
+        assert body == {"result": "42 stars", "is_error": False, "dedup_state": ""}
         handler.assert_awaited_once_with({"owner": "acme", "repo": "widgets"})
 
     def test_unknown_tool_returns_error_result(
@@ -138,7 +138,7 @@ class TestCallToolEndpoint:
             "/v1/call_tool", json={"name": "github_list_issues", "args": {}}
         )
         assert resp.status_code == 200
-        assert resp.json() == {"result": "ok", "is_error": False}
+        assert resp.json() == {"result": "ok", "is_error": False, "dedup_state": ""}
 
     def test_audit_record_keeps_session_and_request_context_in_order(
         self,

@@ -295,22 +295,22 @@ and failure semantics only (`skills/DESIGN.md` Docs content policy).
 
 ## Implementation steps
 1. **Phase 1: Config + snapshot contracts**
-   - [ ] Create `config/mcp_dedup.toml` with validated defaults + retry_class map (REQ-006, REQ-002, REQ-009); loader/validation lives in the Phase 3 module
-   - [ ] Implement `scripts/shared/execution_snapshot.py` + `tests/shared/test_execution_snapshot.py` (REQ-004)
+   - [x] Create `config/mcp_dedup.toml` with validated defaults + retry_class map (REQ-006, REQ-002, REQ-009); loader/validation lives in the Phase 3 module
+   - [x] Implement `scripts/shared/execution_snapshot.py` + `tests/shared/test_execution_snapshot.py` (REQ-004)
 2. **Phase 2: Key determinism** (independently shippable)
-   - [ ] Deterministic fallback key in `scripts/shared/http_transport.py`; adapt `tests/shared/test_http_transport.py` and `tests/shared/test_tool_executor_routing.py`; add cross-process determinism test (REQ-001, REQ-010)
-   - [ ] Grep per-server key usage to confirm passthrough (UNK-03)
+   - [x] Deterministic fallback key in `scripts/shared/http_transport.py`; adapt `tests/shared/test_http_transport.py` and `tests/shared/test_tool_executor_routing.py`; add cross-process determinism test (REQ-001, REQ-010)
+   - [x] Grep per-server key usage to confirm passthrough (UNK-03)
 3. **Phase 3: Durable dedup at the dispatcher**
-   - [ ] Implement `scripts/shared/mcp_dedup.py` (incl. `config/mcp_dedup.toml` loader/validation) + `tests/shared/test_mcp_dedup.py` (REQ-002, REQ-005, REQ-006, REQ-009)
-   - [ ] Cutover `scripts/mcp_servers/dispatch.py`: store-backed lookup/policy/snapshot recording; preserve completed fast path + duplicate-attempt audit; extend `tests/mcp_servers/test_mcp_dispatch.py` (REQ-003, REQ-005)
-   - [ ] Populate audit snapshot + dedup state; `scripts/agent/tool_audit.py` serialization + tests (REQ-004)
+   - [x] Implement `scripts/shared/mcp_dedup.py` (incl. `config/mcp_dedup.toml` loader/validation) + `tests/shared/test_mcp_dedup.py` (REQ-002, REQ-005, REQ-006, REQ-009)
+   - [x] Cutover `scripts/mcp_servers/dispatch.py`: store-backed lookup/policy/snapshot recording; preserve completed fast path + duplicate-attempt audit; extend `tests/mcp_servers/test_mcp_dispatch.py` (REQ-003, REQ-005)
+   - [x] Populate audit snapshot + dedup state; `scripts/agent/tool_audit.py` serialization + tests (REQ-004)
 4. **Phase 4: Workflow lifecycle tables** (gated on dbmig001 Phases 1–2 implemented)
-   - [ ] `tool_call_state` + `execution_snapshots` DDL + registered migration step via dbmig001 harness in `scripts/db/schema_sql.py` (REQ-007)
+   - [x] `tool_call_state` + `execution_snapshots` DDL + registered migration step via dbmig001 harness in `scripts/db/schema_sql.py` (REQ-007)
 5. **Phase 5: Turn semantics**
-   - [ ] Pending detection + replay-as-new-turn in `scripts/agent/workflow/state_store.py`, `workflow_engine.py`, control message in `llm_turn_runner.py`; `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/test_llm_turn_runner.py` (REQ-008)
+   - [x] Pending detection + replay-as-new-turn in `scripts/agent/workflow/state_store.py`, `workflow_engine.py`, control message in `llm_turn_runner.py`; `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/test_llm_turn_runner.py` (REQ-008)
 6. **Phase 6: Verification + documentation**
    - [ ] Full validation sequence (Tests section); staging check: restart dispatcher between identical calls and confirm completed-hit without re-execution; kill mid-call and confirm next-turn replay
-   - [ ] Update `docs/22_mcp/mcp_03_03_*`, `docs/22_mcp/mcp_06_06_*`, `docs/23_agent/agent_04_03_*`; write `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` (Documentation Impact)
+   - [x] Update `docs/22_mcp/mcp_03_03_*`, `docs/22_mcp/mcp_06_06_*`, `docs/23_agent/agent_04_03_*`; write `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` (Documentation Impact)
 
 ## Validation plan
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
@@ -355,12 +355,12 @@ and failure semantics only (`skills/DESIGN.md` Docs content policy).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Config + snapshot contracts | In Progress | — | — |  |
-| 2 | Phase 2: Key determinism | In Progress | — | — | Independently shippable |
-| 3 | Phase 3: Durable dedup at the dispatcher | In Progress | — | — |  |
-| 4 | Phase 4: Workflow lifecycle tables | In Progress | — | — | Gated on dbmig001 Phases 1–2 |
-| 5 | Phase 5: Turn semantics | In Progress | — | — |  |
-| 6 | Phase 6: Verification + documentation | Pending | — | — |  |
+| 1 | Phase 1: Config + snapshot contracts | Completed | — | 20261031-133328 | procedures 10, 03, 18 archived 2026-10-31 |
+| 2 | Phase 2: Key determinism | Completed | — | 20261031-134952 | Independently shippable procedures 01, 15, 16 archived 2026-10-31 |
+| 3 | Phase 3: Durable dedup at the dispatcher | Completed | — | 20261031-164500 | Procedures 02/04/05/17 archived; 19 (verification-only) archived 2026-10-31 |
+| 4 | Phase 4: Workflow lifecycle tables | Completed | 20261031-164500 | 20261031-171911 | Procedure 06 archived; tests landed via rows 04–06 |
+| 5 | Phase 5: Turn semantics | Completed | 20261031-171911 | 20261031-182400 | Procedures 07/08/09 archived; detection/injection mechanism inert until the toolstate001 producer follow-up |
+| 6 | Phase 6: Verification + documentation | In Progress | 20261031-181000 | — | Docs procedures 14/11/12/13 archived 2026-10-31; full-suite validation + staging check pending |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -371,26 +371,26 @@ and failure semantics only (`skills/DESIGN.md` Docs content policy).
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | `implementations/20261030-102825_01_scripts_shared_http_transport.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_02_scripts_shared_mcp_dedup.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_03_scripts_shared_execution_snapshot.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_04_scripts_mcp_servers_dispatch.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_05_scripts_agent_tool_audit.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_06_scripts_db_schema_sql.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_07_scripts_agent_workflow_state_store.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_08_scripts_agent_workflow_workflow_engine.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_09_scripts_agent_llm_turn_runner.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_10_config_mcp_dedup.toml.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_11_docs_22_mcp_mcp_03_03_transport-and-health.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_12_docs_22_mcp_mcp_06_06_end-to-end-tool-call-tracing.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_13_docs_23_agent_agent_04_03_state-and-persistence-platform-databases.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_14_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_15_tests_shared_test_http_transport.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_16_tests_shared_test_tool_executor_routing.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_17_tests_shared_test_mcp_dedup.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_18_tests_shared_test_execution_snapshot.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/done/20261030-102825_02_scripts_shared_mcp_dedup.py.md` | 3 | Procedure | Completed | — | 20261031-134952 |
+| `implementations/done/20261030-102825_03_scripts_shared_execution_snapshot.py.md` | 1 | Procedure | Completed | — | 20261031-133328 |
+| `implementations/done/20261030-102825_04_scripts_mcp_servers_dispatch.py.md` | 3 | Procedure | Completed | 20261031-152832 | 20261031-162000 |
+| `implementations/20261030-102825_05_scripts_agent_tool_audit.py.md` | 3 | Procedure | Completed | 20261031-162000 | 20261031-164500 |
+| `implementations/done/20261030-102825_06_scripts_db_schema_sql.py.md` | 4 | Procedure | Completed | 20261031-164500 | 20261031-171911 |
+| `implementations/done/20261030-102825_07_scripts_agent_workflow_state_store.py.md` | 5 | Procedure | Completed | 20261031-182400 | `tool_call_state_ops.py` (approved additional target) + StateStore facade; 5 unit cases |
+| `implementations/done/20261030-102825_08_scripts_agent_workflow_workflow_engine.py.md` | 5 | Procedure | Completed | 20261031-182400 | `build_turn_control_message` + adapter/executor hand-off (approved additional targets); producer gap deferred to toolstate001 follow-up issue |
+| `implementations/done/20261030-102825_09_scripts_agent_llm_turn_runner.py.md` | 5 | Procedure | Completed | 20261031-182400 | `control_message` kwarg + schema-strict per-request injection; 5 cases |
+| `implementations/done/20261030-102825_10_config_mcp_dedup.toml.md` | 1 | Procedure | Completed | — | 20261031-133328 |
+| `implementations/done/20261030-102825_11_docs_22_mcp_mcp_03_03_transport-and-health.md.md` | 6 | Procedure | Completed | 2026-10-31 | New key-derivation/dedup subsection added (premise of existing text confirmed false); `mcp_03_01` edit not needed |
+| `implementations/done/20261030-102825_12_docs_22_mcp_mcp_06_06_end-to-end-tool-call-tracing.md.md` | 6 | Procedure | Completed | 2026-10-31 | Audit trace fields + dedup outcome vocabulary documented; `snapshot_mismatch` documented as dedup_state value |
+| `implementations/done/20261030-102825_13_docs_23_agent_agent_04_03_state-and-persistence-platform-databases.md.md` | 6 | Procedure | Completed | 2026-10-31 | Task-key sentence preserved; key-distinction + lifecycle-table inventory added |
+| `implementations/done/20261030-102825_14_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md` | 6 | Procedure | Completed | 2026-10-31 | New doc landed at frozen path; DDL rendered as canonical-source pointer per `check_docs_content_policy`; `db_08` mcp_dedup gap flagged |
+| `implementations/done/20261030-102825_15_tests_shared_test_http_transport.py.md` | 2 | Procedure | Completed | — | 20261031-134952 |
+| `implementations/done/20261030-102825_16_tests_shared_test_tool_executor_routing.py.md` | 2 | Procedure | Completed | — | 20261031-134952 |
+| `implementations/done/20261030-102825_17_tests_shared_test_mcp_dedup.py.md` | 3 | Procedure | Completed | 20261031-152832 | 20261031-162000 |
+| `implementations/done/20261030-102825_18_tests_shared_test_execution_snapshot.py.md` | 1 | Procedure | Completed | — | 20261031-133328 |
 | `implementations/20261030-102825_19_tests_mcp_servers_test_mcp_dispatch.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_20_tests_agent_workflow_test_workflow_engine.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261030-102825_21_tests_agent_test_llm_turn_runner.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/done/20261030-102825_20_tests_agent_workflow_test_workflow_engine.py.md` | 5 | Procedure | Completed | 2026-10-31 | Consolidated into `TestBuildTurnControlMessage` (6 cases) per landed row 08 design; snapshot axis pinned at dispatcher level |
+| `implementations/done/20261030-102825_21_tests_agent_test_llm_turn_runner.py.md` | 5 | Procedure | Completed | 2026-10-31 | Landed as 5 cases incl. KEYWORD_ONLY guard + non-mutation pin |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

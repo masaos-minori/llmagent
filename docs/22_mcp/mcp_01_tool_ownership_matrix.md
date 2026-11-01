@@ -18,6 +18,8 @@ related:
 
 ## Tool-to-MCP Server Mapping
 
+The ownership facts in this matrix are machine-readable in `registry/manifests/tool_ownership.yaml`, and the Server Port & Tool Reference table below is rendered from `registry/manifests/mcp_endpoints.yaml`.
+
 | Tool Name | Owning MCP Server | Capability Group | Safety Tier | Approval (effective risk) | Typical Workflow Stage |
 |---|---|---|---|---|---|
 | list_directory, list_directory_with_sizes, directory_tree, read_text_file, read_media_file, read_multiple_files, search_files, grep_files, get_file_info | file-read-mcp | READ_TOOLS | READ_ONLY | No (`none`) | plan, verify |
@@ -80,7 +82,7 @@ Per-server responsibilities, explicit non-responsibilities, ownership rationale,
 ## Server Port & Tool Reference (auto-generated)
 
 <!-- AUTO-GENERATED: generate_reference_table.py port-tool-reference -->
-Generated from `config/agent.toml` and `scripts/mcp_servers/**/*.py` TOOL_LIST definitions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type mcp` to refresh.
+Generated from `registry/manifests/mcp_endpoints.yaml` (`config/agent.toml` and `scripts/mcp_servers/**/*.py` TOOL_LIST definitions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.
 
 | Server | Port | Tool Count | Tool Names |
 |---|---|---|---|

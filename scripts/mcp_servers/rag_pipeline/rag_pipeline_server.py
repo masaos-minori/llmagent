@@ -71,6 +71,51 @@ RAG_PIPELINE_SERVER_KEY = "rag_pipeline"
 RAG_PIPELINE_OWN_CONFIG_FILE = "rag_pipeline_mcp_server.toml"
 
 
+def _identity_payload() -> dict[str, Any]:
+    """Return the server's own corpus identity wire dict (RAGCORPUS001, REQ-002).
+
+    Reads the local identity from the server's own rag corpus via a short-lived
+    read-only connection. A missing/unreadable corpus yields an unverified dict
+    (never omitted) so callers always see the shape; the read fails closed rather
+    than raising, mirroring the pipeline gate. ``SCHEMA_VERSION`` is imported lazily
+    to avoid loading the pipeline at import time.
+    """
+    from rag.pipeline import SCHEMA_VERSION
+
+    def _unverified() -> dict[str, Any]:
+        return {
+            "corpus_id": "",
+            "index_generation": 0,
+            "schema_version": SCHEMA_VERSION,
+            "embedding_model_id": "",
+            "normalization_version": "",
+            "chunking_policy_version": "",
+            "verified": False,
+        }
+
+    if not _cfg.rag_db_path:
+        return _unverified()
+    try:
+        from db.helper import SQLiteHelper
+        from rag.identity_gate import compute_local_identity
+
+        with SQLiteHelper(
+            db_path=_cfg.rag_db_path, sqlite_vec_so=_cfg.sqlite_vec_so
+        ).open() as db:
+            identity = compute_local_identity(db, schema_version=SCHEMA_VERSION)
+    except Exception:  # noqa: BLE001 — health/search must never fail on identity read
+        return _unverified()
+    return {
+        "corpus_id": identity.corpus_id,
+        "index_generation": identity.index_generation,
+        "schema_version": identity.schema_version,
+        "embedding_model_id": identity.embedding_model_id,
+        "normalization_version": identity.normalization_version,
+        "chunking_policy_version": identity.chunking_policy_version,
+        "verified": identity.verified,
+    }
+
+
 def _rag_security_view(cfg: RagPipelineConfig) -> dict[str, object]:
     """Build the non-secret view the posture fingerprint is computed from.
 
@@ -193,6 +238,7 @@ async def rag_run_pipeline(req: RagRunRequest) -> RagRunResponse:
             ms=f"{ms:.0f}",
         ),
     )
+    result.corpus_identity = _identity_payload()
     return result
 
 
@@ -210,6 +256,7 @@ async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
             ms=f"{ms:.0f}",
         ),
     )
+    result.corpus_identity = _identity_payload()
     return result
 
 
@@ -247,6 +294,7 @@ async def health() -> JSONResponse:
     """Health check endpoint. Returns degraded when embed_url is unusable."""
     deps = await _check_health_deps()
     details: dict[str, object] = {"service": "rag-pipeline-mcp"}
+    details["corpus_identity"] = _identity_payload()
     result: JSONResponse = make_health_response(
         deps, details, security=_security_posture
     )

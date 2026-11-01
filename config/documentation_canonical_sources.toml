@@ -62,3 +62,10 @@ claim_type = "runtime-behavior"
 source_paths = ["scripts/shared/", "scripts/db/"]
 area = "Shared/DB"
 notes = "No Shared/DB specification document exists; current runtime behavior is defined by the implementation."
+
+[[canonical_sources]]
+decision_target = "mcp.component-mandatoriness"
+claim_type = "security-policy"
+source_paths = ["registry/component_mandatoriness.yaml"]
+area = "MCP"
+notes = "Machine-readable required/non-required classification of each MCP server (ADR-004 Decision Group 3 item 13); the agent_08_04 table is generated from it."

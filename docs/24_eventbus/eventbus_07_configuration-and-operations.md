@@ -58,6 +58,8 @@ The schema and defaults are defined in `scripts/eventbus/config.py::EventBusConf
 - `auth_token` is required (startup fails if empty). It is a control-plane credential holding only the operator, monitoring, and admin roles. The shipped `config/eventbus.toml` stores it as an environment reference, so the credential comes from the operator environment at load time rather than from the deployed file (Explicit in code — `config/eventbus.toml`, `scripts/eventbus/config.py`). A token key written as `"${ENV:VAR_NAME}"` is resolved when the configuration is loaded: the value must be present in the environment, and an unset variable raises `ValueError` naming it, so a reference that resolves to nothing never reaches a running server. A reference that resolves to an empty string is rejected by the same non-empty rule as a literal empty value.
 - `publisher_token`, `consumer_token`, `operator_token` and `monitoring_token` each grant exactly their own role when set. `admin_token` grants the operator, monitoring, and admin roles (`/admin/*`, DLQ, replay, health) and has no publisher or consumer role.
 - `consumer_authorization` (`consumer_id` -> topics) and `topic_authorization` (topic -> `consumer_id`) are allowlists applied to the consumer-role token only.
+- `authz_max_ttl_seconds` must be greater than or equal to 1 (default 86400). It bounds the TTL an administrator may attach to newly granted authorization pairs on `POST /admin/topics/authorization`.
+- `authz_sweep_interval_seconds` must be greater than or equal to 1.0 (default 60.0). It sets how often the authorization TTL expiry sweep runs. See Authorization TTL Expiry Sweep below.
 - `slow_consumer_threshold` must be strictly less than `subscriber_queue_maxsize`, and `backlog_health_threshold` must be less than or equal to it. Invalid combinations fail startup with error messages naming both conflicting values.
 - `sse_idle_timeout` closes a `/subscribe` connection that received no events within that period; `sse_heartbeat_interval` controls keep-alive comments.
 - `publish_rate`, `subscriber_count` and `replay_batch_size` bound capacity and replay batch size.
@@ -79,6 +81,21 @@ Before deploying a publisher or consumer process, confirm that the token it is c
 ### Unsupported Keys
 
 Startup fails if the configuration file contains any key not defined in `EventBusConfig`.
+
+### Authorization TTL Expiry Sweep
+
+Temporary authorization grants expire on their own; no operator action is required.
+
+- An admin update may attach a TTL to newly granted pairs, bounded by `authz_max_ttl_seconds`; carried-over pairs keep their previous expiry.
+- A periodic sweep (interval `authz_sweep_interval_seconds`) removes expired grants by publishing an atomic removal generation, and emits one `log_privileged_action` audit record with `target="ttl_expiry"` for each removal cycle that changed the authorization map.
+- Generation-changing audit records carry `previous_generation` and `new_generation` fields, and the `detail` ends with a `gen:<prev>-><new>` suffix, so an operator can read any sweep or admin update as an explicit generation transition.
+- A concurrent admin update that bumps the generation while a sweep cycle is building makes that cycle abort; the sweep retries on the next interval. No authorization state is lost and nothing is published twice.
+
+### Restart and Authorization Baseline
+
+- Runtime authorization overrides (admin updates and their TTL grants) are never persisted. After a restart the authorization map is exactly the configured baseline from `config/eventbus.toml`.
+- Each startup publishes the baseline generation (generation 0; generation numbering restarts from the baseline after a restart — numbers are not carried over) and emits one `log_privileged_action` audit record with `consumer_id="system"`, `route="/startup"`, `target="authz_baseline"`, whose `detail` carries the loaded baseline hash. This record is a startup baseline marker, not a security event.
+- Audit records correlate across restarts through that baseline hash (the hash is an opaque fingerprint, not configuration content).
 
 ---
 

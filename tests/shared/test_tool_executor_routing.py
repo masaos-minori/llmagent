@@ -5,12 +5,13 @@ set_lifecycle(), transport-dispatch paths, and auth header injection.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from shared.http_transport import HttpTransport, TransportError
+from shared.http_transport import HttpTransport, TransportError, derive_idempotency_key
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
 from shared.runtime_tool import build_runtime_tool
@@ -45,7 +46,9 @@ def _runtime_registry_for(tool_to_server: dict[str, str]) -> RuntimeToolRegistry
         )
         for name, server_key in tool_to_server.items()
     }
-    return RuntimeToolRegistry(tools=tools)
+    return RuntimeToolRegistry(
+        tools=tools, allowed_servers=frozenset(tool_to_server.values())
+    )
 
 
 # Tool routes this test file exercises via ex.execute()/ex._raw_execute(); wired into
@@ -376,6 +379,13 @@ class TestHttpTransportIdempotencyRetry:
         assert len(keys) == 2
         assert all(k for k in keys)  # every attempt carries a non-empty key
         assert len(set(keys)) == 1  # identical value reused across retries
+        # Row 16 (REQ-001): the reused key equals the locally re-derived
+        # deterministic key. No session id is set, so the transport's uid is the
+        # auth-token hash (row 01 Assumptions).
+        expected_key = derive_idempotency_key(
+            "call_tool", "my_tool", {}, hashlib.sha256(b"my-token").hexdigest()
+        )
+        assert keys[0] == expected_key
 
     @pytest.mark.asyncio
     async def test_write_and_read_retry_call_counts(self) -> None:
@@ -968,6 +978,7 @@ class TestExecuteRoutingResults:
         return RuntimeToolRegistry(
             tools={"unavailable_tool": tool},
             unavailable_servers=frozenset({"unavailable_srv"}),
+            allowed_servers=frozenset({"unavailable_srv"}),
         )
 
     @pytest.mark.asyncio

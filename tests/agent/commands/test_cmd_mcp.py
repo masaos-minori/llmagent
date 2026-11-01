@@ -73,7 +73,9 @@ def _stdio(
 
 def _registry_with(*tools: RuntimeTool) -> RuntimeToolRegistry:
     tool_map = {t.name: t for t in tools}
-    return RuntimeToolRegistry(tools=tool_map)
+    return RuntimeToolRegistry(
+        tools=tool_map, allowed_servers=frozenset(t.server_key for t in tools)
+    )
 
 
 def _mock_client() -> AsyncMock:
@@ -626,7 +628,9 @@ class TestCmdMcpStatusToolDiagnostics:
     ) -> None:
         """No diagnostics section when registry has zero tools."""
         ctx = _Ctx({"svc": _http()})
-        ctx.services_required.runtime_tools = RuntimeToolRegistry()
+        ctx.services_required.runtime_tools = RuntimeToolRegistry(
+            allowed_servers=frozenset()
+        )
         mcp = _Mcp(ctx)
 
         resp = MagicMock()

@@ -54,7 +54,7 @@ def _legacy_marker(conn: sqlite3.Connection) -> str | None:
     """
     try:
         row = conn.execute(
-            f"SELECT version FROM {_WORKFLOW_VERSION_TABLE} "
+            f"SELECT version FROM {_WORKFLOW_VERSION_TABLE} "  # nosec B608 — table name is a module-level constant, no user input
             "ORDER BY applied_at DESC LIMIT 1"
         ).fetchone()
     except sqlite3.OperationalError:
@@ -126,15 +126,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"already at target version {current}; no migration needed.")
             return EXIT_OK
 
-        # Run each step's preconditions before any mutation. The shared runner
-        # commits the ledger table before the step loop, so a step refusal raised
-        # inside apply() would otherwise leave a dangling empty ledger behind.
-        # Preflighting here keeps the "a refusal never touches the database"
-        # invariant (AC-2) at the CLI boundary; preconditions are read-only, so
-        # re-running them inside apply() is harmless.
-        for spec in path:
-            for precondition in spec.preconditions:
-                precondition(conn)
+        # Preflight the first step's preconditions before any mutation: only the
+        # first step's preconditions are defined against the current database
+        # state. Later steps' preconditions describe the state the preceding step
+        # produces, so they are evaluated inside apply()'s per-step transaction
+        # (a mid-chain refusal leaves the database at the last completed step —
+        # AC-2, exercised by the step-failure tests). Preflighting the first step
+        # keeps the "a refusal never touches the database" invariant: the shared
+        # runner commits the ledger table before the step loop, so a first-step
+        # refusal raised inside apply() would otherwise leave a dangling empty
+        # ledger behind (dbmig001 row 07).
+        for precondition in path[0].preconditions:
+            precondition(conn)
 
         if args.dry_run:
             runner.apply(conn, path, verify_backup, dry_run=True)

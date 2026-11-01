@@ -14,8 +14,10 @@ import uuid
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 
+from agent.workflow import tool_call_state_ops
 from agent.workflow.models import AttemptRecord, TaskRecord
 from agent.workflow.task_ops import create_task
+from agent.workflow.tool_call_state_ops import ToolCallState
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +168,37 @@ class StateStore:
             (task_id, stage_id),
         )
         return int(rows[0][0])
+
+    # ── Tool-call state (workflow.sqlite tool_call_state table) ──────────────
+
+    def record_tool_call(
+        self,
+        task_id: str,
+        idempotency_key: str,
+        tool: str,
+        retry_class: str,
+        snapshot_id: str | None = None,
+    ) -> None:
+        """Insert a tool-call row in state 'pending' for the task."""
+        tool_call_state_ops.record_tool_call(
+            self._db, task_id, idempotency_key, tool, retry_class, snapshot_id
+        )
+
+    def finalize_tool_call(self, idempotency_key: str, state: str) -> None:
+        """Move a tool-call row to its final state, bumping updated_at."""
+        tool_call_state_ops.finalize_tool_call(self._db, idempotency_key, state)
+
+    def pending_tool_calls(self, task_id: str) -> list[ToolCallState]:
+        """Return the task's pending tool-call rows, oldest first."""
+        return tool_call_state_ops.pending_tool_calls(self._db, task_id)
+
+    def classify_stale_pending(
+        self, task_id: str, timeout_seconds: float
+    ) -> list[ToolCallState]:
+        """Mark this task's timed-out pending tool-call rows as 'interrupted'."""
+        return tool_call_state_ops.classify_stale_pending(
+            self._db, task_id, timeout_seconds
+        )
 
     # ── Diagnostic Queries ───────────────────────────────────────────────
 

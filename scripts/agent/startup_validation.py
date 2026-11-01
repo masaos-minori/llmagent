@@ -17,7 +17,14 @@ import asyncio
 import sqlite3
 from typing import TYPE_CHECKING
 
+from db.models import FindingSeverity
+from shared.component_mandatoriness import (
+    ComponentMandatorinessError,
+    load_component_mandatoriness,
+)
+
 from agent.context import AgentContext
+from agent.production_config_validator import ProductionConfigValidator
 from agent.services.mcp_health import check_readiness, collect_server_postures
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.rag_maintenance_service import RagMaintenanceService
@@ -61,6 +68,48 @@ def _record_drift_check_failure(
         pipeline.add_warning("routing_drift", message)
 
 
+def _check_component_mandatoriness(
+    ctx: AgentContext, pipeline: StartupValidationResult
+) -> None:
+    """Abort startup on a mandatoriness registry conflict or unknown server.
+
+    Loads the component-mandatoriness registry once and cross-checks each
+    configured MCP server's ``required`` value against the approved
+    classification via ``ProductionConfigValidator.validate_against_registry``.
+    A conflicting or unknown server yields exactly one fatal per message under
+    the ``component_mandatoriness`` source label. A missing or unparsable
+    registry is also fatal (ADR-004 Fail-Fast). Synchronous; reads no network
+    state. Callers must run this before MCP tool discovery so ``runtime_tools``
+    is never published when the gate fails (REQ-004, AC-3).
+    """
+    try:
+        registry = load_component_mandatoriness()
+    except (ComponentMandatorinessError, FileNotFoundError, OSError) as exc:
+        pipeline.add_fatal(
+            "component_mandatoriness",
+            f"Undeterminable component mandatoriness: {exc}",
+            remediation=(
+                "Ensure registry/component_mandatoriness.yaml exists and is "
+                "valid (ADR-004 Fail-Fast)."
+            ),
+        )
+        return
+
+    required_map = {key: srv.required for key, srv in ctx.cfg.mcp.mcp_servers.items()}
+    for message in ProductionConfigValidator().validate_against_registry(
+        registry, required_map
+    ):
+        pipeline.add_fatal(
+            "component_mandatoriness",
+            message,
+            remediation=(
+                "Correct the server's 'required' value in config/agent.toml or "
+                "reclassify via agent_08_04 "
+                "(registry: registry/component_mandatoriness.yaml)"
+            ),
+        )
+
+
 class StartupValidationPipeline:
     """Owns the full service-validation pipeline."""
 
@@ -101,6 +150,14 @@ class StartupValidationPipeline:
                 pipeline.add_ok("readiness")
         except Exception as exc:  # noqa: BLE001 — an unexpected readiness-probe failure must be captured and reported as a pipeline fatal rather than crashing startup outright
             pipeline.add_fatal("readiness", f"Readiness check failed: {exc}")
+
+        # 3. Component mandatoriness cross-check (REQ-004)
+        # Runs before discovery publication: a registry conflict or an unknown
+        # server aborts startup so runtime_tools is never published (AC-3).
+        # Synchronous; reads no network state, so it costs nothing here.
+        _check_component_mandatoriness(ctx, pipeline)
+        if pipeline.has_fatal:
+            return pipeline
 
         # 4. MCP tool discovery and validation (consolidated)
         # ADR-004 Decision #14: a FATAL discovery finding always routes through
@@ -170,21 +227,33 @@ class StartupValidationPipeline:
             if rag_check.is_consistent:
                 pipeline.add_ok("rag_consistency")
             else:
-                for issue in rag_check.issues:
-                    pipeline.add_warning(
-                        "rag_consistency", f"[RAG] Consistency issue: {issue}"
+                # Findings carry severity structurally (docs 05/03/04); route by it.
+                # No config path may downgrade a fatal finding (AC-4).
+                for finding in rag_check.findings:
+                    message = (
+                        f"{finding.message} Repair action: {finding.repair_action}"
                     )
+                    if finding.severity == FindingSeverity.FATAL:
+                        pipeline.add_fatal("rag_consistency", message)
+                    else:
+                        pipeline.add_warning("rag_consistency", message)
         except TimeoutError:
             logger.warning("RAG consistency check timed out after 30s")
-            pipeline.add_skipped(
-                "rag_consistency", "RAG consistency check skipped: timeout after 30s"
+            pipeline.add_warning(
+                "rag_consistency",
+                "RAG identity-unverified: consistency check timed out after 30s; "
+                "startup continues but the gate refuses fallback while unverified "
+                "(REQ-007).",
             )
-        except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup
+        except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup;
+            # the unverified state is fail-closed at the gate (REQ-007), not here.
             category = _classify_rag_failure(exc)
             logger.warning("RAG consistency check failed: %s", exc)
-            pipeline.add_skipped(
+            pipeline.add_warning(
                 "rag_consistency",
-                f"RAG consistency check skipped: {category} ({type(exc).__name__}): {exc}",
+                "RAG identity-unverified: "
+                f"{category} ({type(exc).__name__}): {exc}; startup continues but "
+                "the gate refuses fallback while unverified (REQ-007).",
             )
 
         return pipeline

@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from db.models import (
+    ConsistencyFinding,
     PurgeCounts,
     RagConsistencyReport,
     WalCheckpointCounts,
@@ -221,11 +222,19 @@ class DbRecoverResult:
 
 @dataclass(frozen=True)
 class RagConsistencyResult:
-    """RAG consistency check result with issues and detailed report."""
+    """RAG consistency check result with issues, detailed report, and severity.
+
+    `findings` carries the structured per-finding severity/repair actions;
+    `fatal_count`/`degraded_count` summarize them so callers can route by severity
+    without text-parsing the issue strings.
+    """
 
     is_consistent: bool
     issues: list[str]
     report: RagConsistencyReport
+    findings: tuple[ConsistencyFinding, ...] = ()
+    fatal_count: int = 0
+    degraded_count: int = 0
 
 
 @dataclass(frozen=True)

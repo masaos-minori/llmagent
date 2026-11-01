@@ -43,14 +43,14 @@ Module-level reference for `scripts/eventbus/`. HTTP-level contracts (request/re
 ## Module Class/Function Reference (auto-generated)
 
 <!-- AUTO-GENERATED: generate_reference_table.py eventbus-class-function-reference -->
-Generated from `scripts/eventbus/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type eventbus` to refresh.
+Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.
 
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|
 | `scripts/eventbus/ack_route.py` | `authorize_event_pair` | `async def authorize_event_pair(request, db, principal, event_id, consumer_id) -> None` | Authorize the (consumer_id, event topic) pair before any delivery write. |
 |  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
 |  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
-| `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request, principal) -> dict[str, Any]` | Update `consumer_authorization`/`topic_authorization` at runtime and |
+| `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request, principal) -> dict[str, Any] \| JSONResponse` | Update `consumer_authorization`/`topic_authorization` at runtime and |
 | `scripts/eventbus/app.py` | `lifespan` | `async def lifespan(app) -> AsyncGenerator[None]` | FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown. |
 |  | `resolve_subscribe_identity` | `async def resolve_subscribe_identity(request, consumer_id, topic, principal) -> Principal` | — |
 |  | `health` | `async def health(request, _principal) -> JSONResponse` | Health check endpoint for the event bus service. |
@@ -61,14 +61,16 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id, _principal) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active queue. |
 |  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
 |  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
-|  | `admin_topics_authorization` | `async def admin_topics_authorization(request, _principal) -> dict[str, Any]` | Update consumer_authorization/topic_authorization at runtime. |
+|  | `admin_topics_authorization` | `async def admin_topics_authorization(request, _principal) -> dict[str, Any] \| JSONResponse` | Update consumer_authorization/topic_authorization at runtime. |
 | `scripts/eventbus/audit.py` | `AuditRecord` | `class AuditRecord` | Structured payload for one EventBus audit record. |
 |  | `log_auth_failure` | `def log_auth_failure(consumer_id, request_id, route, target, error_type, detail) -> None` | Emit one JSON-lines audit record for an authorization failure. |
-|  | `log_privileged_action` | `def log_privileged_action(consumer_id, request_id, route, target, detail, actor) -> None` | Emit one JSON-lines audit record for a privileged action. |
+|  | `log_privileged_action` | `def log_privileged_action(consumer_id, request_id, route, target, detail, actor, *, previous_generation, new_generation) -> None` | Emit one JSON-lines audit record for a privileged action. |
 | `scripts/eventbus/auth.py` | `Role` | `class Role` | — |
 |  | `Principal` | `class Principal` | Authenticated identity carrying roles, consumer grants, and token fingerprint. |
+|  | `AuthzGeneration` | `class AuthzGeneration` | Immutable authorization generation snapshot (EBAUTHGEN001). |
 |  | `unauthorized_response` | `def unauthorized_response(detail) -> JSONResponse` | Return a standardized HTTP 401 Unauthorized response. |
-|  | `publish_principals` | `def publish_principals(new_map) -> None` | Atomically publish a fully built principal map. |
+|  | `publish_generation` | `def publish_generation(new_generation) -> None` | Atomically publish a fully built AuthzGeneration. |
+|  | `current_generation` | `def current_generation() -> AuthzGeneration \| None` | Return the AuthzGeneration in force, or None before the baseline publishes. |
 |  | `get_auth_token` | `def get_auth_token(config) -> str` | Return the auth_token from EventBusConfig, or raise ValueError if missing. |
 |  | `resolve_principal` | `async def resolve_principal(request, credentials) -> Principal` | Resolve a bearer token to a Principal, or raise 401. |
 |  | `require_role` | `def require_role(role)` | FastAPI dependency factory: verify caller's principal has the required role. |
@@ -76,10 +78,13 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `effective_topics` | `def effective_topics(principal, consumer_id, requested) -> list[str]` | Return the requested topics, or the consumer's granted topics when none. |
 |  | `require_consumer_identity` | `async def require_consumer_identity(request, consumer_id, topics, principal) -> Principal` | FastAPI dependency: verify caller is authorized for consumer_id and topics. |
 |  | `attach_auth_middleware` | `def attach_auth_middleware(app) -> None` | Register X-Request-Id middleware on a FastAPI app. |
+| `scripts/eventbus/authz_ttl.py` | `sweep_expired_authorizations` | `def sweep_expired_authorizations(app, clock) -> AuthzGeneration \| None` | Run one expiry cycle; return the published removal generation, or None. |
+|  | `authz_sweep_loop` | `async def authz_sweep_loop(app, clock) -> None` | Periodically sweep expired authorization grants (mirrors _dlq_loop). |
 | `scripts/eventbus/broker.py` | `ConsumerAlreadyConnectedError` | `class ConsumerAlreadyConnectedError` | Raised when a second connection attempts the same non-empty consumer_id. |
 |  | `EventBroker` | `class EventBroker` | In-memory pub/sub broker with per-subscriber queues and topic filtering. |
 | `scripts/eventbus/config.py` | `get_config_path` | `def get_config_path() -> Path` | Return the path to the Event Bus TOML configuration file. |
 |  | `get_schema_path` | `def get_schema_path() -> Path` | Return the path to the Event Envelope JSON schema file. |
+|  | `authorization_baseline_hash` | `def authorization_baseline_hash(cfg) -> str` | Return a SHA-256 hex digest over the canonical authorization pair set. |
 |  | `EventBusConfig` | `class EventBusConfig` | Immutable configuration for the Event Bus service. |
 |  | `load_config` | `def load_config(path) -> EventBusConfig` | Load and validate the EventBus TOML configuration file. |
 | `scripts/eventbus/db_conn.py` | `get_db_lock` | `def get_db_lock() -> threading.Lock` | Return the lock that must be held for all DB operations. |

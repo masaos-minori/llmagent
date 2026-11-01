@@ -15,6 +15,8 @@ from collections.abc import Awaitable, Callable
 from contextlib import nullcontext
 from typing import Protocol
 
+from shared.mcp_dedup import load_dedup_config
+
 from agent.workflow.artifact_ops import record_artifact
 from agent.workflow.idempotency_ops import begin_stage_if_new
 from agent.workflow.models import TaskRecord, WorkflowDef
@@ -104,6 +106,58 @@ class WorkflowEngine:
         if self._tracer is not None:
             return self._tracer.start_as_current_span(name)
         return nullcontext(_NoOpSpan())
+
+    def build_turn_control_message(self, task_id: str) -> str | None:
+        """Build the replay control message for a task's interrupted tool calls.
+
+        Turn-entry detection (toolexec001 REQ-008): stale pending rows are first
+        classified to 'interrupted' (timeout from the dispatcher-side dedup config),
+        then interrupted rows are listed — retryable ones with a re-issue instruction,
+        non-retryable ones as unreplayable status text the LLM must report rather than
+        replay (the dispatcher's ``dedup_unreplayable`` refusal semantics, row 04).
+
+        Detection must not raise into the turn path: on store or config errors the
+        turn proceeds with no control message (the dispatcher's own dedup still
+        guards execution). No interrupted rows -> None -> byte-identical turn
+        behavior (REQ-010). Fresh pending rows (within the timeout window) are not
+        listed: they may still belong to a call in flight, and re-issuing them could
+        duplicate live work.
+        """
+        try:
+            timeout_seconds = load_dedup_config().pending_timeout_minutes * 60
+            interrupted = self._store.classify_stale_pending(task_id, timeout_seconds)
+        except Exception as exc:  # noqa: BLE001 — turn availability beats replay accuracy; the dispatcher dedup still guards execution
+            logger.warning(
+                "Tool-call state detection failed for task %s (%s); proceeding without control message",
+                task_id,
+                exc,
+            )
+            return None
+        replayable = [c for c in interrupted if c.retry_class == "retryable"]
+        unreplayable = [c for c in interrupted if c.retry_class != "retryable"]
+        if not replayable and not unreplayable:
+            return None
+        lines = ["[tool-call replay control]"]
+        if replayable:
+            lines.append(
+                "The following tool calls from a previous turn were interrupted."
+                " Re-issue each call with the identical tool name and identical arguments;"
+                " the dispatcher replays or deduplicates them by the recorded key."
+            )
+            lines.extend(
+                f"- replay: tool={c.tool} idempotency_key={c.idempotency_key} state=interrupted"
+                for c in replayable
+            )
+        if unreplayable:
+            lines.append(
+                "The following interrupted calls are NOT replayable. Do not re-issue them;"
+                " tell the user they require manual action (unreplayable: manual action required)."
+            )
+            lines.extend(
+                f"- unreplayable: tool={c.tool} idempotency_key={c.idempotency_key} state=interrupted"
+                for c in unreplayable
+            )
+        return "\n".join(lines)
 
     async def run(
         self,

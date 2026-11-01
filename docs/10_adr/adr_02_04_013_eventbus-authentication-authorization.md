@@ -62,7 +62,7 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 
 ### Decision Details
 
-1. **Authentication mechanism**: Bearer token, resolved per route by FastAPI dependencies (`resolve_principal`, `require_role(...)`, `require_consumer_identity`): a missing or unknown token is rejected with 401, and a valid token that lacks the route's role or binding is rejected with 403. The HTTP middleware attached by `attach_auth_middleware()` only assigns `X-Request-Id`. Two kinds of token are accepted: the shared `auth_token` and `admin_token`, which hold only the control-plane roles Operator, Monitoring, and Admin (no Publisher role and no Consumer role), and per-role tokens (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role). A caller's roles are resolved from *which* configured token it presented (`scripts/eventbus/auth.py`'s `_TOKEN_PRINCIPAL_MAP`), not merely from having presented *a* valid token. Server-side authorization does not depend on how tokens are distributed.
+1. **Authentication mechanism**: Bearer token, resolved per route by FastAPI dependencies (`resolve_principal`, `require_role(...)`, `require_consumer_identity`): a missing or unknown token is rejected with 401, and a valid token that lacks the route's role or binding is rejected with 403. The HTTP middleware attached by `attach_auth_middleware()` only assigns `X-Request-Id`. Two kinds of token are accepted: the shared `auth_token` and `admin_token`, which hold only the control-plane roles Operator, Monitoring, and Admin (no Publisher role and no Consumer role), and per-role tokens (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role). A caller's roles are resolved from *which* configured token it presented (the token→principal map of the published generation snapshot in `scripts/eventbus/auth.py`, read via `current_generation()`; `_TOKEN_PRINCIPAL_MAP` is only an alias for that published map), not merely from having presented *a* valid token. Server-side authorization does not depend on how tokens are distributed.
 2. **Authorization model**: Five roles — publisher, consumer, operator, monitoring, admin — each granted a fixed subset of routes:
    - Publisher: POST `/publish`
    - Consumer: GET `/subscribe`, POST `/events/{event_id}/ack`, POST `/nack`
@@ -82,19 +82,31 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 
 ### Authorization generation
 
-9. **One-generation invariant.** Config and the token→principal map are published as one atomic generation: `_populate_token_maps()` builds the entire new map into a fresh dict before publishing via a single module-level assignment (`publish_principals`). Concurrent readers never observe an empty-map window. If building raises (e.g. `consumer_token` without `consumer_authorization`), the previous generation remains in force.
+9. **One-generation invariant.** Config and the token→principal map are published as one immutable `AuthzGeneration` snapshot — config, principals mapping, generation number, effective time, and baseline hash — built in full before publication and published by a single module-level assignment (`publish_generation()`). Concurrent readers never observe an empty-map window. If building raises (e.g. `consumer_token` without `consumer_authorization`), nothing is published: the previous generation — its snapshot, generation number, and baseline hash — remains in force. The startup publication is the baseline generation (`generation` 0); every later effective update publishes `generation + 1`.
 
 ### Persistence semantics
 
 10. **Runtime-only default.** The admin endpoint (`POST /admin/topics/authorization`) updates `consumer_authorization`/`topic_authorization` at runtime only — no config file write. The response includes `persistent: false` and `changed: <bool>` indicating whether the config actually changed. A restart loses the runtime change unless made in `config/eventbus.toml`.
 
+    Optimistic concurrency (EBAUTHGEN001): every request MUST carry `expected_generation` equal to the generation number in force. A mismatch is rejected with HTTP 409 `{"error": "generation_conflict", "expected_generation": <n>, "current_generation": <m>}` before any state is touched — no config replacement, no publication, no audit record. A missing or non-integer `expected_generation` is rejected with HTTP 422; this is a deliberate breaking change for callers that omit the field (owner decision 2026-10-30). An accepted update publishes `generation + 1` and its response carries the additive fields `previous_generation`, `new_generation`, `changed_count`, `effective_at`, and `baseline_hash`.
+
 ### Audit record
 
-11. **Privileged-action audit.** Every effective change to topics authorization emits a redacted `log_privileged_action` record with `target="topics_authorization"` and `detail="updated"`. A no-op emits none. No token values are included in the audit record (INV-05).
+11. **Privileged-action audit.** Every effective change to topics authorization emits a redacted `log_privileged_action` record with `target="topics_authorization"` and a `detail` of the form `detail="<name>:<changed_count>[;<name>:<changed_count>];persistent:false;gen:<previous>-><new>"`. The record also carries the additive fields `previous_generation` and `new_generation`. A no-op emits none. No token values are included in the audit record (INV-05); generation numbers and baseline hashes obey the same rule — a hash is an opaque fingerprint, not config content.
 
 ### Empty / no-op update
 
 12. **Empty/no-op rejection.** An empty body `{}` or a body that produces no actual change is rejected with HTTP 422 (not reported as a successful change).
+
+### Authorization TTL and expiry
+
+13. **TTL semantics.** An admin update may carry an optional `ttl_seconds`, valid only for pairs the accepted update newly grants; it must satisfy `0 < ttl_seconds <= authz_max_ttl_seconds` (`authz_max_ttl_seconds` is configured in `config/eventbus.toml`), otherwise the request is rejected with HTTP 422 before any state is touched. Carried-over pairs keep their previous expiry. A request whose `ttl_seconds` is invalid is rejected before the `expected_generation` comparison is acted on.
+
+14. **Expiry sweep.** A periodic lifespan task removes expired grants by building and publishing an atomic removal generation under the same one-generation invariant (compare-and-swap: a concurrent admin update that bumps the generation aborts the cycle, retried on the next interval) and emits a `log_privileged_action` audit record with `target="ttl_expiry"`. The sweep interval is configured by `authz_sweep_interval_seconds` in `config/eventbus.toml`.
+
+### Restart semantics
+
+15. **Restart baseline.** Runtime overrides are never persisted. On startup, `_populate_token_maps()` publishes the baseline generation from `config/eventbus.toml` (generation 0; generation numbering restarts from the baseline — numbers are not persisted across restarts) and emits one `log_privileged_action` audit record with `consumer_id="system"`, `target="authz_baseline"`, and a `detail` carrying the loaded baseline hash and `runtime_overrides:removed`. Audit records correlate across restarts through that baseline hash (INV-05: the hash is an opaque fingerprint, not config content).
 
 ### Scope
 

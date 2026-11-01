@@ -11,6 +11,7 @@ import dataclasses
 import time
 from typing import TYPE_CHECKING
 
+from shared.execution_snapshot import build_execution_snapshot, snapshot_json
 from shared.json_utils import dumps as _json_dumps
 
 from agent.shared.models import ApprovalDecisionEvent, ToolApprovalEvent, ToolExecEvent
@@ -158,8 +159,15 @@ def audit_tool_exec(
     source: str = "",
     idempotency_key: str = "",
     task_linkage: str = "",
+    dedup_state: str = "",
 ) -> None:
-    """Write a tool_exec event with mcp_request_id to the audit log."""
+    """Write a tool_exec event with mcp_request_id to the audit log.
+
+    Every record carries ``execution_snapshot_json`` (canonical JSON of the
+    deployment fingerprint captured at call time, toolexec001 REQ-004);
+    ``dedup_state`` is serialized only when non-empty (dispatcher dedup outcome,
+    REQ-005; empty for non-dispatch-originated or freshly executed calls).
+    """
     if ctx.services_required.audit_logger is None:
         return
     if not mcp_request_id and not source:
@@ -189,7 +197,11 @@ def audit_tool_exec(
         task_linkage=task_linkage,
         artifact_uri=artifact_uri,
     )
-    ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
+    payload = dataclasses.asdict(evt)
+    payload["execution_snapshot_json"] = snapshot_json(build_execution_snapshot())
+    if dedup_state:
+        payload["dedup_state"] = dedup_state
+    ctx.services_required.audit_logger.info(_json_dumps(payload))
 
 
 def write_round_exec(

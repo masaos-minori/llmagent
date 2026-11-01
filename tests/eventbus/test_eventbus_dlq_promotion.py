@@ -88,7 +88,9 @@ def _drain_outbox(db: Any, deadletter_dir: str) -> dict[str, int]:
     async def _runner(fn: Any) -> Any:
         return fn()
 
-    result: dict[str, int] = asyncio.run(process_outbox(db, deadletter_dir, cfg, _runner))
+    result: dict[str, int] = asyncio.run(
+        process_outbox(db, deadletter_dir, cfg, _runner)
+    )
     return result
 
 

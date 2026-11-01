@@ -29,7 +29,7 @@ threshold. Do not hand-edit between the guard comments — run the generator.
 ## Module Class/Function Reference (auto-generated)
 
 <!-- AUTO-GENERATED: generate_reference_table.py agent-class-function-reference -->
-Generated from `scripts/agent/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type agent` to refresh.
+Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.
 
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|
@@ -143,7 +143,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `log_approval_decision` | `def log_approval_decision(ctx, outcome) -> None` | Write a structured approval_decision event to the audit log. |
 |  | `audit_workflow_start` | `def audit_workflow_start(ctx, task_id, workflow_version, workflow_id, session_id) -> None` | Write workflow_start event to audit log. |
 |  | `audit_stage_completed` | `def audit_stage_completed(ctx, task_id, stage_id, elapsed_ms, workflow_id, session_id) -> None` | Write stage_completed event to audit log. |
-|  | `audit_tool_exec` | `def audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri, source, idempotency_key, task_linkage) -> None` | Write a tool_exec event with mcp_request_id to the audit log. |
+|  | `audit_tool_exec` | `def audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri, source, idempotency_key, task_linkage, dedup_state) -> None` | Write a tool_exec event with mcp_request_id to the audit log. |
 |  | `write_round_exec` | `def write_round_exec(ctx, *, round_id, tool_count, mode, has_side_effect, trigger_tool, elapsed_ms, affected_tools, serial_reason, estimated_parallel_ms, scheduling_mode) -> None` | Log a round-wide execution event, capturing serialization impact. |
 | `scripts/agent/tool_enums.py` | `RiskLevel` | `class RiskLevel` | Risk level classification for tool operations. |
 |  | `OperationType` | `class OperationType` | Categorization of tool operation kinds. |

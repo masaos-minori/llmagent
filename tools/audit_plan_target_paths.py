@@ -4,6 +4,7 @@
 Flags target paths that do not exist unless the row's change type is a creation
 (create / new). Read-only diagnostic; run with: uv run python3 tools/audit_plan_target_paths.py [plans/*.md ...]
 """
+
 from __future__ import annotations
 
 import re
@@ -21,7 +22,11 @@ def audit(path: Path) -> list[str]:
         if line.startswith("## Implementation Target Files"):
             in_table = True
             continue
-        if in_table and line.startswith("## ") and "Implementation Target Files" not in line:
+        if (
+            in_table
+            and line.startswith("## ")
+            and "Implementation Target Files" not in line
+        ):
             in_table = False
         if not in_table:
             continue

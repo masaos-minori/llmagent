@@ -18,6 +18,7 @@ from shared.db_migrations import (
     MigrationSpec,
     ensure_ledger,
     read_ledger,
+    record_applied,
 )
 
 _ISO8601_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -290,4 +291,25 @@ class TestMigrationFramework:
         applied = runner.apply(conn, [], _ok_verifier)
         assert applied == []
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        conn.close()
+
+
+class TestRecordApplied:
+    def test_explicit_timestamp_is_bound_not_interpolated(self, tmp_path) -> None:
+        """A caller-supplied applied_at is stored verbatim as data, never run as SQL."""
+        conn = _init_db(tmp_path / "toydb.sqlite")
+        ensure_ledger(conn)
+        hostile = "x'); DROP TABLE schema_migrations; --"
+        record_applied(conn, _step("A", 1, 2), applied_at=hostile)
+        rows = read_ledger(conn)
+        assert [(r.id, r.applied_at) for r in rows] == [("A", hostile)]
+        conn.close()
+
+    def test_default_timestamp_is_iso8601_utc(self, tmp_path) -> None:
+        conn = _init_db(tmp_path / "toydb.sqlite")
+        ensure_ledger(conn)
+        record_applied(conn, _step("A", 1, 2))
+        rows = read_ledger(conn)
+        assert len(rows) == 1
+        assert _ISO8601_UTC_RE.match(rows[0].applied_at)
         conn.close()

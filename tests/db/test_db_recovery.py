@@ -871,6 +871,8 @@ def _rag_report(**overrides: object) -> RagConsistencyReport:
         "fts_gap": 0,
         "fts_orphan_count": 0,
         "read_smoke_test_ok": True,
+        # New fatal-class fields default clean so the baseline report is consistent.
+        "corpus_meta_verified": True,
     }
     fields.update(overrides)
     return RagConsistencyReport(**fields)

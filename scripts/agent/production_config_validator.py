@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from dataclasses import fields as dataclass_fields
 from typing import TYPE_CHECKING
 
+from shared.component_mandatoriness import (
+    ClassificationConflictError,
+    UnknownComponentError,
+    check_required_agreement,
+)
 from shared.config_validator import ConfigValidationResult
 
 if TYPE_CHECKING:
+    from shared.component_mandatoriness import ComponentClassification
     from shared.mcp_config import SecurityProfile
+
+logger = logging.getLogger(__name__)
 
 
 def _get_security_profile() -> type[SecurityProfile]:
@@ -188,6 +197,10 @@ def _get_valid_production_keys() -> frozenset[str]:
         {
             "eventbus_db_path",
             "rag_db_path",
+            # RAGCORPUS001 (REQ-003): identity-mismatch policy consumed by the fallback
+            # gate (scripts/rag/pipeline.py) via resolve_rag_config(); shares agent.toml
+            # but is not part of any AgentConfig sub-dataclass.
+            "rag_identity_mismatch_policy",
             "session_db_path",
             "sqlite_archive_dir",
             "sqlite_busy_timeout_ms",
@@ -302,6 +315,54 @@ class ProductionConfigValidator:
             )
 
         return ConfigValidationResult(errors=errors, warnings=warnings)
+
+    def validate_against_registry(
+        self,
+        registry: Mapping[str, ComponentClassification],
+        mcp_required: Mapping[str, bool],
+    ) -> list[str]:
+        """Return mandatoriness cross-check errors for the configured MCP servers.
+
+        Compares each configured ``required`` value against the approved
+        classification in ``registry``. A ``required`` server configured as
+        ``required = false`` yields exactly one conflict error; a configured
+        server absent from the registry yields exactly one unknown-classification
+        error. Registry entries with no configured server are logged as warnings,
+        not errors (a classified-but-not-configured server cannot be used). The
+        returned strings are exactly the fatal set the startup pipeline turns into
+        failures: ``{conflict, unknown-configured-server}``.
+
+        ``registry`` is passed in by the caller (loaded once); this method never
+        loads the registry itself, so it stays pure and testable with synthetic
+        maps.
+        """
+        errors: list[str] = []
+        configured = set(mcp_required)
+        for server_key, config_required in mcp_required.items():
+            try:
+                check_required_agreement(registry, server_key, config_required)
+            except ClassificationConflictError:
+                approved = registry[server_key].classification
+                errors.append(
+                    f"component mandatoriness: '{server_key}' config "
+                    f"required={config_required} conflicts with registry "
+                    f"classification '{approved}' "
+                    f"(registry: registry/component_mandatoriness.yaml)"
+                )
+            except UnknownComponentError:
+                errors.append(
+                    f"component mandatoriness: '{server_key}' is configured but "
+                    f"absent from the mandatoriness registry "
+                    f"(registry: registry/component_mandatoriness.yaml)"
+                )
+        for component_id in sorted(set(registry) - configured):
+            logger.warning(
+                "component mandatoriness: '%s' is classified in the registry but "
+                "has no configured server (registry: "
+                "registry/component_mandatoriness.yaml)",
+                component_id,
+            )
+        return errors
 
     def validate_unknown_tool_safety_tiers(
         self, unknown_keys: list[str]

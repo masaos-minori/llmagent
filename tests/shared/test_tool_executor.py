@@ -357,7 +357,12 @@ def _make_executor(
             enabled_for_llm=True,
             capabilities=(),
         )
-        ex.set_runtime_registry(RuntimeToolRegistry(tools={"read_text_file": tool}))
+        ex.set_runtime_registry(
+            RuntimeToolRegistry(
+                tools={"read_text_file": tool},
+                allowed_servers=frozenset({"file_read"}),
+            )
+        )
     return ex
 
 
@@ -734,7 +739,8 @@ class TestExecuteRoutingResults:
     @pytest.mark.asyncio
     async def test_execute_returns_routing_unknown_tool_result(self) -> None:
         registry = RuntimeToolRegistry(
-            tools={"read_text_file": self._tool("read_text_file", "file_read")}
+            tools={"read_text_file": self._tool("read_text_file", "file_read")},
+            allowed_servers=frozenset({"file_read"}),
         )
         ex, http = await self._executor_with_registry(registry)
         result = await ex.execute("totally_unknown_tool", {})
@@ -763,6 +769,7 @@ class TestExecuteRoutingResults:
                 "unavailable_tool": self._tool("unavailable_tool", "unavailable_srv")
             },
             unavailable_servers=frozenset({"unavailable_srv"}),
+            allowed_servers=frozenset({"unavailable_srv"}),
         )
         ex, http = await self._executor_with_registry(registry)
         result = await ex.execute("unavailable_tool", {})

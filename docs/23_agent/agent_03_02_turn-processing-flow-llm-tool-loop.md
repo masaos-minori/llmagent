@@ -53,7 +53,7 @@ If a transport error occurs during LLM streaming resulting in a partial completi
 
 ### LLM Invocation and Tool Loop
 
-`LlmTurnExecutor.handle_llm_turn(llm_url)` manages the internal loop:
+The single `LlmTurnExecutor` instance (created once by the `Orchestrator` and held by the WorkflowEngine side) executes each turn; its `handle_llm_turn(llm_url)` entry point delegates the loop body to a fresh `LLMTurnRunner` instance created per turn. The runner holds no independent authority and is not retained after the turn:
 
 - Constructs payload: `history + tool_definitions + temperature + max_tokens + stream=True`
 - Sends to LLM via SSE streaming.

@@ -32,7 +32,7 @@ from rag.pipeline_refiner import RefineResult, refine_context
 from rag.stage import StageResult
 
 if TYPE_CHECKING:
-    pass
+    from rag.corpus_identity import CorpusIdentity
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,10 @@ class AugmentRefiner:
         self._llm = llm
         self._last_stage_results: list[StageResult] = []
         self._last_fetch_result: "TwoStageFetchResult | None" = None  # noqa: UP037 — TYPE_CHECKING import; string annotation required by static analyzer
+        # Remote corpus identity forwarded from the HTTP augment chain (doc 09).
+        # Read by the fallback identity gate (doc 08) via getattr; None when the
+        # server predates identity (unverifiable), never a zero-filled default.
+        self._last_remote_identity: CorpusIdentity | None = None
 
     async def run_http_augment(
         self,
@@ -86,6 +90,10 @@ class AugmentRefiner:
             set_fallback_reason=lambda _: self._set_fallback_reason(_),
         )
         result = await http_aug.run(query, history_context)
+        # Carry the remote corpus identity (parsed once by call_rag_service, doc 11)
+        # through to the fallback gate. None survives verbatim (server predates
+        # identity) so the gate treats it as unverifiable, never a fake identity.
+        self._last_remote_identity = result.remote_identity
         # Apply diagnostics from HttpAugment result
         if result.result is not None:
             result_source = ResultSource.REMOTE
@@ -133,6 +141,16 @@ class AugmentRefiner:
     @last_stage_results.setter
     def last_stage_results(self, value: list[StageResult]) -> None:
         self._last_stage_results = value
+
+    @property
+    def last_remote_identity(self) -> CorpusIdentity | None:
+        """Return the remote corpus identity forwarded by the last HTTP augment.
+
+        ``None`` when the remote server predates the identity fields (unverifiable);
+        consumed by the fallback identity gate (doc 08) via ``getattr``.
+        """
+
+        return self._last_remote_identity
 
     @property
     def search_diagnostics(self) -> SearchDiagnostics:

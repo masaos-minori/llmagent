@@ -49,3 +49,9 @@ admin_token = ""
 sse_heartbeat_interval = 30.0
 # Idle timeout in seconds (default: 60.0)
 sse_idle_timeout = 60.0
+
+# REQ-005: authorization TTL bounds
+# Maximum ttl_seconds accepted by POST /admin/topics/authorization (seconds).
+authz_max_ttl_seconds = 86400
+# Interval between TTL expiry sweep cycles (seconds).
+authz_sweep_interval_seconds = 60.0

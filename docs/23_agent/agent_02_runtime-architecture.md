@@ -98,7 +98,7 @@ Describes runtime extension points, lifecycle phases, and shutdown policies, cla
 
 - Handles end-to-end processing of a single user turn.
 - Manages the flow: memory injection → user message addition → history compression → LLM turn.
-- Delegates LLM streaming and the tool loop to `LlmTurnExecutor`.
+- Delegates LLM streaming and the tool loop to the single `LlmTurnExecutor` instance it constructs and injects; each turn's loop body runs in a fresh per-turn runner created by that executor and not retained afterwards.
 - Issues audit log events (`turn_start`, `turn_end`). The `_execute_turn` bracket emits exactly one `turn_end` on every exit path (success, soft LLM error, workflow halt, escaping exception, cancellation); `AuditEventEmitter` is the single emitter of both lifecycle events.
 
 ##### AgentContext (`agent/context.py`)
