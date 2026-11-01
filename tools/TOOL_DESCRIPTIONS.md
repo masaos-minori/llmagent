@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (57 modules)
+## Index (58 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -54,6 +54,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `generate_reference_table.py` | Reference generation | Generate reference tables for RAG/MCP/deployment/agent/EventBus (the Memory type is pending a decision on its target document); `--manifests` writes `registry/manifests/*.yaml` then re-renders the guarded doc blocks from them; `--check` exits 1 when a committed manifest drifted from live sources or a guarded block drifted from its manifest (runs in CI) |
 | `_contract_manifests.py` | Reference generation (private) | Shared contract-manifest infrastructure for `generate_reference_table.py`: envelope model, `schemas/contract_manifest.json` validation, byte-stable YAML load/write (no `generated_at`), shared entry->markdown renderers |
 | `generate_workitem.py` | Work item generation | Generate work item skeletons with placeholders. `--kind implementation-procedure --all-rows` generates every row of the Plan's `Implementation Target Files` table in one run (rows whose file already exists are skipped and processing continues) |
+| `fix_procedure_new_markers.py` | Work item helpers | Append the ` (new)` marker recognized by `tools/stale_detector.py` after backticked symbol names a procedure creates (`--symbols a,b --files f.md ...`), so rename/introduce procedures do not report false `symbol_missing` staleness |
 | `manage_frontmatter.py` | Front Matter management | Detect missing Front Matter, remove duplicates, rename `area`, merge body Related sections into `related:` |
 | `manage_workitem_stage.py` | Work item management | Archive moves, status updates, stale detection |
 | `manage_binaries.py` | Deploy | Write build info for the Nuitka binaries, check their freshness against a source revision, swap a staged set into the bin directory with the previous set saved, roll back, and record the deployed revision |
