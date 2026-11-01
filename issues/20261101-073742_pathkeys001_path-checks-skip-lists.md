@@ -11,7 +11,7 @@ Found during an adversarial review (`python-code-review`) of the agent's MCP cal
 - `tool_policy.check_allowed_root` and `_escalate_for_path` take the key list from `approval_resource_keys.path_keys` in `config/agent.toml` and iterate it with `_iter_string_arg_values`, which yields a value only when it is a non-empty `str`.
 - `check_approval` runs `check_preflight` for every prepared call, so the preflight applies to read tools as well as write tools; the gap is in what it inspects, not in which tools it covers.
 - Tool metadata already names the relevant arguments: `mcp_servers/file/read_tools.py` declares `resource_scope_keys` of `["paths"]` for `read_multiple_files`, and `mcp_servers/git/git_tools.py` declares `["repo_path"]` for the git tools. `shared/resource_scope.resolve_resource_scopes` uses these keys for scheduling.
-- Server side: the file read server resolves paths against its allowed directories (`FileAuthorizationError`, HTTP 403) and the git server has `allowed_repo_paths`. Whether `read_multiple_files` applies the jail to each listed path is done inside `read_single_file`, which was not read (`Needs confirmation`).
+- Server side: the file read server resolves paths against its allowed directories (`FileAuthorizationError`, HTTP 403) and the git server has `allowed_repo_paths`. `read_multiple_files` applies the jail to each listed path inside `read_single_file` (`Explicit in code`).
 - `classify_risk` returns no risk immediately for tools whose tier is `READ_ONLY` or `WRITE_SAFE`, so the protected-path escalation never applies to them even for the listed keys; only the `allowed_root` denial does.
 
 ## Problem
@@ -69,8 +69,8 @@ Needs confirmation: check whether the approval documentation describes `approval
 - Related to `issues/20261101-073644_shellprefix001_safe-prefix-approves-code.md`: both edit `tool_policy.py` and its tests; they are independent in behavior and can be done in either order.
 
 ## Unresolved Questions
-- Whether the file read server applies its directory jail to every element of `paths`: `Needs confirmation` (not read). If it does, this issue is defense in depth only.
-- Whether other tools (for example the `mdq` write tool `index_paths`) take path arguments under other names or shapes: `Needs confirmation`; the metadata-driven approach covers them only if they declare scope keys.
+- Confirmed (`Explicit in code`): `ReadBusiness.read_single_file` resolves each listed path against the allowed directories, and the git service enforces `allowed_repo_paths`, so this issue is defense in depth only.
+- `index_paths` (the `mdq` tool) with `paths=["/etc"]` was also allowed with no risk in the same reproduction, so it is a third confirmed example. Other tools with other names or shapes: `Needs confirmation`; the metadata-driven approach covers them only if they declare scope keys.
 - Whether `READ_ONLY` and `WRITE_SAFE` tools should still escalate on protected paths: a policy decision; this issue keeps the current behavior.
 - `allowed_root` is resolved against the agent's working directory for relative paths, while the server resolves them against its own: `Needs confirmation` whether this can differ in production.
 

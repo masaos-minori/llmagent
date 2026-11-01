@@ -33,7 +33,7 @@ Base the "unexpected keys" check on the schema's per-role allowed keys instead o
 - `tests/agent/` tests for `SessionPersister`
 
 ## Required Changes
-- Replace the fixed `{role, content}` comparison with the allowed keys per role from the message schema (including the ephemeral keys that the schema treats as legitimate).
+- Replace the fixed `{role, content}` comparison with the allowed keys per role from the message schema (`ROLE_KEY_WHITELIST` in `message_schema.py` already includes `tool_calls`, `tool_call_id`, `name`, `importance` and `pinned`; the ephemeral keys `_ephemeral` and `_memory_injected` are handled separately by `validate_message` through the trusted sources, so decide explicitly whether to allow them here).
 - Remove the message content from the warning text; report role and key names only.
 - Add tests: a history with assistant `tool_calls` and tool results logs no warning and no content; a message with a truly unexpected key logs a warning that contains the key name but not the content.
 

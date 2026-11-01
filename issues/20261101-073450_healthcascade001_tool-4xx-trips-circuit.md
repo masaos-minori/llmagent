@@ -32,6 +32,7 @@ Separate "the server is unhealthy" from "the server answered that this request i
 - `scripts/mcp_servers/file/common.py` (the 403/404/422 handlers)
 - `scripts/mcp_servers/file/read_server.py`, `write_server.py`, `delete_server.py` (handler registration)
 - `scripts/mcp_servers/dispatch.py` (`dispatch_tool`, which exception types become tool errors)
+- the other servers' error handlers (github, git, web_search, rag_pipeline; cicd, mdq and shell still to be checked)
 - `docs/22_mcp/mcp_03_03_transport-and-health.md`
 - `tests/shared/`, `tests/mcp_servers/`, `tests/integration/` tests for transport classification and health
 
@@ -73,7 +74,7 @@ N/A: none. `issues/done/20261005-121408_trn001_http-tool-level-errors-are-report
 
 ## Unresolved Questions
 - Whether the server or the client should change: `Needs confirmation`; the contract must be decided once and documented.
-- Whether the other MCP servers also return 4xx for tool outcomes: not examined (only the three file servers were read).
+- Which other MCP servers return non-2xx for tool outcomes: the github server returns 400, 403, 404, 409, 500 and 502, the git server returns 500 for its service errors, web_search returns 403, 422 and 502, and rag_pipeline returns 503 (`Explicit in code`; read in a follow-up verification). The cicd, mdq and shell servers were not checked (`Needs confirmation`). The contract decision must cover these servers too.
 - Whether the per-server unavailable-repeat guard actually stops a turn in this case: `Needs confirmation`.
 
 ## AI Implementation Instruction

@@ -25,7 +25,8 @@ Pick one counter as the single source of truth and route every writer and reader
 
 ## Target Files or Areas
 - `scripts/agent/llm_turn_runner.py` (`_handle_llm_error`)
-- `scripts/agent/llm_transport_errors.py` (unused duplicate)
+- `scripts/agent/llm_transport_errors.py` (unused duplicate; do not confuse it with `scripts/shared/llm_transport_errors.py`, `LlmTransportErrorHandler`, which is a different, used module)
+- `origin/master` changes `llm_turn_runner.py` and `llm_turn_executor.py` (adds `control_message`), so rebase before implementing to avoid a textual conflict
 - `scripts/agent/repl_input_loop.py` (`_dispatch_line`)
 - `scripts/agent/commands/cmd_config_stats.py`, `scripts/agent/services/context_view.py`, `scripts/agent/session_persister.py` (readers)
 - `scripts/shared/llm_client.py` (`stat_partial_completions` attribute)

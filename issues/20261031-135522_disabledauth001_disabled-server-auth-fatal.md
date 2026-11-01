@@ -45,6 +45,7 @@ Exclude disabled servers from the `mcp_auth` check, in line with the readiness a
 
 ## Testing Expectations
 - Unit tests in `tests/agent/test_startup_validation.py` as above.
+- Existing tests in `tests/agent/test_startup_severity_classification.py` (`test_mcp_auth_fatal_*`) use `MagicMock` servers with `auth_token=""`; a filter on `srv.is_disabled` is truthy on a `MagicMock`, so set `is_disabled=False` on them when adding the filter, and correct the comment there that says an empty-token config can no longer be constructed (it can for disabled servers).
 - Run `tests/agent/test_startup_validation.py`, `tests/agent/test_startup.py`, `ruff`, and `mypy --no-namespace-packages` on the touched files.
 
 ## Documentation Impact
