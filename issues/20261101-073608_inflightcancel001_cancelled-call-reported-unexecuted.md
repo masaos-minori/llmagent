@@ -71,7 +71,7 @@ Update `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md`, whi
 N/A: none. No open issue or plan targets round completion or pairing. `issues/done/20261026-224729_turn002_repair-orphan-tool-call-rows.md` is archived background only.
 
 ## Unresolved Questions
-- The repair of unpaired rows at session load (`services/session_restore.py`) uses different wording ("[interrupted] tool call did not complete before session termination"), so it does not make the "not executed" claim (`Explicit in code`). `issues/20261031-175803_toolstate001_tool-call-state-producer.md` covers the kill-mid-call and replay flow by a different mechanism (pending and finalize rows); treat it as related, not as a duplicate.
+- The repair of unpaired rows at session load (`services/session_restore.py`) uses different wording ("[interrupted] tool call did not complete before session termination"), so it does not make the "not executed" claim (`Explicit in code`). `issues/done/20261031-175803_toolstate001_tool-call-state-producer.md` covers the kill-mid-call and replay flow by a different mechanism (pending and finalize rows); treat it as related, not as a duplicate.
 - Whether in-flight write calls should be awaited to completion during graceful shutdown instead of cancelled: a design choice for the owner.
 
 ## AI Implementation Instruction

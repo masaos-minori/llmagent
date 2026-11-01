@@ -67,10 +67,10 @@ Update `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` (key ownership) to name t
 - Other audit fields.
 
 ## Dependencies
-`issues/20261031-175803_toolstate001_tool-call-state-producer.md` overlaps: decide the key's owner there first. `issues/done/20261007-153753_idem01_fix-mcp-idempotency-cache-and-retry-coupling.md` is archived background. `issues/20261101-073608_inflightcancel001_cancelled-call-reported-unexecuted.md` concerns repeated writes after an interrupted call and would benefit from this key being stable across a replay, but neither issue blocks the other.
+`issues/done/20261031-175803_toolstate001_tool-call-state-producer.md` overlaps: decide the key's owner there first. `issues/done/20261007-153753_idem01_fix-mcp-idempotency-cache-and-retry-coupling.md` is archived background. `issues/20261101-073608_inflightcancel001_cancelled-call-reported-unexecuted.md` concerns repeated writes after an interrupted call and would benefit from this key being stable across a replay, but neither issue blocks the other.
 
 ## Unresolved Questions
-- Which design is wanted: the transport reporting the key it used back in the result, or the agent re-deriving the transport's key with the same uid: a design choice for the owner. `issues/20261031-175803_toolstate001_tool-call-state-producer.md` names the same mismatch and requires `tool_call_state.idempotency_key` to equal the deterministic transport key, so its decision settles this issue; this issue may be subsumed by it or ordered after it.
+- Which design is wanted: the transport reporting the key it used back in the result, or the agent re-deriving the transport's key with the same uid: a design choice for the owner. `issues/done/20261031-175803_toolstate001_tool-call-state-producer.md` names the same mismatch and requires `tool_call_state.idempotency_key` to equal the deterministic transport key, so its decision settles this issue; this issue may be subsumed by it or ordered after it.
 - Whether any consumer reads the audit `idempotency_key` today: `Needs confirmation`; none was found in `scripts/` (not searched in operational tooling outside the repository).
 
 ## AI Implementation Instruction
