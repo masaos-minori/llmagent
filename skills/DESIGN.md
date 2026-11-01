@@ -119,6 +119,8 @@ Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `
 - Document `Tool [name] not available` in the findings.
 - Fall back to the nearest standard equivalent (e.g. `ruff`/`mypy` for static checks, `pdb`/
   `traceback`/manual `rg` search for advanced tracing) and note that the fallback was used.
+- Check a Python-package tool with `uv run <tool> --version`. A `command -v` miss does NOT mean
+  the tool is missing, because project-environment tools are not on PATH.
 
 ### Analysis-only phase constraint
 
