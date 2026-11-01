@@ -49,7 +49,7 @@ _WORKFLOW_TABLES_DDL = """CREATE TABLE tasks (
     workflow_id TEXT,
     workflow_version TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
-    idempotency_key TEXT UNIQUE NOT NULL,
+    task_nonce TEXT UNIQUE NOT NULL,
     created_at TEXT NOT NULL
 );
 CREATE TABLE workflow_schema_version (

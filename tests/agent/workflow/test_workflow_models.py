@@ -22,7 +22,7 @@ class TestTaskRecord:
             turn_number=3,
             workflow_version="1.0.0",
             status="pending",
-            idempotency_key="s1:3",
+            task_nonce="s1:3",
             created_at="2026-01-01T00:00:00+00:00",
             updated_at="2026-01-01T00:00:00+00:00",
         )

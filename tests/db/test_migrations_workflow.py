@@ -39,15 +39,18 @@ _PYTHON = sys.executable
 def _legacy_workflow_db(db_path: Path, marker: str = "1.1.0") -> sqlite3.Connection:
     """Open a legacy workflow.sqlite predating the migration ledger.
 
-    Built from the canonical workflow DDL, then the ledger, the lifecycle tables
-    added by the ``workflow_tool_call_state`` step, and the integer version
-    dropped/reset to reproduce the deployed marker-only shape.
+    Built from the canonical workflow DDL, then the ``tasks`` key column is
+    renamed back to ``idempotency_key`` (the pre-wftaskapi001 shape), and the
+    ledger, the lifecycle tables added by the ``workflow_tool_call_state``
+    step, and the integer version are dropped/reset to reproduce the deployed
+    marker-only shape.
     The ``workflow_schema_version`` string is set to *marker* (default the
     baseline "1.1.0"; pass an unmapped value such as "2.0.0" for refusals).
     """
     conn = sqlite3.connect(str(db_path))
     conn.executescript(build_workflow_schema_sql())
     conn.commit()
+    conn.execute("ALTER TABLE tasks RENAME COLUMN task_nonce TO idempotency_key")  # nosec B608 — fixed names
     conn.execute("DROP TABLE schema_migrations")  # nosec B608 — fixed table name
     conn.execute("DROP TABLE IF EXISTS tool_call_state")  # nosec B608 — fixed name
     conn.execute("DROP TABLE IF EXISTS execution_snapshots")  # nosec B608 — fixed name
@@ -105,7 +108,11 @@ def _registry_with_steps(*specs: MigrationSpec) -> dict[str, MigrationSpec]:
 
 class TestWorkflowRegistry:
     def test_registry_holds_the_ledger_bootstrap_step(self) -> None:
-        assert set(REGISTRY) == {"workflow_ledger_baseline", "workflow_tool_call_state"}
+        assert set(REGISTRY) == {
+            "workflow_ledger_baseline",
+            "workflow_tool_call_state",
+            "workflow_task_nonce",
+        }
         spec = REGISTRY["workflow_ledger_baseline"]
         assert spec.from_version == 0
         assert spec.to_version == 1
@@ -118,6 +125,13 @@ class TestWorkflowRegistry:
         assert spec.preconditions
         assert spec.mutation_sql  # non-empty mutation SQL
 
+    def test_registry_holds_the_task_nonce_step(self) -> None:
+        spec = REGISTRY["workflow_task_nonce"]
+        assert spec.from_version == 2
+        assert spec.to_version == 3
+        assert spec.preconditions
+        assert spec.mutation_sql  # non-empty mutation SQL
+
     def test_runner_resolves_the_unique_forward_path(self, tmp_path: Path) -> None:
         conn = _legacy_workflow_db(tmp_path / "workflow.sqlite")
         try:
@@ -125,6 +139,7 @@ class TestWorkflowRegistry:
             assert [s.id for s in planned] == [
                 "workflow_ledger_baseline",
                 "workflow_tool_call_state",
+                "workflow_task_nonce",
             ]
         finally:
             conn.close()
@@ -207,7 +222,7 @@ class TestWorkflowToolCallStateStep:
     ) -> None:
         db, conn = self._bootstrapped(tmp_path)
         try:
-            planned = runner.plan(1, read_ledger(conn), REGISTRY)
+            planned = runner.plan(1, read_ledger(conn), REGISTRY, target_version=2)
             assert [s.id for s in planned] == ["workflow_tool_call_state"]
             applied = runner.apply(conn, planned, _ok_verifier)
             assert [a.id for a in applied] == ["workflow_tool_call_state"]
@@ -230,14 +245,15 @@ class TestWorkflowToolCallStateStep:
             }
             assert indexes  # the (task_id, state) pending-scan index landed
 
-            # Task rows preserved; marker advanced to the post-step string.
+            # Task rows preserved; marker advanced to the post-step string
+            # (the module constant the stamping step writes).
             task_count = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
             assert task_count == 2
             latest = conn.execute(
                 "SELECT version FROM workflow_schema_version "
                 "ORDER BY applied_at DESC LIMIT 1"
             ).fetchone()[0]
-            assert latest == "1.2.0"
+            assert latest == "1.3.0"
             assert [
                 (r.id, r.from_version, r.to_version) for r in read_ledger(conn)
             ] == [
@@ -290,7 +306,7 @@ class TestWorkflowToolCallStateStep:
         fresh_conn.executescript(build_workflow_schema_sql())
         fresh_conn.execute(
             "INSERT INTO workflow_schema_version (version) VALUES (?)",
-            ("1.2.0",),
+            ("1.3.0",),
         )
         ensure_baseline(fresh_conn)
         _db, migrated_conn = self._bootstrapped(
@@ -322,8 +338,8 @@ class TestWorkflowToolCallStateStep:
             migrated_version = migrated_conn.execute("PRAGMA user_version").fetchone()[
                 0
             ]
-            assert fresh_version == migrated_version == 2
-            for table in ("tool_call_state", "execution_snapshots"):
+            assert fresh_version == migrated_version == 3
+            for table in ("tasks", "tool_call_state", "execution_snapshots"):
                 assert columns(fresh_conn, table) == columns(migrated_conn, table)
             fresh_marker = fresh_conn.execute(
                 "SELECT version FROM workflow_schema_version "
@@ -333,10 +349,89 @@ class TestWorkflowToolCallStateStep:
                 "SELECT version FROM workflow_schema_version "
                 "ORDER BY applied_at DESC LIMIT 1"
             ).fetchone()[0]
-            assert fresh_marker == migrated_marker == "1.2.0"
+            assert fresh_marker == migrated_marker == "1.3.0"
         finally:
             fresh_conn.close()
             migrated_conn.close()
+
+
+# ── Task-key rename (wftaskapi001 row 12: 2 -> 3) ──────────────────────────
+
+
+class TestWorkflowTaskNonceStep:
+    def _at_code_2(self, tmp_path: Path) -> tuple[Path, sqlite3.Connection]:
+        """A bootstrapped, lifecycle-migrated (code 2) database with task rows."""
+        db = tmp_path / "workflow.sqlite"
+        conn = _legacy_workflow_db(db)
+        _populate_tasks(conn)
+        runner.apply(
+            conn,
+            runner.plan(0, read_ledger(conn), REGISTRY, target_version=2),
+            _ok_verifier,
+        )
+        return db, conn
+
+    def test_step_renames_column_and_preserves_rows(self, tmp_path: Path) -> None:
+        _db, conn = self._at_code_2(tmp_path)
+        try:
+            planned = runner.plan(2, read_ledger(conn), REGISTRY)
+            assert [s.id for s in planned] == ["workflow_task_nonce"]
+            applied = runner.apply(conn, planned, _ok_verifier)
+            assert [a.id for a in applied] == ["workflow_task_nonce"]
+
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+            columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(tasks)")}
+            assert "task_nonce" in columns
+            assert "idempotency_key" not in columns
+            # RENAME COLUMN never touches stored values (AC-4).
+            rows = conn.execute(
+                "SELECT task_id, task_nonce FROM tasks ORDER BY task_id"
+            ).fetchall()
+            assert rows == [("t1", "s1:1"), ("t2", "s1:2")]
+            latest = conn.execute(
+                "SELECT version FROM workflow_schema_version "
+                "ORDER BY applied_at DESC LIMIT 1"
+            ).fetchone()[0]
+            assert latest == "1.3.0"
+            # read_ledger orders by (applied_at, id); rows written in the same
+            # second tie-break by id, so compare as a sorted set of rows.
+            assert sorted(
+                (r.id, r.from_version, r.to_version) for r in read_ledger(conn)
+            ) == sorted(
+                [
+                    ("workflow_ledger_baseline", 0, 1),
+                    ("workflow_tool_call_state", 1, 2),
+                    ("workflow_task_nonce", 2, 3),
+                ]
+            )
+        finally:
+            conn.close()
+
+    def test_step_refused_when_column_already_renamed(self, tmp_path: Path) -> None:
+        _db, conn = self._at_code_2(tmp_path)
+        # Rename the column by hand (no ledger row): the precondition must
+        # refuse instead of re-running, and the plan stays unmutated.
+        conn.execute("ALTER TABLE tasks RENAME COLUMN idempotency_key TO task_nonce")  # nosec B608 — fixed names
+        conn.commit()
+        try:
+            with pytest.raises(MigrationRefusalError, match="task_nonce"):
+                runner.apply(
+                    conn, runner.plan(2, read_ledger(conn), REGISTRY), _ok_verifier
+                )
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 2  # untouched
+            assert "workflow_task_nonce" not in [r.id for r in read_ledger(conn)]
+        finally:
+            conn.close()
+
+    def test_resume_after_full_path_skips_rename_step(self, tmp_path: Path) -> None:
+        _db, conn = self._at_code_2(tmp_path)
+        try:
+            runner.apply(
+                conn, runner.plan(2, read_ledger(conn), REGISTRY), _ok_verifier
+            )
+            assert runner.plan(3, read_ledger(conn), REGISTRY) == []
+        finally:
+            conn.close()
 
 
 # ── Refusals ────────────────────────────────────────────────────────────────
@@ -565,14 +660,16 @@ class TestWorkflowCli:
         conn.close()
         apply = _run_cli(db, config_dir, "--apply")
         assert apply.returncode == 0
-        assert "user_version now 2" in apply.stdout
+        assert "user_version now 3" in apply.stdout
         status = _run_cli(db, config_dir, "--status")
         assert status.returncode == 0
-        assert "user_version=2" in status.stdout
+        assert "user_version=3" in status.stdout
         assert "workflow_ledger_baseline" in status.stdout
         assert "0 -> 1" in status.stdout
         assert "workflow_tool_call_state" in status.stdout
         assert "1 -> 2" in status.stdout
+        assert "workflow_task_nonce" in status.stdout
+        assert "2 -> 3" in status.stdout
 
     def test_apply_is_idempotent_after_bootstrap(self, tmp_path: Path) -> None:
         config_dir = tmp_path / "config"

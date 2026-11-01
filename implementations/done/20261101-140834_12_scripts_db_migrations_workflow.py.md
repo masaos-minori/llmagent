@@ -77,9 +77,9 @@ One new spec block + registry append + constant bump in a single commit with row
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (row 09's migration test) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-01 | 2026-11-01 | registry step workflow_task_nonce 2->3 + pre/postconditions + mutation SQL |
+| 2 | Add or update tests per Validation plan (row 09's migration test) | Completed | 2026-11-01 | 2026-11-01 | TestWorkflowTaskNonceStep + registry/CLI tests in test_migrations_workflow.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-01 | 2026-11-01 | cycle 2 landed: full pytest suite 10869 passed, ruff/mypy/lint-imports/bandit/check_db_separation pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

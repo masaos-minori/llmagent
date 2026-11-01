@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 # Bump this constant whenever the workflow schema changes in a way that requires
 # recreating the database. Additive tables land through the registered forward
 # migration (dbmig001 registry); the bumped value must match the registry's head
-# step (toolexec001 row 06: 1.2.0 <-> workflow_tool_call_state, code 2).
-WORKFLOW_SCHEMA_VERSION = "1.2.0"
+# step (wftaskapi001 row 12: 1.3.0 <-> workflow_task_nonce, code 3).
+WORKFLOW_SCHEMA_VERSION = "1.3.0"
 
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     turn_number      INTEGER,
     workflow_version TEXT NOT NULL,
     status           TEXT NOT NULL DEFAULT 'pending',
-    idempotency_key  TEXT UNIQUE NOT NULL,
+    task_nonce       TEXT UNIQUE NOT NULL,
     created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -224,7 +224,8 @@ CREATE TABLE IF NOT EXISTS artifacts (
 );
 
 -- Tool-call lifecycle tables (toolexec001 REQ-007). Keyed on the tool-call
--- idempotency key, not the task key (REQ-010: tasks.idempotency_key stays as-is).
+-- idempotency key, which is the only idempotency_key column in the workflow
+-- database (wftaskapi001 renamed the task-side column to task_nonce).
 -- Byte-identical in shape to _TOOL_CALL_STATE_SQL in db.migrations_workflow, so
 -- fresh-created and migrated databases converge.
 CREATE TABLE IF NOT EXISTS execution_snapshots (

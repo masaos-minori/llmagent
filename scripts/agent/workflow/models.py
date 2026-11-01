@@ -18,7 +18,7 @@ class TaskRecord:
     turn_number: int | None
     workflow_version: str
     status: str  # pending | running | completed | failed | halted
-    idempotency_key: str
+    task_nonce: str
     created_at: str  # ISO-8601
     updated_at: str  # ISO-8601
     workflow_id: str = ""

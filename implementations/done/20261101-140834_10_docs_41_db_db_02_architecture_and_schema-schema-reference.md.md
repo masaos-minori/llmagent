@@ -67,8 +67,8 @@ Single-paragraph rewrite plus one added sentence; no headings added or removed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the docs checkers (`check_docs_structure.py`, `generate_reference_table.py --check`) | Pending | — | — | No test step applies to a docs-only row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-01 | 2026-11-01 | paragraph rewritten in cycle 3 (docs wave) |
+| 2 | Run the docs checkers (`check_docs_structure.py`, `generate_reference_table.py --check`) | Completed | 2026-11-01 | 2026-11-01 | No test step applies to a docs-only row check_docs_structure + generate_reference_table --check pass (manifest regenerated) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

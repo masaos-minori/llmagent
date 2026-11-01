@@ -39,13 +39,14 @@ logger = logging.getLogger(__name__)
 # Mirrors ``db.schema_sql.WORKFLOW_SCHEMA_VERSION`` (the head value must match
 # the registry's head step); a string absent from this map cannot be migrated
 # (refusal), keeping today's fail-closed semantics.
-WORKFLOW_VERSION_CODES: dict[str, int] = {"1.1.0": 0, "1.2.0": 2}
+WORKFLOW_VERSION_CODES: dict[str, int] = {"1.1.0": 0, "1.2.0": 2, "1.3.0": 3}
 
 # Head ledger code of the registry: 0 (legacy, no ledger) -> 1 (baseline) ->
-# 2 (tool_call_state/execution_snapshots, toolexec001 row 06). The integer ledger
-# code is a namespace separate from the string marker; the bootstrap moves
-# 0 -> 1 (the framework rejects a from == to step as a cycle).
-WORKFLOW_TARGET_VERSION: int = 2
+# 2 (tool_call_state/execution_snapshots, toolexec001 row 06) ->
+# 3 (tasks.idempotency_key -> tasks.task_nonce rename, wftaskapi001 row 12).
+# The integer ledger code is a namespace separate from the string marker; the
+# bootstrap moves 0 -> 1 (the framework rejects a from == to step as a cycle).
+WORKFLOW_TARGET_VERSION: int = 3
 
 # Pre-ledger ``PRAGMA user_version`` the bootstrap applies only to. Legacy
 # workflow databases carry no stamp (it is 0); anything else is refused.
@@ -54,9 +55,12 @@ _BASELINE_VERSION: int = 0
 # Target ``PRAGMA user_version`` of the ledger bootstrap step.
 _LEDGER_VERSION: int = 1
 
-# Target ``PRAGMA user_version`` once the lifecycle-tables step lands. Must match
-# ``WORKFLOW_TARGET_VERSION`` and the shape the canonical schema template creates.
+# Target ``PRAGMA user_version`` of the lifecycle-tables step.
 _TOOL_STATE_VERSION: int = 2
+
+# Target ``PRAGMA user_version`` of the task-key rename step. Must match
+# ``WORKFLOW_TARGET_VERSION`` and the shape the canonical schema template creates.
+_TASK_NONCE_VERSION: int = 3
 
 # Required workflow table that defines a valid workflow database. The pre-migration
 # backup verifier (see ``verify_backup``) checks this is present; a backup missing
@@ -114,6 +118,17 @@ _TOOL_STATE_MUTATION_SQL = (
     "DELETE FROM workflow_schema_version; "
     f"INSERT INTO workflow_schema_version (version) VALUES ('{WORKFLOW_SCHEMA_VERSION}'); "
     f"PRAGMA user_version = {_TOOL_STATE_VERSION};"
+)
+
+# Task-key rename (wftaskapi001 REQ-003/REQ-004). ``RENAME COLUMN`` preserves every
+# row's stored value; the step also replaces the string marker with the post-step
+# version and stamps the ledger head code, mirroring _TOOL_STATE_MUTATION_SQL's
+# shape so fresh-created and migrated databases converge.
+_TASK_NONCE_MUTATION_SQL = (
+    "ALTER TABLE tasks RENAME COLUMN idempotency_key TO task_nonce; "
+    "DELETE FROM workflow_schema_version; "
+    f"INSERT INTO workflow_schema_version (version) VALUES ('{WORKFLOW_SCHEMA_VERSION}'); "  # nosec B608 — fixed module constants, no user input
+    f"PRAGMA user_version = {_TASK_NONCE_VERSION};"
 )
 
 
@@ -242,6 +257,73 @@ def _postcondition_tool_state(conn: sqlite3.Connection) -> None:
         raise RuntimeError(f"workflow_tool_call_state step did not create: {missing}")
 
 
+def _precondition_task_nonce(conn: sqlite3.Connection) -> None:
+    """Refuse unless the database is a migrated lifecycle-tables database.
+
+    Rejects: a database not exactly at code 2, a database whose ledger carries no
+    ``workflow_ledger_baseline`` row (a forged stamp), a database missing the
+    ``tasks`` table, and a database whose tasks table already carries the renamed
+    column or has lost the old one — either shape means this step does not apply.
+    """
+    current = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if current != _TOOL_STATE_VERSION:
+        raise MigrationRefusalError(
+            MigrationRefusalReason.UNKNOWN_PATH,
+            f"workflow.sqlite is at user_version {current}; the "
+            f"workflow_task_nonce step applies only to a "
+            f"{_TOOL_STATE_VERSION}-stamped database",
+        )
+    baseline = conn.execute(
+        "SELECT 1 FROM schema_migrations WHERE id='workflow_ledger_baseline'"
+    ).fetchone()
+    if baseline is None:
+        raise MigrationRefusalError(
+            MigrationRefusalReason.UNKNOWN_PATH,
+            "no workflow_ledger_baseline row in the ledger; refusing the "
+            "workflow_task_nonce step on a database that never went "
+            "through the bootstrap",
+        )
+    tables = _table_names(conn)
+    if _REQUIRED_TABLE not in tables:
+        raise MigrationRefusalError(
+            MigrationRefusalReason.UNKNOWN_PATH,
+            f"workflow.sqlite is missing required table '{_REQUIRED_TABLE}'",
+        )
+    columns = {
+        str(row[1]) for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
+    }
+    if "task_nonce" in columns:
+        raise MigrationRefusalError(
+            MigrationRefusalReason.UNKNOWN_PATH,
+            "workflow.sqlite tasks already has task_nonce; the rename step "
+            "applies only to a database still carrying idempotency_key",
+        )
+    if "idempotency_key" not in columns:
+        raise MigrationRefusalError(
+            MigrationRefusalReason.UNKNOWN_PATH,
+            "workflow.sqlite tasks has no idempotency_key column; refusing "
+            "the rename on a database that is not the pre-rename shape",
+        )
+
+
+def _postcondition_task_nonce(conn: sqlite3.Connection) -> None:
+    """Re-verify this step's own effect: renamed column, stamped head code."""
+    current = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if current != _TASK_NONCE_VERSION:
+        raise RuntimeError(
+            f"workflow.sqlite is at user_version {current}, not "
+            f"{_TASK_NONCE_VERSION}, after the workflow_task_nonce step",
+        )
+    columns = {
+        str(row[1]) for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
+    }
+    if "task_nonce" not in columns or "idempotency_key" in columns:
+        raise RuntimeError(
+            "workflow_task_nonce step did not rename tasks.idempotency_key "
+            "to task_nonce"
+        )
+
+
 # Ordered registry consumed by the create path (row 08) and the CLI (row 07).
 REGISTRY: dict[str, MigrationSpec] = {
     "workflow_ledger_baseline": MigrationSpec(
@@ -259,6 +341,14 @@ REGISTRY: dict[str, MigrationSpec] = {
         preconditions=(_precondition_tool_state,),
         mutation_sql=_TOOL_STATE_MUTATION_SQL,
         postcondition=_postcondition_tool_state,
+    ),
+    "workflow_task_nonce": MigrationSpec(
+        id="workflow_task_nonce",
+        from_version=2,
+        to_version=3,
+        preconditions=(_precondition_task_nonce,),
+        mutation_sql=_TASK_NONCE_MUTATION_SQL,
+        postcondition=_postcondition_task_nonce,
     ),
 }
 

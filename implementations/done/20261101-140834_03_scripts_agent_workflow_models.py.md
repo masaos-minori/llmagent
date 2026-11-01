@@ -63,9 +63,9 @@ Single-field rename; rely on type-checker errors to surface every construction s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-01 | 2026-11-01 | TaskRecord.task_nonce applied |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-01 | 2026-11-01 | covered by rows 05/08 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-01 | 2026-11-01 | cycle 2 landed: full pytest suite 10869 passed, ruff/mypy/lint-imports/bandit/check_db_separation pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

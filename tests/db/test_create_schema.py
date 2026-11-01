@@ -383,7 +383,7 @@ _WORKFLOW_SCHEMA_NO_VEC0 = """
         turn_number      INTEGER,
         workflow_version TEXT NOT NULL,
         status           TEXT NOT NULL DEFAULT 'pending',
-        idempotency_key  TEXT UNIQUE NOT NULL,
+        task_nonce       TEXT UNIQUE NOT NULL,
         created_at       TEXT NOT NULL,
         updated_at       TEXT NOT NULL
     );
@@ -519,7 +519,7 @@ class TestCreateWorkflowSchema:
         assert workflow_id_count == 1
         conn.close()
 
-    def test_tasks_idempotency_key_unique(self, tmp_path: Path) -> None:
+    def test_tasks_task_nonce_unique(self, tmp_path: Path) -> None:
         db_file = tmp_path / "workflow3.sqlite"
         cfg = DbConfig(
             rag_db_path="/tmp/rag.sqlite",
@@ -731,7 +731,7 @@ class TestCreatePathLedgerCoverage:
             assert latest is not None and latest[0] == WORKFLOW_SCHEMA_VERSION
             # Fresh create stamps the registry head code (toolexec001 row 06:
             # the canonical template already carries the lifecycle tables).
-            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 2
+            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 3
         finally:
             conn.close()
 

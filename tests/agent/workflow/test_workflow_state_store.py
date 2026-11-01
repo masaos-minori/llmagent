@@ -72,16 +72,16 @@ class TestCreateTask:
         assert task.turn_number == 1
         assert task.workflow_version == "1.0.0"
         assert task.status == "pending"
-        assert uuid.UUID(task.idempotency_key)  # UUID4, not a composite
-        assert task.idempotency_key != "sess1:1"
+        assert uuid.UUID(task.task_nonce)  # UUID4, not a composite
+        assert task.task_nonce != "sess1:1"
 
     def test_same_session_turn_across_runs_no_collision(self, store) -> None:
         """T-1 / AC-1: two simulated runs with the same (session, turn) must not collide."""
         t1 = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         t2 = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
-        assert t1.idempotency_key != t2.idempotency_key
-        assert uuid.UUID(t1.idempotency_key)
-        assert uuid.UUID(t2.idempotency_key)
+        assert t1.task_nonce != t2.task_nonce
+        assert uuid.UUID(t1.task_nonce)
+        assert uuid.UUID(t2.task_nonce)
 
     def test_create_task_without_session_id(self, store) -> None:
         task = create_task(store._db, None, None, "1.0.0", "wf-test")
@@ -93,7 +93,7 @@ class TestCreateTask:
         """T-3 / AC-4: a pre-existing composite-key row stays readable after a normal insert."""
         old_key = ":0"
         store._db.execute(
-            "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO tasks (task_id, session_id, turn_number, task_nonce, status, workflow_version, workflow_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
             ("old-task", "sess-old", 0, old_key, "pending", "1.0.0", "wf-old"),
         )
         store._db.commit()
@@ -108,11 +108,11 @@ class TestCreateTask:
     def test_state_store_create_task_issues_unique_keys(self, store) -> None:
         first = store.create_task("X", 1, "1.0.0", "wf-test")
         second = store.create_task("X", 1, "1.0.0", "wf-test")
-        uuid.UUID(first.idempotency_key)
-        uuid.UUID(second.idempotency_key)
-        assert first.idempotency_key != second.idempotency_key
-        assert first.idempotency_key != "X:1"
-        assert second.idempotency_key != "X:1"
+        uuid.UUID(first.task_nonce)
+        uuid.UUID(second.task_nonce)
+        assert first.task_nonce != second.task_nonce
+        assert first.task_nonce != "X:1"
+        assert second.task_nonce != "X:1"
         assert first.task_id != second.task_id  # REQ-006: duplicate call is a new task
 
 
@@ -253,7 +253,7 @@ class TestRecoverStaleAttempts:
     ):
         """Helper to insert a task and its attempt together."""
         store._db.execute(
-            "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO tasks (task_id, session_id, turn_number, task_nonce, status, workflow_version, workflow_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (task_id, "sess-test", 1, f"{task_id}:1", "pending", "1.0.0", "wf-test"),
         )
         store._db.execute(
@@ -405,7 +405,7 @@ class TestRecoverStaleAttempts:
             task_id = "task-multi"
             conn = sqlite3.connect(str(workflow_db))
             conn.execute(
-                "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO tasks (task_id, session_id, turn_number, task_nonce, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     task_id,
                     "sess-test",
@@ -455,7 +455,7 @@ class TestRecoverStaleAttempts:
             task_id = "task-none"
             conn = sqlite3.connect(str(workflow_db))
             conn.execute(
-                "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO tasks (task_id, session_id, turn_number, task_nonce, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     task_id,
                     "sess-test",
@@ -498,7 +498,7 @@ class TestStaleRecoveryConcurrency:
         task_id = "task-concurrent"
         attempt_id = "att-concurrent"
         conn.execute(
-            "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO tasks (task_id, session_id, turn_number, task_nonce, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 task_id,
                 "sess-test",

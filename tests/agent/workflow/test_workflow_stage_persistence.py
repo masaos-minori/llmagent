@@ -26,7 +26,7 @@ def db():
 def _insert_task(db: SQLiteHelper, workflow_id: str = "wf-test-1") -> str:
     task_id = str(uuid.uuid4())
     db.execute(
-        "INSERT INTO tasks (task_id, workflow_id, workflow_version, status, idempotency_key)"
+        "INSERT INTO tasks (task_id, workflow_id, workflow_version, status, task_nonce)"
         " VALUES (?, ?, '1.0.0', 'running', ?)",
         (task_id, workflow_id, task_id),
     )

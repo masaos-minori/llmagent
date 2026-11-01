@@ -73,9 +73,9 @@ Two-text edit in one commit with rows 01-03 and 12.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-01 | 2026-11-01 | schema_sql 1.3.0 + tasks.task_nonce DDL + REQ-010 comment |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-01 | 2026-11-01 | covered by rows 09/12 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-01 | 2026-11-01 | cycle 2 landed: full pytest suite 10869 passed, ruff/mypy/lint-imports/bandit/check_db_separation pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

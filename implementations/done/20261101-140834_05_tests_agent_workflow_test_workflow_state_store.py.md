@@ -77,9 +77,9 @@ Text rename plus targeted test deletion; run the file's tests after rows 01-04 l
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | In Progress | 2026-11-01 | — | cycle 1 done (lookup tests removed, get_task_by_id rewrites, REQ-006 assert); task_nonce renames deferred to cycle 2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | In Progress | 2026-11-01 | — | cycle 1 validation passed; cycle 2 pending |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-01 | 2026-11-01 | cycle 1 done (lookup tests removed, get_task_by_id rewrites, REQ-006 assert); task_nonce renames deferred to cycle 2 cycle 2 task_nonce renames applied |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-01 | 2026-11-01 | renames + get_task_by_id rewrites in place |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-01 | 2026-11-01 | cycle 1 validation passed; cycle 2 pending cycle 2 landed: full pytest suite 10869 passed, ruff/mypy/lint-imports/bandit/check_db_separation pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

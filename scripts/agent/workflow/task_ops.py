@@ -19,15 +19,17 @@ def create_task(
 ) -> TaskRecord:
     """Create a new task record.
 
-    The `idempotency_key` is a globally unique opaque identifier (UUID4) generated here
+    The `task_nonce` is a globally unique opaque identifier (UUID4) generated here
     for this task row; it is never derived from caller-supplied fields. `session_id` and
     `turn_number` are recorded metadata only; `turn_number` is a process-local counter
     (`agent/conversation_state_manager.py`, incremented in `append_user_message`) and is
-    not part of task identity. The `tasks.idempotency_key` UNIQUE constraint therefore
-    stays inert (a backstop against a future key-derivation regression), and resume across
-    a retained `workflow.sqlite` uses `task_id`, not this key.
+    not part of task identity. Task identity is `task_id`: two `create_task` calls with
+    identical arguments create two tasks (no request-level deduplication). The
+    `tasks.task_nonce` UNIQUE constraint therefore stays inert (a backstop against a
+    future key-derivation regression), and resume across a retained `workflow.sqlite`
+    uses `task_id`, not this nonce.
     """
-    idempotency_key = str(uuid.uuid4())
+    task_nonce = str(uuid.uuid4())
     task_id = str(uuid.uuid4())
     now = _now()
     db.execute(
@@ -35,7 +37,7 @@ def create_task(
 
         INSERT INTO tasks
             (task_id, session_id, workflow_id, turn_number, workflow_version,
-             status, idempotency_key, created_at, updated_at)
+             status, task_nonce, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)
         """,
         (
@@ -44,7 +46,7 @@ def create_task(
             workflow_id,
             turn_number,
             workflow_version,
-            idempotency_key,
+            task_nonce,
             now,
             now,
         ),
@@ -56,7 +58,7 @@ def create_task(
         turn_number=turn_number,
         workflow_version=workflow_version,
         status="pending",
-        idempotency_key=idempotency_key,
+        task_nonce=task_nonce,
         created_at=now,
         updated_at=now,
         workflow_id=workflow_id,
@@ -81,7 +83,7 @@ def _row_to_task(r: sqlite3.Row) -> TaskRecord:
         turn_number=row["turn_number"],
         workflow_version=row["workflow_version"],
         status=row["status"],
-        idempotency_key=row["idempotency_key"],
+        task_nonce=row["task_nonce"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
         workflow_id=row.get("workflow_id") or "",

@@ -77,10 +77,10 @@ Direct edit; no signature changes for surviving functions (`create_task`, `updat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | In Progress | 2026-11-01 | — | cycle 1 done (lookup APIs deleted, count functions added); rename sites deferred to cycle 2 |
-| 2 | Add or update tests per Validation plan | In Progress | 2026-11-01 | — | cycle 1 test updates landed (rows 05/06) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | In Progress | 2026-11-01 | — | cycle 1 validation passed; cycle 2 pending |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-01 | 2026-11-01 | cycle 1 done (lookup APIs deleted, count functions added); rename sites deferred to cycle 2 cycle 2 rename applied (task_nonce contract in task_ops) |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-01 | 2026-11-01 | cycle 1 test updates landed (rows 05/06) cycle 1+2 test updates landed (rows 05/06/09/12) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-01 | 2026-11-01 | cycle 1 validation passed; cycle 2 pending cycle 2 landed: full pytest suite 10869 passed, ruff/mypy/lint-imports/bandit/check_db_separation pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-01 | 2026-11-01 | out of scope: docs handled by rows 10/11/12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

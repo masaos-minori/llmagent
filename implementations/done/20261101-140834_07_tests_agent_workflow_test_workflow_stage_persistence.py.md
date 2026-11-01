@@ -60,9 +60,9 @@ One-line edit; if the fixture value is derived from session/turn text (the histo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-01 | 2026-11-01 | fixture INSERT renamed to task_nonce |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-01 | 2026-11-01 | stage persistence tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-01 | 2026-11-01 | cycle 2 landed: full pytest suite 10869 passed, ruff/mypy/lint-imports/bandit/check_db_separation pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
