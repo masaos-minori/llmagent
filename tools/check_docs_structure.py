@@ -98,7 +98,9 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # (2026-10-17), and the by-phase failure-class verification evidence (2026-10-17);
     # the ceiling equals the size reached.
     # Re-recorded after the grouped rename: 32305.
-    "adr_02_01_004_platform-environment-failure-handling-policy.md": 32305,
+    # Re-accepted at 32448 (2026-11-01): mcpgate001 added the component-mandatoriness
+    # classification note; the ceiling equals the accepted size.
+    "adr_02_01_004_platform-environment-failure-handling-policy.md": 32448,
     # ADR-007 reached 24596 after the grouped rename (default limit 24576).
     # adr_02_05_008 sat at 33647 until dbmig001 recorded the workflow/eventbus
     # forward-only migration contract in Context > Constraints plus an Amendment
@@ -121,7 +123,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 25272 (2026-10-27): the turn001 Phase 1 `turn_persistence.py` module added
     # two generated rows (`ConversationPersistenceError`, `TurnPersistence`). The ceiling again
     # equals the accepted size.
-    "agent_13_reference-api-generated.md": 25272,
+    # Re-accepted at 25322 (2026-11-01): the adrcov001 contract-manifest and ADR-014
+    # loop-ownership alignment regenerated the table with longer rows; the ceiling equals
+    # the accepted size.
+    "agent_13_reference-api-generated.md": 25322,
     # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
     # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
     # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate
@@ -136,7 +141,19 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # ADR-008 row status cell as "Accepted (amended 2026-10-30: ...)" and appended a dated
     # amendment note for ADR-008 below the ADR List table (2026-10-30). The ceiling equals
     # the accepted size, so any further growth fails.
-    "adr_01_index.md": 24826,
+    # Re-accepted at 31174 (2026-11-01): adrauth001 added the generated ADR authority
+    # table, adrcov001 the contract-manifest cross-references, and the ADR-014 alignment
+    # a few more cells, none of which can leave the index; the ceiling equals the accepted
+    # size, so any further growth fails.
+    "adr_01_index.md": 31174,
+    # governance_04 reached 25281 when adrauth001 documented the ADR authority validator and
+    # generator checks (2026-10-30), over the default MAX_SIZE; the ceiling equals the
+    # accepted size.
+    "governance_04_documentation-checks.md": 25281,
+    # ADR-013 reached 27185 when the authz-generation change (2026-11-01) recorded the
+    # generation, TTL sweep and restart-baseline decisions and their evidence, over the
+    # default MAX_SIZE; the ceiling equals the accepted size.
+    "adr_02_04_013_eventbus-authentication-authorization.md": 27185,
 }
 
 
