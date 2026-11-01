@@ -199,36 +199,57 @@ class LLMTurnRunner:
         if e.partial_text:
             incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
             if ctx.diagnostics is not None:
-                ctx.diagnostics.save(
-                    ctx.session.session_id,
-                    "llm_transport_error",
-                    incomplete_msg,
-                    workflow_id=workflow_id,
-                    task_id=task_id,
-                )
-                ctx.diagnostics.save_partial_completion(
-                    session_id=ctx.session.session_id,
-                    turn=turn,
-                    reason=e.kind,
-                    content_length=len(e.partial_text),
-                )
+                try:
+                    ctx.diagnostics.save(
+                        ctx.session.session_id,
+                        "llm_transport_error",
+                        incomplete_msg,
+                        workflow_id=workflow_id,
+                        task_id=task_id,
+                    )
+                except Exception:  # noqa: BLE001 — best-effort diagnostic; a refusal or I/O failure must not break the turn
+                    logger.warning(
+                        "Failed to persist llm_transport_error diagnostic for %s (kind=llm_transport_error)",
+                        ctx.session.session_id,
+                        exc_info=True,
+                    )
+                try:
+                    ctx.diagnostics.save_partial_completion(
+                        session_id=ctx.session.session_id,
+                        turn=turn,
+                        reason=e.kind,
+                        content_length=len(e.partial_text),
+                    )
+                except Exception:  # noqa: BLE001 — best-effort diagnostic; a refusal or I/O failure must not break the turn
+                    logger.warning(
+                        "Failed to persist partial_completion diagnostic for %s (kind=partial_completion)",
+                        ctx.session.session_id,
+                        exc_info=True,
+                    )
             ctx.services_required.llm.stat_partial_completions += 1
             logger.warning("Partial LLM completion saved: %s", e.kind)
         elif ctx.diagnostics is not None:
-            ctx.diagnostics.save(
-                ctx.session.session_id,
-                "mid_turn_error",
-                dumps(
-                    {
-                        "error_type": type(e).__name__,
-                        "detail": summary,
-                        "turn": turn,
-                        "timestamp": now_iso_raw(),
-                    }
-                ),
-                workflow_id=workflow_id,
-                task_id=task_id,
-            )
+            try:
+                ctx.diagnostics.save(
+                    ctx.session.session_id,
+                    "mid_turn_error",
+                    dumps(
+                        {
+                            "error_type": type(e).__name__,
+                            "detail": summary,
+                            "turn": turn,
+                            "timestamp": now_iso_raw(),
+                        }
+                    ),
+                    workflow_id=workflow_id,
+                    task_id=task_id,
+                )
+            except Exception:  # noqa: BLE001 — best-effort diagnostic; a refusal or I/O failure must not break the turn
+                logger.warning(
+                    "Failed to persist mid_turn_error diagnostic for %s (kind=mid_turn_error)",
+                    ctx.session.session_id,
+                    exc_info=True,
+                )
         logger.warning(
             "LLM transport error during tool continuation (turn=%s): %s",
             turn,

@@ -138,10 +138,10 @@ Inline edit to one static method. No new symbols, no signature change, no import
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Contain in `_save_guard_hint` (line 151); REQ-001, REQ-002 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Regression test in row 3 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261101-131118 | 20261101-131118 | Contain in `_save_guard_hint` (line 151); REQ-001, REQ-002 Change applied; ruff/mypy/lint-imports/bandit/targeted/full-suite clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261101-140300 | 20261101-140300 | Regression test in row 3 (`TestSaveGuardHintContainment`); covers this file's new wrapper |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261101-141200 | 20261101-141200 | ruff/mypy/lint-imports/bandit clean; full suite 10853 passed; diff-cover 100% (proc1 wrapper covered by proc3 test) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261101-141200 | 20261101-141200 | N/A: no docs change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

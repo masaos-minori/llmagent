@@ -5,6 +5,7 @@ Unit tests for agent/tool_loop_guard.py — ToolLoopGuard.
 from __future__ import annotations
 
 import dataclasses
+import logging
 from typing import Literal
 from unittest.mock import MagicMock, patch
 
@@ -653,3 +654,24 @@ class TestStaticFieldImmutability:
 
         # The LLM tool-definition mapping is unchanged.
         assert registry.llm_tool_definitions() == definition_snapshot
+
+
+class TestSaveGuardHintContainment:
+    """REQ-001/REQ-002: _save_guard_hint contains a save() refusal instead of
+    letting it escape the interactive LLM turn."""
+
+    def test_save_guard_hint_does_not_propagate_on_sensitive_refusal(
+        self, caplog
+    ) -> None:
+        """A DiagnosticStore.save() sensitive-pattern refusal must not escape _save_guard_hint."""
+        ctx = _make_ctx()
+        ctx.diagnostics.save.side_effect = RuntimeError(
+            "Sensitive information detected in diagnostic content without encryption enabled."
+        )
+
+        with caplog.at_level(logging.WARNING, logger="agent.tool_loop_guard"):
+            ToolLoopGuard._save_guard_hint(ctx, "dedup", tool="write_file")
+
+        # REQ-001: no exception propagated; REQ-002: a warning was logged.
+        assert any(r.levelno >= logging.WARNING for r in caplog.records)
+        assert "kind=guard_hint" in caplog.text

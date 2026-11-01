@@ -7,6 +7,7 @@ Tests the inner LLM streaming + tool-call loop in isolation.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -377,6 +378,51 @@ class TestHandleLlmError:
         assert "CONNECT_ERROR" in result.answer
         assert result.exception is error
         runner._ctx.diagnostics.save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_llm_error_does_not_propagate_on_sensitive_refusal(
+        self, runner: LLMTurnRunner, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A DiagnosticStore save() sensitive-pattern refusal must not escape _handle_llm_error."""
+        runner._ctx.diagnostics.save.side_effect = RuntimeError(
+            "Sensitive information detected in diagnostic content without encryption enabled."
+        )
+        runner._ctx.diagnostics.save_partial_completion.side_effect = RuntimeError(
+            "Sensitive information detected in diagnostic content without encryption enabled."
+        )
+        error = LLMTransportError(
+            "STREAMING_FAILED",
+            "in_stream",
+            "http://llm",
+            partial_text="leaked token abc",
+            detail="boom",
+        )
+
+        with caplog.at_level(logging.WARNING, logger="agent.llm_turn_runner"):
+            result = await runner._handle_llm_error(error, 1)
+
+        # REQ-001: no exception propagated; a fail TurnResult is still returned
+        assert result.action == "fail"
+        assert result.exception is error
+        # REQ-002: a warning was logged for the swallowed save failure
+        assert "kind=llm_transport_error" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_handle_llm_error_does_not_propagate_midturn_refusal(
+        self, runner: LLMTurnRunner, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A mid-turn save() refusal must not escape _handle_llm_error."""
+        runner._ctx.diagnostics.save.side_effect = RuntimeError(
+            "Sensitive information detected in diagnostic content without encryption enabled."
+        )
+        error = LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm")
+
+        with caplog.at_level(logging.WARNING, logger="agent.llm_turn_runner"):
+            result = await runner._handle_llm_error(error, 2)
+
+        assert result.action == "fail"
+        assert result.exception is error
+        assert "kind=mid_turn_error" in caplog.text
 
 
 WF_CTX = dict(

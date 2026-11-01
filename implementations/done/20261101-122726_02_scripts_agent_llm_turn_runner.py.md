@@ -154,10 +154,10 @@ Inline edits to one async method. No new symbols, no signature change, no import
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Contain save calls at L202/L209/L218; REQ-001, REQ-002 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Regression test in row 4 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261101-131544 | 20261101-131544 | Contain save calls at L202/L209/L218; REQ-001, REQ-002 Wrappers applied at save/save_partial_completion/mid_turn; ruff/mypy/lint-imports/bandit/targeted/full-suite clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261101-140400 | 20261101-140400 | Regression tests in row 4 (partial-text + mid-turn); cover this file's new wrappers |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261101-141200 | 20261101-141200 | ruff/mypy/lint-imports/bandit clean; full suite 10853 passed; diff-cover 100% (proc2 wrappers covered by proc4 tests) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261101-141200 | 20261101-141200 | N/A: no docs change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

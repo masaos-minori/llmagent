@@ -148,7 +148,16 @@ class ToolLoopGuard:
             "guard_type": guard_type,
             "timestamp": now_iso_raw(),
         }
-        ctx.diagnostics.save(ctx.session.session_id, "guard_hint", json_dumps(payload))
+        try:
+            ctx.diagnostics.save(
+                ctx.session.session_id, "guard_hint", json_dumps(payload)
+            )
+        except Exception:  # noqa: BLE001 — best-effort diagnostic; a refusal or I/O failure must not break the turn
+            logger.warning(
+                "Failed to persist guard_hint diagnostic for %s (kind=guard_hint)",
+                ctx.session.session_id,
+                exc_info=True,
+            )
 
     # ── Empty result repeat guard helpers ─────────────────────────────────────
 

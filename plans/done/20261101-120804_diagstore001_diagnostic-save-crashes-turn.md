@@ -254,10 +254,10 @@ Baseline recorded (Step 5): `radon cc` on the three scripts targets reports only
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Contain the RuntimeError in `_save_guard_hint` (`scripts/agent/tool_loop_guard.py`) | In Progress | — | — | Option (a); REQ-001, REQ-002 |
-| 2 | Contain the RuntimeError in `_handle_llm_error` (`scripts/agent/llm_turn_runner.py`) | In Progress | — | — | Option (a); REQ-001, REQ-002 |
-| 3 | Regression tests (`tests/agent/test_tool_loop_guard.py`, `tests/agent/test_llm_turn_runner.py`) | In Progress | — | — | REQ-001, REQ-002 |
-| 4 | Deployment & verification (type/lint/full suite) | Pending | — | — | REQ-003, REQ-005 |
+| 1 | Contain the RuntimeError in `_save_guard_hint` (`scripts/agent/tool_loop_guard.py`) | Completed | 20261101-131118 | 20261101-131118 | Option (a); REQ-001, REQ-002. Wrapper applied; proc1 procedure archived |
+| 2 | Contain the RuntimeError in `_handle_llm_error` (`scripts/agent/llm_turn_runner.py`) | Completed | 20261101-131544 | 20261101-131544 | Option (a); REQ-001, REQ-002. Wrappers at save/save_partial_completion/mid_turn; proc2 procedure archived |
+| 3 | Regression tests (`tests/agent/test_tool_loop_guard.py`, `tests/agent/test_llm_turn_runner.py`) | Completed | 20261101-140300 | 20261101-140400 | REQ-001, REQ-002. Guard + (partial-text/mid-turn) runner tests; mutation-confirmed; proc3/proc4 procedures archived |
+| 4 | Deployment & verification (type/lint/full suite) | Completed | 20261101-141200 | 20261101-141200 | REQ-003, REQ-005. Full suite 10853 passed; ruff/mypy/bandit clean; diff-cover 100%. Commit staged; push behind owner approval gate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -267,10 +267,10 @@ Baseline recorded (Step 5): `radon cc` on the three scripts targets reports only
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261101-122726_01_scripts_agent_tool_loop_guard.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261101-122726_02_scripts_agent_llm_turn_runner.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261101-122726_03_tests_agent_test_tool_loop_guard.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261101-122726_04_tests_agent_test_llm_turn_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261101-122726_01_scripts_agent_tool_loop_guard.py.md | 1 | Procedure | Archived | — | — |
+| implementations/20261101-122726_02_scripts_agent_llm_turn_runner.py.md | 2 | Procedure | Archived | — | — |
+| implementations/20261101-122726_03_tests_agent_test_tool_loop_guard.py.md | 3 | Procedure | Archived | — | — |
+| implementations/20261101-122726_04_tests_agent_test_llm_turn_runner.py.md | 3 | Procedure | Archived | — | — |
 
 ## Traceability
 
