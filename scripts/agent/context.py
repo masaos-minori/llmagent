@@ -25,7 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from shared.config_loader import ConfigLoader
 from shared.mcp_health import McpServerHealthRegistry
@@ -247,6 +247,25 @@ class RuntimeStats:
     stat_partial_completions: int = 0
 
 
+class ToolCallRecorder(Protocol):
+    """Structural seam for writing agent-side tool_call_state rows.
+
+    Implemented by agent.workflow.state_store.StateStore; deliberately not
+    imported here so context.py stays import-cycle-free.
+    """
+
+    def record_tool_call(
+        self,
+        task_id: str,
+        idempotency_key: str,
+        tool: str,
+        retry_class: str,
+        snapshot_id: str | None = None,
+    ) -> None: ...
+
+    def finalize_tool_call(self, idempotency_key: str, state: str) -> None: ...
+
+
 @dataclass
 class WorkflowState:
     """Per-session workflow runtime state; transient, not persisted.
@@ -257,6 +276,7 @@ class WorkflowState:
 
     active: bool = False
     current_task_id: str | None = None
+    tool_call_recorder: ToolCallRecorder | None = None
     workflow_id: str | None = None
     current_workflow_version: str | None = None
     last_session_id: str | None = None

@@ -73,6 +73,12 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 
 A round answers every `tool_call_id` the assistant message declared: when `execute_all_tool_calls()` ends, normally or by raising, history and the saved batch hold exactly one `role='tool'` row per declared id, in the original call order. A call the round did not execute is answered by a synthesized row that says it was not executed, for one of two reasons (`ToolCallStopReason`): the round was stopped by a loop guard, or the round did not complete. A synthesized row changes neither `ctx.stats` nor `out_failed_keys`, and it is never fed to the empty-result guard. The exception that ended a failing round still propagates unchanged.
 
+### Tool Call State Recording
+
+Every dispatched call writes one `tool_call_state` row (see [MCP Dedup and Execution Snapshot](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md)) in the workflow DB: `pending` before the executor runs, finalized to `completed` (success) or `failed` (captured execution failure) once the result row exists. A call aborted by a `BaseException` (e.g. cancellation) never reaches the finalize step, so its row stays `pending`; stale pending rows are classified workflow-side (`classify_stale_pending`) and surfaced to the next turn (`build_turn_control_message`) — that consumption is owned by the workflow, not the tool runner.
+
+The row key is derived by `shared/http_transport.py::derive_idempotency_key("call_tool", name, args, session_uid)` — byte-identical to the `X-Idempotency-Key` header the MCP transport sends for the same call. The recorded `retry_class` comes from `shared/mcp_dedup.py::retry_class` (owned by `config/mcp_dedup.toml`). Recording is best-effort: a recorder failure is logged and never breaks tool execution, and a flow with no recorder wired (everything outside an active workflow turn) skips the step entirely. The recorder is the `WorkflowEngineAdapter`'s own state store, injected per turn via `AgentContext.workflow.tool_call_recorder` and cleared on every turn exit route.
+
 ### Dynamic Availability Hints and the Unavailable-Repeat Bound
 
 A tool result from MCP transport that signals server unavailability may carry a dynamic availability hint: a normalized reason code, the circuit breaker state, and an optional retry-after time in seconds (the same vocabulary as [Health Reasons and Error Kinds](../22_mcp/mcp_06_10_health-reasons-and-error-kinds.md)). The hint is advisory metadata, never a routing input: it changes neither tool registration nor LLM tool visibility nor static availability, and it never changes the tool definitions presented to the LLM (ADR-003 Decision 17). The hint is constructed only from runtime health state; server-supplied free text is not part of the bounded-hint signal.
@@ -89,6 +95,8 @@ Repeated selection of tools returning the same server-unavailable hint within on
 - `_execute_with_dag()` is the only execution path; `serial_tool_calls=True` only changes the scheduler input and never selects another engine.
 - A trip of the empty-result guard observed while a round runs ends the remaining calls of the sequential group and the remaining batches of the plan; those ids are answered by synthesized rows, and the post-round check remains the only place that records the guard hint.
 - Preparation phase is fail-closed: if any issue exists (missing id, invalid JSON, unregistered tool, registry disconnected, schema violation, metadata construction failure), it is rejected before reaching approval, execution, or scheduling.
+- The `tool_call_state` row key written during execution is byte-identical to the transport-layer idempotency key: both are derived by `derive_idempotency_key("call_tool", name, args, session_uid)`, so the producer row and the transport dedup cache represent one key per logical call.
+- Tool-call state recording is never fatal: a recorder error is logged, not converted into a tool error, and an unwired recorder makes the step a no-op.
 
 ## Known Limitations
 
@@ -113,3 +121,6 @@ Repeated selection of tools returning the same server-unavailable hint within on
 - dynamic availability hint
 - unavailable-repeat bound
 - retry_after
+- tool_call_state
+- idempotency_key
+- retry_class

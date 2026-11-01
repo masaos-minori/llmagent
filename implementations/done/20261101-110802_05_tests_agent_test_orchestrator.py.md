@@ -75,9 +75,13 @@ path these tests extend).
 
 ## Compatibility considerations
 
-- Existing 321 agent tests unaffected: additions only; the autouse fixture patches
-  `WorkflowEngine` but not `WorkflowEngineAdapter` constructor behavior, so the
-  `self._state_store` created in the constructor (L84/95) is real in these tests.
+- Existing 3851 tests under `tests/agent/` (measured 2026-11-01) unaffected: additions only.
+  The autouse `_patch_workflow_loader` fixture patches `agent.orchestrator.StateStore`
+  (MagicMock), `agent.orchestrator.WorkflowLoader`, and
+  `agent.workflow_engine_adapter.WorkflowEngine` (fake engine) — `self._state_store` in the
+  adapter is whatever `agent.orchestrator.StateStore` resolves to at construction, so use the
+  L383/L484 `TempStateStore` monkeypatch pattern to make it a real temp-DB `StateStore`
+  instance for the identity assertion.
 - If `_make_ctx()`'s MagicMock auto-creates `ctx.workflow.tool_call_recorder`, the
   "before/after" assertions must compare against `None` explicitly (`is None`), since
   MagicMock attributes are not `None` by default — construct the test ctx with a real
@@ -93,8 +97,11 @@ path these tests extend).
 
 ## Validation plan
 
-- `uv run pytest tests/agent/test_orchestrator.py -x -q` then `uv run pytest tests/agent -x -q`.
-- Full sequence per `rules/toolchain.md` (mypy over tests enabled, diff-cover ≥90%).
+- `uv run pytest tests/agent/test_orchestrator.py -x -q` then `uv run pytest tests/agent -x -q`
+  (3851-test baseline + new).
+- Full sequence per `rules/toolchain.md`; note mypy's primary scope is `scripts/
+  tests/eventbus` — `tests/agent` is validated by execution, not by CI mypy; diff-cover
+  ≥90%.
 - Mutation spot-check: remove the `finally` clear locally and confirm the exception-exit test
   fails.
 
@@ -114,10 +121,10 @@ path these tests extend).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261101-125601 | 20261101-125601 | TestToolCallRecorderWiring (3 tests) + _temp_workflow_store helper appended after TestExecuteStageRetryRunsTurnEntryOnce; spy captures field at engine-invocation time |
+| 2 | Add or update tests per Validation plan | Completed | 20261101-125601 | 20261101-125601 | This row IS the test implementation row; no separate test target |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261101-125601 | 20261101-125601 | ruff clean; file 120 passed (117 pre-existing unmodified); mutation spot-check: removing the deactivate clear failed 2 wiring tests; full suite 10864 passed; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261101-125601 | 20261101-125601 | N/A: test-only row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

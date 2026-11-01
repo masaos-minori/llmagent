@@ -111,6 +111,11 @@ entries:
   summary: Accumulated session statistics.
 - file: scripts/agent/context.py
   kind: class
+  name: ToolCallRecorder
+  signature: class ToolCallRecorder
+  summary: Structural seam for writing agent-side tool_call_state rows.
+- file: scripts/agent/context.py
+  kind: class
   name: WorkflowState
   signature: class WorkflowState
   summary: Per-session workflow runtime state; transient, not persisted.

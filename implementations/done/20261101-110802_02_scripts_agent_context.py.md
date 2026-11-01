@@ -8,18 +8,22 @@ REQ-005 (design decision D2).
 ## Scope
 
 - Add `class ToolCallRecorder(Protocol)` to `scripts/agent/context.py`.
-- Add one field `tool_call_recorder: ToolCallRecorder | None = None` to the existing
-  `@dataclass class WorkflowState` (L248 onward).
+- Add one field `tool_call_recorder: ToolCallRecorder | None = None` (new) to the existing
+  `@dataclass class WorkflowState` (L250-259).
 - Nothing else in the file changes.
 
 ## Assumptions
 
-- The Protocol mirrors only the three facade methods `tool_runner` uses
-  (`record_tool_call`, `finalize_tool_call`, `mark_tool_call_interrupted`); the concrete
-  `StateStore` already exposes exactly these (facade, `state_store.py` L174-199) and
-  satisfies it structurally without inheritance.
-- `context.py` already imports `Protocol` for `ApprovalProvider`/`SkillRegistryProvider`, so
-  no new import line is needed.
+- The Protocol mirrors exactly the two facade methods `tool_runner` uses (`record_tool_call`,
+  `finalize_tool_call`) with signatures identical to the real facade (`state_store.py`
+  L174-190: `record_tool_call(self, task_id, idempotency_key, tool, retry_class,
+  snapshot_id=None)` and `finalize_tool_call(self, idempotency_key, state)` — no `task_id`
+  in finalize). The real `StateStore` satisfies it structurally without inheritance. The
+  facade has NO `mark_tool_call_interrupted` method anywhere in `scripts/`; the `interrupted`
+  transition is owned by `classify_stale_pending` (consumer side).
+- `context.py` currently imports `TYPE_CHECKING, Any, cast` from `typing` (L28) — `Protocol`
+  must be added to that import. There are no existing `ApprovalProvider`/`SkillRegistryProvider`
+  Protocols in the codebase (they do not exist in `scripts/`).
 
 ## Design decisions
 
@@ -29,7 +33,9 @@ REQ-005 (design decision D2).
   dependency-flow audit lists `context.py` as a shared import hub with 7+ importers).
   Structural typing keeps the seam at zero runtime cost.
 - Field default `None`: unwired contexts (unit tests, non-adapter paths) keep working with
-  zero behavior change; this makes rows 01 and 02 individually deployable in any order.
+  zero behavior change. Execution order dependency: row 02 (this field) must land BEFORE
+  rows 01 and 03, which read/assign it; after 02, rows 01/03 are order-independent with each
+  other.
 - The field lives on `WorkflowState` (not `AgentContext` directly): it is per-session turn
   runtime state, exactly like `current_task_id`, and `tool_runner` already reaches
   `ctx.workflow` (frozen context-flow audit row 11).
@@ -51,8 +57,9 @@ REQ-005 (design decision D2).
 
 ### Procedure
 
-1. Define the Protocol near the existing `ApprovalProvider`/`SkillRegistryProvider`
-   Protocols, method signatures copied from the facade (`state_store.py` L174-199):
+1. Add `Protocol` to the existing `from typing import TYPE_CHECKING, Any, cast` line (L28).
+2. Define the Protocol directly above the `WorkflowState` class (L250-251), signatures copied
+   verbatim from the facade (`state_store.py` L174-190):
    ```python
    class ToolCallRecorder(Protocol):
        """Structural seam for writing agent-side tool_call_state rows.
@@ -62,15 +69,18 @@ REQ-005 (design decision D2).
        """
 
        def record_tool_call(
-           self, task_id: str, idempotency_key: str, tool: str, retry_class: str
+           self,
+           task_id: str,
+           idempotency_key: str,
+           tool: str,
+           retry_class: str,
+           snapshot_id: str | None = None,
        ) -> None: ...
 
-       def finalize_tool_call(self, task_id: str, idempotency_key: str, state: str) -> None: ...
-
-       def mark_tool_call_interrupted(self, task_id: str, idempotency_key: str) -> None: ...
+       def finalize_tool_call(self, idempotency_key: str, state: str) -> None: ...
    ```
-2. Add the field to `WorkflowState` alongside the existing per-turn fields:
-   `tool_call_recorder: ToolCallRecorder | None = None`.
+3. Add the field to `WorkflowState` alongside the existing per-turn fields (beside
+   `current_task_id`, L259): `tool_call_recorder: ToolCallRecorder | None = None`.
 
 ### Method
 
@@ -78,13 +88,13 @@ Two additive edits; no existing lines modified.
 
 ### Details
 
-- Signatures must match the facade exactly (parameter names and types) so mypy accepts
-  `StateStore` where `ToolCallRecorder` is expected under `uv run mypy scripts/` with
-  `disallow_untyped_defs = true`.
-- `mark_tool_call_interrupted` is included in the Protocol for completeness of the facade
-  triad even though the producer does not call it (the consumer's `classify_stale_pending`
-  owns that transition); keeping it prevents a Protocol-vs-implementation complaint about
-  narrowing the facade surface.
+- Signatures must match the facade exactly (parameter names, defaults, and types) so mypy
+  accepts `StateStore` where `ToolCallRecorder` is expected at the row-03 assignment site
+  under `uv run mypy --no-namespace-packages scripts/ tests/eventbus`.
+- The Protocol intentionally contains no `mark_tool_call_interrupted`: that symbol does not
+  exist anywhere in `scripts/`, and declaring it would make `StateStore` fail the structural
+  check at the row-03 assignment. The `interrupted` transition is owned by
+  `classify_stale_pending` (already merged, consumer side).
 
 ## Compatibility considerations
 
@@ -106,8 +116,8 @@ Two additive edits; no existing lines modified.
 
 ## Validation plan
 
-- `uv run mypy scripts/` passes with the Protocol (mypy verifies `StateStore` satisfies it
-  at the row 03 assignment site).
+- `uv run mypy --no-namespace-packages scripts/ tests/eventbus` passes with the Protocol
+  (mypy verifies `StateStore` satisfies it at the row 03 assignment site).
 - `uv run pytest tests/agent -x -q` — no test changes needed for this row alone.
 - Full sequence per `rules/toolchain.md` (baseline: 0 vulture findings in this file, 0
   bandit findings; the Protocol methods must not add vulture "unused" findings — they are
@@ -118,7 +128,7 @@ Two additive edits; no existing lines modified.
 - `WorkflowState.tool_call_recorder` exists, defaults to `None`, is typed
   `ToolCallRecorder | None`.
 - mypy accepts the adapter assigning `self._state_store` (row 03) to the field.
-- All 321 agent tests pass unchanged.
+- All 3851 tests collected under `tests/agent/` (measured 2026-11-01) pass unchanged.
 
 ## Out of Scope
 
@@ -130,10 +140,10 @@ Two additive edits; no existing lines modified.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261101-120309 | 20261101-120309 | Protocol+field added; static gates and tests/agent (3848 passed/3 skipped) green |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A for this row: test coverage lands in rows 04/05 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261101-121144 | 20261101-121144 | Full suite 10852 passed/1 drift failure (agent_api manifest stale from new symbol) fixed via generate_reference_table --manifests --type agent; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261101-121144 | 20261101-121144 | docs/23_agent/agent_13_reference-api-generated.md re-rendered; check_docs_consistency --domain agent clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

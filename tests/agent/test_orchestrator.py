@@ -16,7 +16,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agent.context import ConversationState, TurnState
+from agent.context import ConversationState, TurnState, WorkflowState
 from agent.history import CompressResult, HistoryCompressionError
 from agent.llm_turn_executor import LlmTurnExecutor
 from agent.message_schema import ValidationResult
@@ -665,6 +665,137 @@ class TestExecuteStageRetryRunsTurnEntryOnce:
             "SELECT status FROM tasks"
         )
         assert statuses[0]["status"] == "halted"
+
+
+def _temp_workflow_store(monkeypatch: Any, tmp_path: Path) -> str:
+    """Temp-DB StateStore pattern (see the L383/L484 usages in this file): a real
+    StateStore on a temp workflow DB, and the real create_task restored so
+    turn-entry creates a real task row (implementation procedure
+    20261101-110802_05 assumption: the recorder assignment exercises a real
+    facade object). The autouse fake WorkflowEngine stays patched — these tests
+    pin the adapter wiring, not engine stage-retry mechanics.
+    """
+    db_path = str(tmp_path / "wiring_workflow.sqlite")
+    with patch(
+        "db.helper.build_db_config",
+        return_value=DbConfig(
+            rag_db_path=str(tmp_path / "wiring_rag.sqlite"),
+            session_db_path=str(tmp_path / "wiring_session.sqlite"),
+            workflow_db_path=db_path,
+        ),
+    ):
+        create_workflow_schema()
+
+    class TempStateStore(StateStore):
+        def __init__(self) -> None:
+            from db.helper import SQLiteHelper
+
+            self._db = SQLiteHelper(db_path=db_path)
+            self._db.open(write_mode=True, row_factory=True)
+
+    monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
+    monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
+    return db_path
+
+
+class TestToolCallRecorderWiring:
+    """REQ-005/REQ-008: WorkflowEngineAdapter sets ctx.workflow.tool_call_recorder
+    to its own StateStore at turn entry (alongside current_task_id in
+    _activate_workflow) and the orchestrator's nested finally clears it through
+    deactivate_workflow on every exit route (normal and halt).
+
+    The capture reads the field at engine-invocation time — the point where
+    tool_runner looks it up — not after the turn, which cannot prove the
+    during-turn wiring (procedure 20261101-110802_05, Details).
+    """
+
+    @staticmethod
+    def _spy_engine_run(orch: Orchestrator, ctx: MagicMock) -> list[tuple[Any, Any]]:
+        """Replace the fake engine's run() with a wrapper that records
+        (tool_call_recorder, current_task_id) the moment the engine is invoked.
+        """
+        captured: list[tuple[Any, Any]] = []
+
+        async def _spy_run(
+            task: Any, plan_fn: Any, execute_fn: Any, verify_fn: Any
+        ) -> None:
+            captured.append(
+                (ctx.workflow.tool_call_recorder, ctx.workflow.current_task_id)
+            )
+            await plan_fn()
+            await execute_fn()
+            await verify_fn()
+
+        orch._workflow_adapter._workflow_engine.run = _spy_run
+        return captured
+
+    @pytest.mark.asyncio
+    async def test_recorder_set_at_turn_entry_and_cleared_after(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        _temp_workflow_store(monkeypatch, tmp_path)
+        ctx = _make_ctx()
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+        orch = _make_orchestrator(ctx)
+        monkeypatch.setattr(orch._audit_emitter, "emit_turn_start", AsyncMock())
+        captured = self._spy_engine_run(orch, ctx)
+
+        # The execute-stage internals are covered by the engine tests in this
+        # file; this test only pins the wiring bracket around engine.run().
+        orch._workflow_adapter._run_execute_stage = AsyncMock(
+            return_value=("answer", None, False)
+        )
+
+        await orch.handle_turn("hello")
+
+        (recorder_during, task_id_during) = captured[0]
+        # Identity, not duck-typing: the recorder must be the adapter's own store.
+        assert recorder_during is orch._workflow_adapter._state_store
+        assert isinstance(task_id_during, str) and task_id_during
+        # Cleared by the orchestrator's finally after the turn.
+        assert ctx.workflow.tool_call_recorder is None
+        assert ctx.workflow.active is False
+
+    @pytest.mark.asyncio
+    async def test_recorder_cleared_on_exception_exit(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        _temp_workflow_store(monkeypatch, tmp_path)
+        ctx = _make_ctx()
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+        on_error = MagicMock()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+        monkeypatch.setattr(orch._audit_emitter, "emit_turn_start", AsyncMock())
+        captured = self._spy_engine_run(orch, ctx)
+
+        # A stage failure surfaces as WorkflowHaltError, the mapped halt route.
+        orch._workflow_adapter._run_execute_stage = AsyncMock(
+            side_effect=WorkflowHaltError("stage boom")
+        )
+
+        await orch.handle_turn("halt me")
+
+        (recorder_during, _) = captured[0]
+        assert recorder_during is orch._workflow_adapter._state_store
+        assert on_error.call_count == 1
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
+        # The halt is swallowed by the adapter; the orchestrator's finally still
+        # runs deactivate_workflow — no stale recorder leaks between turns.
+        assert ctx.workflow.tool_call_recorder is None
+        assert ctx.workflow.active is False
+
+    def test_recorder_none_before_first_turn(self) -> None:
+        """REQ-008: the WorkflowState default is unwired (None), so every flow
+        that never reaches an active workflow turn records nothing. Uses a real
+        WorkflowState because _make_ctx()'s MagicMock auto-creates attributes.
+        """
+        ctx = _make_ctx()
+        ctx.workflow = WorkflowState()
+        assert ctx.workflow.tool_call_recorder is None
 
 
 # ── entry-work failure is not retried (AC-5) ─────────────────────────────────

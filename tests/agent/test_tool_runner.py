@@ -6,11 +6,13 @@ Unit tests for tool_runner.py: DAG execution, standard execution, and entry poin
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
@@ -26,10 +28,14 @@ from agent.tool_runner import (
     _collect_tool_result_msgs,
     _emit_tool_result,
     _execute_with_dag,
+    _finalize_state,
     execute_all_tool_calls,
     execute_one_tool_call,
 )
 from agent.tool_scheduler import ExecutionPlan, ScheduledBatch, ScheduledGroup
+from shared.http_transport import HttpTransport, derive_idempotency_key
+from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_dedup import retry_class
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
@@ -1963,3 +1969,297 @@ class TestSerializationStatsSnapshot:
         snapshot["total_events"] = 999
 
         assert get_serialization_stats() == before
+
+
+class FakeRecorder:
+    """In-memory stand-in for the StateStore facade the adapter wires (row 05).
+
+    Mirrors the agent.context.ToolCallRecorder Protocol signatures exactly, and
+    logs every call as a (method, task_id, key, tool, retry_class, state) tuple
+    plus an event string into a shared list so tests can pin the ordering of
+    record vs. executor vs. finalize (design decision in implementation
+    procedure 20261101-110802_04).
+    """
+
+    def __init__(
+        self,
+        *,
+        events: list[str] | None = None,
+        fail_record: bool = False,
+        fail_finalize: bool = False,
+    ) -> None:
+        self.calls: list[tuple[str, str, str, str, str, str]] = []
+        self.events = events if events is not None else []
+        self._fail_record = fail_record
+        self._fail_finalize = fail_finalize
+
+    def record_tool_call(
+        self,
+        task_id: str,
+        idempotency_key: str,
+        tool: str,
+        retry_class: str,
+        snapshot_id: str | None = None,
+    ) -> None:
+        if self._fail_record:
+            raise RuntimeError("recorder record down")
+        self.events.append("record")
+        self.calls.append(
+            ("record_tool_call", task_id, idempotency_key, tool, retry_class, "pending")
+        )
+
+    def finalize_tool_call(self, idempotency_key: str, state: str) -> None:
+        if self._fail_finalize:
+            raise RuntimeError("recorder finalize down")
+        self.events.append(f"finalize:{state}")
+        self.calls.append(("finalize_tool_call", "", idempotency_key, "", "", state))
+
+    def records(self) -> list[tuple[str, str, str, str, str, str]]:
+        return [c for c in self.calls if c[0] == "record_tool_call"]
+
+    def finalizes(self) -> list[tuple[str, str, str, str, str, str]]:
+        return [c for c in self.calls if c[0] == "finalize_tool_call"]
+
+
+def _state_ctx(recorder: FakeRecorder | None, session_id: str = "sess-42") -> MagicMock:
+    """_make_ctx() wired for the tool_call_state producer (REQ-005 consumer side).
+
+    current_task_id is set because _record_pending_state treats a None task
+    context as unwired; session_id is fixed so the derived key is deterministic.
+    """
+    ctx = _make_ctx()
+    ctx.session.session_id = session_id
+    ctx.workflow.current_task_id = "task-1"
+    ctx.workflow.tool_call_recorder = recorder
+    return ctx
+
+
+class TestToolCallStateProducer:
+    """Producer tests for the tool_call_state recording in _recorded_call
+    (plans/20261101-105136_toolstate001 plan.md REQ-001..REQ-004, REQ-006..REQ-008).
+
+    Asserts against the FakeRecorder call log, not a real DB: the DB behavior of
+    the record/finalize facade is already covered by
+    tests/agent/workflow/test_workflow_state_store.py.
+    """
+
+    @pytest.mark.asyncio
+    async def test_pending_recorded_before_dispatch(self) -> None:
+        """REQ-001: the pending row is written before the executor is touched."""
+        events: list[str] = []
+        recorder = FakeRecorder(events=events)
+        ctx = _state_ctx(recorder)
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=lambda *a, **k: (events.append("execute"), _ok())[1]
+        )
+        pc = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
+        collected: dict[str, tuple] = {}
+
+        await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
+        )
+
+        assert events == ["record", "execute", "finalize:completed"]
+        (recorded,) = recorder.records()
+        assert recorded[1] == "task-1"
+        assert recorded[3] == "read_text_file"
+        assert recorded[5] == "pending"
+        assert recorded[2] == derive_idempotency_key(
+            "call_tool", "read_text_file", pc.args, "sess-42"
+        )
+
+    @pytest.mark.asyncio
+    async def test_completed_finalize_after_success(self) -> None:
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        pc = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
+        collected: dict[str, tuple] = {}
+
+        results = await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
+        )
+
+        assert results[0][4] is False
+        (finalized,) = recorder.finalizes()
+        assert finalized[2] == derive_idempotency_key(
+            "call_tool", "read_text_file", pc.args, "sess-42"
+        )
+        assert finalized[5] == "completed"
+
+    @pytest.mark.asyncio
+    async def test_failed_finalize_after_executor_error(self) -> None:
+        """REQ-002: a captured Exception finalizes the row as failed."""
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=RuntimeError("kaboom")
+        )
+        pc = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
+        collected: dict[str, tuple] = {}
+
+        results = await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
+        )
+
+        assert results[0][4] is True
+        (finalized,) = recorder.finalizes()
+        assert finalized[2] == derive_idempotency_key(
+            "call_tool", "read_text_file", pc.args, "sess-42"
+        )
+        assert finalized[5] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_recorder_failure_is_non_fatal(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """REQ-007: record and finalize failures are logged, never fatal, and never
+        leak recorder state into the tool result row."""
+        with caplog.at_level(logging.WARNING, logger="agent.tool_runner"):
+            # Phase A: record raises -> no state_key, tool result untouched.
+            recorder_a = FakeRecorder(fail_record=True)
+            ctx = _state_ctx(recorder_a)
+            collected: dict[str, tuple] = {}
+            results = await _execute_with_dag(
+                ctx,
+                [_pc("read_text_file", {"path": "/tmp/a"}, call_id="ca")],
+                guard=ToolLoopGuard(ctx),
+                collected=collected,
+            )
+            assert (
+                results[0][4] is False
+            )  # success row: recorder failure is not an error row
+            assert recorder_a.records() == []
+            assert recorder_a.finalizes() == []
+            assert any(
+                "tool-call state record failed" in r.message for r in caplog.records
+            )
+
+            # Phase B: record lands, finalize raises -> pending stays, result normal.
+            caplog.clear()
+            recorder_b = FakeRecorder(fail_finalize=True)
+            ctx = _state_ctx(recorder_b)
+            results = await _execute_with_dag(
+                ctx,
+                [_pc("read_text_file", {"path": "/tmp/b"}, call_id="cb")],
+                guard=ToolLoopGuard(ctx),
+                collected=collected,
+            )
+            assert results[0][4] is False
+            assert len(recorder_b.records()) == 1
+            assert recorder_b.finalizes() == []  # the raising finalize wrote nothing
+            assert any(
+                "tool-call state finalize failed" in r.message for r in caplog.records
+            )
+
+    @pytest.mark.asyncio
+    async def test_baseexception_leaves_pending(self) -> None:
+        """REQ-004: a propagating CancelledError records pending and never finalizes."""
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=asyncio.CancelledError("stop")
+        )
+        collected: dict[str, tuple] = {}
+
+        with pytest.raises(asyncio.CancelledError):
+            await _execute_with_dag(
+                ctx,
+                [_pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")],
+                guard=ToolLoopGuard(ctx),
+                collected=collected,
+            )
+
+        assert len(recorder.records()) == 1
+        assert recorder.records()[0][5] == "pending"
+        assert recorder.finalizes() == []
+
+    @pytest.mark.asyncio
+    async def test_unwired_recorder_is_noop(self) -> None:
+        """REQ-008: recorder=None (the AgentContext default every existing test in
+        this file relies on) leaves execution unchanged and writes no state."""
+        ctx = _state_ctx(None)
+        pc = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
+        collected: dict[str, tuple] = {}
+
+        results = await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
+        )
+
+        assert results[0][4] is False
+        assert collected[pc.call_id] == results[0]
+        # Defensive half: finalize is a no-op even when handed a key with the
+        # recorder unwired again between record and finalize.
+        _finalize_state(ctx, "some-key", "completed")
+
+    @pytest.mark.asyncio
+    async def test_retry_class_from_owner(self) -> None:
+        """REQ-006: the recorded retry_class is shared.mcp_dedup.retry_class(name)
+        verbatim — listed tool from config/mcp_dedup.toml, default otherwise."""
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+
+        await _execute_with_dag(
+            ctx,
+            [_pc("write_file", {"path": "/tmp/w"}, call_id="cw")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+        await _execute_with_dag(
+            ctx,
+            [_pc("read_text_file", {}, call_id="cr")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+
+        recorded_write, recorded_read = recorder.records()
+        assert recorded_write[4] == retry_class("write_file") == "retryable"
+        assert recorded_read[4] == retry_class("read_text_file") == "non_retryable"
+
+    @pytest.mark.asyncio
+    async def test_key_matches_transport_derivation(self) -> None:
+        """REQ-003 / AC-3: the recorded key is byte-identical to the key the MCP
+        transport would send for the same call (same function, same uid branch).
+
+        Replicates the transport uid selection (shared/http_transport.py L194-197:
+        _session_id, falling back to the auth-token hash) on a real HttpTransport
+        after set_session_id(), proving the session-id branch is the one selected.
+        """
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        pc = _pc("write_file", {"path": "/tmp/w"}, call_id="c1")
+        collected: dict[str, tuple] = {}
+
+        await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
+        )
+        recorded_key = recorder.records()[0][2]
+
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8000",
+            call_timeout_sec=60.0,
+            auth_token="test-token",
+            startup_mode=StartupMode.PERSISTENT,
+        )
+        transport = HttpTransport(
+            http=MagicMock(spec=httpx.AsyncClient),
+            base_url="http://127.0.0.1:8000",
+            server_key="srv",
+            cfg=cfg,
+        )
+        transport.set_session_id("sess-42")
+        transport_uid = (
+            transport._session_id
+            or hashlib.sha256(cfg.auth_token.encode("utf-8")).hexdigest()
+        )
+        assert (
+            transport_uid == "sess-42"
+        )  # session-id branch selected, not the token hash
+
+        assert recorded_key == derive_idempotency_key(
+            "call_tool", pc.name, pc.args, transport_uid
+        )
+        fallback_uid = hashlib.sha256(cfg.auth_token.encode("utf-8")).hexdigest()
+        assert recorded_key != derive_idempotency_key(
+            "call_tool", pc.name, pc.args, fallback_uid
+        )

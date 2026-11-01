@@ -55,6 +55,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/context.py` | `ConversationState` | `class ConversationState` | Per-session conversation fields. |
 |  | `TurnState` | `class TurnState` | Per-turn transient state; reset each turn by Orchestrator. |
 |  | `RuntimeStats` | `class RuntimeStats` | Accumulated session statistics. |
+|  | `ToolCallRecorder` | `class ToolCallRecorder` | Structural seam for writing agent-side tool_call_state rows. |
 |  | `WorkflowState` | `class WorkflowState` | Per-session workflow runtime state; transient, not persisted. |
 |  | `AppServices` | `class AppServices` | Fully-initialized service references built by factory.py. |
 |  | `AgentContext` | `class AgentContext` | Mutable runtime state shared between AgentREPL and CommandRegistry. |

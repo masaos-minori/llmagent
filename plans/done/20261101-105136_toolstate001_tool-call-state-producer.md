@@ -217,10 +217,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: recorder contract (context.py) | In Progress | — | — | REQ-005 |
-| 2 | Phase 2: producer writes (tool_runner.py, workflow_engine_adapter.py) | In Progress | — | — | REQ-001..REQ-004, REQ-006, REQ-007, REQ-009, REQ-005 |
-| 3 | Phase 3: test implementation (test_tool_runner.py, test_orchestrator.py) | In Progress | — | — | AC-1..AC-9 |
-| 4 | Phase 4: documentation & verification (agent_06_01 doc, full gates) | In Progress | — | — | REQ-011; deploy impact N/A (rsynced) |
+| 1 | Phase 1: recorder contract (context.py) | Completed | — | 20261101-121153 | REQ-005 context.py Protocol+field landed 20261101; all gates green |
+| 2 | Phase 2: producer writes (tool_runner.py, workflow_engine_adapter.py) | Completed | — | 20261101-125634 | REQ-001..REQ-004, REQ-006, REQ-007, REQ-009, REQ-005 tool_runner.py helpers+_recorded_call wiring and workflow_engine_adapter.py activation wiring landed 20261101 (rows 01/03 archived) |
+| 3 | Phase 3: test implementation (test_tool_runner.py, test_orchestrator.py) | Completed | — | 20261101-125634 | AC-1..AC-9 8 producer tests (test_tool_runner) + 3 wiring tests (test_orchestrator) landed; mutation spot-checks detected both mutants (rows 04/05 archived) |
+| 4 | Phase 4: documentation & verification (agent_06_01 doc, full gates) | Completed | — | 20261101-125634 | REQ-011; deploy impact N/A (rsynced) agent_06_01 doc updated (REQ-011); full gates: ruff/lint-imports 6 kept/mypy 491 clean/bandit 0/module size ok/docs checkers clean/full suite 10864 passed/diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -1,10 +1,11 @@
 ## Goal
 
 Add producer tests to `tests/agent/test_tool_runner.py` covering the new
-`tool_call_state` recording in `_recorded_call` / `execute_one_tool_call`: pending-before-
-dispatch, completed/failed finalize, non-fatal recorder errors, BaseException leaving rows
-pending, and the unwired-recorder no-op. Implements the test criteria for REQ-001, REQ-002,
-REQ-003, REQ-004, REQ-006, REQ-007, REQ-008 (rows 1 and 4 of the plan's Target Files table).
+`tool_call_state` recording in `_recorded_call` (`execute_one_tool_call` untouched, plan D1):
+pending-before-dispatch, completed/failed finalize, non-fatal recorder errors, BaseException
+leaving rows pending, and the unwired-recorder no-op. Implements the test criteria for
+REQ-001, REQ-002, REQ-003, REQ-004, REQ-006, REQ-007, REQ-008 (rows 1 and 4 of the plan's
+Target Files table).
 
 ## Scope
 
@@ -62,14 +63,17 @@ REQ-003, REQ-004, REQ-006, REQ-007, REQ-008 (rows 1 and 4 of the plan's Target F
 5. `test_baseexception_leaves_pending`: executor raises `asyncio.CancelledError`; assert
    `record_tool_call` happened, no finalize happened, and the exception propagates.
 6. `test_unwired_recorder_is_noop`: `tool_call_recorder=None` (the default for all existing
-   tests); assert normal execution and zero state writes — proves the 27 pre-existing tests
-   in this file stay green without rewiring.
+   tests); assert normal execution and zero state writes — proves the 70 pre-existing test
+   functions in this file (measured 2026-11-01) stay green without rewiring.
 7. `test_retry_class_from_owner`: assert the recorded `retry_class` equals
    `mcp_dedup.retry_class(name)` for a tool listed in `config/mcp_dedup.toml` (e.g.
    `write_file` → `retryable`) and for an unlisted name (`non_retryable` default).
 8. `test_key_matches_transport_derivation`: assert recorded key ==
    `derive_idempotency_key("call_tool", name, args, str(session_id))` (REQ-003 acceptance
-   criterion, plan Constraint 2).
+   criterion, plan Constraint 2). AC-3's transport-side half: replicate the transport uid
+   selection (`_session_id or sha256(auth_token)` after `set_session_id(str(session_id))`,
+   `http_transport.py` L194-197) and assert it selects the session-id branch, so the
+   recorded and transport keys are provably identical without a live request.
 
 ### Method
 
@@ -82,15 +86,16 @@ test file.
 - Keep tests deterministic: fixed `session_id`, fixed args strings, no wall-clock
   dependency (timeout behavior belongs to `classify_stale_pending` tests, already covered in
   `tests/agent/workflow/test_workflow_state_store.py`).
-- Do not add `pytest.ini` marks: the file is in the `agent` marker set already
-  (`-m "not slow and not e2e"` unaffected).
+- Do not add new pytest marks: the only registered markers are `integration`
+  (`pyproject.toml`) and `production_paths_allowed` (`tests/conftest.py` production-state
+  guard); the new tests are plain unit tests and run in the default suite.
 
 ## Compatibility considerations
 
-- Existing 27 tests in this file must pass unmodified — the unwired-recorder default is what
-  guarantees that (test 6 pins it).
+- Existing 70 test functions in this file must pass unmodified — the unwired-recorder
+  default is what guarantees that (test 6 pins it).
 - `tests/agent/test_tool_approval_preflight.py` also calls `execute_one_tool_call` directly;
-  it stays unwired and must remain green (part of the 321-agent-test gate).
+  it stays unwired and must remain green (part of the 3851-test `tests/agent` baseline).
 
 ## Security considerations
 
@@ -104,11 +109,14 @@ test file.
 ## Validation plan
 
 - `uv run pytest tests/agent/test_tool_runner.py -x -q` then `uv run pytest tests/agent -x -q`
-  (321 baseline + new).
-- Full sequence per `rules/toolchain.md`: ruff/mypy on tests config (`type_checks_for_tests`
-  is enabled), bandit/vulture/radon, diff-cover ≥90%.
+  (3851-test baseline + new, measured 2026-11-01).
+- Full sequence per `rules/toolchain.md`: ruff format/check; note mypy's primary scope is
+  `scripts/ tests/eventbus` — `tests/agent` is NOT type-checked by CI mypy, so the tests are
+  validated by execution, not static typing; bandit/vulture/radon apply to `scripts/` only;
+  diff-cover ≥90%.
 - Mutation spot-check: temporarily disable the finalize call locally and confirm tests 3/5
-  fail (the tests must actually bind the behavior, per `rules/testing.md`).
+  fail (the tests must actually bind the behavior, per the mutation-testing guidance in
+  `skills/python-test-and-fix`).
 
 ## Completion criteria
 
@@ -125,10 +133,10 @@ test file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261101-125543 | 20261101-125543 | FakeRecorder/_state_ctx helpers added; 8 producer tests in TestToolCallStateProducer |
+| 2 | Add or update tests per Validation plan | Completed | 20261101-125543 | 20261101-125543 | This row IS the test implementation row; no separate test target |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261101-125543 | 20261101-125543 | ruff clean; file 79 passed (70 pre-existing unmodified); mutation spot-check: disabling both finalize calls failed 4 producer tests; full suite 10864 passed; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261101-125543 | 20261101-125543 | N/A: test-only row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

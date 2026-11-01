@@ -290,6 +290,9 @@ class WorkflowEngineAdapter:
     def _activate_workflow(self, ctx: AgentContext, task: TaskRecord) -> None:
         """Set workflow state to active."""
         ctx.workflow.current_task_id = task.task_id
+        # Producer wiring (plans/20261101-105136_toolstate001 plan.md REQ-005):
+        # tool_runner records tool_call_state through this facade while active.
+        ctx.workflow.tool_call_recorder = self._state_store
         ctx.workflow.workflow_id = task.workflow_id
         ctx.workflow.current_workflow_version = self._workflow_engine._wdef.version
         ctx.workflow.active = True
@@ -298,6 +301,7 @@ class WorkflowEngineAdapter:
         """Reset workflow state after engine completion."""
         ctx.workflow.active = False
         ctx.workflow.current_task_id = None
+        ctx.workflow.tool_call_recorder = None
         ctx.workflow.workflow_id = None
 
     def _handle_workflow_halt(

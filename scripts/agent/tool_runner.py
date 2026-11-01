@@ -17,9 +17,11 @@ import time
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from shared.http_transport import derive_idempotency_key
 from shared.json_utils import (
     dumps as _json_dumps,
 )
+from shared.mcp_dedup import retry_class
 from shared.tool_executor import ToolExecutor
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
@@ -77,7 +79,13 @@ async def _recorded_call(
     REQ-007). Only *this* call's Exception is converted; BaseException (e.g.
     asyncio.CancelledError) keeps propagating (REQ-002/AC-5), so a cancelled
     round still raises out of execute_all_tool_calls.
+
+    This is also the single writer of the agent-side tool_call_state rows
+    (plans/20261101-105136_toolstate001 plan.md, REQ-001..REQ-004): pending is
+    recorded before dispatch, finalized completed/failed after the result row
+    exists; a propagating BaseException leaves the row pending.
     """
+    state_key = _record_pending_state(ctx, pc)
     try:
         result = await execute_one_tool_call(ctx, pc, guard)
     except Exception as exc:  # noqa: BLE001 — per-call boundary: one raising call must not abort its siblings; CancelledError (BaseException) intentionally propagates (REQ-002, AC-5)
@@ -90,8 +98,10 @@ async def _recorded_call(
         )
         error_row = (pc.call_id, pc.name, pc.args, failure_text, True, llm_text)
         collected[pc.call_id] = error_row
+        _finalize_state(ctx, state_key, "failed")
         return error_row
     collected[pc.call_id] = result
+    _finalize_state(ctx, state_key, "completed")
     return result
 
 
@@ -129,6 +139,56 @@ def _idempotency_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
     task_id = ctx.workflow.current_task_id or ""
     turn_id = ctx.turn.current_turn_id or ""
     return f"{workflow_id}:{task_id}:{turn_id}:{pc.call_id}"
+
+
+def _state_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
+    """Derive the tool_call_state row key, byte-identical to the transport key.
+
+    Same function and uid the MCP transport sends as X-Idempotency-Key
+    (REQ-003, plan D3). The audit-only _idempotency_key above stays separate
+    (REQ-009).
+    """
+    return derive_idempotency_key(
+        "call_tool", pc.name, pc.args, str(ctx.session.session_id)
+    )
+
+
+def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None:
+    """Write the pending tool_call_state row before dispatch (REQ-001/REQ-008).
+
+    Returns the state key when the row was written, else None: recorder or
+    task context unwired, or the write failed (REQ-007: recording failure is
+    logged, never fatal).
+    """
+    recorder = ctx.workflow.tool_call_recorder
+    task_id = ctx.workflow.current_task_id
+    if recorder is None or task_id is None:
+        return None
+    key = _state_key(ctx, pc)
+    try:
+        recorder.record_tool_call(task_id, key, pc.name, retry_class(pc.name))
+    except Exception as exc:  # noqa: BLE001 — recording failure must not break tool execution (REQ-007); args are never logged
+        logger.warning("tool-call state record failed tool=%r: %s", pc.name, exc)
+        return None
+    return key
+
+
+def _finalize_state(ctx: AgentContext, state_key: str | None, state: str) -> None:
+    """Move the tool_call_state row to its terminal state (REQ-002/REQ-003).
+
+    No-op when no pending row was written (state_key is None) or the recorder
+    was unwired. BaseException paths never reach this call, leaving the row
+    pending for classify_stale_pending (REQ-004).
+    """
+    if state_key is None:
+        return
+    recorder = ctx.workflow.tool_call_recorder
+    if recorder is None:
+        return
+    try:
+        recorder.finalize_tool_call(state_key, state)
+    except Exception as exc:  # noqa: BLE001 — recording failure must not break tool execution (REQ-007)
+        logger.warning("tool-call state finalize failed key=%s: %s", state_key, exc)
 
 
 async def _execute_prepared_call(
