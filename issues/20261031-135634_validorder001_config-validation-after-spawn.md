@@ -67,7 +67,7 @@ Yes: the agent startup sequence documentation must describe the new order (confi
 
 ## Unresolved Questions
 - Whether the current ordering is intentional (for example an ADR decision that all validation is reported together after services are up): `Needs confirmation` against the startup ADRs before changing it.
-- Whether any other check in `check_services` is also config-only and should move (the `mcp_auth` check reads configuration only): to be decided during implementation, together with the separate `issues/20261031-135522_disabledauth001_disabled-server-auth-fatal.md` change to that check.
+- Whether any other check in `check_services` is also config-only and should move (the `mcp_auth` check reads configuration only): to be decided during implementation, together with the separate `issues/20261031-135522_disabledauth001_disabled-server-auth-fatal.md` change to that check. The mandatoriness cross-check added to `check_services` (`_check_component_mandatoriness`, registry versus each server's configured `required`; fatal on a conflict or unknown server) is another config-only check that also runs after server start, so it belongs in the same decision; it must still run before MCP tool discovery.
 
 ## AI Implementation Instruction
 Move only config-only checks and keep every check's logic and severity unchanged. Do not reorder runtime-dependent steps and do not touch the lifecycle or subprocess code. Confirm the ordering question in Unresolved Questions against the ADRs first and stop to report if an ADR requires the current order.
