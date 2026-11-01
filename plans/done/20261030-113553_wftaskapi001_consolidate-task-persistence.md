@@ -177,10 +177,10 @@ Baselines recorded 2026-10-30: radon cc on the target modules shows no grade C o
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Phase 1: Caller search and record | Completed | — | 20261101-140834 | Callers recorded in plan; re-verified against HEAD 2026-11-01 |
-| 2 | Phase 2: Consolidate task persistence | In Progress | 20261101-140834 | — | Procedures 20261101-140834_01..09 generated; 20261030-123xxx batch lost in history rewrite, implementation not on HEAD |
-| 3 | Phase 3: Rename the task key with its migration | In Progress | 20261101-140834 | — | Starts after dbmig001 Phase 3 Procedure 20261101-140834_12 generated; migration code 3 pending, takes next code at landing time |
-| 4 | Phase 4: Documentation | In Progress | 20261101-140834 | — | Doc procedures 20261101-140834_10..11 generated |
-| 5 | Phase 5: Deployment & Verification | Pending | — | — | Gates run after implementation lands |
+| 2 | Phase 2: Consolidate task persistence | Completed | 20261101-140834 | 2026-11-01 | Procedures 20261101-140834_01..09 generated; 20261030-123xxx batch lost in history rewrite, implementation not on HEAD rows 01/02/05/06 landed (cycles 1-2, commits d85737a27 + follow-up) |
+| 3 | Phase 3: Rename the task key with its migration | Completed | 20261101-140834 | 2026-11-01 | Starts after dbmig001 Phase 3 Procedure 20261101-140834_12 generated; migration code 3 pending, takes next code at landing time rows 01/03/04/09/12 landed: task_nonce rename + workflow_task_nonce 2->3 migration; WORKFLOW_SCHEMA_VERSION 1.3.0 |
+| 4 | Phase 4: Documentation | Completed | 20261101-140834 | 2026-11-01 | Doc procedures 20261101-140834_10..11 generated rows 10/11 + db_03 8a chain text landed; docs checkers pass |
+| 5 | Phase 5: Deployment & Verification | In Progress | 2026-11-01 | — | Gates run after implementation lands verification gates pass (full suite 10869 passed); deploy handoff awaits user approval |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
