@@ -27,7 +27,7 @@ build-first-then-publish semantics (`REQ-009`).
   (ADR-013 item 9), `publish_principals` single module-level assignment under the GIL.
 - Plan Assumption `:139`: generation numbers are process-local; after restart numbering
   restarts from the baseline generation. UNK-03 (no cross-restart persistence) carries
-  its plan default — still Needs Confirmation for `code-implementation`.
+  its plan default — confirmed by the owner 2026-11-01 (see Needs Confirmation).
 - Anchor drift note: the plan table cites `:105-110`/`:216-224`/`:35`, re-verified against
   current HEAD `124e340b4` on 2026-10-30 and exact.
 
@@ -42,9 +42,20 @@ build-first-then-publish semantics (`REQ-009`).
   lifespan always publishes the baseline generation first.
 - Baseline generation at startup: `generation=0`, `effective_at`=process start,
   `expiries=frozenset()`. Every effective update publishes `generation+1`.
-  (Numbering choice 0-based is a proposal; Needs Confirmation.)
-- `_TOKEN_PRINCIPAL_MAP` is removed; `resolve_principal` `:261/:277` reads
-  `current_generation().principals`.
+  (0-based numbering approved by the owner 2026-11-01.)
+- `_TOKEN_PRINCIPAL_MAP` stays as a compatibility alias (owner-approved 2026-11-01,
+  shared-object variant): the baseline generation constructed in `_populate_token_maps`
+  uses the **same dict object** the alias names — never a copy. `publish_generation`
+  rebinds it to the published generation's `principals` dict in the same assignment group.
+  `resolve_principal` `:261/:277` keeps reading `_TOKEN_PRINCIPAL_MAP` unchanged (approved:
+  the subscriber-path reader does not move to the generation, so `conftest.py`'s alias
+  reset and out-of-scope test mutations keep their current semantics). Generation-scoped
+  reads (admin topic membership, `/admin/topics` dump, sweep) use `current_generation()`. Out-of-scope
+  test files (`tests/eventbus/test_eventbus_subscribe.py:131/:207`,
+  `tests/eventbus/test_eventbus_ack_nack.py:167`,
+  `tests/eventbus/test_eventbus_consumer_authorization.py:290`) import and mutate the map
+  name directly; removing it would break them, so the shim is kept and no new test rows
+  are added. Doc 08 target-file tests use the generation accessor and the doc 11 helpers.
 - `_build_principal_map` keeps its name and build-first semantics (characterization test
   `tests/eventbus/test_admin_topics_authorization.py:220` monkeypatches
   `eventbus.admin_route._build_principal_map`; the re-import target and signature must stay).
@@ -57,9 +68,12 @@ build-first-then-publish semantics (`REQ-009`).
 
 ## Implementation
 1. Add `AuthzGeneration` after `Principal` (`:49`).
-2. Replace the `_TOKEN_PRINCIPAL_MAP` global (`:71`) with `_CURRENT_GENERATION` + `current_generation()`.
+2. Replace the `_TOKEN_PRINCIPAL_MAP` global (`:71`) with `_CURRENT_GENERATION` +
+   `current_generation()`; keep `_TOKEN_PRINCIPAL_MAP` declared as the compatibility
+   alias of the current generation's `principals` dict (see Design decisions).
 3. Rewrite `publish_principals` (`:216-224`) as `publish_generation` with the identical
-   single-assignment body (`skills/DESIGN.md` import-layer contract unchanged).
+   single-assignment body, plus the alias rebinding to `new.principals` in the same
+   `global` block (`skills/DESIGN.md` import-layer contract unchanged).
 4. Update `_populate_token_maps` (`:206-213`) to compose the baseline generation.
 5. Update `resolve_principal` (`:261`, `:277`) to read `current_generation().principals`.
 6. Update the `_build_principal_map` docstring `:108-110` wording to the generation
@@ -84,8 +98,9 @@ build-first-then-publish semantics (`REQ-009`).
 
 ## Completion criteria
 - One published generation at a time; failed rebuild keeps previous generation, its
-  number, config, principals, and hash byte-identical (AC-3); `mypy` clean; no reader
-  touches a principal map outside the generation object.
+  number, config, principals, and hash byte-identical (AC-3); `mypy` clean; the approved
+  `_TOKEN_PRINCIPAL_MAP` alias names the same dict object as the current generation's
+  `principals` at all times; test-side in-place mutations stay visible through it.
 
 ## Out of Scope
 - Everything outside the target file and the anchors recorded above; cross-plan boundaries and sequencing are recorded in the Source plan.
@@ -94,9 +109,9 @@ build-first-then-publish semantics (`REQ-009`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261101-084753 | 20261101-085300 | anchors re-verified against HEAD d14bf433f in adversarial pass; re-confirmed by full read in this cycle |
+| 2 | Apply the Implementation procedure | Completed | — | 20261101-085300 | AuthzGeneration/_CURRENT_GENERATION/publish_generation/current_generation added; resolve_principal kept on alias (owner 2026-11-01); transitional publish_principals bridge kept for admin_route until doc 03; _build_principal_map docstring already carries generation vocabulary - no change needed |
+| 3 | Run the Validation plan gates | Completed | 20261101-085514 | 20261101-085514 | ruff/mypy/lint-imports/bandit pass; tests/eventbus 487 passed (incl. characterization test_eventbus_consumer_authorization.py); full suite 1899 passed, 17 skipped; test_authz_generation_ttl.py gate deferred to doc 09 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -109,12 +124,16 @@ build-first-then-publish semantics (`REQ-009`).
 | — | — | — | — | — | — |
 
 ## Needs Confirmation (record for `code-implementation`)
-- Removing `_TOKEN_PRINCIPAL_MAP` leaves `tests/eventbus/conftest.py::_reset_auth_state`
-  (`:55-68`, a Reference-Files row that MUST NOT be modified) resetting a dead attribute:
-  it will no longer preserve generation state across tests. Mitigation must live in the
-  modifiable test rows (docs 08-11: a generation-reset helper in `eventbus_helpers.py`),
-  or a plan amendment adding the conftest row is required. Do not touch conftest.py.
-- Baseline generation number 0 (vs 1) — proposal above.
+Resolved by the owner 2026-11-01:
+- `tests/eventbus/conftest.py::_reset_auth_state` (`:55-68`, Reference Files — not
+  modified): generation reset is provided by the new `reset_generation_state` fixture in
+  `eventbus_helpers.py` (doc 11); the conftest stays untouched and the
+  `_TOKEN_PRINCIPAL_MAP` alias keeps its snapshot/restore behavior intact.
+- Baseline generation number: 0-based approved (baseline = 0, first effective update = 1).
+- `_TOKEN_PRINCIPAL_MAP` compatibility alias approved (see Design decisions); out-of-scope
+  test files keep direct map access through the alias.
+- UNK-03 (cross-restart persistence): plan assumption confirmed — no persistence; restart
+  audit record + baseline hash correlate.
 
 ## Marker record
 - `(new)` markers applied: `AuthzGeneration`, `_CURRENT_GENERATION`, `publish_generation`,

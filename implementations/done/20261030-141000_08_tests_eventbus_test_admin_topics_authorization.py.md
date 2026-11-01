@@ -48,9 +48,11 @@ fields.
    on no-op.
 7. Extend `test_failed_principal_build_keeps_previous_generation` `:209-230` to also
    assert the generation number and hash are unchanged after the failed rebuild (AC-3).
-8. Adapt `TestOneRolePerTokenAdminRebuild` snapshot/restore helpers (`:298-309`, currently
-   reach into `auth._TOKEN_PRINCIPAL_MAP`) to the generation accessor from doc 11 —
-   required because doc 01 removes the bare map.
+8. Adapt `TestOneRolePerTokenAdminRebuild` snapshot/restore helpers (`:298-309`) and the
+   identical pattern in `TestDuplicateRejectionAdminRebuild` (`:357-368`) — both reach
+   into `auth._TOKEN_PRINCIPAL_MAP` — to the generation accessor from doc 11. The bare
+   name survives as an approved compatibility alias (owner 2026-11-01), but target-row
+   tests must not depend on it.
 
 ## Compatibility considerations
 **Dependencies**:
@@ -78,9 +80,9 @@ fields.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261101-091336 | 20261101-091336 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261101-091336 | 20261101-091336 |  |
+| 3 | Run the Validation plan gates | Completed | 20261101-091336 | 20261101-091716 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

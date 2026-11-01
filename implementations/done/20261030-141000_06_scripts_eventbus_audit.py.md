@@ -61,9 +61,9 @@ field (ADR-013 INV-05).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261101-085623 | 20261101-085623 | anchors :132-162 exact at HEAD d14bf433f |
+| 2 | Apply the Implementation procedure | Completed | 20261101-085623 | 20261101-085829 | keyword-only generation params + AuditRecord NotRequired keys added (TypedDict keys required for mypy); manifest eventbus_api.yaml log_privileged_action signature now stale - resolved by doc 13 regeneration (planned transient) |
+| 3 | Run the Validation plan gates | Completed | 20261101-085944 | 20261101-085944 | ruff/mypy/bandit pass; test_eventbus_auth.py 48 passed; full tests/eventbus run and full suite cover legacy callers; known transient: reference-table drift test fails until doc 13 regenerates the manifest (planned) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

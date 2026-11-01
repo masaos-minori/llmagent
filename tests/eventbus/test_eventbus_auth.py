@@ -230,6 +230,15 @@ def _make_test_app(
         )
         return result
 
+    @local_app.post("/admin/topics/authorization", response_model=None)
+    async def admin_topics_authorization(
+        request: Request,
+        _principal: Principal = Depends(require_role(Role.ADMIN)),
+    ) -> Any:
+        return await eb_app.update_topics_authorization_route(
+            request, principal=_principal
+        )
+
     client = TestClient(local_app, raise_server_exceptions=False)
 
     def _cleanup():
@@ -1314,6 +1323,55 @@ class TestAuditRecordValidation:
                 assert "operator-token" not in str(audit_record)
                 assert "admin-token" not in str(audit_record)
 
+        # Effective admin update: privileged_action records carry the
+        # generation fields (EBAUTHGEN001 AC-5) and must not leak tokens.
+        from eventbus.auth import current_generation, publish_generation
+
+        captured_records.clear()
+        before = current_generation()
+        assert before is not None
+        try:
+            with (
+                patch("eventbus.audit.logger.warning", side_effect=capture_log),
+                patch("eventbus.audit.logger.info", side_effect=capture_log),
+            ):
+                response = self.client.post(
+                    "/admin/topics/authorization",
+                    json={
+                        "consumer_authorization": {
+                            "consumer_a": ["test", "leak-test-topic"]
+                        },
+                        "expected_generation": before.generation,
+                    },
+                    headers={"Authorization": f"Bearer {self.cfg.admin_token}"},
+                )
+                assert response.status_code == 200
+        finally:
+            # Restore the global generation so later tests observe the same state.
+            publish_generation(before)
+
+        import json
+
+        privileged_records = [
+            json.loads(record)
+            for record in captured_records
+            if json.loads(record).get("event") == "privileged_action"
+        ]
+        assert len(privileged_records) > 0
+        audit_record = privileged_records[-1]
+        assert audit_record["previous_generation"] == before.generation
+        assert audit_record["new_generation"] == before.generation + 1
+
+        for token_value in (
+            self.cfg.auth_token,
+            self.cfg.publisher_token,
+            self.cfg.consumer_token,
+            self.cfg.operator_token,
+            self.cfg.admin_token,
+        ):
+            if token_value:
+                assert token_value not in str(audit_record)
+
 
 class TestUnified401ResponseFormat:
     """Tests for the unified HTTP 401 response format."""
@@ -1759,3 +1817,24 @@ class TestAtomicPublishAndFailedRebuild:
             )
         finally:
             self._restore(snapshot)
+
+    def test_published_generation_read_returns_identical_object(self) -> None:
+        """REQ-001: two reads of current_generation() return the identical
+        object between publications (the snapshot is never rebuilt per read)."""
+        from eventbus.auth import current_generation
+
+        generation = current_generation()
+        assert generation is not None
+        assert current_generation() is generation
+
+    def test_published_generation_principals_is_the_map_resolve_principal_consults(
+        self,
+    ) -> None:
+        """REQ-001: the published AuthzGeneration carries the same principals
+        mapping resolve_principal() consults (_TOKEN_PRINCIPAL_MAP alias)."""
+        from eventbus import auth
+        from eventbus.auth import current_generation
+
+        generation = current_generation()
+        assert generation is not None
+        assert generation.principals is auth._TOKEN_PRINCIPAL_MAP

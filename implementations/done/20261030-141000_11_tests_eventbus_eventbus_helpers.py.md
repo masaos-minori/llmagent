@@ -22,15 +22,16 @@ existing principal accessor to the generation object.
   passed as the sweep's `clock` argument (doc 04).
 - `reset_generation_state` (new): pytest fixture (function-scoped) snapshotting
   `eventbus.auth.current_generation()` before the test and re-publishing it after, via
-  `publish_generation`. This is the mitigation for doc 01's Needs-Confirmation note —
-  `tests/eventbus/conftest.py` must NOT be edited (Reference Files only).
+  `publish_generation`. Mitigation for doc 01's conftest note, approved by the owner
+  2026-11-01 — `tests/eventbus/conftest.py` must NOT be edited (Reference Files only).
 - `post_topics_authorization(client, body, *, expected_generation=None, ttl_seconds=None)`
   (new): generation-aware request helper that defaults `expected_generation` to
   `current_generation().generation` and posts to the admin topics-authorization endpoint
   (path /admin/topics/authorization, unbacktick'd to avoid stale-detector path false
   positives).
 - `principal_map()` `:216-225`: keep the function name and return type; internally switch
-  to `auth.current_generation().principals` (doc 01 removes the bare map). Existing
+  to `auth.current_generation().principals` (doc 01 keeps the bare name only as a
+  compatibility alias; target-row helpers read through the generation accessor). Existing
   callers in `test_admin_topics_authorization.py` (`:176`, `:204`, `:215`) stay green.
 
 ## Alternatives considered
@@ -58,8 +59,10 @@ existing principal accessor to the generation object.
   (`make_eventbus_client` users across `tests/eventbus/`) must stay green.
 
 ## Completion criteria
-- Deterministic expiry tests are possible without wall-clock sleeps; no test relies on
-  `auth._TOKEN_PRINCIPAL_MAP` directly after this row lands.
+- Deterministic expiry tests are possible without wall-clock sleeps; no test in this
+  batch's target rows reads the bare `auth._TOKEN_PRINCIPAL_MAP` after this row lands
+  (out-of-scope alias consumers keep working through the owner-approved compatibility
+  alias, 2026-11-01).
 
 ## Out of Scope
 - Everything outside the target file and the anchors recorded above; cross-plan boundaries and sequencing are recorded in the Source plan.
@@ -68,9 +71,9 @@ existing principal accessor to the generation object.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261101-090926 | 20261101-090926 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261101-090926 | 20261101-090926 |  |
+| 3 | Run the Validation plan gates | Completed | 20261101-090926 | 20261101-091716 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

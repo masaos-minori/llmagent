@@ -58,6 +58,8 @@ class AuditRecord(TypedDict):
     error_type: str
     detail: NotRequired[str]
     actor: NotRequired[str]
+    previous_generation: NotRequired[int]
+    new_generation: NotRequired[int]
 
 
 def _build_audit_record(
@@ -136,6 +138,9 @@ def log_privileged_action(
     target: str,
     detail: str = "",
     actor: str = "",
+    *,
+    previous_generation: int | None = None,
+    new_generation: int | None = None,
 ) -> None:
     """Emit one JSON-lines audit record for a privileged action.
 
@@ -146,6 +151,12 @@ def log_privileged_action(
         target: Resource identifier (event_id, topic, etc.).
         detail: Optional key=value pairs (omit when empty).
         actor: Non-secret token fingerprint of the acting principal.
+        previous_generation: Generation number in force before this action;
+            omitted from the record when None (EBAUTHGEN001, additive).
+        new_generation: Generation number published by this action; omitted
+            from the record when None.
+
+    The gen:<prev>-><new> detail suffix is composed by the callers, not here.
     """
     record = _build_audit_record(
         event="privileged_action",
@@ -159,4 +170,8 @@ def log_privileged_action(
     )
     if actor:
         record["actor"] = actor
+    if previous_generation is not None:
+        record["previous_generation"] = previous_generation
+    if new_generation is not None:
+        record["new_generation"] = new_generation
     logger.info(orjson.dumps(record, option=orjson.OPT_SORT_KEYS).decode())

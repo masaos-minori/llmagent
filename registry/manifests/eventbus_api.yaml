@@ -21,7 +21,7 @@ entries:
   kind: async function
   name: update_topics_authorization
   signature: async def update_topics_authorization(request, principal) -> dict[str,
-    Any]
+    Any] | JSONResponse
   summary: Update `consumer_authorization`/`topic_authorization` at runtime and
 - file: scripts/eventbus/app.py
   kind: async function
@@ -83,7 +83,7 @@ entries:
   kind: async function
   name: admin_topics_authorization
   signature: async def admin_topics_authorization(request, _principal) -> dict[str,
-    Any]
+    Any] | JSONResponse
   summary: Update consumer_authorization/topic_authorization at runtime.
 - file: scripts/eventbus/audit.py
   kind: class
@@ -100,7 +100,7 @@ entries:
   kind: function
   name: log_privileged_action
   signature: def log_privileged_action(consumer_id, request_id, route, target, detail,
-    actor) -> None
+    actor, *, previous_generation, new_generation) -> None
   summary: Emit one JSON-lines audit record for a privileged action.
 - file: scripts/eventbus/auth.py
   kind: class
@@ -113,15 +113,25 @@ entries:
   signature: class Principal
   summary: Authenticated identity carrying roles, consumer grants, and token fingerprint.
 - file: scripts/eventbus/auth.py
+  kind: class
+  name: AuthzGeneration
+  signature: class AuthzGeneration
+  summary: Immutable authorization generation snapshot (EBAUTHGEN001).
+- file: scripts/eventbus/auth.py
   kind: function
   name: unauthorized_response
   signature: def unauthorized_response(detail) -> JSONResponse
   summary: Return a standardized HTTP 401 Unauthorized response.
 - file: scripts/eventbus/auth.py
   kind: function
-  name: publish_principals
-  signature: def publish_principals(new_map) -> None
-  summary: Atomically publish a fully built principal map.
+  name: publish_generation
+  signature: def publish_generation(new_generation) -> None
+  summary: Atomically publish a fully built AuthzGeneration.
+- file: scripts/eventbus/auth.py
+  kind: function
+  name: current_generation
+  signature: def current_generation() -> AuthzGeneration | None
+  summary: Return the AuthzGeneration in force, or None before the baseline publishes.
 - file: scripts/eventbus/auth.py
   kind: function
   name: get_auth_token
@@ -160,6 +170,16 @@ entries:
   name: attach_auth_middleware
   signature: def attach_auth_middleware(app) -> None
   summary: Register X-Request-Id middleware on a FastAPI app.
+- file: scripts/eventbus/authz_ttl.py
+  kind: function
+  name: sweep_expired_authorizations
+  signature: def sweep_expired_authorizations(app, clock) -> AuthzGeneration | None
+  summary: Run one expiry cycle; return the published removal generation, or None.
+- file: scripts/eventbus/authz_ttl.py
+  kind: async function
+  name: authz_sweep_loop
+  signature: async def authz_sweep_loop(app, clock) -> None
+  summary: Periodically sweep expired authorization grants (mirrors _dlq_loop).
 - file: scripts/eventbus/broker.py
   kind: class
   name: ConsumerAlreadyConnectedError
@@ -180,6 +200,11 @@ entries:
   name: get_schema_path
   signature: def get_schema_path() -> Path
   summary: Return the path to the Event Envelope JSON schema file.
+- file: scripts/eventbus/config.py
+  kind: function
+  name: authorization_baseline_hash
+  signature: def authorization_baseline_hash(cfg) -> str
+  summary: Return a SHA-256 hex digest over the canonical authorization pair set.
 - file: scripts/eventbus/config.py
   kind: class
   name: EventBusConfig

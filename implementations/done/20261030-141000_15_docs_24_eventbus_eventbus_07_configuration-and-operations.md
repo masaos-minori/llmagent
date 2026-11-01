@@ -8,7 +8,8 @@ operators.
 
 ## Scope
 - `## Configuration` `:45`, `### Configuration Fields` `:53`, `### Unsupported Keys`
-  `:79`, `## Health Endpoint Semantics` `:118` (ops-doc structure; 394 lines).
+  `:79`, `## Health Endpoint Semantics` `:118` (ops-doc structure; 251 lines at HEAD
+  `d14bf433f`, re-verified 2026-11-01).
 
 ## Assumptions
 - Plan-level assumptions apply unchanged; see the Source plan Assumptions section.
@@ -61,9 +62,9 @@ operators.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | — | 20261101-102128 |  |
+| 2 | Apply the Implementation procedure | Completed | — | 20261101-102128 |  |
+| 3 | Run the Validation plan gates | Completed | — | 20261101-102128 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

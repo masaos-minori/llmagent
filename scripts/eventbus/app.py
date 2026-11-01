@@ -19,18 +19,22 @@ from eventbus.ack_route import nack as nack_route
 from eventbus.admin_route import (
     update_topics_authorization as update_topics_authorization_route,
 )
+from eventbus.audit import log_privileged_action
 from eventbus.auth import (
     Principal,
     Role,
     _populate_token_maps,  # noqa: PLC0415 — new module, REQ-004
     attach_auth_middleware,  # noqa: PLC0415 — new module, REQ-002
+    current_generation,
     require_consumer_identity,
     require_role,
     resolve_principal,
 )
+from eventbus.authz_ttl import authz_sweep_loop
 from eventbus.broker import EventBroker
 from eventbus.config import (
     _is_public_host,
+    authorization_baseline_hash,
     get_config_path,
     get_schema_path,
     load_config,
@@ -78,10 +82,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.db = open_db(app.state.config.db_path)
     # Populate token maps from config for authorization
     _populate_token_maps(app.state.config)
+    # Restart-baseline audit record (REQ-006): documents the baseline generation
+    # hash in force and that any prior runtime overrides were removed.
+    baseline_gen = current_generation()
+    log_privileged_action(
+        consumer_id="system",
+        request_id="",
+        route="/startup",
+        target="authz_baseline",
+        detail=(
+            "baseline_hash:"
+            f"{baseline_gen.baseline_hash if baseline_gen is not None else authorization_baseline_hash(app.state.config)}"
+            ";runtime_overrides:removed"
+        ),
+        actor="",
+    )
     app.state.envelope_schema = orjson.loads(get_schema_path().read_bytes())
     Path(app.state.config.storage_dir).mkdir(parents=True, exist_ok=True)
     app.state.broker = EventBroker(app.state.config)
     app.state.dlq_task = asyncio.create_task(_dlq_loop(app))
+    app.state.authz_sweep_task = asyncio.create_task(authz_sweep_loop(app))
     if _is_public_host(app.state.config.host):
         logger.warning(
             "eventbus bound to public address %s:%d without loopback-only protection",
@@ -112,6 +132,15 @@ async def _shutdown_lifespan(app: FastAPI) -> None:
         app.state.dlq_task.cancel()
         try:
             await app.state.dlq_task
+        except asyncio.CancelledError:
+            pass
+    # authz_sweep_task is set by lifespan(); tests that call this function with a
+    # manually built app.state may not have it — getattr keeps shutdown total.
+    authz_sweep_task = getattr(app.state, "authz_sweep_task", None)
+    if authz_sweep_task:
+        authz_sweep_task.cancel()
+        try:
+            await authz_sweep_task
         except asyncio.CancelledError:
             pass
     # 2. Broker shutdown (unchanged order).
@@ -337,13 +366,13 @@ async def nack(
     return result
 
 
-@app.post("/admin/topics/authorization")
+@app.post("/admin/topics/authorization", response_model=None)
 async def admin_topics_authorization(
     request: Request,
     _principal: Principal = Depends(require_role(Role.ADMIN)),
-) -> dict[str, Any]:
+) -> dict[str, Any] | JSONResponse:
     """Update consumer_authorization/topic_authorization at runtime."""
-    result: dict[str, Any] = await update_topics_authorization_route(
+    result: dict[str, Any] | JSONResponse = await update_topics_authorization_route(
         request, principal=_principal
     )
     return result

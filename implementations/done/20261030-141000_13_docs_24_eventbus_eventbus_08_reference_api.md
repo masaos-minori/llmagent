@@ -7,12 +7,14 @@ Refresh the admin endpoint and audit function signature rows of the reference AP
 documented surface matches the generation/TTL contract.
 
 ## Scope
-- Auto-generated guard block `:42-130`
+- Auto-generated guard block `:45-139`
   (`AUTO-GENERATED: generate_reference_table.py eventbus-class-function-reference`;
-  "Do not hand-edit between the guard comments; run
-  `python tools/generate_reference_table.py --type eventbus` to refresh").
-- `update_topics_authorization` table row `:52`; `log_privileged_action` table row `:66`
-  (the plan cites `:65` — freeze-time anchor `c5a8285dd`, off by one after `474dc2888`;
+  "Generated from `registry/manifests/eventbus_api.yaml` ... Do not hand-edit between the
+  guard comments; run `python tools/generate_reference_table.py --manifests` to refresh"
+  `:46`). Re-verified at HEAD `d14bf433f` on 2026-11-01; freeze-time anchors were
+  `:42-130`.
+- `update_topics_authorization` table row `:53`; `log_privileged_action` table row `:67`
+  (the plan cites `:65` — freeze-time anchor `c5a8285dd`, off by two after `474dc2888`;
   same table region).
 
 ## Assumptions
@@ -26,10 +28,13 @@ documented surface matches the generation/TTL contract.
 ## Implementation
 1. Do not hand-edit the guarded table. After docs 01-06 land (their docstrings and
    signatures are the source), run
-  `uv run python tools/generate_reference_table.py --type eventbus` to refresh the rows
-  (`AuthzGeneration`, `publish_generation`, `current_generation`,
-  `authorization_baseline_hash`, `authz_sweep_loop` and the extended
-  `update_topics_authorization` / `log_privileged_action` signatures will appear).
+  `uv run python tools/generate_reference_table.py --manifests` (optionally with
+  `--type eventbus` to restrict to this domain): it regenerates
+  `registry/manifests/eventbus_api.yaml` from the live `scripts/eventbus/*.py` surface
+  and re-renders the guarded docs from it, so the new rows (`AuthzGeneration`,
+  `publish_generation`, `current_generation`, `authorization_baseline_hash`,
+  `authz_sweep_loop` and the extended `update_topics_authorization` /
+  `log_privileged_action` signatures) appear automatically.
 2. Verify the refreshed `update_topics_authorization` and `log_privileged_action` rows
   and confirm `## Module Responsibilities` (`:36-40`) prose still matches the landed
   module boundaries; update only if a sentence became false.
@@ -46,12 +51,12 @@ documented surface matches the generation/TTL contract.
 - Revert the single doc file; no code or test depends on the wording at runtime.
 
 ## Validation plan
-- `uv run python tools/generate_reference_table.py --check` and
+- `uv run python tools/generate_reference_table.py --check --type eventbus` and
   `uv run python tools/check_docs_consistency.py --domain eventbus` pass after refresh.
 
 ## Completion criteria
-- AC-7: `generate_reference_table.py --check` green; the documented admin endpoint and
-  audit signatures match the landed code.
+- AC-7: `generate_reference_table.py --check --type eventbus` green; the documented admin
+  endpoint and audit signatures match the landed code.
 
 ## Out of Scope
 - Everything outside the target file and the anchors recorded above; cross-plan boundaries and sequencing are recorded in the Source plan.
@@ -60,9 +65,9 @@ documented surface matches the generation/TTL contract.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | — | 20261101-095421 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261101-095421 | 20261101-095453 |  |
+| 3 | Run the Validation plan gates | Completed | — | 20261101-095453 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

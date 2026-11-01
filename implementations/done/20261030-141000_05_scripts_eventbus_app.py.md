@@ -7,12 +7,15 @@ Wire the TTL sweep task into the app lifespan (start/stop) and emit the startup
 restart-baseline audit record.
 
 ## Scope
-- `_DLQ_INTERVAL = 60.0` `:65`; lifespan `:69-92`: `_populate_token_maps` `:76`,
-  sweep task `app.state.dlq_task = asyncio.create_task(_dlq_loop(app))` `:80`.
-- `_shutdown_lifespan` `:95-136`: task cancel + await pattern `:107-112`.
-- `_dlq_loop` `:139-158` (loop pattern to mirror).
+Anchor drift note: the batch-freeze anchors (`:65`, `:69-92`, `:76`, `:80`, `:95-136`,
+`:107-112`, `:139-158`, `:304-305`) were re-verified against HEAD `d14bf433f` on
+2026-11-01 and shifted; the anchors below are the current ones.
+- `_DLQ_INTERVAL = 60.0` `:69`; lifespan `:73-96`: `_populate_token_maps` `:80`,
+  sweep task `app.state.dlq_task = asyncio.create_task(_dlq_loop(app))` `:84`.
+- `_shutdown_lifespan` `:99-140`: task cancel + await pattern `:111-116`.
+- `_dlq_loop` `:143-194` (loop pattern to mirror).
 - Admin route registration `@app.post("/admin/topics/authorization")`
-  `admin_topics_authorization` `:304-305` — unchanged by this row.
+  `admin_topics_authorization` `:340-341` — unchanged by this row.
 
 ## Assumptions
 - Plan-level assumptions apply unchanged; see the Source plan Assumptions section.
@@ -23,15 +26,15 @@ restart-baseline audit record.
 - No file-level alternatives beyond those evaluated in the Source plan; this procedure executes the selected option.
 
 ## Implementation
-1. Startup (`lifespan`, after `_populate_token_maps` `:76`): emit one restart-baseline
+1. Startup (`lifespan`, after `_populate_token_maps` `:80`): emit one restart-baseline
    audit record (REQ-006, Design `:172`):
    `log_privileged_action(consumer_id="system", request_id="", route="/startup",
    target="authz_baseline", detail="baseline_hash:<hex>;runtime_overrides:removed",
    actor="")` with the hash of the loaded baseline generation. `consumer_id="system"`
    and `target="authz_baseline"` are the documented vocabulary (plan Risk `:206`).
-2. Start the sweep task next to the DLQ task (mirror `:80`):
+2. Start the sweep task next to the DLQ task (mirror `:84`):
    `app.state.authz_sweep_task = asyncio.create_task(authz_sweep_loop(app))`.
-3. Shutdown (`_shutdown_lifespan` `:107-112` pattern): cancel and await
+3. Shutdown (`_shutdown_lifespan` `:111-116` pattern): cancel and await
    `authz_sweep_task` exactly like `dlq_task`, before broker shutdown.
 4. Module-level import `from eventbus.authz_ttl import authz_sweep_loop` (top-level
    `eventbus.*` layer contract).
@@ -63,9 +66,9 @@ restart-baseline audit record.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | — | 20261101-093852 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261101-093852 | 20261101-094928 |  |
+| 3 | Run the Validation plan gates | Completed | — | 20261101-094928 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

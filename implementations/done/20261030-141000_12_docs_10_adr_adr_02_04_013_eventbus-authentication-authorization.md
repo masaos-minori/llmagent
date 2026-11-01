@@ -13,7 +13,8 @@ behavior, and correct the stale audit `detail` description.
   (plan Background `:30`); item 12 empty/no-op rejection `:97` (last item).
 - INV list `:187-193`; INV-05 no-secrets rule `:191`.
 - Item 1 (`:65`) names `auth.py`'s `_TOKEN_PRINCIPAL_MAP` — becomes stale once doc 01
-  removes the bare map.
+  makes the generation object the authoritative read path (the name survives only as a
+  compatibility alias, owner-approved 2026-11-01).
 
 ## Assumptions
 - Plan-level assumptions apply unchanged; see the Source plan Assumptions section.
@@ -74,9 +75,9 @@ behavior, and correct the stale audit `detail` description.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | — | 20261101-095224 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261101-095224 | 20261101-095357 |  |
+| 3 | Run the Validation plan gates | Completed | — | 20261101-095357 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

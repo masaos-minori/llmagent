@@ -7,17 +7,22 @@ Add the authorization baseline-hash helper and the TTL bounds configuration fiel
 the frozen `EventBusConfig`.
 
 ## Scope
-- `EventBusConfig` frozen dataclass `:71-109`; `consumer_authorization` `:99-101`,
-  `topic_authorization` `:102` (values `set[str]`).
-- `__post_init__` `:111-188` (per-key + cross-field validation pattern).
-- `_KNOWN_CONFIG_KEYS` `:191-216`; `_REQUIRED_CONFIG_KEYS` `:219-228`;
-  `_CONFIG_KEY_TYPES` `:232-253`; `load_config` builds the dataclass `:333-356` and
-  rejects unknown keys `:288-293`.
+Anchor drift note: freeze-time anchors were re-verified against HEAD `d14bf433f` on
+2026-11-01; the anchors below are the current ones.
+- `EventBusConfig` frozen dataclass `:71-114`; `consumer_authorization` `:99-101`,
+  `topic_authorization` `:102` (values `set[str]`); `backlog_health_threshold` `:109`.
+- `__post_init__` `:116-207` (per-key + cross-field validation pattern); `publish_rate`
+  check `:158-159`.
+- `_KNOWN_CONFIG_KEYS` `:209-237`; `_REQUIRED_CONFIG_KEYS` `:240-249`;
+  `_CONFIG_KEY_TYPES` `:253-277`; `load_config` builds the dataclass `:357-383` and
+  rejects unknown keys `:311-317`; `_validate_deployment_mode` `:60-68`.
 
 ## Assumptions
-- Recorded open items (Needs Confirmation):
-  - `authz_max_ttl_seconds: int = 86400` (new) — UNK-01 plan default (Needs Confirmation
-  - `authz_sweep_interval_seconds: float = 60.0` (new) — UNK-02 plan default (Needs
+- Recorded open items (resolved 2026-11-01 by owner approval of the plan defaults):
+  - `authz_max_ttl_seconds: int = 86400` (new) — UNK-01 plan default approved for
+    implementation; owner confirms before production enablement (plan UNK-01, open).
+  - `authz_sweep_interval_seconds: float = 60.0` (new) — UNK-02 plan default approved for
+    implementation; tune after first operational use (plan UNK-02, open).
 - Plan-level assumptions apply unchanged; see the Source plan Assumptions section.
 
 ## Design decisions
@@ -26,12 +31,12 @@ the frozen `EventBusConfig`.
   (plan Risk `:207`: permutation-invariant; test asserts equality across orderings).
   Covers only authorization pair sets, never the whole config (Assumption `:140`).
 - TTL bounds fields (optional keys with defaults):
-  - `authz_max_ttl_seconds: int = 86400` (new) — UNK-01 plan default (Needs Confirmation
-    before production enablement).
-  - `authz_sweep_interval_seconds: float = 60.0` (new) — UNK-02 plan default (Needs
-    Confirmation).
-  Key names are proposals consistent with existing unprefixed keys (`sse_heartbeat_interval`);
-  Needs Confirmation.
+  - `authz_max_ttl_seconds: int = 86400` (new) — UNK-01 plan default, approved for
+    implementation 2026-11-01; production-enablement confirmation stays open (plan UNK-01).
+  - `authz_sweep_interval_seconds: float = 60.0` (new) — UNK-02 plan default, approved for
+    implementation 2026-11-01; tuning stays open (plan UNK-02).
+  Key names follow existing unprefixed keys (`sse_heartbeat_interval`); approved
+  2026-11-01.
 - Validation in `__post_init__`: `authz_max_ttl_seconds >= 1`,
   `authz_sweep_interval_seconds >= 1.0` — same ValueError style as existing checks.
 - Add both keys to `_KNOWN_CONFIG_KEYS` and `_CONFIG_KEY_TYPES` (`int` / `float`); NOT to
@@ -42,10 +47,10 @@ the frozen `EventBusConfig`.
 
 ## Implementation
 1. Add the two fields after `backlog_health_threshold` (`:109`).
-2. Add the two validation clauses in `__post_init__` after the `publish_rate` check (`:140-141`).
+2. Add the two validation clauses in `__post_init__` after the `publish_rate` check (`:158-159`).
 3. Add helper `authorization_baseline_hash` at module level (after `_validate_deployment_mode` `:60-68`).
-4. Extend `_KNOWN_CONFIG_KEYS` `:191-216`, `_CONFIG_KEY_TYPES` `:232-253`, and the
-   `EventBusConfig(...)` construction in `load_config` `:333-356`.
+4. Extend `_KNOWN_CONFIG_KEYS` `:209-237`, `_CONFIG_KEY_TYPES` `:253-277`, and the
+   `EventBusConfig(...)` construction in `load_config` `:357-383`.
 
 ## Compatibility considerations
 **Dependencies**:
@@ -75,15 +80,15 @@ the frozen `EventBusConfig`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify cited anchors before editing | Pending | — | — | |
-| 2 | Apply the Implementation procedure | Pending | — | — | |
-| 3 | Run the Validation plan gates | Pending | — | — | |
+| 1 | Re-verify cited anchors before editing | Completed | 20261101-084753 | 20261101-084753 |  |
+| 2 | Apply the Implementation procedure | Completed | 20261101-084753 | 20261101-085150 | config.py fields+validation+baseline hash applied; transitional publish_principals bridge kept in auth.py for admin_route until doc 03 |
+| 3 | Run the Validation plan gates | Completed | 20261101-085150 | 20261101-085150 | ruff/mypy/lint-imports/bandit pass; test_eventbus_config.py 48 passed; full suite 1899 passed; test_authz_generation_ttl.py gate deferred to doc 09 (file created there); diff-cover deferred to batch gate; ast-grep not installed, diff adds no except clauses |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 2 | `authz_max_ttl_seconds: int = 86400` (new) — UNK-01 plan default (Needs Confirmation | No | — |
-| 2 | `authz_sweep_interval_seconds: float = 60.0` (new) — UNK-02 plan default (Needs | No | — |
+| 2 | `authz_max_ttl_seconds: int = 86400` (new) — UNK-01 plan default approved for implementation | Yes | 2026-11-01 |
+| 2 | `authz_sweep_interval_seconds: float = 60.0` (new) — UNK-02 plan default approved for implementation | Yes | 2026-11-01 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
@@ -92,7 +97,7 @@ the frozen `EventBusConfig`.
 
 ## Marker record
 - `(new)` markers applied: `authorization_baseline_hash`, `authz_max_ttl_seconds`,
-  `authz_sweep_interval_seconds` (all in "Contract after change").
+  `authz_sweep_interval_seconds` (all in Design decisions).
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

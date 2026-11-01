@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -68,6 +70,23 @@ def _validate_deployment_mode(cfg: EventBusConfig) -> None:
         raise ValueError("auth_token is required but not configured")
 
 
+def authorization_baseline_hash(cfg: EventBusConfig) -> str:
+    """Return a SHA-256 hex digest over the canonical authorization pair set.
+
+    The digest covers only the union of (consumer_id, topic) pairs derived from
+    consumer_authorization and topic_authorization, never the whole config. Pairs
+    are canonically sorted before hashing, so the digest is invariant under any
+    permutation of either mapping (EBAUTHGEN001 AC-2).
+    """
+    pairs: set[tuple[str, str]] = set()
+    for consumer_id, consumer_topics in (cfg.consumer_authorization or {}).items():
+        pairs.update((consumer_id, topic) for topic in consumer_topics)
+    for topic, consumer_ids in (cfg.topic_authorization or {}).items():
+        pairs.update((consumer_id, topic) for consumer_id in consumer_ids)
+    canonical = json.dumps(sorted(pairs))
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
 @dataclass(frozen=True)
 class EventBusConfig:
     """Immutable configuration for the Event Bus service.
@@ -107,6 +126,10 @@ class EventBusConfig:
     slow_consumer_threshold: int = 100
     subscriber_queue_maxsize: int = 1000
     backlog_health_threshold: int = 500
+    # Authorization TTL bounds (ebauthgen001): max accepted ttl_seconds on
+    # POST /admin/topics/authorization, and the interval of the TTL sweep loop.
+    authz_max_ttl_seconds: int = 86400
+    authz_sweep_interval_seconds: float = 60.0
     # DLQ outbox retry policy (dlqbox001): bounded attempts, exponential backoff clamped
     # at the max. Consumed by the outbox worker in eventbus.dlq.
     outbox_max_attempts: int = 5
@@ -157,6 +180,14 @@ class EventBusConfig:
             )
         if self.publish_rate <= 0:
             raise ValueError(f"publish_rate must be > 0, got {self.publish_rate}")
+        if self.authz_max_ttl_seconds < 1:
+            raise ValueError(
+                f"authz_max_ttl_seconds must be >= 1, got {self.authz_max_ttl_seconds}"
+            )
+        if self.authz_sweep_interval_seconds < 1.0:
+            raise ValueError(
+                f"authz_sweep_interval_seconds must be >= 1.0, got {self.authz_sweep_interval_seconds}"
+            )
 
         # Validate sse_idle_timeout range
         if self.sse_idle_timeout < 1.0:
@@ -233,6 +264,8 @@ _KNOWN_CONFIG_KEYS = frozenset(
         "publish_rate",
         "consumer_authorization",
         "topic_authorization",
+        "authz_max_ttl_seconds",
+        "authz_sweep_interval_seconds",
     )
 )
 
@@ -274,6 +307,8 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
     "outbox_backoff_max_seconds": int,
     "subscriber_count": int,
     "publish_rate": float,
+    "authz_max_ttl_seconds": int,
+    "authz_sweep_interval_seconds": float,
 }
 
 # Token keys whose value may be a "${ENV:VAR_NAME}" reference. Resolved in
@@ -377,6 +412,10 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         slow_consumer_threshold=int(data.get("slow_consumer_threshold", 100)),
         subscriber_queue_maxsize=int(data.get("subscriber_queue_maxsize", 1000)),
         backlog_health_threshold=int(data.get("backlog_health_threshold", 500)),
+        authz_max_ttl_seconds=int(data.get("authz_max_ttl_seconds", 86400)),
+        authz_sweep_interval_seconds=float(
+            data.get("authz_sweep_interval_seconds", 60.0)
+        ),
         outbox_max_attempts=int(data.get("outbox_max_attempts", 5)),
         outbox_backoff_base_seconds=int(data.get("outbox_backoff_base_seconds", 30)),
         outbox_backoff_max_seconds=int(data.get("outbox_backoff_max_seconds", 900)),

@@ -214,12 +214,78 @@ def eventbus_two_lifecycle_clients(
 
 
 def principal_map() -> dict[str, Principal]:
-    """Return the live Event Bus principal map.
+    """Return the principals map of the AuthzGeneration currently in force.
 
-    `eventbus.auth.publish_principals()` replaces the module-level map on every
-    `_populate_token_maps()` call, so a reference imported before that call goes
-    stale. Look the map up through the module each time it is read or modified.
+    `eventbus.auth.publish_generation()` rebinds the generation and the
+    `_TOKEN_PRINCIPAL_MAP` compatibility alias to the new principals dict on
+    every effective rebuild, so a reference imported before that call goes
+    stale. Look the map up through the generation each time it is read or
+    modified.
     """
     from eventbus import auth
 
+    generation = auth.current_generation()
+    if generation is not None:
+        return generation.principals
     return auth._TOKEN_PRINCIPAL_MAP
+
+
+def injectable_clock(start: float = 1_700_000_000.0) -> tuple[Any, Any]:
+    """Return a controllable `(clock, advance)` pair for deterministic expiry tests.
+
+    `clock()` reports the controlled unix epoch; `advance(seconds)` moves it
+    forward. Passed as the TTL sweep's `clock` argument so expiry tests never
+    sleep on wall-clock time.
+    """
+    state = {"now": start}
+
+    def clock() -> float:
+        return state["now"]
+
+    def advance(seconds: float) -> None:
+        state["now"] += seconds
+
+    return clock, advance
+
+
+@pytest.fixture()
+def reset_generation_state() -> Any:
+    """Snapshot the in-force AuthzGeneration and re-publish it on teardown.
+
+    Restores the generation counter and the principals binding after tests that
+    publish generations or rebuild the maps, so generation state does not leak
+    between tests. Import this fixture into the test module that needs it;
+    registration stays out of tests/eventbus/conftest.py.
+    """
+    from eventbus import auth
+
+    before = auth.current_generation()
+    yield
+    if before is not None:
+        auth.publish_generation(before)
+
+
+def post_topics_authorization(
+    client: Any,
+    body: dict[str, Any],
+    *,
+    expected_generation: int | None = None,
+    ttl_seconds: int | None = None,
+    headers: dict[str, str] | None = None,
+) -> Any:
+    """POST /admin/topics/authorization with generation-aware request building.
+
+    `expected_generation` defaults to the generation currently in force; pass an
+    explicit value to exercise 409 conflict handling. `ttl_seconds` is sent only
+    when provided. `headers` carries the admin credential for this request.
+    """
+    from eventbus import auth
+
+    payload = dict(body)
+    if expected_generation is None:
+        generation = auth.current_generation()
+        expected_generation = generation.generation if generation is not None else 0
+    payload["expected_generation"] = expected_generation
+    if ttl_seconds is not None:
+        payload["ttl_seconds"] = ttl_seconds
+    return client.post("/admin/topics/authorization", json=payload, headers=headers)

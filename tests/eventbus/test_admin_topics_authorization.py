@@ -1,5 +1,10 @@
 """tests/eventbus/test_admin_topics_authorization.py
 Integration tests for the POST /admin/topics/authorization endpoint.
+
+EBAUTHGEN001: every effective update carries a mandatory `expected_generation`
+optimistic-concurrency token, publishes a new AuthzGeneration, and reports the
+generation transition; stale tokens are rejected with 409 before change
+detection.
 """
 
 from __future__ import annotations
@@ -8,10 +13,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from eventbus.auth import _derive_token_fingerprint
+from eventbus.auth import _derive_token_fingerprint, current_generation
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import principal_map
+from tests.eventbus.eventbus_helpers import post_topics_authorization, principal_map
+
+ADMIN_HEADERS = {"Authorization": "Bearer admin-tok"}
 
 
 @pytest.fixture()
@@ -54,12 +61,19 @@ def admin_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         yield c
 
 
+def _require_generation() -> Any:
+    """Return the in-force AuthzGeneration, failing loudly if none exists."""
+    generation = current_generation()
+    assert generation is not None
+    return generation
+
+
 class TestAdminGating:
     def test_valid_admin_token_accepted(self, admin_client: TestClient) -> None:
-        resp = admin_client.post(
-            "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicA"]}},
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA"]}},
+            headers=ADMIN_HEADERS,
         )
         assert resp.status_code == 200
 
@@ -82,39 +96,84 @@ class TestAdminGating:
         """Empty/no-op bodies are rejected with 422."""
         resp = admin_client.post(
             "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
+            headers=ADMIN_HEADERS,
             json={},
         )
         assert resp.status_code == 422
+
+    def test_missing_expected_generation_rejected(
+        self, admin_client: TestClient
+    ) -> None:
+        """A body without expected_generation is rejected with 422 (REQ-002)."""
+        before = _require_generation()
+        resp = admin_client.post(
+            "/admin/topics/authorization",
+            headers=ADMIN_HEADERS,
+            json={"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+        )
+        assert resp.status_code == 422
+        assert "expected_generation" in resp.json()["detail"]
+        assert current_generation() is before
+
+    def test_non_integer_expected_generation_rejected(
+        self, admin_client: TestClient
+    ) -> None:
+        """Non-integer (and bool) expected_generation values are rejected with
+        422 and change nothing."""
+        before = _require_generation()
+        resp = admin_client.post(
+            "/admin/topics/authorization",
+            headers=ADMIN_HEADERS,
+            json={
+                "consumer_authorization": {"c1": ["topicA", "topicB"]},
+                "expected_generation": "0",
+            },
+        )
+        assert resp.status_code == 422
+        assert "expected_generation must be int" in resp.json()["detail"]
+        resp = admin_client.post(
+            "/admin/topics/authorization",
+            headers=ADMIN_HEADERS,
+            json={
+                "consumer_authorization": {"c1": ["topicA", "topicB"]},
+                "expected_generation": True,
+            },
+        )
+        assert resp.status_code == 422
+        assert "expected_generation must be int" in resp.json()["detail"]
+        assert current_generation() is before
 
     def test_response_includes_persistent_and_changed(
         self, admin_client: TestClient
     ) -> None:
         """Runtime-only default: persistent is always false; changed reflects whether config changed."""
-        resp = admin_client.post(
-            "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+        before = _require_generation()
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+            headers=ADMIN_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "ok"
         assert data["persistent"] is False
         assert data["changed"] is True
+        assert data["previous_generation"] == before.generation
+        assert data["new_generation"] == before.generation + 1
 
     def test_response_changed_false_when_noop(self, admin_client: TestClient) -> None:
         """When body has keys but no actual change, changed=false."""
         # First update to establish state
-        admin_client.post(
-            "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicA"]}},
+        post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA"]}},
+            headers=ADMIN_HEADERS,
         )
         # Same body again — no-op
-        resp = admin_client.post(
-            "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicA"]}},
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA"]}},
+            headers=ADMIN_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -124,11 +183,12 @@ class TestAdminGating:
         """Effective change emits one redacted log_privileged_action; no-op emits none."""
         from unittest.mock import patch
 
+        before = _require_generation()
         with patch("eventbus.admin_route.log_privileged_action") as mock_log:
-            resp = admin_client.post(
-                "/admin/topics/authorization",
-                headers={"Authorization": "Bearer admin-tok"},
-                json={"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+            resp = post_topics_authorization(
+                admin_client,
+                {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+                headers=ADMIN_HEADERS,
             )
             assert resp.status_code == 200
             assert mock_log.call_count == 1
@@ -138,7 +198,7 @@ class TestAdminGating:
             assert call_args.kwargs["target"] == "topics_authorization"
             assert (
                 call_args.kwargs["detail"]
-                == "consumer_authorization:1;persistent:false"
+                == f"consumer_authorization:1;persistent:false;gen:{before.generation}->{before.generation + 1}"
             )
 
     def test_audit_not_emitted_on_noop(self, admin_client: TestClient) -> None:
@@ -146,19 +206,220 @@ class TestAdminGating:
         from unittest.mock import patch
 
         # Establish state first
-        admin_client.post(
-            "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicA"]}},
+        post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA"]}},
+            headers=ADMIN_HEADERS,
         )
         with patch("eventbus.admin_route.log_privileged_action") as mock_log:
-            resp = admin_client.post(
-                "/admin/topics/authorization",
-                headers={"Authorization": "Bearer admin-tok"},
-                json={"consumer_authorization": {"c1": ["topicA"]}},
+            resp = post_topics_authorization(
+                admin_client,
+                {"consumer_authorization": {"c1": ["topicA"]}},
+                headers=ADMIN_HEADERS,
             )
             assert resp.status_code == 200
             assert mock_log.call_count == 0
+
+
+class TestGenerationConflict:
+    """AC-1: expected_generation optimistic concurrency."""
+
+    def test_same_expected_generation_second_request_409(
+        self, admin_client: TestClient
+    ) -> None:
+        """Two updates carrying the same expected_generation: one 200, one 409
+        generation_conflict; the rejected request changes nothing."""
+        from unittest.mock import patch
+
+        from eventbus import app as eb_app
+
+        expected = _require_generation().generation
+
+        ok = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+            expected_generation=expected,
+            headers=ADMIN_HEADERS,
+        )
+        assert ok.status_code == 200
+
+        state_before = _require_generation()
+        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+            conflict = post_topics_authorization(
+                admin_client,
+                {"consumer_authorization": {"c1": ["topicA", "topicC"]}},
+                expected_generation=expected,
+                headers=ADMIN_HEADERS,
+            )
+
+        assert conflict.status_code == 409
+        assert conflict.json() == {
+            "error": "generation_conflict",
+            "expected_generation": expected,
+            "current_generation": expected + 1,
+        }
+        assert mock_log.call_count == 0
+        after = current_generation()
+        assert after is state_before
+        assert eb_app.app.state.config is state_before.config
+        assert principal_map() is state_before.principals
+
+    def test_stale_expected_generation_on_noop_body_still_409(
+        self, admin_client: TestClient
+    ) -> None:
+        """REQ-007: a stale expected_generation on an otherwise no-op body is
+        rejected with 409 before change detection."""
+        current = _require_generation()
+        body = {"consumer_authorization": {"c1": ["topicA"]}}
+        resp = post_topics_authorization(
+            admin_client,
+            body,
+            expected_generation=current.generation + 1,
+            headers=ADMIN_HEADERS,
+        )
+        assert resp.status_code == 409
+        assert resp.json()["error"] == "generation_conflict"
+        assert current_generation() is current
+
+
+class TestResponseContract:
+    """REQ-003 / AC-6: additive generation fields on every success response."""
+
+    def test_effective_response_carries_generation_fields(
+        self, admin_client: TestClient
+    ) -> None:
+        before = _require_generation()
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+            headers=ADMIN_HEADERS,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert data["persistent"] is False
+        assert data["changed"] is True
+        assert data["previous_generation"] == before.generation
+        assert data["new_generation"] == before.generation + 1
+        assert data["changed_count"] == 1
+        assert data["effective_at"] >= before.effective_at
+        after = _require_generation()
+        assert data["baseline_hash"] == after.baseline_hash
+        assert len(data["baseline_hash"]) == 64
+
+    def test_noop_response_generation_fields(self, admin_client: TestClient) -> None:
+        """A no-op reports changed_count 0 with previous_generation == new_generation."""
+        current = _require_generation()
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA"]}},
+            headers=ADMIN_HEADERS,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["changed"] is False
+        assert data["changed_count"] == 0
+        assert data["previous_generation"] == current.generation
+        assert data["new_generation"] == current.generation
+        assert data["effective_at"] == current.effective_at
+        assert data["baseline_hash"] == current.baseline_hash
+
+
+class TestTTLValidation:
+    """REQ-005: ttl_seconds validation and grant registration."""
+
+    @pytest.mark.parametrize(
+        "ttl",
+        [0, -1, 86401, "3600", True],
+    )
+    def test_invalid_ttl_rejected_without_state_change(
+        self, admin_client: TestClient, ttl: Any
+    ) -> None:
+        before = _require_generation()
+        from unittest.mock import patch
+
+        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+            resp = post_topics_authorization(
+                admin_client,
+                {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+                ttl_seconds=ttl,
+                headers=ADMIN_HEADERS,
+            )
+        assert resp.status_code == 422
+        assert "ttl_seconds" in resp.json()["detail"]
+        assert mock_log.call_count == 0
+        after = current_generation()
+        assert after is before
+        assert after.expiries == frozenset()
+
+    def test_valid_ttl_grant_published(self, admin_client: TestClient) -> None:
+        """A valid ttl_seconds registers an expiry entry for newly granted pairs."""
+        before = _require_generation()
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+            ttl_seconds=3600,
+            headers=ADMIN_HEADERS,
+        )
+        assert resp.status_code == 200
+        effective_at = resp.json()["effective_at"]
+        after = _require_generation()
+        assert after.generation == before.generation + 1
+        new_entries = after.expiries - before.expiries
+        assert {(c, t) for c, t, _ in new_entries} == {("c1", "topicB")}
+        (_, _, expires_at) = next(iter(new_entries))
+        assert expires_at == pytest.approx(effective_at + 3600, abs=1)
+
+    def test_ttl_not_applied_to_carried_over_pairs(
+        self, admin_client: TestClient
+    ) -> None:
+        """Pairs already in force keep no new expiry entry (carry-over, REQ-005)."""
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA"]}},
+            ttl_seconds=3600,
+            headers=ADMIN_HEADERS,
+        )
+        # Body matches the baseline grant -> no-op -> no generation, no expiries.
+        assert resp.status_code == 200
+        assert resp.json()["changed"] is False
+        assert current_generation().expiries == frozenset()
+
+
+class TestAuditGenerationFields:
+    """REQ-004: audit record carries previous_generation/new_generation."""
+
+    def test_audit_generation_kwargs_on_effective_change(
+        self, admin_client: TestClient
+    ) -> None:
+        from unittest.mock import patch
+
+        before = _require_generation()
+        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+            resp = post_topics_authorization(
+                admin_client,
+                {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+                headers=ADMIN_HEADERS,
+            )
+        assert resp.status_code == 200
+        call_args = mock_log.call_args
+        assert call_args.kwargs["previous_generation"] == before.generation
+        assert call_args.kwargs["new_generation"] == before.generation + 1
+
+    def test_audit_generation_kwargs_absent_on_noop(
+        self, admin_client: TestClient
+    ) -> None:
+        from unittest.mock import patch
+
+        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+            resp = post_topics_authorization(
+                admin_client,
+                {"consumer_authorization": {"c1": ["topicA"]}},
+                headers=ADMIN_HEADERS,
+            )
+        assert resp.status_code == 200
+        assert resp.json()["changed"] is False
+        assert mock_log.call_count == 0
 
 
 class TestUpdateTakesEffect:
@@ -166,10 +427,10 @@ class TestUpdateTakesEffect:
         self, admin_client: TestClient
     ) -> None:
 
-        resp = admin_client.post(
-            "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+            headers=ADMIN_HEADERS,
         )
         assert resp.status_code == 200
 
@@ -185,17 +446,17 @@ class TestValidation:
     ) -> None:
 
         # Establish a known-good state first.
-        good = admin_client.post(
-            "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicA"]}},
+        good = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA"]}},
+            headers=ADMIN_HEADERS,
         )
         assert good.status_code == 200
 
         # Send an invalid update (wrong type for the topics list).
         bad = admin_client.post(
             "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
+            headers=ADMIN_HEADERS,
             json={"consumer_authorization": {"c1": "not-a-list"}},
         )
         assert bad.status_code == 422
@@ -213,6 +474,7 @@ class TestPublishOrder:
 
         config_before = eb_app.app.state.config
         map_before = principal_map()
+        gen_before = _require_generation()
 
         def _boom(config: Any) -> Any:
             raise ValueError("principal build failed")
@@ -221,13 +483,22 @@ class TestPublishOrder:
         failing = TestClient(admin_client.app, raise_server_exceptions=False)
         resp = failing.post(
             "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicB"]}},
+            headers=ADMIN_HEADERS,
+            json={
+                "consumer_authorization": {"c1": ["topicB"]},
+                "expected_generation": gen_before.generation,
+            },
         )
 
         assert resp.status_code == 500
         assert eb_app.app.state.config is config_before
         assert principal_map() is map_before
+        # AC-3: the failed rebuild publishes nothing — generation number and
+        # baseline hash are unchanged.
+        after = _require_generation()
+        assert after is gen_before
+        assert after.generation == gen_before.generation
+        assert after.baseline_hash == gen_before.baseline_hash
 
     def test_noop_update_publishes_nothing(self, admin_client: TestClient) -> None:
         from eventbus import app as eb_app
@@ -235,10 +506,10 @@ class TestPublishOrder:
         config_before = eb_app.app.state.config
         map_before = principal_map()
 
-        resp = admin_client.post(
-            "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicA"]}},
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA"]}},
+            headers=ADMIN_HEADERS,
         )
 
         assert resp.status_code == 200
@@ -253,15 +524,17 @@ class TestPublishOrder:
 
         config_before = eb_app.app.state.config
         map_before = principal_map()
+        gen_before = _require_generation()
 
-        resp = admin_client.post(
-            "/admin/topics/authorization",
-            headers={"Authorization": "Bearer admin-tok"},
-            json={"consumer_authorization": {"c1": ["topicB"]}},
+        resp = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicB"]}},
+            headers=ADMIN_HEADERS,
         )
 
         assert resp.status_code == 200
         assert resp.json()["changed"] is True
+        assert resp.json()["new_generation"] == gen_before.generation + 1
         assert eb_app.app.state.config is not config_before
         assert principal_map() is not map_before
         assert principal_map()["consumer-tok"].consumer_grants == frozenset(
@@ -273,16 +546,16 @@ class TestUpdateRemovesPairs:
     def test_update_removes_pairs_no_longer_configured(
         self, admin_client: TestClient
     ) -> None:
-        url = "/admin/topics/authorization"
-        headers = {"Authorization": "Bearer admin-tok"}
-        first = admin_client.post(
-            url,
-            headers=headers,
-            json={"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+        first = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+            headers=ADMIN_HEADERS,
         )
         assert first.status_code == 200
-        second = admin_client.post(
-            url, headers=headers, json={"consumer_authorization": {"c1": ["topicA"]}}
+        second = post_topics_authorization(
+            admin_client,
+            {"consumer_authorization": {"c1": ["topicA"]}},
+            headers=ADMIN_HEADERS,
         )
         assert second.status_code == 200
 
@@ -297,16 +570,14 @@ class TestOneRolePerTokenAdminRebuild:
 
     @staticmethod
     def _snapshot():
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
-
-        return dict(_TOKEN_PRINCIPAL_MAP)
+        return current_generation()
 
     @staticmethod
     def _restore(snapshot):
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
+        from eventbus.auth import publish_generation
 
-        _TOKEN_PRINCIPAL_MAP.clear()
-        _TOKEN_PRINCIPAL_MAP.update(snapshot)
+        if snapshot is not None:
+            publish_generation(snapshot)
 
     def test_each_token_holds_exactly_its_documented_role(self) -> None:
         """A distinct-token config gives every token exactly its documented role
@@ -356,16 +627,14 @@ class TestDuplicateRejectionAdminRebuild:
 
     @staticmethod
     def _snapshot():
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
-
-        return dict(_TOKEN_PRINCIPAL_MAP)
+        return current_generation()
 
     @staticmethod
     def _restore(snapshot):
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
+        from eventbus.auth import publish_generation
 
-        _TOKEN_PRINCIPAL_MAP.clear()
-        _TOKEN_PRINCIPAL_MAP.update(snapshot)
+        if snapshot is not None:
+            publish_generation(snapshot)
 
     @pytest.mark.parametrize(
         "field_a,field_b",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import time
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -14,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from eventbus.audit import log_auth_failure
+from eventbus.config import EventBusConfig, authorization_baseline_hash
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,26 @@ class Principal:
         return (consumer_id, topic) in self.consumer_grants
 
 
+@dataclass(frozen=True)
+class AuthzGeneration:
+    """Immutable authorization generation snapshot (EBAUTHGEN001).
+
+    One generation is in force at a time. Every effective authorization update
+    publishes a new generation with generation+1; a failed rebuild publishes
+    nothing and the previous generation stays in force.
+    """
+
+    generation: int
+    config: EventBusConfig
+    principals: dict[str, Principal]
+    # Unix epoch when this generation became effective
+    effective_at: float
+    # authorization_baseline_hash of the config this generation carries
+    baseline_hash: str
+    # (consumer_id, topic, expires_at_epoch) TTL grants; empty for the baseline
+    expiries: frozenset[tuple[str, str, float]] = frozenset()
+
+
 # Route-to-role mapping: which roles may access which route category
 _ROUTE_ROLE_MAP: dict[str, set[Role]] = {
     "/health": {Role.MONITORING},
@@ -67,8 +89,14 @@ _ROUTE_ROLE_MAP: dict[str, set[Role]] = {
 # Populated from config at startup; empty means any consumer_id is valid for that caller
 _CONSUMER_ID_ALLOWLIST: dict[str, set[str]] = {}
 
-# Token-to-principal mapping: token -> Principal object
+# Token-to-principal mapping: token -> Principal object.
+# Compatibility alias (owner-approved 2026-11-01): always names the same dict
+# object as the current generation's principals; publish_generation rebinds both
+# in one step. resolve_principal keeps reading this name.
 _TOKEN_PRINCIPAL_MAP: dict[str, Principal] = {}
+
+# The one AuthzGeneration in force; None until the lifespan publishes the baseline.
+_CURRENT_GENERATION: AuthzGeneration | None = None
 
 # Roles held by the shared auth_token and the admin_token. Never includes CONSUMER.
 _CONTROL_PLANE_ROLES: frozenset[Role] = frozenset(
@@ -204,24 +232,45 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
 
 
 def _populate_token_maps(config: Any) -> None:
-    """Populate _TOKEN_PRINCIPAL_MAP from config at startup.
+    """Build the principals map and publish it as a new AuthzGeneration.
 
-    Builds the whole map first and publishes it with one assignment through
-    publish_principals(), so concurrent readers never observe an empty map window
-    and a build error leaves the previous generation in force.
+    Builds the whole map and the baseline hash first, then publishes one
+    immutable generation through publish_generation(), so concurrent readers
+    never observe an empty map window and a build error leaves the previous
+    generation in force. The first call at startup publishes the baseline
+    generation (generation 0); every later effective call publishes
+    generation+1.
     """
-    publish_principals(_build_principal_map(config))
+    new_map = _build_principal_map(config)
+    previous = _CURRENT_GENERATION
+    generation = 0 if previous is None else previous.generation + 1
+    publish_generation(
+        AuthzGeneration(
+            generation=generation,
+            config=config,
+            principals=new_map,
+            effective_at=time.time(),
+            baseline_hash=authorization_baseline_hash(config),
+        )
+    )
 
 
-def publish_principals(new_map: dict[str, Principal]) -> None:
-    """Atomically publish a fully built principal map.
+def publish_generation(new_generation: AuthzGeneration) -> None:
+    """Atomically publish a fully built AuthzGeneration.
 
-    Called by ``_populate_token_maps`` after the new map is completely built.
-    A single module-level assignment under the GIL ensures concurrent readers
-    never observe an empty map window.
+    Called after the new generation is completely built. The generation and the
+    _TOKEN_PRINCIPAL_MAP alias are rebound in one global block so both names
+    always denote the same principals dict; a single module-level assignment
+    under the GIL ensures concurrent readers never observe an empty map window.
     """
-    global _TOKEN_PRINCIPAL_MAP
-    _TOKEN_PRINCIPAL_MAP = new_map
+    global _CURRENT_GENERATION, _TOKEN_PRINCIPAL_MAP
+    _CURRENT_GENERATION = new_generation
+    _TOKEN_PRINCIPAL_MAP = new_generation.principals
+
+
+def current_generation() -> AuthzGeneration | None:
+    """Return the AuthzGeneration in force, or None before the baseline publishes."""
+    return _CURRENT_GENERATION
 
 
 def get_auth_token(config: Any) -> str:
