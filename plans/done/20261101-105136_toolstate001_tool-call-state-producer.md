@@ -217,10 +217,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: recorder contract (context.py) | Pending | — | — | REQ-005 |
-| 2 | Phase 2: producer writes (tool_runner.py, workflow_engine_adapter.py) | Pending | — | — | REQ-001..REQ-004, REQ-006, REQ-007, REQ-009, REQ-005 |
-| 3 | Phase 3: test implementation (test_tool_runner.py, test_orchestrator.py) | Pending | — | — | AC-1..AC-9 |
-| 4 | Phase 4: documentation & verification (agent_06_01 doc, full gates) | Pending | — | — | REQ-011; deploy impact N/A (rsynced) |
+| 1 | Phase 1: recorder contract (context.py) | In Progress | — | — | REQ-005 |
+| 2 | Phase 2: producer writes (tool_runner.py, workflow_engine_adapter.py) | In Progress | — | — | REQ-001..REQ-004, REQ-006, REQ-007, REQ-009, REQ-005 |
+| 3 | Phase 3: test implementation (test_tool_runner.py, test_orchestrator.py) | In Progress | — | — | AC-1..AC-9 |
+| 4 | Phase 4: documentation & verification (agent_06_01 doc, full gates) | In Progress | — | — | REQ-011; deploy impact N/A (rsynced) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -230,7 +230,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261101-110802_01_scripts_agent_tool_runner.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261101-110802_02_scripts_agent_context.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261101-110802_03_scripts_agent_workflow_engine_adapter.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261101-110802_04_tests_agent_test_tool_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261101-110802_05_tests_agent_test_orchestrator.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261101-110802_06_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -257,3 +262,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-009 | scripts/agent/tool_runner.py | 2 | tests/agent/test_tool_runner.py (existing audit tests) |
 | REQ-010 | N/A: constraint verified by `git diff` scope check AC-10 | 4 | N/A: scope check |
 | REQ-011 | docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md | 4 | N/A: documentation review |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261101-110802 -->
