@@ -48,7 +48,7 @@ N/A: no operator-facing documentation describes this precondition today; this is
 - The audit-record content/schema beyond this precondition handling.
 
 ## Dependencies
-N/A: none.
+N/A: none. Note: `log_approval_decision` has no caller under `scripts/` (only tests call it), so it may be dead code; decide whether that function needs the fix or should be removed. `audit_tool_exec` also gains a denial path in `issues/20261003-180330_toolaudit001_audit-drops-denied-gateway-tool-calls.md`, which reaches this assert.
 
 ## Unresolved Questions
 N/A: none for the fix itself — whether a missing `workflow_id` should raise vs. log-and-skip is a design choice to make during implementation based on whether any legitimate call path can reach these functions outside a workflow context today (current evidence says no, but the fix should not assume that remains true).

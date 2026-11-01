@@ -4,7 +4,7 @@
 Medium
 
 ## Summary
-`tool_runner` derives a "stable, retry-invariant" idempotency key (`workflow_id:task_id:turn_id:call_id`) for every tool call and writes it into the `tool_exec` audit event. That key never reaches the transport: `HttpTransport.call` generates its own random UUID per call and sends that as `X-Idempotency-Key`. The audit field therefore names a key the server has never seen, and its documented property (stable across retries of the same call) does not hold for the key that actually protects the write. Give the key one owner so that the audit record and the wire agree.
+`tool_runner` derives a "stable, retry-invariant" idempotency key (`workflow_id:task_id:turn_id:call_id`) for every tool call and writes it into the `tool_exec` audit event. That key never reaches the transport: `HttpTransport.call` derives its own key from the tool name, arguments and session (`derive_idempotency_key`) and sends that as `X-Idempotency-Key`. The audit field therefore names a key the server has never seen, and its documented property (stable across retries of the same call) does not hold for the key that actually protects the write. Give the key one owner so that the audit record and the wire agree.
 
 ## Background
 Found during an adversarial review (`python-code-review`) of the agent's MCP call path.
@@ -27,7 +27,7 @@ Effects:
 The key is part of the audit trail for state-changing calls, where the question "was this the same call or a second one?" is the point of recording it. At present the record cannot answer it. The cost of fixing it is small and it is cheaper before anything depends on the field.
 
 ## Implementation Intent
-Decide one owner for the key. Either the agent supplies the derived key down the call chain and the transport uses it for the header (keeping one UUID-or-derived value per logical call), or the transport reports the key it used back in the result and the audit event records that value. In both cases the audit field must be the value sent on the wire, the server contract from the archived idempotency issue must stay unchanged, and the field's description must say which semantics it has.
+Decide one owner for the key. Either the agent supplies the derived key down the call chain and the transport uses it for the header (keeping one value per logical call), or the transport reports the key it used back in the result and the audit event records that value. In both cases the audit field must be the value sent on the wire, the server contract from the archived idempotency issue must stay unchanged, and the field's description must say which semantics it has.
 
 ## Target Files or Areas
 - `scripts/agent/tool_runner.py` (`_idempotency_key`, `execute_one_tool_call`)
