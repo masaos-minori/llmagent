@@ -16,7 +16,7 @@ import httpx
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
-from agent.context import ConversationState
+from agent.context import ConversationState, TurnState
 from agent.repository_gateway import RepositoryGateway
 from agent.tool_exceptions import ToolExecutorUnavailableError
 from agent.tool_loop_guard import ToolLoopGuard
@@ -2263,3 +2263,108 @@ class TestToolCallStateProducer:
         assert recorded_key != derive_idempotency_key(
             "call_tool", pc.name, pc.args, fallback_uid
         )
+
+
+class TestAttemptSideEffectFlag:
+    """wfretry001 AC-6: tool_runner sets ctx.turn.attempt_side_effect before a
+    non-READ call executes (REQ-006 set-before-execute contract)."""
+
+    @staticmethod
+    def _ctx_with_real_turn(gateway: Any = None) -> MagicMock:
+        """_make_ctx with a real TurnState so the flag is a real dataclass field."""
+        ctx = _make_ctx()
+        ctx.turn = TurnState(current_turn_id="test-turn-id")
+        ctx.services_required.gateway = gateway
+        return ctx
+
+    @pytest.mark.asyncio
+    async def test_non_read_gateway_call_sets_flag_before_execute(self) -> None:
+        cfg = _cfg()
+        executor = AsyncMock(
+            return_value=ToolCallResult(
+                output="ran", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+        gateway = RepositoryGateway(executor=executor, cfg=cfg, audit_logger=None)
+        ctx = self._ctx_with_real_turn(gateway=gateway)
+
+        await execute_one_tool_call(
+            ctx,
+            _pc("shell_run", {"command": "ls"}, call_id="call_s"),
+            guard=ToolLoopGuard(ctx),
+        )
+
+        executor.execute.assert_awaited_once_with("shell_run", {"command": "ls"})
+        assert ctx.turn.attempt_side_effect is True
+
+    @pytest.mark.asyncio
+    async def test_read_gateway_call_leaves_flag_false(self) -> None:
+        cfg = _cfg()
+        executor = AsyncMock(
+            return_value=ToolCallResult(
+                output="read", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+        gateway = RepositoryGateway(executor=executor, cfg=cfg, audit_logger=None)
+        ctx = self._ctx_with_real_turn(gateway=gateway)
+
+        await execute_one_tool_call(
+            ctx,
+            _pc("read_text_file", {}, call_id="call_r"),
+            guard=ToolLoopGuard(ctx),
+        )
+
+        executor.execute.assert_awaited_once()
+        assert ctx.turn.attempt_side_effect is False
+
+    @pytest.mark.asyncio
+    async def test_unclassified_tool_sets_flag(self) -> None:
+        """UNKNOWN (registry raises KeyError) counts as a side effect (conservative)."""
+        ctx = self._ctx_with_real_turn()
+        registry = MagicMock()
+        registry.get = MagicMock(side_effect=KeyError("mystery_tool"))
+        ctx.services_required.runtime_tools = registry
+
+        await execute_one_tool_call(
+            ctx,
+            _pc("mystery_tool", {}, call_id="call_m"),
+            guard=ToolLoopGuard(ctx),
+        )
+
+        assert ctx.turn.attempt_side_effect is True
+
+    @pytest.mark.asyncio
+    async def test_no_gateway_branch_sets_flag_and_runs_preflight(self) -> None:
+        """The gateway-bypass path sets the flag and still reaches check_preflight."""
+        ctx = self._ctx_with_real_turn()
+        with patch("agent.tool_runner.check_preflight") as preflight:
+            await execute_one_tool_call(
+                ctx,
+                _pc("shell_run", {"command": "ls"}, call_id="call_s"),
+                guard=ToolLoopGuard(ctx),
+            )
+        preflight.assert_called_once()
+        assert ctx.turn.attempt_side_effect is True
+        ctx.services_required.tools.execute.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_flag_set_before_gateway_exception(self) -> None:
+        """Set-before-execute: a failing non-READ call still leaves the flag set.
+
+        The gateway call itself raises (the gateway's own error handling is tested
+        in test_repository_gateway.py); what matters here is that the flag was set
+        before the exception left _execute_prepared_call.
+        """
+        ctx = self._ctx_with_real_turn()
+        gateway = MagicMock()
+        gateway.execute = AsyncMock(side_effect=RuntimeError("gateway down"))
+        ctx.services_required.gateway = gateway
+
+        with pytest.raises(RuntimeError, match="gateway down"):
+            await execute_one_tool_call(
+                ctx,
+                _pc("shell_run", {"command": "ls"}, call_id="call_s"),
+                guard=ToolLoopGuard(ctx),
+            )
+
+        assert ctx.turn.attempt_side_effect is True

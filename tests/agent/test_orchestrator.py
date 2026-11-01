@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -646,7 +645,7 @@ class TestExecuteStageRetryRunsTurnEntryOnce:
             ),
         ):
             start_turns = ctx.stats.stat_turns
-            await orch._workflow_adapter.execute_turn("retry me", 0.0, "")
+            turn_result = await orch._workflow_adapter.execute_turn("retry me", 0.0, "")
 
         # Entry preparation ran exactly once despite three execute-stage attempts.
         assert classify_mock.await_count == 1
@@ -665,6 +664,9 @@ class TestExecuteStageRetryRunsTurnEntryOnce:
             "SELECT status FROM tasks"
         )
         assert statuses[0]["status"] == "halted"
+        # AC-4 (wfretry001): the boundary tuple carries the typed halt kind, not
+        # the old silent ("", None, False).
+        assert turn_result == ("", "workflow_halted", False)
 
 
 def _temp_workflow_store(monkeypatch: Any, tmp_path: Path) -> str:
@@ -1502,7 +1504,8 @@ class TestTurnEndBracket:
 
         events = self._turn_end_events(captured)
         assert len(events) == 1
-        assert events[0]["error_kind"] is None
+        # AC-4 (wfretry001): the turn-end audit carries the typed halt kind.
+        assert events[0]["error_kind"] == "workflow_halted"
         on_error.assert_called_once()
         assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
         assert ctx.workflow.active is False
@@ -2853,8 +2856,17 @@ class TestHandleWorkflowEngineStatusPreservation:
         assert store.task_status() == "completed"
 
     @pytest.mark.asyncio
-    async def test_writes_failed_on_execute_failure(self) -> None:
-        """Execute-stage failure (error_kind set) should still write 'failed'."""
+    async def test_execute_failure_returns_typed_tuple_without_adapter_status_write(
+        self,
+    ) -> None:
+        """REQ-008 / AC-8 (wfretry001): a failed execute stage is not rescued here.
+
+        The replaced run() awaits execute_fn, which now enters the engine as a typed
+        stage failure (kind 'execute'); the 'failed' write is engine-owned, the
+        adapter writes no status on this exit (writes are limited to cancellation),
+        and it restores the outward typed tuple instead of the old completed-then-
+        failed overwrite.
+        """
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
 
@@ -2890,10 +2902,13 @@ class TestHandleWorkflowEngineStatusPreservation:
         ):
             orch._state_store = mock_store
             orch._workflow_adapter._state_store = mock_store
-            await orch._workflow_adapter.execute_turn("test line", time.time(), "")
+            result = await orch._workflow_adapter.execute_turn(
+                "test line", time.time(), ""
+            )
 
-        # The finally block should have written 'failed' because error_kind is set
-        mock_store.update_task_status.assert_called_with("task-1", "failed")
+        # The adapter must NOT write 'failed' on this exit — the engine owns it.
+        mock_store.update_task_status.assert_not_called()
+        assert result == ("ok", "execute", False)
 
 
 class TestErrorKindPropagation:
@@ -3362,10 +3377,16 @@ class TestTaskStatusPerTurnOutcome:
         assert store.calls == []
 
     @pytest.mark.asyncio
-    async def test_status_write_failure_logs_error_without_on_error(
-        self, tmp_path, monkeypatch, caplog
+    async def test_status_write_failure_propagates_from_engine_owned_write(
+        self, tmp_path, monkeypatch
     ) -> None:
-        """Log case: a failing status write is logged at ERROR, returns normally, skips on_error."""
+        """REQ-008 re-spec (wfretry001): the 'failed' write is engine-owned.
+
+        The old adapter-side completed-then-failed rescue write no longer exists, so
+        a failing 'failed' write inside WorkflowEngine.run() is not swallowed and
+        logged: the RuntimeError propagates out of the turn, the task never reaches
+        'completed', and the halt-route on_error is not invoked.
+        """
 
         class _FailingStatusStore(_ProbeStateStore):
             def update_task_status(self, task_id: str, status: str) -> None:
@@ -3378,25 +3399,218 @@ class TestTaskStatusPerTurnOutcome:
         ) -> tuple[str, str | None, bool]:
             return ("partial", "CONNECT_ERROR", True)
 
+        on_error = MagicMock()
         with _status_harness(
             tmp_path,
             monkeypatch=monkeypatch,
             execute_stage=execute_stage,
             store_cls=_FailingStatusStore,
+            on_error=on_error,
         ) as (orch, store):
-            with caplog.at_level(logging.ERROR, logger="agent.workflow_engine_adapter"):
+            with pytest.raises(RuntimeError, match="db down"):
                 await orch._workflow_adapter.execute_turn(
                     "hello", time.time(), "sess-1"
                 )
 
-            rows = store._db.fetchall("SELECT task_id FROM tasks")
-            task_id = rows[0]["task_id"]
-            assert any(
-                "failed" in rec.getMessage() and task_id in rec.getMessage()
-                for rec in caplog.records
+        assert store.task_status() == "running"
+        assert store.calls == ["running"]
+        on_error.assert_not_called()
+
+
+class TestTurnFailureKinds:
+    """wfretry001 AC-4 / AC-5 / AC-8: typed failure kinds at the turn boundary."""
+
+    @staticmethod
+    def _drive_exit_with_fake_engine(orch: Any, exc: BaseException) -> None:
+        async def _raise(
+            task: Any, plan_fn: Any, execute_fn: Any, verify_fn: Any
+        ) -> None:
+            raise exc
+
+        adapter: Any = orch._workflow_adapter
+        adapter._workflow_engine.run = _raise
+
+    @pytest.mark.asyncio
+    async def test_halt_returns_typed_kind_with_callback(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        _temp_workflow_store(monkeypatch, tmp_path)
+        ctx = _make_ctx()
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+        on_error = MagicMock()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+        monkeypatch.setattr(orch._audit_emitter, "emit_turn_start", AsyncMock())
+        self._drive_exit_with_fake_engine(orch, WorkflowHaltError("stage halted"))
+
+        result = await orch._workflow_adapter.execute_turn("halt me", 0.0, "")
+
+        assert result == ("", "workflow_halted", False)
+        on_error.assert_called_once()
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
+
+    @pytest.mark.asyncio
+    async def test_halt_returns_typed_kind_without_callback(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        _temp_workflow_store(monkeypatch, tmp_path)
+        ctx = _make_ctx()
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+        orch = _make_orchestrator(ctx)
+        monkeypatch.setattr(orch._audit_emitter, "emit_turn_start", AsyncMock())
+        self._drive_exit_with_fake_engine(orch, WorkflowHaltError("stage halted"))
+
+        result = await orch._workflow_adapter.execute_turn("halt me", 0.0, "")
+
+        assert result == ("", "workflow_halted", False)
+
+    @pytest.mark.asyncio
+    async def test_timeout_returns_typed_kind_with_callback(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        _temp_workflow_store(monkeypatch, tmp_path)
+        ctx = _make_ctx()
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+        on_error = MagicMock()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+        monkeypatch.setattr(orch._audit_emitter, "emit_turn_start", AsyncMock())
+        self._drive_exit_with_fake_engine(orch, WorkflowTimeoutError("stage timed out"))
+
+        result = await orch._workflow_adapter.execute_turn("timeout me", 0.0, "")
+
+        assert result == ("", "workflow_timeout", False)
+        on_error.assert_called_once()
+        assert isinstance(on_error.call_args[0][0], WorkflowTimeoutError)
+
+    @pytest.mark.asyncio
+    async def test_timeout_returns_typed_kind_without_callback(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        _temp_workflow_store(monkeypatch, tmp_path)
+        ctx = _make_ctx()
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+        orch = _make_orchestrator(ctx)
+        monkeypatch.setattr(orch._audit_emitter, "emit_turn_start", AsyncMock())
+        self._drive_exit_with_fake_engine(orch, WorkflowTimeoutError("stage timed out"))
+
+        result = await orch._workflow_adapter.execute_turn("timeout me", 0.0, "")
+
+        assert result == ("", "workflow_timeout", False)
+
+    @pytest.mark.asyncio
+    async def test_timeout_audit_carries_workflow_timeout_kind(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        captured: list[str] = []
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.audit_logger.info = lambda s: captured.append(s)  # noqa: E731
+
+        async def _raise_timeout(task, plan_fn, execute_fn, verify_fn) -> None:
+            raise WorkflowTimeoutError("stage timed out")
+
+        adapter: Any = orch._workflow_adapter
+        adapter._workflow_engine.run = _raise_timeout
+        await orch.handle_turn("hello")
+
+        events = [json.loads(s) for s in captured if "turn_end" in s]
+        assert len(events) == 1
+        assert events[0]["error_kind"] == "workflow_timeout"
+
+    @pytest.mark.asyncio
+    async def test_llm_failure_status_written_once_by_engine(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """AC-5 / REQ-008: a failure result enters the engine as kind llm_failure;
+        'failed' is written exactly once (by the engine) and the outward tuple is
+        restored unchanged."""
+
+        async def execute_stage(
+            *_a: object, **_k: object
+        ) -> tuple[str, str | None, bool]:
+            return ("partial", "CONNECT_ERROR", True)
+
+        with _status_harness(
+            tmp_path, monkeypatch=monkeypatch, execute_stage=execute_stage
+        ) as (orch, store):
+            answer, error_kind, is_partial = await orch._workflow_adapter.execute_turn(
+                "hello", time.time(), "sess-1"
             )
 
-        assert store.task_status() == "completed"
+        assert (answer, error_kind, is_partial) == ("partial", "CONNECT_ERROR", True)
+        assert store.calls == ["running", "failed"]
+        assert store.task_status() == "failed"
+        assert ("execute", "failed", "llm_failure") in store.attempt_rows()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("scenario", ["halt", "timeout", "llm_failure"])
+    async def test_no_silent_failure_outcome(
+        self, scenario: str, tmp_path, monkeypatch
+    ) -> None:
+        """AC-8 / REQ-008: no turn ends with an empty answer, error_kind None, and a
+        halted/failed task on any terminal-failure route."""
+
+        async def halting_stage(*_a: object, **_k: object) -> object:
+            raise WorkflowHaltError("halt")
+
+        async def timing_stage(*_a: object, **_k: object) -> object:
+            await asyncio.sleep(0.2)
+            return ("", None, False)
+
+        async def failing_stage(
+            *_a: object, **_k: object
+        ) -> tuple[str, str | None, bool]:
+            return ("partial", "CONNECT_ERROR", True)
+
+        stages: dict[str, tuple[Any, dict[str, Any]]] = {
+            "halt": (halting_stage, {}),
+            "timeout": (timing_stage, {"execute_timeout_sec": 0.01}),
+            "llm_failure": (failing_stage, {}),
+        }
+        execute_stage, extra = stages[scenario]
+
+        with _status_harness(
+            tmp_path, monkeypatch=monkeypatch, execute_stage=execute_stage, **extra
+        ) as (orch, store):
+            answer, error_kind, _ = await orch._workflow_adapter.execute_turn(
+                "hello", time.time(), "sess-1"
+            )
+
+        status = store.task_status()
+        assert status in ("halted", "failed")
+        assert error_kind is not None, f"{scenario}: silent error_kind on {status}"
+        assert not (answer == "" and error_kind is None)
+
+    @pytest.mark.asyncio
+    async def test_cancellation_halt_write_is_adapter_owned(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """AC-8 / REQ-008: on cancellation the adapter is the sole 'halted' writer
+        (its one allowed status write) and no silent tuple escapes."""
+
+        async def execute_stage(*_a: object, **_k: object) -> object:
+            while True:
+                await asyncio.sleep(0.01)
+
+        with _status_harness(
+            tmp_path, monkeypatch=monkeypatch, execute_stage=execute_stage
+        ) as (orch, store):
+            runner = asyncio.create_task(
+                orch._workflow_adapter.execute_turn("hello", time.time(), "sess-1")
+            )
+            await asyncio.sleep(0.05)
+            runner.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await runner
+
+        assert store.calls == ["running", "halted"]
+        assert store.task_status() == "halted"
 
 
 # ── Turn-persistence boundary wiring (REQ-001, REQ-004, REQ-007) ───────────────

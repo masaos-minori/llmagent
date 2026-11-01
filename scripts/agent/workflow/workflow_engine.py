@@ -26,11 +26,12 @@ logger = logging.getLogger(__name__)
 
 _ERROR_KIND_TIMEOUT = "timeout"
 _ERROR_KIND_EXCEPTION = "exception"
+_ERROR_KIND_LLM_FAILURE = "llm_failure"
 
 # Lease horizon added on top of a stage's enforced timeout (wflease001
 # REQ-005, Plan UNK-03: named constant, not configuration). A normal stage
-# is bounded by asyncio.wait_for, so the lease only outlives the stage by
-# this margin; no heartbeat renewal exists (Plan UNK-02).
+# is bounded by the asyncio.timeout deadline, so the lease only outlives the
+# stage by this margin; no heartbeat renewal exists (Plan UNK-02).
 _LEASE_MARGIN_SEC = 30
 
 StageCallback = Callable[[], Awaitable[str | None]]  # returns artifact URI or None
@@ -86,6 +87,32 @@ class WorkflowHaltError(Exception):
 
 class WorkflowTimeoutError(Exception):
     """Raised when a stage exceeds its timeout_sec."""
+
+
+class WorkflowStageFailure(Exception):
+    """Raised when a stage callback reports a typed failure result (kind llm_failure).
+
+    Carries the (answer, error_kind, is_partial) values so the adapter can convert
+    the failure back to the outward typed tuple at its boundary. Outward kinds
+    (workflow_timeout, workflow_halted) are turn-level and are never persisted
+    to attempts.error_kind (REQ-007 / AC-7).
+    """
+
+    def __init__(
+        self,
+        message: str = "stage failure",
+        *,
+        kind: str = _ERROR_KIND_LLM_FAILURE,
+        answer: str | None = None,
+        error_kind: str | None = None,
+        is_partial: bool = False,
+    ) -> None:
+        """Initialize the stage failure with its persisted kind and typed values."""
+        super().__init__(message)
+        self.kind = kind
+        self.answer = answer
+        self.error_kind = error_kind
+        self.is_partial = is_partial
 
 
 class WorkflowEngine:
@@ -211,9 +238,20 @@ class WorkflowEngine:
             try:
                 await self._run_stage(task, stage_id, fn, attempt=attempt)
                 return
-            except WorkflowTimeoutError:
+            except WorkflowHaltError:
+                # Halts raised by the stage callback itself are terminal (REQ-006 / AC-6).
                 raise
             except Exception as exc:  # noqa: BLE001 — catch-all to apply retry/halt logic before re-raising
+                if isinstance(exc, WorkflowTimeoutError):
+                    kind = _ERROR_KIND_TIMEOUT
+                elif isinstance(exc, WorkflowStageFailure):
+                    kind = _ERROR_KIND_LLM_FAILURE
+                else:
+                    kind = _ERROR_KIND_EXCEPTION
+                if kind not in policy.retry_on:
+                    # Terminal kind: propagate the original exception at once;
+                    # run() writes the task status (REQ-003 / AC-3).
+                    raise
                 if attempt >= policy.max_attempts:
                     logger.error(
                         "Task %s: %s halted after %d attempts: %s",
@@ -282,8 +320,29 @@ class WorkflowEngine:
                 return
 
             try:
-                artifact_uri = await asyncio.wait_for(fn(), timeout=timeout)
+                async with asyncio.timeout(timeout) as deadline:
+                    artifact_uri = await fn()
+            except WorkflowStageFailure as exc:
+                self._store.finish_attempt(
+                    attempt_rec.attempt_id,
+                    "failed",
+                    error_msg=str(exc),
+                    error_kind=_ERROR_KIND_LLM_FAILURE,
+                    error_detail=repr(exc),
+                )
+                raise
             except TimeoutError as exc:
+                if not deadline.expired():
+                    # TimeoutError raised by the callback itself, not by the stage
+                    # deadline: kind exception, propagated unchanged (REQ-002 / AC-2).
+                    self._store.finish_attempt(
+                        attempt_rec.attempt_id,
+                        "failed",
+                        error_msg=str(exc),
+                        error_kind=_ERROR_KIND_EXCEPTION,
+                        error_detail=repr(exc),
+                    )
+                    raise
                 self._store.finish_attempt(
                     attempt_rec.attempt_id,
                     "failed",

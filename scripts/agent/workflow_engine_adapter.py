@@ -33,6 +33,7 @@ from agent.workflow import (
     TaskRecord,
     WorkflowEngine,
     WorkflowHaltError,
+    WorkflowStageFailure,
     WorkflowTimeoutError,
 )
 from agent.workflow.task_ops import create_task, get_task_by_id
@@ -49,14 +50,15 @@ if TYPE_CHECKING:
 def _status_for_exit(exit_reason: str, error_kind: str | None) -> str | None:
     """Return a status the adapter must write, or None when the engine already wrote it.
 
-    `exit_reason` (new) is one of "not-started" (the engine call was never reached),
+    `exit_reason` is one of "not-started" (the engine call was never reached),
     "engine-started" (engine.run raised or is still unwound), "halted", "cancelled" or
-    "completed". `None` covers every exit the workflow engine already recorded.
+    "completed". `None` covers every exit the workflow engine already recorded: the
+    engine writes the task status exactly once per turn (REQ-008), so a completed
+    exit with a failure `error_kind` no longer triggers a second write here — the
+    engine wrote `failed` for the terminal stage failure itself.
     """
     if exit_reason == "cancelled":
         return "halted"
-    if exit_reason == "completed" and error_kind is not None:
-        return "failed"
     return None
 
 
@@ -180,9 +182,34 @@ class WorkflowEngineAdapter:
             async def execute_fn() -> str | None:
                 """Run one execute-stage attempt and return its result."""
                 nonlocal answer, error_kind, is_partial
-                answer, error_kind, is_partial = await self._run_execute_stage(
-                    self._ctx, workflow_id, session_id, task.task_id, turn_started_at
-                )
+                # Per-attempt side-effect flag reset (REQ-006): TurnState is not
+                # recreated per attempt, so the adapter clears it at attempt start.
+                self._ctx.turn.attempt_side_effect = False
+                try:
+                    answer, error_kind, is_partial = await self._run_execute_stage(
+                        self._ctx,
+                        workflow_id,
+                        session_id,
+                        task.task_id,
+                        turn_started_at,
+                    )
+                except Exception as exc:
+                    if self._ctx.turn.attempt_side_effect:
+                        # A failed attempt that already attempted a side effect is
+                        # terminal regardless of retry_on (REQ-006 / AC-6).
+                        raise WorkflowHaltError(
+                            "stage execute halted: side effect attempted"
+                        ) from exc
+                    raise
+                if error_kind is not None:
+                    # LLM-level failure results enter the engine as typed stage
+                    # failures of kind llm_failure (REQ-005 / AC-5).
+                    raise WorkflowStageFailure(
+                        f"stage execute failed: {error_kind}",
+                        answer=answer,
+                        error_kind=error_kind,
+                        is_partial=is_partial,
+                    )
                 return None
 
             async def verify_fn() -> str | None:
@@ -207,9 +234,21 @@ class WorkflowEngineAdapter:
                     ) from prepared_exc
                 await engine.run(task, plan_fn, execute_fn, verify_fn)
                 exit_reason = "completed"
-        except (WorkflowHaltError, WorkflowTimeoutError) as exc:
+        except WorkflowTimeoutError as exc:
             exit_reason = "halted"
+            error_kind = "workflow_timeout"
             self._handle_workflow_halt(exc)
+        except WorkflowHaltError as exc:
+            exit_reason = "halted"
+            error_kind = "workflow_halted"
+            self._handle_workflow_halt(exc)
+        except WorkflowStageFailure as exc:
+            # Terminal stage failure: the engine already wrote the task status once;
+            # restore the outward typed tuple from the error attributes (REQ-004/005/008).
+            exit_reason = "halted"
+            answer = exc.answer or ""
+            error_kind = exc.error_kind or "llm_failure"
+            is_partial = exc.is_partial
         except asyncio.CancelledError:
             exit_reason = "cancelled"
             raise

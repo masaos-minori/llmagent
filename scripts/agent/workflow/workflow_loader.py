@@ -16,11 +16,16 @@ from shared.runtime_paths import resolve_config_dir
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 
 
-class _RetryPolicyJson(TypedDict):
-    """JSON representation of a workflow retry policy."""
+class _RetryPolicyJson(TypedDict, total=False):
+    """JSON representation of a workflow retry policy.
+
+    max_attempts and backoff_sec are required at runtime, enforced by
+    _REQUIRED_POLICY_KEYS in _validate; retry_on is optional (REQ-001).
+    """
 
     max_attempts: int
     backoff_sec: int
+    retry_on: list[str]
 
 
 class _WorkflowJson(TypedDict, total=False):
@@ -51,6 +56,29 @@ _REQUIRED_STAGES = {"plan", "execute", "verify"}
 
 class WorkflowLoadError(Exception):
     """Raised when a workflow JSON file cannot be loaded or fails validation."""
+
+
+_RETRY_KINDS = frozenset({"exception", "timeout", "llm_failure"})
+
+
+def _validate_retry_on(policy: _RetryPolicyJson) -> tuple[str, ...]:
+    """Validate retry_policy.retry_on and return it as a tuple of kinds.
+
+    An absent key returns the default ("exception",). A present key must be a
+    list of strings drawn from _RETRY_KINDS.
+    """
+    raw = policy.get("retry_on")
+    if raw is None:
+        return ("exception",)
+    if not isinstance(raw, list) or not all(isinstance(kind, str) for kind in raw):
+        raise WorkflowLoadError("retry_policy.retry_on must be a list of strings")
+    for kind in raw:
+        if kind not in _RETRY_KINDS:
+            raise WorkflowLoadError(
+                f"retry_policy.retry_on contains unknown kind {kind!r} "
+                "(allowed: exception, timeout, llm_failure)"
+            )
+    return tuple(raw)
 
 
 def _validate(data: _WorkflowJson) -> None:
@@ -89,6 +117,7 @@ def _validate(data: _WorkflowJson) -> None:
     backoff_sec = int(policy["backoff_sec"])
     if backoff_sec < 0:
         raise WorkflowLoadError("retry_policy.backoff_sec must be >= 0")
+    _validate_retry_on(policy)
     if "require_approval" in data:
         raise WorkflowLoadError(
             "require_approval is no longer supported: the workflow has no approval "
@@ -128,6 +157,7 @@ class WorkflowLoader:
         policy = RetryPolicy(
             max_attempts=int(policy_data["max_attempts"]),
             backoff_sec=int(policy_data["backoff_sec"]),
+            retry_on=_validate_retry_on(policy_data),
         )
         wdef = WorkflowDef(
             name=data.get("name", ""),

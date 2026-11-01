@@ -209,10 +209,15 @@ async def _execute_prepared_call(
     during AppServices construction, so this branch should never execute.
     """
     gateway = ctx.services_required.gateway
+    # Classify once before execution (REQ-006): non-READ (incl. UNKNOWN) calls
+    # set the per-attempt side-effect flag before running, so a failed side-effect
+    # call also blocks retry (adapter consumes the flag; records attempts, not success).
+    op = classify_operation_type(name, ctx.services_required.runtime_tools)
+    if op != OperationType.READ:
+        ctx.turn.attempt_side_effect = True
     if gateway is not None:
         return await gateway.execute(ctx, name, args)
     # Preflight check when gateway is None for non-READ operations
-    op = classify_operation_type(name, ctx.services_required.runtime_tools)
     if op != OperationType.READ:
         try:
             check_preflight(ctx.cfg, name, args)

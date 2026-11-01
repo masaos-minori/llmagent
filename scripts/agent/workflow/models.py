@@ -59,10 +59,14 @@ class StageDefinition:
 
 @dataclass
 class RetryPolicy:
-    """Retry policy configuration for a workflow."""
+    """Retry policy configuration for a workflow.
+
+    retry_on kinds: exception | timeout | llm_failure.
+    """
 
     max_attempts: int
     backoff_sec: int
+    retry_on: tuple[str, ...] = ("exception",)
 
 
 @dataclass

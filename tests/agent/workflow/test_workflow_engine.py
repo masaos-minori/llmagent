@@ -22,8 +22,10 @@ from agent.workflow.task_ops import (
 from agent.workflow.workflow_engine import (
     WorkflowEngine,
     WorkflowHaltError,
+    WorkflowStageFailure,
     WorkflowTimeoutError,
 )
+from agent.workflow.workflow_loader import WorkflowLoader
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
 from shared.json_utils import parse_iso_utc
@@ -103,6 +105,26 @@ def _attempt_lease_rows(
         conn.close()
 
 
+def _attempt_error_kinds(
+    db_path: Path, task_id: str, stage_id: str
+) -> list[str | None]:
+    """Read persisted attempt-row error_kind values for a task/stage in insertion
+    order (REQ-007). None = the attempt finished without an error kind (success)."""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.row_factory = sqlite3.Row
+        return [
+            row["error_kind"]
+            for row in conn.execute(
+                "SELECT error_kind FROM attempts "
+                "WHERE task_id=? AND stage_id=? ORDER BY rowid",
+                (task_id, stage_id),
+            )
+        ]
+    finally:
+        conn.close()
+
+
 def _lease_delta_sec(row: sqlite3.Row) -> float:
     """lease_expires_at minus started_at, both parsed with parse_iso_utc (REQ-009)."""
     return (
@@ -134,7 +156,9 @@ class TestWorkflowEngineHappyPath:
 
 class TestWorkflowEngineRetry:
     @pytest.mark.asyncio
-    async def test_retry_succeeds_on_second_attempt(self, store, workflow_db: Path) -> None:
+    async def test_retry_succeeds_on_second_attempt(
+        self, store, workflow_db: Path
+    ) -> None:
         wdef = _make_wdef(max_attempts=3, backoff_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
@@ -194,7 +218,9 @@ class TestWorkflowEngineRetry:
 
 class TestWorkflowEngineTimeout:
     @pytest.mark.asyncio
-    async def test_timeout_raises_workflow_timeout_error(self, store, workflow_db: Path) -> None:
+    async def test_timeout_raises_workflow_timeout_error(
+        self, store, workflow_db: Path
+    ) -> None:
         stages = [
             StageDefinition(id="plan", timeout_sec=5, retryable=False),
             StageDefinition(id="execute", timeout_sec=1, retryable=True),
@@ -211,7 +237,8 @@ class TestWorkflowEngineTimeout:
             await asyncio.sleep(10)
             return None
 
-        with pytest.raises((WorkflowHaltError, WorkflowTimeoutError)):
+        # AC-2: deadline expiry raises exactly WorkflowTimeoutError, not a generic halt.
+        with pytest.raises(WorkflowTimeoutError):
             await engine.run(task, _noop, slow_execute, _noop)
 
         # AC-5: the timed-out attempt row still carries the stamped lease
@@ -220,6 +247,278 @@ class TestWorkflowEngineTimeout:
         assert len(rows) == 1
         assert rows[0]["owner_id"]
         assert _lease_delta_sec(rows[0]) == 31
+
+        # REQ-007: deadline expiry persists kind `timeout` on the attempt row.
+        assert _attempt_error_kinds(workflow_db, task.task_id, "execute") == ["timeout"]
+
+
+class TestWorkflowEngineRetryKinds:
+    """wfretry001 AC-2/AC-3/AC-5/AC-6: kind-based retry semantics (REQ-002/003/005/006)."""
+
+    @pytest.mark.asyncio
+    async def test_inner_timeout_error_kind_exception_and_retried(
+        self, store, workflow_db: Path
+    ) -> None:
+        """AC-2: an inner TimeoutError raised by the callback (well before its
+        5 s stage deadline) persists kind exception and is retried when
+        `exception` is in retry_on, instead of being relabeled WorkflowTimeoutError."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=0)  # shipped default retry_on
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        calls = {"n": 0}
+
+        async def inner_timeout_execute() -> str | None:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise TimeoutError("inner timeout from callback")
+            return None
+
+        await engine.run(task, _noop, inner_timeout_execute, _noop)
+
+        assert calls["n"] == 2
+        assert _attempt_error_kinds(workflow_db, task.task_id, "execute") == [
+            "exception",
+            None,
+        ]
+        found = get_task_by_id(store._db, task.task_id)
+        assert found is not None
+        assert found.status == "completed"
+
+    @pytest.mark.asyncio
+    async def test_deadline_timeout_retried_when_kind_in_retry_on(
+        self, store, workflow_db: Path
+    ) -> None:
+        """REQ-003: with `timeout` in retry_on, a deadline expiry consumes one
+        budget unit and the retry can succeed."""
+        stages = [
+            StageDefinition(id="plan", timeout_sec=5, retryable=False),
+            StageDefinition(id="execute", timeout_sec=1, retryable=True),
+            StageDefinition(id="verify", timeout_sec=5, retryable=False),
+        ]
+        wdef = WorkflowDef(
+            name="default",
+            version="1.0.0",
+            stages=stages,
+            retry_policy=RetryPolicy(
+                max_attempts=3, backoff_sec=0, retry_on=("exception", "timeout")
+            ),
+        )
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        calls = {"n": 0}
+
+        async def slow_then_fast() -> str | None:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                await asyncio.sleep(10)
+            return None
+
+        await engine.run(task, _noop, slow_then_fast, _noop)
+
+        assert calls["n"] == 2
+        assert _attempt_error_kinds(workflow_db, task.task_id, "execute") == [
+            "timeout",
+            None,
+        ]
+        found = get_task_by_id(store._db, task.task_id)
+        assert found is not None
+        assert found.status == "completed"
+
+    @pytest.mark.asyncio
+    async def test_deadline_timeout_terminal_under_shipped_retry_on(
+        self, store, workflow_db: Path
+    ) -> None:
+        """AC-3 / owner decision (Plan UNK-01): under the shipped retry_on
+        ("exception",) a deadline expiry is terminal at once — one attempt row,
+        no retry, WorkflowTimeoutError propagates, task halted."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef.stages[1] = StageDefinition(id="execute", timeout_sec=1, retryable=True)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        calls = {"n": 0}
+
+        async def slow_execute() -> str | None:
+            calls["n"] += 1
+            await asyncio.sleep(10)
+            return None
+
+        with pytest.raises(WorkflowTimeoutError):
+            await engine.run(task, _noop, slow_execute, _noop)
+
+        assert calls["n"] == 1
+        assert _attempt_error_kinds(workflow_db, task.task_id, "execute") == ["timeout"]
+        found = get_task_by_id(store._db, task.task_id)
+        assert found is not None
+        assert found.status == "halted"
+
+    @pytest.mark.asyncio
+    async def test_exception_exhaustion_consumes_full_budget(
+        self, store, workflow_db: Path
+    ) -> None:
+        """REQ-003: exception exhaustion halts only after consuming the full
+        budget — attempt-row count equals max_attempts, all kind exception."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        async def always_fail() -> str | None:
+            raise RuntimeError("always fails")
+
+        with pytest.raises(WorkflowHaltError):
+            await engine.run(task, _noop, always_fail, _noop)
+
+        assert count_attempts(store._db, task.task_id, "execute") == 3
+        assert (
+            _attempt_error_kinds(workflow_db, task.task_id, "execute")
+            == ["exception"] * 3
+        )
+        found = get_task_by_id(store._db, task.task_id)
+        assert found is not None
+        assert found.status == "halted"
+
+    @pytest.mark.asyncio
+    async def test_terminal_kind_no_backoff_and_single_attempt(
+        self, store, workflow_db: Path
+    ) -> None:
+        """REQ-003: a kind not in retry_on is terminal at once — no backoff
+        sleep and exactly one attempt row despite max_attempts=3."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=1)  # retry_on ("exception",)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        async def failing_execute() -> str | None:
+            raise WorkflowStageFailure("llm failed")
+
+        with patch("agent.workflow.workflow_engine.asyncio.sleep") as mock_sleep:
+            with pytest.raises(WorkflowStageFailure):
+                await engine.run(task, _noop, failing_execute, _noop)
+        mock_sleep.assert_not_called()
+
+        assert count_attempts(store._db, task.task_id, "execute") == 1
+
+    @pytest.mark.asyncio
+    async def test_llm_failure_persisted_kind_terminal_under_shipped_config(
+        self, store, workflow_db: Path
+    ) -> None:
+        """REQ-005 / REQ-007 / owner decision (Plan UNK-02): a WorkflowStageFailure
+        persists kind llm_failure on the attempt row and is terminal under the
+        shipped retry_on, leaving the task failed and propagating unchanged."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        async def failing_execute() -> str | None:
+            raise WorkflowStageFailure(
+                "llm failed",
+                answer="partial",
+                error_kind="CONNECT_ERROR",
+                is_partial=True,
+            )
+
+        with pytest.raises(WorkflowStageFailure) as excinfo:
+            await engine.run(task, _noop, failing_execute, _noop)
+
+        assert excinfo.value.error_kind == "CONNECT_ERROR"
+        assert excinfo.value.answer == "partial"
+        assert excinfo.value.is_partial is True
+        assert _attempt_error_kinds(workflow_db, task.task_id, "execute") == [
+            "llm_failure"
+        ]
+        found = get_task_by_id(store._db, task.task_id)
+        assert found is not None
+        assert found.status == "failed"
+
+    @pytest.mark.asyncio
+    async def test_callback_halt_not_retried_even_when_exception_retryable(
+        self, store, workflow_db: Path
+    ) -> None:
+        """AC-6 (engine half): a WorkflowHaltError raised by the stage callback
+        is terminal even when retry_on includes exception — one attempt only."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef.retry_policy = RetryPolicy(
+            max_attempts=3, backoff_sec=0, retry_on=("exception", "timeout")
+        )
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        calls = {"n": 0}
+
+        async def halting_execute() -> str | None:
+            calls["n"] += 1
+            raise WorkflowHaltError("side effect attempted")
+
+        with pytest.raises(WorkflowHaltError, match="side effect attempted"):
+            await engine.run(task, _noop, halting_execute, _noop)
+
+        assert calls["n"] == 1
+        assert count_attempts(store._db, task.task_id, "execute") == 1
+        found = get_task_by_id(store._db, task.task_id)
+        assert found is not None
+        assert found.status == "halted"
+
+
+class TestShippedRetryPolicyPin:
+    """REQ-003 / AC-3: the shipped config/workflows/default.json policy pins
+    timeout-not-retried / exception-retried behavior."""
+
+    def test_shipped_retry_on_pins_exception_only(self) -> None:
+        wdef = WorkflowLoader().load("default")
+        assert wdef.retry_policy.retry_on == ("exception",)
+        assert "timeout" not in wdef.retry_policy.retry_on
+        assert "llm_failure" not in wdef.retry_policy.retry_on
+
+    @pytest.mark.asyncio
+    async def test_shipped_policy_timeout_terminal_and_exception_retried(
+        self, store, workflow_db: Path
+    ) -> None:
+        """Engine behavior under the loaded shipped policy (stage timeouts
+        shortened to 1 s for test runtime; the retry_policy itself is the shipped one)."""
+        shipped = WorkflowLoader().load("default")
+        stages = [
+            StageDefinition(
+                id=s.id,
+                timeout_sec=1 if s.id == "execute" else 5,
+                retryable=s.retryable,
+            )
+            for s in shipped.stages
+        ]
+        wdef = WorkflowDef(
+            name=shipped.name,
+            version=shipped.version,
+            stages=stages,
+            retry_policy=shipped.retry_policy,
+        )
+
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        async def slow_execute() -> str | None:
+            await asyncio.sleep(10)
+            return None
+
+        with pytest.raises(WorkflowTimeoutError):
+            await engine.run(task, _noop, slow_execute, _noop)
+        assert _attempt_error_kinds(workflow_db, task.task_id, "execute") == ["timeout"]
+
+        task2 = create_task(store._db, "s", 2, wdef.version, "wf-test")
+        engine2 = WorkflowEngine(wdef, store)
+        calls = {"n": 0}
+
+        async def flaky_execute() -> str | None:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("first attempt fails")
+            return None
+
+        await engine2.run(task2, _noop, flaky_execute, _noop)
+        assert calls["n"] == 2
+        assert _attempt_error_kinds(workflow_db, task2.task_id, "execute") == [
+            "exception",
+            None,
+        ]
 
 
 class TestWorkflowEngineLeaseStamping:

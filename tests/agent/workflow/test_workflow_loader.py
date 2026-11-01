@@ -229,6 +229,97 @@ class TestRequireApprovalKeyRejected:
         assert wdef.name
 
 
+class TestRetryOn:
+    """wfretry001 AC-1 / AC-9: retry_policy.retry_on parsing and validation."""
+
+    def test_valid_retry_on_list_loads_as_tuple(self, tmp_path: Path) -> None:
+        data = dict(_VALID)
+        data["retry_policy"] = {
+            "max_attempts": 3,
+            "backoff_sec": 1,
+            "retry_on": ["exception", "timeout", "llm_failure"],
+        }
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        assert loader.load().retry_policy.retry_on == (
+            "exception",
+            "timeout",
+            "llm_failure",
+        )
+
+    def test_absent_retry_on_key_loads_default(self, tmp_path: Path) -> None:
+        _write_json(tmp_path, "default", _VALID)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        assert loader.load().retry_policy.retry_on == ("exception",)
+
+    def test_older_format_definition_without_retry_on_loads(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-9: a pre-wfretry001 definition (no retry_on key) still loads."""
+        _write_json(tmp_path, "default", _VALID)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        wdef = loader.load()
+        assert wdef.name == "default"
+        assert wdef.retry_policy.retry_on == ("exception",)
+
+    def test_unknown_kind_rejected(self, tmp_path: Path) -> None:
+        data = dict(_VALID)
+        data["retry_policy"] = {
+            "max_attempts": 3,
+            "backoff_sec": 1,
+            "retry_on": ["halt"],
+        }
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="unknown kind 'halt'"):
+            loader.load()
+
+    def test_non_list_retry_on_rejected(self, tmp_path: Path) -> None:
+        data = dict(_VALID)
+        data["retry_policy"] = {
+            "max_attempts": 3,
+            "backoff_sec": 1,
+            "retry_on": "exception",
+        }
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="must be a list of strings"):
+            loader.load()
+
+    def test_non_string_element_rejected(self, tmp_path: Path) -> None:
+        data = dict(_VALID)
+        data["retry_policy"] = {
+            "max_attempts": 3,
+            "backoff_sec": 1,
+            "retry_on": [3],
+        }
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="must be a list of strings"):
+            loader.load()
+
+    def test_shipped_default_pins_retry_on_exception(self) -> None:
+        """Pins procedure 04: shipped config/workflows/default.json carries retry_on."""
+        wdef = WorkflowLoader().load("default")
+        assert wdef.retry_policy.retry_on == ("exception",)
+
+    def test_preflight_validate_path_loads_shipped_retry_on(self) -> None:
+        """REQ-011 / AC-9: python -m agent.workflow.validate performs the same
+        validation and accepts the shipped retry_on."""
+        import pathlib
+
+        from agent.workflow.validate import validate_path
+
+        path = (
+            pathlib.Path(__file__).parent.parent.parent.parent
+            / "config"
+            / "workflows"
+            / "default.json"
+        )
+        wdef = validate_path(path)
+        assert wdef.retry_policy.retry_on == ("exception",)
+
+
 class TestWorkflowsDirResolver:
     """REQ-002: WORKFLOWS_DIR resolves through the shared resolver.
 

@@ -202,12 +202,12 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Policy schema and loader | Pending | — | — | Independent |
-| 2 | Phase 2: Engine semantics | Pending | — | — | After wfrecovery001 Phase 4 (gate open: contract landed on `master` 2026-11-01) |
-| 3 | Phase 3: Side-effect rule | Pending | — | — |  |
-| 4 | Phase 4: Boundary contract | Pending | — | — |  |
-| 5 | Phase 5: Documentation | Pending | — | — |  |
-| 6 | Phase 6: Deployment & Verification | Pending | — | — |  |
+| 1 | Phase 1: Policy schema and loader | Completed | 20261102-064609 | 20261102-064609 | Independent Procedures 02,03,04,09 landed: RetryPolicy.retry_on field, loader validation, shipped default.json pin, loader tests. |
+| 2 | Phase 2: Engine semantics | Completed | 20261102-064609 | 20261102-064609 | After wfrecovery001 Phase 4 (gate open: contract landed on `master` 2026-11-01) Procedures 01,05,08,10 landed: engine kind classification and retry gating, adapter typed boundary, engine and orchestrator tests. |
+| 3 | Phase 3: Side-effect rule | Completed | 20261102-064609 | 20261102-064609 | Procedures 06,07,11 landed: TurnState.attempt_side_effect, tool_runner flag setter, flag tests. |
+| 4 | Phase 4: Boundary contract | Completed | 20261102-064609 | 20261102-064609 | Procedures 05,10 landed: typed outward kinds workflow_halted / workflow_timeout, llm_failure path, engine-owned single status writes. |
+| 5 | Phase 5: Documentation | Completed | 20261102-064609 | 20261102-064609 | Procedure 12 landed: agent_03_03 passages updated; docs checkers clean. |
+| 6 | Phase 6: Deployment & Verification | Pending | — | — | Verification half done (full suite 10940 passed / 8 skipped, diff-cover 98% exit 0, static gates green). Production deployment not executed: memo3 scope was procedure implementation only. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -217,18 +217,18 @@ Baselines recorded 2026-10-30: radon (grade C or worse in the scanned set): `wor
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261101-165312_01_scripts_agent_workflow_workflow_engine.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261101-165312_02_scripts_agent_workflow_models.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261101-165312_03_scripts_agent_workflow_workflow_loader.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261101-165312_04_config_workflows_default.json.md | 1 | Procedure | Pending | — | — |
-| implementations/20261101-165312_05_scripts_agent_workflow_engine_adapter.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261101-165312_06_scripts_agent_context.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261101-165312_07_scripts_agent_tool_runner.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261101-165312_08_tests_agent_workflow_test_workflow_engine.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261101-165312_09_tests_agent_workflow_test_workflow_loader.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261101-165312_10_tests_agent_test_orchestrator.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261101-165312_11_tests_agent_test_tool_runner.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261101-165312_12_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261101-165312_01_scripts_agent_workflow_workflow_engine.py.md | 2 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_02_scripts_agent_workflow_models.py.md | 1 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_03_scripts_agent_workflow_workflow_loader.py.md | 1 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_04_config_workflows_default.json.md | 1 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_05_scripts_agent_workflow_engine_adapter.py.md | 4 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_06_scripts_agent_context.py.md | 3 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_07_scripts_agent_tool_runner.py.md | 3 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_08_tests_agent_workflow_test_workflow_engine.py.md | 2 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_09_tests_agent_workflow_test_workflow_loader.py.md | 1 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_10_tests_agent_test_orchestrator.py.md | 4 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_11_tests_agent_test_tool_runner.py.md | 3 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
+| implementations/20261101-165312_12_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md | 5 | Procedure | Completed | 20261102-064609 | 20261102-064609 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -224,6 +224,11 @@ class TurnState:
     # start; the write-routing callers route every session-DB write through it so a
     # turn is persisted all-or-nothing (REQ-001, AC-001). None between turns.
     persistence_boundary: TurnPersistence | None = None
+    # Per-attempt side-effect flag (wfretry001 REQ-006): set by tool_runner before a
+    # non-READ tool call, cleared at each attempt start by the workflow adapter, read
+    # by the adapter's failure wrap to make side-effect-flagged failures terminal.
+    # Transient process state: no DB column, no persistence-boundary write.
+    attempt_side_effect: bool = False
 
 
 @dataclass

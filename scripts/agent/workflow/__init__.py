@@ -5,6 +5,7 @@ Public API (import from this package directly):
     from agent.workflow import (
         WorkflowDef, StateStore, WorkflowEngine, WorkflowLoader,
         WorkflowHaltError, WorkflowLoadError, WorkflowTimeoutError,
+        WorkflowStageFailure,
         TaskRecord, AttemptRecord,
         ArtifactRef, StageDefinition, RetryPolicy,
     )
@@ -22,6 +23,7 @@ from agent.workflow.state_store import StateStore
 from agent.workflow.workflow_engine import (
     WorkflowEngine,
     WorkflowHaltError,
+    WorkflowStageFailure,
     WorkflowTimeoutError,
 )
 from agent.workflow.workflow_loader import (
@@ -41,5 +43,6 @@ __all__ = [
     "WorkflowHaltError",
     "WorkflowLoader",
     "WorkflowLoadError",
+    "WorkflowStageFailure",
     "WorkflowTimeoutError",
 ]
