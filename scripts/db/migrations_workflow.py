@@ -31,7 +31,6 @@ from shared.db_migrations import (
 )
 
 from db.recovery import _backup_is_usable
-from db.schema_sql import WORKFLOW_SCHEMA_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +124,7 @@ CREATE INDEX IF NOT EXISTS idx_tool_call_state_task_state
 _TOOL_STATE_MUTATION_SQL = (
     f"{_TOOL_CALL_STATE_SQL} "  # nosec B608 — fixed module constants, no user input
     "DELETE FROM workflow_schema_version; "
-    f"INSERT INTO workflow_schema_version (version) VALUES ('{WORKFLOW_SCHEMA_VERSION}'); "
+    "INSERT INTO workflow_schema_version (version) VALUES ('1.2.0'); "
     f"PRAGMA user_version = {_TOOL_STATE_VERSION};"
 )
 
@@ -136,7 +135,7 @@ _TOOL_STATE_MUTATION_SQL = (
 _TASK_NONCE_MUTATION_SQL = (
     "ALTER TABLE tasks RENAME COLUMN idempotency_key TO task_nonce; "
     "DELETE FROM workflow_schema_version; "
-    f"INSERT INTO workflow_schema_version (version) VALUES ('{WORKFLOW_SCHEMA_VERSION}'); "  # nosec B608 — fixed module constants, no user input
+    "INSERT INTO workflow_schema_version (version) VALUES ('1.3.0'); "  # nosec B608 — fixed module constants, no user input
     f"PRAGMA user_version = {_TASK_NONCE_VERSION};"
 )
 
@@ -150,7 +149,7 @@ _ATTEMPT_LEASE_MUTATION_SQL = (
     "ALTER TABLE attempts ADD COLUMN owner_id TEXT; "
     "ALTER TABLE attempts ADD COLUMN lease_expires_at TEXT; "
     "DELETE FROM workflow_schema_version; "
-    f"INSERT INTO workflow_schema_version (version) VALUES ('{WORKFLOW_SCHEMA_VERSION}'); "  # nosec B608 — fixed module constants, no user input
+    "INSERT INTO workflow_schema_version (version) VALUES ('1.4.0'); "  # nosec B608 — fixed module constants, no user input
     f"PRAGMA user_version = {_ATTEMPT_LEASE_VERSION};"
 )
 

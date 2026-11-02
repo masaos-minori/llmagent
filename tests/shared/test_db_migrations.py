@@ -8,6 +8,7 @@ No db/eventbus layer imports (keeps lint-imports clean for tests/shared).
 import hashlib
 import re
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from shared.db_migrations import (
     MigrationRefusalReason,
     MigrationRunner,
     MigrationSpec,
+    _split_statements,
     ensure_ledger,
     read_ledger,
     record_applied,
@@ -39,10 +41,17 @@ def _init_db(db_path: Path, *, version: int = 1) -> sqlite3.Connection:
 
 
 def _step(
-    sid: str, frm: int, to: int, *, create_table: str | None = None
+    sid: str,
+    frm: int,
+    to: int,
+    *,
+    create_table: str | None = None,
+    mutation_sql: str | None = None,
+    disable_foreign_keys: bool | None = None,
+    pre_commit_verification: Callable[[sqlite3.Connection], None] | None = None,
 ) -> MigrationSpec:
     """Build a toy spec that stamps ``to`` and optionally creates a table."""
-    sql = f"PRAGMA user_version = {to}"  # nosec B608 — to is a test int
+    sql = mutation_sql if mutation_sql is not None else f"PRAGMA user_version = {to}"  # nosec B608 — to is a test int
     if create_table:
         sql = f"CREATE TABLE IF NOT EXISTS {create_table}(x); {sql}"
 
@@ -57,6 +66,8 @@ def _step(
         preconditions=(),
         mutation_sql=sql,
         postcondition=_post,
+        disable_foreign_keys=bool(disable_foreign_keys),
+        pre_commit_verification=pre_commit_verification,
     )
 
 
@@ -313,3 +324,256 @@ class TestRecordApplied:
         assert len(rows) == 1
         assert _ISO8601_UTC_RE.match(rows[0].applied_at)
         conn.close()
+
+
+# ── Per-step transaction contract fixtures (procedure 04, Plan REQ-001..004) ──
+
+
+def _fk_db(db_path: Path) -> sqlite3.Connection:
+    """Open a toy parent/child database with foreign keys enforced."""
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("CREATE TABLE parent(id INTEGER PRIMARY KEY, v TEXT)")
+    conn.execute(
+        "CREATE TABLE child(id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id))"
+    )
+    conn.execute("INSERT INTO parent(id, v) VALUES (1, 'p1')")
+    conn.execute("INSERT INTO child(id, parent_id) VALUES (1, 1)")
+    conn.execute("PRAGMA user_version = 1")
+    ensure_ledger(conn)
+    conn.commit()
+    return conn
+
+
+def _fk_state(conn: sqlite3.Connection) -> tuple:
+    """Comparable logical-state snapshot for the parent/child fixture."""
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    parents = conn.execute("SELECT COUNT(*) FROM parent").fetchone()[0]
+    children = conn.execute("SELECT COUNT(*) FROM child").fetchone()[0]
+    tables = {
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )
+    }
+    ledger = [(r.id, r.from_version, r.to_version) for r in read_ledger(conn)]
+    return (version, parents, children, frozenset(tables), tuple(ledger))
+
+
+def _failing_pre_commit(_conn: sqlite3.Connection) -> None:
+    """Spec-level pre-commit verification that rejects the pending step."""
+    raise RuntimeError("pre-commit verification failed")
+
+
+def _failing_precondition(_conn: sqlite3.Connection) -> None:
+    raise AssertionError("toy precondition failed")
+
+
+class TestStepTransaction:
+    """Runner per-step transaction contract (AC-1/AC-2, REQ-001/REQ-002)."""
+
+    def test_partial_step_rolls_back_every_statement(self, tmp_path) -> None:
+        db = tmp_path / "toydb.sqlite"
+        conn = _init_db(db, version=1)
+        ensure_ledger(conn)
+        reg = {
+            "A": _step(
+                "A",
+                1,
+                2,
+                mutation_sql=(
+                    "CREATE TABLE toy_v2(x);"
+                    " INSERT INTO toy_v2 VALUES (1);"
+                    " SELECT no_such_fn(1);"
+                    " PRAGMA user_version = 2"
+                ),
+            )
+        }
+        runner = MigrationRunner()
+        before = _logical_state(conn)
+
+        with pytest.raises(sqlite3.OperationalError):
+            runner.apply(conn, runner.plan(1, read_ledger(conn), reg, 2), _ok_verifier)
+
+        # AC-1: statements before the failing one must not persist.
+        assert _logical_state(conn) == before
+        assert read_ledger(conn) == []
+        conn.close()
+
+    def test_ledger_and_version_roll_back_on_pre_commit_failure(self, tmp_path) -> None:
+        db = tmp_path / "toydb.sqlite"
+        conn = _init_db(db, version=1)
+        ensure_ledger(conn)
+        reg = {
+            "A": _step(
+                "A",
+                1,
+                2,
+                create_table="toy_v2",
+                pre_commit_verification=_failing_pre_commit,
+            )
+        }
+        runner = MigrationRunner()
+        before = _logical_state(conn)
+
+        with pytest.raises(RuntimeError, match="pre-commit verification failed"):
+            runner.apply(conn, runner.plan(1, read_ledger(conn), reg, 2), _ok_verifier)
+
+        # AC-4: the ledger row and the mutation share one transaction.
+        assert _logical_state(conn) == before
+        assert read_ledger(conn) == []
+        conn.close()
+
+    def test_open_caller_transaction_is_refused(self, tmp_path) -> None:
+        db = tmp_path / "toydb.sqlite"
+        conn = _init_db(db, version=1)
+        ensure_ledger(conn)
+        conn.execute("INSERT INTO toy(t) VALUES ('open-tx')")
+        assert conn.in_transaction
+
+        runner = MigrationRunner()
+        planned = runner.plan(1, read_ledger(conn), _toy_registry(), 2)
+        with pytest.raises(RuntimeError, match="open transaction"):
+            runner.apply(conn, planned, _ok_verifier)
+
+        # The refusal must not commit the caller's pending write.
+        assert conn.in_transaction
+        conn.rollback()
+        assert (
+            conn.execute("SELECT COUNT(*) FROM toy WHERE t='open-tx'").fetchone()[0]
+            == 0
+        )
+        conn.close()
+
+    def test_default_and_autocommit_connections_both_apply(self, tmp_path) -> None:
+        reg = _toy_registry()
+        runner = MigrationRunner()
+
+        db1 = tmp_path / "default-isolation.sqlite"
+        conn1 = _init_db(db1, version=1)
+        ensure_ledger(conn1)
+        runner.apply(conn1, runner.plan(1, read_ledger(conn1), reg, 2), _ok_verifier)
+        assert conn1.execute("PRAGMA user_version").fetchone()[0] == 2
+        conn1.close()
+
+        db2 = tmp_path / "autocommit.sqlite"
+        seed = _init_db(db2, version=1)
+        ensure_ledger(seed)
+        seed.close()
+        # Defensive contract: the runner must also work on an autocommit
+        # (isolation_level=None) connection, which no repo caller currently uses.
+        conn2 = sqlite3.connect(str(db2), isolation_level=None)
+        runner.apply(conn2, runner.plan(1, read_ledger(conn2), reg, 2), _ok_verifier)
+        assert conn2.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert [r.id for r in read_ledger(conn2)] == ["A"]
+        conn2.close()
+
+
+class TestForeignKeyStep:
+    """Opt-in per-step foreign-key control (AC-3, REQ-003)."""
+
+    def test_rebuild_with_disabled_keys_preserves_children(self, tmp_path) -> None:
+        db = tmp_path / "fk.sqlite"
+        conn = _fk_db(db)
+        reg = {
+            "FK": _step(
+                "FK",
+                1,
+                2,
+                mutation_sql=(
+                    "CREATE TABLE parent_new(id INTEGER PRIMARY KEY, v TEXT);"
+                    " INSERT INTO parent_new SELECT id, v FROM parent;"
+                    " DROP TABLE parent;"
+                    " ALTER TABLE parent_new RENAME TO parent;"
+                    " PRAGMA user_version = 2"
+                ),
+                disable_foreign_keys=True,
+            )
+        }
+        runner = MigrationRunner()
+
+        runner.apply(conn, runner.plan(1, read_ledger(conn), reg, 2), _ok_verifier)
+
+        assert conn.execute("SELECT COUNT(*) FROM child").fetchone()[0] == 1
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert [r.id for r in read_ledger(conn)] == ["FK"]
+        conn.close()
+
+    def test_dangling_reference_fails_and_rolls_back(self, tmp_path) -> None:
+        db = tmp_path / "fk.sqlite"
+        conn = _fk_db(db)
+        reg = {
+            "FK": _step(
+                "FK",
+                1,
+                2,
+                mutation_sql="DELETE FROM parent WHERE id = 1; PRAGMA user_version = 2",
+                disable_foreign_keys=True,
+            )
+        }
+        runner = MigrationRunner()
+        before = _fk_state(conn)
+
+        with pytest.raises(Exception, match="foreign_key_check"):
+            runner.apply(conn, runner.plan(1, read_ledger(conn), reg, 2), _ok_verifier)
+
+        assert _fk_state(conn) == before
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+        conn.close()
+
+    def test_failing_precondition_leaves_pragma_untouched(self, tmp_path) -> None:
+        db = tmp_path / "fk.sqlite"
+        conn = _fk_db(db)
+        reg = {
+            "FK": MigrationSpec(
+                id="FK",
+                from_version=1,
+                to_version=2,
+                preconditions=(_failing_precondition,),
+                mutation_sql="PRAGMA user_version = 2",
+                disable_foreign_keys=True,
+            )
+        }
+        runner = MigrationRunner()
+
+        with pytest.raises(AssertionError):
+            runner.apply(conn, runner.plan(1, read_ledger(conn), reg, 2), _ok_verifier)
+
+        # AC-3: refusal before BEGIN leaves pragma and schema untouched.
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert _fk_state(conn)[4] == ()
+        conn.close()
+
+
+# ── _split_statements helper (Plan REQ-001) ─────────────────────────────────
+
+
+def test_split_statements_keeps_trigger_body_whole() -> None:
+    sql = (
+        "CREATE TABLE t(a); "
+        "CREATE TRIGGER tr AFTER INSERT ON t BEGIN "
+        "INSERT INTO t(a) VALUES (1); END; "
+        "PRAGMA user_version = 2;"
+    )
+    parts = _split_statements(sql)
+    assert len(parts) == 3
+    assert parts[0].strip() == "CREATE TABLE t(a);"
+    body = parts[1].strip()
+    assert body.startswith("CREATE TRIGGER")
+    assert body.endswith("END;")
+    assert "INSERT INTO t(a) VALUES (1);" in body
+    assert parts[2].strip() == "PRAGMA user_version = 2;"
+
+
+def test_split_statements_skips_blanks_and_passes_incomplete_tail_through() -> None:
+    assert _split_statements("") == []
+    assert _split_statements("   \n  ") == []
+    # An incomplete trailing fragment is returned (whitespace preserved) so the
+    # execute call surfaces the syntax error instead of silently dropping it.
+    assert [p.strip() for p in _split_statements("SELECT 1; SELECT")] == [
+        "SELECT 1;",
+        "SELECT",
+    ]

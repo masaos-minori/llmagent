@@ -93,9 +93,12 @@ class MigrationRefusalError(RuntimeError):
 class MigrationSpec:
     """A single forward migration step in a domain registry.
 
-    ``mutation_sql`` runs inside one transaction; ``postcondition`` re-verifies the
-    resulting schema shape. ``preconditions`` run against the live connection before
-    the mutation. Versions are integers defined per domain registry.
+    ``mutation_sql`` runs inside one runner-owned transaction; ``postcondition``
+    re-verifies the resulting schema shape. ``preconditions`` run against the live
+    connection before the mutation. ``disable_foreign_keys`` opts the step into a
+    foreign-key switch (restored after commit/rollback); ``pre_commit_verification``
+    runs inside the transaction and can reject the step before it commits. Versions
+    are integers defined per domain registry.
     """
 
     id: str
@@ -107,6 +110,8 @@ class MigrationSpec:
     ] = ()
     mutation_sql: str = ""
     postcondition: Callable[[sqlite3.Connection], None] | None = None
+    disable_foreign_keys: bool = False
+    pre_commit_verification: Callable[[sqlite3.Connection], None] | None = None
 
 
 @dataclass(frozen=True)
@@ -174,6 +179,27 @@ def record_applied(
         f"VALUES (?, {applied_at_sql}, ?, ?)",
         (spec.id, *applied_at_params, spec.from_version, spec.to_version),
     )
+
+
+def _split_statements(sql: str) -> list[str]:
+    """Split ``mutation_sql`` into individual complete statements.
+
+    Fragments accumulate until ``sqlite3.complete_statement`` accepts the
+    accumulated text, so semicolons inside trigger bodies do not cut a statement
+    early. Empty or whitespace-only fragments are skipped; an incomplete trailing
+    fragment is passed through so the execute call surfaces the syntax error.
+    """
+    statements: list[str] = []
+    fragment = ""
+    for char in sql:
+        fragment += char
+        if sqlite3.complete_statement(fragment):
+            if fragment.strip():
+                statements.append(fragment)
+            fragment = ""
+    if fragment.strip():
+        statements.append(fragment)
+    return statements
 
 
 def _run_pre_migration_gate(
@@ -319,11 +345,14 @@ class MigrationRunner:
     ) -> list[LedgerRow]:
         """Apply a resolved forward path, one transaction per step (REQ-001/004).
 
-               Runs the pre-migration gate once, then each step in its own transaction:
-               preconditions, mutation, commit, ledger write, postcondition re-check. A
-               failing step rolls back only that step and leaves the database at the last
-               ledger-recorded version (AC-2). Dry-run runs resolution + gate against a
-               throwaway copy and mutates nothing (AC-5).
+               Runs the pre-migration gate once, then each step in one runner-owned
+               transaction: preconditions, optional foreign-key switch, BEGIN IMMEDIATE,
+               the mutation statements, the ledger row, ``PRAGMA foreign_key_check`` when
+               keys were switched off, any ``pre_commit_verification``, then commit; the
+               postcondition re-check runs after commit and the foreign-key setting is
+               restored in ``finally``. A failing step rolls back that step entirely and
+               leaves the database at the last ledger-recorded version (AC-2). Dry-run
+               runs resolution + gate against a throwaway copy and mutates nothing (AC-5).
 
                Args:
                    conn: Open connection to the canonical database being migrated.
@@ -366,6 +395,12 @@ class MigrationRunner:
                     )
             return []
 
+        if conn.in_transaction:
+            raise RuntimeError(
+                "refusing to migrate while the connection already has an open "
+                "transaction; commit or roll it back before calling apply"
+            )
+
         _run_pre_migration_gate(conn, backup_verifier)
 
         # Create the ledger only after the gate passes, so a gate refusal leaves
@@ -376,8 +411,6 @@ class MigrationRunner:
         applied: list[LedgerRow] = []
         for spec in path:
             self._apply_step(conn, spec)
-            record_applied(conn, spec)
-            conn.commit()
             if spec.postcondition is not None:
                 spec.postcondition(conn)
             applied.append(
@@ -399,21 +432,54 @@ class MigrationRunner:
 
     @staticmethod
     def _apply_step(conn: sqlite3.Connection, spec: MigrationSpec) -> None:
-        """Run one migration step atomically; roll back the whole step on error.
+        """Run one migration step in a single runner-owned transaction.
 
-        ``executescript`` runs every statement of ``mutation_sql`` inside a single
-        implicit transaction (SQLite rolls back all of them if any fails), so a
-        step is all-or-nothing. ``executescript`` commits any transaction opened
-        before this step, which is empty here because the previous step already
-        committed.
+        Order: preconditions; optional foreign-key switch (outside the
+        transaction, because ``PRAGMA foreign_keys`` is a no-op inside one); an
+        open-transaction guard; ``BEGIN IMMEDIATE``; each statement of
+        ``mutation_sql`` split with :func:`_split_statements`; the ledger row;
+        ``PRAGMA foreign_key_check`` when keys were switched off; any
+        ``pre_commit_verification``; commit. Any failure rolls back the whole
+        step — schema, ``user_version``, and ledger all stay unchanged (AC-1/AC-2/
+        AC-4). A spec with empty ``mutation_sql`` still runs preconditions, the
+        ledger write, and the commit in one transaction. The caller's
+        ``isolation_level`` is untouched otherwise.
         """
         for precondition in spec.preconditions:
             precondition(conn)
-        if not spec.mutation_sql:
-            return
+
+        saved_fk: int | None = None
         try:
-            conn.executescript(spec.mutation_sql)
+            if spec.disable_foreign_keys:
+                saved_fk = int(conn.execute("PRAGMA foreign_keys").fetchone()[0])
+                conn.execute("PRAGMA foreign_keys=OFF")
+
+            if conn.in_transaction:
+                raise RuntimeError(
+                    f"step {spec.id!r}: refusing to start a migration step while "
+                    "the connection already has an open transaction"
+                )
+
+            conn.execute("BEGIN IMMEDIATE")
+            for statement in _split_statements(spec.mutation_sql):
+                conn.execute(statement)
+            record_applied(conn, spec)
+
+            if spec.disable_foreign_keys:
+                violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+                if violations:
+                    raise RuntimeError(
+                        f"step {spec.id!r}: PRAGMA foreign_key_check reported "
+                        f"{len(violations)} dangling reference(s) after the mutation"
+                    )
+
+            if spec.pre_commit_verification is not None:
+                spec.pre_commit_verification(conn)
+
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             conn.rollback()
             raise
+        finally:
+            if saved_fk is not None:
+                conn.execute(f"PRAGMA foreign_keys={saved_fk}")  # nosec B608 — saved_fk is a 0/1 pragma value read from the connection

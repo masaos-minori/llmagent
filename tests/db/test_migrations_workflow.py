@@ -19,6 +19,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from db import schema_sql
+from db.migrate_db import EXIT_OK, EXIT_REFUSAL
+from db.migrate_db import main as _cli_main
 from db.migrations_workflow import (
     REGISTRY,
     WORKFLOW_TARGET_VERSION,
@@ -279,15 +282,14 @@ class TestWorkflowToolCallStateStep:
             }
             assert indexes  # the (task_id, state) pending-scan index landed
 
-            # Task rows preserved; marker advanced to the post-step string
-            # (the module constant the stamping step writes).
+            # Task rows preserved; marker advanced to the step's pinned literal.
             task_count = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
             assert task_count == 2
             latest = conn.execute(
                 "SELECT version FROM workflow_schema_version "
                 "ORDER BY applied_at DESC LIMIT 1"
             ).fetchone()[0]
-            assert latest == "1.4.0"
+            assert latest == "1.2.0"
             assert [
                 (r.id, r.from_version, r.to_version) for r in read_ledger(conn)
             ] == [
@@ -431,7 +433,7 @@ class TestWorkflowTaskNonceStep:
                 "SELECT version FROM workflow_schema_version "
                 "ORDER BY applied_at DESC LIMIT 1"
             ).fetchone()[0]
-            assert latest == "1.4.0"
+            assert latest == "1.3.0"
             # read_ledger orders by (applied_at, id); rows written in the same
             # second tie-break by id, so compare as a sorted set of rows.
             assert sorted(
@@ -797,6 +799,81 @@ class TestWorkflowDryRun:
         conn.close()
 
 
+# ── Step version literals (procedure 05, Plan REQ-005) ─────────────────────
+
+
+class TestStepVersionLiterals:
+    """Each mutation step writes its own pinned marker literal."""
+
+    def _latest_marker(self, conn: sqlite3.Connection) -> str:
+        row = conn.execute(
+            "SELECT version FROM workflow_schema_version "
+            "ORDER BY applied_at DESC LIMIT 1"
+        ).fetchone()
+        return str(row[0])
+
+    def _bootstrap(self, tmp_path: Path) -> sqlite3.Connection:
+        db = tmp_path / "workflow.sqlite"
+        conn = _legacy_workflow_db(db)
+        _populate_tasks(conn)
+        return conn
+
+    def test_each_step_writes_its_pinned_literal(self, tmp_path: Path) -> None:
+        conn = self._bootstrap(tmp_path)
+        try:
+            runner.apply(
+                conn,
+                runner.plan(0, read_ledger(conn), REGISTRY, target_version=2),
+                _ok_verifier,
+            )
+            assert self._latest_marker(conn) == "1.2.0"
+
+            runner.apply(
+                conn,
+                runner.plan(2, read_ledger(conn), REGISTRY, target_version=3),
+                _ok_verifier,
+            )
+            assert self._latest_marker(conn) == "1.3.0"
+
+            runner.apply(
+                conn,
+                runner.plan(3, read_ledger(conn), REGISTRY, target_version=4),
+                _ok_verifier,
+            )
+            assert self._latest_marker(conn) == "1.4.0"
+        finally:
+            conn.close()
+
+    def test_bumped_head_constant_does_not_move_step_markers(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(schema_sql, "WORKFLOW_SCHEMA_VERSION", "9.9.9")
+        conn = self._bootstrap(tmp_path)
+        try:
+            runner.apply(
+                conn,
+                runner.plan(0, read_ledger(conn), REGISTRY, target_version=2),
+                _ok_verifier,
+            )
+            assert self._latest_marker(conn) == "1.2.0"
+
+            runner.apply(
+                conn,
+                runner.plan(2, read_ledger(conn), REGISTRY, target_version=3),
+                _ok_verifier,
+            )
+            assert self._latest_marker(conn) == "1.3.0"
+
+            runner.apply(
+                conn,
+                runner.plan(3, read_ledger(conn), REGISTRY, target_version=4),
+                _ok_verifier,
+            )
+            assert self._latest_marker(conn) == "1.4.0"
+        finally:
+            conn.close()
+
+
 # ── CLI (subprocess) ─────────────────────────────────────────────────────────
 
 
@@ -924,3 +1001,116 @@ class TestWorkflowCli:
         finally:
             holder.rollback()
             holder.close()
+
+
+# ── CLI --db option (procedure 05, Plan REQ-006) ────────────────────────────
+
+
+class TestWorkflowCliDbOption:
+    """Every CLI mode operates on the --db file and never opens the configured one."""
+
+    def _sandbox(self, tmp_path: Path) -> tuple[Path, Path, Path]:
+        """Configured database (must stay untouched) and a separate legacy copy."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        configured = tmp_path / "configured.sqlite"
+        _legacy_workflow_db(configured).close()
+        target = tmp_path / "target.sqlite"
+        _legacy_workflow_db(target).close()
+        return config_dir, configured, target
+
+    def test_status_reports_copy_and_leaves_configured_untouched(
+        self, tmp_path: Path
+    ) -> None:
+        config_dir, configured, target = self._sandbox(tmp_path)
+        configured_before = _hash_file(configured)
+        result = _run_cli(configured, config_dir, "--status", "--db", str(target))
+        assert result.returncode == 0
+        assert "1.1.0" in result.stdout
+        assert _hash_file(configured) == configured_before
+
+    def test_dry_run_leaves_copy_byte_identical(self, tmp_path: Path) -> None:
+        config_dir, configured, target = self._sandbox(tmp_path)
+        configured_before = _hash_file(configured)
+        target_before = _hash_file(target)
+        result = _run_cli(configured, config_dir, "--dry-run", "--db", str(target))
+        assert result.returncode == 0
+        assert _hash_file(target) == target_before
+        assert _hash_file(configured) == configured_before
+
+    def test_apply_migrates_copy_and_leaves_configured_untouched(
+        self, tmp_path: Path
+    ) -> None:
+        config_dir, configured, target = self._sandbox(tmp_path)
+        configured_before = _hash_file(configured)
+        result = _run_cli(configured, config_dir, "--apply", "--db", str(target))
+        assert result.returncode == 0
+
+        conn = sqlite3.connect(str(target))
+        try:
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
+            rows = {(r.id, r.from_version, r.to_version) for r in read_ledger(conn)}
+            # read_ledger orders by applied_at then id; same-second steps tie on
+            # the timestamp, so compare the recorded set, not its order.
+            assert rows == {
+                ("workflow_ledger_baseline", 0, 1),
+                ("workflow_tool_call_state", 1, 2),
+                ("workflow_task_nonce", 2, 3),
+                ("workflow_attempt_lease", 3, 4),
+            }
+            latest = conn.execute(
+                "SELECT version FROM workflow_schema_version "
+                "ORDER BY applied_at DESC LIMIT 1"
+            ).fetchone()[0]
+            assert latest == "1.4.0"
+        finally:
+            conn.close()
+        assert _hash_file(configured) == configured_before
+
+    def test_apply_with_missing_db_refuses_and_creates_no_file(
+        self, tmp_path: Path
+    ) -> None:
+        config_dir, configured, _target = self._sandbox(tmp_path)
+        missing = tmp_path / "missing.sqlite"
+        configured_before = _hash_file(configured)
+        result = _run_cli(configured, config_dir, "--apply", "--db", str(missing))
+        assert result.returncode == 2  # EXIT_REFUSAL
+        assert not missing.exists()
+        assert _hash_file(configured) == configured_before
+
+    # In-process twins of the subprocess cases above: the repo coverage gate
+    # (diff-cover >= 90% on changed lines) cannot observe subprocess runs, so
+    # main() is called directly. With --db the helper bypasses configuration and
+    # only the tmp_path copy is opened.
+    def test_main_status_on_copy_in_process(self, tmp_path: Path, capsys) -> None:
+        _config_dir, _configured, target = self._sandbox(tmp_path)
+        assert _cli_main(["--status", "--db", str(target)]) == EXIT_OK
+        assert "marker=1.1.0" in capsys.readouterr().out
+
+    def test_main_dry_run_in_process_leaves_copy_byte_identical(
+        self, tmp_path: Path
+    ) -> None:
+        _config_dir, _configured, target = self._sandbox(tmp_path)
+        before = _hash_file(target)
+        assert _cli_main(["--dry-run", "--db", str(target)]) == EXIT_OK
+        assert _hash_file(target) == before
+
+    def test_main_apply_in_process_migrates_copy(self, tmp_path: Path) -> None:
+        _config_dir, _configured, target = self._sandbox(tmp_path)
+        assert _cli_main(["--apply", "--db", str(target)]) == EXIT_OK
+        conn = sqlite3.connect(str(target))
+        try:
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
+            latest = conn.execute(
+                "SELECT version FROM workflow_schema_version "
+                "ORDER BY applied_at DESC LIMIT 1"
+            ).fetchone()[0]
+            assert latest == "1.4.0"
+        finally:
+            conn.close()
+
+    def test_main_apply_missing_db_refuses_in_process(self, tmp_path: Path) -> None:
+        _config_dir, _configured, _target = self._sandbox(tmp_path)
+        missing = tmp_path / "missing.sqlite"
+        assert _cli_main(["--apply", "--db", str(missing)]) == EXIT_REFUSAL
+        assert not missing.exists()

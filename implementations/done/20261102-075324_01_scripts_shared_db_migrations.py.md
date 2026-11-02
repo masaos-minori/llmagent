@@ -29,7 +29,12 @@ registered steps).
   `BEGIN` and restore only after commit/rollback, in `finally`.
 - The runner's own `ensure_ledger` + `conn.commit()` before the loop leaves no open
   transaction at step start; guard `conn.in_transaction` with a clear error per the
-  Plan's risk mitigation.
+  Plan's risk mitigation. Implemented (20261102 verification finding): the guard is
+  enforced at the top of `apply` before the gate — measured on this repo's Python,
+  with a caller transaction open the gate's `wal_checkpoint` raises
+  `database table is locked` first, and `ensure_ledger` + `commit` would commit the
+  caller's pending write before any `_apply_step` guard could run. The
+  `_apply_step` guard is kept as the defensive inner check.
 - `sqlite3.complete_statement` accumulation splits trigger bodies correctly (Plan
   Assumption; registered steps contain plain DDL/DML only).
 - Tests for this row are procedures 04 (`tests/shared/test_db_migrations.py`) and part
@@ -153,10 +158,10 @@ registered steps).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Confirm tests from procedures 04–05 pass after this change | Pending | — | — | failing-first: they are added before this step |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs row is procedure 06 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261102-083842 | 20261102-084339 | executescript replaced by BEGIN IMMEDIATE + _split_statements + in-transaction ledger write + foreign_key_check + pre_commit_verification + single commit + finally FK restore; in_transaction guard also enforced at top of apply (verification finding, reflected in Assumptions) |
+| 2 | Confirm tests from procedures 04–05 pass after this change | Completed | — | 20261102-084339 | failing-first: they are added before this step procedure 04 tests: 19/19 pass (was 6 failing-first). Procedure 05 tests: transaction-independent cases pass; the 7 literal/CLI failures remain failing-first until procedures 02-03 land. eventbus suite 513 passed (REQ-008 regression) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261102-084339 | ruff format/check Pass; mypy clean; bandit no findings (nosec warnings informational); check_module_size OK (no new violations); coverage run deferred to batch end |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261102-084347 | docs row is procedure 06 N/A: docs row owned by procedure 06 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

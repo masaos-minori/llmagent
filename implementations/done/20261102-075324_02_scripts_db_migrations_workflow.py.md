@@ -88,10 +88,10 @@ an earlier step's marker (Plan REQ-005).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | execute after procedure 05's failing tests land (Plan Phase 1) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | owned by procedure 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A (docs row is procedure 06) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261102-084430 | 20261102-084541 | execute after procedure 05's failing tests land (Plan Phase 1) three mutation SQL marker lines pinned to 1.2.0/1.3.0/1.4.0 literals; unused WORKFLOW_SCHEMA_VERSION import removed |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261102-084541 | owned by procedure 05 owned by procedure 05; its 4 literal-chain/updated-marker tests now pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261102-084541 | pytest 41 passed / 3 failed (CLI --db pending procedure 03); ruff format/check Pass; mypy clean; bandit no issues |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261102-084541 | N/A (docs row is procedure 06) N/A: docs row owned by procedure 06 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

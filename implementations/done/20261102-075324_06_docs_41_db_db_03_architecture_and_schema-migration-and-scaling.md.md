@@ -92,8 +92,8 @@ postcondition order (Plan REQ-007).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261102-084956 | 20261102-085027 | Migration guarantees paragraph expanded: per-step transaction ownership, ledger-in-transaction, foreign-key switch/check/restore, pre-commit/postcondition order, CLI rehearsal option |
+| 3 | Run the documentation checkers named in the Validation plan | Completed | — | 20261102-085027 | check_docs_quality/structure/content_policy Pass; check_docs_consistency --domain db Pass; check_docs_japanese Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

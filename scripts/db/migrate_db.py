@@ -18,6 +18,7 @@ import argparse
 import logging
 import sqlite3
 import sys
+from pathlib import Path
 
 from shared.db_migrations import (
     MigrationRefusalError,
@@ -102,15 +103,31 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print the current version, legacy marker, and ledger rows.",
     )
+    parser.add_argument(
+        "--db",
+        type=str,
+        default=None,
+        help=(
+            "Operate on this database file instead of the configured workflow "
+            "database (rehearsal on a copy)."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if not (args.dry_run or args.apply or args.status):
         parser.print_help()
         return EXIT_REFUSAL
 
+    # A missing --db path is a refusal, checked before any connect: opening it
+    # with sqlite3 would silently create an empty file (REQ-006).
+    if args.db is not None and not Path(args.db).is_file():
+        logger.error("refused: --db path %s is not an existing file", args.db)
+        return EXIT_REFUSAL
+
     # Resolve the workflow DB path via the db layer's own configuration, the
-    # same mechanism create_schema.py and rotation.py use.
-    helper = SQLiteHelper("workflow").open(write_mode=True)
+    # same mechanism create_schema.py and rotation.py use. With --db the helper
+    # bypasses configuration and operates on the given file.
+    helper = SQLiteHelper("workflow", db_path=args.db).open(write_mode=True)
     conn = helper.conn
     if conn is None:
         logger.error("failed to open workflow.sqlite")

@@ -208,12 +208,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing-first tests (`tests/shared/test_db_migrations.py`, `tests/db/test_migrations_workflow.py`) | In Progress | — | — |  |
-| 2 | Runner transaction contract and docstrings (`scripts/shared/db_migrations.py`) | In Progress | — | — |  |
-| 3 | Step version literals (`scripts/db/migrations_workflow.py`) | In Progress | — | — |  |
-| 4 | CLI database-file option (`scripts/db/migrate_db.py`) | In Progress | — | — |  |
-| 5 | Database documentation (`docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`) | In Progress | — | — |  |
-| 6 | Validation and deployment hand-off (all target files) | Pending | — | — |  |
+| 1 | Failing-first tests (`tests/shared/test_db_migrations.py`, `tests/db/test_migrations_workflow.py`) | Completed | — | 20261102-090500 |  |
+| 2 | Runner transaction contract and docstrings (`scripts/shared/db_migrations.py`) | Completed | — | 20261102-090500 |  |
+| 3 | Step version literals (`scripts/db/migrations_workflow.py`) | Completed | — | 20261102-090500 |  |
+| 4 | CLI database-file option (`scripts/db/migrate_db.py`) | Completed | — | 20261102-090500 |  |
+| 5 | Database documentation (`docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`) | Completed | — | 20261102-090500 |  |
+| 6 | Validation and deployment hand-off (all target files) | Pending | — | — | validation half done: full suite 10959 passed / 8 skipped, diff-cover 97% >= 90 gate, lint-imports 6 kept, bandit clean on changed files, pre-commit all Passed, radon same grade. Deployment to /opt/llm not executed (no production sync requested in this batch, wflease001 precedent) validation half done: full suite 10959 passed / 8 skipped, diff-cover 97% >= 90 gate, lint-imports 6 kept, bandit clean on changed files, pre-commit all Passed, radon same grade. Deployment to /opt/llm not executed (no production sync requested in this batch, wflease001 precedent) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -223,12 +223,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261102-075324_01_scripts_shared_db_migrations.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-075324_02_scripts_db_migrations_workflow.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261102-075324_03_scripts_db_migrate_db.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261102-075324_04_tests_shared_test_db_migrations.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261102-075324_05_tests_db_test_migrations_workflow.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261102-075324_06_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 5 | Procedure | Pending | — | — |
+| implementations/done/20261102-075324_01_scripts_shared_db_migrations.py.md | 2 | Procedure | Completed | — | 20261102-084347 |
+| implementations/done/20261102-075324_02_scripts_db_migrations_workflow.py.md | 3 | Procedure | Completed | — | 20261102-084541 |
+| implementations/done/20261102-075324_03_scripts_db_migrate_db.py.md | 4 | Procedure | Completed | — | 20261102-084905 |
+| implementations/done/20261102-075324_04_tests_shared_test_db_migrations.py.md | 1 | Procedure | Completed | — | 20261102-082831 |
+| implementations/done/20261102-075324_05_tests_db_test_migrations_workflow.py.md | 1 | Procedure | Completed | — | 20261102-083639 |
+| implementations/done/20261102-075324_06_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 5 | Procedure | Completed | — | 20261102-085027 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

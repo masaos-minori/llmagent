@@ -109,10 +109,10 @@ land (Plan REQ-009; REQ-005/REQ-006 acceptance).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | tests written first, confirmed failing (Plan Phase 1) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this document is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261102-083118 | 20261102-083639 | tests written first, confirmed failing (Plan Phase 1) TestStepVersionLiterals and TestWorkflowCliDbOption added; existing assertions at former lines 290/434 updated to 1.2.0/1.3.0; 391/533 kept 1.4.0 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261102-083639 | this document is the test row this document is the test row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261102-083639 | failing-first recorded: 7 failed (2 updated assertions write 1.4.0 instead of 1.2.0/1.3.0; 2 literal-chain cases; 3 CLI --db cases exit 2 unrecognized-arg), 37 passed. missing-db refusal case passes today coincidentally via argparse exit 2; it pins refusal semantics after procedure 03. ruff format/check Pass; mypy clean after str() pin |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261102-083639 | N/A N/A: test-only change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

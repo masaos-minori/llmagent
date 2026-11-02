@@ -94,10 +94,10 @@ configured `workflow.sqlite` (Plan REQ-006).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | execute after procedure 05's failing tests land (Plan Phase 1) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | owned by procedure 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A (docs row is procedure 06) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261102-084615 | 20261102-084905 | execute after procedure 05's failing tests land (Plan Phase 1) --db option added; missing-path refusal (EXIT_REFUSAL) before any connect; SQLiteHelper("workflow", db_path=args.db) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261102-084905 | owned by procedure 05 owned by procedure 05; its 4 CLI-copy tests now pass. One test-side fix in procedure 05's apply test: ledger comparison made order-insensitive because same-second steps tie on applied_at (read_ledger orders applied_at then id) — test bug, not an implementation regression |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261102-084905 | pytest tests/db/test_migrations_workflow.py 44/44 pass; ruff format/check Pass; mypy clean; bandit no issues; radon main C(14) vs C(12) baseline - same grade C, within the not-worse-than-one-grade gate (compound and-condition counts as 2 branches) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261102-084905 | N/A (docs row is procedure 06) N/A: docs row owned by procedure 06 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

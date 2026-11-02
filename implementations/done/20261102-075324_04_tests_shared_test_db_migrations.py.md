@@ -112,10 +112,10 @@ confirm each fails on the current `executescript` runner before procedure 01 lan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | tests written first, confirmed failing (Plan Phase 1) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this document is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261102-082519 | 20261102-082831 | tests written first, confirmed failing (Plan Phase 1) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261102-082831 | this document is the test row failing-first recorded: 6 new tests failed (5x TypeError unknown kwarg; partial-step AssertionError shows toy_v2 persisted); 13 passed (12 old + isolation-mode pin, which pins existing behavior) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format/check Pass; mypy call-arg error is the failing-first type signal, resolved by procedure 01 (verified in its cycle); full-suite/coverage deferred to procedure 01 cycle per Plan failing-first design |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A N/A: test-only change, no docs/00_index.md task-scope row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
