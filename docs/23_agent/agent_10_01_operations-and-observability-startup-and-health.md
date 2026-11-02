@@ -91,7 +91,7 @@ If SIGINT/SIGTERM is received during the startup sequence, a `StartupInterrupted
 
 ### Secret Masking in MCP Subprocess Failure Reports
 
-When an MCP subprocess fails to start, the tail of its stderr is included in the startup failure report, and a failed first start attempt is logged. Both pass through `agent/secrets_masker.py`, which masks three shapes (case-insensitive): `key=value` values for key names such as `password`, `passwd`, `pwd`, `api_key`, `apikey`, `secret` and `token`; `Authorization:` header lines such as `Authorization: Bearer <token>` or `Authorization: Basic <token>` (the token is masked, the scheme keyword is preserved); and standalone `Bearer <token>` tokens that appear without an `Authorization:` prefix.
+When an MCP subprocess fails to start, the tail of its stderr is included in the startup failure report, and a failed first start attempt is logged. Both pass through `agent/secrets_masker.py`, which masks these shapes case-insensitively: `key=value` pairs for key names such as `password`, `passwd`, `pwd`, `api_key`, `apikey`, `secret` and `token`; the same keys in `key: value` form, quoted (`key: "value"`, `key: 'value'`) or unquoted, including keys that end in one of them such as `access_token` and `X-Api-Key`; quoted JSON keys such as `"password": "hunter2"`; `Authorization:` header lines such as `Authorization: Bearer <token>` or `Authorization: Basic <token>` (the token is masked, the scheme keyword is preserved); and standalone `Bearer <token>` tokens that appear without an `Authorization:` prefix. An unquoted value is masked only up to the first whitespace or newline, so a secret that contains spaces must be quoted to be masked in full.
 
 ### Manual Recovery: workflow.sqlite / eventbus.sqlite
 

@@ -12,6 +12,12 @@ SECRET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(
         r'(?i)("(?:password|passwd|pwd|api[_-]?key|apikey|secret|token)"\s*[:,]\s*["\'])([^"\']*)'
     ),
+    re.compile(
+        r"""(?i)((?:password|passwd|pwd|api[_-]?key|apikey|secret|token)\s*:\s*)['"][^'"]*['"]"""
+    ),
+    re.compile(
+        r"(?i)((?:password|passwd|pwd|api[_-]?key|apikey|secret|token)\s*:\s*)(\S+)"
+    ),
 ]
 
 

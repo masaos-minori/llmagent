@@ -164,10 +164,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: colon, quoted-colon, whitespace / multi-line, ordering, no-false-positive tests (tests/agent/test_secrets_masker.py) | In Progress | — | — |  |
-| 2 | Core logic: extend `SECRET_PATTERNS`, UNK-01 decision, update pinned tests (scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py) | In Progress | — | — |  |
-| 3 | Documentation: update the masker section (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | In Progress | — | — |  |
-| 4 | Deployment and verification: validation sequence, call-site tests, deploy hand-off (scripts/agent/secrets_masker.py) | Pending | — | — |  |
+| 1 | Tests first: colon, quoted-colon, whitespace / multi-line, ordering, no-false-positive tests (tests/agent/test_secrets_masker.py) | Completed | — | 20261102-160728 | procedure 20261102-132558_02 landed and archived: TestColonFormMasking added, red phase confirmed (8 failed, 32 passed) |
+| 2 | Core logic: extend `SECRET_PATTERNS`, UNK-01 decision, update pinned tests (scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py) | Completed | — | 20261102-160728 | procedures 20261102-132558_01 and _02 landed and archived: two colon-form patterns appended, count assertion pinned to 8, UNK-01 whitespace decision recorded in tests and docs |
+| 3 | Documentation: update the masker section (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | Completed | — | 20261102-160728 |  |
+| 4 | Deployment and verification: validation sequence, call-site tests, deploy hand-off (scripts/agent/secrets_masker.py) | Pending | — | — | verification half done: full suite 11272 passed 8 skipped, secrets_masker coverage 100%, static gates green (ast-grep CLI unavailable in this environment). Production deployment not executed: scripts/ change hand-off to skills/deploy/SKILL.md is the user's decision after commit and push. close_procedures_batch could not map this Plan's numbered Implementation steps to procedures because those items cite target paths without backticks |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -177,9 +177,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261102-132558_02_tests_agent_test_secrets_masker.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261102-132558_01_scripts_agent_secrets_masker.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-132558_03_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261102-132558_02_tests_agent_test_secrets_masker.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261102-132558_01_scripts_agent_secrets_masker.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261102-132558_03_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -128,8 +128,8 @@ re.compile(r"(?i)((?:password|passwd|pwd|api[_-]?key|apikey|secret|token)\s*:\s*
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append quoted-colon and unquoted-colon patterns to `SECRET_PATTERNS` | Pending | — | — | Executes after row 02's failing tests land (Plan Phase 1) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Coverage run needs row 02 tests |
+| 1 | Append quoted-colon and unquoted-colon patterns to `SECRET_PATTERNS` | Completed | 20261102-155107 | 20261102-160413 | Executes after row 02's failing tests land (Plan Phase 1) executes after row 02 red tests landed (Plan Phase 1); changed files: scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py 2 colon-form patterns appended to SECRET_PATTERNS; helper and call sites unchanged; resolves the red phase |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261102-160413 | Coverage run needs row 02 tests targeted 40 passed; ruff/mypy(491 files)/lint-imports 6 kept/bandit -ll exit 0/pre-commit on changed files passed; full suite 11272 passed 8 skipped; secrets_masker coverage 100%; ast-grep CLI unavailable, grep confirms no bare except |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

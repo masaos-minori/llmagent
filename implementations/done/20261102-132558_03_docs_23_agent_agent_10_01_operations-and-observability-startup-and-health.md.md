@@ -80,8 +80,8 @@ masked in full.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the masking-shapes paragraph | Pending | — | — | Land with rows 01-02 so claims match code |
-| 2 | Run the docs checkers (`routing.md`) | Pending | — | — | |
+| 1 | Rewrite the masking-shapes paragraph | Completed | — | 20261102-160517 | Land with rows 01-02 so claims match code paragraph rewritten: shapes enumerated without a count, colon forms (quoted and unquoted), JSON keys, Authorization scheme preserved, standalone Bearer, whitespace rule stated |
+| 2 | Run the docs checkers (`routing.md`) | Completed | — | 20261102-160517 | check_docs_quality/structure/content_policy exit 0; check_docs_consistency --domain agent exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

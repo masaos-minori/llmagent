@@ -57,8 +57,8 @@ Add tests (all calling `_mask_secrets` directly):
   `X-Api-Key: abc` → `X-Api-Key: ***MASKED***`; `PWD : s3cret` → `PWD : ***MASKED***`
   (case-insensitive, spaces around the colon).
 - `test_quoted_colon_forms` (new): `api_key: 'abc def'` → `api_key: ***MASKED***`;
-  `password: "two words"` → `password: ***MASKED***`; mixed `password: "two words"` keeps no
-  quote or word of the value.
+  `password: "two words"` → `password: ***MASKED***`; each quoted case also asserts no quote or
+  word of the value survives.
 - `test_whitespace_decision_pinned` (new): `token: abc def` → `token: ***MASKED*** def`
   (documented decision: unquoted values stop at whitespace, mirroring the `key=value` pin);
   multi-line `password: hunter2\npath=/api/items status=200` → first line
@@ -75,8 +75,8 @@ Add tests (all calling `_mask_secrets` directly):
   def test_pattern_count_matches_inventory(self) -> None:
       assert len(SECRET_PATTERNS) == 8
   ```
-  Keep the module-level `from agent.secrets_masker import SECRET_PATTERNS` import style the
-  existing test uses (function-local import).
+  Keep the import style the existing test uses: `SECRET_PATTERNS` imported function-locally
+  inside the count test body; the module-level `_mask_secrets` import stays unchanged.
 - No new no-false-positive prose test is needed beyond the existing
   `test_non_secret_stderr_sample_unchanged` / `test_no_secret_returns_unchanged` (REQ-004, AC-5);
   accepted colon over-masking (`Invalid token: expired`) is documented in row 01's Security
@@ -120,9 +120,9 @@ Add tests (all calling `_mask_secrets` directly):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestColonFormMasking` (new) tests (red before row 01 lands) | Pending | — | — | Plan Phase 1 |
-| 2 | Update/rename the pattern-count assertion to 8 | Pending | — | — | Same commit as row 01 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestColonFormMasking` (new) tests (red before row 01 lands) | Completed | 20261102-154927 | 20261102-155107 | Plan Phase 1 3b corrections applied: deduped quoted-colon case; clarified function-local SECRET_PATTERNS import red phase confirmed: 8 colon-form tests failed, 32 pre-existing passed (Plan Phase 1 evidence) |
+| 2 | Update/rename the pattern-count assertion to 8 | Completed | — | 20261102-160413 | Same commit as row 01 ruff format/check clean on test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261102-160413 | green state confirmed after proc 01: 40 passed in test_secrets_masker.py; 8 patterns pinned |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
