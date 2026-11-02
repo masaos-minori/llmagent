@@ -159,6 +159,27 @@ class TestPrepareToolCallsSchemaViolation:
         assert is_error is True
         assert "unexpected" in text or "path" in text
 
+    def test_empty_schema_rejected_with_schema_kind(self) -> None:
+        """A registry tool whose input_schema is empty is rejected fail-closed with
+        the schema kind naming the tool and the missing schema."""
+        ctx = _make_ctx()
+        runtime_tool = MagicMock()
+        runtime_tool.input_schema = {}
+        runtime_tool.allow_extra_fields = True
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.return_value = runtime_tool
+
+        prepared, failures = prepare_tool_calls(
+            ctx, [_tc("read_text_file", '{"path": "/tmp/f"}')]
+        )
+
+        assert prepared == []
+        assert len(failures) == 1
+        tc_id, name, args, text, is_error, llm_text = failures[0]
+        assert is_error is True
+        assert "read_text_file" in text
+        assert "input schema" in text
+
 
 class TestPrepareToolCallsHappyPath:
     def test_valid_call_produces_prepared_tool_call(self) -> None:
@@ -196,7 +217,7 @@ class TestPrepareToolCallsHappyPath:
 class TestPrepareToolCallsBatchOrdering:
     def _valid_registry(self) -> MagicMock:
         runtime_tool = MagicMock()
-        runtime_tool.input_schema = {}
+        runtime_tool.input_schema = {"type": "object", "properties": {}}
         runtime_tool.allow_extra_fields = True
         registry = MagicMock()
 

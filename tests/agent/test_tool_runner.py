@@ -106,7 +106,7 @@ def _default_runtime_tools() -> MagicMock:
     def _get(name: str) -> MagicMock:
         tool = MagicMock()
         tool.is_write = False
-        tool.input_schema = {}
+        tool.input_schema = {"type": "object", "properties": {}}
         tool.allow_extra_fields = True
         return tool
 
@@ -218,9 +218,9 @@ def _runtime_tools(specs_by_name: dict[str, ToolSpec]) -> MagicMock:
         base = specs_by_name[name]
         tool = MagicMock()
         tool.is_write = base.is_write
-        # Empty schema so prepare_tool_calls()'s argument validation (which
+        # Zero-argument schema so prepare_tool_calls()'s argument validation (which
         # consults this registry) does not reject the call.
-        tool.input_schema = {}
+        tool.input_schema = {"type": "object", "properties": {}}
         tool.allow_extra_fields = True
         return tool
 
@@ -1414,12 +1414,12 @@ def _write_registry(is_write_by_name: dict[str, bool]) -> MagicMock:
             raise KeyError(name)
         tool = MagicMock()
         tool.is_write = is_write_by_name[name]
-        # Empty schema/no-extra-fields so validate_tool_arguments() (also
-        # consulted via this same registry during preparation) treats every
+        # Zero-argument schema with extra fields allowed so validate_tool_arguments()
+        # (also consulted via this same registry during preparation) treats every
         # call as passing validation — this helper exists to test
         # force_serial's side-effect/serialization decision, not
         # argument validation.
-        tool.input_schema = {}
+        tool.input_schema = {"type": "object", "properties": {}}
         tool.allow_extra_fields = True
         return tool
 

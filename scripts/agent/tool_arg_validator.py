@@ -64,8 +64,9 @@ def validate_tool_arguments(
         2. Extra fields rejected (unless allow_extra_fields=True)
         3. Type validation via jsonschema
 
-    When the schema is missing or malformed, falls back to lenient mode
-    (accept all fields) to prevent blocking legitimate tool calls.
+    When the schema is missing or empty, validation fails closed: a tool
+    without a schema cannot have its arguments checked, so the call is
+    rejected.
 
     Args:
         tool_name: Name of the tool being called.
@@ -77,8 +78,11 @@ def validate_tool_arguments(
         ValidationResult indicating pass or failure with reason.
     """
     if not input_schema:
-        logger.debug("No input schema for %s; skipping validation", tool_name)
-        return ValidationResult(success=True)
+        logger.warning("No input schema for %s; rejecting call", tool_name)
+        return ValidationResult(
+            success=False,
+            reason=f"Tool '{tool_name}' has no input schema; cannot validate arguments",
+        )
 
     result = _check_required_fields(tool_name, args, input_schema)
     if not result.success:

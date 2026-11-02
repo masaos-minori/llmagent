@@ -88,7 +88,7 @@ def _default_runtime_tools() -> MagicMock:
     def _get(name: str) -> MagicMock:
         tool = MagicMock()
         tool.is_write = False
-        tool.input_schema = {}
+        tool.input_schema = {"type": "object", "properties": {}}
         tool.allow_extra_fields = True
         return tool
 

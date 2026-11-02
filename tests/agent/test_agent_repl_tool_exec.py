@@ -331,9 +331,9 @@ def _runtime_tools_for_dag(is_write_by_name: dict[str, bool]) -> MagicMock:
 
     which now runs unconditionally inside execute_all_tool_calls() before
     these tests' mocked run_approval_checks()/execute_one_tool_call() ever
-    see a call. Provides a permissive empty schema (so argument validation
-    passes) and the given is_write per tool name (so DAG scheduling orders
-    correctly).
+    see a call. Provides a permissive zero-argument schema (so argument
+    validation passes) and the given is_write per tool name (so DAG scheduling
+    orders correctly).
     """
     from shared.tool_spec import ToolSpec
 
@@ -342,7 +342,7 @@ def _runtime_tools_for_dag(is_write_by_name: dict[str, bool]) -> MagicMock:
     def _get(name: str) -> MagicMock:
         tool = MagicMock()
         tool.is_write = is_write_by_name.get(name, False)
-        tool.input_schema = {}
+        tool.input_schema = {"type": "object", "properties": {}}
         tool.allow_extra_fields = True
         return tool
 

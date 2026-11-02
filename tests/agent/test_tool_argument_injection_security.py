@@ -48,14 +48,16 @@ class TestUnexpectedFieldRejection:
         )
         assert result.success is True
 
-    def test_no_schema_allows_any_field(self) -> None:
-        """Without a schema, all fields are accepted regardless of allow_extra_fields."""
+    def test_no_schema_rejects_any_field(self) -> None:
+        """Without a schema, the call is rejected fail-closed regardless of allow_extra_fields."""
         result = validate_tool_arguments(
             "test_tool",
             {"name": "test", "__meta": "injected"},
             {},
         )
-        assert result.success is True
+        assert result.success is False
+        assert "test_tool" in result.reason
+        assert "input schema" in result.reason
 
     def test_no_properties_key_allows_any_field(self) -> None:
         """Schema without 'properties' key allows any field even with allow_extra_fields=False."""

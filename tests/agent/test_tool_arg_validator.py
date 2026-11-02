@@ -33,16 +33,34 @@ class TestValidationResult:
 
 
 class TestValidateToolArgumentsEmptySchema:
-    def test_none_schema_skips_validation(self) -> None:
-        result = validate_tool_arguments("read_file", {"path": "/tmp/f"}, {})
-        assert result.success is True
+    def test_none_schema_rejected(self) -> None:
+        result = validate_tool_arguments("read_file", {"path": "/tmp/f"}, None)
+        assert result.success is False
+        assert "read_file" in result.reason
+        assert "input schema" in result.reason
 
-    def test_empty_dict_schema_skips_validation(self) -> None:
+    def test_empty_dict_schema_rejected(self) -> None:
         result = validate_tool_arguments("read_file", {"path": "/tmp/f"}, {})
-        assert result.success is True
+        assert result.success is False
+        assert "read_file" in result.reason
+        assert "input schema" in result.reason
 
-    def test_missing_required_with_empty_schema(self) -> None:
+    def test_missing_required_with_empty_schema_rejected(self) -> None:
         schema: dict = {}
+        result = validate_tool_arguments("read_file", {}, schema)
+        assert result.success is False
+        assert "read_file" in result.reason
+
+    def test_empty_schema_rejected_with_allow_extra_fields(self) -> None:
+        result = validate_tool_arguments(
+            "read_file", {"path": "/tmp/f"}, {}, allow_extra_fields=True
+        )
+        assert result.success is False
+        assert "read_file" in result.reason
+        assert "input schema" in result.reason
+
+    def test_zero_argument_schema_accepted(self) -> None:
+        schema = {"type": "object", "properties": {}}
         result = validate_tool_arguments("read_file", {}, schema)
         assert result.success is True
 
@@ -320,8 +338,8 @@ class TestCustomValidatorHooks:
         assert result.success is False
         assert calls == []
 
-    def test_hook_skipped_when_schema_empty(self) -> None:
-        """Custom hooks are not invoked when input_schema is empty (lenient fallback)."""
+    def test_hook_not_reached_when_schema_empty(self) -> None:
+        """An empty schema is rejected before custom hooks run, so hooks cannot rescue it."""
         calls: list[dict] = []
 
         @register_custom_validator("hooked_tool")
@@ -330,7 +348,7 @@ class TestCustomValidatorHooks:
             return ValidationResult(success=True)
 
         result = validate_tool_arguments("hooked_tool", {"count": 1}, {})
-        assert result.success is True
+        assert result.success is False
         assert calls == []
 
 
