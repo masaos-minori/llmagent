@@ -181,10 +181,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: guard and masker tests for the new shapes (tests/agent/test_diagnostic_store_security.py, tests/agent/test_secrets_masker.py) | In Progress | — | — |  |
-| 2 | Shared detection function and extended patterns; update pattern-count assertion (scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py) | In Progress | — | — |  |
-| 3 | Consolidate the guard onto the shared detector (scripts/agent/diagnostic_store.py) | In Progress | — | — |  |
-| 4 | Documentation: data-layer fail-closed bullet and masker shapes (docs/23_agent/agent_09_01_data-layer-session-db.md, docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | In Progress | — | — |  |
+| 1 | Tests first: guard and masker tests for the new shapes (tests/agent/test_diagnostic_store_security.py, tests/agent/test_secrets_masker.py) | Complete | 2026-11-02 | Procedures 03, 04 | red evidence: 17 failed (masker), 12 failed (guard) |
+| 2 | Shared detection function and extended patterns; update pattern-count assertion (scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py) | Complete | 2026-11-02 | Procedure 01 | 8 -> 14 patterns; count literal updated in same commit |
+| 3 | Consolidate the guard onto the shared detector (scripts/agent/diagnostic_store.py) | Complete | 2026-11-02 | Procedure 02 | `_SENSITIVE_PATTERNS` removed; guard raises on `detects_secrets()` |
+| 4 | Documentation: data-layer fail-closed bullet and masker shapes (docs/23_agent/agent_09_01_data-layer-session-db.md, docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | Complete | 2026-11-02 | Procedures 05, 06 | docs checkers (quality/structure/content-policy/consistency --domain agent) all exit 0 |
 | 5 | Deployment and verification: validation sequence, regression tests, deploy hand-off (scripts/agent/diagnostic_store.py, scripts/agent/secrets_masker.py) | Pending | — | — |  |
 
 ### Blocker Log

@@ -327,3 +327,167 @@ class TestSensitiveDataRefusal:
         assert (
             '{"api_key": "abcdefghijklmnop"}' not in mock_conn.executed_calls[0][1][2]
         )
+
+
+class TestSharedDetectorGuard:
+    """diagmask001 REQ-002/REQ-003/REQ-004: the save() guard must refuse exactly
+    what agent.secrets_masker.detects_secrets flags, keep the carve-outs and not
+    refuse exemptions. Red against the pre-consolidation guard (Plan Phase 1)."""
+
+    REFUSAL_SHAPES = [
+        '{"authorization": "Bearer eyJhbGciOiJIUzI1Ni01234567890abcdef.abcdefghijklmnopqrstuv"}',
+        '{"credential": "hunter2"}',
+        '{"private_key": "abc"}',
+        '{"passwd": "topsecret99"}',
+        "plain text api_key => sec35",
+        '{"note": "see postgres://admin:s3cr3tpw@db:5432/x"}',
+        "eyJhbGciOiJIUzI1NiJ9.c2VjcmV0cGF5bG9hZA.qS3pR8xYvZ0aB1cD2eF3gH4i",
+    ]
+    EXEMPTION_SHAPES = [
+        '{"message": "hello world"}',
+        "[INCOMPLETE: timeout]",
+        "token=***MASKED***",
+        '{"token": ""}',
+        "https://example.com/api/items",
+    ]
+
+    @staticmethod
+    def _save_with_empty_key(
+        store: DiagnosticStore, content: str, mock_conn: MockConnection
+    ) -> None:
+        mock_cfg = type(
+            "MockConfig",
+            (),
+            {"encryption_key": "", "sensitive_fields": frozenset()},
+        )()
+        with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
+            with patch.object(
+                DiagnosticStore, "_load_diagnostics_config"
+            ) as mock_load_cfg:
+                mock_load_cfg.return_value = mock_cfg
+                with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
+                    mock_ctx = MockContext(mock_conn)
+                    mock_helper.return_value.open.return_value = mock_ctx
+                    store.save(
+                        session_id=1,
+                        kind="test",
+                        content=content,
+                        encrypt=False,
+                    )
+
+    @pytest.mark.parametrize("sensitive_content", REFUSAL_SHAPES)
+    def test_refuses_new_shapes_without_key(
+        self, tmp_path: Any, sensitive_content: str
+    ) -> None:
+        """New shapes must raise with zero INSERTs; the old guard misses them today."""
+        store = DiagnosticStore()
+        store.session_id = 1
+        mock_conn = MockConnection()
+        with pytest.raises(RuntimeError, match="Sensitive information detected"):
+            self._save_with_empty_key(store, sensitive_content, mock_conn)
+        assert len(mock_conn.executed_calls) == 0
+
+    @pytest.mark.parametrize("content", REFUSAL_SHAPES + EXEMPTION_SHAPES)
+    def test_guard_matches_shared_detector(self, tmp_path: Any, content: str) -> None:
+        """AC-1: save() raises exactly when detects_secrets(content) is True."""
+        from agent.secrets_masker import detects_secrets
+
+        store = DiagnosticStore()
+        store.session_id = 1
+        expected_refusal = detects_secrets(content)
+        mock_conn = MockConnection()
+        if expected_refusal:
+            with pytest.raises(RuntimeError, match="Sensitive information detected"):
+                self._save_with_empty_key(store, content, mock_conn)
+        else:
+            self._save_with_empty_key(store, content, mock_conn)
+        assert len(mock_conn.executed_calls) == (0 if expected_refusal else 1)
+
+    @pytest.mark.parametrize("content", EXEMPTION_SHAPES)
+    def test_saves_exemptions_without_raise(self, tmp_path: Any, content: str) -> None:
+        """AC-4 exemptions save unchanged with the INSERT executed."""
+        store = DiagnosticStore()
+        store.session_id = 1
+        mock_conn = MockConnection()
+        self._save_with_empty_key(store, content, mock_conn)
+        assert len(mock_conn.executed_calls) == 1
+        assert mock_conn.executed_calls[0][1][2] == content
+
+    @pytest.mark.parametrize(
+        "content", ['{"credential": "hunter2"}', "api_key => topsecretxyz"]
+    )
+    def test_encrypted_path_still_saves_new_shapes(
+        self, tmp_path: Any, content: str
+    ) -> None:
+        """AC-4: with a key configured, AC-3 shapes store as ciphertext without raising."""
+        from cryptography.fernet import Fernet
+
+        store = DiagnosticStore()
+        store.session_id = 1
+        fernet_key = Fernet.generate_key().decode("utf-8")
+        mock_cfg = type(
+            "MockConfig",
+            (),
+            {"encryption_key": fernet_key, "sensitive_fields": frozenset()},
+        )()
+        mock_conn = MockConnection()
+        with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
+            with patch.object(
+                DiagnosticStore, "_load_diagnostics_config"
+            ) as mock_load_cfg:
+                mock_load_cfg.return_value = mock_cfg
+                with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
+                    mock_ctx = MockContext(mock_conn)
+                    mock_helper.return_value.open.return_value = mock_ctx
+                    store.save(
+                        session_id=1,
+                        kind="test",
+                        content=content,
+                        encrypt=True,
+                    )
+        assert len(mock_conn.executed_calls) == 1
+        assert content not in mock_conn.executed_calls[0][1][2]
+
+    def test_filter_failed_carve_out_preserved(
+        self, tmp_path: Any, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """AC-4 carve-out: a failing _filter_sensitive_fields persists the
+        secret-bearing content unencrypted with a logged warning and no raise."""
+        import logging
+
+        store = DiagnosticStore()
+        store.session_id = 1
+        mock_cfg = type(
+            "MockConfig",
+            (),
+            {"encryption_key": "", "sensitive_fields": frozenset()},
+        )()
+        mock_conn = MockConnection()
+        with caplog.at_level(logging.WARNING, logger="agent.diagnostic_store"):
+            with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
+                with patch.object(
+                    DiagnosticStore, "_load_diagnostics_config"
+                ) as mock_load_cfg:
+                    mock_load_cfg.return_value = mock_cfg
+                    with patch.object(
+                        DiagnosticStore,
+                        "_filter_sensitive_fields",
+                        side_effect=Exception("filter boom"),
+                    ):
+                        with patch(
+                            "agent.diagnostic_store.SQLiteHelper"
+                        ) as mock_helper:
+                            mock_ctx = MockContext(mock_conn)
+                            mock_helper.return_value.open.return_value = mock_ctx
+                            store.save(
+                                session_id=1,
+                                kind="test",
+                                content='{"api_key": "abcdefghijklmnop"}',
+                                encrypt=False,
+                            )
+        assert len(mock_conn.executed_calls) == 1
+        assert mock_conn.executed_calls[0][1][2] == '{"api_key": "abcdefghijklmnop"}'
+        assert any(
+            "_filter_sensitive_fields failed" in record.getMessage()
+            for record in caplog.records
+        )

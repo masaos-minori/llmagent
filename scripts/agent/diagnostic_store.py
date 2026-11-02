@@ -8,7 +8,6 @@ separate from normal conversation messages.
 from __future__ import annotations
 
 import logging
-import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -19,18 +18,13 @@ from shared.config_loader import ConfigLoader
 from shared.json_utils import dumps
 
 from agent.config_dataclasses import DiagnosticsConfig
+from agent.secrets_masker import detects_secrets
 
 logger = logging.getLogger(__name__)
 
 # Payload keys redacted by _filter_sensitive_fields(); may carry raw artifact
 # URIs or RAG stage outcome contents that should not be persisted unredacted.
 _SENSITIVE_FIELDS: tuple[str, ...] = ("artifacts", "rag_stage_outcomes")
-
-_SENSITIVE_PATTERNS = [
-    re.compile(
-        r"(?i)(api[_-]?key|secret|token|password|access_token|auth_token|bearer|client_secret)['\"]?[\s:=]+['\"]?([a-zA-Z0-9_\-\.]{16,})['\"]?"
-    ),
-]
 
 
 class DiagnosticStore:
@@ -167,11 +161,10 @@ class DiagnosticStore:
 
         if not diagnostics_cfg.encryption_key:
             if not _filter_failed:
-                for pattern in _SENSITIVE_PATTERNS:
-                    if pattern.search(content):
-                        raise RuntimeError(
-                            "Sensitive information detected in diagnostic content without encryption enabled."
-                        )
+                if detects_secrets(content):
+                    raise RuntimeError(
+                        "Sensitive information detected in diagnostic content without encryption enabled."
+                    )
 
         if encrypt and diagnostics_cfg.encryption_key:
             content = self._encrypt_content(content, diagnostics_cfg.encryption_key)

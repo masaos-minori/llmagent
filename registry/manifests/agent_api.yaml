@@ -441,6 +441,11 @@ entries:
   name: ResourceShutdownCoordinator
   signature: class ResourceShutdownCoordinator
   summary: Coordinates resource shutdown across all subsystems.
+- file: scripts/agent/secrets_masker.py
+  kind: function
+  name: detects_secrets
+  signature: def detects_secrets(text) -> bool
+  summary: Return True when any SECRET_PATTERNS substitution would change the text.
 - file: scripts/agent/session.py
   kind: class
   name: SchemaMissingError

@@ -136,11 +136,11 @@ class TestJsonSecretMasking:
         assert _mask_secrets(sample) == sample
 
     def test_pattern_count_matches_inventory(self) -> None:
-        """REQ-006: the pattern inventory is 8 (6 + two colon forms); no stray
-        bare-token pattern slipped in."""
+        """REQ-006: the pattern inventory is 14 (8 secmask001 patterns + six diagmask001
+        shapes); no stray bare-token pattern slipped in."""
         from agent.secrets_masker import SECRET_PATTERNS
 
-        assert len(SECRET_PATTERNS) == 8
+        assert len(SECRET_PATTERNS) == 14
 
 
 class TestColonFormMasking:
@@ -208,3 +208,99 @@ class TestColonFormMasking:
         for sample in samples:
             once = _mask_secrets(sample)
             assert _mask_secrets(once) == once
+
+
+class TestExtendedShapeMasking:
+    """diagmask001 REQ-003/REQ-005: the extended pattern inventory masks the new
+    shapes with no part of the secret left, keeps the empty-value exemption, and
+    stays idempotent. Red until the extended SECRET_PATTERNS land (Plan Phase 1).
+    """
+
+    @pytest.mark.parametrize(
+        "input_text,value",
+        [
+            ("authorization=xyz", "xyz"),
+            ("credential=xyz", "xyz"),
+            ("private_key=xyz", "xyz"),
+            ("bearer=xyz", "xyz"),
+            ("authorization: xyz", "xyz"),
+            ("credential: abc", "abc"),
+            ("private_key: abc", "abc"),
+            ('{"authorization": "xyz"}', "xyz"),
+            ('{"credential": "xyz"}', "xyz"),
+            ('{"private_key": "xyz"}', "xyz"),
+            # Composite quoted-JSON keys: not masked by the 8-pattern inventory
+            # today, but refused by the old diagnostic guard (REQ-002).
+            ('{"access_token": "xyz"}', "xyz"),
+            ('{"auth_token": "xyz"}', "xyz"),
+            ('{"client_secret": "xyz"}', "xyz"),
+        ],
+    )
+    def test_new_key_names_masked(self, input_text: str, value: str) -> None:
+        """New key names mask in the =, : and quoted-JSON forms."""
+        result = _mask_secrets(input_text)
+        assert value not in result
+        assert "***MASKED***" in result
+
+    def test_arrow_separator(self) -> None:
+        """REQ-003: the `=>` separator masks the value."""
+        assert _mask_secrets("api_key => topsecretxyz") == "api_key => ***MASKED***"
+
+    def test_bare_jwt_masked(self) -> None:
+        """A three-segment eyJ token in prose is fully masked; a shorter eyJ
+        word stays unchanged."""
+        token = "eyJhbGciOiJIUzI1NiJ9.c2VjcmV0cGF5bG9hZA.qS3pR8xYvZ0aB1cD2eF3gH4i"
+        result = _mask_secrets(f"the token is {token}")
+        assert "eyJ" not in result
+        assert result == "the token is ***MASKED***"
+        assert _mask_secrets("retry eyJabc counter") == "retry eyJabc counter"
+
+    def test_url_credential_masked(self) -> None:
+        """Only the password segment of a scheme://user:password@host URL is
+        masked; a plain URL without userinfo is unchanged."""
+        result = _mask_secrets("postgres://admin:s3cr3tpw@db:5432/x")
+        assert "s3cr3tpw" not in result
+        assert result == "postgres://admin:***MASKED***@db:5432/x"
+        plain = "https://example.com/api/items"
+        assert _mask_secrets(plain) == plain
+
+    def test_scheme_preserved_with_authorization_key(self) -> None:
+        """The extended authorization key names must not mask the scheme keyword
+        the pre-existing Authorization pattern already handles (secmask001 AC-4)."""
+        assert (
+            _mask_secrets("Authorization: Bearer abc123")
+            == "Authorization: Bearer ***MASKED***"
+        )
+
+    def test_empty_json_value_not_masked(self) -> None:
+        """UNK-01 exemption: an empty quoted-JSON value is returned unchanged."""
+        assert _mask_secrets('{"token": ""}') == '{"token": ""}'
+        assert _mask_secrets('{"password": ""}') == '{"password": ""}'
+
+    def test_extended_idempotence(self) -> None:
+        """AC-5: applying the masker twice equals applying it once for every new
+        shape."""
+        samples = [
+            "api_key => topsecretxyz",
+            "the token is eyJhbGciOiJIUzI1NiJ9.c2VjcmV0cGF5bG9hZA.qS3pR8xYvZ0aB1cD2eF3gH4i",
+            "postgres://admin:s3cr3tpw@db:5432/x",
+            '{"credential": "hunter2"}',
+            "authorization: abcdefghijkl",
+            '{"private_key": "abc"}',
+        ]
+        for sample in samples:
+            once = _mask_secrets(sample)
+            assert _mask_secrets(once) == once
+
+    def test_large_input_terminates(self) -> None:
+        """Plan Risks 4: a 10 000-char mixed payload completes and stays
+        idempotent."""
+        chunk = (
+            "token=abcdefghij api_key => xyz123 credential: abcdefgh "
+            '{"note": "postgres://u:p@h/x"} '
+        )
+        payload = (chunk * 300)[:10000]
+        assert len(payload) == 10000
+        result = _mask_secrets(payload)
+        assert isinstance(result, str)
+        assert _mask_secrets(result) == result
