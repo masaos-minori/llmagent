@@ -19,7 +19,7 @@ High
   - Risk classification of tools other than `shell_run`.
   - Any change to the protected-path / `allowed_root` checks.
 - **Dependencies**:
-  - `issues/20261003-180337_shellrisk001_shell-risk-check-misses-flag-paths.md` (open, no Plan yet): both touch `_check_positional_args` and `_unsafe_flag_denylist`. This issue defines the prefix policy first and stays within executable-name normalization; its tests must be reconciled with shellrisk001 when that issue is implemented. Non-blocking for this Plan.
+  - `plans/20261101-142514_shellrisk001_shell-risk-check-misses-flag-paths.md` (Frozen Plan for `issues/20261003-180337_shellrisk001_shell-risk-check-misses-flag-paths.md`): both touch `_check_positional_args` and `_unsafe_flag_denylist`. Both Plans record the same sequencing — this Plan's prefix policy is implemented first, and shellrisk001 re-reads and reconciles `_check_positional_args` and the shared tests at its own implementation time. Corrected 20261103 (adversarial verification: the Plan previously claimed shellrisk001 had "no Plan yet"). Non-blocking for this Plan.
 
 ## Background
 `shell_run` has base risk `high`, but a command whose executable matches `approval_shell_safe_prefixes` is lowered to `none` and runs without a prompt. The shipped list contains `python`, `pytest`, `uv run`, and `git branch`. The match looks only at the executable (and subcommand) name, so `python -c <code>`, `pytest -p <plugin>`, `uv run <anything>`, `git branch -D <name>`, and `git diff --output=<file>` are auto-approved with arbitrary arguments whenever the positional-path check passes.
@@ -45,9 +45,9 @@ Auto-approve only command shapes that are read-only by construction, expressed a
 - `REQ-006`: Auto-approve `shell_run` only for command shapes that are read-only by construction. In `_special_case_risk`/`_match_executable_identity`, after the metacharacter and parse-fail fail-closed checks, an executable is auto-approved (`none`) only if it has a defined safe-shape rule and the parsed argv matches that rule; any executable without such a rule, or whose argv does not match, returns `high`. Remove `python`, `pytest`, and `uv run` from every auto-approved set so they fall through to the normal `shell_run = high` path. (`scripts/agent/tool_policy.py`; checked in Step 3)
 - `REQ-007`: Give each retained executable an explicit allowed-subcommands/flags rule (deny by default). For `git`, allow only read-only subcommands (`log`, `status`, `show`, `diff` without an output-to-file flag, `branch` in list-only forms); reject mutating forms (`branch -D/-m`, `checkout`, `push`, `diff --output=<file>`, ...). Generalize the current `_UNSAFE_FLAGS` (find/cat/grep only) into this per-executable rule rather than a flag-only denylist. (`scripts/agent/tool_policy.py`; checked in Step 3)
 - `REQ-008`: Resolve the executable identity once (basename of `argv[0]`) and thread that single normalized name through both the prefix match and the flag-denylist lookup, so `_unsafe_flag_denylist` is called with the same name the prefix match used. (`scripts/agent/tool_policy.py`; checked in Step 3)
-- `REQ-009`: Update `approval_shell_safe_prefixes` in `config/agent.toml` to remove the interpreter/mutating entries (`python`, `pytest`, `uv run`, bare `git branch`) and align the remaining list with the shell server allowlist where they overlap; update the field comment to state that only read-only-by-construction command shapes are auto-approved and interpreters/test runners always prompt. Keep the edit within `ProductionConfigValidator` constraints. (`config/agent.toml`; checked in Step 3)
+- `REQ-009`: Update `approval_shell_safe_prefixes` in `config/agent.toml`: remove the interpreter entries (`python`, `pytest`, `uv run`) and consolidate the compound `git` entries (`git log`, `git status`, `git diff`, `git show`, `git branch`) into a bare `git` — the config gates the executable, and subcommand acceptability is decided by the REQ-007 code rule (owner-confirmed design, see DD-1 addendum); align the remaining list with the shell server allowlist where they overlap; update the field comment to state that only read-only-by-construction command shapes are auto-approved and interpreters/test runners always prompt. Keep the edit within `ProductionConfigValidator` constraints. (`config/agent.toml`; checked in Step 3)
 - `REQ-010`: Update `docs/23_agent/agent_06_02...md` (approval risk table) and `docs/91_security/security_02...md` to state which `shell_run` command shapes are auto-approved, why (read-only by construction), and that interpreters and test runners always prompt; describe intent and boundaries only, not the full prefix list. (located via `docs/00_index.md` "Document References by Task"; checked in Step 3)
-- `REQ-011`: Add unit tests of `classify_risk` for `shell_run` using the shipped config values, in a working directory inside and outside `allowed_root`: each reproduction command (`python -c ...`, `pytest -p ...`, `uv run ...`, `git branch -D ...`, `git diff --output=...`) is at least `medium` (`high` for code execution and branch deletion); read-only git forms stay `none`; a test asserts the shared executable-name behavior for a full-path unsafe flag (`/usr/bin/find -delete` → `high`). Existing `TestPrefixCollision` tests keep passing. (`tests/agent/test_tool_policy.py`; checked in Step 3)
+- `REQ-011`: Add unit tests of `classify_risk` for `shell_run` using the shipped config values, in a working directory inside and outside `allowed_root`: each reproduction command (`python -c ...`, `pytest -p ...`, `uv run ...`, `git branch -D ...`, `git diff --output=...`) is at least `medium` (`high` for code execution and branch deletion); read-only git forms stay `none`; a test asserts the shared executable-name behavior for a full-path unsafe flag (`/usr/bin/find -delete` → `high`). Existing `TestPrefixCollision` tests keep passing, except the three tests that auto-approve a synthetic executable with no safe-shape rule (`test_single_letter_prefix_matches_exact_name`, `test_case_sensitive_prefix_accept`, `test_backslash_escape_in_prefix`), whose expectations migrate `none` → `high` under the owner-confirmed strict rule (A7). (`tests/agent/test_tool_policy.py`; checked in Step 3)
 
 ## Implementation Target Files
 **Freeze status**: Frozen (set on 20261101-145910 after Step 8b: every row is
@@ -63,8 +63,8 @@ table — no other file may be treated as a modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/agent/tool_policy.py` | Modify `_match_executable_identity` / `_special_case_risk` / `_unsafe_flag_denylist`: per-executable safe-shape rule (deny by default), remove interpreters from auto-approval, normalize executable name once | `_match_executable_identity` (L129-151) returns `NONE` on a bare prefix match and inspects no argument; `_special_case_risk` L256 calls `_unsafe_flag_denylist(argv[0], ...)` with the raw token while the prefix match uses `os.path.basename(argv[0])`; `_UNSAFE_FLAGS` (L44-48) lists only find/cat/grep | REQ-006, REQ-007, REQ-008 / AC-1, AC-2, AC-3 | `_match_executable_identity` L129-151, `_special_case_risk` L249-258, `_unsafe_flag_denylist` L182-187 (checked in Step 3) | `tests/agent/test_tool_policy.py` | Verified |
-| `config/agent.toml` | Modify `approval_shell_safe_prefixes` entry and its comment: remove python/pytest/uv run/bare `git branch`, align remaining with server allowlist, document read-only-by-construction intent | shipped list (L120-135) contains `python`, `pytest`, `uv run`, `git branch` and a comment that describes prefix auto-approval without listing safe shapes | REQ-009 / AC-1 | `config/agent.toml` L120-135 (checked in Step 3) | `tests/agent/test_tool_policy.py` | Verified |
-| `tests/agent/test_tool_policy.py` | Add regression tests using shipped values; keep `TestPrefixCollision` passing | `TestPrefixCollision` (L464+) tests the matching mechanism with synthetic prefixes; no test asserts argument-level safety on shipped python/pytest/uv/git-branch/find values | REQ-011 / AC-1, AC-2, AC-3, AC-5 | `TestPrefixCollision` L464-733; 197 tests pass at HEAD (checked in Step 3) | itself | Verified |
+| `config/agent.toml` | Modify `approval_shell_safe_prefixes` entry and its comment: remove python/pytest/uv run, consolidate compound `git` entries into bare `git` (subcommand policy moves to the REQ-007 code rule), align remaining with server allowlist, document read-only-by-construction intent | shipped list (L120-135) contains `python`, `pytest`, `uv run`, `git branch` and a comment that describes prefix auto-approval without listing safe shapes | REQ-009 / AC-1 | `config/agent.toml` L120-135 (checked in Step 3) | `tests/agent/test_tool_policy.py` | Verified |
+| `tests/agent/test_tool_policy.py` | Add regression tests using shipped values; keep `TestPrefixCollision` passing except the three A7 pins (`test_single_letter_prefix_matches_exact_name`, `test_case_sensitive_prefix_accept`, `test_backslash_escape_in_prefix`), migrated `none` → `high` | `TestPrefixCollision` (L464+) tests the matching mechanism with synthetic prefixes; no test asserts argument-level safety on shipped python/pytest/uv/git-branch/find values | REQ-011 / AC-1, AC-2, AC-3, AC-5 | `TestPrefixCollision` L464-733; 197 tests pass at HEAD (checked in Step 3) | itself | Verified |
 | `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md` | Document which `shell_run` shapes are auto-approved and why (via `docs/00_index.md` task mapping) | approval risk table (L78) states "`shell_run` ... starts with any of `approval_shell_safe_prefixes` → `none`" without defining which shapes count | REQ-010 / AC-4 | `agent_06_02...md` L78 (checked in Step 3) | docs checkers | Verified |
 | `docs/91_security/security_02_high-risk-tool-common-policy.md` | Document intent and boundaries of shell auto-approval | security doc (L176) references `approval_shell_safe_prefixes` but does not list safe command shapes | REQ-010 / AC-4 | `security_02...md` L176 (checked in Step 3) | docs checkers | Verified |
 
@@ -95,13 +95,13 @@ glob patterns, components, file groups, or vague phrases.
 - `AC-2` (`REQ-007`): Read-only forms of `git status`, `git log`, `git diff`, and `git show` remain auto-approved (`none`).
 - `AC-3` (`REQ-008`): The prefix match and the flag denylist use the same executable name (`/usr/bin/find -delete` → `high`).
 - `AC-4` (`REQ-010`): The two documents list which command shapes are auto-approved and why, and state that interpreters and test runners always prompt.
-- `AC-5` (`REQ-011`): The new tests fail on the current code and pass after the change; the existing suite (197 tests) still passes.
+- `AC-5` (`REQ-011`): The new tests fail on the current code and pass after the change; the existing suite (197 tests) still passes after the three `TestPrefixCollision` pins in A7 migrate from `none` to `high`.
 
 ## Tests
 - `AC-1` (`REQ-006`, `REQ-009`): `classify_risk(cfg, "shell_run", {command})` for each reproduction command is `high` (code execution, branch deletion) or at least `medium` (test runner, `uv run`, `git diff --output`), both inside and outside `allowed_root`, using the shipped `approval_shell_safe_prefixes`.
 - `AC-2` (`REQ-007`): `git status`, `git log --oneline`, `git diff`, `git show`, and list-only `git branch` return `none` with the shipped config.
 - `AC-3` (`REQ-008`): `/usr/bin/find -delete` returns `high`; a full-path read-only form (e.g. `/usr/bin/git log --oneline`) still returns `none`.
-- `AC-5` (`REQ-011`): the full `tests/agent/test_tool_policy.py` suite passes, including every existing `TestPrefixCollision` case.
+- `AC-5` (`REQ-011`): the full `tests/agent/test_tool_policy.py` suite passes, including every existing `TestPrefixCollision` case except the three A7 pins, which are migrated to `high`.
 
 ## Documentation Impact
 `docs/*.md` must be updated (driven by `REQ-010`). Target the approval-risk-table doc for `shell_run` and the high-risk tool policy doc, located through `docs/00_index.md`'s "Document References by Task" table (do not hardcode filenames, they change as docs are split):
@@ -111,9 +111,11 @@ glob patterns, components, file groups, or vague phrases.
 ## Assumptions
 - **A1**: Interpreters and test runners must be removed from auto-approval. Derived from the Issue's explicit Acceptance Criteria and Reason for Change, not an owner decision.
 - **A2**: This issue's change to `_unsafe_flag_denylist` is scoped to executable-name normalization only (`REQ-008`); the broader `--flag=value` generalization belongs to shellrisk001 and is not in scope here.
-- **A3**: `cat`, `echo`, `ls`, `grep`, and read-only `git` remain auto-approved for read-only-by-construction operations; write redirections are already rejected by the metacharacter check, so existing `TestPrefixCollision` cases using these synthetic prefixes keep passing.
+- **A3**: `cat`, `echo`, `ls`, `grep`, and read-only `git` remain auto-approved for read-only-by-construction operations; write redirections are already rejected by the metacharacter check, so `TestPrefixCollision` cases using these known read-only executables keep passing.
 - **A4**: The per-executable safe-shape rule is defined in code, not via a new config key, so no new config schema/validation surface is introduced.
-- **A5**: shellrisk001 has no Frozen Plan yet, so there is no Step 8b conflict to resolve now; it is recorded as a non-blocking sequencing dependency and reconciled when that issue is implemented.
+- **A5**: shellrisk001 now has a Frozen Plan (`plans/20261101-142514_shellrisk001_shell-risk-check-misses-flag-paths.md`); judged a sequencing dependency (this Plan first), not a design conflict — shellrisk001 changes only candidate extraction inside `_check_positional_args`, while this Plan changes which commands reach it (20261103 re-verification). pathkeys001 (`plans/20261101-155552_pathkeys001_path-checks-skip-lists.md`) shares the target files `scripts/agent/tool_policy.py` and `tests/agent/test_tool_policy.py` but touches other functions (`check_allowed_root`, `_escalate_for_path`); judged compatible.
+- **A6**: The bare-`git` gate design (config gates the executable, REQ-007 code rule decides subcommands) is the owner-confirmed reading that makes REQ-009's removal of the `git branch` entry compatible with REQ-007/AC-2 keeping list-only `git branch` at `none` (DD-1 addendum).
+- **A7** (20261103 adversarial verification, owner-confirmed): REQ-006's deny-by-default is applied strictly — an executable with no code-defined safe-shape rule returns `high` even when a config prefix entry matches it, so an operator cannot auto-approve a new executable by config alone. Consequence found in verification: three `TestPrefixCollision` tests assert `none` for synthetic executables with no rule (`c`, `Cat`, `\$HOME` prefixes in `test_single_letter_prefix_matches_exact_name`, `test_case_sensitive_prefix_accept`, `test_backslash_escape_in_prefix`); their expectations migrate `none` → `high` (pin migration, precedent: healthcascade001/toolarg001). The Plan's earlier claim that no existing `none` assertions are affected (DD-1 Option B rationale, Risk mitigation) was incomplete and is corrected here.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -147,7 +149,9 @@ Step 8 risks for this decision only.
 - **Option B — prefix match + per-executable argument rule (generalize `_UNSAFE_FLAGS`).** Keep the basename/prefix gate, then apply a per-executable safe-shape rule (deny by default): defined allowed subcommands/flags per executable, and interpreters removed from the approved set entirely. Preserves existing tests (they use `cat`/`echo`/`ls`/`git log` synthetic prefixes that remain read-only-safe) and fixes the root cause (name match ≠ behavior). **Selected.**
 - **Option C — remove risky prefixes from config only, no code change.** Leaves the prefix-only matching mechanism intact, so any future operator re-adding `python` reintroduces the bug; does not fix the root cause. Rejected as insufficient.
 
-Rationale: Option B satisfies the Issue's "deny-by-default rule per executable; anything outside it is high" intent while keeping the change within the per-step revertibility bound and preserving existing coverage. Interpreters are excluded under Option B because no argument rule can make an interpreter read-only by construction (it executes its argument) — this follows from the Issue, not from the option choice.
+Rationale: Option B satisfies the Issue's "deny-by-default rule per executable; anything outside it is high" intent while keeping the change within the per-step revertibility bound. Interpreters are excluded under Option B because no argument rule can make an interpreter read-only by construction (it executes its argument) — this follows from the Issue, not from the option choice. Correction (20261103): the earlier "preserves existing tests" claim was incomplete — strict deny-by-default breaks three synthetic-executable `none` pins; see A7 (owner-confirmed pin migration).
+
+**DD-1 addendum (20261103, owner-confirmed).** Under Option B the `git` gate uses a bare `git` entry in `config/agent.toml` (compound `git log`/`git status`/`git diff`/`git show`/`git branch` entries are consolidated); subcommand acceptability (`log`, `status`, `show`, `diff`, list-only `branch` accepted; `-D`/`-m`, `checkout`, `push`, `diff --output=<file>` rejected) is decided by the REQ-007 code rule. This resolves the REQ-009 vs REQ-007/AC-2 tension found in the 20261103 adversarial verification: with compound entries kept in config, removing `git branch` would make list-only `git branch` high and contradict AC-2.
 
 **D1 — Requirement-ID offset.** Requirement IDs are scoped per Plan, but `tool_policy.py`
 and `test_tool_policy.py` already carry inline annotations labeled `REQ-001`..`REQ-005`
@@ -192,7 +196,7 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
 | `docs/23_agent/agent_06_02...md`, `docs/91_security/security_02...md` | Docs checker | docs checker per `rules/toolchain.md` | pass |
 
 ## Risks
-- **Risk**: Tightening the rule breaks many existing tests that currently assert `none` for open-ended safe forms. → **Mitigation**: preserve read-only-by-construction shapes for `cat`/`echo`/`ls`/`grep`/read-only `git`; existing `TestPrefixCollision` cases use these synthetic prefixes and keep passing; new behavior only affects `python`/`pytest`/`uv run`/`git branch`/`find`, which have no existing `none` assertions.
+- **Risk**: Tightening the rule breaks existing tests that assert `none`. → **Mitigation**: read-only-by-construction shapes for `cat`/`echo`/`ls`/`grep`/read-only `git` are preserved, so those `TestPrefixCollision` cases keep passing; the only affected `none` assertions are the three A7 synthetic-executable pins (`c`, `Cat`, `\$HOME`), which migrate to `high` (owner-confirmed 20261103); `python`/`pytest`/`uv run`/`git branch`/`find` reproduction commands have no existing `none` assertions (verified by reproduction at HEAD 20261103: all reproduce as claimed).
 - **Risk**: The per-executable rule is too narrow and breaks legitimate read-only workflows. → **Mitigation**: keep the shipped read-only entries auto-approved; document the shapes; the owner can widen via the config comment.
 - **Risk**: Coordination with shellrisk001 on `_unsafe_flag_denylist`/`_check_positional_args`. → **Mitigation**: this issue changes only the executable-name normalization in `_unsafe_flag_denylist` and does not touch `_check_positional_args`'s `--flag=value` parsing (shellrisk001's scope); reconcile tests when shellrisk001 is implemented.
 - **Risk**: The `config/agent.toml` edit fails `ProductionConfigValidator`. → **Mitigation**: run config validation after the edit (`Phase 3`); keep `approval_shell_safe_prefixes` a valid list.
@@ -207,12 +211,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing-test baseline (`tests/agent/test_tool_policy.py`, shipped values) | Pending | — | — | |
-| 2 | Core logic in `scripts/agent/tool_policy.py` (per-executable rule, interpreter removal, executable-name normalization) | Pending | — | — | |
-| 3 | `config/agent.toml` edit + config validation | Pending | — | — | |
-| 4 | Verification: suite, ruff, mypy | Pending | — | — | |
-| 5 | Docs update + docs checkers | Pending | — | — | |
-| 6 | Deployment hand-off (commit/push; deploy is user decision) | Pending | — | — | |
+| 1 | Failing-test baseline (`tests/agent/test_tool_policy.py`, shipped values) | In Progress | — | — |  |
+| 2 | Core logic in `scripts/agent/tool_policy.py` (per-executable rule, interpreter removal, executable-name normalization) | In Progress | — | — |  |
+| 3 | `config/agent.toml` edit + config validation | In Progress | — | — |  |
+| 4 | Verification: suite, ruff, mypy | Pending | — | — |  |
+| 5 | Docs update + docs checkers | In Progress | — | — |  |
+| 6 | Deployment hand-off (commit/push; deploy is user decision) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -222,7 +226,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261103-072856_01_scripts_agent_tool_policy.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261103-072856_02_config_agent.toml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261103-072856_03_tests_agent_test_tool_policy.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261103-072856_04_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261103-072856_05_docs_91_security_security_02_high-risk-tool-common-policy.md.md` | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -245,3 +253,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-010 | Documentation Impact; Acceptance Criteria 4 | `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md` | Phase 5 | AC-4 | docs checker | Explicit in issue |
 | REQ-010 | Documentation Impact; Acceptance Criteria 4 | `docs/91_security/security_02_high-risk-tool-common-policy.md` | Phase 5 | AC-4 | docs checker | Explicit in issue |
 | REQ-011 | Testing Expectations; Acceptance Criteria 5 | `tests/agent/test_tool_policy.py` | Phase 1, Phase 4 | AC-1, AC-2, AC-3, AC-5 | whole suite | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261103-072856 -->
