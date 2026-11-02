@@ -45,7 +45,7 @@ Before the positional check, derive from each `argv[1:]` token the string that s
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/tool_policy.py | Extract the value of `--flag=value` tokens as path candidates in `_check_positional_args()` | The `not a.startswith("-")` filter drops the whole token, so its value is never checked | REQ-001, REQ-002; AC-1, AC-2 | `_check_positional_args` builds `positional` from tokens not starting with `-`; classification of `git diff --output=/etc/x` and `pytest --rootdir=/etc` returned `none` while the space-separated forms returned `high` (checked in Step 2 and Step 3) | tests/agent/test_tool_policy.py | Verified |
+| scripts/agent/tool_policy.py | Extract the value of `--flag=value` tokens as path candidates in `_check_positional_args()` | The `not a.startswith("-")` filter drops the whole token, so its value is never checked | REQ-001, REQ-002; AC-1, AC-2 | `_check_positional_args` builds `positional` from tokens not starting with `-`; classification of `git diff --output=/etc/x` and `pytest --rootdir=/etc` returned `none` while the space-separated forms returned `high` (checked in Step 2 and Step 3) | `tests/agent/test_tool_policy.py` | Verified |
 | tests/agent/test_tool_policy.py | Add `--flag=value` regression tests next to the existing `shell_run` positional-argument tests | No existing test covers a `--flag=value` path; existing tests (`test_cat_protected_path_escalates`, `test_cat_outside_allowed_root_escalates`, `test_flag_only_no_positional_routing_needed`, `test_positional_arg_value_error_in_resolve_escalates` and their `prefix_collision` twins) cover only bare tokens | REQ-003; AC-3, AC-4 | The file builds configs with `_cfg(approval_shell_safe_prefixes=..., allowed_root=..., approval_protected_paths=...)` and asserts `classify_risk(...) == "high"/"none"` (checked in Step 3) | tests/agent/test_tool_policy.py | Verified |
 
 ## Reference Files
@@ -55,7 +55,7 @@ Before the positional check, derive from each `argv[1:]` token the string that s
 | config/shell_mcp_server.toml | `command_allowlist` (`pytest`, `python`, `python3`, `git`, `ruff`, `mypy`) decides which executables tests should use as reachable examples | REQ-003 |
 | docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md | Documents the safe-prefix override and risk escalation; confirms nothing documents token-parsing coverage | Documentation Impact |
 | docs/91_security/security_02_high-risk-tool-common-policy.md | Security-policy statement on safe-prefix auto-approval; confirms no token-parsing statement | Documentation Impact |
-| issues/20261101-073644_shellprefix001_safe-prefix-approves-code.md | Open overlapping Issue (same functions and test file); defines the ordering dependency | Scope Dependencies, UNK-01 |
+| issues/20261101-073644_shellprefix001_safe-prefix-approves-code.md | Overlapping Issue (same functions and test file) with a Frozen Plan (`plans/20261101-145910_...`, verified 20261103); defines the ordering dependency | Scope Dependencies, UNK-01 |
 | issues/20261101-073742_pathkeys001_path-checks-skip-lists.md | Open related Issue in the same module; confirms no shared function | Scope Dependencies |
 
 ## Acceptance Criteria
@@ -78,12 +78,12 @@ N/A: no documentation describes token-parsing coverage of this check (checked in
 - Only values after a `--` prefixed long flag are extracted; a short flag with an attached value is out of scope (UNK-02), consistent with the Issue's Required Changes.
 - In the shipped configuration, `approval_protected_paths` contains `/opt/` while `allowed_root` is `/opt/llm`, so an absolute value under `/opt/llm` escalates through the protected prefix just as a bare positional path does today; this Plan preserves that parity and does not change it.
 - Ordering against `shellprefix001`: that Issue is decided and implemented first; this Plan's implementation procedure re-reads `_check_positional_args` and the `shell_run` tests at that time, and reconciles tests that `shellprefix001` makes redundant. Judged a sequencing dependency, not a design conflict, because this Plan changes only candidate extraction inside `_check_positional_args` and `shellprefix001` changes which commands reach it.
-- Overlap with other Frozen Plans (Step 8b): none reported by `tools/check_plan_target_overlaps.py` for this Plan's two target files (see Step 9 report); `shellprefix001` has no Plan yet.
+- Overlap with other Frozen Plans (re-verified 20261103): `shellprefix001` now has a Frozen Plan (`plans/20261101-145910_shellprefix001_safe-prefix-approves-code.md`) sharing this Plan's two target files; judged the same sequencing dependency (that Plan first), not a design conflict — its scope changes `_match_executable_identity`/`_special_case_risk`/`_unsafe_flag_denylist` and it explicitly does not touch `_check_positional_args` (that Plan's A2 and Risks).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |----|---|---|---|---|
-| UNK-01 | Whether `shellprefix001`'s redesign of `_special_case_risk`/`_check_positional_args` keeps the `_check_positional_args(cfg, argv, base)` shape, so that this Plan's change and tests still apply as written | `shellprefix001` has no Plan yet; its Required Changes allow replacing prefix matching with per-executable rules | Decide and implement `shellprefix001` first (`issues/20261101-073644_shellprefix001_safe-prefix-approves-code.md`); re-read the function before this Plan's implementation procedure; if the shape changes, amend this Plan's target rows | False |
+| UNK-01 | ~~Whether `shellprefix001`'s redesign of `_special_case_risk`/`_check_positional_args` keeps the `_check_positional_args(cfg, argv, base)` shape, so that this Plan's change and tests still apply as written~~ Resolved 20261103: the Frozen Plan `plans/20261101-145910_shellprefix001_safe-prefix-approves-code.md` changes only `_match_executable_identity`/`_special_case_risk`/`_unsafe_flag_denylist`, states it does not touch `_check_positional_args` (its A2, Risks), and keeps the call `_check_positional_args(cfg, argv, match)` in `_special_case_risk` (L249-258); the function shape this Plan assumes is preserved | `shellprefix001`'s intended function shapes (now documented in its Frozen Plan) | Resolved by cross-plan evidence; re-verify the function body at implementation time before editing (sequencing dependency) | False |
 | UNK-02 | Whether the owner wants attached short-flag values (`-c/etc/x.ini`, `-I/etc`) and `key=value` operands (`-X pycache_prefix=/etc/x`) covered by the same extraction. Observed: `pytest -c/etc/x.ini` and `ls -I/etc` classify as `none` | The Issue names only `--flag=value`; which short flags take attached values is per executable and was not enumerated | Owner decision; if wanted, file a follow-up Issue (it needs per-executable flag knowledge, which overlaps `shellprefix001`) | False |
 | UNK-03 | Whether the shell MCP server rejects `cat`, `grep`, `find`, `ls` (not in `command_allowlist`) so the agent-side entries are unreachable (Needs confirmation: the server's matching code was not read) | Server command-matching code not inspected | Verified by `shellprefix001` (it lists the same Needs confirmation); does not change this Plan's scope | False |
 
@@ -133,9 +133,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Candidate extraction for `--flag=value` in `_check_positional_args` (scripts/agent/tool_policy.py) | Pending | — | — | After `shellprefix001` (UNK-01) |
-| 2 | Add `--flag=value` regression tests (tests/agent/test_tool_policy.py) | Pending | — | — | |
-| 3 | Validation commands and deploy hand-off | Pending | — | — | |
+| 1 | Candidate extraction for `--flag=value` in `_check_positional_args` (scripts/agent/tool_policy.py) | In Progress | — | — | After `shellprefix001` (UNK-01) |
+| 2 | Add `--flag=value` regression tests (tests/agent/test_tool_policy.py) | In Progress | — | — |  |
+| 3 | Validation commands and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -145,7 +145,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261103-073729_01_scripts_agent_tool_policy.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261103-073729_02_tests_agent_test_tool_policy.py.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -162,3 +163,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-001 | Issue Problem, Required Changes (parse `--flag=value`); `_check_positional_args` `not a.startswith("-")` filter; classification of `git diff --output=/etc/x` and `pytest --rootdir=/etc` | scripts/agent/tool_policy.py | Step 1 | AC-1 | `uv run pytest tests/agent/test_tool_policy.py` (new escalation tests) | Confirmed by repository evidence |
 | REQ-002 | Issue Constraints, Acceptance Criteria (existing behavior unchanged) | scripts/agent/tool_policy.py | Step 1 | AC-2 | Existing `shell_run` tests in `tests/agent/test_tool_policy.py` | Explicit in issue |
 | REQ-003 | Issue Required Changes (add tests), Testing Expectations; reachable executables from `config/shell_mcp_server.toml` | tests/agent/test_tool_policy.py | Step 2 | AC-3, AC-4 | `uv run pytest tests/agent/test_tool_policy.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261103-073729 -->
