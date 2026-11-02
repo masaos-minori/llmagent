@@ -19,8 +19,8 @@ already rewrote.
   `key=value`, unquoted/quoted `key: value`, quoted-JSON keys, `Authorization:` lines and
   standalone `Bearer`; this row only extends it.
 - Final key-name list must equal `_KEY_ALT` (new) (row 01): password, passwd, pwd, api_key,
-  apikey, secret, token, bearer, authorization, credential, private_key — suffixed
-  forms (`access_token`, `X-Api-Key`) masked too.
+  `apikey`, secret, token, access_token, auth_token, client_secret, bearer, authorization,
+  credential, private_key — suffixed forms (`X-Api-Key`) masked too.
 - Add the new shapes exactly as row 01 implements them: `=>` separator, bare JWT tokens, and
   `scheme://user:password@host` credentials (only the password masked); no count claim.
 
@@ -78,8 +78,8 @@ detection refuses unencrypted `session_diagnostics` writes (see agent_09_01 data
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the shapes paragraph with the diagmask shapes | Pending | — | — | After secmask001 row 03 and rows 01-03 of this plan |
-| 2 | Run the docs checkers (`routing.md`) | Pending | — | — | |
+| 1 | Extend the shapes paragraph with the diagmask shapes | Completed | — | — | After secmask001 row 03 and rows 01-03 of this plan masker shapes paragraph extended (14 patterns, => syntax, composite key names, scheme-preserved authorization, URL username preserved); cross-reference to agent_09_01 added |
+| 2 | Run the docs checkers (`routing.md`) | Completed | — | — | ruff format/check, mypy, bandit -ll -r scripts/, lint-imports (6 kept), check_module_size, full suite 11276 passed/8 skipped, diff-cover 100%, docs checkers exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
