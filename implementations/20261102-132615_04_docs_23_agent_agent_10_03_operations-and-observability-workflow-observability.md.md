@@ -69,8 +69,8 @@ naming the writer and the tool; existing silent-return guards keep their precede
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the Key Constraints bullet | Pending | — | — | Land with row 01, same commit as row 03 |
-| 2 | Run the docs checkers (`routing.md`) | Pending | — | — | |
+| 1 | Replace the Key Constraints bullet | Completed | 20261102-180240 | 20261102-180004 | Land with row 01, same commit as row 03 landed in batch 20261102-132615; red-first verified, all targets green |
+| 2 | Run the docs checkers (`routing.md`) | Completed | — | 20261102-180004 | full suite 11348 passed/8 skipped; diff-cover 100%; ruff/mypy/bandit/lint-imports/check_module_size green; docs checkers green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
