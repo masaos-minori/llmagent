@@ -89,7 +89,12 @@ def plan_text(
 @pytest.fixture
 def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A throwaway git repository that is also the working directory."""
-    git.Repo.init(tmp_path)
+    repo = git.Repo.init(tmp_path)
+    # git identity is repository-local config; a throwaway repo inherits no
+    # machine identity, so commits in it need their own (hermetic tests).
+    with repo.config_writer() as writer:
+        writer.set_value("user", "name", "Test Fixture")
+        writer.set_value("user", "email", "fixture@example.invalid")
     for name in ("plans/done", "implementations/done"):
         (tmp_path / name).mkdir(parents=True)
         (tmp_path / name / ".gitkeep").write_text("")
