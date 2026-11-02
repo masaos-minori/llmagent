@@ -120,8 +120,8 @@ from agent.secrets_masker import _mask_secrets
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `_mask_secrets` import and the string branch in `_mask_value` | Pending | — | — | After secmask001 and rows 02-04's red tests land |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the `_mask_secrets` import and the string branch in `_mask_value` | Completed | 20261102-175940 | 20261102-180004 | After secmask001 and rows 02-04's red tests land landed in batch 20261102-132615; red-first verified, all targets green |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261102-180004 | full suite 11348 passed/8 skipped; diff-cover 100%; ruff/mypy/bandit/lint-imports/check_module_size green; docs checkers green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
