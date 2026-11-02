@@ -140,9 +140,9 @@ Path A (Step 3): direct verification only. Imports of `agent.tool_audit` (rg): `
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: denial and no-op unit tests, gateway-driven regression test (tests/agent/test_tool_audit.py, tests/agent/test_repository_gateway.py) | Pending | — | — | |
-| 2 | Core logic: narrow the `audit_tool_exec` guard (scripts/agent/tool_audit.py) | Pending | — | — | |
-| 3 | Deployment and verification: tests, toolchain, deploy hand-off (scripts/agent/tool_audit.py, tests/agent/test_tool_audit.py, tests/agent/test_repository_gateway.py) | Pending | — | — | |
+| 1 | Tests first: denial and no-op unit tests, gateway-driven regression test (tests/agent/test_tool_audit.py, tests/agent/test_repository_gateway.py) | In Progress | — | — |  |
+| 2 | Core logic: narrow the `audit_tool_exec` guard (scripts/agent/tool_audit.py) | In Progress | — | — |  |
+| 3 | Deployment and verification: tests, toolchain, deploy hand-off (scripts/agent/tool_audit.py, tests/agent/test_tool_audit.py, tests/agent/test_repository_gateway.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -152,7 +152,9 @@ Path A (Step 3): direct verification only. Imports of `agent.tool_audit` (rg): `
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261102-132702_02_tests_agent_test_tool_audit.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261102-132702_03_tests_agent_test_repository_gateway.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261102-132702_01_scripts_agent_tool_audit.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -172,3 +174,5 @@ Path A (Step 3): direct verification only. Imports of `agent.tool_audit` (rg): `
 | REQ-002 | Issue Acceptance Criteria 2 | tests/agent/test_tool_audit.py | 1 | AC-2 | Tests: unit no-op preserved | Confirmed by repository evidence |
 | REQ-003 | Issue Required Changes 2; Testing Expectations; Constraints (keep log line) | tests/agent/test_repository_gateway.py | 1 | AC-3 | Tests: regression | Confirmed by repository evidence |
 | REQ-004 | Issue Constraints (coordinate with assertaudit001); assertaudit001 Plan | tests/agent/test_repository_gateway.py | 1 | AC-4 | Tests: conditional | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261102-132702 -->

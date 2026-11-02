@@ -118,6 +118,19 @@ Update `docs/22_mcp/mcp_03_03_transport-and-health.md` to state which `/v1/call_
 | UNK-02 | Exact tool-level status set and whether any server uses a listed status for a genuine server fault. Evidence: file servers emit `403/404/422`; github `400/403/404/409/500/502`; git `500`; web_search `403/422/502`; shell `403/422`; rag_pipeline `503`; cicd/mdq use a dynamic `status_code`. | Per-status intent is server-specific; the contract fixes it by status, not by server. | Subsumed by UNK-01: the chosen option encodes the set (proposal: tool-level `{400,403,404,409,422}`, transport `401` + all `5xx`). | False |
 | UNK-03 | Whether the per-server unavailable-repeat guard (`tool_empty_result_max_repeats`, default `0`) actually stops a turn in this case. | Guard exists (`tool_loop_guard.py::scan_unavailable_repeat`) but is disabled by default config. | Documented: with the default the guard is off, so the primary harm is the cooldown self-outage, not the guard. No code change required. | False |
 
+Unknown status updates (plan-to-implementation-procedure gate, 2026-11-02):
+- UNK-01 resolved by owner decision 2026-11-02: **Option A** selected — classification lives in
+  `scripts/shared/http_transport.py`'s `call()`. Evidence: one shared-module change against the
+  Plan's own blast-radius table; the validation matrix already names the `httpx.MockTransport`
+  harness for Option A; Option B would alter the shared dispatcher used by every MCP server.
+  Resulting behavior: Option B rows (`scripts/mcp_servers/dispatch.py`,
+  `tests/mcp_servers/test_mcp_dispatch.py`) are NOT modified and receive no procedure documents.
+- UNK-02 resolved with the same decision, adopting the Plan's proposed contract: tool-level
+  statuses `{400, 403, 404, 409, 422}`; transport/health failures = `401` + all `5xx` +
+  timeouts + malformed responses + retry exhaustion. Evidence: the REQ-005 server inventory
+  shows file servers emit `403/404/422` only for file-domain outcomes; no surveyed server uses
+  `400`/`409`/`422` for a genuine transport fault (github `400/409` are API misuse outcomes).
+
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor` columns. The `File` column here MUST be a subset of `Implementation Target Files`' rows.
 
@@ -202,11 +215,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Contract decision and signature (option + status set) | Pending | — | — | Blocked on owner selection (UNK-01/UNK-02); non-blocking, recorded here |
-| 2 | Core logic (Option A `http_transport.py` or Option B `dispatch.py`) | Pending | — | — | One option only |
-| 3 | Tests for the tool-level/transport split and health routing | Pending | — | — | |
-| 4 | Documentation of the HTTP-status contract | Pending | — | — | |
-| 5 | Server inventory reconciliation | Pending | — | — | |
-| 6 | Deployment & verification (ruff/mypy/regression) | Pending | — | — | |
+| 2 | Core logic (Option A `http_transport.py` or Option B `dispatch.py`) | In Progress | — | — | One option only |
+| 3 | Tests for the tool-level/transport split and health routing | In Progress | — | — |  |
+| 4 | Documentation of the HTTP-status contract | In Progress | — | — |  |
+| 5 | Server inventory reconciliation | Pending | — | — |  |
+| 6 | Deployment & verification (ruff/mypy/regression) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -216,7 +229,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261102-132712_01_scripts_shared_http_transport.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261102-132712_02_tests_shared_test_http_transport.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261102-132712_03_tests_shared_test_tool_transport_invoker.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261102-132712_04_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -239,3 +255,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Unresolved Questions, Required Changes | Reference Files (other servers) | Step 5 | — | Server inventory | Derived from confirmed evidence |
 | REQ-006 | Documentation Impact | `docs/22_mcp/mcp_03_03_transport-and-health.md` | Step 4 | AC-004 | Doc review | Confirmed by repository evidence |
 | REQ-007 | Testing Expectations, Acceptance Criteria | all touched files | Step 6 | AC-005 | Full regression + ruff/mypy | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261102-132712 -->

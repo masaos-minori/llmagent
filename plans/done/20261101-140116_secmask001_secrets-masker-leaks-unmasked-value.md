@@ -164,10 +164,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: colon, quoted-colon, whitespace / multi-line, ordering, no-false-positive tests (tests/agent/test_secrets_masker.py) | Pending | — | — | |
-| 2 | Core logic: extend `SECRET_PATTERNS`, UNK-01 decision, update pinned tests (scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py) | Pending | — | — | |
-| 3 | Documentation: update the masker section (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | Pending | — | — | |
-| 4 | Deployment and verification: validation sequence, call-site tests, deploy hand-off (scripts/agent/secrets_masker.py) | Pending | — | — | |
+| 1 | Tests first: colon, quoted-colon, whitespace / multi-line, ordering, no-false-positive tests (tests/agent/test_secrets_masker.py) | In Progress | — | — |  |
+| 2 | Core logic: extend `SECRET_PATTERNS`, UNK-01 decision, update pinned tests (scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py) | In Progress | — | — |  |
+| 3 | Documentation: update the masker section (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | In Progress | — | — |  |
+| 4 | Deployment and verification: validation sequence, call-site tests, deploy hand-off (scripts/agent/secrets_masker.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -177,7 +177,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261102-132558_02_tests_agent_test_secrets_masker.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261102-132558_01_scripts_agent_secrets_masker.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261102-132558_03_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -200,3 +202,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Issue Testing Expectations (regression, no false positive); retry_helper double masking | tests/agent/test_secrets_masker.py | 1, 2 | AC-4, AC-5 | Tests: regression, ordering, idempotence | Derived from confirmed evidence |
 | REQ-005 | Issue Constraints; AI Implementation Instruction | scripts/agent/secrets_masker.py | 2, 4 | AC-6 | Validation plan: call-site tests, `git diff` check | Explicit in issue |
 | REQ-006 | `agent_10_01` section states "three shapes" (Issue Documentation Impact says N/A) | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | 3 | AC-7 | Validation plan: docs checkers | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261102-132558 -->

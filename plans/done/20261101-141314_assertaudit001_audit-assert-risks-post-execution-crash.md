@@ -177,10 +177,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: skip-and-warn tests for the three writers, no-assert guard, order tests (tests/agent/test_tool_audit.py) | Pending | — | — | |
-| 2 | Core logic: workflow-id helper and replacement of the three asserts (scripts/agent/tool_audit.py) | Pending | — | — | |
-| 3 | Documentation: replace the assertion-error sentence (docs/23_agent/agent_10_02_operations-and-observability-audit-and-otel.md, docs/23_agent/agent_10_03_operations-and-observability-workflow-observability.md) | Pending | — | — | |
-| 4 | Deployment and verification: validation sequence, regression modules, deploy hand-off (scripts/agent/tool_audit.py) | Pending | — | — | |
+| 1 | Tests first: skip-and-warn tests for the three writers, no-assert guard, order tests (tests/agent/test_tool_audit.py) | In Progress | — | — |  |
+| 2 | Core logic: workflow-id helper and replacement of the three asserts (scripts/agent/tool_audit.py) | In Progress | — | — |  |
+| 3 | Documentation: replace the assertion-error sentence (docs/23_agent/agent_10_02_operations-and-observability-audit-and-otel.md, docs/23_agent/agent_10_03_operations-and-observability-workflow-observability.md) | In Progress | — | — |  |
+| 4 | Deployment and verification: validation sequence, regression modules, deploy hand-off (scripts/agent/tool_audit.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -190,7 +190,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261102-132615_02_tests_agent_test_tool_audit.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261102-132615_01_scripts_agent_tool_audit.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261102-132615_03_docs_23_agent_agent_10_02_operations-and-observability-audit-and-otel.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261102-132615_04_docs_23_agent_agent_10_03_operations-and-observability-workflow-observability.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -213,3 +216,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | `agent_10_03` Key Constraints bullet (Issue Documentation Impact says N/A) | docs/23_agent/agent_10_03_operations-and-observability-workflow-observability.md | 3 | AC-4 | Validation plan: docs checkers | Confirmed by repository evidence |
 | REQ-005 | Issue Dependencies note (`log_approval_decision` has no caller under `scripts/`; decide fix or remove) | scripts/agent/tool_audit.py | 2 | AC-5 | Validation plan: reference drift check | Needs confirmation |
 | REQ-005 | Issue Dependencies note; function in the registry manifest and generated reference | tests/agent/test_tool_audit.py | 1 | AC-5 | Tests: three-writer parametrization | Needs confirmation |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261102-132615 -->

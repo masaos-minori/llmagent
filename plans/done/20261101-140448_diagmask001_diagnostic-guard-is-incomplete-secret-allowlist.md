@@ -181,11 +181,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: guard and masker tests for the new shapes (tests/agent/test_diagnostic_store_security.py, tests/agent/test_secrets_masker.py) | Pending | — | — | |
-| 2 | Shared detection function and extended patterns; update pattern-count assertion (scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py) | Pending | — | — | |
-| 3 | Consolidate the guard onto the shared detector (scripts/agent/diagnostic_store.py) | Pending | — | — | |
-| 4 | Documentation: data-layer fail-closed bullet and masker shapes (docs/23_agent/agent_09_01_data-layer-session-db.md, docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | Pending | — | — | |
-| 5 | Deployment and verification: validation sequence, regression tests, deploy hand-off (scripts/agent/diagnostic_store.py, scripts/agent/secrets_masker.py) | Pending | — | — | |
+| 1 | Tests first: guard and masker tests for the new shapes (tests/agent/test_diagnostic_store_security.py, tests/agent/test_secrets_masker.py) | In Progress | — | — |  |
+| 2 | Shared detection function and extended patterns; update pattern-count assertion (scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py) | In Progress | — | — |  |
+| 3 | Consolidate the guard onto the shared detector (scripts/agent/diagnostic_store.py) | In Progress | — | — |  |
+| 4 | Documentation: data-layer fail-closed bullet and masker shapes (docs/23_agent/agent_09_01_data-layer-session-db.md, docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | In Progress | — | — |  |
+| 5 | Deployment and verification: validation sequence, regression tests, deploy hand-off (scripts/agent/diagnostic_store.py, scripts/agent/secrets_masker.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -195,7 +195,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261102-132614_04_tests_agent_test_diagnostic_store_security.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261102-132614_03_tests_agent_test_secrets_masker.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261102-132614_01_scripts_agent_secrets_masker.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261102-132614_02_scripts_agent_diagnostic_store.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261102-132614_05_docs_23_agent_agent_09_01_data-layer-session-db.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261102-132614_06_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -222,3 +227,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-005 | Issue Implementation Intent (shared pattern set also for log masking) | scripts/agent/secrets_masker.py | 2 | AC-5 | `git diff` check, regression tests | Derived from confirmed evidence |
 | REQ-006 | Data-layer doc names `_SENSITIVE_PATTERNS` (Issue Documentation Impact says N/A) | docs/23_agent/agent_09_01_data-layer-session-db.md | 4 | AC-6 | Validation plan: docs checkers | Confirmed by repository evidence |
 | REQ-006 | Operations doc lists masker shapes ("three shapes") | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | 4 | AC-6 | Validation plan: docs checkers | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261102-132614 -->

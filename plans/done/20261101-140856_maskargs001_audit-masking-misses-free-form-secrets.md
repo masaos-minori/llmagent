@@ -188,10 +188,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: mask_args, audit args_preview, tool-runner log tests (tests/agent/test_tool_result_formatter.py, tests/agent/test_tool_audit.py, tests/agent/test_tool_runner.py) | Pending | — | — | |
-| 2 | Core logic: string branch in `_mask_value` calling `_mask_secrets` (scripts/agent/tool_result_formatter.py) | Pending | — | — | |
-| 3 | Documentation: extend the `masked_fields` bullet (docs/23_agent/agent_08_03_configuration-tools-memory.md) | Pending | — | — | |
-| 4 | Deployment and verification: validation sequence, regression modules, deploy hand-off (scripts/agent/tool_result_formatter.py) | Pending | — | — | |
+| 1 | Tests first: mask_args, audit args_preview, tool-runner log tests (tests/agent/test_tool_result_formatter.py, tests/agent/test_tool_audit.py, tests/agent/test_tool_runner.py) | In Progress | — | — |  |
+| 2 | Core logic: string branch in `_mask_value` calling `_mask_secrets` (scripts/agent/tool_result_formatter.py) | In Progress | — | — |  |
+| 3 | Documentation: extend the `masked_fields` bullet (docs/23_agent/agent_08_03_configuration-tools-memory.md) | In Progress | — | — |  |
+| 4 | Deployment and verification: validation sequence, regression modules, deploy hand-off (scripts/agent/tool_result_formatter.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -201,7 +201,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261102-132615_02_tests_agent_test_tool_result_formatter.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261102-132615_03_tests_agent_test_tool_audit.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261102-132615_04_tests_agent_test_tool_runner.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261102-132615_01_scripts_agent_tool_result_formatter.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261102-132615_05_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -223,3 +227,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Issue Required Changes (tool-runner logging path test); `_collect_tool_result_msgs` logs masked args | tests/agent/test_tool_runner.py | 1 | AC-4 | Tests: runner log/emit | Confirmed by repository evidence |
 | REQ-005 | Issue Required Changes and AI Implementation Instruction (approval preview decision); Unresolved Questions | scripts/agent/tool_result_formatter.py | 2 | AC-5 | Validation plan: `git diff` check | Needs confirmation |
 | REQ-006 | `agent_08_03` `masked_fields` bullet documents the sinks and the preview exception (Issue Documentation Impact says N/A) | docs/23_agent/agent_08_03_configuration-tools-memory.md | 3 | AC-7 | Validation plan: docs checkers | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261102-132615 -->
