@@ -108,8 +108,8 @@ from agent.secrets_masker import detects_secrets
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Swap the guard block for `detects_secrets` (new) and delete `_SENSITIVE_PATTERNS` + `re` import | Pending | — | — | After row 01 lands (Plan Phase 3) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Swap the guard block for `detects_secrets` (new) and delete `_SENSITIVE_PATTERNS` + `re` import | Completed | — | — | After row 01 lands (Plan Phase 3) _SENSITIVE_PATTERNS removed; guard consolidated onto detects_secrets; message byte-identical; red phase 12 failed/32 passed resolved; 151 targeted tests green |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format/check, mypy, bandit -ll -r scripts/, lint-imports (6 kept), check_module_size, full suite 11276 passed/8 skipped, diff-cover 100%, docs checkers exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
