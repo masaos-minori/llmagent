@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 AUDIT_ARGS_PREVIEW_MAX_CHARS = 1500
 
+_ERROR_TYPE_DENIED = "denied"
+
 
 def _bounded_preview(masked: dict) -> dict:
     """Bound the serialized args preview; oversized payloads become an envelope."""
@@ -191,7 +193,7 @@ def audit_tool_exec(
     """
     if ctx.services_required.audit_logger is None:
         return
-    if not mcp_request_id and not source:
+    if not mcp_request_id and not source and error_type != _ERROR_TYPE_DENIED:
         return
     workflow_id = _workflow_id_or_skip(ctx, "audit_tool_exec", tool_name)
     if workflow_id is None:

@@ -107,9 +107,9 @@ Append `TestDenialAuditEndToEnd` (new) at the end of the module.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestDenialAuditEndToEnd` (new) denial test (red before row 01 lands) | Pending | — | — | Plan Phase 1 |
-| 2 | Add the no-`workflow_id` test | Pending | — | — | Gated: only after assertaudit001 is implemented (REQ-004) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestDenialAuditEndToEnd` (new) denial test (red before row 01 lands) | Completed | 20261102-180955 | 20261102-184339 | Plan Phase 1 TestDenialAuditEndToEnd added; denial test red-first confirmed, REQ-004 test green |
+| 2 | Add the no-`workflow_id` test | Completed | 20261102-180955 | 20261102-184339 | Gate satisfied 2026-11-02: assertaudit001 implemented (commit e7f5f9050); test_denied_without_workflow_id_skips_quietly added and green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261102-180955 | 20261102-184339 | ruff pass; full suite green after row 01 (11354 passed); diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

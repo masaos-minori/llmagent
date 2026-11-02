@@ -11,7 +11,8 @@ pins the default `source` field (Plan REQ-001 / AC-1, REQ-002 / AC-2).
 - New class `TestDeniedResultAudit` (new) appended after the classes added earlier in the batch
   (maskargs001's `TestAuditPreviewScrub` (new), assertaudit001's `TestWorkflowIdSkipWarn` (new) — append-only
   order, adjudication D3).
-- Reuse `_make_ctx` (:63) and `_make_cfg`; no existing test edited.
+- Reuse `_make_ctx` (:66; shifted from the `:63` cited at plan time) and `_make_cfg`; no existing
+  test edited.
 
 ## Assumptions
 
@@ -85,8 +86,8 @@ Append `TestDeniedResultAudit` (new) at the end of the module.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestDeniedResultAudit` (new) tests (denial case red before row 01 lands) | Pending | — | — | Plan Phase 1 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestDeniedResultAudit` (new) tests (denial case red before row 01 lands) | Completed | 20261102-180955 | 20261102-184339 | Plan Phase 1 TestDeniedResultAudit added; denial tests red-first confirmed (2 red), no-op test green |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261102-180955 | 20261102-184339 | ruff pass; full suite green after row 01 (11354 passed); diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

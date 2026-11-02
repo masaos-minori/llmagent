@@ -9,11 +9,12 @@ no-op case for every other empty-identity call (Plan REQ-001 denial audited, REQ
 ## Scope
 
 - Add a module constant `_ERROR_TYPE_DENIED = "denied"` (new) in `tool_audit.py`.
-- Change the guard at `tool_audit.py:173` from
+- Change the guard at `tool_audit.py:194` (re-verified 2026-11-02; shifted from the `:173` cited
+  at plan time by the assertaudit001 landing) from
   `if not mcp_request_id and not source:` to
   `if not mcp_request_id and not source and error_type != _ERROR_TYPE_DENIED:` — same position,
   before the `workflow_id` check.
-- Nothing else: `source if source else "agent"` default (:192), event fields, and all other
+- Nothing else: `source if source else "agent"` default (:213), event fields, and all other
   functions untouched; no schema change.
 
 ## Assumptions
@@ -44,7 +45,7 @@ no-op case for every other empty-identity call (Plan REQ-001 denial audited, REQ
 `scripts/agent/tool_audit.py`
 
 ### Procedure
-Two edits: constant near `AUDIT_ARGS_PREVIEW_MAX_CHARS` (:25), and the guard condition at :173.
+Two edits: constant near `AUDIT_ARGS_PREVIEW_MAX_CHARS` (:28), and the guard condition at :194.
 
 ### Method
 ```python
@@ -57,7 +58,7 @@ _ERROR_TYPE_DENIED = "denied"
 ### Details
 - Pure string comparison; cannot raise (Plan failure path).
 - Event field set unchanged: `error_type="denied"`, `is_error` as passed, `mcp_request_id` empty,
-  `source` defaults to `"agent"` (:192).
+  `source` defaults to `"agent"` (:213).
 
 ## Compatibility considerations
 
@@ -99,8 +100,8 @@ _ERROR_TYPE_DENIED = "denied"
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_ERROR_TYPE_DENIED` (new) and narrow the early-return condition | Pending | — | — | After rows 02-03's red tests land; after assertaudit001 lands (batch order) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Deploy hand-off is Plan Phase 3, user decision |
+| 1 | Add `_ERROR_TYPE_DENIED` (new) and narrow the early-return condition | Completed | 20261102-180955 | 20261102-184339 | After rows 02-03's red tests land; after assertaudit001 lands (batch order) _ERROR_TYPE_DENIED added (:28) + guard narrowed (:195); 217 targeted tests green |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261102-180955 | 20261102-184339 | Deploy hand-off is Plan Phase 3, user decision ruff/mypy/lint-imports/bandit -ll/check_module_size pass; full suite 11354 passed; diff-cover 100%; pre-existing mypy unused-ignore in scripts/rag/ingestion (4) noted as out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -5,6 +5,8 @@ audit emission, and denied results.
 
 from __future__ import annotations
 
+import json
+import logging
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,6 +14,10 @@ import pytest
 from agent.repository_gateway import RepositoryGateway
 from agent.tool_enums import OperationType
 from agent.tool_exceptions import PolicyViolationError
+from agent.tool_loop_guard import ToolLoopGuard
+from agent.tool_preparation import PreparedToolCall
+from agent.tool_runner import execute_one_tool_call
+from shared.tool_spec import ToolSpec
 
 
 def _make_gateway(cfg=None, executor=None, audit_logger=None):
@@ -148,3 +154,102 @@ class TestAudit:
         audit.info.assert_called_once()
         call_args = audit.info.call_args[0]
         assert "write_file" in str(call_args)
+
+
+def _make_denial_ctx(executor: AsyncMock) -> SimpleNamespace:
+    """Extend `_make_ctx` per test (never mutate the shared helper) with the
+    fields the tool_runner -> audit_tool_exec wiring needs (Scope)."""
+    ctx = _make_ctx()
+    ctx.workflow.workflow_id = "wf-test"
+    ctx.workflow.current_task_id = "task-1"
+    ctx.session = SimpleNamespace(session_id=None)
+    ctx.services_required.audit_logger = MagicMock()
+    ctx.services_required.gateway = _make_gateway(executor=executor)
+    ctx.cfg.tool.masked_fields = []
+    ctx.cfg.tool.tool_result_max_llm_chars = 4000
+    ctx.cfg.approval.approval_resource_keys = {}
+    return ctx
+
+
+class TestDenialAuditEndToEnd:
+    """Denied gateway writes reach the runner's audit call site (toolaudit001 REQ-003/REQ-004)."""
+
+    @pytest.mark.asyncio
+    async def test_denied_write_produces_one_tool_exec_record(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        executor = AsyncMock()
+        ctx = _make_denial_ctx(executor)
+        guard = ToolLoopGuard(ctx)
+
+        with (
+            patch(
+                "agent.repository_gateway.classify_operation_type",
+                return_value=OperationType.WRITE,
+            ),
+            patch(
+                "agent.repository_gateway.check_preflight",
+                side_effect=PolicyViolationError("deny", "blocked"),
+            ),
+            caplog.at_level(logging.WARNING, logger="agent.repository_gateway"),
+        ):
+            _tc_id, _name, _args, _text, is_error, _llm = await execute_one_tool_call(
+                ctx,
+                PreparedToolCall(
+                    call_id="call_write_file",
+                    name="write_file",
+                    args={"path": "/etc/passwd", "content": "x"},
+                    spec=ToolSpec(call_id="call_write_file", name="write_file"),
+                    original_call={},
+                ),
+                guard,
+            )
+
+        assert is_error is True
+        assert executor.execute.await_count == 0
+        ctx.services_required.audit_logger.info.assert_called_once()
+        record = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert record["event"] == "tool_exec"
+        assert record["error_type"] == "denied"
+        assert record["is_error"] is True
+        warnings = [
+            r
+            for r in caplog.records
+            if r.name == "agent.repository_gateway"
+            and r.levelno >= logging.WARNING
+            and "gateway.policy_denied" in r.getMessage()
+        ]
+        assert len(warnings) == 1
+
+    @pytest.mark.asyncio
+    async def test_denied_without_workflow_id_skips_quietly(self) -> None:
+        """No workflow_id: the denial skips the audit without raising (REQ-004)."""
+        executor = AsyncMock()
+        ctx = _make_denial_ctx(executor)
+        ctx.workflow.workflow_id = None
+        guard = ToolLoopGuard(ctx)
+
+        with (
+            patch(
+                "agent.repository_gateway.classify_operation_type",
+                return_value=OperationType.WRITE,
+            ),
+            patch(
+                "agent.repository_gateway.check_preflight",
+                side_effect=PolicyViolationError("deny", "blocked"),
+            ),
+        ):
+            _tc_id, _name, _args, _text, is_error, _llm = await execute_one_tool_call(
+                ctx,
+                PreparedToolCall(
+                    call_id="call_write_file",
+                    name="write_file",
+                    args={"path": "/etc/passwd", "content": "x"},
+                    spec=ToolSpec(call_id="call_write_file", name="write_file"),
+                    original_call={},
+                ),
+                guard,
+            )
+
+        assert is_error is True
+        ctx.services_required.audit_logger.info.assert_not_called()

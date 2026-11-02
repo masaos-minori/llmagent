@@ -510,3 +510,54 @@ class TestWorkflowIdSkipWarn:
         )
         tree = ast.parse(source_path.read_text(encoding="utf-8"))
         assert not any(isinstance(node, ast.Assert) for node in ast.walk(tree))
+
+
+class TestDeniedResultAudit:
+    """Denied results are audited despite empty identity (toolaudit001 REQ-001/REQ-002)."""
+
+    def test_denied_result_is_audited(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        audit_tool_exec(
+            ctx, "write_file", {"path": "/tmp/x"}, True, "", "denied", source=""
+        )
+        ctx.services_required.audit_logger.info.assert_called_once()
+        record = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert record["event"] == "tool_exec"
+        assert record["error_type"] == "denied"
+        assert record["is_error"] is True
+        assert record["mcp_request_id"] == ""
+        assert record["source"] == "agent"
+
+    @pytest.mark.parametrize("error_type", ["", "tool"])
+    def test_empty_identity_non_denied_still_skipped(self, error_type: str) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        audit_tool_exec(ctx, "read_text_file", {}, False, "", error_type, source="")
+        ctx.services_required.audit_logger.info.assert_not_called()
+
+    def test_denied_record_keeps_full_field_set(self) -> None:
+        denied_ctx = _make_ctx()
+        denied_ctx.services_required.audit_logger = MagicMock()
+        audit_tool_exec(
+            denied_ctx, "write_file", {"path": "/tmp/x"}, True, "", "denied", source=""
+        )
+        denied = json.loads(
+            denied_ctx.services_required.audit_logger.info.call_args[0][0]
+        )
+
+        control_ctx = _make_ctx()
+        control_ctx.services_required.audit_logger = MagicMock()
+        audit_tool_exec(
+            control_ctx,
+            "write_file",
+            {"path": "/tmp/x"},
+            True,
+            "req-1",
+            "",
+            source="agent",
+        )
+        control = json.loads(
+            control_ctx.services_required.audit_logger.info.call_args[0][0]
+        )
+        assert set(denied) == set(control)

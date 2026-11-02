@@ -140,9 +140,9 @@ Path A (Step 3): direct verification only. Imports of `agent.tool_audit` (rg): `
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: denial and no-op unit tests, gateway-driven regression test (tests/agent/test_tool_audit.py, tests/agent/test_repository_gateway.py) | In Progress | — | — |  |
-| 2 | Core logic: narrow the `audit_tool_exec` guard (scripts/agent/tool_audit.py) | In Progress | — | — |  |
-| 3 | Deployment and verification: tests, toolchain, deploy hand-off (scripts/agent/tool_audit.py, tests/agent/test_tool_audit.py, tests/agent/test_repository_gateway.py) | Pending | — | — |  |
+| 1 | Tests first: denial and no-op unit tests, gateway-driven regression test (tests/agent/test_tool_audit.py, tests/agent/test_repository_gateway.py) | Completed | 20261102-180955 | 20261102-184339 | Red-first confirmed (3 red), full suite green after step 2 |
+| 2 | Core logic: narrow the `audit_tool_exec` guard (scripts/agent/tool_audit.py) | Completed | 20261102-180955 | 20261102-184339 | Guard narrowed; full suite 11354 passed, diff-cover 100% |
+| 3 | Deployment and verification: tests, toolchain, deploy hand-off (scripts/agent/tool_audit.py, tests/agent/test_tool_audit.py, tests/agent/test_repository_gateway.py) | Completed | 20261102-184339 | 20261102-184339 | Tests + toolchain sequence pass; deploy hand-off is a user decision (batch mode: changes uncommitted, pending git-commit-and-sync) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -152,9 +152,9 @@ Path A (Step 3): direct verification only. Imports of `agent.tool_audit` (rg): `
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261102-132702_02_tests_agent_test_tool_audit.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261102-132702_03_tests_agent_test_repository_gateway.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261102-132702_01_scripts_agent_tool_audit.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261102-132702_02_tests_agent_test_tool_audit.py.md | 1 | Procedure | Completed | — | 20261102-184339 |
+| implementations/20261102-132702_03_tests_agent_test_repository_gateway.py.md | 1 | Procedure | Completed | — | 20261102-184339 |
+| implementations/20261102-132702_01_scripts_agent_tool_audit.py.md | 2 | Procedure | Completed | — | 20261102-184339 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
