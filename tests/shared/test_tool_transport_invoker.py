@@ -590,3 +590,66 @@ class TestAvailabilityHintAttachment:
         assert result.is_error is True
         assert result.error_type == "transport"
         assert result.availability_hint is None
+
+
+class TestToolLevelHealthCascade:
+    """Tool-level results must not trip the health circuit (healthcascade001 REQ-002/REQ-007)."""
+
+    @pytest.mark.asyncio
+    async def test_three_tool_level_results_keep_server_healthy(self) -> None:
+        registry = McpServerHealthRegistry()
+        invoker = _make_invoker(health_registry=registry)
+
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            side_effect=[
+                ToolCallResult(
+                    output="no such file",
+                    is_error=True,
+                    request_id="",
+                    server_key="srv",
+                    error_type="tool",
+                ),
+                ToolCallResult(
+                    output="no such file",
+                    is_error=True,
+                    request_id="",
+                    server_key="srv",
+                    error_type="tool",
+                ),
+                ToolCallResult(
+                    output="no such file",
+                    is_error=True,
+                    request_id="",
+                    server_key="srv",
+                    error_type="tool",
+                ),
+                ToolCallResult(
+                    output="ok", is_error=False, request_id="", server_key="srv"
+                ),
+            ]
+        )
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
+
+        for _ in range(4):
+            await invoker.invoke("srv", "some_tool", {})
+
+        assert registry.get_state("srv") == McpServerHealthState.HEALTHY
+        assert invoker.stat_tool_errors.get("srv", 0) == 3
+        assert invoker.stat_transport_errors.get("srv", 0) == 0
+        assert mock_transport.call.await_count == 4
+
+    @pytest.mark.asyncio
+    async def test_transport_statuses_still_record_failure(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=1)
+        invoker = _make_invoker(health_registry=registry)
+
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(side_effect=TransportError("401 unauthorized"))
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
+
+        result = await invoker.invoke("srv", "some_tool", {})
+
+        assert registry.get_state("srv") != McpServerHealthState.HEALTHY
+        assert invoker.stat_transport_errors.get("srv", 0) == 1
+        assert result.error_type == "transport"

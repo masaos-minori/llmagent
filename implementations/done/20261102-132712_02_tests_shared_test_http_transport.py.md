@@ -95,8 +95,8 @@ Append `TestToolLevelStatusClassification` (new) at the end of the module.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestToolLevelStatusClassification` (new) tests (tool-level cases red before row 01 lands) | Pending | — | — | Plan Phase 2, AC-005 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestToolLevelStatusClassification` (new) tests (tool-level cases red before row 01 lands) | Completed | 20261102-180955 | 20261102-190915 | Plan Phase 2, AC-005 TestToolLevelStatusClassification added (6 tests); 7 tool-level cases red-first confirmed, 3 transport pins green |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261102-180955 | 20261102-190915 | ruff pass; full suite 11366 passed after row 01; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

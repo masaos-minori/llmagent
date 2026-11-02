@@ -224,8 +224,11 @@ class TestHttpTransportRetry:
             server_key="test",
             cfg=MagicMock(auth_token=""),
         )
-        with pytest.raises(TransportError):
-            await transport.call("write_file", {"path": "a"})
+        # healthcascade001 REQ-001: 400 is tool-level -> one tool error result,
+        # no TransportError, no retry (the not-retried intent of this pin).
+        result = await transport.call("write_file", {"path": "a"})
+        assert result.is_error is True
+        assert result.error_type == "tool"
         assert call_count == 1
 
     @pytest.mark.asyncio

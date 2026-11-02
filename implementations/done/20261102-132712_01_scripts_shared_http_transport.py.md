@@ -10,7 +10,8 @@ tool-level statuses return, REQ-003 transport set unchanged, REQ-004 fail-closed
 ## Scope
 
 - Add `_TOOL_LEVEL_STATUSES: frozenset[int] = frozenset({400, 403, 404, 409, 422})` (new) as a
-  class constant next to `_RETRYABLE_STATUS` (:145).
+  class constant next to `_RETRYABLE_STATUS` (:144; re-verified 2026-11-02, cited as :145 at plan
+  time).
 - Add a classification branch in `call()` after the retryable-status block and BEFORE
   `resp.raise_for_status()` (:245): when `resp.status_code in _TOOL_LEVEL_STATUSES`, build and
   return the tool error result.
@@ -29,7 +30,7 @@ tool-level statuses return, REQ-003 transport set unchanged, REQ-004 fail-closed
 - Verified 20261102: today `resp.raise_for_status()` (:245) turns every non-retryable non-2xx —
   including file servers' `403/404/422` — into `HTTPStatusError` → `TransportError` →
   `ToolTransportInvoker` `record_failure` (:245 invoker) → cooldown; `ToolCallResult` carries
-  `error_type` as a plain field (`transport_dto.py:37`), so `from_transport` must be replaced with
+  `error_type` as a plain field (`transport_dto.py:39`), so `from_transport` must be replaced with
   `error_type="tool"` explicitly.
 - Server bodies at these statuses are FastAPI `{"detail": ...}` (file/shell/web_search/github
   handlers) or normal `{"result": ...}` — the inventory behind REQ-005; both are handled, and a
@@ -94,7 +95,7 @@ In `call()`, immediately before `resp.raise_for_status()`:
 - The write-tool fail-closed gate for `502/503/504` sits earlier in the loop and is untouched
   (REQ-004 / AC preserved).
 - No logging changes: tool-level outcomes are normal results; no new warnings (the invoker's
-  `stat_tool_errors` counter records them at `tool_transport_invoker.py:237`).
+  `stat_tool_errors` counter records them at `tool_transport_invoker.py:238`).
 
 ## Compatibility considerations
 
@@ -146,8 +147,8 @@ In `call()`, immediately before `resp.raise_for_status()`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_TOOL_LEVEL_STATUSES` (new), `_tool_error_result` (new) and the classification branch | Pending | — | — | After rows 02-03's red tests land |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `_TOOL_LEVEL_STATUSES` (new), `_tool_error_result` (new) and the classification branch | Completed | 20261102-180955 | 20261102-190915 | After rows 02-03's red tests land _TOOL_LEVEL_STATUSES + _tool_error_result + classification branch added before raise_for_status; targeted 91 tests green |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261102-180955 | 20261102-190915 | ruff/mypy/lint-imports/bandit -ll/check_module_size pass; full suite 11366 passed; diff-cover 100%; deviation: pinned old 400 behavior in tests/shared/test_tool_executor.py and tests/integration/test_agent_mcp_integration.py (TC-A15) migrated to the REQ-001 contract - both files outside the frozen target table, evidence gap recorded |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

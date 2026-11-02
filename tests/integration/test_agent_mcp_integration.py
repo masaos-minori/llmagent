@@ -223,7 +223,7 @@ async def test_a14_http_502_retry_then_transport_error():
     assert call_count == 3
 
 
-# ── TC-A15: HTTP 400 → immediate TransportError (non-retryable) ──────────────
+# ── TC-A15: HTTP 400 → tool-level error result, no retry (healthcascade001) ──
 
 
 @pytest.mark.asyncio
@@ -235,9 +235,11 @@ async def test_a15_http_400_non_retryable():
             result = await executor.execute(_HTTP_TOOL, {})
 
     assert result.is_error
-    assert result.error_type == "transport"
+    # 400 is tool-level (REQ-001): tool error result, not a transport failure.
+    assert result.error_type == "tool"
     # 400 is not in the retryable set — no retry occurs
-    assert executor.stat_transport_errors.get(_HTTP_KEY, 0) == 1
+    assert executor.stat_transport_errors.get(_HTTP_KEY, 0) == 0
+    assert executor.stat_tool_errors.get(_HTTP_KEY, 0) == 1
 
 
 # ── TC-A16: HTTP 500 → immediate TransportError (non-retryable) ──────────────

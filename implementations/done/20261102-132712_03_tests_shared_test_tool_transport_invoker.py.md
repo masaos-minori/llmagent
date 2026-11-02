@@ -99,8 +99,8 @@ Append `TestToolLevelHealthCascade` (new) at the end of the module.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestToolLevelHealthCascade` (new) tests | Pending | — | — | Land with rows 01-02 (Plan Phase 2) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestToolLevelHealthCascade` (new) tests | Completed | 20261102-180955 | 20261102-190915 | Land with rows 01-02 (Plan Phase 2) TestToolLevelHealthCascade added (2 tests, real registry); green on mocked shape as designed (Assumptions) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261102-180955 | 20261102-190915 | ruff pass; full suite 11366 passed; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -214,12 +214,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Contract decision and signature (option + status set) | Pending | — | — | Blocked on owner selection (UNK-01/UNK-02); non-blocking, recorded here |
-| 2 | Core logic (Option A `http_transport.py` or Option B `dispatch.py`) | In Progress | — | — | One option only |
-| 3 | Tests for the tool-level/transport split and health routing | In Progress | — | — |  |
-| 4 | Documentation of the HTTP-status contract | In Progress | — | — |  |
-| 5 | Server inventory reconciliation | Pending | — | — |  |
-| 6 | Deployment & verification (ruff/mypy/regression) | Pending | — | — |  |
+| 1 | Contract decision and signature (option + status set) | Completed | — | 20261102 | Owner selected Option A on 2026-11-02 (UNK-01); tool-level set `{400,403,404,409,422}` (UNK-02) |
+| 2 | Core logic (Option A `http_transport.py` or Option B `dispatch.py`) | Completed | 20261102-180955 | 20261102-190915 | Option A only; `_TOOL_LEVEL_STATUSES` + `_tool_error_result` + branch before `raise_for_status()` |
+| 3 | Tests for the tool-level/transport split and health routing | Completed | 20261102-180955 | 20261102-190915 | Rows 02-03 landed red-first; old 400 pins in `tests/shared/test_tool_executor.py` and `tests/integration/test_agent_mcp_integration.py` (TC-A15) migrated to the new contract — deviation recorded in row 01's procedure notes |
+| 4 | Documentation of the HTTP-status contract | Completed | 20261102-190915 | 20261102-190915 | Status classification bullet added; bullets :26/:30 amended; docs checkers pass |
+| 5 | Server inventory reconciliation | Completed | 20261102-190915 | 20261102-190915 | Handler status inventory across MCP servers emits only `{400,403,404,409,422}` (tool-level) plus `500/502` (transport); no out-of-set status found |
+| 6 | Deployment & verification (ruff/mypy/regression) | Completed | 20261102-180955 | 20261102-190915 | Full suite 11366 passed, diff-cover 100%, toolchain sequence passes; deploy hand-off is a user decision (batch mode: changes uncommitted, pending git-commit-and-sync) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -229,10 +229,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261102-132712_01_scripts_shared_http_transport.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-132712_02_tests_shared_test_http_transport.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261102-132712_03_tests_shared_test_tool_transport_invoker.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261102-132712_04_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261102-132712_01_scripts_shared_http_transport.py.md | 2 | Procedure | Completed | — | 20261102-190915 |
+| implementations/20261102-132712_02_tests_shared_test_http_transport.py.md | 3 | Procedure | Completed | — | 20261102-190915 |
+| implementations/20261102-132712_03_tests_shared_test_tool_transport_invoker.py.md | 3 | Procedure | Completed | — | 20261102-190915 |
+| implementations/20261102-132712_04_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 4 | Procedure | Completed | — | 20261102-190915 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

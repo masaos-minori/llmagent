@@ -80,8 +80,8 @@ non-2xx raises `TransportError` (Plan REQ-006 / AC).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the classification bullet and amend the two status bullets | Pending | — | — | Land with row 01 |
-| 2 | Run the docs checkers (`routing.md`) | Pending | — | — | |
+| 1 | Add the classification bullet and amend the two status bullets | Completed | 20261102-190915 | 20261102-191058 | Land with row 01 Status classification bullet added after the retry bullet; :26 and :30 bullets amended per the adopted contract |
+| 2 | Run the docs checkers (`routing.md`) | Completed | 20261102-190915 | 20261102-191058 | check_docs_quality/check_docs_structure/check_docs_content_policy/check_docs_consistency --domain mcp all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

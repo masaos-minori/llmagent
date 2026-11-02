@@ -143,6 +143,28 @@ class HttpTransport:
 
     _RETRYABLE_STATUS: frozenset[int] = frozenset({429, 502, 503, 504})
     _RETRY_MAX: int = 3
+    _TOOL_LEVEL_STATUSES: frozenset[int] = frozenset({400, 403, 404, 409, 422})
+
+    @staticmethod
+    def _tool_error_result(resp: httpx.Response) -> ToolCallResult:
+        """Build a tool-level error result from a tool-level status response body.
+
+        Tolerant parsing: any body parse failure falls back to the first 512 chars
+        of the raw text; a malformed body at a tool-level status must not re-enter
+        the transport path (healthcascade001 REQ-003).
+        """
+        try:
+            data = parse_http_json(resp)
+            reason = data.get("detail") or data.get("result") or ""
+            if not isinstance(reason, str) or not reason:
+                reason = resp.text[:512]
+        except ValueError:
+            reason = resp.text[:512]
+        return ToolCallResult.from_transport(
+            output=str(reason),
+            is_error=True,
+            request_id=resp.headers.get("x-request-id", ""),
+        )
 
     def _transport_error(
         self,
@@ -242,6 +264,11 @@ class HttpTransport:
                     if attempt < self._RETRY_MAX - 1:
                         await asyncio.sleep(wait_sec)
                     continue
+                if resp.status_code in self._TOOL_LEVEL_STATUSES:
+                    result = self._tool_error_result(resp)
+                    return dataclasses.replace(
+                        result, server_key=self._server_key, error_type="tool"
+                    )
                 resp.raise_for_status()
                 parsed = self._parse_http_response(resp)
                 return dataclasses.replace(parsed, server_key=self._server_key)

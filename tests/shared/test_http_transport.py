@@ -324,3 +324,97 @@ class TestDeriveIdempotencyKey:
             "call_tool", "write_file", {"path": "/a", "n": 1}, "sess-1"
         )
         assert outs[0] == local
+
+
+class TestToolLevelStatusClassification:
+    """Tool-level statuses return tool results; transport statuses still raise
+    (healthcascade001 REQ-001/REQ-003/REQ-004)."""
+
+    @staticmethod
+    def _make_transport() -> tuple[HttpTransport, AsyncMock]:
+        transport = HttpTransport(
+            http=MagicMock(spec=httpx.AsyncClient),
+            base_url="http://127.0.0.1:8000",
+            server_key="srv",
+            cfg=_http_cfg(),
+        )
+        mock_post = AsyncMock()
+        transport._http.post = mock_post
+        return transport, mock_post
+
+    @staticmethod
+    def _json_resp(status: int, body: bytes) -> MagicMock:
+        resp = MagicMock()
+        resp.status_code = status
+        resp.content = body
+        resp.text = body.decode("utf-8")
+        resp.headers = {"x-request-id": "req-1"}
+        return resp
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", [400, 403, 404, 409, 422])
+    async def test_tool_level_status_returns_tool_error_result(
+        self, status: int
+    ) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [self._json_resp(status, b'{"detail": "no such file"}')]
+        result = await transport.call("read_text_file", {"path": "/tmp/missing"})
+        assert result.is_error is True
+        assert result.error_type == "tool"
+        assert "no such file" in result.output
+        assert result.server_key == "srv"
+        assert result.request_id == "req-1"
+
+    @pytest.mark.asyncio
+    async def test_tool_level_status_with_result_body(self) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [
+            self._json_resp(403, b'{"result": "denied by policy"}'),
+        ]
+        result = await transport.call("write_file", {"path": "/etc/passwd"})
+        assert result.is_error is True
+        assert result.error_type == "tool"
+        assert "denied by policy" in result.output
+
+    @pytest.mark.asyncio
+    async def test_tool_level_status_with_malformed_body(self) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [self._json_resp(422, b"not-json")]
+        result = await transport.call("shell_run", {"command": "ls"})
+        assert result.is_error is True
+        assert result.error_type == "tool"
+        assert "not-json" in result.output
+
+    @pytest.mark.asyncio
+    async def test_401_still_transport_error(self) -> None:
+        transport, mock_post = self._make_transport()
+        resp = self._json_resp(401, b'{"detail": "unauthorized"}')
+        resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "401", request=MagicMock(), response=resp
+        )
+        mock_post.side_effect = [resp]
+        with pytest.raises(TransportError):
+            await transport.call("read_text_file", {})
+        assert mock_post.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_5xx_still_transport_error(self) -> None:
+        transport, mock_post = self._make_transport()
+        resp = self._json_resp(500, b'{"detail": "internal error"}')
+        resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "500", request=MagicMock(), response=resp
+        )
+        mock_post.side_effect = [resp]
+        with pytest.raises(TransportError):
+            await transport.call("read_text_file", {})
+        assert mock_post.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_write_tool_ambiguous_status_gate_unchanged(self) -> None:
+        transport, mock_post = self._make_transport()
+        resp = MagicMock()
+        resp.status_code = 503
+        mock_post.side_effect = [resp]
+        with pytest.raises(TransportError, match="retry suppressed"):
+            await transport.call("write_file", {})
+        assert mock_post.call_count == 1
