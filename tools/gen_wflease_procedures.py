@@ -21,7 +21,7 @@ COMMON_ASSUMPTIONS = [
     "All baseline cites below were re-verified against branch `master` on 2026-11-01 (Plan Assumptions 'Re-verification record').",
     "Canonical semantics come from the Plan REQs (Plan `:37-46`): `parse_iso_utc` rejects naive input (REQ-001); no `mktime`/`strptime`/local time in recovery (REQ-002); unparseable timestamps are reported with distinct counts (REQ-003); nullable `owner_id`/`lease_expires_at` via a registered migration (REQ-004); owner and lease stamped at attempt start from the stage timeout plus a 30 s margin constant (REQ-005); staleness means lease expiry and `_STALE_GRACE_SEC` is removed (REQ-006); takeover is a conditional update requiring one row (REQ-007); legacy rows without a lease use the 3600 s age (REQ-008); tests use the production timestamp format (REQ-009); docs and ADR-001 INV-07 are amended (REQ-010).",
     "Owner decision (Plan UNK-02, 2026-10-30): deadline lease only — no heartbeat renewal, because `asyncio.wait_for` already bounds a normal stage.",
-    "Ledger landing order (Plan UNK-06): `master` records code 2 / \"1.2.0\" (`migrations_workflow.py:42`); wftaskapi001 procedure 12 (`implementations/20261101-140834_12_scripts_db_migrations_workflow.py.md`, Pending) reserves the next slot. This Plan takes code 3 / \"1.3.0\" only if its step registers before wftaskapi001's, otherwise 4 / \"1.4.0\" (same rule as `implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md`).",
+    'Ledger landing order (Plan UNK-06): `master` records code 2 / "1.2.0" (`migrations_workflow.py:42`); wftaskapi001 procedure 12 (`implementations/20261101-140834_12_scripts_db_migrations_workflow.py.md`, Pending) reserves the next slot. This Plan takes code 3 / "1.3.0" only if its step registers before wftaskapi001\'s, otherwise 4 / "1.4.0" (same rule as `implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md`).',
     "Fencing dependency (Plan UNK-06): REQ-007's rejection of a late finish by the fenced owner lands with the wfrecovery001 conditional `finish_attempt` procedure (`implementations/20261101-145309_04_scripts_agent_workflow_attempt_ops.py.md`, Pending); at `master` `finish_attempt` is still unconditional (`attempt_ops.py:44-45`).",
 ]
 
@@ -172,7 +172,7 @@ def doc(
 - **Source plan**: {PLAN}
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: {GENERATED_AT}
-- **Related target files**: `{TARGETS[seq]}`{', ' if related else ''}{related}
+- **Related target files**: `{TARGETS[seq]}`{", " if related else ""}{related}
 """
     path.write_text(body, encoding="utf-8")
     print(f"generated {path.name}")
@@ -258,7 +258,7 @@ def main() -> None:
         ],
         design=[
             "One detection function returns classified rows (stale-lease / legacy-stale / live / unparseable) so `find_stale_running_attempts` and `recover_stale_attempts` share the same decision; `find_stale_running_attempts` keeps its `list[dict]` return shape (external callers unchanged), extended with `owner_id`/`lease_expires_at` keys.",
-            "Detection compares aware datetimes (`parse_iso_utc(lease) < now_utc`); no host-local time anywhere (AC-2: `rg \"mktime|strptime\" scripts/agent/workflow` is empty after this procedure).",
+            'Detection compares aware datetimes (`parse_iso_utc(lease) < now_utc`); no host-local time anywhere (AC-2: `rg "mktime|strptime" scripts/agent/workflow` is empty after this procedure).',
             "Phase 1 lands first with only the legacy-age branch (no lease columns exist yet); Phase 3 adds the lease branch behind `lease_expires_at IS NOT NULL` so the same code works before and after procedure 17 migrates an existing database.",
         ],
         alternatives=[
@@ -291,7 +291,7 @@ def main() -> None:
         ],
         validation=[
             "`uv run pytest tests/agent/workflow/test_workflow_state_store.py tests/agent/workflow/test_state_store.py tests/agent/workflow/test_stale_recovery_lease.py -v` (procedures 09, 10, 12).",
-            "AC-2 check: `rg \"mktime|strptime\" scripts/agent/workflow` returns empty.",
+            'AC-2 check: `rg "mktime|strptime" scripts/agent/workflow` returns empty.',
             TOOLCHAIN,
         ],
         completion=[
@@ -477,7 +477,7 @@ def main() -> None:
         goal="Add the `owner_id` and `lease_expires_at` columns to the canonical `attempts` DDL and set the workflow schema version string in `scripts/db/schema_sql.py` (REQ-004 / AC-8).",
         scope=[
             "Extend the `attempts` CREATE block (`schema_sql.py:197-206`) with `owner_id TEXT` and `lease_expires_at TEXT` (both nullable, no CHECK, no index).",
-            "Bump `WORKFLOW_SCHEMA_VERSION` (`:27`) from the current `\"1.2.0\"` to the landing-order value: `\"1.3.0\"` if this Plan's migration step registers before wftaskapi001's pending step, else `\"1.4.0\"` (Plan Assumptions, ledger landing order).",
+            'Bump `WORKFLOW_SCHEMA_VERSION` (`:27`) from the current `"1.2.0"` to the landing-order value: `"1.3.0"` if this Plan\'s migration step registers before wftaskapi001\'s pending step, else `"1.4.0"` (Plan Assumptions, ledger landing order).',
         ],
         assumptions=[
             "`schema_sql.py` is row 6 of the frozen table and must land before rows 3-5 and the lease part of row 2 even though its table position is later (Plan Assumptions execution-order item); this document states that rule.",
@@ -511,7 +511,7 @@ def main() -> None:
             TOOLCHAIN,
         ],
         completion=[
-            "AC-8: the version constant differs from `\"1.2.0\"` and the new columns appear in the canonical DDL.",
+            'AC-8: the version constant differs from `"1.2.0"` and the new columns appear in the canonical DDL.',
         ],
         out_of_scope=[
             "The migration registration itself (procedure 17); required-column startup enforcement (procedure 07).",
@@ -526,7 +526,7 @@ def main() -> None:
         seq="07",
         goal="Require the two new attempt columns in the startup schema check in `scripts/agent/services/workflow_schema.py` (REQ-004 / AC-8).",
         scope=[
-            "Extend `REQUIRED_WORKFLOW_TABLES[\"attempts\"]` (`workflow_schema.py:48`) from `attempt_id`, `task_id`, `stage_id`, `status` to include `owner_id` and `lease_expires_at`.",
+            'Extend `REQUIRED_WORKFLOW_TABLES["attempts"]` (`workflow_schema.py:48`) from `attempt_id`, `task_id`, `stage_id`, `status` to include `owner_id` and `lease_expires_at`.',
             "No other change: the version comparison at `:114` already reads `WORKFLOW_SCHEMA_VERSION` from `scripts/db/schema_sql.py` and reports a mismatch automatically.",
         ],
         assumptions=[
@@ -594,10 +594,14 @@ def main() -> None:
             "Naive rejection is asserted with `pytest.raises(ValueError)` and a message-substring check (`naive`).",
             "Offset equality compares aware datetimes (`==`), never wall-clock strings.",
         ],
-        compatibility=["Existing `TestNowIso` (`:382-451`) and `TestNowIsoRaw` (`:453-510`) tests stay untouched (out-of-scope functions)."],
+        compatibility=[
+            "Existing `TestNowIso` (`:382-451`) and `TestNowIsoRaw` (`:453-510`) tests stay untouched (out-of-scope functions)."
+        ],
         security=[],
         rollback=["Delete the class."],
-        validation=["`uv run pytest tests/shared/test_json_utils.py -v` — new cases pass on procedure 01's implementation and fail against `master` without it."],
+        validation=[
+            "`uv run pytest tests/shared/test_json_utils.py -v` — new cases pass on procedure 01's implementation and fail against `master` without it."
+        ],
         completion=["AC-1 fully covered by the new class."],
         out_of_scope=["Any change to existing `now_iso`/`now_iso_raw` tests."],
         reqs="`REQ-001`, `REQ-009`",
@@ -610,7 +614,7 @@ def main() -> None:
         seq="09",
         goal="Replace naive-format seeds and grace-based expectations in `tests/agent/workflow/test_workflow_state_store.py` with production-format, lease-based recovery tests (REQ-002, REQ-006, REQ-007, REQ-009 / AC-2..AC-7).",
         scope=[
-            "Replace the naive seeds `\"2026-01-01T00:00:00\"` at `:286`, `:336`, `:360` (and remaining seeds inside the recovery block `:274-452`) with the production format (`...Z`) produced by `json_utils.now_iso`-equivalent literals.",
+            'Replace the naive seeds `"2026-01-01T00:00:00"` at `:286`, `:336`, `:360` (and remaining seeds inside the recovery block `:274-452`) with the production format (`...Z`) produced by `json_utils.now_iso`-equivalent literals.',
             "Re-point the recovery tests (`test_stale_attempt_marked_failed` `:274`, `test_find_stale_returns_only_old_attempts` `:348`, `test_recovered_attempt_has_ended_at_set` `:375`, `test_recover_multiple_stale_attempts` `:399`, `test_recover_no_stale_attempts` `:452`) onto lease semantics: expired-lease seeds are stale; unexpired-lease seeds are live; legacy seeds (NULL lease) follow the 3600 s age rule.",
             "Add host-timezone independence: the same seed set recovers identically under `TZ=UTC` and a non-UTC `TZ` set via `monkeypatch` + `time.tzset()` (REQ-002 / AC-2).",
         ],
@@ -634,12 +638,22 @@ def main() -> None:
             "`time.tzset()` is POSIX-only; tests are skipped on non-POSIX platforms exactly like the Plan's Tests section prescribes `TZ` via `monkeypatch` and `tzset`.",
             "Assertions compare parsed instants (`parse_iso_utc`), not raw strings, except the format-literal seeds themselves.",
         ],
-        compatibility=["Mock-free: these tests keep using the real fixture DB (`workflow_db` fixture) they already use."],
+        compatibility=[
+            "Mock-free: these tests keep using the real fixture DB (`workflow_db` fixture) they already use."
+        ],
         security=[],
-        rollback=["Characterize: pre-change tests pass on old code only with naive seeds; revert keeps them green on old code."],
-        validation=["`uv run pytest tests/agent/workflow/test_workflow_state_store.py -v`"],
-        completion=["AC-2, AC-4..AC-7 covered through the lease fixtures in this file."],
-        out_of_scope=["Task-transition expectations (wfrecovery001 procedures, already landed or pending per `implementations/20261101-145309_*`)."],
+        rollback=[
+            "Characterize: pre-change tests pass on old code only with naive seeds; revert keeps them green on old code."
+        ],
+        validation=[
+            "`uv run pytest tests/agent/workflow/test_workflow_state_store.py -v`"
+        ],
+        completion=[
+            "AC-2, AC-4..AC-7 covered through the lease fixtures in this file."
+        ],
+        out_of_scope=[
+            "Task-transition expectations (wfrecovery001 procedures, already landed or pending per `implementations/20261101-145309_*`)."
+        ],
         reqs="`REQ-002`, `REQ-006`, `REQ-007`, `REQ-009`",
         phase="Phases 1 and 3",
         related="`scripts/agent/workflow/state_store.py`, `scripts/shared/json_utils.py`, `tests/agent/workflow/test_stale_recovery_lease.py`",
@@ -651,7 +665,7 @@ def main() -> None:
         goal="Replace the mocked detection/recovery tests in `tests/agent/workflow/test_state_store.py` with real-database report and race tests (REQ-003, REQ-009 / AC-2, AC-3).",
         scope=[
             "Replace the mock-based tests (`find_stale_running_attempts` lambdas at `:26-167`) with real-`StateStore` tests against the fixture DB: single stale recovery, non-stale untouched, mixed stale/live, multiple stale, no-running-attempts.",
-            "Replace the `\"not-a-date\"` test (`:217`): an unparseable `started_at` (and a new unparseable `lease_expires_at` case) yields a warning log (captured with `caplog`), an `unparseable` count in `last_recovery_report`, and a row still `running` (REQ-003 / AC-3).",
+            'Replace the `"not-a-date"` test (`:217`): an unparseable `started_at` (and a new unparseable `lease_expires_at` case) yields a warning log (captured with `caplog`), an `unparseable` count in `last_recovery_report`, and a row still `running` (REQ-003 / AC-3).',
             "Keep the concurrency-flavored test (`test_recover_concurrent_calls_only_one_succeeds`, `:74`) but re-express it against the conditional update: two sequential recover calls produce one takeover (`rowcount` path), deep two-connection racing belongs to procedure 12.",
         ],
         assumptions=[
@@ -672,11 +686,15 @@ def main() -> None:
         details=[
             "Report assertions also lock `recover_stale_attempts()`'s int return (compatibility with the 18 existing references).",
         ],
-        compatibility=["Any remaining test in this file that mocks `_db` internals is left alone unless it touches detection."],
+        compatibility=[
+            "Any remaining test in this file that mocks `_db` internals is left alone unless it touches detection."
+        ],
         security=[],
         rollback=["File-level revert."],
         validation=["`uv run pytest tests/agent/workflow/test_state_store.py -v`"],
-        completion=["AC-3 fully covered in this file; AC-2 partially with procedure 09."],
+        completion=[
+            "AC-3 fully covered in this file; AC-2 partially with procedure 09."
+        ],
         out_of_scope=["Multi-connection race coverage (procedure 12)."],
         reqs="`REQ-003`, `REQ-009`",
         phase="Phase 1 (Timezone-safe parsing and conservative detection)",
@@ -708,12 +726,16 @@ def main() -> None:
         details=[
             "No heartbeat/renewal assertion — Plan UNK-02 (deadline lease).",
         ],
-        compatibility=["Existing assertions in these tests stay; this is additive unless a retry test's row expectations change."],
+        compatibility=[
+            "Existing assertions in these tests stay; this is additive unless a retry test's row expectations change."
+        ],
         security=[],
         rollback=["Delete the added helper and cases."],
         validation=["`uv run pytest tests/agent/workflow/test_workflow_engine.py -v`"],
         completion=["AC-5 covered end-to-end through the engine path."],
-        out_of_scope=["Timeout/retry behavior changes themselves (`wfretry001` issue, Plan Out-of-Scope)."],
+        out_of_scope=[
+            "Timeout/retry behavior changes themselves (`wfretry001` issue, Plan Out-of-Scope)."
+        ],
         reqs="`REQ-005`, `REQ-009`",
         phase="Phase 3 (Ownership and lease-based recovery)",
         related="`scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow/attempt_ops.py`, `scripts/agent/workflow/idempotency_ops.py`, `scripts/shared/json_utils.py`",
@@ -749,7 +771,9 @@ def main() -> None:
         compatibility=["Pure addition; no existing test depends on it."],
         security=[],
         rollback=["Delete the file."],
-        validation=["`uv run pytest tests/agent/workflow/test_stale_recovery_lease.py -v`; the new tests must fail against pre-change `master` (Plan Validation plan)."],
+        validation=[
+            "`uv run pytest tests/agent/workflow/test_stale_recovery_lease.py -v`; the new tests must fail against pre-change `master` (Plan Validation plan)."
+        ],
         completion=["AC-4..AC-7 demonstrated end-to-end."],
         out_of_scope=["`wfretry001` retry semantics; task-level resume paths."],
         reqs="`REQ-007`, `REQ-008`, `REQ-009`",
@@ -767,7 +791,7 @@ def main() -> None:
         goal="Update schema-parity and version assertions in `tests/db/test_create_schema.py` for the two new `attempts` columns (REQ-004, REQ-009 / AC-8).",
         scope=[
             "Extend the embedded no-vec0 `attempts` DDL copy (`:392-421`) with `owner_id TEXT` and `lease_expires_at TEXT` so the parity test keeps the template and the copy identical.",
-            "Update the workflow version assertion (currently pinned to the landed `\"1.2.0\"` behavior via the `workflow_schema_version` assertions at `:662-728`) to the new landing-order version together with procedure 17's registry codes.",
+            'Update the workflow version assertion (currently pinned to the landed `"1.2.0"` behavior via the `workflow_schema_version` assertions at `:662-728`) to the new landing-order version together with procedure 17\'s registry codes.',
             "Extend the attempts-column assertions (`INSERT` shape test around `:575-581`) to write and read back the two columns.",
         ],
         assumptions=[
@@ -776,7 +800,9 @@ def main() -> None:
         design=[
             "Column assertions use `PRAGMA table_info` on a fresh DB so a forgotten DDL edit breaks immediately rather than surfacing in the startup check only.",
         ],
-        alternatives=["Rely on the startup-check tests alone — rejected: `tests/db/` is the canonical schema-parity home (Plan Tests section)."],
+        alternatives=[
+            "Rely on the startup-check tests alone — rejected: `tests/db/` is the canonical schema-parity home (Plan Tests section)."
+        ],
         procedure=[
             "Edit the DDL copy at `:392-421`.",
             "Add the column-presence assertions for `attempts`.",
@@ -786,11 +812,15 @@ def main() -> None:
         details=[
             "`test_create_schema.py` had 15 commits in 30 days (Plan Affected areas) — keep the diff surgical: only the workflow `attempts` blocks and version pins.",
         ],
-        compatibility=["Must land in the same commit as procedure 06 or the parity test breaks."],
+        compatibility=[
+            "Must land in the same commit as procedure 06 or the parity test breaks."
+        ],
         security=[],
         rollback=["Revert with procedure 06."],
         validation=["`uv run pytest tests/db/test_create_schema.py -v`"],
-        completion=["AC-8: columns present in a freshly created DB; version differs from the previous value."],
+        completion=[
+            "AC-8: columns present in a freshly created DB; version differs from the previous value."
+        ],
         out_of_scope=["Non-workflow domain schema blocks."],
         reqs="`REQ-004`, `REQ-009`",
         phase="Phase 2 (Schema)",
@@ -808,15 +838,23 @@ def main() -> None:
         assumptions=[
             "These fixtures intentionally build minimal (un-migrated-shaped) tables; the new columns join the existing minimal vocabulary, not the full canonical DDL.",
         ],
-        design=["The negative case locks the actionable error path the operational runbook (procedure 15) promises."],
-        alternatives=["Reuse `create_workflow_tables` in the fixture — rejected: the point of this file is minimal hand-built tables to prove the check catches drift."],
+        design=[
+            "The negative case locks the actionable error path the operational runbook (procedure 15) promises."
+        ],
+        alternatives=[
+            "Reuse `create_workflow_tables` in the fixture — rejected: the point of this file is minimal hand-built tables to prove the check catches drift."
+        ],
         procedure=[
             "Edit the fixture DDL at `:538`.",
             "Add the missing-column negative test next to the existing health-check cases (`:523-554`, `:599` region).",
         ],
         method="Fixture string edit plus one test case.",
-        details=["Fixture edits must land with procedure 07 in the same commit chain or these tests fail at startup-check time."],
-        compatibility=["Other fixtures in the block (`tasks`, `processed_events`) are untouched."],
+        details=[
+            "Fixture edits must land with procedure 07 in the same commit chain or these tests fail at startup-check time."
+        ],
+        compatibility=[
+            "Other fixtures in the block (`tasks`, `processed_events`) are untouched."
+        ],
         security=[],
         rollback=["Revert with procedure 07."],
         validation=["`uv run pytest tests/agent/test_repl_health.py -v`"],
@@ -830,7 +868,7 @@ def main() -> None:
     doc(
         by_seq["15"],
         seq="15",
-        goal="Rewrite the \"Startup Recovery\" section of `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` with lease semantics, the timestamp format contract, and the manual recovery path (REQ-010 / AC-9).",
+        goal='Rewrite the "Startup Recovery" section of `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` with lease semantics, the timestamp format contract, and the manual recovery path (REQ-010 / AC-9).',
         scope=[
             "Rewrite the section starting at `:143` (currently describing elapsed-time recovery that never changes task status): staleness = expired `lease_expires_at` (stamped at attempt start from the stage `timeout_sec` plus the 30 s margin); legacy lease-less rows use the 3600 s age rule; unparseable timestamps are reported and left for the manual path.",
             "Document the timestamp contract: workflow timestamps are `YYYY-MM-DDTHH:MM:SSZ` written by the shared clock and parsed only by `scripts/shared/json_utils.parse_iso_utc`.",
@@ -842,7 +880,9 @@ def main() -> None:
         design=[
             "Intent and ownership only — no DDL or code restatement (Plan Documentation Impact).",
         ],
-        alternatives=["A new dedicated lease document — rejected: the Plan names this section as the home."],
+        alternatives=[
+            "A new dedicated lease document — rejected: the Plan names this section as the home."
+        ],
         procedure=[
             "Apply this rewrite on top of the wfrecovery001 rewrite (or on the current text if wfrecovery001's lands second, in which case its document carries the reconciliation note).",
             "Run the docs checkers listed in the Validation plan after the edit.",
@@ -855,8 +895,12 @@ def main() -> None:
         compatibility=["English content per `skills/DESIGN.md` Output language."],
         security=[],
         rollback=["Restore the section text from the pre-change commit."],
-        validation=["`uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py --strict`, `check_docs_consistency.py --domain agent`, `check_docs_japanese.py`."],
-        completion=["AC-9 for the docs half: the section describes lease semantics and the manual path."],
+        validation=[
+            "`uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py --strict`, `check_docs_consistency.py --domain agent`, `check_docs_japanese.py`."
+        ],
+        completion=[
+            "AC-9 for the docs half: the section describes lease semantics and the manual path."
+        ],
         out_of_scope=["Other sections of the same document."],
         reqs="`REQ-010`",
         phase="Phase 4 (Documentation and ADR)",
@@ -866,7 +910,7 @@ def main() -> None:
     doc(
         by_seq["16"],
         seq="16",
-        goal="Amend ADR-001 INV-07 in `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` so \"interrupted Attempt\" means a lease-expired attempt (REQ-010 / AC-9).",
+        goal='Amend ADR-001 INV-07 in `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` so "interrupted Attempt" means a lease-expired attempt (REQ-010 / AC-9).',
         scope=[
             "Amend INV-07 (`:171`) under the ADR change protocol: recovery targets attempts whose `lease_expires_at` has expired (or lease-less legacy rows past the conservative age), never an attempt with an unexpired lease; the test-evidence row (`:187`) gains `tests/agent/workflow/test_stale_recovery_lease.py`.",
         ],
@@ -876,16 +920,22 @@ def main() -> None:
         design=[
             "Accepted ADR: the change is an amendment note with rationale, not a silent rewrite; `check_adr_preservation.py` reports the change and this procedure supplies the explanation line the checker requires.",
         ],
-        alternatives=["Supersede the ADR — rejected: INV-07's intent survives; only its definition of 'interrupted' is refined."],
+        alternatives=[
+            "Supersede the ADR — rejected: INV-07's intent survives; only its definition of 'interrupted' is refined."
+        ],
         procedure=[
             "Apply the amendment on top of the wfrecovery001 amendment baseline.",
             "Add the change rationale (timezone defect + live-attempt theft) adjacent to the amended INV-07 line.",
         ],
         method="Single-invariant amendment plus test-table row update.",
-        details=["Preserve the INV number and table structure (ADR checker contracts)."],
+        details=[
+            "Preserve the INV number and table structure (ADR checker contracts)."
+        ],
         compatibility=["English content."],
         security=[],
-        rollback=["Restore from pre-change commit; the ADR checker compares against git history."],
+        rollback=[
+            "Restore from pre-change commit; the ADR checker compares against git history."
+        ],
         validation=["`uv run python tools/check_adr_preservation.py`"],
         completion=["AC-9 for the ADR half."],
         out_of_scope=["Other INVs and the decision log."],
@@ -900,10 +950,10 @@ def main() -> None:
         goal="Register the lease `ADD COLUMN` migration step and version codes in `scripts/db/migrations_workflow.py` (REQ-004 / AC-8).",
         scope=[
             "Append a `MigrationSpec` `workflow_attempt_lease` to `REGISTRY` (`:246-262`): `from_version=2`, `to_version=3` (or `4` if wftaskapi001's pending step registers first), `mutation_sql` = `ALTER TABLE attempts ADD COLUMN owner_id TEXT;` + `ALTER TABLE attempts ADD COLUMN lease_expires_at TEXT;`, precondition: attempts table exists and the prior workflow step is applied, postcondition: both columns present via `PRAGMA table_info`.",
-            "Extend `WORKFLOW_VERSION_CODES` (`:42`, currently `{\"1.1.0\": 0, \"1.2.0\": 2}`) with the landing-order mapping (`\"1.3.0\": 3` or `\"1.4.0\": 4`) and raise `WORKFLOW_TARGET_VERSION` (`:48`) to match procedure 06's version string.",
+            'Extend `WORKFLOW_VERSION_CODES` (`:42`, currently `{"1.1.0": 0, "1.2.0": 2}`) with the landing-order mapping (`"1.3.0": 3` or `"1.4.0": 4`) and raise `WORKFLOW_TARGET_VERSION` (`:48`) to match procedure 06\'s version string.',
         ],
         assumptions=[
-            "Landing-order rule (Plan UNK-06, shared with `implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md` and `implementations/20261101-140834_12_scripts_db_migrations_workflow.py.md`): the plan whose step registers first takes code 3 / \"1.3.0\"; the others shift up. The codes are fixed at implementation time, not in this document.",
+            'Landing-order rule (Plan UNK-06, shared with `implementations/20261101-145309_26_scripts_db_migrations_workflow.py.md` and `implementations/20261101-140834_12_scripts_db_migrations_workflow.py.md`): the plan whose step registers first takes code 3 / "1.3.0"; the others shift up. The codes are fixed at implementation time, not in this document.',
             "dbmig001 registry semantics (forward-only, backup gate, per-step pre/post conditions) are already implemented in this module (`MigrationRunner`, stamped markers).",
         ],
         design=[
@@ -940,7 +990,9 @@ def main() -> None:
         completion=[
             "AC-8: a database at the previous version with existing `running` rows migrates with the new columns null.",
         ],
-        out_of_scope=["Data backfill of `owner_id`/`lease_expires_at` for existing rows (they stay null by design)."],
+        out_of_scope=[
+            "Data backfill of `owner_id`/`lease_expires_at` for existing rows (they stay null by design)."
+        ],
         reqs="`REQ-004`",
         phase="Phase 2 (Schema)",
         related="`scripts/db/schema_sql.py`, `scripts/agent/services/workflow_schema.py`, `tests/db/test_migrations_workflow.py`, `tests/db/test_create_schema.py`",
@@ -961,8 +1013,12 @@ def main() -> None:
         assumptions=[
             "Expected version codes in assertions are written at implementation time from the landing-order decision (procedure 17).",
         ],
-        design=["Reuse the file's existing tmp_path DB fixture helpers so the new step's tests mirror the landed step-by-step structure."],
-        alternatives=["Parameterizing a step-matrix test — rejected: the file's per-step explicit style is the convention."],
+        design=[
+            "Reuse the file's existing tmp_path DB fixture helpers so the new step's tests mirror the landed step-by-step structure."
+        ],
+        alternatives=[
+            "Parameterizing a step-matrix test — rejected: the file's per-step explicit style is the convention."
+        ],
         procedure=[
             "Add the registry case.",
             "Add a `TestWorkflowAttemptLeaseStep` class following the `:192-260` template.",
@@ -977,7 +1033,9 @@ def main() -> None:
         rollback=["Revert with procedure 17."],
         validation=["`uv run pytest tests/db/test_migrations_workflow.py -v`"],
         completion=["AC-8 migration half covered."],
-        out_of_scope=["Production `/opt/llm/db/workflow.sqlite` execution (deploy skill gate)."],
+        out_of_scope=[
+            "Production `/opt/llm/db/workflow.sqlite` execution (deploy skill gate)."
+        ],
         reqs="`REQ-004`, `REQ-009`",
         phase="Phase 2 (Schema)",
         related="`scripts/db/migrations_workflow.py`, `scripts/db/schema_sql.py`, `tests/db/test_create_schema.py`",

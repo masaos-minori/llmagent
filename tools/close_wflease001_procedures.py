@@ -64,14 +64,29 @@ def main(paths: list[str]) -> int:
         for step, note in enumerate(notes, start=1):
             subprocess.run(
                 [
-                    "uv", "run", "tools/manage_workitem_stage.py",
-                    "set-step-status", "implementation-procedure", path,
-                    "Completed", "--step", str(step), "--notes", note,
+                    "uv",
+                    "run",
+                    "tools/manage_workitem_stage.py",
+                    "set-step-status",
+                    "implementation-procedure",
+                    path,
+                    "Completed",
+                    "--step",
+                    str(step),
+                    "--notes",
+                    note,
                 ],
                 check=True,
             )
         subprocess.run(
-            ["uv", "run", "tools/manage_workitem_stage.py", "close-implementation", path, "--stage-only"],
+            [
+                "uv",
+                "run",
+                "tools/manage_workitem_stage.py",
+                "close-implementation",
+                path,
+                "--stage-only",
+            ],
             check=True,
         )
     return 0

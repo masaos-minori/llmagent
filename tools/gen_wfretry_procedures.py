@@ -20,11 +20,11 @@ GENERATED_AT = "20261101-165312"
 COMMON_ASSUMPTIONS = [
     f"Plan `{PLAN}` is Frozen; its 12-row `Implementation Target Files` table is the canonical scope and every target of this procedure is a row of that table (re-verified 2026-11-01: all 12 paths exist on `master`, no row replaced).",
     "All baseline cites below were re-verified against branch `master` on 2026-11-01 (Plan Assumptions 'Re-verification record'); drifted citations carry `(re-verified 2026-11-01)` markers.",
-    "Canonical semantics come from the Plan REQs (Plan `:38-48`): `retry_policy.retry_on` list drawn from `exception`/`timeout`/`llm_failure` with default `[\"exception\"]` (REQ-001); deadline-versus-inner timeout classification via the deadline's `expired()` state (REQ-002); every failed attempt consumes one budget unit and ineligible kinds are terminal at once (REQ-003); typed outward kinds `workflow_halted` / `workflow_timeout` on the `(answer, error_kind, is_partial)` tuple (REQ-004); LLM-level failure results enter the engine as stage failures of kind `llm_failure` (REQ-005); per-attempt side-effect flag on `TurnState` set by `tool_runner` (REQ-006); attempt kinds `timeout`/`exception`/`llm_failure` distinct from outward kinds (REQ-007); no turn ends with empty answer, `error_kind` `None`, and a `halted`/`failed` task (REQ-008).",
+    'Canonical semantics come from the Plan REQs (Plan `:38-48`): `retry_policy.retry_on` list drawn from `exception`/`timeout`/`llm_failure` with default `["exception"]` (REQ-001); deadline-versus-inner timeout classification via the deadline\'s `expired()` state (REQ-002); every failed attempt consumes one budget unit and ineligible kinds are terminal at once (REQ-003); typed outward kinds `workflow_halted` / `workflow_timeout` on the `(answer, error_kind, is_partial)` tuple (REQ-004); LLM-level failure results enter the engine as stage failures of kind `llm_failure` (REQ-005); per-attempt side-effect flag on `TurnState` set by `tool_runner` (REQ-006); attempt kinds `timeout`/`exception`/`llm_failure` distinct from outward kinds (REQ-007); no turn ends with empty answer, `error_kind` `None`, and a `halted`/`failed` task (REQ-008).',
     "Owner decisions (Plan UNK-01, UNK-02, 2026-10-30): timeouts and LLM-failure results are not retried by default; the shipped `retry_on` pins this, and the landed engine already treats timeouts as terminal (`workflow_engine.py:208-209`, re-verified 2026-11-01).",
     "Landing order (Plan Assumptions 'Re-verification record'): this batch lands after the pending procedure batches in plan order — wftaskapi001 `20261101-140834`, wfrecovery001 `20261101-145309`, wflease001 `20261101-163219` — so shared-file edits (`workflow_engine.py`, `models.py`, `workflow_engine_adapter.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/test_orchestrator.py`, `docs/23_agent/agent_03_03_...md`) rebase predictably. The wfrecovery001 Phase 4 attempt/budget contract itself is already landed on `master` (per-attempt event ids `{task_id}:{stage_id}:{attempt}`, `begin_stage_if_new` at `workflow_engine.py:264`, `finish_attempt` kinds at `:280-298`), so the Phase 2 gate is open.",
     "Side-effect rule (Plan Assumptions, UNK-06): every non-READ operation, including `classify_operation_type` results of `UNKNOWN`, counts as a side effect (conservative) until the owner decides a relaxation on top of the landed toolexec001 replay protocol.",
-    "This Plan touches no schema, migration, or migration-registry file: the workflow migration ledger (`scripts/db/migrations_workflow.py`, HEAD code 2 / \"1.2.0\") is not a target row and needs no change here.",
+    'This Plan touches no schema, migration, or migration-registry file: the workflow migration ledger (`scripts/db/migrations_workflow.py`, HEAD code 2 / "1.2.0") is not a target row and needs no change here.',
 ]
 
 TOOLCHAIN = "Full sequence per `rules/toolchain.md`: `uv run ruff check scripts/`, `uv run mypy --no-namespace-packages scripts/ tests/eventbus`, `PYTHONPATH=scripts uv run lint-imports` (baseline 6 kept, 0 broken), `uv run bandit -r scripts/ -c pyproject.toml -ll`, `uv run python tools/check_module_size.py`."
@@ -164,7 +164,7 @@ def doc(
 - **Source plan**: {PLAN}
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: {GENERATED_AT}
-- **Related target files**: `{TARGETS[seq]}`{', ' if related else ''}{related}
+- **Related target files**: `{TARGETS[seq]}`{", " if related else ""}{related}
 """
     path.write_text(body, encoding="utf-8")
     print(f"generated {path.name}")
@@ -184,8 +184,8 @@ def main() -> None:
         scope=[
             "Deadline-versus-inner timeout (REQ-002 / AC-2): replace `asyncio.wait_for(fn(), timeout=timeout)` (`workflow_engine.py:278`) with `async with asyncio.timeout(timeout)` around the stage callback; in the `except TimeoutError` branch, decide by the deadline context's `expired()` state — deadline expiry keeps today's path (kind `timeout`, `WorkflowTimeoutError` raise at `:279-289`), an inner `TimeoutError` from the callback is classified kind `exception` (persisted with `_ERROR_KIND_EXCEPTION` at `:291-298`) and the original exception propagates instead of being relabeled `WorkflowTimeoutError`.",
             "Retry eligibility by kind (REQ-003 / AC-3): in `_run_stage_with_retry` (`:188-240`) classify each failure (kind `timeout` for deadline expiry, `exception` otherwise, `llm_failure` for the new stage-failure error, terminal for callback-raised `WorkflowHaltError`); when the kind is not in `self._wdef.retry_policy.retry_on`, re-raise the original exception at once — the engine writes `failed` via the existing catch in `run()` (`:183-185`) and no backoff sleep or extra attempt occurs; eligible kinds keep the current consume-budget-then-halt loop (`:211-221`).",
-            "`except WorkflowTimeoutError: raise` at `:208-209` stays for the shipped default (timeout is not in `retry_on`), but becomes a consequence of the kind gate rather than a hardcoded bypass, so `retry_on: [\"exception\", \"timeout\"]` retries a deadline timeout identically to an exception (AC-3 second half).",
-            "Stage-failure error (REQ-005 / AC-5, REQ-007 / AC-7): define `WorkflowStageFailure(Exception)` in this module next to `WorkflowHaltError`/`WorkflowTimeoutError` (`:75-81`) carrying `kind` (`\"llm_failure\"`), `answer`, `error_kind`, `is_partial`; add `_ERROR_KIND_LLM_FAILURE = \"llm_failure\"` beside `_ERROR_KIND_TIMEOUT`/`_ERROR_KIND_EXCEPTION` (`:27-28`); the engine persists it through `finish_attempt` with that kind and applies the `retry_on` gate; a terminal stage failure writes task `failed` exactly once via `run()` and propagates the typed error for the adapter (procedure 05) to convert back to the tuple.",
+            '`except WorkflowTimeoutError: raise` at `:208-209` stays for the shipped default (timeout is not in `retry_on`), but becomes a consequence of the kind gate rather than a hardcoded bypass, so `retry_on: ["exception", "timeout"]` retries a deadline timeout identically to an exception (AC-3 second half).',
+            'Stage-failure error (REQ-005 / AC-5, REQ-007 / AC-7): define `WorkflowStageFailure(Exception)` in this module next to `WorkflowHaltError`/`WorkflowTimeoutError` (`:75-81`) carrying `kind` (`"llm_failure"`), `answer`, `error_kind`, `is_partial`; add `_ERROR_KIND_LLM_FAILURE = "llm_failure"` beside `_ERROR_KIND_TIMEOUT`/`_ERROR_KIND_EXCEPTION` (`:27-28`); the engine persists it through `finish_attempt` with that kind and applies the `retry_on` gate; a terminal stage failure writes task `failed` exactly once via `run()` and propagates the typed error for the adapter (procedure 05) to convert back to the tuple.',
             "Terminal halts from callbacks (REQ-006 / AC-6): a `WorkflowHaltError` raised by the stage callback itself (the adapter wraps side-effect-flagged failures with it, procedure 05) is re-raised without retry — add `WorkflowHaltError` to the terminal re-raise branch beside `WorkflowTimeoutError` at `:208-209`; halts synthesized by budget exhaustion (`:219-221`) remain the engine's own and stay distinguishable from callback halts by their message.",
             "Outward kinds (`workflow_timeout`, `workflow_halted`) are turn-level and are NOT written to `attempts.error_kind` (REQ-007 / AC-7): the persisted kinds stay `timeout`, `exception`, `llm_failure`.",
         ],
@@ -253,12 +253,12 @@ def main() -> None:
         seq="02",
         goal="Add the `retry_on` field to `RetryPolicy` in `scripts/agent/workflow/models.py` with the shipped default that preserves today's behavior (REQ-001 / AC-1).",
         scope=[
-            "Extend `RetryPolicy` (`models.py:61-66`, fields `max_attempts`, `backoff_sec`) with `retry_on: tuple[str, ...] = (\"exception\",)`.",
-            "Kind names are the literals `\"exception\"`, `\"timeout\"`, `\"llm_failure\"`; the field is a tuple so the dataclass stays hashable/immutable like its siblings.",
+            'Extend `RetryPolicy` (`models.py:61-66`, fields `max_attempts`, `backoff_sec`) with `retry_on: tuple[str, ...] = ("exception",)`.',
+            'Kind names are the literals `"exception"`, `"timeout"`, `"llm_failure"`; the field is a tuple so the dataclass stays hashable/immutable like its siblings.',
             "No other model changes: `StageDefinition` (`:54-56`) and `WorkflowDef` (`:69+`) are untouched; the stage-level `retryable` flag remains the outer gate.",
         ],
         assumptions=[
-            "Default `(\"exception\",)` reproduces the owner-decided behavior (Plan UNK-01/UNK-02); `RetryPolicy` is constructed only by `workflow_loader.py` (`:128-131`) and test fixtures (`tests/agent/workflow/*`), so a defaulted field breaks nothing.",
+            'Default `("exception",)` reproduces the owner-decided behavior (Plan UNK-01/UNK-02); `RetryPolicy` is constructed only by `workflow_loader.py` (`:128-131`) and test fixtures (`tests/agent/workflow/*`), so a defaulted field breaks nothing.',
         ],
         design=[
             "Per-kind list instead of a boolean `retry_timeouts` (Plan Design 'Retry policy' alternative (a)): it also covers `llm_failure` and future kinds without more booleans.",
@@ -285,8 +285,12 @@ def main() -> None:
             "`uv run pytest tests/agent/workflow/ -v` (procedures 08, 09 exercise the field).",
             TOOLCHAIN,
         ],
-        completion=["AC-1 (model half): `RetryPolicy` carries `retry_on` with default `[\"exception\"]` semantics."],
-        out_of_scope=["Validation and parsing of the key (procedure 03); the shipped config (procedure 04)."],
+        completion=[
+            'AC-1 (model half): `RetryPolicy` carries `retry_on` with default `["exception"]` semantics.'
+        ],
+        out_of_scope=[
+            "Validation and parsing of the key (procedure 03); the shipped config (procedure 04)."
+        ],
         reqs="`REQ-001`",
         phase="Phase 1 (Policy schema and loader; independent)",
         related="`scripts/agent/workflow/workflow_loader.py`, `config/workflows/default.json`, `tests/agent/workflow/test_workflow_loader.py`, `scripts/agent/workflow/workflow_engine.py`",
@@ -297,7 +301,7 @@ def main() -> None:
         seq="03",
         goal="Parse and validate `retry_policy.retry_on` in `scripts/agent/workflow/workflow_loader.py` inside a separate helper, rejecting unknown kinds with `WorkflowLoadError` and defaulting an absent key (REQ-001, REQ-011 / AC-1, AC-9).",
         scope=[
-            "Add `_validate_retry_on(policy: dict) -> tuple[str, ...]` (module level, next to `_validate` at `workflow_loader.py:56`): absent key returns the default `(\"exception\",)`; present key must be a list of strings drawn from `{\"exception\", \"timeout\", \"llm_failure\"}`, otherwise `WorkflowLoadError` naming the offending kind.",
+            'Add `_validate_retry_on(policy: dict) -> tuple[str, ...]` (module level, next to `_validate` at `workflow_loader.py:56`): absent key returns the default `("exception",)`; present key must be a list of strings drawn from `{"exception", "timeout", "llm_failure"}`, otherwise `WorkflowLoadError` naming the offending kind.',
             "Call it from `_validate` (`:56-96`, after the `max_attempts`/`backoff_sec` checks at `:86-91`) and pass the result into the `RetryPolicy(...)` construction (`:128-131`).",
             "`_REQUIRED_POLICY_KEYS` (`:48`) stays `{max_attempts, backoff_sec}` — `retry_on` is optional by REQ-001 and must NOT be added to it.",
         ],
@@ -326,14 +330,19 @@ def main() -> None:
             "Deploy pre-flight: `deploy/setup_services.sh` runs `python -m agent.workflow.validate` before start (Plan Reference Files); an invalid shipped `retry_on` therefore blocks startup, which is the intended gate (AC-9).",
         ],
         security=[],
-        rollback=["Remove the helper and the call; the config key from procedure 04 is ignored by the reverted loader (forward-compatible), so config and code can be reverted independently."],
+        rollback=[
+            "Remove the helper and the call; the config key from procedure 04 is ignored by the reverted loader (forward-compatible), so config and code can be reverted independently."
+        ],
         validation=[
             "`uv run pytest tests/agent/workflow/test_workflow_loader.py -v` (procedure 09).",
             "`PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/default.json` (AC-9).",
             "`uv run radon cc scripts/agent/workflow/workflow_loader.py -s -n C` — grade not above the recorded C (18).",
             TOOLCHAIN,
         ],
-        completion=["AC-1: a definition without `retry_on` loads with the default; an unknown kind raises `WorkflowLoadError`.", "AC-9: the pre-flight passes on the shipped file and on an older-format file without the key."],
+        completion=[
+            "AC-1: a definition without `retry_on` loads with the default; an unknown kind raises `WorkflowLoadError`.",
+            "AC-9: the pre-flight passes on the shipped file and on an older-format file without the key.",
+        ],
         out_of_scope=["Engine consumption of the parsed value (procedure 01)."],
         reqs="`REQ-001`, `REQ-011`",
         phase="Phase 1 (Policy schema and loader)",
@@ -345,7 +354,7 @@ def main() -> None:
         seq="04",
         goal="Add the explicit shipped `retry_on` to `config/workflows/default.json` so shipped behavior is readable from configuration (REQ-001, REQ-003, REQ-011 / AC-1, AC-3, AC-9).",
         scope=[
-            "Extend the `retry_policy` block (`default.json:19-22`, currently `max_attempts: 3`, `backoff_sec: 1`) with `\"retry_on\": [\"exception\"]`.",
+            'Extend the `retry_policy` block (`default.json:19-22`, currently `max_attempts: 3`, `backoff_sec: 1`) with `"retry_on": ["exception"]`.',
             "No stage changes: `plan`/`verify` stay `retryable: false`, `execute` stays `retryable: true` with 30/120/10 s timeouts (`:4-18`).",
             "`config/defaults/default_settings.json` is NOT a target — it no longer exists on `master` (re-verified 2026-11-01); workflow configuration lives only in `config/workflows/*.json`.",
         ],
@@ -371,12 +380,16 @@ def main() -> None:
             "`tests/agent/workflow/test_workflow_loader.py` gains a shipped-file assertion (procedure 09) so the pinned value cannot drift.",
         ],
         security=[],
-        rollback=["Remove the key; the loader default reproduces the same behavior (AC-1)."],
+        rollback=[
+            "Remove the key; the loader default reproduces the same behavior (AC-1)."
+        ],
         validation=[
             "`PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/default.json` (AC-9).",
             "`uv run pytest tests/agent/workflow/test_workflow_loader.py -v` (procedure 09).",
         ],
-        completion=["AC-1: the shipped `default.json` carries `retry_on`. AC-3 is pinned by procedure 08/09 tests against this file."],
+        completion=[
+            "AC-1: the shipped `default.json` carries `retry_on`. AC-3 is pinned by procedure 08/09 tests against this file."
+        ],
         out_of_scope=["Any stage timeout or `retryable` change."],
         reqs="`REQ-001`, `REQ-003`, `REQ-011`",
         phase="Phase 1 (Policy schema and loader)",
@@ -388,10 +401,10 @@ def main() -> None:
         seq="05",
         goal="Make the turn boundary typed in `scripts/agent/workflow_engine_adapter.py`: return `error_kind` `workflow_halted` / `workflow_timeout` on halted/timed-out turns, route LLM-level failure results through the engine as `WorkflowStageFailure`, wrap side-effect-flagged attempt failures as terminal, clear the flag at each attempt start, and limit adapter status writes to cancellation (REQ-004, REQ-005, REQ-006, REQ-008 / AC-4, AC-5, AC-6, AC-8).",
         scope=[
-            "Typed halt/timeout kinds (REQ-004 / AC-4): in the `except (WorkflowHaltError, WorkflowTimeoutError)` branch (`workflow_engine_adapter.py:210-212`) set `error_kind` to `\"workflow_halted\"` or `\"workflow_timeout\"` (split the catch into two branches) before the return at `:222`, so `execute_turn` no longer returns `(\"\", None, False)` for a halted turn and the orchestrator's turn-end audit (`orchestrator.py:166-200` → `audit_event_emitter`) carries the kind; `on_error` stays observational (called once via `_handle_workflow_halt` `:307-313`, never the sole signal).",
-            "LLM-failure routing (REQ-005 / AC-5): in `execute_fn` (`:180-186`), when `_run_execute_stage` (`:331-383`) returns a failure result (`result.action != \"continue\"` classification at `:359-365`), raise `WorkflowStageFailure(kind=\"llm_failure\", answer=..., error_kind=..., is_partial=...)` instead of returning the tuple; the engine applies the `retry_on` gate (procedure 01); under the shipped config the failure is terminal: the engine writes task `failed` once (`workflow_engine.py:183-185`) and the adapter's halt/exception handling converts the typed error back to the outward `(answer, error_kind, is_partial)` with the same outward `error_kind` value as today.",
+            'Typed halt/timeout kinds (REQ-004 / AC-4): in the `except (WorkflowHaltError, WorkflowTimeoutError)` branch (`workflow_engine_adapter.py:210-212`) set `error_kind` to `"workflow_halted"` or `"workflow_timeout"` (split the catch into two branches) before the return at `:222`, so `execute_turn` no longer returns `("", None, False)` for a halted turn and the orchestrator\'s turn-end audit (`orchestrator.py:166-200` → `audit_event_emitter`) carries the kind; `on_error` stays observational (called once via `_handle_workflow_halt` `:307-313`, never the sole signal).',
+            'LLM-failure routing (REQ-005 / AC-5): in `execute_fn` (`:180-186`), when `_run_execute_stage` (`:331-383`) returns a failure result (`result.action != "continue"` classification at `:359-365`), raise `WorkflowStageFailure(kind="llm_failure", answer=..., error_kind=..., is_partial=...)` instead of returning the tuple; the engine applies the `retry_on` gate (procedure 01); under the shipped config the failure is terminal: the engine writes task `failed` once (`workflow_engine.py:183-185`) and the adapter\'s halt/exception handling converts the typed error back to the outward `(answer, error_kind, is_partial)` with the same outward `error_kind` value as today.',
             "Remove the completed-then-failed overwrite (REQ-008): `_status_for_exit` (`:49-60`) drops the `exit_reason == \"completed\" and error_kind is not None` branch (`:58-59`); the engine already wrote `failed` for the terminal stage failure, so the adapter writes status only for cancellation (`:56-57`) (Plan 'The task status is written once, by the engine; the adapter writes only what the engine cannot observe').",
-            "Side-effect terminal wrap (REQ-006 / AC-6): in `execute_fn`, clear `ctx.turn.attempt_side_effect` (procedure 06's field) at attempt start; if `_run_execute_stage` raises and the flag is set, raise `WorkflowHaltError(\"stage execute halted: side effect attempted\")` from it — the engine re-raises halts without retry (procedure 01); the outward kind is `workflow_halted` regardless of `retry_on`.",
+            'Side-effect terminal wrap (REQ-006 / AC-6): in `execute_fn`, clear `ctx.turn.attempt_side_effect` (procedure 06\'s field) at attempt start; if `_run_execute_stage` raises and the flag is set, raise `WorkflowHaltError("stage execute halted: side effect attempted")` from it — the engine re-raises halts without retry (procedure 01); the outward kind is `workflow_halted` regardless of `retry_on`.',
             "`audit_stage_completed` stays emitted before a stage failure is raised (Plan Design): keep the emission at `_run_execute_stage:374-382` before raising `WorkflowStageFailure`.",
         ],
         assumptions=[
@@ -425,7 +438,9 @@ def main() -> None:
         security=[
             "The new outward kinds are fixed literals; no error text from the engine or LLM is copied into `error_kind` for halt/timeout (the LLM-failure branch keeps today's classification only).",
         ],
-        rollback=["Single-commit revert restores the silent halt tuple, the completed-then-failed overwrite, and tuple-returning `execute_fn`."],
+        rollback=[
+            "Single-commit revert restores the silent halt tuple, the completed-then-failed overwrite, and tuple-returning `execute_fn`."
+        ],
         validation=[
             "`uv run pytest tests/agent/test_orchestrator.py tests/integration/test_orchestrator_integration.py -v` (procedure 10 pins AC-4/AC-5/AC-8).",
             TOOLCHAIN,
@@ -436,7 +451,9 @@ def main() -> None:
             "AC-6: a flag-set failed attempt is terminal with `workflow_halted` even when its kind is in `retry_on`.",
             "AC-8: the invariant test (procedure 10) passes for halt, timeout, LLM failure, and cancellation.",
         ],
-        out_of_scope=["Engine kind logic (procedure 01); the `TurnState` field itself (procedure 06); tool_runner flag setter (procedure 07)."],
+        out_of_scope=[
+            "Engine kind logic (procedure 01); the `TurnState` field itself (procedure 06); tool_runner flag setter (procedure 07)."
+        ],
         reqs="`REQ-004`, `REQ-005`, `REQ-006`, `REQ-008`",
         phase="Phase 4 (Boundary contract)",
         related="`scripts/agent/workflow/workflow_engine.py`, `scripts/agent/context.py`, `scripts/agent/tool_runner.py`, `tests/agent/test_orchestrator.py`",
@@ -472,14 +489,18 @@ def main() -> None:
             "HEAD anchor (re-verified 2026-11-01): `class TurnState` at `context.py:213-226`.",
             "Blast radius per Plan Affected areas: `context.py` 12 commits in 30 days; the additive defaulted field breaks no construction site.",
         ],
-        compatibility=["No serialization: `TurnState` is not persisted, so no schema or migration interaction exists for this Plan."],
+        compatibility=[
+            "No serialization: `TurnState` is not persisted, so no schema or migration interaction exists for this Plan."
+        ],
         security=[],
         rollback=["Delete the field; procedures 05 and 07 revert with it."],
         validation=[
             "`uv run pytest tests/agent/test_tool_runner.py tests/agent/test_orchestrator.py -v` (procedures 11, 10).",
             TOOLCHAIN,
         ],
-        completion=["AC-6 (state half): a defaulted boolean exists on `TurnState` that procedures 05/07 write and read."],
+        completion=[
+            "AC-6 (state half): a defaulted boolean exists on `TurnState` that procedures 05/07 write and read."
+        ],
         out_of_scope=["Who sets/clears the flag (procedures 05, 07)."],
         reqs="`REQ-006`",
         phase="Phase 3 (Side-effect rule)",
@@ -522,13 +543,20 @@ def main() -> None:
         security=[
             "Hoisting does not weaken the preflight gate: non-READ calls still hit `check_preflight` in the no-gateway branch, and the gateway path keeps its own enforcement (module docstring `:197-210`).",
         ],
-        rollback=["Restore the original branch order and delete the flag write; preflight behavior is byte-identical to today."],
+        rollback=[
+            "Restore the original branch order and delete the flag write; preflight behavior is byte-identical to today."
+        ],
         validation=[
             "`uv run pytest tests/agent/test_tool_runner.py -v` (procedure 11).",
             TOOLCHAIN,
         ],
-        completion=["AC-6 (setter half): after any non-READ call the flag is true; READ-only attempts leave it false; unclassified tools set it."],
-        out_of_scope=["Retry suppression itself (procedures 01/05).", "`tool_policy.py` classification changes (Plan Out-of-Scope)."],
+        completion=[
+            "AC-6 (setter half): after any non-READ call the flag is true; READ-only attempts leave it false; unclassified tools set it."
+        ],
+        out_of_scope=[
+            "Retry suppression itself (procedures 01/05).",
+            "`tool_policy.py` classification changes (Plan Out-of-Scope).",
+        ],
         reqs="`REQ-006`",
         phase="Phase 3 (Side-effect rule)",
         related="`scripts/agent/context.py`, `scripts/agent/workflow_engine_adapter.py`, `tests/agent/test_tool_runner.py`",
@@ -558,7 +586,7 @@ def main() -> None:
         procedure=[
             "Rewrite the named timeout test first (it is the Plan's designated rewrite).",
             "Add a `TestWorkflowEngineRetryKinds` class with the seven cases above, parametrizing `retry_on` through `WorkflowDef(retry_policy=RetryPolicy(..., retry_on=(...)))` fixtures.",
-            "Add the shipped-config test using `WorkflowLoader().load(\"default\")`.",
+            'Add the shipped-config test using `WorkflowLoader().load("default")`.',
         ],
         method="Test-only edits in the existing file layout (one rewritten case, one new class).",
         details=[
@@ -570,7 +598,9 @@ def main() -> None:
         ],
         security=[],
         rollback=["Delete the new class; restore the rewritten test."],
-        validation=["`uv run pytest tests/agent/workflow/test_workflow_engine.py -v` — new cases fail on pre-change `master` and pass after procedures 01-05."],
+        validation=[
+            "`uv run pytest tests/agent/workflow/test_workflow_engine.py -v` — new cases fail on pre-change `master` and pass after procedures 01-05."
+        ],
         completion=["AC-2, AC-3, AC-5, AC-6 (engine half), AC-7 covered by this file."],
         out_of_scope=["Adapter/orchestrator tuple tests (procedure 10)."],
         reqs="`REQ-002`, `REQ-003`, `REQ-005`, `REQ-006`, `REQ-009`",
@@ -583,15 +613,19 @@ def main() -> None:
         seq="09",
         goal="Add `retry_on` loader tests to `tests/agent/workflow/test_workflow_loader.py` (REQ-001, REQ-009, REQ-011 / AC-1, AC-9).",
         scope=[
-            "New cases: valid `retry_on` list parses to the tuple; absent key loads the default `(\"exception\",)`; unknown kind (`\"halt\"`) raises `WorkflowLoadError`; non-list or non-string values raise `WorkflowLoadError`; a definition without `retry_on` (older format) still loads (AC-9 compatibility).",
-            "Shipped-file case: `WorkflowLoader().load(\"default\")` produces `retry_on == (\"exception\",)` from `config/workflows/default.json` (pins procedure 04).",
+            'New cases: valid `retry_on` list parses to the tuple; absent key loads the default `("exception",)`; unknown kind (`"halt"`) raises `WorkflowLoadError`; non-list or non-string values raise `WorkflowLoadError`; a definition without `retry_on` (older format) still loads (AC-9 compatibility).',
+            'Shipped-file case: `WorkflowLoader().load("default")` produces `retry_on == ("exception",)` from `config/workflows/default.json` (pins procedure 04).',
             "Pre-flight parity: one case runs the same validation `python -m agent.workflow.validate` performs (REQ-011 / AC-9).",
         ],
         assumptions=[
             "The file's existing tmp-path definition fixtures (file is 248 lines, required-keys coverage only, re-verified 2026-11-01) are reused for each variant.",
         ],
-        design=["Each AC-1 clause (present/absent/unknown) gets its own case so failures localize to the loader helper."],
-        alternatives=["Parametrized single test — rejected: the file's existing style is explicit named cases."],
+        design=[
+            "Each AC-1 clause (present/absent/unknown) gets its own case so failures localize to the loader helper."
+        ],
+        alternatives=[
+            "Parametrized single test — rejected: the file's existing style is explicit named cases."
+        ],
         procedure=[
             "Append `TestRetryOn` with the cases above.",
         ],
@@ -602,7 +636,9 @@ def main() -> None:
         compatibility=["No changes to the existing required-keys tests."],
         security=[],
         rollback=["Delete the class."],
-        validation=["`uv run pytest tests/agent/workflow/test_workflow_loader.py -v` — new cases fail against pre-change `master`."],
+        validation=[
+            "`uv run pytest tests/agent/workflow/test_workflow_loader.py -v` — new cases fail against pre-change `master`."
+        ],
         completion=["AC-1 and AC-9 fully covered in this file."],
         out_of_scope=["Engine consumption tests (procedure 08)."],
         reqs="`REQ-001`, `REQ-009`, `REQ-011`",
@@ -617,14 +653,18 @@ def main() -> None:
         scope=[
             "Typed outcomes (REQ-004 / AC-4): a halted turn and a timed-out turn return `error_kind` `workflow_halted` / `workflow_timeout` from the turn path, with and without `on_error`; with a callback it is called exactly once with the typed exception; the turn-end audit event (`emit_turn_end`) carries the same `error_kind` (assert through the mocked emitter the file already uses).",
             "The existing halt tests (`:663-667` region, re-verified 2026-11-01: they assert task status and `on_error`'s `WorkflowHaltError`) are extended — not replaced — with the returned-tuple assertion.",
-            "LLM failure (REQ-005 / AC-5): the fake-adapter/fake-result pattern already in this file drives a `result.action != \"continue\"` turn; assert task status written once as `failed` (no `completed` row state) and the outward `error_kind` equals today's value.",
+            'LLM failure (REQ-005 / AC-5): the fake-adapter/fake-result pattern already in this file drives a `result.action != "continue"` turn; assert task status written once as `failed` (no `completed` row state) and the outward `error_kind` equals today\'s value.',
             "Invariant (REQ-008 / AC-8): one parametrized test over halt, timeout, LLM failure, and cancellation asserts no turn has empty answer + `error_kind=None` + task status `halted`/`failed` simultaneously.",
         ],
         assumptions=[
             "The file's `_temp_workflow_store` / fake `WorkflowEngine` fixtures (`:670+` region) are the existing pattern for driving real engine paths; reuse them.",
         ],
-        design=["Assert the boundary tuple plus the persisted status plus the audit argument triple in one place per scenario (Plan Design: audit already consumes the tuple)."],
-        alternatives=["New integration file — rejected: the frozen table names this file and its fixtures already cover the turn path."],
+        design=[
+            "Assert the boundary tuple plus the persisted status plus the audit argument triple in one place per scenario (Plan Design: audit already consumes the tuple)."
+        ],
+        alternatives=[
+            "New integration file — rejected: the frozen table names this file and its fixtures already cover the turn path."
+        ],
         procedure=[
             "Extend the halt tests with the returned-tuple and audit assertions.",
             "Add `TestTurnFailureKinds` with the AC-4 (with/without callback), AC-5, and AC-8 invariant cases.",
@@ -639,7 +679,9 @@ def main() -> None:
         ],
         security=[],
         rollback=["Delete the new class; revert the two extended assertions."],
-        validation=["`uv run pytest tests/agent/test_orchestrator.py -v`, plus `uv run pytest tests/integration/test_orchestrator_integration.py -v` (Plan Validation plan)."],
+        validation=[
+            "`uv run pytest tests/agent/test_orchestrator.py -v`, plus `uv run pytest tests/integration/test_orchestrator_integration.py -v` (Plan Validation plan)."
+        ],
         completion=["AC-4, AC-5, AC-8 covered by this file."],
         out_of_scope=["Engine-level kind tests (procedure 08)."],
         reqs="`REQ-004`, `REQ-005`, `REQ-008`, `REQ-009`",
@@ -658,8 +700,12 @@ def main() -> None:
         assumptions=[
             "`TurnState` in test fixtures is the real dataclass (the file's `_make_ctx`-style helpers construct it); no new fixture layer.",
         ],
-        design=["Read the flag on the context object (the adapter-visible contract), not the classification call log."],
-        alternatives=["Assert classification hoisting via call-order mocks only — rejected: AC-6 is about the flag state."],
+        design=[
+            "Read the flag on the context object (the adapter-visible contract), not the classification call log."
+        ],
+        alternatives=[
+            "Assert classification hoisting via call-order mocks only — rejected: AC-6 is about the flag state."
+        ],
         procedure=[
             "Append `TestAttemptSideEffectFlag` with the four ordering/state cases.",
         ],
@@ -670,7 +716,9 @@ def main() -> None:
         compatibility=["Existing 2265-line file's cases stay untouched."],
         security=[],
         rollback=["Delete the class."],
-        validation=["`uv run pytest tests/agent/test_tool_runner.py -v` — new cases fail against pre-change `master`."],
+        validation=[
+            "`uv run pytest tests/agent/test_tool_runner.py -v` — new cases fail against pre-change `master`."
+        ],
         completion=["AC-6 (flag half) covered by this file."],
         out_of_scope=["Retry suppression behavior (procedure 10)."],
         reqs="`REQ-006`, `REQ-009`",
@@ -684,15 +732,19 @@ def main() -> None:
         goal="Update `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`: Task Status Transitions table, Retry Mechanism, and Operational Notes to describe the configured retry kinds, the timeout classification, the typed failure contract, and the side-effect rule (REQ-010 / AC-10).",
         scope=[
             "Task Status Transitions table (`:74-94` region, re-verified 2026-11-01): the `halted` rows stay, with the halt now described as 'kind not in `retry_on`, budget exhausted, or side-effect-flagged failure'; add the turn-level `error_kind` values `workflow_halted` / `workflow_timeout` to the turn-outcome description.",
-            "Retry Mechanism section (`:119-129` region): state that retry eligibility is `retry_policy.retry_on` (`exception` / `timeout` / `llm_failure`, shipped default `[\"exception\"]`), every failed attempt consumes one `max_attempts` unit, and deadline expiry is distinguished from a callback-raised `TimeoutError`.",
+            'Retry Mechanism section (`:119-129` region): state that retry eligibility is `retry_policy.retry_on` (`exception` / `timeout` / `llm_failure`, shipped default `["exception"]`), every failed attempt consumes one `max_attempts` unit, and deadline expiry is distinguished from a callback-raised `TimeoutError`.',
             "Operational Notes (`:149-150` region): keep the `halted` terminal-state bullets; add the side-effect rule sentence (a retry never follows an attempted non-READ tool call) and the LLM-failure status path (`failed` written once).",
             "Intent and failure behavior only; no code restatement (Plan Documentation Impact). UNK-01/UNK-02 are settled owner decisions, so no Needs-Confirmation marker is required; the conservative side-effect rule is described as current behavior, with relaxation deferred to a future owner decision (UNK-06).",
         ],
         assumptions=[
             "The table is shared with wfrecovery001 (`20261101-145309_24`) and wflease001 (`20261101-163219_15`) procedures that land earlier; Plan Assumptions: different sections, and the later change reconciles the transitions rows — this document reconciles last.",
         ],
-        design=["Docs describe the configuration-driven policy (readable from `config/workflows/default.json`) instead of restating code."],
-        alternatives=["A new docs page — rejected: REQ-010 names the three passages of this file."],
+        design=[
+            "Docs describe the configuration-driven policy (readable from `config/workflows/default.json`) instead of restating code."
+        ],
+        alternatives=[
+            "A new docs page — rejected: REQ-010 names the three passages of this file."
+        ],
         procedure=[
             "Edit the three passages listed in Scope.",
             "Run the docs checkers (Plan Validation plan).",
@@ -702,14 +754,23 @@ def main() -> None:
             "Docs language policy: English file content (repo convention), verified by `check_docs_japanese`.",
             "`docs/10_adr/adr_02_02_001...md` decision 6 stays true under the shipped configuration and is not a target (Plan Documentation Impact).",
         ],
-        compatibility=["`docs/00_index.md` task-scope mapping applies (file is located through 'Document References by Task', Plan Documentation Impact)."],
+        compatibility=[
+            "`docs/00_index.md` task-scope mapping applies (file is located through 'Document References by Task', Plan Documentation Impact)."
+        ],
         security=[],
-        rollback=["Revert the document edits; code and docs land as one chain but each doc edit is independently revertable."],
+        rollback=[
+            "Revert the document edits; code and docs land as one chain but each doc edit is independently revertable."
+        ],
         validation=[
             "`uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py --strict`, `check_docs_consistency.py --domain agent`, `check_docs_japanese.py` (Plan Validation plan).",
         ],
-        completion=["AC-10: the passages describe the implemented policy and contract and pass the docs checkers."],
-        out_of_scope=["ADR amendment (Plan Documentation Impact; only if the owner changes the outcome).", "Startup Recovery section (`:143+`, owned by wfrecovery001/wflease001 rows)."],
+        completion=[
+            "AC-10: the passages describe the implemented policy and contract and pass the docs checkers."
+        ],
+        out_of_scope=[
+            "ADR amendment (Plan Documentation Impact; only if the owner changes the outcome).",
+            "Startup Recovery section (`:143+`, owned by wfrecovery001/wflease001 rows).",
+        ],
         reqs="`REQ-010`",
         phase="Phase 5 (Documentation)",
         related="`scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow_engine_adapter.py`, `config/workflows/default.json`",

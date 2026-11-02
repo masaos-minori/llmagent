@@ -176,7 +176,7 @@ def doc(
 - **Source plan**: {PLAN}
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: {GENERATED_AT}
-- **Related target files**: `{TARGETS[seq]}`{', ' if related else ''}{related}
+- **Related target files**: `{TARGETS[seq]}`{", " if related else ""}{related}
 """
     path.write_text(body, encoding="utf-8")
     print(f"generated {path.name}")
