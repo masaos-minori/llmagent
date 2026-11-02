@@ -14,8 +14,9 @@ shapes still refused, REQ-003 new shapes refused, REQ-004 contract and exemption
   `TestSensitiveDataRefusal` (`tests/agent/test_diagnostic_store_security.py:255-293`).
 - New carve-out test for the `_filter_failed` path (none exists today — verified 20261102).
 - Pre-existing tests, including the six parametrized refusal cases and
-  `test_save_with_encrypt_but_no_key_raises_on_sensitive_data` (:219, the `sk-...` case), stay
-  untouched: they are the REQ-002 regression.
+  `test_save_with_encrypt_but_no_key_raises_on_sensitive_data` (:219, content
+  `{"api_key": "abcdefghijklmnop"}`; the `sk-...` cases live in
+  `tests/agent/test_diagnostic_store.py:557-602`), stay untouched: they are the REQ-002 regression.
 
 ## Assumptions
 
@@ -107,8 +108,8 @@ Append `TestSharedDetectorGuard` (new) after `TestSensitiveDataRefusal`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestSharedDetectorGuard` (new) tests (red before rows 01-02 land) | Pending | — | — | Plan Phase 1 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestSharedDetectorGuard` (new) tests (red before rows 01-02 land) | Completed | — | — | Plan Phase 1 TestSharedDetectorGuard added (17 tests); red evidence 12 failed/32 passed recorded; green after row 02 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff format/check, mypy, bandit -ll -r scripts/, lint-imports (6 kept), check_module_size, full suite 11276 passed/8 skipped, diff-cover 100%, docs checkers exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
