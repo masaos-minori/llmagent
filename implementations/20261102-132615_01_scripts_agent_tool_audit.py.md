@@ -126,8 +126,8 @@ and pass `workflow_id=workflow_id` to the event constructor (replacing
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add logger + `_workflow_id_or_skip` (new); replace the three asserts | Pending | — | — | After row 02's red tests land (Plan Phase 1) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Deploy handoff is the Plan's Phase 4, user decision |
+| 1 | Add logger + `_workflow_id_or_skip` (new); replace the three asserts | Completed | 20261102-175720 | 20261102-180004 | After row 02's red tests land (Plan Phase 1) landed in batch 20261102-132615; red-first verified, all targets green |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261102-180004 | Deploy handoff is the Plan's Phase 4, user decision full suite 11348 passed/8 skipped; diff-cover 100%; ruff/mypy/bandit/lint-imports/check_module_size green; docs checkers green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
