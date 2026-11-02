@@ -76,8 +76,8 @@ Keep the two existing sub-bullets (preview rationale, shipped-default note) unch
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the `masked_fields` bullet | Pending | — | — | Land with rows 01-04 |
-| 2 | Run the docs checkers (`routing.md`) | Pending | — | — | |
+| 1 | Extend the `masked_fields` bullet | Completed | 20261102-180240 | 20261102-180004 | Land with rows 01-04 landed in batch 20261102-132615; red-first verified, all targets green |
+| 2 | Run the docs checkers (`routing.md`) | Completed | — | 20261102-180004 | full suite 11348 passed/8 skipped; diff-cover 100%; ruff/mypy/bandit/lint-imports/check_module_size green; docs checkers green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
