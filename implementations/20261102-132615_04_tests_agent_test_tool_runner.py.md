@@ -92,8 +92,8 @@ Append `TestToolCallSinkScrub` (new) at the end of the module.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestToolCallSinkScrub` (new) tests (red before row 01 lands) | Pending | — | — | Plan Phase 1 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestToolCallSinkScrub` (new) tests (red before row 01 lands) | Completed | 20261102-174730 | 20261102-180004 | Plan Phase 1 red-phase evidence: 2 scrub tests failed / 85 passed vs pre-scrub code (Plan Phase 1); ruff clean landed in batch 20261102-132615; red-first verified, all targets green |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261102-174930 | 20261102-180004 | green gate deferred to maskargs001 row 01 implementation landing full suite 11348 passed/8 skipped; diff-cover 100%; ruff/mypy/bandit/lint-imports/check_module_size green; docs checkers green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
