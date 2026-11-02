@@ -71,8 +71,8 @@ the `RuntimeError` refusal and the `_filter_sensitive_fields()` carve-out — un
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword the fail-closed bullet | Pending | — | — | Land with rows 01-02 |
-| 2 | Run the docs checkers (`routing.md`) | Pending | — | — | |
+| 1 | Reword the fail-closed bullet | Completed | — | — | Land with rows 01-02 line 73 bullet rewritten to reference shared detects_secrets(); docs checkers pass |
+| 2 | Run the docs checkers (`routing.md`) | Completed | — | — | ruff format/check, mypy, bandit -ll -r scripts/, lint-imports (6 kept), check_module_size, full suite 11276 passed/8 skipped, diff-cover 100%, docs checkers exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
