@@ -2368,3 +2368,64 @@ class TestAttemptSideEffectFlag:
             )
 
         assert ctx.turn.attempt_side_effect is True
+
+
+class TestToolCallSinkScrub:
+    """The "Tool call" log line and the REPL tool-call emit carry scrubbed args
+    (maskargs001 REQ-004)."""
+
+    @staticmethod
+    async def _run_shell_call(ctx: Any, args: dict[str, Any]) -> None:
+        pc = _pc(
+            "shell_run",
+            args,
+            call_id="call_scrub_shell",
+            spec=ToolSpec(call_id="call_scrub_shell", name="shell_run", is_write=False),
+        )
+        results = await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected={}
+        )
+        await _collect_tool_result_msgs(ctx, results, 0, None)
+
+    @pytest.mark.asyncio
+    async def test_log_line_scrubs_free_form_secret(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        ctx = _make_ctx()  # masked_fields defaults to []
+        with caplog.at_level(logging.INFO, logger="agent.tool_runner"):
+            await self._run_shell_call(
+                ctx, {"command": "export API_KEY=abcd12345678 && true"}
+            )
+        tool_call_records = [
+            r for r in caplog.records if r.message.startswith("Tool call (")
+        ]
+        assert tool_call_records
+        assert all("abcd12345678" not in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_emit_payload_scrubs_free_form_secret(self) -> None:
+        ctx = _make_ctx()
+        with patch("agent.tool_runner.emit_tool_call") as mock_emit:
+            await self._run_shell_call(
+                ctx, {"command": "export API_KEY=abcd12345678 && true"}
+            )
+        mock_emit.assert_called_once()
+        emitted_name, emitted_json = mock_emit.call_args[0]
+        assert emitted_name == "shell_run"
+        assert "abcd12345678" not in emitted_json
+
+    @pytest.mark.asyncio
+    async def test_masked_fields_still_star_in_log(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        ctx = _make_ctx(_cfg(masked_fields=["content"]))
+        with caplog.at_level(logging.INFO, logger="agent.tool_runner"):
+            await self._run_shell_call(
+                ctx, {"content": "abc12345678", "path": "/tmp/f"}
+            )
+        tool_call_messages = [
+            r.message for r in caplog.records if r.message.startswith("Tool call (")
+        ]
+        assert tool_call_messages
+        assert "'content': '***'" in tool_call_messages[0]
+        assert "/tmp/f" in tool_call_messages[0]

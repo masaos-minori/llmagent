@@ -44,7 +44,10 @@ These three layers support three use cases: real-time execution monitoring, post
 ## Key Constraints
 
 - Workflow execution is mandatory; the workflow engine issues additional observability events beyond `turn_start`/`turn_end`.
-- Calling writing functions for `tool_approval` / `tool_exec` outside of a workflow context results in an assertion error.
+- Calling the `tool_approval` / `approval_decision` / `tool_exec` writing functions outside a
+  workflow context (empty `workflow_id`) writes no event and logs one warning naming the writer and
+  the tool; the silent return for a missing `audit_logger` and `audit_tool_exec`'s empty
+  `mcp_request_id` / `source` early return keep their precedence ahead of this check.
 - Session diagnostics are stored in the `session_diagnostics` table and are separate from the messages table.
 
 ## Operational Notes

@@ -9,6 +9,8 @@ from typing import Any, cast
 
 from shared.json_utils import dumps as _json_dumps
 
+from agent.secrets_masker import _mask_secrets
+
 
 def turn_limit_hint(omitted_chars: int, omitted_lines: int, limit: int) -> str:
     """Build the hint shown to the LLM in place of a tool result dropped for
@@ -43,7 +45,9 @@ def _mask_value(value: object, masked_fields: list[str]) -> object:
     """Recursively replace masked_fields keys with '***' at any depth, returning a new tree.
 
     Dicts are rebuilt with matching keys set to '***' and other values recursed;
-    lists are rebuilt with each item recursed; every other value is returned as-is.
+    lists are rebuilt with each item recursed; string leaves are additionally
+    scrubbed for content-pattern secrets via the shared masker; every other
+    value is returned as-is.
     """
     if isinstance(value, dict):
         return {
@@ -52,6 +56,8 @@ def _mask_value(value: object, masked_fields: list[str]) -> object:
         }
     if isinstance(value, list):
         return [_mask_value(item, masked_fields) for item in value]
+    if isinstance(value, str):
+        return _mask_secrets(value)
     return value
 
 
@@ -59,7 +65,10 @@ def mask_args(args: dict[str, Any], masked_fields: list[str]) -> dict[str, Any]:
     """Return a copy of args with masked_fields keys replaced by '***' at any depth.
 
     Masking is applied before logging and audit writes; it is not applied to the
-    interactive approval preview built by build_preview.
+    interactive approval preview built by build_preview. String values under any
+    other key are additionally scrubbed for content-pattern secrets
+    (agent/secrets_masker.py), so audit previews, logger writes and REPL
+    tool-call lines never carry a secret embedded in a free-form argument.
     """
     return cast(dict[str, Any], _mask_value(args, masked_fields))
 

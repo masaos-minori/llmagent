@@ -4,7 +4,10 @@ Unit tests for agent/tool_audit.py: audit logging functions.
 
 from __future__ import annotations
 
+import ast
 import json
+import logging
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -354,3 +357,156 @@ class TestAuditToolExecSnapshotDedup:
         }
         assert expected <= set(payload)
         assert set(payload) == expected | {"execution_snapshot_json"}
+
+
+def _logged_event_with_fields(
+    writer: str, args: dict[str, Any], masked_fields: list[str]
+) -> str:
+    """Run one audit writer with custom masked_fields and return the logged JSON."""
+    ctx = _make_ctx()
+    ctx.services_required.audit_logger = MagicMock()
+    ctx.cfg.tool.masked_fields = masked_fields
+    ctx.cfg.approval.approval_resource_keys = {}
+    if writer == "approval":
+        audit_approval(ctx, "write_file", RiskLevel.MEDIUM, args, "approved")
+    else:
+        audit_tool_exec(ctx, "write_file", args, False, "req-scrub-1")
+    logged: str = ctx.services_required.audit_logger.info.call_args[0][0]
+    return logged
+
+
+@pytest.mark.parametrize("writer", ["approval", "exec"])
+class TestAuditPreviewScrub:
+    """Persisted args_preview carries content-scrubbed values (maskargs001 REQ-003)."""
+
+    def test_writers_scrub_free_form_secret(self, writer: str) -> None:
+        args = {"command": "curl -H 'Authorization: Bearer abc1234567890' https://x"}
+        logged = _logged_event_with_fields(writer, args, [])
+        assert "abc1234567890" not in logged
+        marker = "tool_approval" if writer == "approval" else "tool_exec"
+        assert marker in logged
+
+    def test_scrubbed_inside_truncated_envelope(self, writer: str) -> None:
+        # sort_keys=True in _json_dumps: the filler key sorts after "note" so the
+        # secret sits inside the first AUDIT_ARGS_PREVIEW_MAX_CHARS of the envelope.
+        args = {"note": "token=abc12345678", "zfiller": "x" * 2000}
+        preview = json.loads(_logged_event_with_fields(writer, args, []))[
+            "args_preview"
+        ]
+        assert preview["truncated"] is True
+        assert "abc12345678" not in preview["preview"]
+
+    def test_masked_fields_still_star(self, writer: str) -> None:
+        args = {"content": "anything", "path": "/tmp/f"}
+        preview = json.loads(_logged_event_with_fields(writer, args, ["content"]))[
+            "args_preview"
+        ]
+        assert preview["content"] == "***"
+        assert preview["path"] == "/tmp/f"
+
+
+_SKIP_WRITERS: list[tuple[str, str, str]] = [
+    # (branch key, public writer name, tool name used in the call)
+    ("approval", "audit_approval", "read_text_file"),
+    ("decision", "log_approval_decision", "write_file"),
+    ("exec", "audit_tool_exec", "read_text_file"),
+]
+
+
+def _call_audit_writer(branch: str, ctx: MagicMock) -> None:
+    """Call one of the three workflow-id-precondition writers on ctx."""
+    if branch == "approval":
+        audit_approval(
+            ctx, "read_text_file", RiskLevel.MEDIUM, {"path": "/tmp/skip"}, "approved"
+        )
+    elif branch == "decision":
+        log_approval_decision(
+            ctx,
+            ApprovalOutcome(
+                tool_name="write_file",
+                risk_level=RiskLevel.MEDIUM,
+                decision=ApprovalDecisionType.APPROVED,
+                escalation_reason="",
+            ),
+        )
+    else:
+        # non-empty mcp_request_id so the workflow-id check is reached
+        audit_tool_exec(
+            ctx, "read_text_file", {"path": "/tmp/skip"}, False, "req-skip-1"
+        )
+
+
+class TestWorkflowIdSkipWarn:
+    """Missing workflow_id skips the event with one warning (assertaudit001 REQ-001/REQ-003)."""
+
+    @pytest.mark.parametrize("missing_id", [None, ""])
+    @pytest.mark.parametrize("branch,writer_name,tool_name", _SKIP_WRITERS)
+    def test_missing_workflow_id_skips_with_warning(
+        self,
+        branch: str,
+        writer_name: str,
+        tool_name: str,
+        missing_id: str | None,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.workflow.workflow_id = missing_id
+        with caplog.at_level(logging.WARNING, logger="agent.tool_audit"):
+            _call_audit_writer(branch, ctx)  # must not raise
+        ctx.services_required.audit_logger.info.assert_not_called()
+        warnings = [
+            r
+            for r in caplog.records
+            if r.name == "agent.tool_audit" and r.levelno >= logging.WARNING
+        ]
+        assert len(warnings) == 1
+        message = warnings[0].getMessage()
+        assert writer_name in message
+        assert tool_name in message
+        assert "/tmp/skip" not in message  # warning must not carry argument values
+
+    @pytest.mark.parametrize("branch", ["approval", "decision", "exec"])
+    def test_no_warning_without_audit_logger(
+        self,
+        branch: str,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        ctx = _make_ctx()  # audit_logger = None by default
+        ctx.workflow.workflow_id = None
+        with caplog.at_level(logging.WARNING, logger="agent.tool_audit"):
+            _call_audit_writer(branch, ctx)
+        warnings = [
+            r
+            for r in caplog.records
+            if r.name == "agent.tool_audit" and r.levelno >= logging.WARNING
+        ]
+        assert (
+            not warnings
+        )  # audit_logger guard precedes the workflow-id check (REQ-002)
+
+    @pytest.mark.parametrize("missing_id", [None, ""])
+    def test_early_return_precedes_workflow_check(
+        self, missing_id: str | None, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.workflow.workflow_id = missing_id
+        with caplog.at_level(logging.WARNING, logger="agent.tool_audit"):
+            audit_tool_exec(ctx, "read_text_file", {}, False, "", source="")
+        ctx.services_required.audit_logger.info.assert_not_called()
+        warnings = [
+            r
+            for r in caplog.records
+            if r.name == "agent.tool_audit" and r.levelno >= logging.WARNING
+        ]
+        assert (
+            not warnings
+        )  # mcp_request_id/source early return precedes the workflow check
+
+    def test_no_assert_statements_in_source(self) -> None:
+        source_path = (
+            Path(__file__).resolve().parents[2] / "scripts/agent/tool_audit.py"
+        )
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        assert not any(isinstance(node, ast.Assert) for node in ast.walk(tree))

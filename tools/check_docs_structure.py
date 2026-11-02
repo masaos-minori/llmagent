@@ -129,7 +129,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 25438 (2026-11-01): the toolstate001 producer added the
     # ToolCallRecorder Protocol and the tool_runner recording helpers to the generated
     # agent_api table; the ceiling equals the accepted size.
-    "agent_13_reference-api-generated.md": 25438,
+    # Re-accepted at 25609 (2026-11-02): the diagmask001 follow-up (commit d03973c41)
+    # regenerated the table with the new `detects_secrets` row in agent/secrets_masker.py;
+    # the ceiling equals the accepted size.
+    "agent_13_reference-api-generated.md": 25609,
     # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
     # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
     # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate

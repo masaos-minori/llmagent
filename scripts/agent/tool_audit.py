@@ -8,6 +8,7 @@ Isolated here to keep audit concerns separate from execution logic.
 from __future__ import annotations
 
 import dataclasses
+import logging
 import time
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,8 @@ from agent.tool_result_formatter import mask_args
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+
+logger = logging.getLogger(__name__)
 
 AUDIT_ARGS_PREVIEW_MAX_CHARS = 1500
 
@@ -44,6 +47,24 @@ def _extract_resource_scope(ctx: AgentContext, masked: dict) -> dict[str, str]:
     return {k: str(v) for k, v in masked.items() if k in path_keys | branch_keys}
 
 
+def _workflow_id_or_skip(ctx: AgentContext, writer: str, tool: str) -> str | None:
+    """Return the workflow id, or None after logging a skip warning.
+
+    assertaudit001: a missing workflow_id must not raise — these writers can run
+    after tool side effects, so an exception here would abort post-execution.
+    The warning names the writer and the tool only, never argument values.
+    """
+    workflow_id = ctx.workflow.workflow_id
+    if not workflow_id:
+        logger.warning(
+            "%s skipped: called outside workflow context (tool=%s)",
+            writer,
+            tool,
+        )
+        return None
+    return workflow_id
+
+
 def audit_approval(
     ctx: AgentContext,
     tool_name: str,
@@ -54,9 +75,9 @@ def audit_approval(
     """Write a structured tool_approval event to the audit log."""
     if ctx.services_required.audit_logger is None:
         return
-    assert ctx.workflow.workflow_id, (
-        "workflow_id required: audit_approval called outside workflow context"
-    )
+    workflow_id = _workflow_id_or_skip(ctx, "audit_approval", tool_name)
+    if workflow_id is None:
+        return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
     resource_scope = _extract_resource_scope(ctx, masked)
     evt = ToolApprovalEvent(
@@ -71,7 +92,7 @@ def audit_approval(
         decision=str(decision),
         args_preview=_bounded_preview(masked),
         ts=time.time(),
-        workflow_id=ctx.workflow.workflow_id,
+        workflow_id=workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
     )
     ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
@@ -81,9 +102,9 @@ def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
     """Write a structured approval_decision event to the audit log."""
     if ctx.services_required.audit_logger is None:
         return
-    assert ctx.workflow.workflow_id, (
-        "workflow_id required: log_approval_decision called outside workflow context"
-    )
+    workflow_id = _workflow_id_or_skip(ctx, "log_approval_decision", outcome.tool_name)
+    if workflow_id is None:
+        return
     evt = ApprovalDecisionEvent(
         event="approval_decision",
         task_id=ctx.turn.current_turn_id or "",
@@ -92,7 +113,7 @@ def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
         decision=str(outcome.decision),
         escalation_reason=outcome.escalation_reason,
         ts=time.time(),
-        workflow_id=ctx.workflow.workflow_id,
+        workflow_id=workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
     )
     ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
@@ -172,9 +193,9 @@ def audit_tool_exec(
         return
     if not mcp_request_id and not source:
         return
-    assert ctx.workflow.workflow_id, (
-        "workflow_id required: audit_tool_exec called outside workflow context"
-    )
+    workflow_id = _workflow_id_or_skip(ctx, "audit_tool_exec", tool_name)
+    if workflow_id is None:
+        return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
     resource_scope = _extract_resource_scope(ctx, masked)
     evt = ToolExecEvent(
@@ -191,7 +212,7 @@ def audit_tool_exec(
         ts=time.time(),
         source=source if source else "agent",
         error_type=error_type,
-        workflow_id=ctx.workflow.workflow_id,
+        workflow_id=workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
         idempotency_key=idempotency_key,
         task_linkage=task_linkage,

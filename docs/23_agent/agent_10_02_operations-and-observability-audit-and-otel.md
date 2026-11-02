@@ -49,7 +49,10 @@ The OTel SDK is treated as an optional dependency; the agent always falls back t
 
 - Audit logs use JSON-lines format with a structure suitable for later parsing.
 - OTel is configured in `config/agent.toml` (see agent_08_04); an empty `otel_endpoint` writes spans to standard output / `agent.log`.
-- Calling writing functions for `tool_approval` / `tool_exec` outside of a workflow context will result in an assertion error.
+- Calling the `tool_approval` / `approval_decision` / `tool_exec` writing functions outside a
+  workflow context (empty `workflow_id`) writes no event and logs one warning naming the writer and
+  the tool; the silent return for a missing `audit_logger` and `audit_tool_exec`'s empty
+  `mcp_request_id` / `source` early return keep their precedence ahead of this check.
 
 ## Operational Notes
 

@@ -4,6 +4,8 @@ Unit tests for agent/tool_result_formatter.py — mask_args, build_preview.
 
 from __future__ import annotations
 
+from copy import deepcopy
+
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig, ToolConfig
 from agent.config_section_builders import _build_tool_config
@@ -135,6 +137,58 @@ class TestMaskArgs:
         snapshot = repr(args)
         mask_args(args, ["secret"])
         assert repr(args) == snapshot
+
+
+class TestMaskArgsContentScrub:
+    """Content-pattern scrub in mask_args' string branch (maskargs001 REQ-001/REQ-002)."""
+
+    def test_scrubs_secret_in_free_form_string(self) -> None:
+        result = mask_args({"command": "export API_KEY=abcd1234 && run"}, [])
+        assert "abcd1234" not in result["command"]
+
+    def test_scrubs_at_depth(self) -> None:
+        args = {
+            "headers": {"Authorization": "Bearer abc12345678"},
+            "items": [{"note": "token=xyz789"}],
+        }
+        dumped = repr(mask_args(args, []))
+        assert "abc12345678" not in dumped
+        assert "xyz789" not in dumped
+
+    def test_key_based_masking_takes_precedence(self) -> None:
+        args = {"token": "abc12345678", "note": "token=abc12345678"}
+        result = mask_args(args, ["token"])
+        assert result["token"] == "***"
+        assert "abc12345678" not in result["note"]
+
+    def test_non_string_values_untouched(self) -> None:
+        args = {"count": 42, "flag": True, "missing": None}
+        assert mask_args(args, []) == args
+
+    def test_input_not_mutated(self) -> None:
+        args = {
+            "command": "export API_KEY=abcd1234",
+            "nested": {"note": "token=xyz789"},
+        }
+        snapshot = deepcopy(args)
+        mask_args(args, [])
+        assert args == snapshot
+
+    def test_idempotent(self) -> None:
+        args = {
+            "command": "export API_KEY=abcd1234 && run",
+            "note": "Bearer abc12345678",
+        }
+        once = mask_args(args, [])
+        assert mask_args(once, []) == once
+
+    def test_no_secret_string_unchanged(self) -> None:
+        args = {"path": "/tmp/f", "message": "the quick brown fox"}
+        assert mask_args(args, []) == args
+
+    def test_large_string_terminates(self) -> None:
+        args = {"payload": "x" * 100_000}
+        assert mask_args(args, [])["payload"] == args["payload"]
 
 
 class TestBuildPreview:

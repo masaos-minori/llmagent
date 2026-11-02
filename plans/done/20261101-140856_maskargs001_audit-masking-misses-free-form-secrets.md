@@ -188,9 +188,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: mask_args, audit args_preview, tool-runner log tests (tests/agent/test_tool_result_formatter.py, tests/agent/test_tool_audit.py, tests/agent/test_tool_runner.py) | In Progress | — | — |  |
-| 2 | Core logic: string branch in `_mask_value` calling `_mask_secrets` (scripts/agent/tool_result_formatter.py) | In Progress | — | — |  |
-| 3 | Documentation: extend the `masked_fields` bullet (docs/23_agent/agent_08_03_configuration-tools-memory.md) | In Progress | — | — |  |
+| 1 | Tests first: mask_args, audit args_preview, tool-runner log tests (tests/agent/test_tool_result_formatter.py, tests/agent/test_tool_audit.py, tests/agent/test_tool_runner.py) | Completed | — | 2026-11-02 | Procedures 02, 03, 04; red evidence: 3+4+2 failed across the three files |
+| 2 | Core logic: string branch in `_mask_value` calling `_mask_secrets` (scripts/agent/tool_result_formatter.py) | Completed | — | 2026-11-02 | Procedure 01; _mask_value string branch calls _mask_secrets |
+| 3 | Documentation: extend the `masked_fields` bullet (docs/23_agent/agent_08_03_configuration-tools-memory.md) | Completed | — | 2026-11-02 | Procedure 05; masked_fields bullet extended; docs checkers exit 0 |
 | 4 | Deployment and verification: validation sequence, regression modules, deploy hand-off (scripts/agent/tool_result_formatter.py) | Pending | — | — |  |
 
 ### Blocker Log

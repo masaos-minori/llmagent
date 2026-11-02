@@ -177,9 +177,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: skip-and-warn tests for the three writers, no-assert guard, order tests (tests/agent/test_tool_audit.py) | In Progress | — | — |  |
-| 2 | Core logic: workflow-id helper and replacement of the three asserts (scripts/agent/tool_audit.py) | In Progress | — | — |  |
-| 3 | Documentation: replace the assertion-error sentence (docs/23_agent/agent_10_02_operations-and-observability-audit-and-otel.md, docs/23_agent/agent_10_03_operations-and-observability-workflow-observability.md) | In Progress | — | — |  |
+| 1 | Tests first: skip-and-warn tests for the three writers, no-assert guard, order tests (tests/agent/test_tool_audit.py) | Completed | — | 2026-11-02 | Procedures 02 (skip-and-warn + no-assert + order pins); red evidence: 7 failed |
+| 2 | Core logic: workflow-id helper and replacement of the three asserts (scripts/agent/tool_audit.py) | Completed | — | 2026-11-02 | Procedure 01; _workflow_id_or_skip added; 3 asserts removed |
+| 3 | Documentation: replace the assertion-error sentence (docs/23_agent/agent_10_02_operations-and-observability-audit-and-otel.md, docs/23_agent/agent_10_03_operations-and-observability-workflow-observability.md) | Completed | — | 2026-11-02 | Procedures 03, 04; both Key Constraints bullets replaced with identical skip-and-warn wording |
 | 4 | Deployment and verification: validation sequence, regression modules, deploy hand-off (scripts/agent/tool_audit.py) | Pending | — | — |  |
 
 ### Blocker Log
