@@ -53,8 +53,10 @@ place.
 New tests (calling `_mask_secrets` directly):
 - `test_new_key_names_masked` (new), parametrized over `authorization=xyz`, `credential=xyz`,
   `private_key=xyz`, `bearer=xyz`, `authorization: xyz`, `credential: abc`, `private_key: abc`,
-  `{"authorization": "xyz"}`, `{"credential": "xyz"}`, `{"private_key": "xyz"}` — value absent
-  from output.
+  `{"authorization": "xyz"}`, `{"credential": "xyz"}`, `{"private_key": "xyz"}`,
+  `{"access_token": "xyz"}`, `{"auth_token": "xyz"}`, `{"client_secret": "xyz"}` — value absent
+  from output. The three composite quoted-JSON cases pin the row-01 probe fix: the old masker does
+  not mask them today and the deleted guard did (REQ-002).
 - `test_arrow_separator` (new): `api_key => topsecretxyz` masked (REQ-003 separator case).
 - `test_bare_jwt_masked` (new): a three-segment `eyJhbGciOi...` token in prose is fully masked,
   no segment survives; a word starting with eyJ shorter than the shape stays unchanged.
@@ -108,9 +110,9 @@ Count test: assert `len(SECRET_PATTERNS) == 14` (or the final consolidated count
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestExtendedShapeMasking` (new) tests (red before row 01 lands) | Pending | — | — | Plan Phase 1 |
-| 2 | Update the pattern-count literal to the final count | Pending | — | — | Same commit as row 01 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestExtendedShapeMasking` (new) tests (red before row 01 lands) | Completed | 20261102-164246 | 20261102-164246 | Plan Phase 1 Plan Phase 1 red phase confirmed: 17 extended-shape tests failed, 43 pre-existing/pin tests passed (Plan Phase 1 evidence); ruff format/check clean TestExtendedShapeMasking appended (20 cases); red evidence 17 failed/43 passed recorded; count literal updated 8->14 in row 01 commit |
+| 2 | Update the pattern-count literal to the final count | Completed | — | — | Same commit as row 01 ruff format/check, mypy, bandit -ll -r scripts/, lint-imports (6 kept), check_module_size, full suite 11276 passed/8 skipped, diff-cover 100%, docs checkers exit 0 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy/lint-imports exit 0; full suite 11276 passed/8 skipped; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
