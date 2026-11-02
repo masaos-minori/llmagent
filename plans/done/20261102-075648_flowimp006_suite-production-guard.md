@@ -149,10 +149,10 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Detection and its tests: `tests/conftest.py`, `tests/test_production_isolation.py` | In Progress | — | — |  |
-| 2 | Integrity checker: `tools/check_conftest_integrity.py`, `tests/tools/test_check_conftest_integrity.py` | In Progress | — | — |  |
-| 3 | Subprocess environment fixture: `tests/conftest.py`, `tests/deploy/test_init_db_eventbus_schema.py` | In Progress | — | — |  |
-| 4 | Guidance and verification: `skills/python-test-and-fix/workflow.md` and a full-suite run | In Progress | — | — |  |
+| 1 | Detection and its tests: `tests/conftest.py`, `tests/test_production_isolation.py` | Completed | — | 20261102-093709 |  |
+| 2 | Integrity checker: `tools/check_conftest_integrity.py`, `tests/tools/test_check_conftest_integrity.py` | Completed | — | 20261102-093709 |  |
+| 3 | Subprocess environment fixture: `tests/conftest.py`, `tests/deploy/test_init_db_eventbus_schema.py` | Completed | — | 20261102-093709 |  |
+| 4 | Guidance and verification: `skills/python-test-and-fix/workflow.md` and a full-suite run | Completed | — | 20261102-094648 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

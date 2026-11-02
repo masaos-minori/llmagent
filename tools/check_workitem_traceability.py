@@ -33,6 +33,18 @@ is walked more than once):
   content switches partway through to an unrelated Plan's material) — both
   were only caught by a human reading the full document end-to-end.
 
+A document may carry companion test files in a `### Companion test files`
+section (`templates/implementation-procedure.md`): its `Related target files`
+then lists the target first and each companion, and the equality check
+compares that list with the body's target followed by its companions. A
+document without a companion section is checked exactly as before.
+
+`--plan-coverage PLAN` is an opt-in mode that checks one Plan's rows against
+its procedure documents instead of running the default scan (a Plan mid-batch
+legitimately has uncovered rows, so it is not part of the default scan or the
+pre-commit hook). Findings: row-uncovered, path-covered-twice,
+companion-multi-row, companion-not-eligible; exit 1 on any finding.
+
 Never writes, renames, moves, or deletes anything under `issues/`, `plans/`,
 or `implementations/`.
 
@@ -41,6 +53,7 @@ Usage:
     python tools/check_workitem_traceability.py --format json
     python tools/check_workitem_traceability.py --format csv
     python tools/check_workitem_traceability.py --age-threshold-days 30
+    python tools/check_workitem_traceability.py --plan-coverage plans/<plan>.md
 
 Exit code: 0 when zero missing-source-file and zero target-file-mismatch
 findings exist (the two categories that gate exit status —
@@ -94,6 +107,19 @@ RELATED_TARGET_FILES_FIELD_NAME = "Related target files"
 _TARGET_FILE_HEADING_RE = re.compile(r"(?m)^### Target file\s*$")
 _ANY_HEADING_RE = re.compile(r"(?m)^#+\s")
 _BULLET_LEAD_RE = re.compile(r"^[-*+]\s+")
+_COMPANION_HEADING_RE = re.compile(r"(?m)^### Companion test files\s*$")
+_BACKTICK_PATH_RE = re.compile(r"`([^`\s]+)`")
+_TOP_LEVEL_BULLET_RE = re.compile(r"^[-*+]\s+")
+_TARGET_FILES_HEADING = "## Implementation Target Files"
+_UNESCAPED_PIPE_RE = re.compile(r"(?<!\\)\|")
+_SEPARATOR_CELL_RE = re.compile(r"^:?-{3,}:?$")
+
+COVERAGE_CATEGORIES = (
+    "row-uncovered",
+    "path-covered-twice",
+    "companion-multi-row",
+    "companion-not-eligible",
+)
 
 # (kind, directory relative to ROOT_DIR, is_done)
 _WORK_ITEM_DIRS: tuple[tuple[str, str, bool], ...] = (
@@ -254,6 +280,57 @@ def extract_target_file_value(text: str) -> str | None:
         stripped = _BULLET_LEAD_RE.sub("", stripped, count=1)
         return _clean_field_value(stripped)
     return None
+
+
+def extract_related_target_files_list(text: str) -> list[str]:
+    """Return the `Related target files` paths in order, or an empty list when
+    the heading/field is absent or `N/A`.
+
+    A list is read from its backticked tokens (target first, then companions);
+    a value with no backticked token falls back to the single first-token path
+    that extract_related_target_files_value() returns.
+    """
+    section_text = _traceability_section_text(text)
+    if section_text is None:
+        return []
+    for line in section_text.splitlines():
+        line_match = _FIELD_LINE_RE.match(line)
+        if line_match is None:
+            continue
+        if line_match.group(1).strip() != RELATED_TARGET_FILES_FIELD_NAME:
+            continue
+        raw_value = line_match.group(2)
+        if _is_na(raw_value):
+            return []
+        backticked = _BACKTICK_PATH_RE.findall(raw_value)
+        if backticked:
+            return backticked
+        cleaned = _clean_field_value(raw_value)
+        return [cleaned] if cleaned else []
+    return []
+
+
+def extract_companion_files(text: str) -> list[str]:
+    """Return the companion test file paths of the body's
+    `### Companion test files` section, or an empty list when it is absent.
+
+    A companion is a top-level list item whose first backticked token is its
+    path; indented lines (`Procedure:`, `Validation:`) are ignored and the
+    section ends at the next heading.
+    """
+    heading_match = _COMPANION_HEADING_RE.search(text)
+    if heading_match is None:
+        return []
+    companions: list[str] = []
+    for line in text[heading_match.end() :].splitlines():
+        if _ANY_HEADING_RE.match(line):
+            break
+        if not _TOP_LEVEL_BULLET_RE.match(line):
+            continue
+        path_match = _BACKTICK_PATH_RE.search(line)
+        if path_match is not None:
+            companions.append(path_match.group(1))
+    return companions
 
 
 def discover_documents() -> list[WorkItemDocument]:
@@ -543,6 +620,23 @@ def find_target_file_mismatches(
         target = extract_target_file_value(doc.text)
         if related is None or target is None:
             continue
+        companions = extract_companion_files(doc.text)
+        if companions:
+            declared = extract_related_target_files_list(doc.text)
+            if declared[:1] != [target] or set(declared[1:]) != set(companions):
+                findings.append(
+                    make_finding(
+                        "target-file-mismatch",
+                        doc.rel_path,
+                        f"Traceability 'Related target files' "
+                        f"({', '.join(declared)}) does not match body "
+                        f"'### Target file' ({target}) followed by "
+                        f"'### Companion test files' "
+                        f"({', '.join(companions)}) -- the target must come "
+                        f"first and every companion must be listed",
+                    )
+                )
+            continue
         if related != target:
             findings.append(
                 make_finding(
@@ -552,6 +646,159 @@ def find_target_file_mismatches(
                     f"not match body '### Target file' ({target}) -- check "
                     f"for a copy-paste error or interleaved/corrupted "
                     f"content",
+                )
+            )
+    return findings
+
+
+def _split_table_cells(line: str) -> list[str]:
+    stripped = line.strip()
+    if not stripped.startswith("|"):
+        return []
+    inner = stripped[1:-1] if stripped.endswith("|") else stripped[1:]
+    return [cell.strip() for cell in _UNESCAPED_PIPE_RE.split(inner)]
+
+
+def _plan_target_rows(plan_text: str) -> list[tuple[str, str]]:
+    """Return `(file_path, related_tests_cell)` per row of the Plan's
+    `## Implementation Target Files` table, locating both columns by header
+    text. The path is the first backticked token of its cell, else the cell's
+    first token. A table without a `File Path` column yields no rows; a missing
+    `Related Tests` column yields an empty cell.
+    """
+    in_section = False
+    file_col: int | None = None
+    tests_col: int | None = None
+    header_seen = False
+    rows: list[tuple[str, str]] = []
+    for line in plan_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            if in_section:
+                break
+            in_section = stripped == _TARGET_FILES_HEADING
+            continue
+        if not in_section:
+            continue
+        cells = _split_table_cells(stripped)
+        if not cells:
+            continue
+        if not header_seen:
+            header_seen = True
+            names = [cell.lower() for cell in cells]
+            file_col = names.index("file path") if "file path" in names else None
+            tests_col = (
+                names.index("related tests") if "related tests" in names else None
+            )
+            continue
+        if all(_SEPARATOR_CELL_RE.match(cell) for cell in cells if cell):
+            continue
+        if file_col is None or file_col >= len(cells):
+            continue
+        path_cell = cells[file_col]
+        path_match = _BACKTICK_PATH_RE.search(path_cell)
+        path = path_match.group(1) if path_match else _clean_field_value(path_cell)
+        if not path:
+            continue
+        tests_cell = (
+            cells[tests_col] if tests_col is not None and tests_col < len(cells) else ""
+        )
+        rows.append((path, tests_cell))
+    return rows
+
+
+def _resolve_plan_file(plan_path: Path) -> Path:
+    return plan_path if plan_path.is_absolute() else ROOT_DIR / plan_path
+
+
+def find_plan_coverage_findings(
+    plan_path: Path, documents: list[WorkItemDocument]
+) -> list[dict[str, str]]:
+    """Check one Plan's rows against its implementation procedure documents.
+
+    A document covers its target and each companion. Reports a row covered by
+    no document (row-uncovered), a path covered by two documents or twice in
+    one (path-covered-twice), a companion named in the `Related Tests` cell of
+    two or more rows (companion-multi-row), and a companion that is not a Plan
+    row, is not under `tests/`, or is not named in the `Related Tests` cell of
+    its own document's target row (companion-not-eligible). Paths are compared
+    as written; no filesystem existence check is made.
+    """
+    plan_rel = plan_path.as_posix()
+    rows = _plan_target_rows(_resolve_plan_file(plan_path).read_text(encoding="utf-8"))
+    tests_by_path = dict(rows)
+    row_paths = [path for path, _ in rows]
+
+    covered_by: dict[str, list[str]] = {}
+    findings: list[dict[str, str]] = []
+    for doc in documents:
+        if doc.kind != "implementation":
+            continue
+        source_plan = doc.fields.get("Source plan")
+        if source_plan is None or Path(source_plan).name != plan_path.name:
+            continue
+        target = extract_target_file_value(doc.text)
+        companions = extract_companion_files(doc.text)
+        covered = ([target] if target else []) + companions
+        for path in covered:
+            covered_by.setdefault(path, []).append(doc.rel_path)
+
+        target_tests = tests_by_path.get(target or "", "")
+        for companion in companions:
+            if companion not in tests_by_path:
+                reason = "is not a row of the Plan's Implementation Target Files"
+            elif not companion.startswith("tests/"):
+                reason = "is not under tests/"
+            elif companion not in _BACKTICK_PATH_RE.findall(target_tests):
+                reason = "is not named in the Related Tests cell of its target row"
+            else:
+                continue
+            findings.append(
+                make_finding(
+                    "companion-not-eligible",
+                    doc.rel_path,
+                    f"companion {companion} {reason} ({target})",
+                )
+            )
+
+    for path in row_paths:
+        if path not in covered_by:
+            findings.append(
+                make_finding(
+                    "row-uncovered",
+                    plan_rel,
+                    f"no procedure document covers row {path}",
+                )
+            )
+    for path, doc_paths in covered_by.items():
+        if len(doc_paths) > 1:
+            findings.append(
+                make_finding(
+                    "path-covered-twice",
+                    doc_paths[0],
+                    f"{path} is covered more than once: {', '.join(doc_paths)}",
+                )
+            )
+
+    companion_candidates = {
+        companion
+        for doc in documents
+        if doc.kind == "implementation"
+        for companion in extract_companion_files(doc.text)
+    }
+    for companion in sorted(companion_candidates):
+        named_in = [
+            path
+            for path, tests_cell in rows
+            if companion in _BACKTICK_PATH_RE.findall(tests_cell)
+        ]
+        if len(named_in) > 1:
+            findings.append(
+                make_finding(
+                    "companion-multi-row",
+                    plan_rel,
+                    f"companion {companion} is named in Related Tests of "
+                    f"{len(named_in)} rows: {', '.join(named_in)}",
                 )
             )
     return findings
@@ -637,6 +884,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "reported or gating."
         ),
     )
+    parser.add_argument(
+        "--plan-coverage",
+        metavar="PLAN",
+        default=None,
+        help=(
+            "Opt-in mode: check that every Implementation Target Files row of "
+            "PLAN is covered exactly once by a procedure document (as its "
+            "target or a companion test file); only coverage findings are "
+            "produced and the exit code is 1 on any finding."
+        ),
+    )
     return parser
 
 
@@ -645,21 +903,33 @@ def is_archived_finding(finding: dict[str, str]) -> bool:
     return "done" in Path(finding["file"]).parts[:-1]
 
 
+def _print_findings(findings: list[dict[str, str]], output_format: str | None) -> None:
+    if output_format == "json":
+        print(render_json(findings))
+    elif output_format == "csv":
+        print(render_csv(findings), end="")
+    else:
+        print(render_text(findings), end="")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 
     documents = discover_documents()
+    if args.plan_coverage is not None:
+        plan_path = Path(args.plan_coverage)
+        if not _resolve_plan_file(plan_path).is_file():
+            parser.error(f"--plan-coverage: no such plan file: {args.plan_coverage}")
+        coverage = find_plan_coverage_findings(plan_path, documents)
+        _print_findings(coverage, args.format)
+        return 1 if coverage else 0
+
     findings = collect_findings(documents, args.age_threshold_days)
     if args.active_only:
         findings = [f for f in findings if not is_archived_finding(f)]
 
-    if args.format == "json":
-        print(render_json(findings))
-    elif args.format == "csv":
-        print(render_csv(findings), end="")
-    else:
-        print(render_text(findings), end="")
+    _print_findings(findings, args.format)
 
     gating_categories = {"missing-source-file", "target-file-mismatch"}
     has_gating_finding = any(f["category"] in gating_categories for f in findings)

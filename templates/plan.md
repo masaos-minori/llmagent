@@ -17,6 +17,7 @@ High / Medium / Low
 - **In-Scope**: [List of explicit items to be implemented]
 - **Out-of-Scope**: [List of items explicitly excluded from this task]
 - **Dependencies**: [The Issue's Dependencies, including fix order against sibling issues or plans; `N/A: none` if there are none]
+  - **Depends on**: {plans/ or issues/ path} | phase {N or all} | {reason}  [one bullet per dependency on another Plan or Issue, `phase` is a step number of that Plan or `all`; omit when `N/A: none`; sequencing-only notes stay in the prose line above]
 
 ## Background
 [Why this requirement exists]
@@ -107,6 +108,10 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 of `Implementation Target Files` above — do not restate file-level detail
 independently of that frozen table. A step is a top-level numbered item (a Phase); its
 checklist items are sub-tasks, and the Execution Status table has one row per step.
+Declare a release unit (see `### Release units` below) when a phase breaks existing callers or
+tests until another phase lands (for example a `NOT NULL` column added before its write path):
+one line per unit, `**Unit**: {name} | **Phases**: {N, N} | **Reason**: {why the members cannot be
+validated alone}`.
 
 1. **Phase 1: Preparation / Refactoring (if needed)**
    - [ ] Step description (Requirement ID; File Path from Implementation Target Files)
@@ -115,6 +120,9 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
 3. **Phase 3: Deployment & Verification**
    - [ ] Step description (Mandatory: include deployment validation/scripts check;
      Requirement ID; File Path from Implementation Target Files)
+
+### Release units
+N/A: no release unit
 
 ## Validation plan
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
@@ -169,6 +177,12 @@ section is marked `Frozen`). Populate these two sections from `issue-to-plan`
 behavior or a dependency belongs in `Reference Files`, not `Implementation Target
 Files`.
 
+For a persisted-schema, public-API, or shared-constant change, record each candidate
+from `tools/scan_change_consumers.py` in the `Design` section as a target row (added to
+`Implementation Target Files`), a reference row (added to `Reference Files`), or
+`not affected: {reason}`. The scan lists candidates only; the procedure is in
+`skills/issue-to-plan/workflow.md` Step 3.
+
 ## Notes on filling "Affected areas"
 
 Populate Churn/Bus Factor from the workflow's Step 5 historical analysis and Blast
@@ -198,7 +212,8 @@ Audit basis (2026-10-24): for each section name, `rg -F` over
   reads is the implementation procedure's, not the Plan's.
 
 (b) Must stay filled, with the consumer that reads each:
-- `Scope`: Dependencies (`skills/plan-to-implementation-procedure/workflow.md` Step 2).
+- `Scope`: Dependencies (`skills/plan-to-implementation-procedure/workflow.md` Step 2); the
+  `Depends on` lines are read by `tools/plan_dependency_order.py`.
 - `Background`, `Requirements`, `Acceptance Criteria`, `Assumptions`, `Risks`: corrected or
   extended by `plan-to-implementation-procedure` Step 3a; `Assumptions` records overlap
   judgments; `Risks` holds the blast radius (`rules/toolchain.md`); `Requirements` and

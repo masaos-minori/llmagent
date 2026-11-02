@@ -174,12 +174,12 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tool and tests: `tools/plan_dependency_order.py`, `tests/tools/test_plan_dependency_order.py` | In Progress | — | — |  |
-| 2 | Order view: `tools/manage_workitem_stage.py`, `tests/tools/test_manage_workitem_stage.py` | In Progress | — | — |  |
-| 3 | Template and vocabulary: `templates/plan.md`, `templates/execution-status.md` | In Progress | — | — |  |
-| 4 | Skills: `skills/plan-to-implementation-procedure/workflow.md`, `skills/code-implementation/workflow.md` | In Progress | — | — |  |
-| 5 | Registration: `tools/TOOL_DESCRIPTIONS.md`, `routing.md`, `tools/run_validation_gates.py` | In Progress | — | — |  |
-| 6 | Verification: lint sequence, live smoke run, checkers | Pending | — | — |  |
+| 1 | Tool and tests: `tools/plan_dependency_order.py`, `tests/tools/test_plan_dependency_order.py` | Completed | — | 20261102-101710 |  |
+| 2 | Order view: `tools/manage_workitem_stage.py`, `tests/tools/test_manage_workitem_stage.py` | Completed | — | 20261102-101947 |  |
+| 3 | Template and vocabulary: `templates/plan.md`, `templates/execution-status.md` | Completed | — | 20261102-102056 |  |
+| 4 | Skills: `skills/plan-to-implementation-procedure/workflow.md`, `skills/code-implementation/workflow.md` | Completed | — | 20261102-102157 |  |
+| 5 | Registration: `tools/TOOL_DESCRIPTIONS.md`, `routing.md`, `tools/run_validation_gates.py` | Completed | — | 20261102-102315 |  |
+| 6 | Verification: lint sequence, live smoke run, checkers | Completed | — | 20261102-103259 | Lint sequence, live smoke run, checkers pass; full suite 11052 passed, 1 known pre-existing failure (mdq bind gate) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

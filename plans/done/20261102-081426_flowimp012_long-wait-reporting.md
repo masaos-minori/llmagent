@@ -111,7 +111,7 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the rule: `rules/ai-execution.md` | In Progress | — | — |  |
+| 1 | Add the rule: `rules/ai-execution.md` | Completed | — | 20261102-091842 |  |
 | 2 | Verification: checkers, no-restatement check, read-through of `rules/ai-execution.md` | Pending | — | — |  |
 
 ### Blocker Log

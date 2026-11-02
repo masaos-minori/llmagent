@@ -23,6 +23,18 @@ Names that cannot appear in Python source are not reported as missing symbols:
 built-in and dunder names, lint rule codes, sibling-procedure numbers, chapter ids
 that prefix a docs file name, and configuration keys in key position (a mention
 in a comment is never a key).
+A name or import marked (new) by an earlier sibling procedure of the same Plan (same
+Traceability Source plan, lower sequence number in the file name) is resolved from
+that sibling and reported on its own line instead of as a mismatch.
+
+A document may carry companion test files in a "### Companion test files" section (see
+templates/implementation-procedure.md): top-level list items whose first backticked
+token is the companion path, optionally followed by (new). The section is removed from
+the text checked against the primary target; each companion's block is checked against
+its own file (existence, or the (new) rules above), so its line citations, symbols,
+imports and "Before:" blocks resolve against the companion. A mismatch found there keeps
+its usual detail and ends with " (companion {path})". A document without the section is
+checked exactly as before.
 
 Design decisions:
 - Report all failures in a single pass; this is simpler and provides more
@@ -65,6 +77,18 @@ _IMPORT_RE = re.compile(
     r"(?:\s*$|\s+#)"
 )
 
+# Sibling resolution: the Traceability Source plan line, the sequence number in a
+# procedure file name ({timestamp}_{seq}_{slug}.md), and the name or import that a
+# symbol_missing / import_missing mismatch detail carries.
+_SOURCE_PLAN_RE = re.compile(
+    r"(?im)^[ \t]*(?:[-*][ \t]+)?\*\*Source plan\*\*:[ \t]*(.+?)[ \t]*$"
+)
+_SEQ_RE = re.compile(r"^\d{8}-\d{6}_(\d+)_")
+_MISSING_NAME_RE = re.compile(r"^Symbol '(.+)' not found in source")
+_MISSING_IMPORT_RE = re.compile(r"^Import 'from (\S+) import (.+)' not found in source")
+
+_SIBLING_DIRS = ("implementations", "implementations/done")
+
 # Marker a procedure writes after a backticked name it will create: " (new)".
 _NEW_MARKER_RE = re.compile(r" ?\(new\)")
 
@@ -89,6 +113,16 @@ _TARGET_FILE_SECTION_RE = re.compile(
     r"###\s*Target\s+file\s*\n\s*`([^`]+)`",
     re.IGNORECASE,
 )
+
+# "### Companion test files" section: heading through the line before the next heading
+# (or the end of the text). Group 1 is the section body.
+_COMPANION_SECTION_RE = re.compile(
+    r"^###[ \t]*Companion[ \t]+test[ \t]+files[ \t]*\n(.*?)(?=^#{1,6}[ \t]|\Z)",
+    re.IGNORECASE | re.MULTILINE | re.DOTALL,
+)
+
+# A companion entry: a top-level list item starting with the backticked path.
+_COMPANION_BULLET_RE = re.compile(r"^[-*+][ \t]+`([^`\s]+)`", re.MULTILINE)
 
 # Non-symbol allowlist: tokens that look like code but are actually tool vocabulary
 _NON_SYMBOL_ALLOWLIST = frozenset(
@@ -352,16 +386,28 @@ class StaleResult:
     is_stale: bool
     target_file: str | None = None
     mismatches: list[dict[str, Any]] = field(default_factory=list)
+    resolved: list[dict[str, str]] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    sibling_rule: str | None = None
 
     @property
     def summary(self) -> str:
         """Human-readable summary of the stale check result."""
+        lines: list[str] = []
+        if self.sibling_rule is not None:
+            lines.append(f"Sibling resolution: order rule = {self.sibling_rule}")
+            for r in self.resolved:
+                lines.append(
+                    f"resolved from sibling: {r['name']} declared (new) in {r['document']}"
+                )
+            lines.extend(f"warning: {w}" for w in self.warnings)
         if not self.is_stale:
-            return "Procedure is not stale — all referenced constructs found."
-        parts = [f"Stale: {len(self.mismatches)} mismatch(es) detected."]
-        for m in self.mismatches:
-            parts.append(f"  - {m['type']}: {m['detail']}")
-        return "\n".join(parts)
+            lines.append("Procedure is not stale — all referenced constructs found.")
+        else:
+            lines.append(f"Stale: {len(self.mismatches)} mismatch(es) detected.")
+            for m in self.mismatches:
+                lines.append(f"  - {m['type']}: {m['detail']}")
+        return "\n".join(lines)
 
     @property
     def abort_execution(self) -> bool:
@@ -378,6 +424,8 @@ class StaleResult:
         if other.is_stale:
             self.is_stale = True
             self.mismatches.extend(other.mismatches)
+        self.resolved.extend(other.resolved)
+        self.warnings.extend(other.warnings)
         if other.target_file and not self.target_file:
             self.target_file = other.target_file
 
@@ -441,6 +489,8 @@ class StaleResult:
         cls,
         proc_path: str | Path,
         source_dir: str | Path | None = None,
+        *,
+        sibling_mode: str = "earlier",
     ) -> StaleResult:
         """Run stale detection on a procedure document.
 
@@ -448,6 +498,9 @@ class StaleResult:
             proc_path: Path to the implementation procedure document.
             source_dir: Directory containing the source files referenced by
                 the procedure. Defaults to the repository root.
+            sibling_mode: How a name marked (new) by a sibling procedure of the
+                same Plan is treated: "earlier" (only a lower sequence number
+                declares), "any", or "off" (no sibling pass).
 
         Returns:
             StaleResult with the detection outcome.
@@ -501,6 +554,8 @@ class StaleResult:
             source_content = source_path.read_text(encoding="utf-8")
         source_lines = source_content.split("\n")
         file_cache: dict[str, str | None] = {}
+        full_text = text
+        text, companions = _parse_companions(full_text)
 
         # Check line number references
         _check_line_refs(
@@ -524,7 +579,236 @@ class StaleResult:
         # Check "Before:" code block content
         _check_before_blocks(result, text, source_content)
 
+        # Check each companion test file against its own block of the document
+        for companion_path, companion_new, block in companions:
+            result.merge(
+                _check_companion(
+                    companion_path, companion_new, block, source_dir, file_cache
+                )
+            )
+
+        if sibling_mode != "off":
+            _resolve_from_siblings(
+                result, proc_path, full_text, source_dir, sibling_mode
+            )
+
         return result
+
+
+def _parse_companions(text: str) -> tuple[str, list[tuple[str, bool, str]]]:
+    """Split the "### Companion test files" section from a procedure document.
+
+    Returns the text without the section (what is checked against the primary
+    target) and, per companion entry, `(path, declared_new, block_text)`, where
+    the block runs from the entry's list item to the next entry. Without the
+    section the text is returned unchanged with no companions. An entry with no
+    backticked path is not recognized as a companion.
+    """
+    section = _COMPANION_SECTION_RE.search(text)
+    if section is None:
+        return text, []
+    body = section.group(1)
+    entries = list(_COMPANION_BULLET_RE.finditer(body))
+    companions: list[tuple[str, bool, str]] = []
+    for index, entry in enumerate(entries):
+        end = entries[index + 1].start() if index + 1 < len(entries) else len(body)
+        companions.append(
+            (
+                entry.group(1),
+                _is_marked_new(body, entry.end()),
+                body[entry.start() : end],
+            )
+        )
+    return text[: section.start()] + text[section.end() :], companions
+
+
+def _check_companion(
+    path: str,
+    declared_new: bool,
+    block: str,
+    source_dir: Path,
+    file_cache: dict[str, str | None],
+) -> StaleResult:
+    """Check one companion's block against the companion file.
+
+    A companion marked (new) must have an existing directory and no file, and its
+    unscoped line citations are skipped; any other companion must exist. Every
+    mismatch detail ends with " (companion {path})".
+    """
+    sub = StaleResult.clean()
+    sub.target_file = path
+    source_path = source_dir / path.lstrip("/")
+    if declared_new:
+        if _new_target_acceptable(sub, source_path):
+            content = ""
+        else:
+            return _suffix_companion(sub, path)
+    elif not source_path.exists():
+        sub.add_mismatch("source_missing", f"Source file does not exist: {path}")
+        return _suffix_companion(sub, path)
+    else:
+        content = source_path.read_text(encoding="utf-8")
+
+    _check_line_refs(
+        sub,
+        block,
+        content.split("\n"),
+        source_dir,
+        path,
+        file_cache,
+        skip_unscoped=declared_new,
+    )
+    _check_symbol_refs(sub, block, content, source_dir, path, file_cache)
+    _check_import_refs(sub, block, content)
+    _check_before_blocks(sub, block, content)
+    return _suffix_companion(sub, path)
+
+
+def _suffix_companion(result: StaleResult, path: str) -> StaleResult:
+    """Append " (companion {path})" to every mismatch detail of `result`."""
+    for mismatch in result.mismatches:
+        mismatch["detail"] = f"{mismatch['detail']} (companion {path})"
+    return result
+
+
+def _source_plan_basename(text: str) -> str | None:
+    """File name of the Plan named on the Traceability Source plan line, or None
+    when the line is missing, empty, or starts with N/A."""
+    match = _SOURCE_PLAN_RE.search(text)
+    if match is None:
+        return None
+    value = match.group(1).strip().strip("`").strip()
+    if not value or value.upper().startswith("N/A"):
+        return None
+    return Path(value.split()[0].strip("`")).name
+
+
+def _procedure_seq(path: Path) -> int | None:
+    """Sequence number in a procedure file name, or None when it has none."""
+    match = _SEQ_RE.match(path.name)
+    return int(match.group(1)) if match else None
+
+
+def _find_siblings(
+    source_dir: Path,
+    plan_name: str,
+    self_path: Path,
+    warnings: list[str],
+) -> list[tuple[Path, str]]:
+    """Procedure documents of the same Plan other than `self_path`, as
+    (path, text). An unreadable document is skipped with a warning."""
+    siblings: list[tuple[Path, str]] = []
+    for rel in _SIBLING_DIRS:
+        directory = source_dir / rel
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.glob("*.md")):
+            if path.resolve() == self_path:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError) as exc:
+                warnings.append(
+                    f"sibling {path.name} skipped: {exc.__class__.__name__}"
+                )
+                continue
+            if _source_plan_basename(text) != plan_name:
+                continue
+            siblings.append((path, text))
+    return siblings
+
+
+def _collect_new_declarations(
+    text: str,
+) -> tuple[set[str], set[tuple[str, str]]]:
+    """Names and (module, names) imports that `text` marks (new)."""
+    names = {
+        m.group(1) for m in _SYMBOL_RE.finditer(text) if _is_marked_new(text, m.end())
+    }
+    imports = {
+        (module, imported)
+        for module, imported, marker in _IMPORT_RE.findall(text)
+        if marker
+    }
+    return names, imports
+
+
+def _resolve_from_siblings(
+    result: StaleResult,
+    proc_path: Path,
+    text: str,
+    source_dir: Path,
+    sibling_mode: str,
+) -> None:
+    """Resolve symbol_missing / import_missing mismatches against (new)
+    declarations in sibling procedures of the same Plan.
+
+    A resolved mismatch moves to `result.resolved`. A name declared only by an
+    ineligible later sibling stays a mismatch, with the sibling named after the
+    original detail. Nothing here can turn a clean result stale.
+    """
+    plan_name = _source_plan_basename(text)
+    if plan_name is None:
+        return
+    result.sibling_rule = "any" if sibling_mode == "any" else "earlier"
+    if not any(
+        m["type"] in ("symbol_missing", "import_missing") for m in result.mismatches
+    ):
+        siblings: list[tuple[Path, str]] = []
+    else:
+        siblings = _find_siblings(
+            source_dir, plan_name, proc_path.resolve(), result.warnings
+        )
+    own_seq = _procedure_seq(proc_path)
+    if siblings and sibling_mode == "earlier" and own_seq is None:
+        result.warnings.append(
+            f"{proc_path.name} has no sequence number; no sibling is eligible"
+        )
+
+    declarations: list[tuple[str, bool, set[str], set[tuple[str, str]]]] = []
+    for path, sib_text in siblings:
+        seq = _procedure_seq(path)
+        eligible = sibling_mode == "any" or (
+            own_seq is not None and seq is not None and seq < own_seq
+        )
+        names, imports = _collect_new_declarations(sib_text)
+        declarations.append((path.name, eligible, names, imports))
+
+    remaining: list[dict[str, Any]] = []
+    for mismatch in result.mismatches:
+        key: str | tuple[str, str] | None = None
+        label = ""
+        if mismatch["type"] == "symbol_missing":
+            found = _MISSING_NAME_RE.match(mismatch["detail"])
+            if found:
+                key, label = found.group(1), found.group(1)
+        elif mismatch["type"] == "import_missing":
+            found_import = _MISSING_IMPORT_RE.match(mismatch["detail"])
+            if found_import:
+                key = (found_import.group(1), found_import.group(2))
+                label = f"from {key[0]} import {key[1]}"
+        declaring = [
+            (doc, eligible)
+            for doc, eligible, names, imports in declarations
+            if key is not None and (key in names or key in imports)
+        ]
+        eligible_docs = [doc for doc, eligible in declaring if eligible]
+        if eligible_docs:
+            entry = {"name": label, "document": eligible_docs[0]}
+            if entry not in result.resolved:
+                result.resolved.append(entry)
+            continue
+        if declaring:
+            mismatch = {
+                **mismatch,
+                "detail": (
+                    f"{mismatch['detail']} (declared (new) only by a later sibling: "
+                    f"{declaring[0][0]}; order rule: earlier)"
+                ),
+            }
+        remaining.append(mismatch)
+    result.mismatches = remaining
+    result.is_stale = bool(remaining)
 
 
 def _new_target_acceptable(result: StaleResult, source_path: Path) -> bool:
@@ -772,9 +1056,25 @@ def main(argv=None):
         default=None,
         help="Directory containing the source files",
     )
+    parser.add_argument(
+        "--sibling-order",
+        choices=("earlier", "any"),
+        default="earlier",
+        help="which sibling procedures of the same Plan may declare a (new) name "
+        "(default: earlier sequence numbers only)",
+    )
+    parser.add_argument(
+        "--no-siblings",
+        action="store_true",
+        help="do not resolve names against sibling procedures of the same Plan",
+    )
     args = parser.parse_args(argv)
 
-    result = StaleResult.from_procedure(args.proc_path, args.source_dir)
+    result = StaleResult.from_procedure(
+        args.proc_path,
+        args.source_dir,
+        sibling_mode="off" if args.no_siblings else args.sibling_order,
+    )
     print(result.summary)
     return 1 if result.abort_execution else 0
 

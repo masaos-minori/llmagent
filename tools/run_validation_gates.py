@@ -27,8 +27,10 @@ Two sub behaviours:
 - default (no subcommand): run the selected gates. ``--base`` selects the git ref to diff
   against (default ``master``); ``--full`` selects full mode (default is fast mode).
 - ``drift``: verify that every checker named in ``routing.md``'s "When to run which tool"
-  table has a mapping entry. Exits non-zero when a listed checker has no mapping entry, so
-  ``routing.md`` cannot advance ahead of this tool silently (REQ-006).
+  table has a mapping entry, and that every tool-backed ``.pre-commit-config.yaml`` hook has
+  either a mapping entry or a reviewed ``COMMIT_ONLY_HOOKS`` allowlist entry. Exits non-zero
+  on either drift (or an unreadable or malformed config), so ``routing.md`` and the hooks
+  cannot advance ahead of this tool silently (REQ-006, hook parity).
 
 Gates whose command carries a runtime placeholder (any argv token containing ``<``, ``[``,
 ``]``, or ``...``) cannot be auto-invoked without a concrete argument and are reported as
@@ -49,6 +51,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import yaml
+
 if TYPE_CHECKING:
     from subprocess import CompletedProcess
 
@@ -64,6 +68,21 @@ MODE_FAST = "fast"
 MODE_FULL = "full"
 
 _ROUTING_HEADING = "### When to run which tool"
+# The hook config the drift check compares against the gate mapping.
+_PRECOMMIT_CONFIG = ".pre-commit-config.yaml"
+# A `python -m tools.<name>` module token; rewritten to `tools/<name>.py` for id derivation.
+_TOOL_MODULE_RE = re.compile(r"^tools\.([A-Za-z0-9_]+)$")
+
+# Tool-backed pre-commit hooks that intentionally have no gate mapping: (hook id, reason).
+# Reviewed text, not a silent default: the drift check rejects a blank reason and an entry
+# whose hook id is absent from the config, so this list cannot go stale unnoticed.
+COMMIT_ONLY_HOOKS: tuple[tuple[str, str], ...] = (
+    (
+        "check-compat-shims",
+        "the hook runs --check-removed-names --check-doc-symbols, while the manual "
+        "check_compat_shims gate runs the checker with defaults and has no path patterns",
+    ),
+)
 # rules/toolchain.md section 4 bare-except check. A bare `--pattern 'except: $$$'` is not a
 # valid ast-grep pattern (it parses as several nodes), and a plain `--pattern` run exits 0 even
 # on matches. Scanning with an error-severity rule exits non-zero on a hit.
@@ -253,6 +272,8 @@ def select_gates(changed: Iterable[str], mode: str) -> list[Gate]:
         if gate.source == SOURCE_ROUTING:
             if not gate.patterns:
                 continue
+            if gate.mode == MODE_FULL and mode != MODE_FULL:
+                continue  # slow gate: full mode only (reason recorded on the gate)
             if not _matches(changed_list, gate.patterns):
                 continue
             if mode in (MODE_FAST, MODE_FULL):
@@ -437,12 +458,73 @@ def _parse_routing_run_cells(text: str) -> list[str]:
     return results
 
 
-def drift_report(routing_text: str) -> tuple[int, list[str]]:
-    """Compare routing.md's checkers against this tool's mapping.
+def _hook_checker_id(entry: str) -> tuple[str | None, str | None]:
+    """Derive ``(checker_id, error)`` from a pre-commit hook ``entry`` string.
+
+    ``python -m tools.<name>`` tokens are rewritten to ``tools/<name>.py`` so the id uses the
+    same rule as ``Gate.checker_id``. Returns ``(None, None)`` when the entry is not
+    tool-backed (``bash -c ...``, ``uv run mypy ...``) and ``(None, message)`` when a token
+    looks like a tool reference but matches neither form.
+    """
+    tokens: list[str] = []
+    for tok in entry.split():
+        module = _TOOL_MODULE_RE.match(tok)
+        tokens.append(f"tools/{module.group(1)}.py" if module else tok)
+    if not any(_TOOL_PY_RE.search(tok) for tok in tokens):
+        if any(tok.startswith(("tools.", "tools/")) for tok in tokens):
+            return None, f"unparseable tool-backed hook entry: {entry!r}"
+        return None, None
+    return _checker_id_from_command(tuple(tokens)), None
+
+
+def parse_precommit_hooks(config_text: str) -> tuple[dict[str, str], list[str]]:
+    """Parse a pre-commit config into ``({hook id: checker id}, errors)``.
+
+    Only tool-backed hooks are returned. Hooks without an ``entry`` (remote repos such as
+    ruff) and non-tool entries are skipped, as are hooks whose base tool is this
+    orchestrator (the drift hook cannot be a gate of itself).
+    """
+    try:
+        data = yaml.safe_load(config_text)
+    except yaml.YAMLError as exc:
+        return {}, [f"{_PRECOMMIT_CONFIG} is not valid YAML: {exc}"]
+    if not isinstance(data, dict) or not isinstance(data.get("repos"), list):
+        return {}, [f"{_PRECOMMIT_CONFIG} has no 'repos' list"]
+    hooks: dict[str, str] = {}
+    errors: list[str] = []
+    for repo in data["repos"]:
+        repo_hooks = repo.get("hooks") if isinstance(repo, dict) else None
+        if not isinstance(repo_hooks, list):
+            errors.append(f"{_PRECOMMIT_CONFIG}: a repo entry has no 'hooks' list")
+            continue
+        for hook in repo_hooks:
+            hook_id = hook.get("id") if isinstance(hook, dict) else None
+            if not isinstance(hook_id, str):
+                errors.append(f"{_PRECOMMIT_CONFIG}: a hook has no string 'id'")
+                continue
+            entry = hook.get("entry")
+            if not isinstance(entry, str):
+                continue
+            checker_id, error = _hook_checker_id(entry)
+            if error is not None:
+                errors.append(f"hook {hook_id}: {error}")
+            elif checker_id is not None and (
+                checker_id.split(":", 1)[0] != _SELF_CHECKER_ID
+            ):
+                hooks[hook_id] = checker_id
+    return hooks, errors
+
+
+def drift_report(
+    routing_text: str, precommit_text: str | None = None
+) -> tuple[int, list[str]]:
+    """Compare routing.md's checkers, and optionally the hooks, against this tool's mapping.
 
     Returns ``(error_count, messages)``. Every routing.md checker must have a mapping entry
     and every mapping entry must come from routing.md; either drift is an error. The row
-    that names this orchestrator itself is not a checker and is excluded.
+    that names this orchestrator itself is not a checker and is excluded. When
+    ``precommit_text`` is given, every tool-backed hook must also have a mapping entry or a
+    ``COMMIT_ONLY_HOOKS`` entry, and each allowlist entry needs a reason and a live hook.
     """
     expected = {
         _checker_id_from_cell(cell) for cell in _parse_routing_run_cells(routing_text)
@@ -456,6 +538,27 @@ def drift_report(routing_text: str) -> tuple[int, list[str]]:
         f"mapping entry is not a routing.md checker: {extra}"
         for extra in sorted(actual - expected)
     ]
+    if precommit_text is not None:
+        hooks, hook_errors = parse_precommit_hooks(precommit_text)
+        errors += hook_errors
+        allowed = {hook_id for hook_id, _ in COMMIT_ONLY_HOOKS}
+        errors += [
+            f"pre-commit hook has no gate mapping or allowlist entry: "
+            f"{hook_id} ({checker_id})"
+            for hook_id, checker_id in sorted(hooks.items())
+            if checker_id not in actual and hook_id not in allowed
+        ]
+        errors += [
+            f"COMMIT_ONLY_HOOKS entry has no reason: {hook_id}"
+            for hook_id, reason in COMMIT_ONLY_HOOKS
+            if not reason.strip()
+        ]
+        if not hook_errors:
+            errors += [
+                f"COMMIT_ONLY_HOOKS entry names no tool-backed hook in "
+                f"{_PRECOMMIT_CONFIG}: {hook_id}"
+                for hook_id in sorted(allowed - set(hooks))
+            ]
     return len(errors), errors
 
 
@@ -489,18 +592,23 @@ def _run_gates(base: str, mode: str) -> int:
 
 
 def _run_drift() -> int:
-    routing_path = Path(__file__).resolve().parent.parent / "routing.md"
-    try:
-        text = routing_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        print(f"ERROR: cannot read routing.md: {exc}", file=sys.stderr)
-        return 1
-    count, errors = drift_report(text)
+    repo_root = Path(__file__).resolve().parent.parent
+    texts: dict[str, str] = {}
+    for name in ("routing.md", _PRECOMMIT_CONFIG):
+        try:
+            texts[name] = (repo_root / name).read_text(encoding="utf-8")
+        except OSError as exc:
+            print(f"ERROR: cannot read {name}: {exc}", file=sys.stderr)
+            return 1
+    count, errors = drift_report(texts["routing.md"], texts[_PRECOMMIT_CONFIG])
     if count:
         for message in errors:
             print(message, file=sys.stderr)
         return 1
-    print(f"OK: {len(ROUTING_GATES)} routing.md checker(s) all mapped")
+    print(
+        f"OK: {len(ROUTING_GATES)} routing.md checker(s) all mapped; "
+        f"pre-commit hooks in parity"
+    )
     return 0
 
 
@@ -525,7 +633,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="action")
     subparsers.add_parser(
         "drift",
-        help="Verify every routing.md 'When to run which tool' checker has a mapping entry",
+        help=(
+            "Verify every routing.md 'When to run which tool' checker and every "
+            "tool-backed pre-commit hook has a mapping entry (or an allowlist entry)"
+        ),
     )
     return parser
 
@@ -781,6 +892,58 @@ ROUTING_GATES: tuple[Gate, ...] = (
         mode=MODE_FAST,
         patterns=("plans/**", "issues/**", "implementations/**"),
     ),
+    # Commit-split classifier: `<path>` is a runtime placeholder, so it reports `Not available`.
+    Gate(
+        name="classify_changes",
+        command=(
+            (
+                "uv",
+                "run",
+                "python",
+                "tools/classify_changes.py",
+                "[--status-file",
+                "<path>]",
+            ),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("tools/classify_changes.py", "skills/git-commit-and-sync/**"),
+    ),
+    # Manual planning-time tool: `<plan>` and `<path>` are runtime placeholders.
+    Gate(
+        name="amend_plan",
+        command=(
+            (
+                "uv",
+                "run",
+                "python",
+                "tools/amend_plan.py",
+                "<plan>",
+                "--file",
+                "<path>",
+            ),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=(),
+    ),
+    # Planning-time candidate scan: manual, `<seed>` is a runtime placeholder.
+    Gate(
+        name="scan_change_consumers",
+        command=(
+            (
+                "uv",
+                "run",
+                "python",
+                "tools/scan_change_consumers.py",
+                "--seed",
+                "<seed>",
+            ),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=(),
+    ),
     Gate(
         name="manage_workitem_stage_detect_stale",
         command=(
@@ -811,6 +974,22 @@ ROUTING_GATES: tuple[Gate, ...] = (
                 "<kind>",
                 "--status",
                 "<status>",
+            ),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("plans/**", "implementations/**"),
+    ),
+    Gate(
+        name="plan_dependency_order",
+        command=(
+            (
+                "uv",
+                "run",
+                "python",
+                "tools/plan_dependency_order.py",
+                "--plan",
+                "<path>",
             ),
         ),
         source=SOURCE_ROUTING,
@@ -1005,6 +1184,76 @@ ROUTING_GATES: tuple[Gate, ...] = (
         source=SOURCE_ROUTING,
         mode=MODE_FAST,
         patterns=("docs/10_adr/**", "config/adr_authority.toml"),
+    ),
+    # Hook-parity gates (flowimp005): each mirrors the same-named pre-commit hook's filter
+    # (`types_or: [python, markdown]` becomes the .py and .md globs; `**/` needs a directory,
+    # so root-level forms are listed explicitly, as check_module_size does).
+    Gate(
+        name="check_adr_invariant_matrix",
+        command=(("uv", "run", "python", "tools/check_adr_invariant_matrix.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("*.py", "**/*.py", "*.md", "**/*.md"),
+    ),
+    Gate(
+        name="check_adr_reference",
+        command=(("uv", "run", "python", "tools/check_adr_reference.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("*.py", "**/*.py", "*.md", "**/*.md"),
+    ),
+    Gate(
+        name="check_adr_structure",
+        command=(("uv", "run", "python", "tools/check_adr_structure.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("*.py", "**/*.py", "*.md", "**/*.md"),
+    ),
+    Gate(
+        name="check_known_deviation_sync",
+        command=(("uv", "run", "python", "tools/check_known_deviation_sync.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("docs/*.md", "docs/**/*.md"),
+    ),
+    Gate(
+        name="check_plan_target_overlaps",
+        command=(("uv", "run", "python", "tools/check_plan_target_overlaps.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("plans/*.md",),
+    ),
+    Gate(
+        name="check_conftest_integrity",
+        command=(("uv", "run", "python", "tools/check_conftest_integrity.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("tests/*conftest*", "tests/**/*conftest*"),
+    ),
+    # Full mode only: measured about 6.5 seconds with the hook's --active-only flag (2026-11-02,
+    # two runs), against 0.1 to 1.0 seconds for every other gate above (REQ-004). It is
+    # report-only (exit 0 with findings), so skipping it in fast mode loses no hard failure.
+    Gate(
+        name="check_workitem_traceability",
+        command=(
+            (
+                "uv",
+                "run",
+                "python",
+                "tools/check_workitem_traceability.py",
+                "--active-only",
+            ),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FULL,
+        patterns=(
+            "issues/*.md",
+            "issues/**/*.md",
+            "plans/*.md",
+            "plans/**/*.md",
+            "implementations/*.md",
+            "implementations/**/*.md",
+        ),
     ),
 )
 

@@ -156,11 +156,11 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify the pre-commit interaction on a scratch repository (gate; no repository file changed) | Pending | — | — |  |
-| 2 | Classifier and tests: `tools/classify_changes.py`, `tests/tools/test_classify_changes.py` | In Progress | — | — |  |
-| 3 | Skill text: `skills/git-commit-and-sync/workflow.md`, `skills/git-commit-and-sync/SKILL.md` | In Progress | — | — |  |
-| 4 | Registration: `tools/TOOL_DESCRIPTIONS.md`, `routing.md`, `tools/run_validation_gates.py` | In Progress | — | — |  |
-| 5 | Verification: lint sequence and checkers | Pending | — | — |  |
+| 1 | Verify the pre-commit interaction on a scratch repository (gate; no repository file changed) | Completed | 20261102-141227 | 20261102-141227 | Scratch repo (scratchpad/hookcheck, pre-commit installed inside it only, local hooks: one passing, one that modifies a file and fails). Pathspec commit 'git commit -m M -- tools/a.py': first run failed on the modifying hook (no commit, path left MM, staged rename and another session's unstaged edit intact); after 'git add tools/a.py' the re-run committed only that path. Then 'git commit -m M -- plans/done/x.md plans/x.md' committed the rename as R100; no staged leftovers; unstaged edit preserved. Staged group intact after every hook run (2026-11-02). |
+| 2 | Classifier and tests: `tools/classify_changes.py`, `tests/tools/test_classify_changes.py` | Completed | — | 20261102-141515 |  |
+| 3 | Skill text: `skills/git-commit-and-sync/workflow.md`, `skills/git-commit-and-sync/SKILL.md` | Completed | — | 20261102-141343 |  |
+| 4 | Registration: `tools/TOOL_DESCRIPTIONS.md`, `routing.md`, `tools/run_validation_gates.py` | Completed | — | 20261102-141612 |  |
+| 5 | Verification: lint sequence and checkers | Completed | 20261102-142551 | 20261102-142551 | Lint sequence on tools/classify_changes.py and run_validation_gates.py clean; checkers pass; drift OK; full suite 11237 passed, 1 known mdq env failure; diff-cover: no lines with coverage info (tools/ not measured), N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -170,13 +170,13 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261102-085619_01_skills_git-commit-and-sync_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261102-085619_02_skills_git-commit-and-sync_SKILL.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261102-085619_03_tools_classify_changes.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-085619_04_tests_tools_test_classify_changes.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-085619_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261102-085619_06_routing.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261102-085619_07_tools_run_validation_gates.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261102-085619_01_skills_git-commit-and-sync_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261102-085619_02_skills_git-commit-and-sync_SKILL.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261102-085619_03_tools_classify_changes.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261102-085619_04_tests_tools_test_classify_changes.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261102-085619_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261102-085619_06_routing.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261102-085619_07_tools_run_validation_gates.py.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

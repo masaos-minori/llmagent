@@ -262,6 +262,10 @@ If the design changes a public contract, data format, or configuration key, stat
 migration path for existing data/callers. List which `docs/*.md` files this change would
 require updating, if any.
 
+If the design changes a persisted SQLite schema (DDL, a schema version, or a migration), load
+`rules/persisted-schema-change.md` and state the outcome of each of its items next to the
+migration path. The checklist is guidance, not a gate.
+
 **Completed when**: every phase has passed Step 8a–8d — dependency-ordered, independently
 verifiable, with a stated rollback path (or documented risk), and migration/doc impact noted.
 

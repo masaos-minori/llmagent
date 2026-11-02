@@ -47,6 +47,11 @@ produced them: MUST NOT unstage them, and include them in the commit for that cy
 change. `git commit` records the whole index, so check them in Phase 1's status output
 before committing.
 
+When the changed paths span more than one group (workflow artifacts, code, tests, tools,
+docs), run `uv run python tools/classify_changes.py` (read-only) to see the groups. Pre-staged
+archival renames are committed with the `artifacts` group by pathspec (Phase 6, "Split commit
+by pathspec"); they are still never unstaged.
+
 A file already staged before this skill started (other than the archival renames above) is
 not part of the chosen set unless the current instruction changed it; Phase 3 reports it as
 a mismatch rather than silently committing it.
@@ -82,6 +87,14 @@ list, or an extra file appears) — MUST NOT proceed to Phase 4 with an unexplai
 An extra file that this instruction did not change may be removed from the index with an
 explicit path only (`git restore --staged <path>`, never `.`), then re-verify; if the extra
 file is an archival rename or its origin is unclear, stop and ask instead.
+
+Exception for a split: when Step 5b's split was acknowledged, a staged archival rename is
+the `artifacts` group of that split, not a mismatch, and the comparison above is made
+against the union of all groups. A path the classifier flags `partly-staged` (staged and
+also changed in the working tree) MUST be resolved first by explicit path, because a
+pathspec commit records working-tree content: stage it fully with `git add <path>`, or, if
+the unstaged part must not be committed, stop and ask the user (this skill does not discard
+work).
 
 ---
 
@@ -150,7 +163,9 @@ follows Step 5b (MUST NOT silently fold it into `plan`).
 If the staged diff matches more than one type above (e.g. a `feat` change and an unrelated
 `docs` fix staged together), report this to the user before committing — MUST NOT silently
 pick one type and omit the other's intent from the summary. Proceed to 5c with the user's
-choice (one combined message, or split into separate commits) once acknowledged.
+choice (one combined message, or split into separate commits) once acknowledged. One
+commit is the default for a single concern; an acknowledged split is executed as in
+Phase 6, "Split commit by pathspec".
 
 ### Step 5c: Write the message
 
@@ -201,7 +216,9 @@ Compare this status with Phase 1's. A `pre-commit` run stashes unstaged tracked 
 and restores them afterwards, so with parallel sessions an unstaged file can briefly look
 missing. If one from Phase 1 is absent, wait a short time and re-run `git status --short`.
 Do not recreate, revert, or `git stash pop` anything; if it is still absent after a few
-checks, stop and report.
+checks, stop and report. After the first commit of a split, the groups still to be committed
+remain staged: that is expected, and the comparison with Phase 1 uses the groups not yet
+committed (the committed paths leave the status, the rest stay staged).
 
 Stop if commit fails (see `rules/coding.md` Prohibited behavior (all tasks) for the
 `--no-verify` prohibition — not repeated here).
@@ -216,6 +233,37 @@ A pre-commit hook failure means no commit was created (so there is nothing to am
 
 Each repeat of the same hook failure counts toward `AGENTS.md` Attempt Limit (3); after
 that, stop and report what was tried.
+
+### Split commit by pathspec
+
+Used only after Step 5b's mixed-concern report was acknowledged as a split; otherwise make
+one commit as above. Phase 4's gate run is made once on the whole staged set, before the
+first commit. Nothing is unstaged and no command forbidden by `SKILL.md` Core rules is used.
+
+1. Run `uv run python tools/classify_changes.py`. Exit 1 means a `partly-staged` or
+   `unmerged` path: resolve it by explicit path or stop and ask (Phase 3), then re-run.
+2. For each group in the printed order, commit with
+   `git commit -m "<type>[(<scope>)]: <summary>" -m "<body>" -m "<trailer>" -- <the group's pathspec line>`.
+   The pathspec MUST name both the new and the old name of every rename (the tool prints
+   them adjacent): naming only the new name records an addition and leaves the old name's
+   deletion staged. `--verify-pathspec <paths>` checks a hand-built pathspec.
+3. The type matches the group: `plan` for `artifacts` (Step 5a), `feat`/`fix`/`refactor`
+   for `code`, `test` for `tests`, `chore` or `feat` for `tools`, `docs` for `docs`. The
+   session's attribution trailer is the last `-m` of every commit (Step 5c), omitted only
+   when the session has none.
+4. After each commit run `git status --short` and `git rev-parse HEAD`; record every SHA for
+   Phase 7 and Phase 9. Hook failure recovery is the one above, per group, and each repeat
+   counts toward the Attempt Limit. A hook that modified a named file leaves it partly
+   staged: re-stage that explicit path before the next attempt.
+5. When the last group is committed, `git status --short` shows only unstaged and
+   untracked work from other sessions, if any. A path listed as `untracked:` is not
+   committed by pathspec; it needs an explicit `git add` first, after which the next
+   classifier run places it in a group.
+
+Verified 2026-11-02 in a scratch repository with the pre-commit framework installed inside
+it: a pathspec commit left the other staged group (a rename) and another session's unstaged
+edit intact across a hook run that modified a file and failed and across the passing re-run,
+and the rename was committed as a rename by naming both paths.
 
 ---
 

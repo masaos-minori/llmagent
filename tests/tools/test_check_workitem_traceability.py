@@ -384,3 +384,303 @@ class TestBacktickedNotApplicable:
         documents = cwt.discover_documents()
 
         assert cwt.find_missing_source_files(documents) == []
+
+
+CODE = "scripts/agent/foo.py"
+TEST_A = "tests/agent/test_foo.py"
+TEST_B = "tests/agent/test_foo_edge.py"
+PLAN_NAME = "20261101-100000_plan.md"
+
+
+def _write_plan(root: Path, rows: list[tuple[str, str]], *, done: bool = False) -> Path:
+    """Write a Plan with an `Implementation Target Files` table of
+    `(File Path, Related Tests)` rows and return its repository-relative path.
+    """
+    rel = Path("plans") / "done" / PLAN_NAME if done else Path("plans") / PLAN_NAME
+    table = "\n".join(f"| `{path}` | A change | {tests} |" for path, tests in rows)
+    _write(
+        root / rel,
+        "# Plan\n\n## Implementation Target Files\n"
+        "| File Path | Change Responsibility | Related Tests |\n"
+        "|---|---|---|\n"
+        f"{table}\n\n## Reference Files\n| File Path |\n|---|\n| `other.py` |\n",
+    )
+    return rel
+
+
+def _write_procedure(
+    root: Path,
+    name: str,
+    target: str,
+    companions: list[str],
+    related: str | None = None,
+    plan: str = PLAN_NAME,
+) -> Path:
+    """Write a procedure document with an optional companion section."""
+    body = f"### Target file\n`{target}`\n\n### Details\n- x\n\n"
+    if companions:
+        body += "### Companion test files\n"
+        for companion in companions:
+            body += (
+                f"- `{companion}` (new)\n  - Procedure: add tests\n"
+                "  - Validation: run them\n"
+            )
+        body += "\n"
+    if related is None:
+        related = ", ".join(f"`{path}`" for path in [target, *companions])
+    path = root / "implementations" / name
+    _write(
+        path,
+        f"# Procedure\n\n## Implementation\n{body}## Traceability\n"
+        f"- **Source plan**: `plans/{plan}`\n"
+        f"- **Related target files**: {related}\n",
+    )
+    return path
+
+
+def _categories(findings: list[dict[str, str]]) -> list[str]:
+    return [finding["category"] for finding in findings]
+
+
+class TestCompanionEquality:
+    """`Related target files` lists the target first, then each companion."""
+
+    @pytest.fixture(autouse=True)
+    def _root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        self.root = tmp_path
+
+    def _mismatches(self) -> list[dict[str, str]]:
+        return cwt.find_target_file_mismatches(cwt.discover_documents())
+
+    def test_extract_related_target_files_list_reads_backticked_paths(self) -> None:
+        text = f"## Traceability\n- **Related target files**: `{CODE}`, `{TEST_A}`\n"
+
+        assert cwt.extract_related_target_files_list(text) == [CODE, TEST_A]
+
+    def test_extract_related_target_files_list_falls_back_to_first_token(self) -> None:
+        text = f"## Traceability\n- **Related target files**: {CODE}\n"
+
+        assert cwt.extract_related_target_files_list(text) == [CODE]
+
+    def test_extract_related_target_files_list_empty_for_na_and_absent(self) -> None:
+        assert (
+            cwt.extract_related_target_files_list(
+                "## Traceability\n- **Related target files**: N/A\n"
+            )
+            == []
+        )
+        assert cwt.extract_related_target_files_list("# no traceability\n") == []
+
+    def test_extract_companion_files_reads_top_level_bullets_only(self) -> None:
+        text = (
+            "### Companion test files\n"
+            f"- `{TEST_A}` (new)\n  - Procedure: `not/a/companion.py`\n"
+            f"- `{TEST_B}`\n\n## Next\n- `ignored.py`\n"
+        )
+
+        assert cwt.extract_companion_files(text) == [TEST_A, TEST_B]
+
+    def test_extract_companion_files_empty_without_section(self) -> None:
+        assert cwt.extract_companion_files("### Target file\n`a.py`\n") == []
+
+    def test_list_equal_to_target_and_companions_reports_no_finding(self) -> None:
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A, TEST_B])
+
+        assert self._mismatches() == []
+
+    def test_list_missing_a_companion_is_reported(self) -> None:
+        _write_procedure(
+            self.root,
+            "20261101-100001_01_foo.md",
+            CODE,
+            [TEST_A, TEST_B],
+            related=f"`{CODE}`, `{TEST_A}`",
+        )
+
+        findings = self._mismatches()
+
+        assert _categories(findings) == ["target-file-mismatch"]
+        assert TEST_B in findings[0]["detail"]
+
+    def test_list_with_an_extra_path_is_reported(self) -> None:
+        _write_procedure(
+            self.root,
+            "20261101-100001_01_foo.md",
+            CODE,
+            [TEST_A],
+            related=f"`{CODE}`, `{TEST_A}`, `tests/extra.py`",
+        )
+
+        assert _categories(self._mismatches()) == ["target-file-mismatch"]
+
+    def test_first_path_not_the_target_is_reported(self) -> None:
+        _write_procedure(
+            self.root,
+            "20261101-100001_01_foo.md",
+            CODE,
+            [TEST_A],
+            related=f"`{TEST_A}`, `{CODE}`",
+        )
+
+        assert _categories(self._mismatches()) == ["target-file-mismatch"]
+
+    def test_document_without_companions_keeps_first_token_check(self) -> None:
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [])
+        _write_procedure(
+            self.root, "20261101-100001_02_bar.md", "scripts/bar.py", [], related="x.py"
+        )
+
+        findings = self._mismatches()
+
+        assert _categories(findings) == ["target-file-mismatch"]
+        assert findings[0]["file"].endswith("_02_bar.md")
+
+
+class TestPlanCoverage:
+    """`find_plan_coverage_findings` and the `--plan-coverage` option."""
+
+    @pytest.fixture(autouse=True)
+    def _root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        self.root = tmp_path
+        self.plan = _write_plan(
+            tmp_path,
+            [
+                (CODE, f"`{TEST_A}`, `{TEST_B}`"),
+                (TEST_A, "itself"),
+                (TEST_B, "itself"),
+            ],
+        )
+
+    def _findings(self) -> list[dict[str, str]]:
+        return cwt.find_plan_coverage_findings(self.plan, cwt.discover_documents())
+
+    def test_plan_table_rows_are_read_by_header(self) -> None:
+        text = (self.root / self.plan).read_text(encoding="utf-8")
+
+        assert cwt._plan_target_rows(text) == [
+            (CODE, f"`{TEST_A}`, `{TEST_B}`"),
+            (TEST_A, "itself"),
+            (TEST_B, "itself"),
+        ]
+
+    def test_code_document_with_two_companions_covers_all_rows(self) -> None:
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A, TEST_B])
+
+        assert self._findings() == []
+
+    def test_removing_a_companion_leaves_its_row_uncovered(self) -> None:
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A])
+
+        findings = self._findings()
+
+        assert _categories(findings) == ["row-uncovered"]
+        assert TEST_B in findings[0]["detail"]
+
+    def test_test_file_listed_by_two_documents_is_covered_twice(self) -> None:
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A, TEST_B])
+        _write_procedure(self.root, "20261101-100001_02_foo.md", TEST_A, [])
+
+        findings = self._findings()
+
+        assert _categories(findings) == ["path-covered-twice"]
+        assert TEST_A in findings[0]["detail"]
+
+    def test_companion_named_in_two_rows_is_multi_row(self) -> None:
+        self.plan = _write_plan(
+            self.root,
+            [
+                (CODE, f"`{TEST_A}`"),
+                ("scripts/agent/bar.py", f"`{TEST_A}`"),
+                (TEST_A, "itself"),
+            ],
+        )
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A])
+        _write_procedure(
+            self.root, "20261101-100001_02_bar.md", "scripts/agent/bar.py", []
+        )
+
+        findings = self._findings()
+
+        assert "companion-multi-row" in _categories(findings)
+        multi = next(f for f in findings if f["category"] == "companion-multi-row")
+        assert TEST_A in multi["detail"]
+
+    def test_companion_not_a_plan_row_is_not_eligible(self) -> None:
+        _write_procedure(
+            self.root, "20261101-100001_01_foo.md", CODE, [TEST_A, TEST_B, "tests/x.py"]
+        )
+
+        findings = self._findings()
+
+        assert _categories(findings) == ["companion-not-eligible"]
+        assert "tests/x.py" in findings[0]["detail"]
+
+    def test_companion_outside_tests_is_not_eligible(self) -> None:
+        self.plan = _write_plan(
+            self.root, [(CODE, "`scripts/helper.py`"), ("scripts/helper.py", "itself")]
+        )
+        _write_procedure(
+            self.root, "20261101-100001_01_foo.md", CODE, ["scripts/helper.py"]
+        )
+
+        findings = self._findings()
+
+        assert _categories(findings) == ["companion-not-eligible"]
+        assert "not under tests/" in findings[0]["detail"]
+
+    def test_companion_not_named_in_its_target_row_is_not_eligible(self) -> None:
+        self.plan = _write_plan(self.root, [(CODE, "itself"), (TEST_A, "itself")])
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A])
+
+        findings = self._findings()
+
+        assert _categories(findings) == ["companion-not-eligible"]
+        assert "Related Tests" in findings[0]["detail"]
+
+    def test_document_of_another_plan_is_ignored(self) -> None:
+        _write_procedure(
+            self.root,
+            "20261101-100001_01_foo.md",
+            CODE,
+            [TEST_A, TEST_B],
+            plan="20261101-999999_other.md",
+        )
+
+        assert _categories(self._findings()) == ["row-uncovered"] * 3
+
+    def test_done_plan_matches_by_basename(self) -> None:
+        self.plan = _write_plan(
+            self.root,
+            [(CODE, f"`{TEST_A}`, `{TEST_B}`"), (TEST_A, "x"), (TEST_B, "x")],
+            done=True,
+        )
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A, TEST_B])
+
+        assert self._findings() == []
+
+    def test_main_returns_1_on_a_finding_and_skips_default_categories(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # A missing-source-file finding would exit 1 under the default scan;
+        # here only coverage findings count, so a covered Plan exits 0.
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A])
+        _write(
+            self.root / "plans" / "20261101-110000_bad.md",
+            "# P\n\n## Traceability\n- **Source issue**: issues/gone.md\n",
+        )
+
+        assert cwt.main(["--plan-coverage", str(self.plan)]) == 1
+        assert "row-uncovered" in capsys.readouterr().out
+
+        _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A, TEST_B])
+
+        assert cwt.main(["--plan-coverage", str(self.plan)]) == 0
+        assert "gone.md" not in capsys.readouterr().out
+
+    def test_main_rejects_a_missing_plan_file(self) -> None:
+        with pytest.raises(SystemExit) as excinfo:
+            cwt.main(["--plan-coverage", "plans/absent.md"])
+
+        assert excinfo.value.code == 2

@@ -533,3 +533,165 @@ class TestImplementationProcedurePassTimestampSharing:
         assert returncode == 0
         updated_content = source_plan.read_text(encoding="utf-8")
         assert updated_content.startswith(original_content.rstrip("\n"))
+
+
+class TestCompanionOption:
+    """`--companion` scaffolds a document with a target and companion test files;
+    without it the single-target scaffold is the unchanged template skeleton.
+    """
+
+    TARGET = "scripts/agent/foo.py"
+    TEST_A = "tests/agent/test_foo.py"
+    TEST_B = "tests/agent/test_foo_edge.py"
+
+    @pytest.fixture(autouse=True)
+    def _setup(
+        self,
+        workitem_dirs: dict[str, Path],
+        fixed_timestamp: str,
+        tmp_path: Path,
+    ) -> None:
+        self.implementations = workitem_dirs["implementations"]
+        self.timestamp = fixed_timestamp
+        self.plan = tmp_path / "source_plan.md"
+        self.plan.write_text("dummy plan content\n", encoding="utf-8")
+
+    def _run(self, *extra: str, target: str | None = None) -> int:
+        return gw.main(
+            [
+                "--kind",
+                "implementation-procedure",
+                "--source-plan",
+                str(self.plan),
+                "--target-file-path",
+                target or self.TARGET,
+                "--seq",
+                "01",
+                *extra,
+            ]
+        )
+
+    def _created(self) -> list[Path]:
+        return sorted(p for p in self.implementations.iterdir() if p.is_file())
+
+    def test_one_companion_lists_target_first_and_adds_block(self) -> None:
+        assert self._run("--companion", self.TEST_A) == 0
+
+        (created,) = self._created()
+        text = created.read_text(encoding="utf-8")
+        assert f"### Target file\n`{self.TARGET}`\n" in text
+        assert f"- **Related target files**: `{self.TARGET}`, `{self.TEST_A}`" in text
+        details = text.index("### Details")
+        block = text.index("### Companion test files")
+        assert details < block < text.index("## Compatibility considerations")
+        assert f"- `{self.TEST_A}`\n  - Procedure: " in text
+        assert "\n  - Validation: " in text
+
+    def test_two_companions_are_listed_in_order(self) -> None:
+        assert self._run("--companion", self.TEST_A, "--companion", self.TEST_B) == 0
+
+        text = self._created()[0].read_text(encoding="utf-8")
+        assert f"`{self.TARGET}`, `{self.TEST_A}`, `{self.TEST_B}`" in text
+        assert text.index(f"- `{self.TEST_A}`") < text.index(f"- `{self.TEST_B}`")
+
+    def test_file_name_derives_from_the_target_only(self) -> None:
+        assert self._run("--companion", self.TEST_A) == 0
+
+        assert [p.name for p in self._created()] == [
+            f"{self.timestamp}_01_scripts_agent_foo.py.md"
+        ]
+
+    def test_scaffold_is_read_back_by_the_checkers(self) -> None:
+        from tools.check_workitem_traceability import (
+            extract_companion_files,
+            extract_related_target_files_list,
+            extract_target_file_value,
+        )
+
+        assert self._run("--companion", self.TEST_A, "--companion", self.TEST_B) == 0
+
+        text = self._created()[0].read_text(encoding="utf-8")
+        assert extract_target_file_value(text) == self.TARGET
+        assert extract_companion_files(text) == [self.TEST_A, self.TEST_B]
+        assert extract_related_target_files_list(text) == [
+            self.TARGET,
+            self.TEST_A,
+            self.TEST_B,
+        ]
+
+    @pytest.mark.parametrize(
+        ("extra", "message"),
+        [
+            (["--companion", "scripts/agent/helper.py"], "under tests/"),
+            (["--companion", "scripts/agent/foo.py"], "under tests/"),
+            (
+                [
+                    "--companion",
+                    "tests/agent/test_foo.py",
+                    "--companion",
+                    "tests/agent/test_foo.py",
+                ],
+                "more than once",
+            ),
+        ],
+    )
+    def test_invalid_companion_is_rejected_without_writing(
+        self, extra: list[str], message: str, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert self._run(*extra) == 1
+
+        assert message in capsys.readouterr().err
+        assert self._created() == []
+        assert self.plan.read_text(encoding="utf-8") == "dummy plan content\n"
+
+    def test_companion_equal_to_the_target_is_rejected(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert self._run("--companion", self.TEST_A, target=self.TEST_A) == 1
+
+        assert "must differ from the target" in capsys.readouterr().err
+        assert self._created() == []
+
+    def test_companion_with_all_rows_is_rejected(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        rc = gw.main(
+            [
+                "--kind",
+                "implementation-procedure",
+                "--source-plan",
+                str(self.plan),
+                "--all-rows",
+                "--companion",
+                self.TEST_A,
+            ]
+        )
+
+        assert rc == 1
+        assert "--companion applies only" in capsys.readouterr().err
+        assert self._created() == []
+
+    def test_companion_with_another_kind_is_rejected(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        rc = gw.main(["--kind", "risks", "--companion", self.TEST_A])
+
+        assert rc == 1
+        assert "--companion applies only" in capsys.readouterr().err
+
+    def test_without_companion_the_scaffold_is_the_unchanged_skeleton(self) -> None:
+        assert self._run() == 0
+
+        text = self._created()[0].read_text(encoding="utf-8")
+        assert text == gw.extract_fenced_skeleton(gw.TEMPLATE_IMPLEMENTATION_PROCEDURE)
+        assert "Companion test files" not in text
+
+    def test_companion_heading_matches_the_template_note(self) -> None:
+        template = TEMPLATE_IMPLEMENTATION_PROCEDURE.read_text(encoding="utf-8")
+
+        assert gw.COMPANION_HEADING in template
+        assert gw.companion_block([self.TEST_A]).startswith(gw.COMPANION_HEADING)
+
+    def test_apply_companions_fails_when_an_anchor_is_missing(self) -> None:
+        with pytest.raises(gw.GenerationError):
+            gw.apply_companions("## Implementation\n", self.TARGET, [self.TEST_A])

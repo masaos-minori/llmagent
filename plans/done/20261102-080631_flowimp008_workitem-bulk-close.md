@@ -154,9 +154,9 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tool and tests: `tools/close_procedures_batch.py`, `tests/tools/test_close_procedures_batch.py` | In Progress | — | — |  |
-| 2 | Skill text and registration: `skills/code-implementation/workflow.md`, `skills/plan-to-implementation-procedure/workflow.md`, `tools/TOOL_DESCRIPTIONS.md` | In Progress | — | — |  |
-| 3 | Verification: lint sequence, live dry run, checkers | Pending | — | — |  |
+| 1 | Tool and tests: `tools/close_procedures_batch.py`, `tests/tools/test_close_procedures_batch.py` | Completed | — | 20261102-132521 |  |
+| 2 | Skill text and registration: `skills/code-implementation/workflow.md`, `skills/plan-to-implementation-procedure/workflow.md`, `tools/TOOL_DESCRIPTIONS.md` | Completed | — | 20261102-132659 |  |
+| 3 | Verification: lint sequence, live dry run, checkers | Completed | 20261102-133501 | 20261102-133501 | Lint sequence clean, live dry runs reviewed, checkers pass; full suite 11120 passed, 1 known pre-existing mdq failure; diff-cover reported no covered lines (tools/ outside coverage source). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -166,11 +166,11 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261102-085613_01_tools_close_procedures_batch.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261102-085613_02_tests_tools_test_close_procedures_batch.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261102-085613_03_skills_code-implementation_workflow.md.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261102-085613_04_skills_plan-to-implementation-procedure_workflow.md.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261102-085613_05_tools_TOOL_DESCRIPTIONS.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261102-085613_01_tools_close_procedures_batch.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261102-085613_02_tests_tools_test_close_procedures_batch.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261102-085613_03_skills_code-implementation_workflow.md.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261102-085613_04_skills_plan-to-implementation-procedure_workflow.md.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261102-085613_05_tools_TOOL_DESCRIPTIONS.md.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

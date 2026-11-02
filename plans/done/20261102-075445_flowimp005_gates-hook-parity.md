@@ -154,9 +154,9 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drift check reads the hooks: `tools/run_validation_gates.py`, `tests/tools/test_run_validation_gates.py` | In Progress | — | — |  |
-| 2 | Map the seven checkers: `tools/run_validation_gates.py`, `routing.md`, `tests/tools/test_run_validation_gates.py` | In Progress | — | — |  |
-| 3 | Hook and documentation: `.pre-commit-config.yaml`, `rules/toolchain.md`, `tools/TOOL_DESCRIPTIONS.md` | In Progress | — | — |  |
+| 1 | Drift check reads the hooks: `tools/run_validation_gates.py`, `tests/tools/test_run_validation_gates.py` | Completed | — | 20261102-093315 |  |
+| 2 | Map the seven checkers: `tools/run_validation_gates.py`, `routing.md`, `tests/tools/test_run_validation_gates.py` | Completed | — | 20261102-093315 |  |
+| 3 | Hook and documentation: `.pre-commit-config.yaml`, `rules/toolchain.md`, `tools/TOOL_DESCRIPTIONS.md` | Completed | — | 20261102-093315 |  |
 | 4 | Verification of all changed files | Pending | — | — |  |
 
 ### Blocker Log

@@ -7,16 +7,18 @@ structurally malformed, and passes when it is canonical.
 Sandboxing: init_db.sh honors DEPLOY_SCRIPTS/DEPLOY_DB environment overrides, and the
 driver points LLMAGENT_CONFIG_DIR at a rewritten copy of config/ whose db paths target a
 throwaway directory under tmp_path, so the whole run — including the uv-spawned
-create_schema.py subprocess — reads and writes only the sandbox. Nothing under
+create_schema.py subprocess — reads and writes only the sandbox. The subprocess
+environment comes from the shared isolated_subprocess_env fixture in tests/conftest.py,
+so it also inherits the suite's isolation variables. Nothing under
 /opt/llm/db is touched; only /opt/llm's uv project root and the read-only sqlite-vec
 extension are used, which is why the module skips when /opt/llm has no pyproject.toml.
 """
 
-import os
 import pathlib
 import shutil
 import sqlite3
 import subprocess
+from collections.abc import Callable
 
 import pytest
 from db.schema_sql import (
@@ -133,12 +135,11 @@ def _write_init_db_driver(
     return driver_path
 
 
-def _run(driver_path: pathlib.Path) -> subprocess.CompletedProcess[str]:
-    # The real init_db.sh needs uv, sqlite3, and uv's HOME-cached environment on PATH.
-    env = {
-        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
-        "HOME": os.environ.get("HOME", str(pathlib.Path.home())),
-    }
+def _run(
+    driver_path: pathlib.Path, env: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
+    # The real init_db.sh needs uv, sqlite3, and uv's HOME-cached environment on PATH;
+    # the env comes from the isolated_subprocess_env fixture.
     return subprocess.run(
         ["bash", str(driver_path)],
         capture_output=True,
@@ -149,25 +150,31 @@ def _run(driver_path: pathlib.Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_init_db_malformed_stamped_aborts(tmp_path: pathlib.Path) -> None:
+def test_init_db_malformed_stamped_aborts(
+    tmp_path: pathlib.Path, isolated_subprocess_env: Callable[..., dict[str, str]]
+) -> None:
     db_dir = tmp_path / "db"
     _provision_databases(db_dir, malformed=True)
     result = _run(
         _write_init_db_driver(
             tmp_path, db_dir=db_dir, scripts_dir=_REPO_ROOT / "scripts"
-        )
+        ),
+        isolated_subprocess_env(),
     )
     assert result.returncode != 0
     assert _BANNER not in result.stdout
 
 
-def test_init_db_canonical_passes(tmp_path: pathlib.Path) -> None:
+def test_init_db_canonical_passes(
+    tmp_path: pathlib.Path, isolated_subprocess_env: Callable[..., dict[str, str]]
+) -> None:
     db_dir = tmp_path / "db"
     _provision_databases(db_dir, malformed=False)
     result = _run(
         _write_init_db_driver(
             tmp_path, db_dir=db_dir, scripts_dir=_REPO_ROOT / "scripts"
-        )
+        ),
+        isolated_subprocess_env(),
     )
     assert result.returncode == 0
     assert _BANNER in result.stdout
@@ -175,7 +182,7 @@ def test_init_db_canonical_passes(tmp_path: pathlib.Path) -> None:
 
 
 def test_shape_gate_rejects_malformed_isolated_from_create_schema_gate(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, isolated_subprocess_env: Callable[..., dict[str, str]]
 ) -> None:
     # The stub scripts make the create_schema.py step a no-op, so the abort can only
     # come from the init_db.sh EventBus shape gate itself.
@@ -183,7 +190,8 @@ def test_shape_gate_rejects_malformed_isolated_from_create_schema_gate(
     _provision_databases(db_dir, malformed=True)
     scripts_dir = _write_stub_scripts(tmp_path)
     result = _run(
-        _write_init_db_driver(tmp_path, db_dir=db_dir, scripts_dir=scripts_dir)
+        _write_init_db_driver(tmp_path, db_dir=db_dir, scripts_dir=scripts_dir),
+        isolated_subprocess_env(),
     )
     assert result.returncode != 0
     assert _GATE_FATAL in result.stderr

@@ -100,7 +100,9 @@ Before the first test run, apply `SKILL.md` Core rule "Verify Production Isolati
 Running Tests": record what the guard in `tests/conftest.py` covers and does not (cite the
 file; it fails a test that opens a SQLite database or a `FileHandler` under `/opt/llm`, and
 the suite runs against a temporary root, but it does not guard ports or other kinds of
-write), and check the `integration` marker in `pyproject.toml`. Stop and record the affected
+write). A session that changes, adds, or removes any file under `/opt/llm/db` (including
+through a subprocess the per-test guard cannot see) fails at finish, naming each file. Also
+check the `integration` marker in `pyproject.toml`. Stop and record the affected
 commands as `Needs confirmation` only when no mechanism exists for a production path the
 tests you will run reach. Tests carrying `production_paths_allowed` are exempt from the guard:
 list them with `rg -l production_paths_allowed tests` and exclude them by default.

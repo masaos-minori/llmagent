@@ -16,6 +16,12 @@ document has every required section in the first place — a document missing
 only caught by manually reading it end-to-end, as happened once in a live
 `plan-to-implementation-procedure` run against a non-conforming Plan.
 
+For a Plan, it also validates the optional release-unit declaration: a
+`### Release units` block inside `## Implementation steps` whose entries read
+`**Unit**: {name} | **Phases**: {N, N} | **Reason**: {text}` with every field
+non-empty and every phase number a top-level numbered step of that section. A Plan
+without the block, or whose block is the default `N/A: ...` line, is unaffected.
+
 Never writes, renames, moves, or deletes anything under `issues/`, `plans/`,
 or `implementations/`.
 
@@ -52,6 +58,14 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 
 _FENCE_RE = re.compile(r"```markdown\n(.*?)\n```", re.DOTALL)
 _HEADING_RE = re.compile(r"(?mi)^## (.+?)\s*$")
+_STEPS_HEADING_RE = re.compile(r"(?mi)^## Implementation steps\s*$")
+_RELEASE_UNITS_HEADING_RE = re.compile(r"(?mi)^### Release units\s*$")
+_ANY_HEADING_RE = re.compile(r"(?m)^#{1,6} ")
+_STEP_NUMBER_RE = re.compile(r"(?m)^(\d+)\. ")
+_UNIT_ENTRY_RE = re.compile(
+    r"^\*\*Unit\*\*:\s*(?P<name>.*?)\s*\|\s*\*\*Phases\*\*:\s*(?P<phases>.*?)"
+    r"\s*\|\s*\*\*Reason\*\*:\s*(?P<reason>.*?)\s*$"
+)
 
 # (kind, template path relative to ROOT_DIR, work-item directory relative to ROOT_DIR)
 _WORK_ITEM_KINDS: tuple[tuple[str, str, str], ...] = (
@@ -135,6 +149,74 @@ def find_missing_sections(doc_path: Path, spec: TemplateSpec) -> list[dict[str, 
     ]
 
 
+def _section_after(text: str, heading_end: int, boundary_re: re.Pattern[str]) -> str:
+    """Return the text from `heading_end` up to the next boundary heading."""
+    boundary = boundary_re.search(text, heading_end)
+    return text[heading_end : boundary.start() if boundary else len(text)]
+
+
+def _release_unit_entry_problem(line: str, known_phases: set[int]) -> str | None:
+    """Return why one declaration line is malformed, or None when it is valid."""
+    match = _UNIT_ENTRY_RE.match(line)
+    if match is None:
+        return (
+            "expected `**Unit**: {name} | **Phases**: {N, N} | **Reason**: {reason}`"
+            f", got: {line}"
+        )
+    if not match["name"]:
+        return "missing unit name"
+    if not match["reason"]:
+        return "missing reason"
+    phase_tokens = [token.strip() for token in match["phases"].split(",")]
+    if not match["phases"] or not all(token.isdigit() for token in phase_tokens):
+        return "missing or non-numeric member phases"
+    unknown = sorted({int(t) for t in phase_tokens} - known_phases)
+    if unknown:
+        return f"phase(s) {unknown} are not top-level steps of Implementation steps"
+    return None
+
+
+def find_release_unit_findings(doc_path: Path) -> list[dict[str, str]]:
+    """Validate a Plan's optional `### Release units` declaration (REQ-004)."""
+    text = doc_path.read_text(encoding="utf-8")
+    rel_path = doc_path.relative_to(ROOT_DIR).as_posix()
+
+    def finding(detail: str) -> dict[str, str]:
+        return {
+            "category": "release-unit",
+            "file": rel_path,
+            "detail": f"release unit declaration: {detail}",
+        }
+
+    unit_headings = list(_RELEASE_UNITS_HEADING_RE.finditer(text))
+    if not unit_headings:
+        return []
+    steps_heading = _STEPS_HEADING_RE.search(text)
+    steps_start = steps_heading.end() if steps_heading else -1
+    steps_text = _section_after(text, steps_start, _HEADING_RE) if steps_heading else ""
+    steps_end = steps_start + len(steps_text)
+    findings: list[dict[str, str]] = []
+    inside = [h for h in unit_headings if steps_start <= h.start() < steps_end]
+    if len(inside) < len(unit_headings):
+        findings.append(
+            finding("`### Release units` is outside `## Implementation steps`")
+        )
+    if not inside:
+        return findings
+    block = _section_after(text, inside[0].end(), _ANY_HEADING_RE)
+    lines = [line.strip() for line in block.splitlines() if line.strip()]
+    if not lines:
+        return [*findings, finding("block is empty (use `N/A: no release unit`)")]
+    if all(line.startswith("N/A") for line in lines):
+        return findings
+    known_phases = {int(n) for n in _STEP_NUMBER_RE.findall(steps_text)}
+    for line in lines:
+        problem = _release_unit_entry_problem(line, known_phases)
+        if problem is not None:
+            findings.append(finding(problem))
+    return findings
+
+
 def infer_kind(doc_path: Path) -> str | None:
     """Infer a document's work-item kind from its top-level directory.
 
@@ -168,7 +250,10 @@ def collect_single_file_findings(doc_path: Path) -> list[dict[str, str]]:
     spec = load_template_specs()[kind]
     if not spec.required_headings:
         return []
-    return find_missing_sections(doc_path, spec)
+    findings = find_missing_sections(doc_path, spec)
+    if kind == "plan":
+        findings.extend(find_release_unit_findings(doc_path))
+    return findings
 
 
 def collect_findings(kinds: set[str], include_done: bool) -> list[dict[str, str]]:
@@ -179,6 +264,8 @@ def collect_findings(kinds: set[str], include_done: bool) -> list[dict[str, str]
         if not spec.required_headings:
             continue
         findings.extend(find_missing_sections(doc_path, spec))
+        if kind == "plan":
+            findings.extend(find_release_unit_findings(doc_path))
     return findings
 
 
@@ -219,7 +306,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "Read-only check that issues/, plans/, and implementations/ "
             "documents contain every '## ' section required by their "
             "canonical template (templates/issue.md, templates/plan.md, "
-            "templates/implementation-procedure.md)."
+            "templates/implementation-procedure.md). For a Plan it also validates "
+            "the optional '### Release units' declaration."
         )
     )
     parser.add_argument(

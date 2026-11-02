@@ -117,3 +117,65 @@ class TestMissingRequiredFixture:
 
         assert len(findings) == 1
         assert findings[0]["category"] == "conftest-missing-fixture"
+
+
+_OLDER_FIXTURES = (
+    "import pytest\n\n\n"
+    "@pytest.fixture(autouse=True)\n"
+    "def _reset_tool_registry():\n"
+    "    yield\n\n\n"
+    "@pytest.fixture(autouse=True)\n"
+    "def _reset_web_search_health_and_metrics():\n"
+    "    yield\n\n\n"
+    "@pytest.fixture(autouse=True)\n"
+    "def _forbid_production_paths():\n"
+    "    yield\n"
+)
+
+
+class TestProductionDbGuardRequired:
+    def test_manifest_lists_session_guard(self) -> None:
+        assert "_guard_production_db_files" in cci.REQUIRED_AUTOUSE_FIXTURES
+
+    def test_removed_session_guard_is_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        conftest_path = tmp_path / "tests" / "conftest.py"
+        _write(conftest_path, _OLDER_FIXTURES)
+        monkeypatch.setattr(cci, "ROOT_DIR", tmp_path)
+
+        findings = cci.find_conftest_findings(
+            conftest_path, cci.REQUIRED_AUTOUSE_FIXTURES
+        )
+
+        assert len(findings) == 1
+        assert findings[0]["category"] == "conftest-missing-fixture"
+        assert "_guard_production_db_files" in findings[0]["detail"]
+
+    def test_guard_present_but_not_autouse_is_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        conftest_path = tmp_path / "tests" / "conftest.py"
+        _write(
+            conftest_path,
+            _OLDER_FIXTURES
+            + "\n\n@pytest.fixture(autouse=False)\n"
+            + "def _guard_production_db_files():\n"
+            + "    yield\n",
+        )
+        monkeypatch.setattr(cci, "ROOT_DIR", tmp_path)
+
+        findings = cci.find_conftest_findings(
+            conftest_path, cci.REQUIRED_AUTOUSE_FIXTURES
+        )
+
+        assert len(findings) == 1
+        assert findings[0]["category"] == "conftest-missing-fixture"
+        assert "_guard_production_db_files" in findings[0]["detail"]
+
+    def test_real_conftest_has_no_findings(self) -> None:
+        findings = cci.find_conftest_findings(
+            cci.CONFTEST_PATH, cci.REQUIRED_AUTOUSE_FIXTURES
+        )
+
+        assert findings == []

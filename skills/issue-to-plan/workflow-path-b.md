@@ -80,6 +80,10 @@ ss -tnp                       # established connections with their processes
 Before planning a change to MCP servers or the DB: confirm no process holds locks (database files: `fuser <file>` if available; otherwise state the check as not run).
 `pip-audit` before planning any dependency upgrade.
 
+## Persisted schema check
+
+When the change touches DDL, a schema version, or a migration of a persisted SQLite database, load `rules/persisted-schema-change.md`, apply each of its items, and record the outcome in the Plan's Design or Risks. The checklist is guidance, not a gate.
+
 ---
 
-Return to `workflow.md` Step 5 > Generate the Plan once all four analyses above are complete.
+Return to `workflow.md` Step 5 > Generate the Plan once all four analyses above are complete (and the persisted schema check, when it applies).

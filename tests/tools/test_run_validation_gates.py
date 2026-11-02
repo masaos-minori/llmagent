@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from tools.run_validation_gates import (
+    COMMIT_ONLY_HOOKS,
     MODE_FAST,
     MODE_FULL,
     ROUTING_GATES,
@@ -28,12 +29,14 @@ from tools.run_validation_gates import (
     _split_md_row,
     classify,
     drift_report,
+    parse_precommit_hooks,
     run_gate,
     select_gates,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 ROUTING_MD = REPO_ROOT / "routing.md"
+PRECOMMIT_CONFIG = REPO_ROOT / ".pre-commit-config.yaml"
 
 
 def _runner_for(*returncodes: int):
@@ -158,6 +161,81 @@ def test_selection_no_match_fast_mode_empty():
     assert select_gates(["assets/logo.png"], MODE_FAST) == []
 
 
+# --- new gate triggers (REQ-002) ------------------------------------------------
+
+_ADR_GATES = {
+    "check_adr_invariant_matrix",
+    "check_adr_reference",
+    "check_adr_structure",
+}
+_PARITY_GATES = _ADR_GATES | {
+    "check_known_deviation_sync",
+    "check_plan_target_overlaps",
+    "check_conftest_integrity",
+    "check_workitem_traceability",
+}
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("docs/10_adr/adr_01_index.md", {"check_known_deviation_sync"}),
+        ("scripts/x.py", _ADR_GATES),
+        ("routing.md", _ADR_GATES),
+        ("tools/check_adr_structure.py", _ADR_GATES),
+        ("docs/a.md", {"check_known_deviation_sync"}),
+        ("docs/sub/a.md", {"check_known_deviation_sync"}),
+        ("plans/p.md", {"check_plan_target_overlaps", "check_workitem_traceability"}),
+        ("tests/conftest.py", {"check_conftest_integrity"}),
+        ("tests/agent/conftest.py", {"check_conftest_integrity"}),
+        ("issues/i.md", {"check_workitem_traceability"}),
+        ("plans/done/p.md", {"check_workitem_traceability"}),
+        ("implementations/i.md", {"check_workitem_traceability"}),
+        ("assets/logo.png", set()),
+    ],
+)
+def test_parity_gate_triggers_mirror_hook_filters(
+    path: str, expected: set[str]
+) -> None:
+    """Each parity gate selects on its hook's filter (full mode sees every gate)."""
+    names = {g.name for g in select_gates([path], MODE_FULL)} & _PARITY_GATES
+    # Any .py or .md path also matches the ADR hooks' `types_or: [python, markdown]`.
+    if path.endswith((".py", ".md")):
+        expected = expected | _ADR_GATES
+    assert names == expected
+
+
+def test_removed_adr_cited_test_selects_adr_gate_and_fails_on_checker_failure() -> None:
+    """AC-3: an ADR change selects the invariant gate in fast mode; its failure is ``Fail``."""
+    changed = ["docs/10_adr/adr_01_index.md"]
+    gate = next(
+        g
+        for g in select_gates(changed, MODE_FAST)
+        if g.name == "check_adr_invariant_matrix"
+    )
+    assert run_gate(gate, runner=_runner_for(1)).status == "Fail"
+    assert run_gate(gate, runner=_runner_for(0)).status == "Pass"
+
+
+def test_workitem_traceability_gate_id_matches_hook_id() -> None:
+    """The gate carries --active-only, so its id equals the id derived from the hook."""
+    gate = next(g for g in ROUTING_GATES if g.name == "check_workitem_traceability")
+    hooks, _ = parse_precommit_hooks(PRECOMMIT_CONFIG.read_text(encoding="utf-8"))
+    assert gate.checker_id == "check_workitem_traceability:--active-only"
+    assert hooks["workitem-traceability"] == gate.checker_id
+
+
+def test_full_mode_only_gate_is_absent_from_fast_selection() -> None:
+    """A slow routing gate (mode=full) is skipped in fast mode and kept in full mode."""
+    path = "issues/i.md"
+    fast = {g.name for g in select_gates([path], MODE_FAST)}
+    full = {g.name for g in select_gates([path], MODE_FULL)}
+    assert "check_workitem_traceability" not in fast
+    assert "check_workitem_traceability" in full
+    gate = next(g for g in ROUTING_GATES if g.name == "check_workitem_traceability")
+    assert gate.mode == MODE_FULL
+
+
 # --- classification (REQ-005) ---------------------------------------------------
 
 _CLASSIFY_CASES: list[tuple[int | None, bool, str]] = [
@@ -232,6 +310,148 @@ def test_drift_ignores_the_orchestrators_own_row() -> None:
     )
     _, errors = drift_report(synthetic)
     assert not any("run_validation_gates" in message for message in errors)
+
+
+# --- hook parity (REQ-001) ------------------------------------------------------
+
+_EMPTY_ROUTING = (
+    "### When to run which tool\n\n| Situation | Run | Notes |\n|---|---|---|\n"
+)
+
+
+def _hook_config(entry: str | None, hook_id: str = "demo-hook") -> str:
+    """Build a one-hook pre-commit config; ``entry=None`` omits the ``entry`` key."""
+    entry_line = f"        entry: {entry}\n" if entry is not None else ""
+    return (
+        "repos:\n  - repo: local\n    hooks:\n"
+        f"      - id: {hook_id}\n        name: demo\n{entry_line}"
+        "        language: system\n"
+    )
+
+
+def _hook_messages(config: str) -> list[str]:
+    """Hook-parity messages only (drops routing and stale-allowlist noise)."""
+    _, errors = drift_report(_EMPTY_ROUTING, config)
+    return [m for m in errors if "pre-commit" in m or "unparseable" in m]
+
+
+def test_drift_reports_unmapped_hook() -> None:
+    """A tool-backed hook with no gate mapping and no allowlist entry is a drift error."""
+    config = _hook_config("python -m tools.nonexistent_checker_xyz")
+    count, errors = drift_report(_EMPTY_ROUTING, config)
+    assert count >= 1
+    assert any("demo-hook" in m and "nonexistent_checker_xyz" in m for m in errors)
+
+
+def test_drift_allows_allowlisted_hook(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The same hook is not reported once its id is in ``COMMIT_ONLY_HOOKS`` with a reason."""
+    import tools.run_validation_gates as module
+
+    config = _hook_config("python -m tools.nonexistent_checker_xyz")
+    monkeypatch.setattr(
+        module, "COMMIT_ONLY_HOOKS", (("demo-hook", "commit-only for the test"),)
+    )
+    count, errors = drift_report(_EMPTY_ROUTING, config)
+    assert not any("demo-hook" in m for m in errors), errors
+    assert count == len(errors)
+
+
+def test_drift_rejects_blank_allowlist_reason(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An allowlist entry without a reason is an error, not a silent default."""
+    import tools.run_validation_gates as module
+
+    config = _hook_config("python -m tools.nonexistent_checker_xyz")
+    monkeypatch.setattr(module, "COMMIT_ONLY_HOOKS", (("demo-hook", "  "),))
+    _, errors = drift_report(_EMPTY_ROUTING, config)
+    assert any("has no reason" in m and "demo-hook" in m for m in errors)
+
+
+def test_drift_rejects_allowlist_entry_without_hook(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An allowlist entry naming no tool-backed hook in the config is stale."""
+    import tools.run_validation_gates as module
+
+    monkeypatch.setattr(module, "COMMIT_ONLY_HOOKS", (("ghost-hook", "reason"),))
+    _, errors = drift_report(_EMPTY_ROUTING, _hook_config("bash -c true"))
+    assert any("ghost-hook" in m for m in errors)
+
+
+@pytest.mark.parametrize(
+    "config",
+    ["repos: [", "just a string", "other: 1\n"],
+    ids=["malformed-yaml", "non-mapping", "no-repos"],
+)
+def test_drift_reports_malformed_config(config: str) -> None:
+    """A malformed or repo-less config yields an error instead of passing silently."""
+    count, errors = drift_report(_EMPTY_ROUTING, config)
+    assert count >= 1
+    assert any("pre-commit-config.yaml" in m for m in errors)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "bash -c 'true'",
+        "uv run mypy --no-incremental",
+        None,
+    ],
+    ids=["bash", "uv-run-mypy", "no-entry"],
+)
+def test_drift_ignores_non_tool_hooks(entry: str | None) -> None:
+    """Non-tool hooks and hooks without an ``entry`` are not parity candidates."""
+    hooks, errors = parse_precommit_hooks(_hook_config(entry))
+    assert hooks == {}
+    assert errors == []
+
+
+def test_drift_skips_the_orchestrators_own_hook() -> None:
+    """The drift hook runs this tool, so it must not be compared with the mapping."""
+    config = _hook_config("python -m tools.run_validation_gates drift")
+    hooks, errors = parse_precommit_hooks(config)
+    assert hooks == {}
+    assert errors == []
+
+
+def test_drift_reports_unparseable_tool_entry() -> None:
+    """A tool-looking token that matches neither the module nor the path form is an error."""
+    assert any(
+        "unparseable" in m for m in _hook_messages(_hook_config("python tools/x"))
+    )
+
+
+@pytest.mark.parametrize(
+    ("entry", "expected"),
+    [
+        ("python -m tools.check_docs_quality", "check_docs_quality"),
+        ("uv run python -m tools.check_docs_quality", "check_docs_quality"),
+        (
+            "python -m tools.check_workitem_traceability --active-only",
+            "check_workitem_traceability:--active-only",
+        ),
+        ("python tools/check_docs_quality.py", "check_docs_quality"),
+    ],
+)
+def test_hook_entry_forms_derive_gate_ids(entry: str, expected: str) -> None:
+    """Each entry form present in the live config reduces to the gate id form."""
+    hooks, errors = parse_precommit_hooks(_hook_config(entry))
+    assert errors == []
+    assert hooks == {"demo-hook": expected}
+
+
+def test_live_precommit_config_has_no_drift() -> None:
+    """The real hook config and routing.md produce zero drift errors (AC-1)."""
+    routing = ROUTING_MD.read_text(encoding="utf-8")
+    config = PRECOMMIT_CONFIG.read_text(encoding="utf-8")
+    count, errors = drift_report(routing, config)
+    assert count == 0, errors
+
+
+def test_commit_only_hooks_all_carry_a_reason() -> None:
+    """Every reviewed allowlist entry records a non-blank reason."""
+    assert all(
+        hook_id.strip() and reason.strip() for hook_id, reason in COMMIT_ONLY_HOOKS
+    )
 
 
 # --- run_gate runner injection --------------------------------------------------

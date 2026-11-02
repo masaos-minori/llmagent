@@ -154,10 +154,10 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Detector and tests: `tools/stale_detector.py`, `tests/tools/test_stale_detector.py` | In Progress | — | — |  |
+| 1 | Detector and tests: `tools/stale_detector.py`, `tests/tools/test_stale_detector.py` | Completed | — | 20261102-130942 |  |
 | 2 | Baseline measurement over the archived procedure sets: `tools/stale_detector.py` | Pending | — | — |  |
-| 3 | Skill, template, and tool text: `skills/plan-to-implementation-procedure/workflow.md`, `skills/code-implementation/workflow.md`, `templates/implementation-procedure.md`, `tools/TOOL_DESCRIPTIONS.md` | In Progress | — | — |  |
-| 4 | Verification: lint sequence and checkers | Pending | — | — |  |
+| 3 | Skill, template, and tool text: `skills/plan-to-implementation-procedure/workflow.md`, `skills/code-implementation/workflow.md`, `templates/implementation-procedure.md`, `tools/TOOL_DESCRIPTIONS.md` | Completed | — | 20261102-131045 |  |
+| 4 | Verification: lint sequence and checkers | Completed | — | 20261102-131045 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

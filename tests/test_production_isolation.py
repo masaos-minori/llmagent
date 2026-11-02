@@ -140,3 +140,170 @@ def test_conftest_imports_on_host_without_production_db_dir() -> None:
     assert result.returncode == 0, result.stderr[-800:]
     # A DbConfig built directly with production defaults is redirected as well.
     assert "/opt/llm" not in result.stdout, result.stdout
+
+
+def _stand_in(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point the session check at a temporary directory holding two stand-in files."""
+    from tests import conftest as conftest_module
+
+    directory = tmp_path / "db"
+    directory.mkdir()
+    (directory / "a.sqlite").write_bytes(b"main-v1")
+    (directory / "a.sqlite-wal").write_bytes(b"wal-v1")
+    monkeypatch.setattr(conftest_module, "_PRODUCTION_DB_DIR", directory)
+    monkeypatch.setattr(conftest_module, "_db_baseline", None)
+    conftest_module._refresh_db_baseline()
+    return directory
+
+
+def test_unchanged_directory_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests import conftest as conftest_module
+
+    _stand_in(tmp_path, monkeypatch)
+    conftest_module._assert_production_db_unchanged()
+
+
+def test_changed_file_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests import conftest as conftest_module
+
+    directory = _stand_in(tmp_path, monkeypatch)
+    (directory / "a.sqlite").write_bytes(b"main-v2")
+    with pytest.raises(pytest.fail.Exception, match=r"a\.sqlite \(changed\)"):
+        conftest_module._assert_production_db_unchanged()
+
+
+def test_sidecar_only_change_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests import conftest as conftest_module
+
+    directory = _stand_in(tmp_path, monkeypatch)
+    (directory / "a.sqlite-wal").write_bytes(b"wal-v2")
+    with pytest.raises(pytest.fail.Exception, match=r"a\.sqlite-wal \(changed\)"):
+        conftest_module._assert_production_db_unchanged()
+
+
+def test_added_file_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests import conftest as conftest_module
+
+    directory = _stand_in(tmp_path, monkeypatch)
+    (directory / "a.sqlite-shm").write_bytes(b"shm")
+    with pytest.raises(pytest.fail.Exception, match=r"a\.sqlite-shm \(added\)"):
+        conftest_module._assert_production_db_unchanged()
+
+
+def test_removed_file_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests import conftest as conftest_module
+
+    directory = _stand_in(tmp_path, monkeypatch)
+    (directory / "a.sqlite-wal").unlink()
+    with pytest.raises(pytest.fail.Exception, match=r"a\.sqlite-wal \(removed\)"):
+        conftest_module._assert_production_db_unchanged()
+
+
+def test_absent_directory_is_skipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests import conftest as conftest_module
+
+    monkeypatch.setattr(conftest_module, "_PRODUCTION_DB_DIR", tmp_path / "missing")
+    monkeypatch.setattr(conftest_module, "_db_baseline", {"x": (1, 1, "h")})
+    conftest_module._refresh_db_baseline()
+    assert conftest_module._db_baseline is None
+    conftest_module._assert_production_db_unchanged()
+
+
+def test_refresh_accepts_prior_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests import conftest as conftest_module
+
+    directory = _stand_in(tmp_path, monkeypatch)
+    (directory / "a.sqlite").write_bytes(b"main-v2")
+    conftest_module._refresh_db_baseline()
+    conftest_module._assert_production_db_unchanged()
+
+
+def test_fingerprint_does_not_create_sidecars(tmp_path: Path) -> None:
+    from tests import conftest as conftest_module
+
+    directory = tmp_path / "db"
+    directory.mkdir()
+    conn = sqlite3.connect(directory / "real.sqlite")
+    try:
+        conn.execute("CREATE TABLE t (x)")
+        conn.commit()
+    finally:
+        conn.close()
+    before = sorted(p.name for p in directory.iterdir())
+    fingerprint = conftest_module._fingerprint_directory(directory)
+    assert sorted(fingerprint) == before
+    assert sorted(p.name for p in directory.iterdir()) == before
+
+
+_CHILD_TEST = (
+    "from pathlib import Path\n"
+    "import pytest\n"
+    "from tests import conftest as c\n"
+    "\n"
+    "c._PRODUCTION_DB_DIR = Path({stand_in!r})\n"
+    "{marker}\n"
+    "def test_touch() -> None:\n"
+    "    (c._PRODUCTION_DB_DIR / 'victim.sqlite').write_bytes(b'changed')\n"
+)
+
+
+def _run_child_session(tmp_path: Path, marker: str) -> subprocess.CompletedProcess[str]:
+    repo = Path(__file__).resolve().parent.parent
+    stand_in = tmp_path / "standin"
+    stand_in.mkdir()
+    (stand_in / "victim.sqlite").write_bytes(b"original")
+    test_file = tmp_path / "test_child_touch.py"
+    test_file.write_text(
+        _CHILD_TEST.format(stand_in=str(stand_in), marker=marker), encoding="utf-8"
+    )
+    env = {**os.environ, "PYTHONPATH": str(repo)}
+    return subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-p",
+            "tests.conftest",
+            "-p",
+            "no:cacheprovider",
+            "-p",
+            "no:randomly",
+            "-p",
+            "no:testmon",
+            str(test_file),
+        ],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=180,
+        check=False,
+    )
+
+
+def test_session_fails_when_standin_changes(tmp_path: Path) -> None:
+    result = _run_child_session(tmp_path, "")
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output[-1500:]
+    assert "session changed production database files" in output, output[-1500:]
+    assert "victim.sqlite (changed)" in output, output[-1500:]
+
+
+def test_opt_out_marker_does_not_fail_session(tmp_path: Path) -> None:
+    result = _run_child_session(tmp_path, "@pytest.mark.production_paths_allowed")
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output[-1500:]

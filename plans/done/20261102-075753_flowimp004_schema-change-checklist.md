@@ -142,9 +142,9 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the checklist and the retroactive mapping: `rules/persisted-schema-change.md` | In Progress | — | — |  |
-| 2 | Load the rule: `skills/issue-to-plan/workflow-path-b.md`, `skills/python-design/workflow.md`, `skills/python-implementation/SKILL.md`, `routing.md` | In Progress | — | — |  |
-| 3 | Verification of all changed files | Pending | — | — |  |
+| 1 | Write the checklist and the retroactive mapping: `rules/persisted-schema-change.md` | Completed | — | 20261102-094925 | Procedures archived; full suite deferred to plan end (docs-only) |
+| 2 | Load the rule: `skills/issue-to-plan/workflow-path-b.md`, `skills/python-design/workflow.md`, `skills/python-implementation/SKILL.md`, `routing.md` | Completed | — | 20261102-094925 | Procedures archived; full suite deferred to plan end (docs-only) |
+| 3 | Verification of all changed files | Completed | — | 20261102-095901 | checkers and full suite passed (1 known pre-existing failure) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

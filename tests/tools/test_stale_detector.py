@@ -19,6 +19,8 @@ from tools.stale_detector import (
     _citation_bounds,
     _find_scoped_path,
     _load_scoped_source,
+    _parse_companions,
+    main,
 )
 
 # ── StaleResult factory methods ──────────────────────────────────────────────
@@ -1018,3 +1020,532 @@ class TestSymbolCheckNonPythonNames:
         result = StaleResult.from_procedure(proc, source_dir=tmp_path)
         assert [m["type"] for m in result.mismatches] == ["symbol_missing"]
         assert "removed_helper_function" in result.mismatches[0]["detail"]
+
+
+# ── Sibling resolution ───────────────────────────────────────────────────────
+
+PLAN_LINE = "plans/20261102-000000_demo_plan.md"
+
+
+def _write_procedure(
+    root: Path,
+    name: str,
+    body: str,
+    source_plan: str | None = PLAN_LINE,
+    *,
+    done: bool = False,
+) -> Path:
+    """Write a minimal procedure under implementations/ (or implementations/done/)."""
+    target = root / "tools" / "target_mod.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.exists():
+        target.write_text("def existing_function():\n    return 1\n", encoding="utf-8")
+    directory = root / "implementations" / ("done" if done else "")
+    directory.mkdir(parents=True, exist_ok=True)
+    traceability = (
+        f"\n## Traceability\n- **Source plan**: {source_plan}\n"
+        if source_plan is not None
+        else ""
+    )
+    path = directory / name
+    path.write_text(
+        f"## Implementation\n### Target file\n`tools/target_mod.py`\n\n{body}\n"
+        f"{traceability}",
+        encoding="utf-8",
+    )
+    return path
+
+
+FIRST = "20261102-000000_01_a.md"
+SECOND = "20261102-000000_02_b.md"
+THIRD = "20261102-000000_03_c.md"
+
+
+class TestSiblingResolution:
+    def test_name_declared_by_earlier_sibling_is_resolved(self, tmp_path: Path) -> None:
+        _write_procedure(tmp_path, FIRST, "1. Add `NewHelperClass` (new).")
+        proc = _write_procedure(tmp_path, SECOND, "1. Call `NewHelperClass`.")
+        result = StaleResult.from_procedure(proc, tmp_path)
+        assert result.is_stale is False
+        assert result.mismatches == []
+        assert result.resolved == [{"name": "NewHelperClass", "document": FIRST}]
+        assert (
+            f"resolved from sibling: NewHelperClass declared (new) in {FIRST}"
+            in result.summary
+        )
+        assert "Sibling resolution: order rule = earlier" in result.summary
+
+    def test_resolved_line_does_not_use_the_missing_phrase(
+        self, tmp_path: Path
+    ) -> None:
+        _write_procedure(tmp_path, FIRST, "1. Add `NewHelperClass` (new).")
+        proc = _write_procedure(tmp_path, SECOND, "1. Call `NewHelperClass`.")
+        assert (
+            "not found in source"
+            not in StaleResult.from_procedure(proc, tmp_path).summary
+        )
+
+    def test_name_declared_nowhere_stays_stale(self, tmp_path: Path) -> None:
+        _write_procedure(tmp_path, FIRST, "1. Add `NewHelperClass` (new).")
+        proc = _write_procedure(
+            tmp_path, SECOND, "1. Call `NewHelperClass` and `GhostHelperClass`."
+        )
+        result = StaleResult.from_procedure(proc, tmp_path)
+        assert result.is_stale is True
+        assert [m["detail"] for m in result.mismatches] == [
+            "Symbol 'GhostHelperClass' not found in source"
+        ]
+        assert [r["name"] for r in result.resolved] == ["NewHelperClass"]
+
+    def test_archived_sibling_counts(self, tmp_path: Path) -> None:
+        _write_procedure(tmp_path, FIRST, "1. Add `NewHelperClass` (new).", done=True)
+        proc = _write_procedure(tmp_path, SECOND, "1. Call `NewHelperClass`.")
+        assert StaleResult.from_procedure(proc, tmp_path).is_stale is False
+
+    def test_import_declared_by_earlier_sibling_is_resolved(
+        self, tmp_path: Path
+    ) -> None:
+        _write_procedure(
+            tmp_path, FIRST, "1. Add:\n`from pkg.mod import NewHelperClass` (new)"
+        )
+        proc = _write_procedure(
+            tmp_path, SECOND, "1. Use:\n`from pkg.mod import NewHelperClass`"
+        )
+        result = StaleResult.from_procedure(proc, tmp_path)
+        assert result.is_stale is False
+        assert result.resolved == [
+            {"name": "from pkg.mod import NewHelperClass", "document": FIRST}
+        ]
+
+    def test_plans_and_plans_done_paths_match_by_basename(self, tmp_path: Path) -> None:
+        _write_procedure(
+            tmp_path,
+            FIRST,
+            "1. Add `NewHelperClass` (new).",
+            source_plan="plans/done/20261102-000000_demo_plan.md",
+        )
+        proc = _write_procedure(tmp_path, SECOND, "1. Call `NewHelperClass`.")
+        assert StaleResult.from_procedure(proc, tmp_path).is_stale is False
+
+    def test_sibling_of_another_plan_does_not_declare(self, tmp_path: Path) -> None:
+        _write_procedure(
+            tmp_path,
+            FIRST,
+            "1. Add `NewHelperClass` (new).",
+            source_plan="plans/20261102-000000_other_plan.md",
+        )
+        proc = _write_procedure(tmp_path, SECOND, "1. Call `NewHelperClass`.")
+        assert StaleResult.from_procedure(proc, tmp_path).is_stale is True
+
+
+class TestSiblingOrderRule:
+    def _later_only(self, tmp_path: Path) -> Path:
+        proc = _write_procedure(tmp_path, FIRST, "1. Call `LaterHelperClass`.")
+        _write_procedure(tmp_path, SECOND, "1. Add `LaterHelperClass` (new).")
+        return proc
+
+    def test_later_sibling_stays_stale_with_reason(self, tmp_path: Path) -> None:
+        proc = self._later_only(tmp_path)
+        result = StaleResult.from_procedure(proc, tmp_path)
+        assert result.is_stale is True
+        detail = result.mismatches[0]["detail"]
+        assert detail.startswith("Symbol 'LaterHelperClass' not found in source")
+        assert SECOND in detail
+        assert "order rule: earlier" in detail
+        assert result.resolved == []
+
+    def test_any_mode_resolves_later_sibling(self, tmp_path: Path) -> None:
+        proc = self._later_only(tmp_path)
+        result = StaleResult.from_procedure(proc, tmp_path, sibling_mode="any")
+        assert result.is_stale is False
+        assert result.resolved == [{"name": "LaterHelperClass", "document": SECOND}]
+        assert "Sibling resolution: order rule = any" in result.summary
+
+    def test_off_mode_reports_name_and_prints_no_sibling_lines(
+        self, tmp_path: Path
+    ) -> None:
+        _write_procedure(tmp_path, FIRST, "1. Add `NewHelperClass` (new).")
+        proc = _write_procedure(tmp_path, SECOND, "1. Call `NewHelperClass`.")
+        result = StaleResult.from_procedure(proc, tmp_path, sibling_mode="off")
+        assert result.is_stale is True
+        assert "Sibling resolution" not in result.summary
+        assert "resolved from sibling" not in result.summary
+
+    def test_declaration_cycle_resolves_only_for_later_document(
+        self, tmp_path: Path
+    ) -> None:
+        first = _write_procedure(
+            tmp_path,
+            FIRST,
+            "1. Add `FirstHelperClass` (new). Call `SecondHelperClass`.",
+        )
+        second = _write_procedure(
+            tmp_path,
+            SECOND,
+            "1. Add `SecondHelperClass` (new). Call `FirstHelperClass`.",
+        )
+        assert StaleResult.from_procedure(second, tmp_path).is_stale is False
+        assert StaleResult.from_procedure(first, tmp_path).is_stale is True
+        assert (
+            StaleResult.from_procedure(first, tmp_path, sibling_mode="any").is_stale
+            is False
+        )
+
+
+class TestSiblingEdgeCases:
+    def test_without_source_plan_output_equals_disabled_run(
+        self, tmp_path: Path
+    ) -> None:
+        _write_procedure(tmp_path, FIRST, "1. Add `NewHelperClass` (new).")
+        proc = _write_procedure(
+            tmp_path, SECOND, "1. Call `NewHelperClass`.", source_plan=None
+        )
+        default = StaleResult.from_procedure(proc, tmp_path)
+        off = StaleResult.from_procedure(proc, tmp_path, sibling_mode="off")
+        assert default.summary == off.summary
+        assert default.is_stale is True
+
+    def test_na_source_plan_has_no_siblings(self, tmp_path: Path) -> None:
+        _write_procedure(tmp_path, FIRST, "1. Add `NewHelperClass` (new).")
+        proc = _write_procedure(
+            tmp_path,
+            SECOND,
+            "1. Call `NewHelperClass`.",
+            source_plan="N/A: not applicable",
+        )
+        result = StaleResult.from_procedure(proc, tmp_path)
+        assert result.is_stale is True
+        assert "Sibling resolution" not in result.summary
+
+    def test_no_siblings_keeps_mismatch(self, tmp_path: Path) -> None:
+        proc = _write_procedure(tmp_path, SECOND, "1. Call `GhostHelperClass`.")
+        result = StaleResult.from_procedure(proc, tmp_path)
+        assert result.is_stale is True
+        assert result.resolved == []
+        assert result.mismatches[0]["detail"] == (
+            "Symbol 'GhostHelperClass' not found in source"
+        )
+
+    def test_unreadable_sibling_warns_and_stays_clean(self, tmp_path: Path) -> None:
+        _write_procedure(tmp_path, FIRST, "1. Add `NewHelperClass` (new).")
+        bad = tmp_path / "implementations" / "20261102-000000_00_bad.md"
+        bad.write_bytes(b"\xff\xfe\x00 not utf-8 \xc3\x28")
+        proc = _write_procedure(tmp_path, SECOND, "1. Call `NewHelperClass`.")
+        result = StaleResult.from_procedure(proc, tmp_path)
+        assert result.is_stale is False
+        assert any("20261102-000000_00_bad.md" in w for w in result.warnings)
+        assert "warning: sibling 20261102-000000_00_bad.md skipped" in result.summary
+
+    def test_document_is_not_its_own_sibling(self, tmp_path: Path) -> None:
+        proc = _write_procedure(
+            tmp_path, SECOND, "1. Add `SelfHelperClass` (new). Call `GhostHelperClass`."
+        )
+        result = StaleResult.from_procedure(proc, tmp_path, sibling_mode="any")
+        assert result.resolved == []
+        assert result.is_stale is True
+
+    def test_new_fields_default_and_merge(self) -> None:
+        result = StaleResult.clean()
+        assert result.resolved == []
+        assert result.warnings == []
+        other = StaleResult.clean()
+        other.resolved.append({"name": "Name", "document": "doc.md"})
+        other.warnings.append("note")
+        result.merge(other)
+        assert result.resolved == [{"name": "Name", "document": "doc.md"}]
+        assert result.warnings == ["note"]
+        assert StaleResult.from_dict({"is_stale": False}).resolved == []
+
+
+class TestSiblingCli:
+    def _case(self, tmp_path: Path) -> Path:
+        _write_procedure(tmp_path, FIRST, "1. Add `LaterHelperClass` (new).")
+        return _write_procedure(
+            tmp_path, SECOND, "1. Call `LaterHelperClass`."
+        ).relative_to(tmp_path)
+
+    def test_default_resolves_earlier_sibling(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        proc = self._case(tmp_path)
+        code = main([str(tmp_path / proc), "--source-dir", str(tmp_path)])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "order rule = earlier" in out
+        assert "resolved from sibling: LaterHelperClass" in out
+
+    def test_no_siblings_flag_exits_one(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        proc = self._case(tmp_path)
+        code = main(
+            [str(tmp_path / proc), "--source-dir", str(tmp_path), "--no-siblings"]
+        )
+        out = capsys.readouterr().out
+        assert code == 1
+        assert "Sibling resolution" not in out
+
+    def test_sibling_order_any_flag_resolves_later_sibling(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _write_procedure(tmp_path, FIRST, "1. Call `LaterHelperClass`.")
+        _write_procedure(tmp_path, SECOND, "1. Add `LaterHelperClass` (new).")
+        proc = tmp_path / "implementations" / FIRST
+        base = [str(proc), "--source-dir", str(tmp_path)]
+        assert main(base) == 1
+        capsys.readouterr()
+        code = main([*base, "--sibling-order", "any"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "order rule = any" in out
+
+
+# ── Companion test files ─────────────────────────────────────────────────────
+
+
+def _companion_procedure(
+    tmp_path: Path,
+    companions_block: str,
+    body: str = "",
+    target: str = "`scripts/mod.py`",
+) -> Path:
+    """Write a source tree and a procedure with a `### Companion test files`
+    section: target `scripts/mod.py` (3 lines), existing companion
+    `tests/test_mod.py` (4 lines), and an existing `tests/` directory.
+    """
+    (tmp_path / "scripts").mkdir(exist_ok=True)
+    (tmp_path / "tests").mkdir(exist_ok=True)
+    (tmp_path / "scripts" / "mod.py").write_text(
+        "def target_function():\n    return 1\n", encoding="utf-8"
+    )
+    (tmp_path / "tests" / "test_mod.py").write_text(
+        "def test_one():\n    assert True\n\n", encoding="utf-8"
+    )
+    proc = tmp_path / "procedure.md"
+    proc.write_text(
+        f"## Implementation\n### Target file\n{target}\n\n### Details\n{body}\n"
+        f"### Companion test files\n{companions_block}\n## Next\n",
+        encoding="utf-8",
+    )
+    return proc
+
+
+def _companion_entry(
+    path: str, *, new: bool = False, procedure: str = "add tests"
+) -> str:
+    marker = " (new)" if new else ""
+    return f"- `{path}`{marker}\n  - Procedure: {procedure}\n  - Validation: run them\n"
+
+
+class TestCompanionStaleDetection:
+    @staticmethod
+    def _types(result: StaleResult) -> list[str]:
+        return [m["type"] for m in result.mismatches]
+
+    def test_parse_companions_splits_section_and_blocks(self) -> None:
+        text = (
+            "### Target file\n`a.py`\n\n"
+            "### Companion test files\n"
+            + _companion_entry("tests/test_a.py", new=True)
+            + _companion_entry("tests/test_b.py")
+            + "\n## Next\nafter\n"
+        )
+
+        primary, companions = _parse_companions(text)
+
+        assert "Companion" not in primary
+        assert primary.endswith("## Next\nafter\n")
+        assert [(path, new) for path, new, _ in companions] == [
+            ("tests/test_a.py", True),
+            ("tests/test_b.py", False),
+        ]
+        assert "test_b.py" not in companions[0][2]
+
+    def test_existing_companion_is_clean(self, tmp_path: Path) -> None:
+        proc = _companion_procedure(tmp_path, _companion_entry("tests/test_mod.py"))
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert result.is_stale is False
+        assert result.target_file == "scripts/mod.py"
+
+    def test_new_companion_in_existing_directory_is_clean(self, tmp_path: Path) -> None:
+        proc = _companion_procedure(
+            tmp_path, _companion_entry("tests/test_new.py", new=True)
+        )
+
+        assert StaleResult.from_procedure(proc, source_dir=tmp_path).is_stale is False
+
+    def test_new_companion_that_exists_reports_new_target_exists(
+        self, tmp_path: Path
+    ) -> None:
+        proc = _companion_procedure(
+            tmp_path, _companion_entry("tests/test_mod.py", new=True)
+        )
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert self._types(result) == ["new_target_exists"]
+        assert result.mismatches[0]["detail"].endswith("(companion tests/test_mod.py)")
+
+    def test_new_companion_in_missing_directory_reports_dir_missing(
+        self, tmp_path: Path
+    ) -> None:
+        proc = _companion_procedure(
+            tmp_path, _companion_entry("no_such_dir/test_new.py", new=True)
+        )
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert self._types(result) == ["new_target_dir_missing"]
+
+    def test_absent_existing_companion_reports_source_missing(
+        self, tmp_path: Path
+    ) -> None:
+        proc = _companion_procedure(tmp_path, _companion_entry("tests/test_gone.py"))
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert self._types(result) == ["source_missing"]
+        assert (
+            "tests/test_gone.py (companion tests/test_gone.py)"
+            in (result.mismatches[0]["detail"])
+        )
+
+    def test_line_citation_in_bounds_of_companion_passes(self, tmp_path: Path) -> None:
+        # The companion has 4 lines (the target has 3): line 4 exists only in it.
+        proc = _companion_procedure(
+            tmp_path, _companion_entry("tests/test_mod.py", procedure="edit line 4")
+        )
+
+        assert StaleResult.from_procedure(proc, source_dir=tmp_path).is_stale is False
+
+    def test_line_citation_out_of_bounds_of_companion_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        proc = _companion_procedure(
+            tmp_path, _companion_entry("tests/test_mod.py", procedure="edit line 50")
+        )
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert self._types(result) == ["line_out_of_bounds"]
+        assert "(companion tests/test_mod.py)" in result.mismatches[0]["detail"]
+
+    def test_companion_line_citation_is_not_checked_against_target(
+        self, tmp_path: Path
+    ) -> None:
+        # Line 4 is past the 3-line target but inside the companion: if the
+        # companion block were checked against the target this would fail.
+        proc = _companion_procedure(
+            tmp_path, _companion_entry("tests/test_mod.py", procedure="see line 4")
+        )
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert "line_out_of_bounds" not in self._types(result)
+
+    def test_unscoped_line_citation_of_new_companion_is_skipped(
+        self, tmp_path: Path
+    ) -> None:
+        proc = _companion_procedure(
+            tmp_path,
+            _companion_entry("tests/test_new.py", new=True, procedure="see line 99"),
+        )
+
+        assert StaleResult.from_procedure(proc, source_dir=tmp_path).is_stale is False
+
+    def test_missing_symbol_under_companion_keeps_phrase_and_gets_suffix(
+        self, tmp_path: Path
+    ) -> None:
+        proc = _companion_procedure(
+            tmp_path,
+            _companion_entry("tests/test_mod.py", procedure="call `ghost_symbol_xyz`"),
+        )
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert self._types(result) == ["symbol_missing"]
+        detail = result.mismatches[0]["detail"]
+        assert detail.startswith("Symbol 'ghost_symbol_xyz' not found in source")
+        assert detail.endswith("(companion tests/test_mod.py)")
+
+    def test_companion_text_is_not_checked_against_the_target(
+        self, tmp_path: Path
+    ) -> None:
+        # `test_one` exists in the companion, not the target or anywhere else
+        # unscoped; a companion block checked against the target would still
+        # pass repo-wide, so use a Before: block that only the companion holds.
+        proc = _companion_procedure(
+            tmp_path,
+            _companion_entry(
+                "tests/test_mod.py",
+                procedure="replace\n    # Before:\n    def test_one():\n    # After:",
+            ),
+        )
+
+        assert StaleResult.from_procedure(proc, source_dir=tmp_path).is_stale is False
+
+    def test_primary_checks_ignore_the_companion_section(self, tmp_path: Path) -> None:
+        # `target_function` lives in the target; a stale name in the body is
+        # still reported once, against the target, without a companion suffix.
+        proc = _companion_procedure(
+            tmp_path,
+            _companion_entry("tests/test_mod.py"),
+            body="Uses `missing_target_helper`.\n",
+        )
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert self._types(result) == ["symbol_missing"]
+        assert "companion" not in result.mismatches[0]["detail"]
+
+
+class TestNoCompanionRegression:
+    def test_document_without_companion_section_is_unchanged(self) -> None:
+        text = "### Target file\n`a.py`\n\n### Details\nline 3\n"
+
+        assert _parse_companions(text) == (text, [])
+
+    def test_clean_document_summary_is_unchanged(self, tmp_path: Path) -> None:
+        (tmp_path / "scripts").mkdir()
+        (tmp_path / "scripts" / "mod.py").write_text(
+            "def target_function():\n    return 1\n", encoding="utf-8"
+        )
+        proc = tmp_path / "procedure.md"
+        proc.write_text(
+            "### Target file\n`scripts/mod.py`\n\nEdit `target_function` at line 1.\n",
+            encoding="utf-8",
+        )
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert result.summary == (
+            "Procedure is not stale — all referenced constructs found."
+        )
+        assert result.target_file == "scripts/mod.py"
+        assert result.mismatches == []
+
+    def test_stale_document_mismatches_are_unchanged(self, tmp_path: Path) -> None:
+        (tmp_path / "scripts").mkdir()
+        (tmp_path / "scripts" / "mod.py").write_text(
+            "def target_function():\n    return 1\n", encoding="utf-8"
+        )
+        proc = tmp_path / "procedure.md"
+        proc.write_text(
+            "### Target file\n`scripts/mod.py`\n\nEdit `gone_function` at line 40.\n",
+            encoding="utf-8",
+        )
+
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+
+        assert result.mismatches == [
+            {
+                "type": "line_out_of_bounds",
+                "detail": "Line 40 exceeds source file length (3)",
+            },
+            {
+                "type": "symbol_missing",
+                "detail": "Symbol 'gone_function' not found in source",
+            },
+        ]

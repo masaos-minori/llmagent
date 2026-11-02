@@ -11,7 +11,8 @@ skill produces the `implementations/` step.
   `.` character replaced by `_`, `timestamp` is shared across every document
   generated in one Step 3 pass, and `seq` is the row's 1-indexed, zero-padded
   position within the plan's `Implementation Target Files` table
-  (`templates/plan.md`) — sorting filenames reproduces the implementation order.
+  (`templates/plan.md`) — sorting filenames reproduces the implementation order. A
+  companion test row (Step 3c) has no file of its own, so its `seq` is skipped.
 - Archive destination: `plans/done/`
 - Workflow phase: `plan-to-implementation-procedure`
 
@@ -47,6 +48,8 @@ Repository tools for this workflow (see `tools/TOOL_DESCRIPTIONS.md` for usage):
 - `tools/manage_workitem_stage.py set-step-status` (Step 4, the Plan's `### Execution
   Status` row updates without hand-editing the table).
 - `tools/check_plan_target_overlaps.py` (Step 2, candidate overlaps between Frozen Plans).
+- `tools/plan_dependency_order.py` (Step 2, ready or gated state of the Plan's dependencies; report-only).
+- `tools/amend_plan.py` (Step 3c, append an additional target file to the Frozen Plan and re-run its checks).
 - `tools/manage_workitem_stage.py close-plan` (Step 4, `git mv`-based archival move).
 
 Per `rules/ai-execution.md` Repository Tool Usage, prefer these over the manual command; Step 3 and Step 4 state the fallback if a tool
@@ -117,8 +120,12 @@ simultaneously.
     definition (`issue-to-plan` Step 6 ends `Blocked` while one remains). Report it and
     ask the user to resolve it in the Plan first.
   - The Plan's `Scope` lists a Dependency on another open Plan or Issue (including a fix
-    order against sibling plans). Report it and ask whether to proceed; do not decide the
-    order here.
+    order against sibling plans). Run `uv run python tools/plan_dependency_order.py --plan
+    {plan_path}` and report its result: each blocking item (path and phase), each `Needs
+    confirmation` line for a dependency it cannot resolve, and each `prose-dependency`
+    warning. A `gated` result ends the cycle `Blocked`: report it and ask whether to
+    proceed; do not decide the order here, the tool only recommends. If the user says to
+    proceed, every procedure generated for this Plan carries the gated marker (Step 3c).
   - Run `uv run python tools/check_plan_target_overlaps.py`. It lists candidates only, never
     a verdict. For each overlap that names this Plan, read both Plans and record in the
     generated documents' `Assumptions` whether it is a conflict, a sequencing dependency,
@@ -264,7 +271,10 @@ mechanism) and will be reused for every document this pass creates.
 
 For each row in `Implementation Target Files`, in the order they appear in that table
 — **one target file = one implementation procedure document** (see `SKILL.md` Core
-Execution Rules):
+Execution Rules). One exception: a test file that qualifies as a companion of a code
+row (the conditions are in the "One target file = one procedure document" rule of
+`SKILL.md`) is covered by that row's document and gets none of its own. A test file that fails a
+condition keeps its own document, and every other file keeps the one-file rule:
 
 - `target_file_path` is the row's `File Path` (e.g. `scripts/agent/foo.py`);
   `target_file_name` is its base name only. Use `target_file_path` for traceability
@@ -276,7 +286,7 @@ Execution Rules):
   already implemented, so re-running an interrupted cycle assigns the same `seq` to
   the same row every time.
 - `Implementation Target Files` disallows duplicate `File Path` rows once `Frozen`
-  (see `rules/workflow-lifecycle.md`), so each row maps to exactly one document — no
+  (see `rules/workflow-lifecycle.md`), so each row is covered by exactly one document, as its target or as a companion — no
   merging is needed. If a duplicate `File Path` is found across rows, the Plan was not
   correctly frozen; stop and report `Blocked`.
 - Classify the row's implementation state:
@@ -286,7 +296,7 @@ Execution Rules):
     same path, since a Plan moves after its documents are written) and
     `Related target files` equal to the current
     repository-relative target path (matched via `target_file_path`, not only
-    `target_file_name`), AND — confirmed against current source, not just the matched
+    `target_file_name`) or lists it as a companion after its primary target, AND — confirmed against current source, not just the matched
     document's text — its stated scope covers the current row's full scope. The
     target source file merely existing is not sufficient evidence; read the matched
     document's content and confirm.
@@ -304,7 +314,11 @@ Execution Rules):
   `Needs confirmation`.
 - If `Not implemented`, create the document only (MUST NOT implement anything):
   - Create a file-level implementation and test procedure document containing
-    modification instructions for exactly this row's `File Path` — no other file.
+    modification instructions for exactly this row's `File Path` — no other file,
+    except that an eligible test row of this code row may be added as a companion: the
+    document lists the target first and each companion in its `### Companion test files`
+    section (`templates/implementation-procedure.md` Notes), and the companion row gets
+    no document.
   - Optionally scaffold the empty file first with `uv run python
     tools/generate_workitem.py --kind implementation-procedure --source-plan
     {plan_path} --target-file-path {target_file_path} --seq {seq}` — it reproduces
@@ -322,11 +336,16 @@ Execution Rules):
     same check `code-implementation` runs before executing a procedure, so a stale
     reference surfaces here instead of aborting that later cycle). For each mismatch:
     (1) a name, import, or target file this document creates — add `(new)` after it
-    (see `templates/implementation-procedure.md` Notes); (2) a name that only an
-    earlier-`seq` row's procedure in this Plan creates — acceptable, because it will
-    exist when `code-implementation` executes the rows in order; note it in the
-    document's Assumptions; (3) anything else is a stale reference — correct the
-    document and re-run.
+    (see `templates/implementation-procedure.md` Notes); (2) a name that only a
+    sibling procedure of this Plan marks `(new)` — the tool resolves a name declared by an
+    earlier-`seq` sibling and prints a `resolved from sibling` line naming the declaring
+    document, so it is not a mismatch and needs no Assumptions note (the note is needed
+    only when the tool was run with `--no-siblings` or the document has no `Source plan`);
+    a name declared only by a later-`seq` sibling stays a mismatch with that sibling named
+    in its detail, and is corrected here (reorder the rows or move the declaration);
+    (3) anything else is a stale reference — correct the
+    document and re-run. The tool checks a companion's `(new)` marks and line citations
+    against the companion, not against the primary target.
   - If the resulting path already exists, this can only mean an interrupted cycle is
     being resumed and the classification above did not treat it as covering this row
     (e.g. stale or partial-scope content) — it MUST NOT be overwritten. Stop and
@@ -347,12 +366,21 @@ Execution Rules):
   listed in `Implementation Target Files`, this is an **additional target file
   discovery** — stop immediately and report `Blocked: additional target file
   discovered — {path}`. MUST NOT generate a procedure document for this or any further
-  row until the Plan has been amended (the new file added as its own `Implementation
-  Target Files` row appended after the last existing row — never inserted earlier,
-  so no existing row's `seq` changes — with evidence and a Requirement link) and
-  revalidated/re-frozen
-  per `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
-  Freeze). Once re-frozen, resume this same session's cycle from Step 3c at the row
+  row until the Plan has been amended and revalidated/re-frozen per
+  `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
+  Freeze). Amend through `uv run python tools/amend_plan.py {plan_path} --file {path}
+  --responsibility ... --reason ... --requirement {REQ-ID} --evidence ... --tests ...
+  --step {N} --class fallout|scope` (add `--dry-run` first to preview every edit): it
+  appends the new `Implementation Target Files` row after the last existing row —
+  never inserted earlier, so no existing row's `seq` changes — with evidence and a
+  Requirement link, edits the other Plan sections consistently, re-checks the four
+  Freeze criteria for the row (`Draft` on a failure), and prints the structure,
+  path-audit, and overlap checks. State the class per `rules/workflow-lifecycle.md` Plan
+  Amendment Approval Classes (proposed): for a fallout amendment, amend without asking
+  and report it afterward (file, class, reason); for a scope or behavior change, a new requirement,
+  or a removed row, stop `Blocked: additional target file discovered — {path}` and
+  ask before amending; while that policy is not accepted, treat every amendment as the
+  second class. Once re-frozen, resume this same session's cycle from Step 3c at the row
   that discovered the gap — MUST NOT restart from Step 2's Revalidation (already
   satisfied by the re-freeze) or from row 1.
 - If investigation instead reveals that this row's approach needs to change but no
@@ -364,10 +392,20 @@ Execution Rules):
   re-invoke this skill: Step 3c's classification resumes only the unfinished rows.
 - Apply `rules/workflow-lifecycle.md` Requirement Reference Format in the generated
   document (see `templates/implementation-procedure.md`).
+- Fill the `Release unit` line of `## Scope`: take the Plan's `Implementation steps` entry that
+  cites this row's `File Path` (the step-to-row mapping Step 4 uses); when that step number is
+  listed in `Phases` of a `### Release units` entry, write that unit's name, otherwise leave the
+  default `N/A: not part of a release unit`.
 - Judge each row against the template's "Lightweight fill for small rows" criteria
   (`templates/implementation-procedure.md` Notes) and shrink the optional-detail sections
   accordingly. This changes only the section bodies — it never merges rows, drops
   headings, or skips the Blocked/Plan Gap checks above.
+- When the user chose to proceed with a gated Plan in Step 2, start the Notes cell of each
+  pending row of every generated document with `Gated: {blocking path} phase {N or all}
+  - {reason}`, as `templates/execution-status.md` defines it: write it while authoring
+  the document, or with `set-step-status implementation-procedure {path} --step {N}
+  Pending --notes "Gated: ..."` only while that row's Notes is empty (the call appends).
+  The owner decides the order and clears the marker, not this workflow.
 
 **Completed when**: every row has been classified and assigned exactly one outcome —
 skipped (`Already implemented`), a scoped document created (`Partially implemented` or
@@ -413,12 +451,17 @@ cycle created. Verify that:
   that ended `Blocked`, `Plan Gap`, or the terminal `Needs confirmation` has no document
   and fails this check;
 - the number of `Implementation Target Files` rows equals the number of rows covered
-  (each counted once, including `Already implemented` matches), and the documents
-  generated this cycle number at most one per row;
-- every document generated this cycle maps back to exactly one row, and no row has more
-  than one document generated this cycle;
-- no procedure document modifies more than one file (its `Implementation > Target
-  file` names exactly one path);
+  (each counted once, including `Already implemented` matches and companions covered by
+  their code row's document), and the documents generated this cycle number at most one
+  per code or standalone row;
+- every document generated this cycle maps back to exactly one row (plus its companion
+  rows), and no row has more than one document generated this cycle; no companion is
+  also the target or a companion of another document;
+- no procedure document modifies more than one file except its companions (its
+  `Implementation > Target file` names exactly one path, and every other file it changes
+  is a companion in `### Companion test files`);
+- run `uv run python tools/check_workitem_traceability.py --plan-coverage {plan_path}`
+  and require exit 0 before the move;
 - no file outside `Implementation Target Files` was added as a modification target
   during this cycle (an additional target file discovery MUST already have been
   reported `Blocked` and resolved per Step 3, not silently included here);
@@ -435,7 +478,8 @@ This workflow MUST update the Plan's own `### Execution Status` table (in
 `plans/{filename}.md`) before the move — MUST NOT leave any row `Pending` once
 its outcome is known. That table has one row per Plan `Implementation steps` entry
 (same numbering — see `issue-to-plan` Step 5), not one row per `Implementation Target
-Files` row. A procedure document carries out the modification of one file, so only a
+Files` row. A procedure document carries out the modification of one file plus its companions (a
+step citing a companion's `File Path` maps to the same document), so only a
 step that modifies a cited `File Path` is mapped to procedures. A step that only runs
 checks or gates, records a baseline, deploys, or waits for a user decision modifies no
 file: leave its row as it is — `code-implementation` or a person carries it out — and it
@@ -460,8 +504,10 @@ leaving it `Pending` silently.
 Add one row to the Plan's `### Work Items Created` table for each procedure document
 generated this cycle (replacing the placeholder row on the first one): Item ID = the
 document's repository-relative path, Related Step = the mapped step number(s), Type =
-`Procedure`, Status = `Pending`, Owner and Due Date = `—`. There is no tool for this
-table; edit it directly. `tools/manage_workitem_stage.py close-batch` finds the owning
+`Procedure`, Status = `Pending`, Owner and Due Date = `—`. Adding these rows is a direct
+edit. Updating their Status after execution is done by `uv run python
+tools/close_procedures_batch.py` (see `skills/code-implementation/workflow.md` Step 7).
+`tools/manage_workitem_stage.py close-batch` finds the owning
 Plan first by the `implementations/<prefix>_` text in the Plan, and only otherwise by a
 shared `Source issue`, which is ambiguous when several Plans share one Issue.
 
@@ -507,6 +553,7 @@ format above stays for step-by-step updates; the final report adds:
   with its next action for the user;
 - every edit made to the Plan in Step 3a (which sections, and why), the Plan steps treated
   as unmapped in Step 4, and any Plan-level overlap found in Step 2;
+- each gated procedure with its blocking item (empty when the Plan is not gated);
 - the next step: run `code-implementation` over the documents in `seq` order.
 
 ---

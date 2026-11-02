@@ -181,12 +181,12 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rule and template: `skills/plan-to-implementation-procedure/SKILL.md`, `skills/plan-to-implementation-procedure/workflow.md`, `templates/implementation-procedure.md` | In Progress | — | — |  |
-| 2 | Traceability and coverage check: `tools/check_workitem_traceability.py`, `tests/tools/test_check_workitem_traceability.py` | In Progress | — | — |  |
-| 3 | Stale detector: `tools/stale_detector.py`, `tests/tools/test_stale_detector.py` | In Progress | — | — |  |
-| 4 | Generator: `tools/generate_workitem.py`, `tests/tools/test_generate_workitem.py` | In Progress | — | — |  |
-| 5 | Execution workflow: `skills/code-implementation/workflow.md` | In Progress | — | — |  |
-| 6 | Verification: lint sequence, walk-through, checkers | Pending | — | — |  |
+| 1 | Rule and template: `skills/plan-to-implementation-procedure/SKILL.md`, `skills/plan-to-implementation-procedure/workflow.md`, `templates/implementation-procedure.md` | Completed | — | 20261102-133710 |  |
+| 2 | Traceability and coverage check: `tools/check_workitem_traceability.py`, `tests/tools/test_check_workitem_traceability.py` | Completed | — | 20261102-133948 |  |
+| 3 | Stale detector: `tools/stale_detector.py`, `tests/tools/test_stale_detector.py` | Completed | — | 20261102-134150 |  |
+| 4 | Generator: `tools/generate_workitem.py`, `tests/tools/test_generate_workitem.py` | Completed | — | 20261102-134321 |  |
+| 5 | Execution workflow: `skills/code-implementation/workflow.md` | Completed | — | 20261102-133730 |  |
+| 6 | Verification: lint sequence, walk-through, checkers | Completed | — | 20261102-135347 | Lint/type/security clean on 3 tools and 3 test files; skills checkers clean; plan-end full suite 11180 passed, 1 known pre-existing failure (mdq bind gate, /opt/llm/docs); diff-cover N/A (no scripts/ change). AC-7 walk-through with --plan-coverage logic over current Related Tests cells: wftaskapi001 12 rows -> 10 docs (2 companions), wfrecovery001 26 -> 20 (6), dbmig001 23 -> 20 (3); older Plans mostly name tests in prose so only backticked-path ties qualify. TOOL_DESCRIPTIONS rows not updated (UNK-03). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -196,16 +196,16 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261102-085649_01_skills_plan-to-implementation-procedure_SKILL.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261102-085649_02_skills_plan-to-implementation-procedure_workflow.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261102-085649_03_templates_implementation-procedure.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261102-085649_04_skills_code-implementation_workflow.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261102-085649_05_tools_check_workitem_traceability.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-085649_06_tests_tools_test_check_workitem_traceability.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-085649_07_tools_stale_detector.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261102-085649_08_tests_tools_test_stale_detector.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261102-085649_09_tools_generate_workitem.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261102-085649_10_tests_tools_test_generate_workitem.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261102-085649_01_skills_plan-to-implementation-procedure_SKILL.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261102-085649_02_skills_plan-to-implementation-procedure_workflow.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261102-085649_03_templates_implementation-procedure.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261102-085649_04_skills_code-implementation_workflow.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261102-085649_05_tools_check_workitem_traceability.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261102-085649_06_tests_tools_test_check_workitem_traceability.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261102-085649_07_tools_stale_detector.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261102-085649_08_tests_tools_test_stale_detector.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261102-085649_09_tools_generate_workitem.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261102-085649_10_tests_tools_test_generate_workitem.py.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

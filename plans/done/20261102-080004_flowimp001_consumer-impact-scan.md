@@ -164,9 +164,9 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tool and tests: `tools/scan_change_consumers.py`, `tests/tools/test_scan_change_consumers.py` | In Progress | — | — |  |
-| 2 | Registration: `tools/TOOL_DESCRIPTIONS.md`, `routing.md`, `tools/run_validation_gates.py` | In Progress | — | — |  |
-| 3 | Skill and template: `skills/issue-to-plan/workflow.md`, `templates/plan.md` | In Progress | — | — |  |
+| 1 | Tool and tests: `tools/scan_change_consumers.py`, `tests/tools/test_scan_change_consumers.py` | Completed | — | 20261102-101341 |  |
+| 2 | Registration: `tools/TOOL_DESCRIPTIONS.md`, `routing.md`, `tools/run_validation_gates.py` | Completed | — | 20261102-101341 |  |
+| 3 | Skill and template: `skills/issue-to-plan/workflow.md`, `templates/plan.md` | Completed | — | 20261102-101341 |  |
 | 4 | Verification: lint sequence, live run with recall record, checkers | Pending | — | — |  |
 
 ### Blocker Log

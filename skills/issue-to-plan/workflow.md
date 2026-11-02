@@ -228,6 +228,14 @@ Step 2's same-cycle dedup rule and depth ceiling apply to this step.
   the same target without a changed input (`rules/ai-execution.md` Tool Usage). This
   does not change `workflow-path-b.md`'s "once all four analyses are complete" gate.
 
+- **Consumer scan** (a change to a persisted schema, a public API, or a shared
+  constant): before Step 5, run `uv run python tools/scan_change_consumers.py --seed
+  <seed>` once per changed symbol, column or table name, constant, or file, and record
+  every candidate in the Plan's `Design` section as a target row, a reference row, or
+  `not affected: {reason}` (format: `templates/plan.md`). The report lists candidates
+  only, so a missing consumer is not evidence of absence; read its testmon state line.
+  The scan is guidance and does not block the Plan.
+
 Read only the section(s) located via `rg`/grep for the target symbol or claim, unless
 that section alone omits context the claim depends on (e.g. a decorator, base class, or
 module-level state defined elsewhere in the same file) — in that case read the full file.
@@ -385,6 +393,10 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 - Every claim MUST be backed by evidence gathered above (for Path A, by Step 3's direct
   verification).
 - Implementation steps MUST be small enough to be independently revertable.
+- When phases cannot each be validated alone (a phase breaks existing callers or tests until
+  another phase lands, such as a `NOT NULL` column added before its write path), declare a
+  release unit in the `### Release units` block of `templates/plan.md`, naming the member
+  phases and the reason; otherwise leave the default `N/A: no release unit`.
 - A deploy step MUST be included if `scripts/`/`config/` changes. Write it as a hand-off
   to `skills/deploy/SKILL.md` and state its prerequisite: the change is committed and
   pushed first, and deploying is the user's decision (it has an approval gate). If a new

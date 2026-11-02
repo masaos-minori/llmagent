@@ -169,10 +169,10 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tool and tests: `tools/amend_plan.py`, `tests/tools/test_amend_plan.py` | In Progress | — | — |  |
-| 2 | Rule and skills: `rules/workflow-lifecycle.md`, `skills/plan-to-implementation-procedure/workflow.md`, `skills/code-implementation/workflow.md` | In Progress | — | — |  |
-| 3 | Registration: `tools/TOOL_DESCRIPTIONS.md`, `routing.md`, `tools/run_validation_gates.py` | In Progress | — | — |  |
-| 4 | Verification: lint sequence, dry-run comparison, checkers | Pending | — | — |  |
+| 1 | Tool and tests: `tools/amend_plan.py`, `tests/tools/test_amend_plan.py` | Completed | — | 20261102-135836 |  |
+| 2 | Rule and skills: `rules/workflow-lifecycle.md`, `skills/plan-to-implementation-procedure/workflow.md`, `skills/code-implementation/workflow.md` | Completed | — | 20261102-135950 |  |
+| 3 | Registration: `tools/TOOL_DESCRIPTIONS.md`, `routing.md`, `tools/run_validation_gates.py` | Completed | — | 20261102-140044 |  |
+| 4 | Verification: lint sequence, dry-run comparison, checkers | Completed | — | 20261102-141105 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -182,14 +182,14 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261102-085611_01_tools_amend_plan.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261102-085611_02_tests_tools_test_amend_plan.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261102-085611_03_rules_workflow-lifecycle.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-085611_04_skills_plan-to-implementation-procedure_workflow.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-085611_05_skills_code-implementation_workflow.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261102-085611_06_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261102-085611_07_routing.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261102-085611_08_tools_run_validation_gates.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261102-085611_01_tools_amend_plan.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261102-085611_02_tests_tools_test_amend_plan.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261102-085611_03_rules_workflow-lifecycle.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261102-085611_04_skills_plan-to-implementation-procedure_workflow.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261102-085611_05_skills_code-implementation_workflow.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261102-085611_06_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261102-085611_07_routing.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261102-085611_08_tools_run_validation_gates.py.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

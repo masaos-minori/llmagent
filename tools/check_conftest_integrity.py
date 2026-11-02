@@ -67,6 +67,7 @@ REQUIRED_AUTOUSE_FIXTURES: tuple[str, ...] = (
     "_reset_tool_registry",
     "_reset_web_search_health_and_metrics",
     "_forbid_production_paths",
+    "_guard_production_db_files",
 )
 
 

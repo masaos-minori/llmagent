@@ -36,6 +36,13 @@ Type options: Test / Code Change / Doc Change / Procedure / Issue
 - Resolved column in Blocker Log: use `N/A: {short reason}` when a blocker does not
   apply to a resolution date (e.g. a structural non-issue), rather than leaving it
   blank.
+- Gated marker (procedure rows only): a procedure of a gated Plan (a Plan with an open
+  dependency, as reported by `tools/plan_dependency_order.py`) carries
+  `Gated: {blocking path} phase {N or all} - {reason}` as the start of the Notes cell of
+  its pending rows. Status stays `Pending` and no Status value is added: `Blocked` is for a
+  row that started and hit a blocker. `plan-to-implementation-procedure` writes the
+  marker; only the owner clears it, and `code-implementation` never does. The tool
+  recomputes readiness, so a stale marker never overrides it.
 - Started/Completed (Execution Status) and Resolution Date (Blocker Log) record actual
   work execution/completion times. Use the same timestamp format as Traceability's
   "Generated at" (`templates/traceability.md`): determine it by running

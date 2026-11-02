@@ -50,6 +50,16 @@ Usage:
     python tools/generate_workitem.py --kind plan --estimate-tokens \\
         --source-issue issues/20260901-100000_nc020_fix-the-thing.md
 
+Companion test files (`--companion`, implementation-procedure only, with a single
+`--target-file-path`): repeat `--companion tests/...` once per test file that the row's
+document covers as a companion (`templates/implementation-procedure.md` Notes, "Companion
+test files"). The scaffold then names the target under `### Target file`, lists the target
+first and every companion in `Related target files`, and adds a `### Companion test files`
+block with a `Procedure:` and `Validation:` placeholder per companion. A companion must lie
+under `tests/` and differ from the target and from the other companions, or the tool exits
+non-zero before writing. Without `--companion` the scaffold is the unchanged template
+skeleton. `--companion` is rejected with `--all-rows`, which never groups rows.
+
 Batch mode (`--all-rows`, implementation-procedure only): generates one
 placeholder skeleton per row of the source Plan's own `## Implementation
 Target Files` table (per `templates/plan.md`), in row order, with `--seq`
@@ -327,6 +337,55 @@ def extract_target_file_rows(plan_content: str) -> list[str]:
     return rows
 
 
+COMPANION_HEADING = "### Companion test files"
+
+
+def companion_block(companions: list[str]) -> str:
+    """The `### Companion test files` block for *companions*: a one-line reminder
+    about the `(new)` marker, then per path a bullet with `Procedure:` and
+    `Validation:` placeholder lines (format per `templates/implementation-procedure.md`).
+    """
+    lines = [
+        COMPANION_HEADING,
+        "{Add (new) after a path below that does not exist yet; delete this line.}",
+    ]
+    for path in companions:
+        lines.append(f"- `{path}`")
+        lines.append("  - Procedure: {one line}")
+        lines.append("  - Validation: {one line}")
+    return "\n".join(lines) + "\n"
+
+
+def apply_companions(skeleton: str, target: str, companions: list[str]) -> str:
+    """Complete *skeleton* for a document with companion test files.
+
+    Writes the backticked *target* under `### Target file`, replaces the
+    `{target_file_path}` placeholder with the comma-separated list (target first, then
+    each companion), and inserts the companion block after `### Details`. Raises
+    GenerationError when an anchor is missing from *skeleton*.
+    """
+    for anchor in ("### Target file\n", "{target_file_path}", "### Details\n"):
+        _require(anchor in skeleton, f"skeleton has no {anchor.strip()!r} anchor")
+    listed = ", ".join(f"`{path}`" for path in [target, *companions])
+    completed = skeleton.replace(
+        "### Target file\n", f"### Target file\n`{target}`\n", 1
+    )
+    completed = completed.replace("{target_file_path}", listed, 1)
+    return completed.replace(
+        "### Details\n", "### Details\n\n" + companion_block(companions), 1
+    )
+
+
+def _validate_companions(target: str, companions: list[str]) -> None:
+    """Reject a companion outside `tests/` or repeating the target or another companion."""
+    for index, path in enumerate(companions):
+        _require(path.startswith("tests/"), f"--companion must be under tests/: {path}")
+        _require(path != target, f"--companion must differ from the target: {path}")
+        _require(
+            path not in companions[:index], f"--companion given more than once: {path}"
+        )
+
+
 def generate_all_rows(args: argparse.Namespace, timestamp: str) -> int:
     """Batch mode for `--kind implementation-procedure --all-rows`: generate
     one skeleton per row of the source Plan's `Implementation Target Files`
@@ -409,8 +468,12 @@ def render_implementation_procedure(
         source_plan_path.exists(),
         f"--source-plan path does not exist: {args.source_plan}",
     )
+    companions: list[str] = args.companion or []
+    _validate_companions(args.target_file_path, companions)
     pass_timestamp = find_or_record_pass_timestamp(source_plan_path, timestamp)
     skeleton = extract_fenced_skeleton(TEMPLATE_IMPLEMENTATION_PROCEDURE)
+    if companions:
+        skeleton = apply_companions(skeleton, args.target_file_path, companions)
     output_path = implementation_procedure_output_path(
         pass_timestamp, args.seq, args.target_file_path
     )
@@ -497,6 +560,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--companion",
+        action="append",
+        metavar="TEST_PATH",
+        help=(
+            "Implementation-procedure mode, with --target-file-path: a test file "
+            "under tests/ that this row's document covers as a companion; repeat "
+            "for each one. See this module's docstring, Companion test files."
+        ),
+    )
+    parser.add_argument(
         "--estimate-tokens",
         action="store_true",
         help=(
@@ -560,6 +633,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    if args.companion and (args.kind != "implementation-procedure" or args.all_rows):
+        print(
+            "error: --companion applies only to --kind implementation-procedure "
+            "with --target-file-path, not --all-rows",
+            file=sys.stderr,
+        )
+        return 1
 
     if args.kind == "implementation-procedure" and args.all_rows:
         try:

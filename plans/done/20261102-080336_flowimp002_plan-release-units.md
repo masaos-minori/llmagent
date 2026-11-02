@@ -169,11 +169,11 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Templates and authoring text: `templates/plan.md`, `templates/implementation-procedure.md`, `skills/issue-to-plan/workflow.md`, `skills/plan-to-implementation-procedure/workflow.md` | In Progress | — | — |  |
-| 2 | Declaration check: `tools/check_workitem_structure.py`, `tests/tools/test_check_workitem_structure.py` | In Progress | — | — |  |
-| 3 | Grouped display: `tools/manage_workitem_stage.py`, `tests/tools/test_manage_workitem_stage.py` | In Progress | — | — |  |
-| 4 | Batch mode: `skills/code-implementation/workflow.md` | In Progress | — | — |  |
-| 5 | Verification: lint sequence, walk-through, checkers | Pending | — | — |  |
+| 1 | Templates and authoring text: `templates/plan.md`, `templates/implementation-procedure.md`, `skills/issue-to-plan/workflow.md`, `skills/plan-to-implementation-procedure/workflow.md` | Completed | — | 20261102-125133 |  |
+| 2 | Declaration check: `tools/check_workitem_structure.py`, `tests/tools/test_check_workitem_structure.py` | Completed | — | 20261102-125351 |  |
+| 3 | Grouped display: `tools/manage_workitem_stage.py`, `tests/tools/test_manage_workitem_stage.py` | Completed | — | 20261102-125457 |  |
+| 4 | Batch mode: `skills/code-implementation/workflow.md` | Completed | — | 20261102-125222 |  |
+| 5 | Verification: lint sequence, walk-through, checkers | Completed | — | 20261102-130434 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

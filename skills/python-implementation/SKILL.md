@@ -104,6 +104,7 @@ Apply `skills/DESIGN.md` Pythonic safety constraints (no placeholders, no debug 
 - `git-commit-and-sync` — to stage, commit, and push on request; this skill never commits on its own
 - `deploy` — only on the user's request, after the change is committed and pushed (it deploys a pushed HEAD behind an approval gate), if `scripts/` or `config/` changed
 - `issue-to-plan` — if implementation starts from an approved plan in `plans/`, verify scope against the plan before Phase 5
+- `rules/persisted-schema-change.md` (a rule file, not a skill) — load it when the change touches DDL, a schema version, or a migration, before Phase 5
 - `code-implementation` — calls this skill in its Step 3 (Implement the feature) when executing an approved implementation procedure from `implementations/*.md`; verify scope against that procedure document, not just the Plan, before Phase 5
 
 ---

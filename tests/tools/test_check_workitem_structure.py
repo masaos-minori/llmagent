@@ -140,3 +140,91 @@ def test_infer_kind_from_directory(
     assert cwis.infer_kind(tmp_path / "plans" / "done" / "x_plan.md") == "plan"
     assert cwis.infer_kind(tmp_path / "implementations" / "x.md") == "implementation"
     assert cwis.infer_kind(tmp_path / "other" / "x.md") is None
+
+
+_UNIT_OK = (
+    "**Unit**: schema-and-write | **Phases**: 1, 2 | **Reason**: phase 1 breaks inserts"
+)
+
+
+def _plan_with_block(block: str | None, *, outside: bool = False) -> str:
+    """Return a minimal Plan body with an optional ``### Release units`` block."""
+    steps = (
+        "## Implementation steps\n1. **Phase 1: A**\n   - [ ] x\n2. **Phase 2: B**\n"
+    )
+    heading = "" if block is None else f"\n### Release units\n{block}\n"
+    if outside:
+        return f"{steps}\n## Validation plan\nbody\n{heading}"
+    return f"{steps}{heading}\n## Validation plan\nbody\n"
+
+
+def _unit_findings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str
+) -> list[dict[str, str]]:
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    doc = _write(tmp_path / "plans", "20260103-000000_plan.md", body)
+    return [
+        f
+        for f in cwis.collect_single_file_findings(doc)
+        if f["category"] == "release-unit"
+    ]
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        _UNIT_OK,
+        f"{_UNIT_OK}\n**Unit**: second | **Phases**: 2 | **Reason**: coupled",
+        "N/A: no release unit",
+    ],
+)
+def test_release_unit_valid_declarations_pass(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, block: str
+) -> None:
+    assert _unit_findings(tmp_path, monkeypatch, _plan_with_block(block)) == []
+
+
+def test_release_unit_absent_block_is_unaffected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert _unit_findings(tmp_path, monkeypatch, _plan_with_block(None)) == []
+
+
+@pytest.mark.parametrize(
+    ("block", "fragment"),
+    [
+        ("**Unit**:  | **Phases**: 1, 2 | **Reason**: why", "missing unit name"),
+        ("**Unit**: u | **Reason**: why", "expected `**Unit**"),
+        ("**Unit**: u | **Phases**: 1, 2 | **Reason**:", "missing reason"),
+        ("**Unit**: u | **Phases**: 1, x | **Reason**: why", "non-numeric"),
+        ("**Unit**: u | **Phases**: 1, 7 | **Reason**: why", "[7] are not top-level"),
+        ("   ", "block is empty"),
+        ("some prose line", "expected `**Unit**"),
+    ],
+)
+def test_release_unit_malformed_declarations_fail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, block: str, fragment: str
+) -> None:
+    findings = _unit_findings(tmp_path, monkeypatch, _plan_with_block(block))
+    assert len(findings) == 1
+    assert fragment in findings[0]["detail"]
+
+
+def test_release_unit_block_outside_implementation_steps_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    body = _plan_with_block(_UNIT_OK, outside=True)
+    findings = _unit_findings(tmp_path, monkeypatch, body)
+    assert len(findings) == 1
+    assert "outside `## Implementation steps`" in findings[0]["detail"]
+
+
+def test_release_unit_real_template_skeleton_has_no_finding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    text = (_SRC_ROOT / "templates" / "plan.md").read_text(encoding="utf-8")
+    fence = cwis._FENCE_RE.search(text)
+    assert fence is not None
+    assert "### Release units" in fence.group(1)
+    assert _unit_findings(tmp_path, monkeypatch, fence.group(1)) == []

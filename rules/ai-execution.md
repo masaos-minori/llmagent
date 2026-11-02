@@ -251,6 +251,15 @@ verified`.
   change made, a decision taken, a failure, or a blocker) — a workflow's own
   "Progress recording" section, if it has one, defines workflow-specific trigger
   conditions for interim, within-step updates.
+- In addition to that cadence, before a command expected to take longer than one minute,
+  and before any command started in the background, emit exactly one line stating what is
+  awaited and the expected duration. The line may be the tool call description or a
+  separate line. A command expected to finish within one minute gets no announcement, and
+  a workflow does not override this threshold.
+- Do not add polling or periodic messages while such a wait lasts. When the platform
+  delivers a background command's completion, report its result in one line (exit status
+  and the outcome that matters); this line replaces, and is not added to, the step's own
+  report.
 - Every reported value is read back from where the workflow already recorded it (e.g. a
   Plan document, an earlier Step's decision, a validation result) by default — not
   recomputed for the report. This is the same default as `Context Reading`'s "reuse a

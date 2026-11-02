@@ -22,13 +22,16 @@ from tools.manage_workitem_stage import (
     cmd_close_implementation,
     cmd_close_issue,
     cmd_close_plan,
+    cmd_list,
     cmd_set_status,
     cmd_set_step_status,
+    cmd_show,
     move_to_done,
     parse_execution_status_table,
 )
 from tools.manage_workitem_stage import _find_remote_conflict as find_remote_conflict
 from tools.manage_workitem_stage import _run_with_lock_retry as run_with_lock_retry
+from tools.manage_workitem_stage import main as manage_main
 
 # Well-formed `### Execution Status` table matching
 # `templates/execution-status.md`'s column structure, with one `Pending` row.
@@ -1298,3 +1301,324 @@ def test_close_batch_integration_archives_and_updates_plan(
     for row in rows:
         assert re.fullmatch(r"\d{8}-\d{6}", row[started_col])
         assert re.fullmatch(r"\d{8}-\d{6}", row[completed_col])
+
+
+# --- list --plan --order (flowimp003, REQ-004) -----------------------------------
+
+_ORDER_PLAN = "plans/20260101-000000_order_plan.md"
+
+
+def _order_plan_text() -> str:
+    return (
+        "## Implementation steps\n"
+        "1. **Phase 1: first**\n"
+        "   - [ ] change one (`REQ-001`; `tools/one.py`)\n"
+        "2. **Phase 2: second**\n"
+        "   - [ ] change two (`REQ-002`; `tools/two.py`, `tools/three.py`)\n\n"
+        "## Validation plan\n"
+        "- cites `tools/unmatched.py` outside the steps\n"
+    )
+
+
+def _order_procedure_text(
+    plan: str, target: str, notes: str = "", status: str = "Pending"
+) -> str:
+    return (
+        "## Execution Status\n\n"
+        "### Execution Status\n"
+        "| Step | Description | Status | Started | Completed | Notes |\n"
+        "|------|-------------|--------|---------|-----------|-------|\n"
+        f"| 1 | do it | {status} | — | — | {notes} |\n\n"
+        "## Traceability\n"
+        f"- **Source plan**: {plan}\n"
+        f"- **Related target files**: {target}\n"
+    )
+
+
+def _order_fixture(
+    root: Path, plan_dir: str = "plans", notes_for_three: str = ""
+) -> None:
+    (root / plan_dir).mkdir(parents=True, exist_ok=True)
+    (root / "implementations").mkdir(exist_ok=True)
+    (root / plan_dir / "20260101-000000_order_plan.md").write_text(
+        _order_plan_text(), encoding="utf-8"
+    )
+    plan = _ORDER_PLAN
+    procedures = {
+        "20260102-000000_01_tools_one.py.md": ("tools/one.py", ""),
+        "20260102-000000_02_tools_two.py.md": ("tools/two.py", ""),
+        "20260102-000000_03_tools_three.py.md": ("tools/three.py", notes_for_three),
+        "20260102-000000_04_tools_unmatched.py.md": ("tools/other.py", ""),
+    }
+    for name, (target, notes) in procedures.items():
+        (root / "implementations" / name).write_text(
+            _order_procedure_text(plan, target, notes), encoding="utf-8"
+        )
+    # A procedure of another Plan must never be listed.
+    (root / "implementations" / "20260102-000000_05_foreign.md").write_text(
+        _order_procedure_text("plans/other_plan.md", "tools/one.py"),
+        encoding="utf-8",
+    )
+
+
+def test_list_order_groups_procedures_by_plan_phase(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _order_fixture(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert manage_main(["list", "--plan", _ORDER_PLAN, "--order"]) == 0
+
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
+    assert lines[0] == f"Plan: {_ORDER_PLAN}"
+    assert lines[1] == "  Phase 1"
+    assert "01_tools_one.py.md [Pending]" in lines[2]
+    assert lines[3] == "  Phase 2"
+    assert "02_tools_two.py.md" in lines[4]
+    assert "03_tools_three.py.md" in lines[5]
+    assert lines[6] == "  Phase (unmatched)"
+    assert "04_tools_unmatched.py.md" in lines[7]
+    assert "05_foreign" not in captured.out
+
+
+def test_list_order_warns_for_procedure_no_step_cites(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _order_fixture(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    manage_main(["list", "--plan", _ORDER_PLAN, "--order"])
+
+    err = capsys.readouterr().err
+    assert (
+        "WARNING: no Plan step cites "
+        "implementations/20260102-000000_04_tools_unmatched.py.md"
+    ) in err
+    assert err.count("WARNING") == 1
+
+
+def test_list_order_sorts_by_seq_within_a_phase(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _order_fixture(tmp_path)
+    (tmp_path / "plans" / "20260101-000000_order_plan.md").write_text(
+        "## Implementation steps\n1. all\n   - `tools/one.py` `tools/two.py` "
+        "`tools/three.py` `tools/other.py`\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    manage_main(["list", "--plan", _ORDER_PLAN, "--order"])
+
+    out = capsys.readouterr().out
+    positions = [out.index(f"_0{seq}_") for seq in (1, 2, 3, 4)]
+    assert positions == sorted(positions)
+    assert "Phase (unmatched)" not in out
+
+
+def test_list_order_plan_without_procedures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "plans").mkdir()
+    (tmp_path / "plans" / "20260101-000000_empty_plan.md").write_text(
+        _order_plan_text(), encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    plan = "plans/20260101-000000_empty_plan.md"
+    assert manage_main(["list", "--plan", plan, "--order"]) == 0
+    assert capsys.readouterr().out == f"No procedures found for plan {plan}\n"
+
+
+def test_list_order_archived_plan_path_selects_same_procedures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _order_fixture(tmp_path, plan_dir="plans/done")
+    monkeypatch.chdir(tmp_path)
+
+    # Procedures name `plans/x.md`; the Plan itself sits in `plans/done/`.
+    for arg in (_ORDER_PLAN, "plans/done/20260101-000000_order_plan.md"):
+        assert manage_main(["list", "--plan", arg, "--order"]) == 0
+        out = capsys.readouterr().out
+        assert "01_tools_one.py.md" in out
+        assert "05_foreign" not in out
+
+
+def test_list_order_marks_gated_procedure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _order_fixture(tmp_path, notes_for_three="Gated: plans/x.md — needs it")
+    monkeypatch.chdir(tmp_path)
+
+    manage_main(["list", "--plan", _ORDER_PLAN, "--order"])
+
+    out = capsys.readouterr().out
+    gated_lines = [line for line in out.splitlines() if "[gated]" in line]
+    assert len(gated_lines) == 1
+    assert "03_tools_three.py.md" in gated_lines[0]
+
+
+def test_list_order_flag_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _order_fixture(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert manage_main(["list", "--order"]) == 2
+    assert "--order requires --plan" in capsys.readouterr().err
+    assert manage_main(["list", "--plan", _ORDER_PLAN]) == 2
+    assert "--plan requires --order" in capsys.readouterr().err
+    assert manage_main(["list", "--plan", "plans/missing.md", "--order"]) == 1
+    assert "ERROR: plan not found: plans/missing.md" in capsys.readouterr().err
+
+
+def test_list_without_order_output_is_unchanged(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "plans").mkdir()
+    (tmp_path / "plans" / "p.md").write_text(
+        _order_procedure_text("N/A", "N/A"), encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert manage_main(["list", "--kind", "plan"]) == 0
+
+    assert capsys.readouterr().out == "\nStatus: Pending\n  [plan] plans/p.md\n"
+
+
+def _unit_procedure(tmp_path: Path, name: str, unit: str, plan: str) -> Path:
+    """Write a procedure with a `Release unit` Scope line and a `Source plan`."""
+    directory = tmp_path / "implementations"
+    directory.mkdir(exist_ok=True)
+    path = directory / name
+    path.write_text(
+        "## Scope\n"
+        f"**Release unit**: {unit}\n\n"
+        "## Execution Status\n\n### Execution Status\n"
+        "| Step | Description | Status | Started | Completed | Notes |\n"
+        "|------|-------------|--------|---------|-----------|-------|\n"
+        "| 1 | Do the thing | Pending | \u2014 | \u2014 | |\n\n"
+        "## Traceability\n"
+        f"- **Source plan**: {plan}\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_list_groups_members_of_one_release_unit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _unit_procedure(tmp_path, "a_01.md", "schema-write", "plans/p1.md")
+    _unit_procedure(tmp_path, "a_02.md", "schema-write", "plans/p1.md")
+    _unit_procedure(
+        tmp_path, "a_03.md", "N/A: not part of a release unit", "plans/p1.md"
+    )
+
+    assert (
+        cmd_list(
+            build_parser().parse_args(["list", "--kind", "implementation-procedure"])
+        )
+        == 0
+    )
+
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[1] == "Status: Pending"
+    assert lines[2] == "  [implementation-procedure] implementations/a_03.md"
+    assert lines[3] == "  Unit: schema-write (plans/p1.md)"
+    assert lines[4:] == [
+        "    [implementation-procedure] implementations/a_01.md",
+        "    [implementation-procedure] implementations/a_02.md",
+    ]
+
+
+def test_list_same_unit_name_under_two_plans_makes_two_groups(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _unit_procedure(tmp_path, "a_01.md", "u", "plans/p1.md")
+    _unit_procedure(tmp_path, "b_01.md", "u", "plans/done/p2.md")
+
+    assert (
+        cmd_list(
+            build_parser().parse_args(["list", "--kind", "implementation-procedure"])
+        )
+        == 0
+    )
+
+    out = capsys.readouterr().out
+    assert "  Unit: u (plans/p1.md)\n" in out
+    assert "  Unit: u (plans/p2.md)\n" in out
+
+
+def test_list_without_units_prints_the_ungrouped_format(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _unit_procedure(
+        tmp_path, "a_01.md", "N/A: not part of a release unit", "plans/p1.md"
+    )
+
+    assert (
+        cmd_list(
+            build_parser().parse_args(["list", "--kind", "implementation-procedure"])
+        )
+        == 0
+    )
+
+    assert capsys.readouterr().out == (
+        "\nStatus: Pending\n  [implementation-procedure] implementations/a_01.md\n"
+    )
+
+
+def test_show_prints_release_unit_only_for_a_member(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    member = _unit_procedure(tmp_path, "a_01.md", "schema-write", "plans/p1.md")
+    other = _unit_procedure(
+        tmp_path, "a_02.md", "N/A: not part of a release unit", "plans/p1.md"
+    )
+
+    assert (
+        cmd_show(
+            build_parser().parse_args(["show", "implementation-procedure", str(member)])
+        )
+        == 0
+    )
+    assert capsys.readouterr().out.splitlines()[-1] == "Release unit: schema-write"
+
+    assert (
+        cmd_show(
+            build_parser().parse_args(["show", "implementation-procedure", str(other)])
+        )
+        == 0
+    )
+    out = capsys.readouterr().out
+    assert "Release unit" not in out
+    assert out.splitlines()[-1].startswith("| 1 |")

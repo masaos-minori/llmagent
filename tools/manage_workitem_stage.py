@@ -47,6 +47,7 @@ Subcommands:
   detect-stale          list plans/implementations not modified in --days (default 7)
                          that are still In Progress or Pending
   list                  list plans/implementations, optionally filtered by --kind/--status
+                         or, with --plan PLAN --order, one Plan's procedures in phase order
   show                  print a plan's or implementation procedure's Execution Status table
 
 Usage:
@@ -62,6 +63,7 @@ Usage:
     python tools/manage_workitem_stage.py set-status plan plans/20260101_plan.md Completed
     python tools/manage_workitem_stage.py detect-stale --days 14
     python tools/manage_workitem_stage.py list --kind implementation-procedure --status "In Progress"
+    python tools/manage_workitem_stage.py list --plan plans/20260101_plan.md --order
     python tools/manage_workitem_stage.py show plan plans/20260101_plan.md
 """
 
@@ -1147,6 +1149,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Filter by status (omit to show all; e.g. 'In Progress', 'InProgress', 'in_progress')",
     )
+    list_parser.add_argument(
+        "--plan",
+        default=None,
+        help="With --order: the Plan whose procedures are listed (plans/ or plans/done/)",
+    )
+    list_parser.add_argument(
+        "--order",
+        action="store_true",
+        help="With --plan: list that Plan's procedures grouped by Plan phase order",
+    )
 
     # show: display Execution Status table
     show_parser = subparsers.add_parser(
@@ -1285,8 +1297,140 @@ def cmd_detect_stale(args):
     return 0
 
 
+_PHASE_LINE_RE = re.compile(r"^(\d+)\.\s")
+_NO_PHASE = float("inf")
+
+
+def _extract_traceability_field(content: str, label: str) -> str | None:
+    """Return the text after a `**{label}**:` Traceability field, backticks removed."""
+    match = re.search(rf"\*\*{re.escape(label)}\*\*:[ \t]*(.+)", content)
+    if match is None:
+        return None
+    return match.group(1).strip().replace("`", "")
+
+
+def _plan_phase_map(plan_text: str) -> list[tuple[int, str]]:
+    """Return `(phase number, item text)` for each `## Implementation steps` item.
+
+    An item opens at a line starting `N. ` and runs through its sub-bullets.
+    """
+    match = re.search(r"(?m)^## Implementation steps\s*$", plan_text)
+    if match is None:
+        return []
+    following = re.compile(r"(?m)^## ").search(plan_text, match.end())
+    section = plan_text[match.end() : following.start() if following else None]
+    phases: list[tuple[int, list[str]]] = []
+    for line in section.splitlines():
+        opener = _PHASE_LINE_RE.match(line)
+        if opener is not None:
+            phases.append((int(opener.group(1)), [line]))
+        elif phases:
+            phases[-1][1].append(line)
+    return [(number, "\n".join(lines)) for number, lines in phases]
+
+
+def _phase_of_targets(targets: list[str], phases: list[tuple[int, str]]) -> int | float:
+    """Return the first Plan phase citing any of `targets`, or `_NO_PHASE`."""
+    for number, text in phases:
+        for target in targets:
+            if re.search(rf"(?<![\w/.-]){re.escape(target)}(?![\w/-])", text):
+                return number
+    return _NO_PHASE
+
+
+def _normalize_plan_path(path: str) -> str:
+    """Treat `plans/done/x.md` and `plans/x.md` as the same Plan."""
+    return path.replace("plans/done/", "plans/", 1)
+
+
+def _resolve_plan_file(plan_arg: str) -> Path | None:
+    """Return the Plan file at `plan_arg`, or its `plans/` / `plans/done/` twin."""
+    plan = Path(plan_arg)
+    if plan.is_file():
+        return plan
+    normalized = _normalize_plan_path(plan.as_posix())
+    for candidate in (Path(normalized), Path(normalized).parent / "done" / plan.name):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _procedure_is_gated(content: str) -> bool:
+    rows = parse_execution_status_rows(content) or []
+    return any(row.get("Notes", "").startswith("Gated:") for row in rows)
+
+
+def _release_unit_name(content: str) -> str | None:
+    """Return the unit named by a procedure's `**Release unit**` line, or None.
+
+    `None` when the line is absent or its value starts with `N/A` (no unit).
+    """
+    match = re.search(
+        r"(?m)^[ \t]*(?:- )?\*\*Release unit\*\*:[ \t]*(.+?)[ \t]*$", content
+    )
+    if match is None:
+        return None
+    name = match.group(1).replace("`", "").strip()
+    return None if not name or name.startswith("N/A") else name
+
+
+def _source_plan_path(content: str) -> str | None:
+    """Return the normalized `**Source plan**` path, or None when absent or `N/A`."""
+    value = _extract_traceability_field(content, "Source plan")
+    if value is None or value.startswith("N/A"):
+        return None
+    return _normalize_plan_path(value)
+
+
+def cmd_list_order(args):
+    """List the procedures of one Plan grouped by Plan phase order (read-only)."""
+    plan = _resolve_plan_file(args.plan)
+    if plan is None:
+        print(f"ERROR: plan not found: {args.plan}", file=sys.stderr)
+        return 1
+    plan_key = _normalize_plan_path(plan.as_posix())
+    phases = _plan_phase_map(plan.read_text(encoding="utf-8"))
+
+    entries: list[tuple[int | float, int, Path, str]] = []
+    for fpath in _get_workitem_files("implementation-procedure"):
+        content = fpath.read_text(encoding="utf-8")
+        source = _extract_traceability_field(content, "Source plan")
+        if source is None or _normalize_plan_path(source) != plan_key:
+            continue
+        related = _extract_traceability_field(content, "Related target files") or ""
+        targets = [item.strip() for item in related.split(",") if item.strip()]
+        seq_match = re.match(r"\d{8}-\d{6}_(\d+)_", fpath.name)
+        seq = int(seq_match.group(1)) if seq_match else 0
+        entries.append((_phase_of_targets(targets, phases), seq, fpath, content))
+
+    if not entries:
+        print(f"No procedures found for plan {args.plan}")
+        return 0
+
+    print(f"Plan: {args.plan}")
+    current: int | float | None = None
+    for phase, _seq, fpath, content in sorted(entries, key=lambda e: (e[0], e[1])):
+        if phase != current:
+            current = phase
+            print("  Phase (unmatched)" if phase == _NO_PHASE else f"  Phase {phase}")
+        status = _get_status_from_file(fpath) or "no status"
+        gated = " [gated]" if _procedure_is_gated(content) else ""
+        print(f"    {fpath} [{status}]{gated}")
+        if phase == _NO_PHASE:
+            print(f"WARNING: no Plan step cites {fpath}", file=sys.stderr)
+    return 0
+
+
 def cmd_list(args):
     """List workitems filtered by kind and/or status."""
+    if args.order and not args.plan:
+        print("ERROR: --order requires --plan", file=sys.stderr)
+        return 2
+    if args.plan and not args.order:
+        print("ERROR: --plan requires --order", file=sys.stderr)
+        return 2
+    if args.order:
+        return cmd_list_order(args)
     kinds = [args.kind] if args.kind else ["implementation-procedure", "plan"]
     results = {}
 
@@ -1297,7 +1441,13 @@ def cmd_list(args):
                 continue
             if args.status and args.status not in status:
                 continue
-            results.setdefault(status, []).append((fpath, kind))
+            unit_key = None
+            if kind == "implementation-procedure":
+                content = fpath.read_text(encoding="utf-8")
+                unit = _release_unit_name(content)
+                if unit is not None:
+                    unit_key = (_source_plan_path(content) or "N/A", unit)
+            results.setdefault(status, []).append((fpath, kind, unit_key))
 
     if not results:
         print("No items found")
@@ -1305,8 +1455,16 @@ def cmd_list(args):
 
     for status in sorted(results.keys()):
         print(f"\nStatus: {status}")
-        for fpath, kind in results[status]:
-            print(f"  [{kind}] {fpath}")
+        groups = {}
+        for fpath, kind, unit_key in results[status]:
+            if unit_key is None:
+                print(f"  [{kind}] {fpath}")
+            else:
+                groups.setdefault(unit_key, []).append(fpath)
+        for (source_plan, unit), members in sorted(groups.items()):
+            print(f"  Unit: {unit} ({source_plan})")
+            for fpath in members:
+                print(f"    [implementation-procedure] {fpath}")
     return 0
 
 
@@ -1331,6 +1489,9 @@ def cmd_show(args):
     print(build_table_separator_line(len(header)))
     for row in data_rows:
         print(build_data_row_line(header, row))
+    unit = _release_unit_name(content)
+    if unit is not None:
+        print(f"Release unit: {unit}")
     return 0
 
 

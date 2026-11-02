@@ -29,7 +29,7 @@ scale that was only discovered after the fact, via a full-suite run.
 
 ## Standard validation sequence
 
-Run in this order after each implementation step. As one command, the full sequence runs via `uv run python tools/run_validation_gates.py`: it discovers the changed files, selects the gates each change needs, and runs them in this documented order (fast mode by default; `--full` adds the complete run). Use it as the single entry point for a diff, or follow the steps below for a per-step run.
+Run in this order after each implementation step. As one command, the full sequence runs via `uv run python tools/run_validation_gates.py`: it discovers the changed files, selects the gates each change needs, and runs them in this documented order (fast mode by default; `--full` adds the complete run). Use it as the single entry point for a diff, or follow the steps below for a per-step run. Every tool-backed `.pre-commit-config.yaml` hook must have a gate mapping in `tools/run_validation_gates.py` or a reviewed allowlist entry there, enforced by `uv run python tools/run_validation_gates.py drift` (also a pre-commit hook).
 
 ### 1. Format and lint (ruff)
 

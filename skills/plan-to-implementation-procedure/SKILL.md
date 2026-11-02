@@ -47,9 +47,20 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   modification instructions for more than one file. For a `Partially implemented` row,
   the existing document that already covers part of the row and the one remainder
   document this cycle generates together cover the row (`workflow.md` Step 3c).
+  Exception, for test files only: a test file that is a companion of a code row's document
+  is covered by that document and gets none of its own. A test file is a companion only when
+  all of the following hold: (1) it is a row of this Plan's `Implementation Target Files`
+  table and lies under `tests/`; (2) exactly one other row names it in its `Related Tests`
+  cell; (3) it needs no design decision of its own; (4) the document's `Related target
+  files` lists the target first, then each companion. The document records each companion in
+  its `### Companion test files` section (defined in `templates/implementation-procedure.md`).
+  A companion MUST NOT also be the target or a companion of another document. The rule is
+  unchanged for source files, docs, config, and any test file that fails a condition.
 - **No duplicate work**: a row may be skipped only when an existing document under
   `implementations/` or `implementations/done/` has both a matching `Source plan` and a
-  matching `Related target files` (by `target_file_path`, not `target_file_name`).
+  matching `Related target files` (by `target_file_path`, not `target_file_name`), or when an
+  existing document with a matching `Source plan` lists the row's file as a companion.
+  `tools/check_workitem_traceability.py` checks row coverage for a Plan.
 - **Sortable, collision-safe naming**: see `workflow.md`, section "Workflow position",
   for the `{timestamp}_{seq}_{target_file_slug}.md` naming algorithm.
 - **Frozen-inventory revalidation**: before generating any document, revalidate the

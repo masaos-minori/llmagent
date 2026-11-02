@@ -9,10 +9,14 @@ copy of config/ and schemas/ (writable-state paths rewritten into the root) and 
 LLMAGENT_CONFIG_DIR, EVENTBUS_CONFIG_PATH, EVENTBUS_SCHEMA_PATH, and LLMAGENT_LOG_DIR
 (read by shared.logger). An autouse guard fails a test that opens a SQLite database or
 a FileHandler under /opt/llm unless the test carries the marker
-``production_paths_allowed``.
+``production_paths_allowed``. A session-scoped autouse fixture also fingerprints the
+files under /opt/llm/db at session start and fails the session at finish, naming each
+file, when any of them changed, which covers writes made by a subprocess that the
+in-process guard cannot see.
 """
 
 import atexit
+import hashlib
 import logging
 import os
 import re
@@ -20,7 +24,7 @@ import shutil
 import sqlite3
 import sys
 import tempfile
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +45,10 @@ _WRITABLE_STATE_RE = re.compile(
     r"/opt/llm/(db|storage|offsets|deadletter|rag-src|logs|memory)\b"
 )
 _CREATED_ROOT: Path | None = None
+# Read at call time so a test can point the session check at a stand-in directory.
+_PRODUCTION_DB_DIR = Path(_PRODUCTION_ROOT) / "db"
+# Fingerprints of the production database files, or None when the directory is absent.
+_db_baseline: dict[str, tuple[int, int, str]] | None = None
 
 
 def _cleanup_isolated_root(root: Path) -> None:
@@ -168,6 +176,13 @@ def _setup_isolation() -> Path:
 
 
 _ISOLATED_ROOT = _setup_isolation()
+_ISOLATION_ENV_VARS = (
+    "LLMAGENT_CONFIG_DIR",
+    "EVENTBUS_CONFIG_PATH",
+    "EVENTBUS_SCHEMA_PATH",
+    "LLMAGENT_LOG_DIR",
+    "LLMAGENT_TEST_ROOT",
+)
 
 
 def _is_production_path(path: object) -> bool:
@@ -179,6 +194,65 @@ def _is_production_path(path: object) -> bool:
         return False
     resolved = os.path.realpath(text)
     return resolved == _PRODUCTION_ROOT or resolved.startswith(_PRODUCTION_ROOT + "/")
+
+
+def _fingerprint_directory(directory: Path) -> dict[str, tuple[int, int, str]]:
+    """Map each file under ``directory`` to (size, st_mtime_ns, sha256 of its bytes).
+
+    Plain file reads only: no SQLite connection is opened, because a connection can
+    create -wal/-shm sidecars and would itself touch the production files.
+    """
+    result: dict[str, tuple[int, int, str]] = {}
+    for path in directory.rglob("*"):
+        try:
+            if not path.is_file():
+                continue
+            stat = path.stat()
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            # The file vanished between listing and reading (a service rotated it).
+            continue
+        result[path.relative_to(directory).as_posix()] = (
+            stat.st_size,
+            stat.st_mtime_ns,
+            digest,
+        )
+    return result
+
+
+def _changed_files(
+    before: dict[str, tuple[int, int, str]], after: dict[str, tuple[int, int, str]]
+) -> list[str]:
+    """Return sorted "name (changed|added|removed)" entries between two fingerprints."""
+    changes = [
+        f"{name} (changed)"
+        for name in before.keys() & after.keys()
+        if before[name] != after[name]
+    ]
+    changes.extend(f"{name} (added)" for name in after.keys() - before.keys())
+    changes.extend(f"{name} (removed)" for name in before.keys() - after.keys())
+    return sorted(changes)
+
+
+def _refresh_db_baseline() -> None:
+    """Record the current fingerprint of the production database directory."""
+    global _db_baseline
+    if _PRODUCTION_DB_DIR.is_dir():
+        _db_baseline = _fingerprint_directory(_PRODUCTION_DB_DIR)
+    else:
+        _db_baseline = None
+
+
+def _assert_production_db_unchanged() -> None:
+    """Fail the session, naming each file, when the production database files changed."""
+    if _db_baseline is None or not _PRODUCTION_DB_DIR.is_dir():
+        return
+    changes = _changed_files(_db_baseline, _fingerprint_directory(_PRODUCTION_DB_DIR))
+    if changes:
+        pytest.fail(
+            "session changed production database files: " + ", ".join(changes),
+            pytrace=False,
+        )
 
 
 def _production_file_handlers() -> list[logging.FileHandler]:
@@ -326,6 +400,41 @@ def _reset_web_search_health_and_metrics() -> Generator[None]:
     metrics.reset_browser()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _guard_production_db_files() -> Generator[None]:
+    """Fail the session when a file under /opt/llm/db changed while the tests ran.
+
+    The per-test guard patches sqlite3 and logging in the test process only; a test
+    that runs a subprocess bypasses it. This check compares byte-level fingerprints
+    taken at session start and finish, and is skipped when the directory is absent.
+    """
+    _refresh_db_baseline()
+    yield
+    _assert_production_db_unchanged()
+
+
+@pytest.fixture
+def isolated_subprocess_env() -> Callable[..., dict[str, str]]:
+    """Return a builder for a subprocess environment that keeps the test isolation.
+
+    Only PATH, HOME, and the isolation variables are forwarded, so other secrets in
+    os.environ do not reach the child; ``extra`` is applied last and may override.
+    """
+
+    def build(extra: Mapping[str, str] | None = None) -> dict[str, str]:
+        env = {
+            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "HOME": os.environ.get("HOME", ""),
+        }
+        for name in _ISOLATION_ENV_VARS:
+            if name in os.environ:
+                env[name] = os.environ[name]
+        env.update(extra or {})
+        return env
+
+    return build
+
+
 @pytest.fixture(autouse=True)
 def _forbid_production_paths(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
@@ -338,6 +447,7 @@ def _forbid_production_paths(
     """
     if request.node.get_closest_marker("production_paths_allowed") is not None:
         yield
+        _refresh_db_baseline()
         return
     real_connect = sqlite3.connect
     real_init = logging.FileHandler.__init__

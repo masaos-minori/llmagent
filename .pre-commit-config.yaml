@@ -117,6 +117,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(issues|plans|implementations)/.*\.md$
+      - id: gates-hook-parity
+        name: Check validation gates and pre-commit hooks stay in parity
+        entry: python -m tools.run_validation_gates drift
+        language: system
+        pass_filenames: false
+        files: ^(\.pre-commit-config\.yaml|routing\.md|tools/run_validation_gates\.py)$
       - id: mock-patch-targets
         name: Check mock.patch targets reach the code under test
         entry: python -m tools.check_mock_patch_targets
