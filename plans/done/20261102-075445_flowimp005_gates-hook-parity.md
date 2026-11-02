@@ -157,7 +157,7 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 | 1 | Drift check reads the hooks: `tools/run_validation_gates.py`, `tests/tools/test_run_validation_gates.py` | Completed | — | 20261102-093315 |  |
 | 2 | Map the seven checkers: `tools/run_validation_gates.py`, `routing.md`, `tests/tools/test_run_validation_gates.py` | Completed | — | 20261102-093315 |  |
 | 3 | Hook and documentation: `.pre-commit-config.yaml`, `rules/toolchain.md`, `tools/TOOL_DESCRIPTIONS.md` | Completed | — | 20261102-093315 |  |
-| 4 | Verification of all changed files | Pending | — | — |  |
+| 4 | Verification of all changed files | Completed | 20261102-153320 | 20261102-153320 | Audit 20261102: drift OK (42 checkers mapped, hooks in parity); targeted gates/conftest/isolation/deploy tests 87 passed; full suite 11262 passed, 8 skipped, 0 failed after the close_procedures_batch fixture identity fix. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -112,7 +112,7 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add the rule: `rules/ai-execution.md` | Completed | — | 20261102-091842 |  |
-| 2 | Verification: checkers, no-restatement check, read-through of `rules/ai-execution.md` | Pending | — | — |  |
+| 2 | Verification: checkers, no-restatement check, read-through of `rules/ai-execution.md` | Completed | 20261102-153320 | 20261102-153320 | Audit 20261102: check_skills_references and heading cycles no findings; rg -i announc skills prompts no match; read-through of Progress Reporting (Base) consistent with Output; full suite 11262 passed, 8 skipped, 0 failed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
