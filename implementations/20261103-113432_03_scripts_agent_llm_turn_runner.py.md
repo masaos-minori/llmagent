@@ -168,10 +168,12 @@ In-place call-site rewrites; no new methods, no signature changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write red companion tests, confirm they fail (Procedure 1; Companion test files) | Pending | — | — | |
-| 2 | Add `import asyncio`, rewrite the three guard sites with flush awaits (Procedure 2-3) | Pending | — | — | |
-| 3 | Offload the three `_handle_llm_error` writes via `asyncio.to_thread` (Procedure 4) | Pending | — | — | |
-| 4 | UNK-01 config_loader read; run this document's checks (Validation plan 2-4) | Pending | — | — | |
+| 1 | Write red companion tests, confirm they fail (Procedure 1; Companion test files) | Completed | — | 20261103-182803 |  |
+| 2 | Add `import asyncio`, rewrite the three guard sites with flush awaits (Procedure 2-3) | Completed | 20261103-182803 | 20261103-183121 |  |
+| 3 | Offload the three `_handle_llm_error` writes via `asyncio.to_thread` (Procedure 4) | Completed | — | 20261103-183121 |  |
+| 4 | UNK-01 config_loader read; run this document's checks (Validation plan 2-4) | Completed | 20261103-183121 | 20261103-183121 | UNK-01: `config_loader.load`/`load_all` are pure reads — no cache, no mutable shared state; the class-level `_allowed_files` frozenset is only mutated at process startup — concurrent worker-thread reads are safe, no `asyncio.Lock` added. Gates: 50 passed; radon `run` stays C(15), no new C-or-worse; bandit 1 pre-existing Low B101 (noqa'd), no new finding; check_module_size no FAIL; ruff/format/mypy clean |
+
+Companion-test deviations (recorded at execution): responsiveness tests assert worker-thread identity plus a 10 ms probe task ticking on the same loop (instead of `threading.Event` stub + `call_soon`); three flush-order tests were written (check_all trip, empty-result trip, non-trip ordering) instead of two. Fixture adjustment: `_make_guard()` and the inline guard in `TestRunRoundAtomicity` stub `flush_guard_hints` as `AsyncMock` — required because `run()` now awaits it unconditionally on all guard-mock paths.
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

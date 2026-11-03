@@ -7,8 +7,11 @@ Tests the inner LLM streaming + tool-call loop in isolation.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sqlite3
+import threading
+import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -65,6 +68,8 @@ def _make_guard() -> MagicMock:
     guard.check_all.return_value = None
     guard.check_error_limit.return_value = None
     guard.update_errors.return_value = 0
+    # blockio001 REQ-002: run() awaits flush_guard_hints() after each guard check.
+    guard.flush_guard_hints = AsyncMock(return_value=None)
     return guard
 
 
@@ -869,6 +874,7 @@ class TestRunRoundAtomicity:
             guard.check_empty_result_repeat.return_value = None
             guard.check_unavailable_repeat.return_value = None
             guard.update_errors.return_value = 0
+            guard.flush_guard_hints = AsyncMock(return_value=None)
             ctx = MagicMock()
             ctx.conv = conv
             ctx.turn.persistence_boundary = boundary
@@ -1193,3 +1199,211 @@ class TestControlMessageInjection:
         asyncio.run(runner._stream_llm("http://llm", 0))
         sent_history = runner._ctx.services_required.llm.stream.await_args[0][1]
         assert sent_history == original
+
+
+class TestGuardFlushWiring:
+    """blockio001 procedure 03 companion: run() must await flush_guard_hints()
+    immediately after each of the three flush-enabled guard checks (check_all,
+    check_empty_result_repeat, check_unavailable_repeat), before any return.
+    check_error_limit is deliberately excluded. Red until procedures 2-4 land."""
+
+    @staticmethod
+    def _tool_call_response() -> LLMResponse:
+        return LLMResponse(
+            message={
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{"id": "c1", "name": "x", "arguments": {}}],
+            },
+            finish_reason="tool_calls",
+        )
+
+    def _recorded_guard(self, runner: LLMTurnRunner, calls: list[str]) -> None:
+        guard = runner._guard
+        guard.check_all.side_effect = lambda *a, **k: (calls.append("check_all"), None)[
+            1
+        ]
+        guard.check_empty_result_repeat.side_effect = lambda *a, **k: (
+            calls.append("check_empty_result_repeat"),
+            None,
+        )[1]
+        guard.check_unavailable_repeat.side_effect = lambda *a, **k: (
+            calls.append("check_unavailable_repeat"),
+            None,
+        )[1]
+        guard.flush_guard_hints = AsyncMock(
+            side_effect=lambda: (calls.append("flush"), None)[1]
+        )
+
+    @pytest.mark.asyncio
+    async def test_run_flushes_after_each_guard_check_non_trip(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """Non-trip round: a flush await follows every flush-enabled check in order."""
+        calls: list[str] = []
+        self._recorded_guard(runner, calls)
+        with (
+            patch.object(
+                runner,
+                "_stream_llm",
+                AsyncMock(return_value=self._tool_call_response()),
+            ),
+            patch(
+                "agent.llm_turn_runner.execute_all_tool_calls",
+                AsyncMock(return_value=None),
+            ),
+        ):
+            await runner.run("http://llm", **WF_CTX)
+        assert calls[:6] == [
+            "check_all",
+            "flush",
+            "check_empty_result_repeat",
+            "flush",
+            "check_unavailable_repeat",
+            "flush",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_run_flushes_before_check_all_trip_return(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """check_all trip: pending hints are flushed before the guard-trip return."""
+        calls: list[str] = []
+        self._recorded_guard(runner, calls)
+        runner._guard.check_all.side_effect = lambda *a, **k: (
+            calls.append("check_all"),
+            "loop-guard: tripped",
+        )[1]
+        finalize = AsyncMock(return_value=MagicMock())
+        with (
+            patch.object(
+                runner,
+                "_stream_llm",
+                AsyncMock(return_value=self._tool_call_response()),
+            ),
+            patch.object(runner, "_finalize_after_guard", finalize),
+        ):
+            await runner.run("http://llm", **WF_CTX)
+        assert calls == ["check_all", "flush"]
+        finalize.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_run_flushes_before_empty_result_trip_return(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """check_empty_result_repeat trip: flush precedes the fail return."""
+        calls: list[str] = []
+        self._recorded_guard(runner, calls)
+        runner._guard.check_empty_result_repeat.side_effect = lambda *a, **k: (
+            calls.append("check_empty_result_repeat"),
+            "empty result repeat",
+        )[1]
+        with (
+            patch.object(
+                runner,
+                "_stream_llm",
+                AsyncMock(return_value=self._tool_call_response()),
+            ),
+            patch(
+                "agent.llm_turn_runner.execute_all_tool_calls",
+                AsyncMock(return_value=None),
+            ),
+        ):
+            result = await runner.run("http://llm", **WF_CTX)
+        assert calls == [
+            "check_all",
+            "flush",
+            "check_empty_result_repeat",
+            "flush",
+        ]
+        assert result.action == "fail"
+        assert result.reason == "empty_result_repeat"
+
+
+class TestDiagnosticWritesOffEventLoop:
+    """blockio001 procedure 03 companion: the three _handle_llm_error diagnostic
+    writes run via asyncio.to_thread — a slow write must not freeze the event
+    loop. Red until procedures 2-4 land."""
+
+    @pytest.mark.asyncio
+    async def test_partial_completion_save_runs_off_event_loop(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """save_partial_completion runs in a worker thread; the loop keeps ticking."""
+        error = LLMTransportError(
+            "STREAMING_FAILED",
+            "in_stream",
+            "http://llm",
+            partial_text="hello",
+            detail="boom",
+        )
+        recorded: list[threading.Thread] = []
+
+        def slow(*args: Any, **kwargs: Any) -> None:
+            recorded.append(threading.current_thread())
+            time.sleep(0.08)
+
+        runner._ctx.diagnostics.save_partial_completion.side_effect = slow
+
+        ticks = 0
+
+        async def probe() -> None:
+            nonlocal ticks
+            while True:
+                ticks += 1
+                await asyncio.sleep(0.01)
+
+        task = asyncio.create_task(probe())
+        try:
+            result = await runner._handle_llm_error(error, 1)
+        finally:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        assert result.action == "fail"
+        assert result.reason == "llm_transport_error"
+        assert len(recorded) == 1
+        assert recorded[0] is not threading.main_thread()
+        # Loop ran ≥3 probe ticks (≥30 ms) while the 80 ms write was blocked.
+        assert ticks >= 3
+
+    @pytest.mark.asyncio
+    async def test_mid_turn_save_runs_off_event_loop(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """Mid-turn save() runs in a worker thread; the loop keeps ticking."""
+        error = LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm")
+        recorded: list[threading.Thread] = []
+
+        def slow(*args: Any, **kwargs: Any) -> None:
+            recorded.append(threading.current_thread())
+            time.sleep(0.08)
+
+        runner._ctx.diagnostics.save.side_effect = slow
+
+        ticks = 0
+
+        async def probe() -> None:
+            nonlocal ticks
+            while True:
+                ticks += 1
+                await asyncio.sleep(0.01)
+
+        task = asyncio.create_task(probe())
+        try:
+            result = await runner._handle_llm_error(error, 2)
+        finally:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        assert result.action == "fail"
+        assert result.reason == "llm_transport_error"
+        assert len(recorded) == 1
+        assert recorded[0] is not threading.main_thread()
+        assert ticks >= 3

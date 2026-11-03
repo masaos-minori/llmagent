@@ -7,6 +7,7 @@ Extracted from orchestrator.py. LLMTurnRunner.run() replaces _run_turn().
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, cast
@@ -136,13 +137,16 @@ class LLMTurnRunner:
                 answer = await self._finalize_answer_text(message)
                 return TurnResult(action="continue", answer=answer)
 
-            if msg := self._guard.check_all(
+            msg = self._guard.check_all(
                 state.seen_calls,
                 state.round_fingerprints,
                 state.round_tool_names,
                 state.failed_calls,
                 message,
-            ):
+            )
+            # blockio001 REQ-002: drain deferred guard hints before any return or continue.
+            await self._guard.flush_guard_hints()
+            if msg:
                 return await self._finalize_after_guard()
 
             await ctx.conv.append_message(message)
@@ -166,11 +170,15 @@ class LLMTurnRunner:
             state.consecutive_errors = ToolLoopGuard.update_errors(
                 state.consecutive_errors, n_errors, len(message["tool_calls"])
             )
-            if msg := self._guard.check_empty_result_repeat(message):
+            msg = self._guard.check_empty_result_repeat(message)
+            await self._guard.flush_guard_hints()
+            if msg:
                 return TurnResult(
                     action="fail", answer=msg, reason="empty_result_repeat"
                 )
-            if msg := self._guard.check_unavailable_repeat():
+            msg = self._guard.check_unavailable_repeat()
+            await self._guard.flush_guard_hints()
+            if msg:
                 return TurnResult(
                     action="fail", answer=msg, reason="unavailable_repeat"
                 )
@@ -200,7 +208,8 @@ class LLMTurnRunner:
             incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
             if ctx.diagnostics is not None:
                 try:
-                    ctx.diagnostics.save(
+                    await asyncio.to_thread(
+                        ctx.diagnostics.save,
                         ctx.session.session_id,
                         "llm_transport_error",
                         incomplete_msg,
@@ -214,7 +223,8 @@ class LLMTurnRunner:
                         exc_info=True,
                     )
                 try:
-                    ctx.diagnostics.save_partial_completion(
+                    await asyncio.to_thread(
+                        ctx.diagnostics.save_partial_completion,
                         session_id=ctx.session.session_id,
                         turn=turn,
                         reason=e.kind,
@@ -230,7 +240,8 @@ class LLMTurnRunner:
             logger.warning("Partial LLM completion saved: %s", e.kind)
         elif ctx.diagnostics is not None:
             try:
-                ctx.diagnostics.save(
+                await asyncio.to_thread(
+                    ctx.diagnostics.save,
                     ctx.session.session_id,
                     "mid_turn_error",
                     dumps(

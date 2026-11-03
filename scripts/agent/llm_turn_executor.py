@@ -86,7 +86,9 @@ class LlmTurnExecutor:
         per-turn replay control text, constructed by WorkflowEngine and carried to
         LLMTurnRunner unchanged; this module does not interpret it.
         """
-        guard = ToolLoopGuard(self._ctx)
+        # defer_hints=True: hint writes queue at event time; LLMTurnRunner.run() flushes
+        # them off the event loop (blockio001 REQ-002).
+        guard = ToolLoopGuard(self._ctx, defer_hints=True)
         runner = LLMTurnRunner(
             self._ctx,
             guard,

@@ -94,9 +94,9 @@ N/A: one-token change; revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write red executor wiring test, confirm it fails (Procedure 1; Companion test files) | Pending | — | — | |
-| 2 | Pass `defer_hints=True` at the construction site (Procedure 2) | Pending | — | — | |
-| 3 | Run this document's checks (Validation plan 1-2) | Pending | — | — | |
+| 1 | Write red executor wiring test, confirm it fails (Procedure 1; Companion test files) | Completed | 20261103-175500 | 20261103-182109 | TestGuardDeferralWiring added (own patch stack, _run_turn untouched); red confirmed: kwargs defer_hints missing. |
+| 2 | Pass `defer_hints=True` at the construction site (Procedure 2) | Completed | 20261103-182109 | 20261103-182109 | ToolLoopGuard(self._ctx, defer_hints=True) + 2-line comment naming the deferral and the seq 03 flush. |
+| 3 | Run this document's checks (Validation plan 1-2) | Completed | — | 20261103-182109 | 45 passed (executor+runner files); ruff/format clean; mypy clean. Commit lands together with seq 03 (flush await) so no deferral-without-flush state is ever committed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

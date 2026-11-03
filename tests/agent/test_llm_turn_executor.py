@@ -49,3 +49,22 @@ class TestWaitStartCallback:
         await _run_turn(_make_executor(on_llm_wait_start=on_llm_wait_start))
 
         on_llm_wait_start.assert_called_once_with("Thinking")
+
+
+class TestGuardDeferralWiring:
+    """blockio001 AC-2: handle_llm_turn must build the guard with deferral on."""
+
+    @pytest.mark.asyncio
+    async def test_handle_llm_turn_builds_guard_with_defer_hints(self) -> None:
+        executor = _make_executor()
+        runner = AsyncMock()
+        runner.run.return_value = TurnResult(action="continue", answer="ok")
+        guard_cls = MagicMock()
+        with (
+            patch("agent.llm_turn_executor.LLMTurnRunner", return_value=runner),
+            patch("agent.llm_turn_executor.ToolLoopGuard", guard_cls),
+        ):
+            await executor.handle_llm_turn("http://llm.invalid")
+
+        guard_cls.assert_called_once()
+        assert guard_cls.call_args.kwargs.get("defer_hints") is True
