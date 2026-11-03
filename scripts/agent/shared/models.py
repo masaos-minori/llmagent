@@ -58,6 +58,6 @@ class ToolExecEvent:
     error_type: str = ""  # "transport" | "tool" | "" (empty on success)
     workflow_id: str = ""
     session_id: str = ""
-    idempotency_key: str = ""  # stable, retry-invariant key for deduplication
+    idempotency_key: str = ""  # workflow-scoped logical-call identity (workflow_id:task_id:turn_id:call_id) recorded for the audit log; distinct from the transport X-Idempotency-Key used for server-side deduplication
     task_linkage: str = ""  # WorkflowEngine task-level linkage (current_task_id)
     artifact_uri: str | None = None

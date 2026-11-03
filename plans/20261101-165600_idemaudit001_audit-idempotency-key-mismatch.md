@@ -142,8 +142,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Documentation correction in `scripts/agent/shared/models.py` and `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Pending | — | — | |
-| 2 | Verification: doc checkers clean, `models.py` edit comment-only, existing audit tests pass | Pending | — | — | |
+| 1 | Documentation correction in `scripts/agent/shared/models.py` and `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Completed | 20261103 | 20261103 | comment-only + one doc sentence; transport key unchanged |
+| 2 | Verification: doc checkers clean, `models.py` edit comment-only, existing audit tests pass | Completed | 20261103 | 20261103 | ruff/mypy/doc checkers clean; 88 audit tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -153,7 +153,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/done/20261103-155847_01_scripts_agent_shared_models.py.md` | 1 | Procedure | Completed | — | 20261103 |
+| `implementations/done/20261103-155847_02_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md` | 1 | Procedure | Completed | — | 20261103 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -171,3 +172,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 |---|---|---|---|---|---|---|
 | REQ-001 | Problem; Documentation Impact; Background (field comment at `models.py:61`) | `scripts/agent/shared/models.py` | Phase 1 | AC-1 | doc checker / comment review | Confirmed by repository evidence |
 | REQ-002 | Problem; Testing Expectations; Background (doc lines 57-63) | `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Phase 1 | AC-2 | doc checker | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261103-155847 -->
