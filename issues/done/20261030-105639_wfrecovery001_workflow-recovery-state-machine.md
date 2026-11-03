@@ -4,7 +4,7 @@
 High
 
 ## Summary
-Replace the unconstrained task-status writes, the per-process attempt counter, and the ambiguous `processed_events` marker with one transactional persistence contract. Task and attempt transitions are validated, attempt numbers are persisted and monotonic per task-stage pair, and only a completed attempt may suppress a stage.
+Replace the unconstrained task-status writes, the per-process attempt counter, and the ambiguous `processed_events` marker with one transactional persistence contract. Task and attempt transitions are validated, attempt numbers are persisted and monotonic per task-stage pair, and only a completed attempt may suppress a stage. This issue builds on the lease-based stale-attempt recovery and the forward-only migration registry that are already on master; it does not replace them.
 
 ## Background
 Source: `memo-issue.md` entry H-01 (consolidating H-01..H-04, L-01, L-02, L-04; the memo contains this entry twice, verbatim; it is treated as one). Claims were re-checked against current source on 2026-10-30 (evidence labels per `skills/DESIGN.md`):
@@ -19,6 +19,18 @@ Source: `memo-issue.md` entry H-01 (consolidating H-01..H-04, L-01, L-02, L-04; 
 - Confirmed (docs, read 2026-10-30): the current documents state the semantics this issue changes. `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` "Workflow State Semantics" says workflow state means "started" (not "completed"). Accepted ADR `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` INV-08 fixes the key `{task_id}:{stage_id}:{attempt}` with the attempt number incremented per retry, and INV-07 fixes startup recovery of interrupted attempts as `failed`. The same agent_03_03 "Resuming Existing Tasks" section documents `existing_task_id` and a guard that rejects only `halted`, so the document treats resume as an existing feature even though no production caller uses it.
 - Corrected against the memo: the engine counts attempts in memory only for retryable stages (`execute`). `plan` and `verify` (`config/workflows/default.json`: `retryable: false`) call `_run_stage(..., attempt=1)` and always use `...:1`.
 
+- Refresh against master (2026-11-03, `Explicit in code` unless labeled): the original plan and its implementation procedures for this issue were archived as superseded by the lease-based recovery of `issues/20261030-105723_wflease001_stale-attempt-lease.md`, and the attempt-number design was never implemented. Several bullets above and below are dated 2026-10-30 and are corrected here:
+  - Still true: `begin_stage_if_new()` still skips a stage whenever its event ID exists, and its docstring still says the table holds started events. `processed_events` still has no link to an attempt and no completed-only meaning.
+  - Still true: `recover_stale_attempts()` still updates only `attempts` (now through a conditional update pinned to `owner_id` and `lease_expires_at`) and never touches `processed_events` or the owning task. The comment in `begin_stage_if_new()` that recovery "removes their event IDs" is still wrong. A lease-expired attempt therefore still leaves a marker that suppresses the same event ID on the next run.
+  - Still true: `_run_stage_with_retry()` still starts `attempt` at zero in memory, `attempts` still has no `attempt_number` column (only `artifacts` has one), and `count_attempts()` is a row count that the retry loop does not use.
+  - Still true: `tasks.status` and `attempts.status` have no `CHECK`; `update_task_status()` still writes any string and ignores the row count; `finish_attempt()` still accepts any status string and has no running-row requirement; `WorkflowEngine.run()` still writes `running` and `completed` without checking the prior status.
+  - Changed: lease columns `owner_id` and `lease_expires_at` now exist on `attempts` (workflow schema 1.4.0, migration ledger code 4). Stale classification is lease-based and live leases are never recovered. This issue MUST NOT change that classification.
+  - Changed: a forward-only migration registry for `workflow.sqlite` exists (`db.migrations_workflow`). The statement "no migration module exists yet" in Dependencies below is obsolete; schema changes here are a new registry step after the lease step.
+  - Changed: the task idempotency column was renamed to `task_nonce`, and `StateStore` task methods delegate to `task_ops`. Transition validation can therefore live in `task_ops` once.
+  - Changed: `_status_for_exit()` no longer writes a second status after the engine wrote one (the engine writes the task status once per turn), so the transitional `completed -> failed` edge discussed below is not needed. The `pending -> halted` write for a turn-entry preparation failure and the `cancelled -> halted` adapter write still exist.
+  - Changed: a retry-policy with error kinds exists; `finish_attempt()` now carries `error_kind` and `error_detail`. The status vocabulary itself is unchanged.
+  - Still true: `start_attempt()` in `attempt_ops.py` (now with an optional lease argument) and the separate `StateStore.start_attempt()` (no lease, no marker) remain bypass paths that only tests call. `existing_task_id` still has no production caller, and the resume guard still rejects only `halted`.
+  - Docs: `agent_03_03` "Workflow State Semantics" still says "started" (not "completed"); its "Startup Recovery" section now documents lease takeover and states that recovery never changes task status. ADR-001 INV-07 carries a refinement note for lease expiry; INV-08 text is unchanged.
 - Adversarial verification (issue-to-plan Step 2, 2026-10-30): the status vocabulary matches production use. Code under `scripts/agent/` writes only `pending` (at creation), `running`, `completed`, `failed`, and `halted` to `tasks`; `cancelled` is an adapter exit reason that is stored as `halted`; no `pending_approval` status exists in `scripts/`. Blast radius in `tests/` (`rules/toolchain.md` Impact-radius check): `StateStore` 84 references in 7 files, `processed_events` 12 in 5 files, `update_task_status` 17 in 2, `recover_stale_attempts` 18 in 2, `WorkflowHaltError` 28 in 3; this exceeds the rule-of-thumb threshold, so test updates are budgeted as part of the same unit of work.
 - Adversarial verification: SQLite cannot add a `CHECK` constraint to an existing table with `ALTER TABLE`, so the constraint needs a table rebuild inside the migration; `ADD COLUMN` for `attempt_number` is possible but cannot carry a `NOT NULL` without a default, and existing rows need a backfill. `SQLiteHelper.begin_immediate()` (`BEGIN IMMEDIATE ... COMMIT`, default `busy_timeout` 30000 ms) is the existing writer-serialization primitive. `deploy/init_db.sh` checks table presence only (`REQUIRED_WORKFLOW_TABLES`), so adding columns does not affect it.
 - Adversarial verification, transition matrix (Step 2, second finding): today's code uses edges a strict matrix must either allow or replace. `WorkflowEngineAdapter.execute_turn` writes `halted` while the task is still `pending` (turn-entry preparation failure, `workflow_engine_adapter.py:204`, before `engine.run` writes `running`), and `_record_exit_status` writes `failed` after the engine already wrote `completed` when the execute stage returned an `error_kind` (`_status_for_exit`, `workflow_engine_adapter.py:49-59`). The matrix therefore needs `pending -> halted` and, until `issues/20261030-105723_wfretry001_timeout-retry-failure-propagation.md` removes the overwrite, a transitional `completed -> failed` edge.
@@ -34,14 +46,15 @@ The persisted state cannot express or enforce the intended lifecycle:
 - Two public attempt-start paths exist, only one of which is idempotent.
 
 ## Reason for Change
-This is a correctness and durability defect in the persistence contract, independent of whether the resume entry is used today. The unconditional `running`/`completed` writes and the free-form status strings are reachable in the normal path now; the skipped-stage chain becomes reachable as soon as any caller supplies `existing_task_id` (or any future retry/resume feature is added). Fixing the contract before a resume caller exists is cheaper than discovering the gap after one does. Timing is not otherwise urgent.
+This is a correctness and durability defect in the persistence contract, independent of whether the resume entry is used today. The unconditional `running`/`completed` writes and the free-form status strings are reachable in the normal path now; the skipped-stage chain becomes reachable as soon as any caller supplies `existing_task_id` (or any future retry/resume feature is added). Fixing the contract before a resume caller exists is cheaper than discovering the gap after one does. Timing is not otherwise urgent. The lease-based recovery now on master makes the marker defect more reachable, not less: it closes a stale attempt as `failed` automatically at startup while the marker stays, so the next run of that task-stage at the same attempt number is skipped by design of the marker check.
 
 ## Implementation Intent
 - Define one vocabulary and transition matrix for task status (`pending`, `running`, `completed`, `failed`, `halted`) and attempt status (`running`, `completed`, `failed`), shared by application code and database `CHECK` constraints.
 - Keep one canonical persistence API for task transitions and attempt lifecycle. Every transition is a conditional update on the expected current state and raises a typed error when zero rows change.
 - Persist `attempt_number`, allocate it inside the same write transaction as the attempt insert, and derive both the retry budget and the event ID from the persisted maximum.
 - Make `processed_events` mean "completed" (a completed-stage ledger), or fold it into the attempt row; choose one and remove the started-event meaning. Only a completed attempt may suppress a stage.
-- Recover a stale attempt and any marker it owns in one transaction.
+- Recover a stale attempt and any marker it owns in one transaction, inside the existing lease classification and conditional takeover; extend the takeover update, do not replace it.
+- Reuse the lease columns on `attempts`; add `attempt_number` and the status `CHECK` constraints as a new registered migration step after the lease step, and keep fresh-created and migrated databases converging on the same shape.
 - Decide the resume contract for `pending`, `running`, `failed`, `halted`, and `completed` tasks in one place, and enforce it in that place rather than in the adapter alone.
 - Preserve the existing audit and artifact behavior; `artifacts.attempt_number` already exists and is the correlation key to extend.
 
@@ -55,12 +68,13 @@ This is a correctness and durability defect in the persistence contract, indepen
 - `scripts/agent/workflow/artifact_ops.py`
 - `scripts/agent/workflow_engine_adapter.py` (resume guard only)
 - `scripts/db/schema_sql.py` (`_WORKFLOW_SCHEMA`, `WORKFLOW_SCHEMA_VERSION`)
+- `scripts/db/migrations_workflow.py` (new registry step, version-to-code map, pre/post conditions)
 - `scripts/agent/tool_audit.py` (`audit_stage_completed`: add the attempt number)
 - `scripts/agent/services/workflow_schema.py` (`REQUIRED_WORKFLOW_TABLES`, the startup schema check that must stay consistent with the new columns)
 - `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` (INV-07, INV-08, and the INV-07 test-citation row)
 - `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` ("Workflow State Semantics", "Resuming Existing Tasks", "Startup Recovery")
 - `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` (StateStore scope; `begin_stage_if_new` description)
-- `tests/agent/workflow/`, `tests/agent/test_orchestrator.py` (status-write and audit assertions), `tests/agent/test_repl_health.py` (workflow-table fixtures)
+- `tests/agent/workflow/` (including `test_stale_recovery_lease.py`), `tests/agent/test_orchestrator.py` (status-write and audit assertions), `tests/agent/test_repl_health.py` (workflow-table fixtures), `tests/db/test_create_schema.py`, `tests/db/test_migrations_workflow.py` (migration step and shape-convergence tests)
 
 ## Required Changes
 - Add `TaskStatus` and `AttemptStatus` enums and a transition table; replace the free-text status comments in `models.py`.
@@ -69,9 +83,11 @@ This is a correctness and durability defect in the persistence contract, indepen
 - Allocate `attempt_number` transactionally; make the engine start from the persisted maximum and enforce `max_attempts` against it.
 - Route `begin_stage_if_new()`, `start_attempt()`, and recovery through one attempt-start / attempt-finish implementation; remove or privatize the bypass `start_attempt()`.
 - Restrict `finish_attempt()` to terminal statuses and fix its docstring ("Mark an attempt as completed" is inaccurate).
-- Make stale recovery update the attempt and its marker in one transaction, and keep it idempotent on repeat.
+- Make stale recovery update the attempt and its marker in one transaction, keep it idempotent on repeat, and keep the conditional takeover pinned to the observed owner and lease so concurrent recoverers still converge to one winner.
+- Register the schema change as a new step in the `workflow.sqlite` migration registry with its own pre/post conditions, a defined handling of retained rows that violate the new constraints, and a rollback procedure.
 - Replace the unconditional `running`/`completed` writes in `WorkflowEngine.run()` with expected-state transitions; reject resume of `completed` and `running` tasks and of `halted` tasks per the decided contract.
-- Raise explicit not-found and transition-conflict errors for zero-row updates.
+- Raise explicit not-found and transition-conflict errors for zero-row updates. For `finish_attempt()` this typed error is the attempt fence: finishing an attempt that is no longer `running` MUST raise it (the lease-recovery work deferred this fence to this issue; see Dependencies).
+- Flip the fencing gate test `TestFencingGateAC7` in `tests/agent/workflow/test_stale_recovery_lease.py` from "the fence does not exist" to an enforcement test of the fence, in the same change that adds it.
 - Expose the persisted attempt number to the adapter and add it to the `stage_completed` audit event so audit, attempt, marker, and artifact rows share (task, stage, attempt number).
 - Correct the comments in `idempotency_ops.py` and `state_store.py` to match the implemented semantics.
 - Amend ADR-001 INV-08 (event key and "started" versus "completed" meaning) and, if the recovery semantics change, INV-07, following the ADR change protocol (`docs/00_governance/governance_01_documentation-policy.md`, `governance_05_change-impact-and-dependency-graphs.md`); keep the INV-07 test-citation row accurate.
@@ -79,6 +95,7 @@ This is a correctness and durability defect in the persistence contract, indepen
 
 ## Constraints
 - Fail-closed and audit behavior must not weaken.
+- Lease behavior must not regress: a live lease is never recovered, lease-less pre-migration rows keep the age rule, and unparseable timestamps are reported and left `running`.
 - `workflow.sqlite` schema changes must use the forward-only migration mechanism, not ad-hoc DDL and not silent recreation (see Dependencies).
 - Retained databases may contain rows that violate the new constraints (for example attempts left `running`, or markers without a completed attempt); the migration must define their handling and have a rollback procedure.
 - Import-layer contract in `skills/DESIGN.md` Shared Vocabulary applies; `db/helper.py` transaction behavior (`begin_immediate`) is the locking primitive in use.
@@ -88,8 +105,10 @@ This is a correctness and durability defect in the persistence contract, indepen
 - Attempt numbers per task-stage pair are strictly increasing across engine restarts, and the retry budget counts persisted attempts.
 - An invalid task or attempt status, and an invalid transition, is rejected by the application API and, when written with raw SQL, by the database.
 - A zero-row task or attempt update raises a typed error instead of returning silently.
+- Finishing an attempt that is no longer `running` (for example one already recovered as stale) raises the typed fence error, and the former absence-gate test is replaced by a test that enforces the fence.
 - Two concurrent claims of the same task, or of the same task-stage attempt number, result in exactly one winner.
 - Repeating stale recovery any number of times yields the same final state.
+- The existing lease-recovery tests still pass unchanged in meaning: a live lease is not recovered, and two concurrent recoverers produce exactly one recovery.
 - `completed` and `running` tasks are rejected by the resume path; `failed` tasks resume with a new attempt number; the `halted` and `pending` behavior matches the documented contract.
 - Attempt, event marker, and artifact rows for one execution can be joined by task, stage, and attempt number.
 - No production or test caller uses an attempt-start path that bypasses the canonical transaction.
@@ -114,18 +133,27 @@ Yes. Intent, boundaries, and failure behavior only; no code or DDL restatement (
 - Record the resume contract as a Needs Confirmation item if the owner has not settled it (register per `routing.md` Tools).
 
 ## Out of Scope
-- Stale-attempt detection by timestamp, worker identity, or lease (separate issue, see Dependencies).
+- Stale-attempt detection by timestamp, worker identity, or lease. This is implemented on master (see Dependencies); this issue only extends what recovery writes after it has classified an attempt as stale.
 - Timeout retry policy and failure propagation to the turn result (separate issue).
 - Consolidating the duplicated `StateStore` / `task_ops` implementations and the `idempotency_key` naming (separate issue), beyond what this change must touch.
 - MCP tool-call idempotency.
 - Adding a user-facing resume feature.
 
 ## Dependencies
-- Depends on `plans/20261029-214108_dbmig001_forward-only-db-migrations.md` (migration framework and ledger for `workflow.sqlite`); this issue's schema changes must be registered there. That plan is in flight and no migration module exists under `scripts/db/` yet, so the schema part cannot land first.
-- Shares `scripts/db/schema_sql.py` with `plans/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md` (new workflow tables); both register steps through dbmig001, so order them by migration step.
-- Should follow `plans/20261030-113553_wftaskapi001_consolidate-task-persistence.md` (its issue is `issues/20261030-105723_wftaskapi001_consolidate-task-persistence.md`), which makes `task_ops` the single owner of task CRUD; otherwise the transition validation is written twice. Related, not blocking: `issues/20261030-105723_wflease001_stale-attempt-lease.md` (lease fields on the same attempt rows) and `issues/20261030-105723_wfretry001_timeout-retry-failure-propagation.md` (retry budget and failure kinds use this issue's status and attempt contract).
-- Shares `docs/10_adr/` editing with `plans/20261029-214108_dbmig001_forward-only-db-migrations.md` (ADR-008) and `plans/20261029-214650_adrauth001_adr-authority-model.md` (`docs/10_adr/adr_01_index.md`); this issue edits ADR-001 only and does not touch the index table. Re-check the adrauth001 plan for any primary-claim registration of ADR-001 invariants before editing (not verified).
+- Builds on `plans/done/20261029-214108_dbmig001_forward-only-db-migrations.md` (migration registry and ledger for `workflow.sqlite`, now implemented); this issue's schema change is a new registry step after the lease step.
+- Builds on `plans/done/20261030-114516_wflease001_stale-attempt-lease.md` (its issue is `issues/20261030-105723_wflease001_stale-attempt-lease.md`, still open in `issues/` although implemented). It supplies the lease columns and the conditional takeover that this issue extends. The earlier plan for this issue was archived as superseded by it, so the plan for this issue MUST be regenerated against the lease design.
+- Builds on `plans/done/20261030-113553_wftaskapi001_consolidate-task-persistence.md` (its issue is `issues/20261030-105723_wftaskapi001_consolidate-task-persistence.md`, also still open although implemented): `task_ops` is the canonical task-persistence owner, so transition validation is written once there.
+- Builds on `plans/done/20261030-114927_wfretry001_timeout-retry-failure-propagation.md` (its issue is `issues/20261030-105723_wfretry001_timeout-retry-failure-propagation.md`, still open although implemented): the retry budget and failure kinds use the status and attempt contract defined here.
+- Shares `scripts/db/schema_sql.py` and the registry with `plans/done/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md` (tool-call lifecycle tables, already registered); order any new step after the existing steps.
+- Shares `docs/10_adr/` editing with `plans/done/20261029-214650_adrauth001_adr-authority-model.md`. `config/adr_authority.toml` now exists; check it for a primary-claim registration of ADR-001 invariants before amending INV-07 or INV-08 (not verified).
 - Related closed work that must not regress: `issues/done/20261021-093421_turn003_task-status-overwritten-after-failure.md` (adapter must not overwrite the engine's status).
+- Related open issues filed from the 2026-11-03 workflow review (each names this issue as the owner of the state-machine contract; read each before planning):
+  - `issues/20261103-134148_wfreview005_unjustified-suppressions-and-stale-test-provenance.md`: leaves the fencing gate test `TestFencingGateAC7` to this issue. The gate asserts that the fence is absent, so it fails the moment this issue adds it; flipping it is this issue's work. The suppression half of wfreview005 was fixed separately in PR #14, so only its provenance-docstring half remains.
+  - `issues/20261103-134148_wfreview006_duplicate-attempt-crud-apis.md`: attempt-row CRUD exists in `attempt_ops`, `StateStore`, and the raw insert in `begin_stage_if_new`. This issue's Required Changes already route attempt start and finish through one implementation, so it overlaps wfreview006. Sequencing is an owner decision (Unresolved Questions); whichever lands first, the other MUST be re-checked against it.
+  - `issues/20261103-134147_wfreview004_workflow-adapter-and-engine-private-attribute-access.md`: routes engine and adapter access through public `StateStore` members. This issue changes `StateStore` internals, so landing the seam fix first or in the same plan wave avoids editing the same code twice.
+  - `issues/20261103-134148_wfreview007_docs-turn-status-table-vs-adapter-halt-write.md`: corrects the turn-status table and adapter-write wording in the agent_03_03 document that this issue also rewrites. If this issue lands first, re-check wfreview007's wording against the new table; if wfreview007 lands first, build on its corrected table.
+  - `issues/20261103-134147_wfreview001_workflow-diagnostics-empty-session-id.md`: lists `processed_events`, attempt recovery, and task-status semantics as out of scope and points here. No overlap to resolve.
+- Release-unit lesson: `issues/done/20261030-191057_flowimp002_plan-release-units.md` records that an earlier plan for this issue split the schema change and the attempt write path into separate phases, and neither passed the suite alone because the new `attempt_number` column breaks every existing attempt insert. The plan for this issue MUST ship the schema step and the write-path change as one release unit.
 
 ## Unresolved Questions
 - 不明: whether resuming an existing task is a supported feature. No production caller passes `existing_task_id`. If it is not planned, the owner may prefer removing the parameter and narrowing this issue to the validation, atomicity, and attempt-number parts.
@@ -133,7 +161,11 @@ Yes. Intent, boundaries, and failure behavior only; no code or DDL restatement (
 - 不明: whether `failed` tasks are meant to be resumable at all, and whether `halted` tasks are terminal (the adapter treats `halted` as non-resumable; the memo lists `halted` as a resume case).
 - 不明: choice between a completed-event ledger and a status-bearing attempt ledger for `processed_events`. Either choice changes the meaning fixed by ADR-001 INV-08, so the choice is recorded with its compatibility impact in the plan.
 - 不明: whether the raw-SQL status seeds in `tests/agent/workflow/test_workflow_state_store.py` (INSERT statements around lines 105, 264, 268, 416, 430) all use the five-status vocabulary; they must satisfy the new `CHECK` constraints.
-- Resolved by verification (2026-10-30): `config/adr_authority.toml` does not exist yet (it is created by the adrauth001 plan), so no registry entry needs changing now; re-check when that plan lands.
+- 不明: whether the owner accepts the lease-based recovery as the final stale-recovery design while still wanting the marker, attempt-number, and status-validation parts of this issue. The archive of the earlier procedures records only that the attempt-number recovery design was superseded, not that these defects were accepted.
+- 不明: whether `attempt_number` uniqueness replaces the row-count based `count_attempts()` for the retry budget, and how a lease-expired attempt of the same task-stage counts toward `max_attempts`.
+- 不明: whether `config/adr_authority.toml` registers a primary claim on ADR-001 invariants (it now exists; not read for this refresh).
+- 不明: sequencing against `issues/20261103-134148_wfreview006_duplicate-attempt-crud-apis.md` and `issues/20261103-134147_wfreview004_workflow-adapter-and-engine-private-attribute-access.md`. Assumption (recommendation, not an owner decision): this issue absorbs the attempt-side consolidation of wfreview006, because it already requires one attempt-start and attempt-finish path; wfreview004 lands first or in the same plan wave.
+- 不明: the exact semantics of the attempt fence (which statuses a `finish_attempt()` call may leave, and whether a lease takeover by another owner also fences the original owner's later finish).
 - Assumption: concurrent workers on one `workflow.sqlite` are possible (the memo requires it); the deployment model for multiple agent processes is not confirmed from the files read.
 
 ## AI Implementation Instruction
@@ -151,4 +183,4 @@ Yes. Intent, boundaries, and failure behavior only; no code or DDL restatement (
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261030-105639
-- **Related target files**: `scripts/agent/workflow/models.py`, `scripts/agent/workflow/attempt_ops.py`, `scripts/agent/workflow/idempotency_ops.py`, `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow/artifact_ops.py`, `scripts/agent/workflow_engine_adapter.py`, `scripts/db/schema_sql.py`, `scripts/agent/services/workflow_schema.py`, `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`, `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`
+- **Related target files**: `scripts/agent/workflow/models.py`, `scripts/agent/workflow/attempt_ops.py`, `scripts/agent/workflow/idempotency_ops.py`, `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow/artifact_ops.py`, `scripts/agent/workflow_engine_adapter.py`, `scripts/db/schema_sql.py`, `scripts/db/migrations_workflow.py`, `scripts/agent/services/workflow_schema.py`, `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`, `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`, `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md`
