@@ -92,3 +92,27 @@ Direct edit of fixture SQL and assertions.
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261101-145309
 - **Related target files**: `tests/agent/test_repl_health.py`, `scripts/agent/services/workflow_schema.py`, `scripts/db/schema_sql.py`
+
+## Implementation Result (2026-11-03: superseded by upstream)
+
+This wfrecovery001 procedure implemented an attempt-number-based recovery state
+machine. Upstream (`origin/master`) superseded this design with a lease-based
+stale-attempt recovery (wflease001, AC-2/AC-4/AC-5/AC-7). The batch was
+therefore NOT merged into `origin/master`.
+
+- **Decision (2026-11-03):** full supersession. Every one of the ~32 code files
+  the batch touched was rewritten or replaced by upstream (lease columns on
+  `attempts`, a `disable_foreign_keys` migration-runner rebuild, fail-closed
+  tool audit, schema manifest bumped to workflow version 1.4.0). No substantive
+  delta survives.
+- **Action:** the 3-way merge (`git merge --no-commit backup-batch` onto branch
+  `rederive` from `origin/master`) was aborted (`git merge --abort`), returning
+  to a clean `origin/master` at `7d6744fd`.
+- **Residual:** `attempt_number` / `CHECK` are entangled with upstream's
+  lease/local-retry design and cannot be integrated as a clean, bounded
+  addition; reintroducing them would fight the lease architecture.
+- **Outcome:** divergent code is not integrated. The batch remains on
+  `backup-batch` as a superseded historical record. All 26 procedures were
+  executed and marked Completed on `backup-batch`; this note records the
+  supersession.
+
