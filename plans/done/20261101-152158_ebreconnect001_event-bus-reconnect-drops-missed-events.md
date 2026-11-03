@@ -51,7 +51,7 @@ table — no other file may be treated as a modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/agent/eventbus_subscriber.py` | Add `consumer_id` to `EventBusSubscriberConfig`, validate it in `EventBusSubscriber.__init__`, drop the `uuid` generation in `EventBusSubscriber.subscribe`, track the last processed `seq`, pass `since_seq` and the stable `consumer_id` from `_stream_once`, add the distinct 409 handling, and correct the module/`subscribe` docstrings that promise a fresh `consumer_id` | Implements the client-side resume and stable identity; the current code generates `uuid.uuid4().hex` per attempt, never stores the parsed `seq` and never sends `since_seq` | REQ-001, REQ-002, REQ-003, REQ-004, REQ-007; AC-1, AC-2, AC-3, AC-4, AC-6 | Symbols `EventBusSubscriberConfig`, `EventBusSubscriber.subscribe`, `EventBusSubscriber._stream_once`, `_parse_sse_lines` read in full; `uuid` import and the module docstring "fresh consumer_id per attempt" present; no importer under `scripts/` besides the file itself (checked in Step 2 and Step 3) | `tests/agent/test_eventbus_subscriber.py` | Verified |
-| `tests/agent/test_eventbus_subscriber.py` | Add `consumer_id` to the `config` fixture; rewrite `test_subscribe_sends_bearer_auth_and_fresh_consumer_id` and `test_reconnects_with_fresh_consumer_id_after_disconnect` (they assert a 32-char uuid and differing ids); add a disconnect/reconnect test against a fake server that honors `since_seq`, a 409-then-success test, a 409-exhaustion test and an empty-`consumer_id` test | The Issue requires a gap-event regression test; the two named tests encode the behavior being replaced and would fail after the change | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005; AC-1, AC-2, AC-3, AC-4, AC-5 | Both named tests and the `_FakeStreamResponse` / `_FakeStreamContextManager` / `_mock_http_with_lines` helpers read in full; the fixture has no `consumer_id` today (checked in Step 2) | `tests/agent/test_eventbus_subscriber.py` (the target is the test itself) | Verified |
+| `tests/agent/test_eventbus_subscriber.py` | Add `consumer_id` to the `config` fixture; rewrite `test_subscribe_sends_bearer_auth_and_fresh_consumer_id` and `test_reconnects_with_fresh_consumer_id_after_disconnect` (they assert a 32-char uuid and differing ids); add a disconnect/reconnect test against a fake server that honors `since_seq`, a 409-then-success test, a 409-exhaustion test and an empty-`consumer_id` test | The Issue requires a gap-event regression test; the two named tests encode the behavior being replaced and would fail after the change | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005; AC-1, AC-2, AC-3, AC-4, AC-5 | Both named tests and the `_FakeStreamResponse` / `_FakeStreamContextManager` / `_mock_http_with_lines` helpers read in full; the fixture has no `consumer_id` today (checked in Step 2) | itself | Verified |
 | `docs/23_agent/agent_02_runtime-architecture.md` | Correct the "EventBus Client Modules" paragraph that says `EventBusSubscriber` reconnects "with a fresh `consumer_id`" | That sentence becomes false once REQ-001 and REQ-002 land; the Issue asks for docs to state the resume only once implemented | REQ-006; AC-7 | The paragraph under "EventBus Client Modules" contains the phrase "reconnecting with a fresh `consumer_id`" (checked in Step 2) | `uv run python tools/check_docs_consistency.py --domain agent` (docs validation, no pytest target) | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
@@ -181,10 +181,10 @@ Interfaces: no public function signature changes; one new dataclass field; one n
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Tests first in `tests/agent/test_eventbus_subscriber.py` | Pending | — | — | |
-| 2 | Phase 2: Subscriber implementation in `scripts/agent/eventbus_subscriber.py` | Pending | — | — | |
-| 3 | Phase 3: Documentation correction in `docs/23_agent/agent_02_runtime-architecture.md` | Pending | — | — | |
-| 4 | Phase 4: Verification and deploy hand-off (`scripts/agent/eventbus_subscriber.py`) | Pending | — | — | |
+| 1 | Phase 1: Tests first in `tests/agent/test_eventbus_subscriber.py` | In Progress | — | — |  |
+| 2 | Phase 2: Subscriber implementation in `scripts/agent/eventbus_subscriber.py` | In Progress | — | — |  |
+| 3 | Phase 3: Documentation correction in `docs/23_agent/agent_02_runtime-architecture.md` | In Progress | — | — |  |
+| 4 | Phase 4: Verification and deploy hand-off (`scripts/agent/eventbus_subscriber.py`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -194,7 +194,8 @@ Interfaces: no public function signature changes; one new dataclass field; one n
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261103-235225_01_scripts_agent_eventbus_subscriber.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261103-235225_03_docs_23_agent_agent_02_runtime-architecture.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -219,3 +220,5 @@ Interfaces: no public function signature changes; one new dataclass field; one n
 | REQ-005 | Issue Required Changes (test) and Testing Expectations | `tests/agent/test_eventbus_subscriber.py` | Step 1 | AC-1 to AC-5 | TEST-1 to TEST-7 | Explicit in issue |
 | REQ-006 | Issue Documentation Impact; stale phrase in `agent_02_runtime-architecture.md` | `docs/23_agent/agent_02_runtime-architecture.md` | Step 3 | AC-7 | `check_docs_consistency.py --domain agent` and the docs checkers | Derived from confirmed evidence |
 | REQ-007 | Issue Constraints and Out of Scope | `scripts/agent/eventbus_subscriber.py` | Step 2, Step 4 | AC-8 | Scope guard row of the Validation plan | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261103-235225 -->
