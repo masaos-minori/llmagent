@@ -318,7 +318,9 @@ class TestFencingGateAC7:
 
     def test_finish_attempt_fence_not_yet_implemented(self) -> None:
         with pytest.raises(ImportError):
-            from agent.workflow.attempt_ops import AttemptFencedError  # noqa: F401
+            from agent.workflow.attempt_ops import (
+                AttemptFencedError,  # noqa: F401 — the import itself is the assertion
+            )
 
     def test_engine_lease_margin_constant(self) -> None:
         """AC-7 lease-margin invariant: a lease outlives its own stage timeout,

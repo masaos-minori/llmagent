@@ -554,7 +554,7 @@ class TestParseIsoUtc:
 
     def test_non_string_rejected(self) -> None:
         with pytest.raises(ValueError, match="expected str"):
-            parse_iso_utc(1767225600)  # type: ignore[arg-type]
+            parse_iso_utc(1767225600)  # type: ignore[arg-type] — deliberately passes a non-str to exercise the runtime type check
 
     def test_result_is_aware_utc(self) -> None:
         parsed = parse_iso_utc("2026-06-30T23:59:59+00:00")
