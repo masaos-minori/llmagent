@@ -64,7 +64,9 @@ Decision 1 unchanged.
 1. Write the red companion unit tests (see Companion test files) and confirm they fail
    (the method does not exist yet).
 2. Add `swap_history` (new) to `ConversationState` next to `replace_history` /
-   `restore_messages` (after line 207), per Plan Decision 1:
+   `restore_messages` (after line 209, at the end of the `ConversationState` class body;
+   corrected 20261103: line 207 is the `async with` inside `restore_messages`), per Plan
+   Decision 1:
    - `async with self._ensure_lock:` for the whole body.
    - If `new_history is base_history`: return (nothing compressed; appends are already in
      the list).
@@ -158,9 +160,9 @@ method or signature changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write red `TestSwapHistory` (new) unit tests, confirm they fail (Procedure 1; Companion test files) | Pending | — | — | |
-| 2 | Implement `swap_history` (new) per Decision 1 + docstring contract (Procedure 2-3) | Pending | — | — | |
-| 3 | Run this document's checks (Validation plan 1-4) | Pending | — | — | |
+| 1 | Write red `TestSwapHistory` (new) unit tests, confirm they fail (Procedure 1; Companion test files) | Completed | 20261103-162200 | 20261103-163505 | 6 companion cases + 1 lock-spy case (AC-3 `self._ensure_lock`), red confirmed |
+| 2 | Implement `swap_history` (new) per Decision 1 + docstring contract (Procedure 2-3) | Completed | 20261103-162200 | 20261103-163505 | async def, `async with self._ensure_lock` whole body, 3-arg signature per Final signature; inserted after `restore_messages` (end of class body) |
+| 3 | Run this document's checks (Validation plan 1-4) | Completed | 20261103-162200 | 20261103-163505 | targeted pytest 50 passed/1 skipped; ruff check+format clean; mypy clean; radon `-nc` empty (no C+); bandit exit 0; check_module_size OK (context.py 17625 B); reference_table --check: no drift |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

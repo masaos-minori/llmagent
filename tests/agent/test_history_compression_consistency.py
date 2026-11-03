@@ -7,6 +7,7 @@ behavior on compressed history, and fallback truncation in-memory contract.
 
 from __future__ import annotations
 
+import asyncio
 import sqlite3
 from collections.abc import Generator
 from types import SimpleNamespace
@@ -510,3 +511,50 @@ async def test_undo_after_boundary_removes_turn_from_history_and_db(
         "SELECT COUNT(*) FROM messages WHERE session_id = 1"
     ).fetchone()[0]
     assert remaining == 2
+
+
+# --- Interleaving: a concurrent append survives the compression swap (REQ-002, AC-2) ---
+
+
+async def test_append_during_compression_survives_swap(
+    session_and_conn: tuple[AgentSession, sqlite3.Connection],
+) -> None:
+    """A message appended while `compress` awaits survives the swap exactly once,
+    after the compressed messages (AC-2). UNK-02 rule, stated as an assertion: the
+    preserved tail sits below the new `undo_floor` (`undo_floor == len(history)`
+    after the swap), so nothing in the compressed snapshot is undoable."""
+    session, conn = session_and_conn
+    history = _make_history(4)  # 8 messages
+    ctx = cast(AgentContext, _compression_ctx(session, history, force=False))
+    mgr = ConversationStateManager(ctx, tasks=set(), on_discard=lambda t: None)
+
+    gate = asyncio.Event()
+    release = asyncio.Event()
+    compressed = _make_history(1)  # summary-shaped: 2 messages
+    result = SimpleNamespace(compressed_count=1, summary_added=True, is_fallback=False)
+
+    async def fake_compress(base: list[LLMMessage]) -> tuple[list[LLMMessage], object]:
+        gate.set()
+        await release.wait()
+        return list(compressed), result
+
+    ctx.services_required.hist_mgr.compress = fake_compress
+
+    task = asyncio.create_task(mgr.handle_history_compression())
+    await gate.wait()
+    await ctx.conv.append_message(
+        {"role": "user", "content": "late-during-compression"}
+    )
+    tail = ctx.conv.history[-1]
+    release.set()
+    await task
+
+    live = ctx.conv.history
+    assert sum(m is tail for m in live) == 1
+    assert live[:2] == compressed
+    assert live[2] is tail
+    rows = conn.execute(
+        "SELECT role, content FROM messages WHERE session_id = 1 ORDER BY message_id"
+    ).fetchall()
+    assert [(r[0], r[1]) for r in rows] == [(m["role"], m["content"]) for m in live]
+    assert ctx.conv.undo_floor == len(live)

@@ -168,13 +168,18 @@ class ConversationStateManager:
         Persists the compressed history through the turn's atomic persistence
         boundary (via ``replace_messages``) only when compression actually
         changed something (compressed_count > 0) — a no-op compress leaves the
-        session's stored history untouched.
+        session's stored history untouched. The result reaches the history only
+        through the lock-guarded ``swap_history``, so messages appended during
+        the ``compress`` await are preserved.
         """
         ctx = self._ctx
         if ctx.services_required.hist_mgr is not None:
-            ctx.conv.history, result = await ctx.services_required.hist_mgr.compress(
-                ctx.conv.history
+            base_history = ctx.conv.history
+            base_len = len(base_history)
+            new_history, result = await ctx.services_required.hist_mgr.compress(
+                base_history
             )
+            await ctx.conv.swap_history(new_history, base_history, base_len)
             if result.compressed_count > 0:
                 # Persist the compressed snapshot through the turn's atomic
                 # boundary (SEQ-06); a mid-turn compression failure is then

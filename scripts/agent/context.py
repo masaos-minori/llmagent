@@ -208,6 +208,35 @@ class ConversationState:
             self.history.clear()
             self.history.extend(snapshot)
 
+    async def swap_history(
+        self,
+        new_history: list[LLMMessage],
+        base_history: list[LLMMessage],
+        base_len: int,
+    ) -> None:
+        """Atomically replace the stable history prefix with a compressed list.
+
+        Trusted-input contract: `new_history` must come from validated history
+        (the boundary's own compressed snapshot). Unlike ``replace_history``,
+        this method never re-validates or sanitizes, so ephemeral and summary
+        markers pass through untouched; use ``replace_history`` for untrusted
+        DB restores and ``restore_messages`` for a full turn-start snapshot.
+
+        Identity semantics:
+        - ``new_history is base_history`` (nothing compressed): no-op.
+        - rows appended to the live list after the snapshot
+          (``base_history[base_len:]``) are preserved after the compressed
+          rows, and skipped when already present in ``new_history`` by identity.
+        - if another writer reassigned ``self.history`` after the snapshot,
+          nothing is preserved: plain swap.
+        """
+        async with self._ensure_lock:
+            if new_history is base_history:
+                return
+            extra = base_history[base_len:] if self.history is base_history else []
+            new_ids = {id(m) for m in new_history}
+            self.history = [*new_history, *(m for m in extra if id(m) not in new_ids)]
+
 
 @dataclass
 class TurnState:

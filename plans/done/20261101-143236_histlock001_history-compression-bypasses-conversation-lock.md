@@ -159,9 +159,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Audit re-check, lock-guarded swap method and its unit tests (scripts/agent/context.py, scripts/agent/conversation_state_manager.py, tests/agent/test_context_append_message.py) | In Progress | — | — |  |
-| 2 | Use the method in `handle_history_compression` and add the interleaving test (scripts/agent/conversation_state_manager.py, tests/agent/test_history_compression_consistency.py) | In Progress | — | — |  |
-| 3 | Validation commands, diff-cover and deploy hand-off | Pending | — | — |  |
+| 1 | Audit re-check, lock-guarded swap method and its unit tests (scripts/agent/context.py, scripts/agent/conversation_state_manager.py, tests/agent/test_context_append_message.py) | Completed | 20261103-162200 | 20261103-163505 |  |
+| 2 | Use the method in `handle_history_compression` and add the interleaving test (scripts/agent/conversation_state_manager.py, tests/agent/test_history_compression_consistency.py) | Completed | 20261103-163700 | 20261103-164151 |  |
+| 3 | Validation commands, diff-cover and deploy hand-off | In Progress | 20261103-164200 | — | full suite + diff-cover 100% (20261103-165400); deploy hand-off pending user decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -171,8 +171,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261103-111932_01_scripts_agent_context.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261103-111932_02_scripts_agent_conversation_state_manager.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261103-111932_01_scripts_agent_context.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261103-111932_02_scripts_agent_conversation_state_manager.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

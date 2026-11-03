@@ -158,10 +158,10 @@ happened in `append_message` (Plan Assumptions).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write red interleaving test, confirm it fails against the unmodified manager (Procedure 1; Companion test files) | Pending | — | — | |
-| 2 | Capture-then-swap change in `handle_history_compression` (Procedure 2) | Pending | — | — | |
-| 3 | Re-run REQ-004 audit scan and record the result (Procedure 3) | Pending | — | — | |
-| 4 | Run this document's checks (Validation plan 1-2; full sequence at plan end) | Pending | — | — | |
+| 1 | Write red interleaving test, confirm it fails against the unmodified manager (Procedure 1; Companion test files) | Completed | 20261103-163700 | 20261103-164151 | `test_append_during_compression_survives_swap` red confirmed: appended row lost (assert 0 == 1) |
+| 2 | Capture-then-swap change in `handle_history_compression` (Procedure 2) | Completed | 20261103-163700 | 20261103-164151 | base_history/base_len captured pre-await; `await ctx.conv.swap_history(...)`; no direct assignment remains (AC-1); docstring sentence added |
+| 3 | Re-run REQ-004 audit scan and record the result (Procedure 3) | Completed | 20261103-163700 | 20261103-164151 | No new writer found: only background task near history is the first-turn title task (`conversation_state_manager.py:113`, takes `line` only, Plan Out-of-Scope); all append/extend writers (`llm_turn_runner`, `tool_runner:327`, `tool_round_completion:80`, `mode_classification:67`) run in the sequential turn flow, not concurrently with the compress window. Plan Priority not revisited (AC-5) |
+| 4 | Run this document's checks (Validation plan 1-2; full sequence at plan end) | Completed | 20261103-163700 | 20261103-164151 | targeted pytest 259 passed (interleaving green, existing compression tests unchanged); ruff check+format clean; mypy clean; radon `handle_history_compression` A(4) unchanged, no C+; bandit: 2 pre-existing justified assert_used only; check_module_size OK (9059 B); reference_table --check: no drift |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
