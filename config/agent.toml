@@ -117,21 +117,18 @@ approval_high_risk_branches = [
   "master",
   "release",
 ]
+# Auto-approval gates the executable only; the agent-side safe-shape rule in
+# scripts/agent/tool_policy.py decides subcommand/flag acceptability, so only
+# read-only-by-construction command shapes are auto-approved. Interpreters and test
+# runners (python, pytest, uv) are deliberately absent and always prompt.
 approval_shell_safe_prefixes = [
   "ls",
   "cat",
   "echo",
-  "git log",
-  "git status",
-  "git diff",
-  "git show",
-  "git branch",
+  "git",
   "pwd",
   "find",
   "grep",
-  "uv run",
-  "python",
-  "pytest",
 ]
 allowed_tools = [
   "read_text_file",

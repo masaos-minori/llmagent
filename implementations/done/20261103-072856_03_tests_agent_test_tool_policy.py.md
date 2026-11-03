@@ -52,11 +52,18 @@
    - `test_git_readonly_forms_remain_none` — `git status`, `git log --oneline`, `git diff`,
      `git show`, `git branch` → `none` (cwd inside `allowed_root`).
    - `test_full_path_git_log_remains_none` — full-path `git log --oneline` → `none` (AC-3).
-2. Migrate the three A7 pins in `TestPrefixCollision` to expect `high`, keeping their
-   names and updating their docstrings to state the strict deny-by-default reason:
+2. Migrate the A7 pins to expect `high`, keeping their names and updating their docstrings
+   to state the strict deny-by-default reason. Adversarial verification (20261103, this
+   cycle) corrected the Plan's three-pin list to six: the Plan named only
    `test_single_letter_prefix_matches_exact_name`, `test_case_sensitive_prefix_accept`,
-   `test_backslash_escape_in_prefix` (current expectations are `none` at HEAD, verified
-   20261103 by reading the file).
+   `test_backslash_escape_in_prefix`, but three more tests also assert `none` for
+   executables with no safe-shape rule and flip under the same A7 principle:
+   `test_quoted_command_matches_quoted_prefix` (prefix `'"git log"'`, command `'"git log"'`
+   — shlex yields the single token `git log`, which has no rule),
+   `test_prefix_collision_quoted_prefix_matches_quoted_command` (same quoted pattern in the
+   second collision class), and `test_prefix_collision_backslash_escape_mismatch`
+   (duplicate of the `$HOME` pin in the second collision class). All six have current
+   expectations of `none` at HEAD.
 
 ### Method
 - For cwd control: `allowed_root=str(tmp_path)`, `monkeypatch.chdir(tmp_path)` for the
@@ -70,7 +77,7 @@
 - Baseline recording: run `uv run pytest tests/agent/test_tool_policy.py -q` after step 1-2
   and record the failing test names in the Execution Status Notes (Plan Phase 1); do not
   fix the source in this document.
-- Keep existing `TestPrefixCollision` cases other than the three pins byte-identical.
+- Keep existing `TestPrefixCollision` cases other than the six pins byte-identical.
 
 ## Compatibility considerations
 - The migrated pins are a recorded deviation from the Plan's earlier "every existing case
@@ -86,11 +93,12 @@
 
 ## Validation plan
 - `uv run pytest tests/agent/test_tool_policy.py -q` — before seq 01/02: exactly the new
-  tests and the three migrated pins fail (baseline); after seq 01/02: whole file green.
+  tests (except the already-green `git`-gate cases) and the six migrated pins fail
+  (baseline); after seq 01/02: whole file green.
 - `uv run ruff check tests/agent/test_tool_policy.py` — clean.
 
 ## Completion criteria
-- Red baseline recorded; after seq 01 and seq 02: all eight new tests pass, the three
+- Red baseline recorded; after seq 01 and seq 02: all eight new tests pass, the six
   migrated pins pass with `high` expectations, and every other pre-existing test is
   unchanged and passing (AC-5).
 
@@ -104,8 +112,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestShellSafeShape` tests + migrate the three A7 pins; record red baseline | Pending | — | — | Plan Phase 1; execute before seq 01/02 |
-| 2 | Re-run validation after seq 01/02 land (whole file green) | Pending | — | — | |
+| 1 | Add `TestShellSafeShape` tests + migrate the six A7 pins; record red baseline | Completed | 20261103-094439 | 20261103-094439 | Plan Phase 1; execute before seq 01/02 Step 3b correction: Plan's 3-pin list corrected to 6 pins (both $HOME variants + both quoted 'git log' variants). Red baseline (9 failed): 6 migrated pins + test_git_branch_delete_not_auto_approved + test_git_diff_output_flag_not_auto_approved + test_full_path_find_delete_escalates; interpreter tests and git read-only pins already green with SHELL_PREFIXES_STRICT. |
+| 2 | Re-run validation after seq 01/02 land (whole file green) | Completed | 20261103-094439 | 20261103-094439 | Changed file: tests/agent/test_tool_policy.py; green after seq 01/02 (205 passed, all 6 migrated pins high) Validation correction (Step 3e): first diff-cover run flagged scripts/agent/tool_policy.py:239 uncovered (git subcommand reject branch); added test_git_unlisted_subcommand_not_auto_approved to TestShellSafeShape covering it. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

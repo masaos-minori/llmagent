@@ -76,8 +76,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the `shell_run` override row and Note paragraph | Pending | — | — | Execute after seq 01/02 (Plan Phase 5) |
-| 2 | Run the docs checkers (`routing.md` Tools) | Pending | — | — | |
+| 1 | Update the `shell_run` override row and Note paragraph | Completed | 20261103-094439 | 20261103-094439 | Execute after seq 01/02 (Plan Phase 5) Changed file: docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md (shell_run override row + Note) |
+| 2 | Run the docs checkers (`routing.md` Tools) | Completed | 20261103-094439 | 20261103-094439 | check_docs_quality/structure/content_policy/consistency --domain agent: all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

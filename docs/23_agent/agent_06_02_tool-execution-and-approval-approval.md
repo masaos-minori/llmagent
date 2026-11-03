@@ -75,10 +75,10 @@ If base risk is anything other than `none`, the following are evaluated before e
 |---|---|
 | `delete_directory` and `recursive=True` | `high` |
 | Any of `force` / `overwrite` / `clobber` argument is `True` | `high` |
-| `shell_run` and `command` starts with any of `approval_shell_safe_prefixes` | `none` |
+| `shell_run` whose executable is in `approval_shell_safe_prefixes` and whose parsed arguments match the agent-side read-only safe-shape rule (read-only `git` subcommands: `log`, `status`, `show`, `diff`, and list-only `branch`; `cat`, `echo`, `ls`, `pwd`, `grep`, `find` without denied flags) | `none` |
 | `shell_run` and does not match above | `high` |
 
-**Note**: These are overrides of `RiskLevel`, not rejections. If it becomes `high`, it proceeds to the standard approval prompt; execution is not completely blocked.
+**Note**: These are overrides of `RiskLevel`, not rejections. If it becomes `high`, it proceeds to the standard approval prompt; execution is not completely blocked. `shell_run` auto-approval requires both conditions: `approval_shell_safe_prefixes` gates the executable, and the agent-side safe-shape rule decides subcommand and flag acceptability. An executable without a defined read-only shape is `high` even when the config list matches it, so interpreters and test runners (`python`, `pytest`, `uv run`) always take the approval prompt.
 
 ### Risk Escalation
 

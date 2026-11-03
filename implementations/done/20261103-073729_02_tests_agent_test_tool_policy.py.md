@@ -24,7 +24,7 @@
   executables in the implementation cycle notes.
 - This file is also the target of `implementations/20261103-072856_03_tests_agent_test_tool_policy.py.md`
   (shellprefix001); keep edits disjoint — this document only adds the new class, and the
-  shellprefix001 document only adds `TestShellSafeShape` and migrates the three A7 pins.
+  shellprefix001 document only adds `TestShellSafeShape` and migrates the six A7 pins.
 
 ## Design decisions
 - New class `TestFlagValuePathCandidates` (new) placed beside the existing `shell_run`
@@ -89,15 +89,15 @@
 
 ## Out of Scope
 - `_iter_path_candidates` implementation — seq 01 document.
-- `TestShellSafeShape` and the three A7 pin migrations — shellprefix001 seq 03 document.
+- `TestShellSafeShape` and the six A7 pin migrations — shellprefix001 seq 03 document.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestFlagValuePathCandidates`; record red baseline | Pending | — | — | Execute after the shellprefix001 procedures land; before seq 01 (Plan phase order) |
-| 2 | Re-run validation after seq 01 lands (whole file green) | Pending | — | — | |
+| 1 | Add `TestFlagValuePathCandidates`; record red baseline | Completed | 20261103-094450 | 20261103-094450 | Execute after the shellprefix001 procedures land; before seq 01 (Plan phase order) Changed file: tests/agent/test_tool_policy.py. Red baseline (4 failed): test_flag_value_protected_path_escalates, test_flag_value_outside_allowed_root_escalates, test_flag_value_parity_with_separate_token, test_flag_value_nul_escalates; 4 pins green. Deviation recorded: escalation cases use cat --file=/etc/shadow, grep --include=/etc/shadow x, ls --ignore=/etc instead of the Plan's interpreter/git examples, per the Plan ordering bullet reconciliation. |
+| 2 | Re-run validation after seq 01 lands (whole file green) | Completed | 20261103-094450 | 20261103-094450 | Whole file green after seq 01: 213 passed; ruff clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

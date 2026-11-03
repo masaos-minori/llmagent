@@ -211,12 +211,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing-test baseline (`tests/agent/test_tool_policy.py`, shipped values) | In Progress | — | — |  |
-| 2 | Core logic in `scripts/agent/tool_policy.py` (per-executable rule, interpreter removal, executable-name normalization) | In Progress | — | — |  |
-| 3 | `config/agent.toml` edit + config validation | In Progress | — | — |  |
-| 4 | Verification: suite, ruff, mypy | Pending | — | — |  |
-| 5 | Docs update + docs checkers | In Progress | — | — |  |
-| 6 | Deployment hand-off (commit/push; deploy is user decision) | Pending | — | — |  |
+| 1 | Failing-test baseline (`tests/agent/test_tool_policy.py`, shipped values) | Completed | 20261103-094439 | 20261103-094439 |  |
+| 2 | Core logic in `scripts/agent/tool_policy.py` (per-executable rule, interpreter removal, executable-name normalization) | Completed | 20261103-094439 | 20261103-094439 |  |
+| 3 | `config/agent.toml` edit + config validation | Completed | 20261103-094439 | 20261103-094439 |  |
+| 4 | Verification: suite, ruff, mypy | Completed | 20261103-094439 | 20261103-094439 | Full suite 11386 passed; diff-cover 100% on scripts/agent/tool_policy.py; ruff/mypy/lint-imports/bandit clean |
+| 5 | Docs update + docs checkers | Completed | 20261103-094439 | 20261103-094439 |  |
+| 6 | Deployment hand-off (commit/push; deploy is user decision) | Completed | 20261103-094439 | 20261103-094439 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

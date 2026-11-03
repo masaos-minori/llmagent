@@ -67,6 +67,12 @@ def _cfg(**overrides: Any) -> AgentConfig:
         return build_agent_config(defaults)
 
 
+# Post-change shipped approval_shell_safe_prefixes (shellprefix001 seq 02): the config
+# gates the executable; the code-side safe-shape rule decides subcommand/flag
+# acceptability. Interpreters and test runners are absent from the list by design (REQ-006).
+SHELL_PREFIXES_STRICT = ["ls", "cat", "echo", "git", "pwd", "find", "grep"]
+
+
 class TestClassifyOperationType:
     def test_github_mutation_tools_classified_as_api_write(self) -> None:
         from shared.tool_constants import (
@@ -524,14 +530,18 @@ class TestPrefixCollision:
         assert result == "high"
 
     def test_quoted_command_matches_quoted_prefix(self) -> None:
+        """A7 strict deny-by-default: shlex collapses the quoted prefix/command into the
+        single token 'git log'; that executable has no code-defined safe-shape rule."""
         cfg = _cfg(approval_shell_safe_prefixes=['"git log"'])
         result = classify_risk(cfg, "shell_run", {"command": '"git log"'})
-        assert result == "none"
+        assert result == "high"
 
     def test_single_letter_prefix_matches_exact_name(self) -> None:
+        """A7 strict deny-by-default: 'c' passes the config gate but has no code-defined
+        safe-shape rule, so it is not auto-approved."""
         cfg = _cfg(approval_shell_safe_prefixes=["c"])
         result = classify_risk(cfg, "shell_run", {"command": "c"})
-        assert result == "none"
+        assert result == "high"
 
     def test_single_letter_prefix_rejects_longer_name(self) -> None:
         cfg = _cfg(approval_shell_safe_prefixes=["c"])
@@ -544,9 +554,11 @@ class TestPrefixCollision:
         assert result == "high"
 
     def test_case_sensitive_prefix_accept(self) -> None:
+        """A7 strict deny-by-default: the gate accepts 'Cat' but the executable has no
+        code-defined safe-shape rule, so it is not auto-approved."""
         cfg = _cfg(approval_shell_safe_prefixes=["Cat"])
         result = classify_risk(cfg, "shell_run", {"command": "Cat"})
-        assert result == "none"
+        assert result == "high"
 
     def test_symlink_basename_match(self) -> None:
         cfg = _cfg(approval_shell_safe_prefixes=["cat"])
@@ -585,10 +597,11 @@ class TestPrefixCollision:
 
     def test_backslash_escape_in_prefix(self) -> None:
         """shlex.split(r'\\$HOME') treats \\$ as literal $, producing ['$HOME'].
-        The command '$HOME' also becomes ['$HOME'], so they match."""
+        The command '$HOME' also becomes ['$HOME'], so they match — but A7 strict
+        deny-by-default: the matched executable '$HOME' has no safe-shape rule."""
         cfg = _cfg(approval_shell_safe_prefixes=[r"\$HOME"])
         result = classify_risk(cfg, "shell_run", {"command": "$HOME"})
-        assert result == "none"
+        assert result == "high"
 
     def test_unicode_prefix_rejected_for_ascii_command(self) -> None:
         cfg = _cfg(approval_shell_safe_prefixes=["\u0063at"])
@@ -930,9 +943,11 @@ class TestPrefixCollision:
         assert result == "none"
 
     def test_prefix_collision_quoted_prefix_matches_quoted_command(self) -> None:
+        """A7 strict deny-by-default: the quoted prefix/command collapse to the single
+        token 'git log', an executable with no code-defined safe-shape rule."""
         cfg = _cfg(approval_shell_safe_prefixes=['"git log"'])
         result = classify_risk(cfg, "shell_run", {"command": '"git log"'})
-        assert result == "none"
+        assert result == "high"
 
     def test_prefix_collision_quoted_prefix_rejects_unquoted_command(self) -> None:
         cfg = _cfg(approval_shell_safe_prefixes=['"git log"'])
@@ -954,10 +969,11 @@ class TestPrefixCollision:
 
     def test_prefix_collision_backslash_escape_mismatch(self) -> None:
         """shlex.split(r'\\$HOME') treats \\$ as literal $, producing ['$HOME'].
-        The command '$HOME' also becomes ['$HOME'], so they match."""
+        The command '$HOME' also becomes ['$HOME'], so they match — but A7 strict
+        deny-by-default: the matched executable '$HOME' has no safe-shape rule."""
         cfg = _cfg(approval_shell_safe_prefixes=[r"\$HOME"])
         result = classify_risk(cfg, "shell_run", {"command": "$HOME"})
-        assert result == "none"
+        assert result == "high"
 
     def test_prefix_collision_unicode_equality_accepts(self) -> None:
         cfg = _cfg(approval_shell_safe_prefixes=["\u0063at"])
@@ -1215,6 +1231,204 @@ class TestPrefixCollision:
         cfg = _cfg(approval_shell_safe_prefixes=["ls"])
         result = classify_risk(cfg, "shell_run", {"command": 'ls "unbalanced'})
         assert result == "high"
+
+
+class TestFlagValuePathCandidates:
+    """REQ-003 (shellrisk001): the value of a long --flag=value token must reach the
+    protected-path and allowed_root checks, identical to the space-separated form."""
+
+    @staticmethod
+    def _root_cfg(allowed_root: str) -> AgentConfig:
+        return _cfg(
+            approval_shell_safe_prefixes=["cat", "grep", "ls", "git"],
+            approval_protected_paths=["/etc/"],
+            allowed_root=allowed_root,
+        )
+
+    def test_flag_value_protected_path_escalates(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        cfg = self._root_cfg(str(tmp_path))
+        result = classify_risk(cfg, "shell_run", {"command": "cat --file=/etc/shadow"})
+        assert result == "high"
+
+    def test_flag_value_outside_allowed_root_escalates(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """No protected-path entries configured: the escalation must come from the
+        allowed_root check on the flag value."""
+        root = tmp_path / "root"
+        root.mkdir()
+        monkeypatch.chdir(root)
+        cfg = _cfg(approval_shell_safe_prefixes=["grep", "ls"], allowed_root=str(root))
+        assert (
+            classify_risk(cfg, "shell_run", {"command": "grep --include=/etc/shadow x"})
+            == "high"
+        )
+        assert (
+            classify_risk(cfg, "shell_run", {"command": "ls --ignore=/etc"}) == "high"
+        )
+
+    def test_flag_value_parity_with_separate_token(self, tmp_path, monkeypatch) -> None:
+        """The --flag=value form and the space-separated form classify identically."""
+        monkeypatch.chdir(tmp_path)
+        cfg = self._root_cfg(str(tmp_path))
+        for joined, separated in (
+            ("cat --file=/etc/shadow", "cat --file /etc/shadow"),
+            ("grep --include=/etc/shadow x", "grep --include /etc/shadow x"),
+            ("ls --ignore=/etc", "ls --ignore /etc"),
+        ):
+            assert (
+                classify_risk(cfg, "shell_run", {"command": joined})
+                == classify_risk(cfg, "shell_run", {"command": separated})
+                == "high"
+            )
+
+    def test_flag_value_in_root_stays_none(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        cfg = self._root_cfg(str(tmp_path))
+        result = classify_risk(cfg, "shell_run", {"command": "cat --file=notes.txt"})
+        assert result == "none"
+
+    def test_flag_value_non_path_stays_none(self, tmp_path, monkeypatch) -> None:
+        """Fail-closed parity: a non-path value resolves relative to the cwd, which is
+        inside allowed_root here."""
+        monkeypatch.chdir(tmp_path)
+        cfg = self._root_cfg(str(tmp_path))
+        assert (
+            classify_risk(cfg, "shell_run", {"command": "ls --ignore=*.py"}) == "none"
+        )
+
+    def test_bare_flag_and_empty_value_stay_none(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        cfg = self._root_cfg(str(tmp_path))
+        assert classify_risk(cfg, "shell_run", {"command": "ls --ignore"}) == "none"
+        assert classify_risk(cfg, "shell_run", {"command": "ls --ignore="}) == "none"
+
+    def test_flag_value_nul_escalates(self, tmp_path, monkeypatch) -> None:
+        """An embedded NUL escalates through the existing ValueError branch."""
+        monkeypatch.chdir(tmp_path)
+        cfg = self._root_cfg(str(tmp_path))
+        assert (
+            classify_risk(cfg, "shell_run", {"command": "cat --file=x\x00y"}) == "high"
+        )
+
+    def test_git_diff_output_flag_high_pin(self, tmp_path, monkeypatch) -> None:
+        """High pin: reaches high via the shellprefix001 git safe-shape rule, not via
+        this flag-value extraction fix."""
+        monkeypatch.chdir(tmp_path)
+        cfg = self._root_cfg(str(tmp_path))
+        assert (
+            classify_risk(cfg, "shell_run", {"command": "git diff --output=/etc/x"})
+            == "high"
+        )
+
+
+class TestShellSafeShape:
+    """REQ-006/REQ-007 (shellprefix001): shell_run auto-approval requires both the config
+    gate and a code-defined read-only safe shape; deny-by-default otherwise."""
+
+    @staticmethod
+    def _strict_cfg(allowed_root: str) -> AgentConfig:
+        return _cfg(
+            approval_shell_safe_prefixes=list(SHELL_PREFIXES_STRICT),
+            approval_protected_paths=["/etc/", "/opt/"],
+            allowed_root=allowed_root,
+        )
+
+    def test_python_interpreter_not_auto_approved(self, tmp_path, monkeypatch) -> None:
+        root = tmp_path / "root"
+        outside = tmp_path / "outside"
+        root.mkdir()
+        outside.mkdir()
+        cfg = self._strict_cfg(str(root))
+        monkeypatch.chdir(root)
+        assert (
+            classify_risk(cfg, "shell_run", {"command": "python -c print(1)"}) == "high"
+        )
+        monkeypatch.chdir(outside)
+        assert (
+            classify_risk(cfg, "shell_run", {"command": "python -c print(1)"}) == "high"
+        )
+
+    def test_pytest_not_auto_approved(self, tmp_path, monkeypatch) -> None:
+        root = tmp_path / "root"
+        outside = tmp_path / "outside"
+        root.mkdir()
+        outside.mkdir()
+        cfg = self._strict_cfg(str(root))
+        monkeypatch.chdir(root)
+        assert classify_risk(cfg, "shell_run", {"command": "pytest tests/"}) == "high"
+        monkeypatch.chdir(outside)
+        assert classify_risk(cfg, "shell_run", {"command": "pytest tests/"}) == "high"
+
+    def test_uv_run_not_auto_approved(self, tmp_path, monkeypatch) -> None:
+        root = tmp_path / "root"
+        outside = tmp_path / "outside"
+        root.mkdir()
+        outside.mkdir()
+        cfg = self._strict_cfg(str(root))
+        monkeypatch.chdir(root)
+        assert classify_risk(cfg, "shell_run", {"command": "uv run pytest"}) == "high"
+        monkeypatch.chdir(outside)
+        assert classify_risk(cfg, "shell_run", {"command": "uv run pytest"}) == "high"
+
+    def test_git_branch_delete_not_auto_approved(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        cfg = self._strict_cfg(str(tmp_path))
+        result = classify_risk(cfg, "shell_run", {"command": "git branch -D feature"})
+        assert result == "high"
+
+    def test_git_diff_output_flag_not_auto_approved(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Escalation must come from the git safe-shape rule, not the path check: the
+        working directory is inside allowed_root."""
+        monkeypatch.chdir(tmp_path)
+        cfg = self._strict_cfg(str(tmp_path))
+        result = classify_risk(
+            cfg, "shell_run", {"command": "git diff --output=/tmp/x"}
+        )
+        assert result == "high"
+
+    def test_full_path_find_delete_escalates(self, tmp_path, monkeypatch) -> None:
+        """REQ-008: the normalized basename 'find' must hit the deny-flag rule even when
+        the command token is a full path."""
+        monkeypatch.chdir(tmp_path)
+        cfg = self._strict_cfg(str(tmp_path))
+        result = classify_risk(
+            cfg, "shell_run", {"command": f"/usr/bin/find {tmp_path} -delete"}
+        )
+        assert result == "high"
+
+    def test_git_unlisted_subcommand_not_auto_approved(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """REQ-007: a git subcommand outside allowed_subcommands (and bare git) is not
+        auto-approved."""
+        monkeypatch.chdir(tmp_path)
+        cfg = self._strict_cfg(str(tmp_path))
+        for command in ("git", "git checkout main", "git push", "git reset --hard"):
+            assert classify_risk(cfg, "shell_run", {"command": command}) == "high"
+
+    def test_git_readonly_forms_remain_none(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        cfg = self._strict_cfg(str(tmp_path))
+        for command in (
+            "git status",
+            "git log --oneline",
+            "git diff",
+            "git show",
+            "git branch",
+        ):
+            assert classify_risk(cfg, "shell_run", {"command": command}) == "none"
+
+    def test_full_path_git_log_remains_none(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        cfg = self._strict_cfg(str(tmp_path))
+        result = classify_risk(
+            cfg, "shell_run", {"command": "/usr/bin/git log --oneline"}
+        )
+        assert result == "none"
 
 
 class TestMetacharacterRejection:

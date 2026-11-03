@@ -173,7 +173,7 @@ This policy defines the common baseline. Tool-specific deviations are documented
 
 - **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `mcp_05_01_access-control-and-allowlists.md`).
 - **Git MCP**: `GitConfig.protected_branches` and `git_ref_validation.validate_protected()` enforce a protected-branch policy for checkout, pull and push, including the implicit-target case. Force Push is prevented by the write-ref allow-list (`git_ref_validation.validate_ref_allowlist()`), which rejects refspec forms such as a leading `+` or `:` in `branch`, not by the absence of a `force` parameter (ADR-012 Decision Details #2 and #3). Dirty-Worktree/Detached-HEAD guards and postcondition verification are implemented, and the postconditions cannot be bypassed. Verification: `test_git_security_compliance.py` (protected-branch denial, dry-run precondition handling, postcondition bypass prevention).
-- **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `mcp_04_02_file-write-file-delete-shell.md`)
+- **Shell MCP**: `approval_shell_safe_prefixes` gates the executable, and an agent-side safe-shape rule decides subcommand and flag acceptability, so only read-only-by-construction `shell_run` command shapes are auto-approved (deny by default otherwise); interpreters and test runners always take the approval prompt (documented in `mcp_04_02_file-write-file-delete-shell.md`)
 
 Tool-specific docs must include a "See also: `security_02_high-risk-tool-common-policy.md`" reference.
 

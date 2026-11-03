@@ -24,8 +24,12 @@
 
 ## Design decisions
 - Safe-shape rules live in code as a data-driven table (Plan A4, no new config key):
-  extend `_UNSAFE_FLAGS` (L44-48) into a per-executable rule table `SAFE_SHELL_SHAPES`
+  extend `_UNSAFE_FLAGS` (L44-48) into a per-executable rule table `_SAFE_SHELL_SHAPES`
   (new) so `_special_case_risk` stays a thin dispatcher (radon risk: it is already C(13)).
+  Naming correction (Step 3b, 20261103 implementation cycle): the table and its dataclass
+  are `_`-prefixed, matching this module's existing private constants (`_UNSAFE_FLAGS`,
+  `_METACHAR_RE`, `_TIER_TO_RISK`); a public name would add a new entry to the
+  `registry/manifests/agent_api.yaml` public-API registry, which this rule is not.
 - Interpreters (`python`, `pytest`, `uv`) have no entry in the rule table — absence of a
   rule is the denial mechanism (REQ-006); no interpreter-specific code branch is needed.
 
@@ -54,8 +58,8 @@
    match.
 
 ### Method
-- Replace `_UNSAFE_FLAGS` with `SAFE_SHELL_SHAPES` (new): `dict[str, ShellShapeRule]`
-  where `ShellShapeRule` (new) is a small frozen dataclass with `allowed_subcommands:
+- Replace `_UNSAFE_FLAGS` with `_SAFE_SHELL_SHAPES` (new): `dict[str, _ShellShapeRule]`
+  where `_ShellShapeRule` (new) is a small frozen dataclass with `allowed_subcommands:
   frozenset[str] | None` (None = no subcommand semantics) and `deny_flags: frozenset[str]`
   plus `deny_flag_prefixes: frozenset[str]` (token-prefix denylist such as `--output=`).
 - Table content (REQ-007, preserving current `none`-asserted behavior for read-only
@@ -98,7 +102,11 @@
 - Behavior change is escalation-only: commands previously `none` may become `high`; no
   command becomes less risky (metacharacter/path/parse fail-closed branches untouched).
 - `TestPrefixCollision` synthetic-prefix tests for executables with no rule (`c`, `Cat`,
-  `\$HOME`) will flip to `high` — migrated in the seq 03 document (Plan A7).
+  `\$HOME`) will flip to `high` — migrated in the seq 03 document (Plan A7). Adversarial
+  verification in the seq 03 cycle corrected this to six pins: the two `$HOME` variants
+  (`test_backslash_escape_in_prefix`, `test_prefix_collision_backslash_escape_mismatch`)
+  and the two quoted-`"git log"` variants (single token `git log` has no safe-shape rule)
+  in addition to the three the Plan named.
 
 ## Security considerations
 - Fail-closed default: unknown executables, unknown git subcommands, denied flags,
@@ -126,7 +134,7 @@
   `git log --oneline`, `git diff`, `git show`, list-only `git branch` classify `none`;
   full-path `find` with `-delete` classifies `high` and full-path `git log --oneline`
   stays `none`.
-- Static checks and radon constraint pass; the three A7 pins are `high` (migrated in seq 03).
+- Static checks and radon constraint pass; the six A7 pins are `high` (migrated in seq 03).
 
 ## Out of Scope
 - `_check_positional_args` token extraction (`--flag=value`) — owned by
@@ -139,8 +147,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement safe-shape rule table + normalized executable lookup (Procedure 1-4) | Pending | — | — | Execute after seq 03 red-test baseline (Plan Phase 1) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) incl. radon | Pending | — | — | |
+| 1 | Implement safe-shape rule table + normalized executable lookup (Procedure 1-4) | Completed | 20261103-094439 | 20261103-094439 | Execute after seq 03 red-test baseline (Plan Phase 1) Changed file: scripts/agent/tool_policy.py (SAFE_SHELL_SHAPES + ShellShapeRule + _safe_shape_violation, removed _unsafe_flag_denylist) Rename correction (Step 3b): table/dataclass renamed to _SAFE_SHELL_SHAPES/_ShellShapeRule after the full-suite run flagged registry/manifests/agent_api.yaml drift from a new public class; matches the module's private-constant convention. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) incl. radon | Completed | 20261103-094439 | 20261103-094439 | ruff/mypy clean; radon: _special_case_risk C(13) unchanged, _safe_shape_violation B(9); test_tool_policy 205 passed Full-suite attempt 1 failed on tests/tools/test_generate_reference_table.py::TestCheckDrift (manifest stale) -> fixed by the rename; generate_reference_table --check reports no drift; radon re-confirmed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

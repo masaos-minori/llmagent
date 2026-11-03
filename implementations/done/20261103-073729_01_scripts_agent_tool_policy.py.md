@@ -115,8 +115,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `_iter_path_candidates` + candidate wiring (Procedure 1-2) | Pending | — | — | Execute after the seq 02 red-baseline tests land (Assumptions); re-read function body first (UNK-01) |
-| 2 | Run the validation sequence incl. radon/bandit/diff-cover | Pending | — | — | |
+| 1 | Implement `_iter_path_candidates` + candidate wiring (Procedure 1-2) | Completed | 20261103-094450 | 20261103-094450 | Execute after the seq 02 red-baseline tests land (Assumptions); re-read function body first (UNK-01) Changed file: scripts/agent/tool_policy.py (_iter_path_candidates + candidate wiring in _check_positional_args) |
+| 2 | Run the validation sequence incl. radon/bandit/diff-cover | Completed | 20261103-094450 | 20261103-094450 | ruff/mypy/bandit clean; radon: _check_positional_args C(11)->B(9), _iter_path_candidates B(6); pytest -k 'tool_policy or tool_approval' 441 passed; full suite + diff-cover pending Full suite 11386 passed; diff-cover 100%; bandit clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

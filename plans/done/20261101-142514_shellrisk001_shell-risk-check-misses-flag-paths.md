@@ -133,9 +133,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Candidate extraction for `--flag=value` in `_check_positional_args` (scripts/agent/tool_policy.py) | In Progress | — | — | After `shellprefix001` (UNK-01) |
-| 2 | Add `--flag=value` regression tests (tests/agent/test_tool_policy.py) | In Progress | — | — |  |
-| 3 | Validation commands and deploy hand-off | Pending | — | — |  |
+| 1 | Candidate extraction for `--flag=value` in `_check_positional_args` (scripts/agent/tool_policy.py) | Completed | 20261103-084700 | 20261103-084701 | After `shellprefix001` (UNK-01) |
+| 2 | Add `--flag=value` regression tests (tests/agent/test_tool_policy.py) | Completed | 20261103-084400 | 20261103-084701 | TestShellSafeShape-adjacent class TestFlagValuePathCandidates added; red baseline 4 failed, green after seq 01 |
+| 3 | Validation commands and deploy hand-off | Completed | 20261103-085000 | 20261103-094429 | Full suite green, diff-cover 100%; commit/push in the same cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

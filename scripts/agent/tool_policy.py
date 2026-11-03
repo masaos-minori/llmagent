@@ -12,6 +12,7 @@ import os
 import re
 import shlex
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -41,10 +42,33 @@ _EXEC_TOOLS: frozenset[str] = frozenset({"shell_run"})
 # Shell metacharacters/control operators — fail closed on any detection
 _METACHAR_RE = re.compile(r"[;|&]|&&|\|\||`|\$\(|<\(|>\(|>>|<<|[<>]|[\r\n]")
 
-_UNSAFE_FLAGS: dict[str, set[str]] = {
-    "find": {"-exec", "-delete", "-ok"},
-    "cat": set(),
-    "grep": {"-r", "-R"},
+
+@dataclass(frozen=True)
+class _ShellShapeRule:
+    """REQ-007: read-only-by-construction shape rule for one shell executable."""
+
+    allowed_subcommands: frozenset[str] | None = None
+    deny_flags: frozenset[str] = frozenset()
+    deny_flag_prefixes: frozenset[str] = frozenset()
+
+
+# REQ-006: an executable absent from this table is never auto-approved, even when a
+# config approval_shell_safe_prefixes entry gates it. Interpreters and test runners
+# (python, python3, pytest, uv) have no entry by design — absence is the denial.
+_SAFE_SHELL_SHAPES: dict[str, _ShellShapeRule] = {
+    "ls": _ShellShapeRule(),
+    "pwd": _ShellShapeRule(),
+    "echo": _ShellShapeRule(),
+    "cat": _ShellShapeRule(),
+    "grep": _ShellShapeRule(deny_flags=frozenset({"-r", "-R"})),
+    "find": _ShellShapeRule(deny_flags=frozenset({"-exec", "-delete", "-ok"})),
+    "git": _ShellShapeRule(
+        allowed_subcommands=frozenset({"log", "status", "show", "diff", "branch"}),
+        deny_flags=frozenset(
+            {"-D", "-d", "-M", "-m", "-c", "--delete", "--move", "--copy"}
+        ),
+        deny_flag_prefixes=frozenset({"--output"}),
+    ),
 }
 _GITHUB_MUTATION_TOOLS: frozenset[str] = GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
 
@@ -151,16 +175,35 @@ def _match_executable_identity(
     return None
 
 
+def _iter_path_candidates(argv: list[str]) -> list[str]:
+    """REQ-001: tokens whose value must be routed through the path checks.
+
+    A bare token is a candidate; a `--flag=value` token contributes the text after its
+    first equals sign. Long flags without a value, the end-of-options marker, short
+    flags and empty values contribute nothing (attached short-flag values and
+    `key=value` operands are out of scope).
+    """
+    candidates: list[str] = []
+    for token in argv[1:]:
+        if not token.startswith("-"):
+            candidates.append(token)
+        elif token.startswith("--") and "=" in token:
+            value = token.split("=", 1)[1]
+            if value:
+                candidates.append(value)
+    return candidates
+
+
 def _check_positional_args(
     cfg: AgentConfig,
     argv: list[str],
     base: RiskLevel,
 ) -> RiskLevel | None:
-    """Route positional args through protected-path and allowed-root checks."""
+    """Route positional and flag-value args through protected-path and allowed-root checks."""
     if base == RiskLevel.HIGH:
         return None
-    # Extract positional (non-flag) tokens from argv[1:]
-    positional = [a for a in argv[1:] if not a.startswith("-")]
+    # REQ-001: bare tokens and --flag=value values are path candidates
+    positional = _iter_path_candidates(argv)
     if not positional:
         return None
     for pos in positional:
@@ -179,12 +222,25 @@ def _check_positional_args(
     return None
 
 
-def _unsafe_flag_denylist(executable: str, args: list[str]) -> bool:
-    """Return True if any argument matches a documented unsafe-flag denylist for this executable."""
-    flags = _UNSAFE_FLAGS.get(executable, set())
-    if not flags:
-        return False
-    return any(arg in flags for arg in args)
+def _safe_shape_violation(exe: str, argv: list[str]) -> bool:
+    """Return True when the argument tail violates, or has no, safe-shape rule for exe.
+
+    REQ-006: rule absence is the denial mechanism (deny-by-default). REQ-007: allowed
+    subcommands and denied flags are per-executable. `argv` is the tail after the
+    executable token.
+    """
+    rule = _SAFE_SHELL_SHAPES.get(exe)
+    if rule is None:
+        return True
+    tokens = argv
+    if rule.allowed_subcommands is not None:
+        subcommand = argv[0] if argv else ""
+        if subcommand not in rule.allowed_subcommands:
+            return True
+        tokens = argv[1:]
+    if any(token in rule.deny_flags for token in tokens):
+        return True
+    return any(token.startswith(p) for p in rule.deny_flag_prefixes for token in tokens)
 
 
 def _escalate_for_path(
@@ -252,8 +308,11 @@ def _special_case_risk(
             # REQ-003: route positional args through path/argument checks
             if escalated := _check_positional_args(cfg, argv, match):
                 return escalated
-            # REQ-004: check unsafe flags for this executable
-            if _unsafe_flag_denylist(argv[0], argv[1:]):
+            # REQ-008: one normalized executable name gates both the prefix match
+            # (basename-matched in _match_executable_identity) and this rule lookup
+            exe = os.path.basename(argv[0])
+            # REQ-006/REQ-007: safe-shape rule decides auto-approval; deny by default
+            if _safe_shape_violation(exe, argv[1:]):
                 return RiskLevel.HIGH
             return match
         return RiskLevel.HIGH

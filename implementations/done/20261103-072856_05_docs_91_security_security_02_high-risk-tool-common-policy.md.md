@@ -69,8 +69,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the Shell MCP deviations bullet | Pending | — | — | Execute after seq 01/02 (Plan Phase 5) |
-| 2 | Run the docs checkers (`routing.md` Tools) | Pending | — | — | |
+| 1 | Rewrite the Shell MCP deviations bullet | Completed | 20261103-094439 | 20261103-094439 | Execute after seq 01/02 (Plan Phase 5) Changed file: docs/91_security/security_02_high-risk-tool-common-policy.md (Shell MCP deviations bullet) |
+| 2 | Run the docs checkers (`routing.md` Tools) | Completed | 20261103-094439 | 20261103-094439 | check_docs_quality/structure/content_policy: all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
