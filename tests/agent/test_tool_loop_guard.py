@@ -686,7 +686,7 @@ class TestGuardHintDeferral:
 
     @staticmethod
     def _defer_guard(**cfg_overrides: object) -> tuple[MagicMock, ToolLoopGuard]:
-        cfg = _cfg(**cfg_overrides)  # type: ignore[arg-type]
+        cfg = _cfg(**cfg_overrides)  # type: ignore[arg-type]  — cfg_overrides is loosely typed so tests can override individual config fields
         ctx = _make_ctx(cfg)
         ctx.diagnostics = MagicMock()
         guard = ToolLoopGuard(ctx, defer_hints=True)

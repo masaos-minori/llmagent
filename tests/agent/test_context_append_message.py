@@ -275,11 +275,11 @@ class TestSwapHistory:
 
             async def __aenter__(self) -> _LockSpy:
                 self.entered += 1
-                await self.inner.acquire()  # type: ignore[attr-defined]
+                await self.inner.acquire()  # type: ignore[attr-defined]  — _LockSpy.inner holds a real lock; acquire is forwarded at runtime
                 return self
 
             async def __aexit__(self, *exc: object) -> None:
-                self.inner.release()  # type: ignore[attr-defined]
+                self.inner.release()  # type: ignore[attr-defined]  — _LockSpy.inner holds a real lock; release is forwarded at runtime
 
         await conv.append_message({"role": "user", "content": "seed"})
         base_history = conv.history
