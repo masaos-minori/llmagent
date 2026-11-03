@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -2537,3 +2538,168 @@ class TestToolCallSinkScrub:
         assert tool_call_messages
         assert "'content': '***'" in tool_call_messages[0]
         assert "/tmp/f" in tool_call_messages[0]
+
+
+class TestDiagnosticWritesOffEventLoop:
+    """blockio001 REQ-004/REQ-005: diagnostics writes must not block the event loop.
+
+    Each stub blocks on a threading.Event and records the calling thread. While the
+    write is blocked the test proves the loop stays responsive (a loop.call_soon
+    callback fires) and the post-write steps have not run yet. Before the seq 04/05
+    offloads land, the write runs synchronously on the loop thread: the
+    not-yet-observed assertion fails deterministically (the loop freezes until the
+    stub's own Event.wait(5) timeout releases it) and the recorded caller is the
+    main thread. The stub never time.sleeps on the loop (REQ-006(a)).
+    """
+
+    @staticmethod
+    def _stub_writer() -> tuple[
+        threading.Event, threading.Event, list[dict[str, Any]], Any
+    ]:
+        started = threading.Event()
+        release = threading.Event()
+        writes: list[dict[str, Any]] = []
+
+        def blocking_save(*args: Any, **kwargs: Any) -> None:
+            writes.append(
+                {"args": args, "kwargs": kwargs, "thread": threading.current_thread()}
+            )
+            started.set()
+            release.wait(5)
+
+        return started, release, writes, blocking_save
+
+    async def _await_write_started(self, started: threading.Event) -> None:
+        """Poll until the stubbed write begins, always yielding to the loop."""
+        for _ in range(5000):
+            if started.is_set():
+                return
+            await asyncio.sleep(0.001)
+        pytest.fail("stubbed diagnostics write never started")
+
+    async def _assert_loop_responsive(self) -> None:
+        """A callback scheduled on the running loop must fire while the write blocks."""
+        loop = asyncio.get_running_loop()
+        tick = asyncio.Event()
+        loop.call_soon(tick.set)
+        try:
+            await asyncio.wait_for(tick.wait(), timeout=1.0)
+        except TimeoutError:  # pragma: no cover - defensive; the stub self-releases
+            pytest.fail("event loop was blocked by the diagnostics write")
+
+    @pytest.mark.asyncio
+    async def test_transport_failure_write_off_loop(self) -> None:
+        ctx = _make_ctx()
+        ctx.session.session_id = "sess-1"
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="boom",
+                is_error=True,
+                request_id="req-1",
+                server_key="mcp-git",
+                source="mcp",
+                error_type="transport",
+            )
+        )
+        started, release, writes, stub = self._stub_writer()
+        ctx.diagnostics.save_transport_failure = stub
+        order: list[str] = []
+        guard = MagicMock()
+        guard.observe_availability = MagicMock(
+            side_effect=lambda result: order.append("observe")
+        )
+
+        task = asyncio.create_task(
+            execute_one_tool_call(
+                ctx, _pc("read_text_file", {}, call_id="call_r"), guard=guard
+            )
+        )
+        try:
+            await self._await_write_started(started)
+            await self._assert_loop_responsive()
+            # The post-write step has not run while the write is still blocked.
+            assert guard.observe_availability.call_count == 0
+            release.set()
+            await asyncio.wait_for(task, timeout=15)
+        finally:
+            release.set()
+        assert guard.observe_availability.call_count == 1
+        assert order == ["observe"]
+        assert writes, "save_transport_failure was not called"
+        assert writes[0]["kwargs"] == {
+            "session_id": "sess-1",
+            "tool_name": "read_text_file",
+            "server_key": "mcp-git",
+            "error_msg": "boom",
+        }
+        assert writes[0]["thread"] is not threading.main_thread()
+
+    @pytest.mark.asyncio
+    async def test_non_transport_results_touch_no_diagnostics(self) -> None:
+        for error_type, is_error in (("tool", True), ("", False)):
+            ctx = _make_ctx()
+            ctx.session.session_id = "sess-1"
+            ctx.services_required.tools.execute = AsyncMock(
+                return_value=ToolCallResult(
+                    output="value",
+                    is_error=is_error,
+                    request_id="req-1",
+                    server_key="mcp-git",
+                    source="mcp",
+                    error_type=error_type,
+                )
+            )
+            await execute_one_tool_call(
+                ctx, _pc("read_text_file", {}, call_id="call_r"), guard=MagicMock()
+            )
+            ctx.diagnostics.save_transport_failure.assert_not_called()
+            ctx.diagnostics.save.assert_not_called()
+            ctx.diagnostics.save_serialization_event.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_serialization_event_write_off_loop(self) -> None:
+        cfg = _cfg(serial_tool_calls=True)
+        ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = _write_registry({"write_file": True})
+        ctx.stats.stat_serialization_events = []
+        ctx.stats.stat_serialization_total_overhead_ms = 0.0
+        ctx.diagnostics = MagicMock()
+        started, release, writes, stub = self._stub_writer()
+        ctx.diagnostics.save_serialization_event = stub
+        write_call = _tc("write_file", '{"path": "/tmp/f"}')
+        with (
+            patch(
+                "agent.tool_approval.run_approval_checks",
+                new_callable=AsyncMock,
+                side_effect=lambda ctx, prepared: (prepared, []),
+            ),
+            patch(
+                "agent.tool_runner._record_round_exec",
+                side_effect=lambda *args, **kwargs: None,
+            ) as round_exec,
+        ):
+            task = asyncio.create_task(
+                execute_all_tool_calls(ctx, [write_call], 0, guard=ToolLoopGuard(ctx))
+            )
+            try:
+                await self._await_write_started(started)
+                await self._assert_loop_responsive()
+                # Stats bookkeeping is loop-side and precedes the blocked write.
+                assert len(ctx.stats.stat_serialization_events) == 1
+                # The awaited save completes before the round-exec record runs.
+                assert round_exec.call_count == 0
+                release.set()
+                await asyncio.wait_for(task, timeout=15)
+            finally:
+                release.set()
+        assert round_exec.call_count == 1
+        assert len(writes) == 1
+        assert writes[0]["thread"] is not threading.main_thread()
+        kwargs = writes[0]["kwargs"]
+        assert kwargs["session_id"] is None
+        assert kwargs["trigger_tool"] == "write_file"
+        assert kwargs["affected_count"] == 1
+        assert kwargs["mode"] == "serial"
+        assert kwargs["reason"] == "forced_serial"
+        assert isinstance(kwargs["round_id"], str)
+        assert isinstance(kwargs["elapsed_ms"], float)

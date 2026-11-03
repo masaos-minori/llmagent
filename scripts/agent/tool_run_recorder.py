@@ -17,6 +17,7 @@ Dependency direction: tool_run_recorder -> tool_audit, tool_preparation, tool_sc
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -80,13 +81,17 @@ def _log_dag_buckets(approved_calls: list[PreparedToolCall]) -> None:
         logger.debug("DAG_BUCKET: %s → %s", pc.name, _dag_bucket_label(pc.spec))
 
 
-def _record_round_serialization_events(
+async def _record_round_serialization_events(
     ctx: AgentContext,
     serialization_events: tuple[SerializationEvent, ...],
     round_id: str,
     elapsed_ms: float,
 ) -> None:
-    """Append one stats entry per serialization event and mirror it into diagnostics."""
+    """Append one stats entry per serialization event and mirror it into diagnostics.
+
+    Stats bookkeeping runs on the caller's loop thread; each diagnostics write runs
+    off the loop via asyncio.to_thread, awaited once per event in event order.
+    """
     ts = now_iso_raw()
     for se in serialization_events:
         round_event: dict[str, Any] = {
@@ -105,7 +110,8 @@ def _record_round_serialization_events(
         ctx.stats.stat_serialization_events.append(round_event)
         ctx.stats.stat_serialization_total_overhead_ms += elapsed_ms
         if ctx.diagnostics is not None:
-            ctx.diagnostics.save_serialization_event(
+            await asyncio.to_thread(
+                ctx.diagnostics.save_serialization_event,
                 session_id=ctx.session.session_id,
                 round_id=round_id,
                 trigger_tool=se.trigger_tool,

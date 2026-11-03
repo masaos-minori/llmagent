@@ -155,15 +155,15 @@ N/A: unchanged payloads and trust boundaries; only the executing thread moves.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm seq 08 red tests exist and fail | Pending | — | — | |
-| 2 | `async def` + `to_thread` wrap for `_record_transport_failure` (Procedure 2) | Pending | — | — | |
-| 3 | Await both call sites (Procedure 3-4, with seq 05 in one commit) | Pending | — | — | |
-| 4 | Size gate measurement and contingency handling (Procedure 5), then Validation plan 1-3 | Pending | — | — | |
+| 1 | Confirm seq 08 red tests exist and fail | Completed | 20261103-173417 | 20261103-173454 | Seq 08 red confirmed: test_transport_failure_write_off_loop and test_serialization_event_write_off_loop fail on the deterministic ordering gate; companion test green; 89 existing tests unchanged. |
+| 2 | `async def` + `to_thread` wrap for `_record_transport_failure` (Procedure 2) | Completed | 20261103-174000 | 20261103-174339 | async def + await asyncio.to_thread wrap landed; early returns unchanged; docstring kept single-line for size (see Step 4). |
+| 3 | Await both call sites (Procedure 3-4, with seq 05 in one commit) | Completed | 20261103-174000 | 20261103-174339 | await at both call sites: _record_transport_failure between audit_tool_exec and guard.observe_availability; await _record_round_serialization_events before _record_round_exec (seq 05 in working tree, one commit planned). |
+| 4 | Size gate measurement and contingency handling (Procedure 5), then Validation plan 1-3 | Completed | 20261103-174339 | 20261103-181609 | All Validation 1-3 checks pass (91/91 test_tool_runner incl. seq 08 green; 173 regression; ruff/format/mypy/bandit clean; radon no rank increase; ref-table no drift) but size gate FAILS: tool_runner.py 20504 B > 20480 (HEAD 20444 + 60 B; black re-wrapped the serialization await +23 B). Docstring already compressed to single line. Stopping before commit per Procedure 5; owner decision recorded in Blocker Log. Owner approved baseline entry agent/tool_runner.py 21000 B (20261103). Gate now: OK - no new violations (advisory tighten only). Validation 1-3 re-confirmed green: 91/91, 173 regression, ruff/format/mypy/bandit clean, radon ranks unchanged (incl. _record_transport_failure A(5)), ref-table no drift. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | `check_module_size` fails: tool_runner.py 20504 B > 20480 B gate (HEAD 20444 + 60 B; functional +49 B unavoidable, black re-wrapped the serialization await +23 B; own docstring already compressed). Owner decision required: `--update-baseline` approval vs separate `tool_runner.py` split Plan (note: inflightcancel001 procedure 121149_04 will add ~200 B to this file later). Commit of seq 04+05+08 held until decided. | Yes | 20261103 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
@@ -182,3 +182,6 @@ N/A: unchanged payloads and trust boundaries; only the executing thread moves.
 - **Generated at**: 20261103-113432
 - **Related target files**: `scripts/agent/tool_runner.py` (its row's tests are covered by
   the seq 08 document; see Companion test files)
+- **Size gate resolution**: `tools/check_module_size_baseline.txt` now grandfathers
+  `agent/tool_runner.py` at 21000 B (owner approval 20261103; chosen over a split Plan to
+  absorb the pending inflightcancel001 growth in the same file)

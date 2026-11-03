@@ -120,9 +120,9 @@ N/A: revert the commit (with seq 04); no config or schema change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm seq 08 red serialization test exists and fails | Pending | — | — | |
-| 2 | `import asyncio`, `async def`, per-event `to_thread` wrap (Procedure 2-3) | Pending | — | — | |
-| 3 | Run this document's checks with seq 04 in the same commit (Validation plan 1-2) | Pending | — | — | |
+| 1 | Confirm seq 08 red serialization test exists and fails | Completed | 20261103-172500 | 20261103-174428 | Seq 08 serialization red test confirmed failing (see seq 08 doc). |
+| 2 | `import asyncio`, `async def`, per-event `to_thread` wrap (Procedure 2-3) | Completed | 20261103-174000 | 20261103-174428 | import asyncio + async def + per-event await asyncio.to_thread wrap landed; stats appends stayed synchronous; kwargs verbatim. |
+| 3 | Run this document's checks with seq 04 in the same commit (Validation plan 1-2) | Completed | 20261103-174428 | 20261103-181609 | Validation 1-2 all green (91/91 test_tool_runner incl. seq 08 serialization test; ruff/format/mypy/bandit clean; radon _record_round_serialization_events stays A(3); size 5783 B ample). Commit blocked by the seq 04 tool_runner.py size-gate Blocker (see 04 doc Blocker Log). Commit unblocked by owner's baseline approval (agent/tool_runner.py 21000 B). Recorder 5783 B ample; radon A(3) unchanged; all Validation 1-2 green. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

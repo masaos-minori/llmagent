@@ -20,7 +20,7 @@ until both land in the same commit).
 
 ## Assumptions
 - Verified against current source (20261103): the file already exercises the paths under
-  test — `TestTransportFailureDiagnostics` (1900) drives `execute_one_tool_call` with a
+  test — `TestTransportFailureDiagnostics` (1899) drives `execute_one_tool_call` with a
   stubbed `ctx.services_required.tools.execute` returning a `ToolCallResult(error_type=
   "transport")` and asserts `save_transport_failure.assert_called_once_with(session_id=...,
   tool_name=..., server_key=..., error_msg=...)`; `test_tool_level_error_does_not_write_transport_diagnostics`
@@ -142,8 +142,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestDiagnosticWritesOffEventLoop` (new) tests and confirm they fail (Procedure 1-2) | Pending | — | — | |
-| 2 | After seq 04+05 land: confirm green and run the determinism/regression checks (Procedure 3; Validation plan 2-4) | Pending | — | — | |
+| 1 | Add `TestDiagnosticWritesOffEventLoop` (new) tests and confirm they fail (Procedure 1-2) | Completed | 20261103-172500 | 20261103-173417 | TestDiagnosticWritesOffEventLoop added (add-only, 166 insertions, 0 deletions; threading import added). Red gates: the two responsiveness tests fail on the deterministic ordering gate (observe/round_exec already done when the blocked write is observable) and record main-thread callers. Companion test (non-transport) passes by design in both states. Red runs bounded by stub Event.wait(5). ruff/format clean; mypy adds no new errors (4 pre-existing at HEAD); 89 existing tests unchanged. |
+| 2 | After seq 04+05 land: confirm green and run the determinism/regression checks (Procedure 3; Validation plan 2-4) | Completed | — | 20261103-181609 | Green after seq 04+05 land: 91/91 test_tool_runner; determinism 2 consecutive runs green (0.39 s / 0.36 s); regression set 173 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

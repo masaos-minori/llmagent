@@ -227,17 +227,18 @@ async def _execute_prepared_call(
     return await tools.execute(name, args)
 
 
-def _record_transport_failure(
+async def _record_transport_failure(
     ctx: AgentContext, name: str, result: ToolCallResult
 ) -> None:
-    """Persist a transport-level failure into diagnostics, when diagnostics are wired."""
+    """Persist a transport-level failure to diagnostics off the loop, when wired."""
     if (
         not result.is_error
         or result.error_type != "transport"
         or ctx.diagnostics is None
     ):
         return
-    ctx.diagnostics.save_transport_failure(
+    await asyncio.to_thread(
+        ctx.diagnostics.save_transport_failure,
         session_id=getattr(ctx.session, "session_id", None),
         tool_name=name,
         server_key=result.server_key or "",
@@ -289,7 +290,7 @@ async def execute_one_tool_call(
         idempotency_key=idempotency_key,
     )
 
-    _record_transport_failure(ctx, name, result)
+    await _record_transport_failure(ctx, name, result)
     guard.observe_availability(result)
     if not is_error:
         guard.record_tool_result(name, text)
@@ -450,7 +451,9 @@ async def _execute_with_dag(
     results.sort(key=lambda r: call_order.get(r[0], 0))
 
     elapsed_ms = (time.perf_counter() - t0) * 1000
-    _record_round_serialization_events(ctx, serialization_events, round_id, elapsed_ms)
+    await _record_round_serialization_events(
+        ctx, serialization_events, round_id, elapsed_ms
+    )
     _record_round_exec(
         ctx,
         approved_calls,
