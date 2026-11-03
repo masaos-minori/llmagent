@@ -212,6 +212,121 @@ class TestCheckAllowedRoot:
         assert check_allowed_root(cfg, "write_file", {})
 
 
+class TestDeclaredScopeKeys:
+    """pathkeys001: a tool's declared resource_scope_keys reach the path checks.
+
+    These fail on current code (declared keys are ignored) and pass after the
+    change. They exercise the union of declared + configured keys, list-valued
+    path arguments, fail-closed on unexpected value types, and fail-closed on an
+    unregistered tool (REQ-001, REQ-002, REQ-003).
+    """
+
+    @staticmethod
+    def _registry_with_scope(*tools: tuple[str, list[str]]) -> RuntimeToolRegistry:
+        tool_map: dict[str, RuntimeTool] = {}
+        for name, keys in tools:
+            tool_map[name] = RuntimeTool(
+                name=name,
+                server_key="test_server",
+                server_url="",
+                description="",
+                input_schema={},
+                raw_definition={},
+                status="active",
+                is_write=False,
+                requires_serial=False,
+                resource_scope_kind="path",
+                resource_scope_keys=tuple(keys),
+                agent_safety_tier="READ_ONLY",
+                enabled_for_llm=True,
+                capabilities=(),
+            )
+        return RuntimeToolRegistry(
+            tools=tool_map, allowed_servers=frozenset({"test_server"})
+        )
+
+    def test_list_paths_one_outside_root_denied(self) -> None:
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        reg = self._registry_with_scope(("read_multiple_files", ["paths"]))
+        assert not check_allowed_root(
+            cfg, "read_multiple_files", {"paths": ["/home/a", "/tmp/b"]}, reg
+        )
+
+    def test_list_paths_all_inside_allowed(self) -> None:
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        reg = self._registry_with_scope(("read_multiple_files", ["paths"]))
+        assert check_allowed_root(
+            cfg, "read_multiple_files", {"paths": ["/home/a", "/home/b"]}, reg
+        )
+
+    def test_declared_repo_path_outside_root_denied(self) -> None:
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        reg = self._registry_with_scope(("git_clone", ["repo_path"]))
+        assert not check_allowed_root(cfg, "git_clone", {"repo_path": "/tmp/x"}, reg)
+
+    def test_present_non_string_value_fails_closed(self) -> None:
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        reg = self._registry_with_scope(("read_multiple_files", ["paths"]))
+        assert not check_allowed_root(cfg, "read_multiple_files", {"paths": 123}, reg)
+
+    def test_list_element_non_string_fails_closed(self) -> None:
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        reg = self._registry_with_scope(("read_multiple_files", ["paths"]))
+        assert not check_allowed_root(
+            cfg, "read_multiple_files", {"paths": ["/home/a", 5]}, reg
+        )
+
+    def test_unregistered_tool_fails_closed(self) -> None:
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+        )
+        reg = self._registry_with_scope(("read_multiple_files", ["paths"]))
+        # write_file is not in the registry -> fail closed (deny), never open.
+        assert not check_allowed_root(cfg, "write_file", {"path": "/home/a"}, reg)
+
+    def test_check_preflight_threads_registry(self) -> None:
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        reg = self._registry_with_scope(("read_multiple_files", ["paths"]))
+        with pytest.raises(PolicyViolationError):
+            check_preflight(
+                cfg, "read_multiple_files", {"paths": ["/home/a", "/tmp/b"]}, reg
+            )
+
+    def test_escalate_for_path_checks_declared_key(self) -> None:
+        from agent.tool_enums import RiskLevel
+        from agent.tool_policy import _escalate_for_path
+
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+            approval_protected_paths=["/etc"],
+        )
+        reg = self._registry_with_scope(("git_clone", ["repo_path"]))
+        result = _escalate_for_path(
+            cfg, RiskLevel.MEDIUM, {"repo_path": "/etc/passwd"}, "git_clone", reg
+        )
+        assert result == RiskLevel.HIGH
+
+
 class TestCfgHelperDefaults:
     def test_unknown_tool_defaults_to_high_risk(self) -> None:
         # was: test_unknown_tool_defaults_to_medium_risk asserting "medium" -- now "high"

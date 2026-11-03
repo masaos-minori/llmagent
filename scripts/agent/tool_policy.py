@@ -145,6 +145,60 @@ def _iter_string_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[s
             yield val
 
 
+class _UnexpectedPathValueType(Exception):
+    """Raised when a path argument value is neither str nor list[str]."""
+
+
+def _resolve_checked_path_keys(
+    tool_name: str,
+    cfg: AgentConfig,
+    registry: RuntimeToolRegistry | None = None,
+) -> list[str] | None:
+    """Sorted unique path-key names to check.
+
+    Union of the configured ``approval_resource_keys.path_keys`` and the
+    registered tool's declared ``resource_scope_keys``. Returns ``None`` when a
+    registry is supplied but the tool is unregistered (``KeyError``), so the
+    caller fails closed. With ``registry=None`` only the configured keys are
+    returned (preserves prior behavior).
+    """
+    declared: tuple[str, ...] = ()
+    if registry is not None and tool_name:
+        try:
+            tool = registry.get(tool_name)  # KeyError -> unregistered -> fail closed
+            declared = tuple(getattr(tool, "resource_scope_keys", ()) or ())
+        except KeyError:
+            return None
+    configured = cfg.approval.approval_resource_keys.get("path_keys", ())
+    return sorted(set(declared) | set(configured))
+
+
+def _iter_path_arg_values(args: dict[str, Any], keys: list[str]):
+    """Yield each string element of the given path argument names.
+
+    A non-empty ``str`` yields itself; a ``list`` yields each ``str`` element;
+    any other shape (a non-list non-str value, an empty string, or a non-str or
+    empty list element) raises :class:`_UnexpectedPathValueType` so the caller
+    fails closed. A key absent from ``args`` is skipped (nothing to inspect),
+    preserving the prior behavior where configured keys a tool does not supply
+    do not deny the call.
+    """
+    for key in keys:
+        if key not in args:
+            continue
+        value = args[key]
+        if isinstance(value, str):
+            if value:
+                yield value
+        elif isinstance(value, list):
+            for item in value:
+                if not isinstance(item, str) or not item:
+                    raise _UnexpectedPathValueType(key, value)
+                yield item
+        else:
+            raise _UnexpectedPathValueType(key, value)
+
+
 def _has_metacharacters(cmd: str) -> bool:
     """Return True if the raw command contains shell metacharacters/control operators."""
     return bool(_METACHAR_RE.search(cmd))
@@ -247,14 +301,27 @@ def _escalate_for_path(
     cfg: AgentConfig,
     base: RiskLevel,
     args: dict[str, Any],
+    tool_name: str = "",
+    registry: RuntimeToolRegistry | None = None,
 ) -> RiskLevel | None:
-    """Return HIGH when any path arg is under a protected directory, else None."""
+    """Return HIGH when any path arg is under a protected directory, else None.
+
+    Inspects the union of the configured path_keys and the registered tool's
+    declared resource_scope_keys; every string element of a list-valued path
+    argument is checked. Fails closed (HIGH) on an unexpected value type or an
+    unregistered tool.
+    """
     if base == RiskLevel.HIGH:
         return None
-    path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
-    for val in _iter_string_arg_values(args, path_keys):
-        if any(val.startswith(p) for p in cfg.approval.approval_protected_paths):
-            return RiskLevel.HIGH
+    keys = _resolve_checked_path_keys(tool_name, cfg, registry)
+    if keys is None:
+        return RiskLevel.HIGH  # unregistered tool -> fail closed
+    try:
+        for val in _iter_path_arg_values(args, keys):
+            if any(val.startswith(p) for p in cfg.approval.approval_protected_paths):
+                return RiskLevel.HIGH
+    except _UnexpectedPathValueType:
+        return RiskLevel.HIGH
     return None
 
 
@@ -370,7 +437,7 @@ def classify_risk(
         return RiskLevel.NONE
     if override := _special_case_risk(cfg, tool_name, args):
         return override
-    if escalated := _escalate_for_path(cfg, base, args):
+    if escalated := _escalate_for_path(cfg, base, args, tool_name, registry):
         return escalated
     if escalated := _escalate_for_github_branch(cfg, tool_name, base, args):
         return escalated
@@ -381,19 +448,31 @@ def check_allowed_root(
     cfg: AgentConfig,
     tool_name: str,
     args: dict[str, Any],
+    registry: RuntimeToolRegistry | None = None,
 ) -> bool:
-    """Return False when any path argument is outside cfg.approval.allowed_root."""
+    """Return False when any path argument is outside cfg.approval.allowed_root.
+
+    Checks the union of the configured path_keys and the registered tool's
+    declared resource_scope_keys; every string element of a list-valued path
+    argument is inspected. Fails closed (False) on an unexpected value type or an
+    unregistered tool.
+    """
     if not cfg.approval.allowed_root:
         return True
     root = Path(cfg.approval.allowed_root).resolve()
-    path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
-    for val in _iter_string_arg_values(args, path_keys):
-        try:
-            resolved = Path(val).resolve()
-        except (ValueError, OSError):
-            return False
-        if not resolved.is_relative_to(root):
-            return False
+    keys = _resolve_checked_path_keys(tool_name, cfg, registry)
+    if keys is None:
+        return False  # unregistered tool -> fail closed
+    try:
+        for val in _iter_path_arg_values(args, keys):
+            try:
+                resolved = Path(val).resolve()
+            except (ValueError, OSError):
+                return False
+            if not resolved.is_relative_to(root):
+                return False
+    except _UnexpectedPathValueType:
+        return False
     return True
 
 
@@ -419,17 +498,19 @@ def check_preflight(
     cfg: AgentConfig,
     tool_name: str,
     args: dict[str, Any],
+    registry: RuntimeToolRegistry | None = None,
 ) -> None:
     """Raise PolicyViolationError when a pre-flight check denies the tool call.
 
-    Does nothing when all checks pass.
+    Does nothing when all checks pass. The optional registry lets the declared
+    ``resource_scope_keys`` reach the path checks alongside the configured keys.
     """
     if cfg.tool.allowed_tools and tool_name not in cfg.tool.allowed_tools:
         raise PolicyViolationError(
             "denied_allowed_tools",
             f"{tool_name}: not in allowed_tools for this session",
         )
-    if not check_allowed_root(cfg, tool_name, args):
+    if not check_allowed_root(cfg, tool_name, args, registry):
         raise PolicyViolationError(
             "denied_root_jail",
             f"{tool_name}: path outside allowed_root ({cfg.approval.allowed_root!r})",

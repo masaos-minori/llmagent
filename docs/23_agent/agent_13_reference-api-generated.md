@@ -176,9 +176,9 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `check_write_classification` | `def check_write_classification(registry) -> list[str]` | Return one finding per tool whose RuntimeTool write flag disagrees with the static sets. |
 |  | `is_plan_mode_blocked` | `def is_plan_mode_blocked(cfg, tool_name) -> bool` | Return True when plan mode must reject the tool call. |
 |  | `classify_risk` | `def classify_risk(cfg, tool_name, args, registry) -> RiskLevel` | Return the risk level for a tool call. |
-|  | `check_allowed_root` | `def check_allowed_root(cfg, tool_name, args) -> bool` | Return False when any path argument is outside cfg.approval.allowed_root. |
+|  | `check_allowed_root` | `def check_allowed_root(cfg, tool_name, args, registry) -> bool` | Return False when any path argument is outside cfg.approval.allowed_root. |
 |  | `check_allowed_repo` | `def check_allowed_repo(cfg, tool_name, args) -> bool` | Return False when a GitHub write tool targets a repo not in the allowlist. |
-|  | `check_preflight` | `def check_preflight(cfg, tool_name, args) -> None` | Raise PolicyViolationError when a pre-flight check denies the tool call. |
+|  | `check_preflight` | `def check_preflight(cfg, tool_name, args, registry) -> None` | Raise PolicyViolationError when a pre-flight check denies the tool call. |
 | `scripts/agent/tool_preparation.py` | `PreparedToolCall` | `class PreparedToolCall` | A raw tool call that has passed preparation and is ready for approval/execution. |
 |  | `prepare_tool_calls` | `def prepare_tool_calls(ctx, tool_calls) -> tuple[list[PreparedToolCall], list[_PrepFailure]]` | Prepare a batch of raw tool calls, in order. |
 | `scripts/agent/tool_result_formatter.py` | `turn_limit_hint` | `def turn_limit_hint(omitted_chars, omitted_lines, limit) -> str` | Build the hint shown to the LLM in place of a tool result dropped for |

@@ -165,7 +165,7 @@ async def check_approval(
         return False
 
     try:
-        check_preflight(ctx.cfg, tool_name, args)
+        check_preflight(ctx.cfg, tool_name, args, ctx.services_required.runtime_tools)
     except PolicyViolationError as preflight_exc:
         audit_approval(
             ctx, tool_name, RiskLevel.HIGH, args, preflight_exc.audit_decision

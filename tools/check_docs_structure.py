@@ -132,7 +132,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 25609 (2026-11-02): the diagmask001 follow-up (commit d03973c41)
     # regenerated the table with the new `detects_secrets` row in agent/secrets_masker.py;
     # the ceiling equals the accepted size.
-    "agent_13_reference-api-generated.md": 25609,
+    # Re-accepted at 25771 (2026-11-03): the pathkeys001 change added an optional
+    # `registry` parameter to `check_allowed_root` in scripts/agent/tool_policy.py, which the
+    # generated agent_api table records; the ceiling equals the accepted size.
+    "agent_13_reference-api-generated.md": 25771,
     # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
     # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
     # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate
