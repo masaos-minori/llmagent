@@ -261,6 +261,7 @@ def _emit_call_tool_audit(req: CallToolRequest, request: Request, outcome: str) 
     session_id, request_id = extract_request_context(request)[:2]
     keys = ("path", "source", "destination")
     target = next((req.args.get(key) for key in keys), "") or ""
+    target = target[:80]
     _audit_log_safe(
         logger,
         session_id=session_id,

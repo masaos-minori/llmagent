@@ -227,7 +227,7 @@ def _emit_call_tool_audit(req: CallToolRequest, request: Request, outcome: str) 
     ``requested_target`` both reflect the caller's requested resource here.
     """
     session_id, request_id = extract_request_context(request)[:2]
-    target = req.args.get("path") or ""
+    target = (req.args.get("path") or "")[:80]
     _audit_log_safe(
         logger,
         session_id=session_id,
