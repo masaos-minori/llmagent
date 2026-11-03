@@ -55,6 +55,12 @@ Follow the tool's declared resource arguments: resolve the checked argument name
 
 ## Implementation Target Files
 **Freeze status**: Frozen (set after Step 8b: every row is `Verified` and all four freeze criteria plus the additional checks pass).
+Amended 2026-11-04 (scope): added scripts/agent/tool_approval.py — The preflight must apply registered tools declared resource_scope_keys at every call site (Scope: thread the registry so declared keys are reachable at every preflight call site); an omitted registry leaves the union unapplied in production
+Amended 2026-11-04 (scope): added scripts/agent/repository_gateway.py — The preflight must apply registered tools declared resource_scope_keys at every call site (Scope: thread the registry so declared keys are reachable at every preflight call site); an omitted registry leaves the union unapplied in production
+Amended 2026-11-04 (scope): added scripts/agent/tool_runner.py — The preflight must apply registered tools declared resource_scope_keys at every call site (Scope: thread the registry so declared keys are reachable at every preflight call site); an omitted registry leaves the union unapplied in production
+Amended 2026-11-04 (fallout): added tests/agent/test_tool_approval_preflight.py — Amendment 2026-11-04 row 4 names this file in Related Tests; check_workitem_traceability.py requires a documented companion to be a row of the Implementation Target Files table
+Amended 2026-11-04 (fallout): added tests/agent/test_repository_gateway.py — Amendment 2026-11-04 row 5 names this file in Related Tests; check_workitem_traceability.py requires a documented companion to be a row of the Implementation Target Files table
+Amended 2026-11-04 (fallout): added tests/agent/test_tool_runner.py — Amendment 2026-11-04 row 6 names this file in Related Tests; check_workitem_traceability.py requires a documented companion to be a row of the Implementation Target Files table
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -66,6 +72,12 @@ table — no other file may be treated as a modification target.
 | `scripts/agent/tool_policy.py` | Thread `RuntimeToolRegistry` into `check_preflight`/`check_allowed_root`/`_escalate_for_path`; union declared `resource_scope_keys` with configured `path_keys`; check list elements and fail closed on unexpected type without changing the shared `_iter_string_arg_values` used by branch escalation | `check_allowed_root`/`_escalate_for_path` read only configured `path_keys` via `_iter_string_arg_values`; `resolve_resource_scopes` already uses the tool's declared keys; every preflight call site has the registry available; `get()` raises `KeyError` for unknown tools so the lookup fails closed | REQ-001, REQ-002, REQ-003 / AC-1, AC-2, AC-3 | `_iter_string_arg_values` shared by path and branch loops; `check_preflight` callers at `tool_approval`, `repository_gateway`, `tool_runner`; `RuntimeToolRegistry.get` (checked in Step 3) | `tests/agent/test_tool_policy.py` | Verified |
 | `scripts/agent/tool_audit.py` | `_extract_resource_scope` resolves the same union of keys and checks list elements | `_extract_resource_scope` pulls only configured `path_keys`/`branch_keys` from masked args, so the audit `resource_scope` is blind to `paths`/`repo_path` | REQ-004 / AC-2 | `_extract_resource_scope` (checked in Step 3) | `tests/agent/` audit tests | Verified |
 | `tests/agent/test_tool_policy.py` | Add regression tests with a stub registry declaring the scope keys; keep existing suite passing | existing `TestPrefixCollision` and path/repo tests build `AgentConfig` via `_cfg(...)` and import `RuntimeToolRegistry`; no test exercises list-valued or differently-named path keys | REQ-005 / AC-1, AC-2, AC-3, AC-4 | existing `_cfg` helper and `RuntimeToolRegistry` import (checked in Step 3) | itself | Verified |
+| `scripts/agent/tool_approval.py` | Pass ctx.services_required.runtime_tools as the optional registry argument to check_preflight in check_approval | The preflight must apply registered tools declared resource_scope_keys at every call site (Scope: thread the registry so declared keys are reachable at every preflight call site); an omitted registry leaves the union unapplied in production | REQ-003 / N/A: none cites REQ-003 | check_preflight(ctx.cfg, tool_name, args) at line 168; ctx.services_required.runtime_tools already used at line 176 (checked in the procedure cycle Step 3c) | `tests/agent/test_tool_approval_preflight.py` | Verified |
+| `scripts/agent/repository_gateway.py` | Pass ctx.services_required.runtime_tools as the optional registry argument to check_preflight in _gate_write | The preflight must apply registered tools declared resource_scope_keys at every call site (Scope: thread the registry so declared keys are reachable at every preflight call site); an omitted registry leaves the union unapplied in production | REQ-003 / N/A: none cites REQ-003 | check_preflight(self._cfg, tool_name, args) in _gate_write at line 102; _gate_write receives ctx and execute() already uses ctx.services_required.runtime_tools at line 84 (checked in the procedure cycle Step 3c) | `tests/agent/test_repository_gateway.py` | Verified |
+| `scripts/agent/tool_runner.py` | Pass ctx.services_required.runtime_tools as the optional registry argument to check_preflight at the gateway-bypass call site | The preflight must apply registered tools declared resource_scope_keys at every call site (Scope: thread the registry so declared keys are reachable at every preflight call site); an omitted registry leaves the union unapplied in production | REQ-003 / N/A: none cites REQ-003 | check_preflight(ctx.cfg, name, args) at line 223; ctx.services_required.runtime_tools already used at line 215 (checked in the procedure cycle Step 3c) | `tests/agent/test_tool_runner.py` | Verified |
+| `tests/agent/test_tool_approval_preflight.py` | Failing-baseline and regression coverage for the middleware preflight call-site update (row 4) | Amendment 2026-11-04 row 4 names this file in Related Tests; check_workitem_traceability.py requires a documented companion to be a row of the Implementation Target Files table | REQ-003 / N/A: none cites REQ-003 | tests/agent/test_tool_approval_preflight.py exists and exercises check_approval preflight denials | `itself` | Verified |
+| `tests/agent/test_repository_gateway.py` | Failing-baseline and regression coverage for the gateway write-gate call-site update (row 5) | Amendment 2026-11-04 row 5 names this file in Related Tests; check_workitem_traceability.py requires a documented companion to be a row of the Implementation Target Files table | REQ-003 / N/A: none cites REQ-003 | tests/agent/test_repository_gateway.py exists and exercises RepositoryGateway.execute write denials | `itself` | Verified |
+| `tests/agent/test_tool_runner.py` | Failing-baseline and regression coverage for the runner fallback preflight call-site update (row 6) | Amendment 2026-11-04 row 6 names this file in Related Tests; check_workitem_traceability.py requires a documented companion to be a row of the Implementation Target Files table | REQ-003 / N/A: none cites REQ-003 | tests/agent/test_tool_runner.py exists and exercises the gateway-less preflight denial path | `itself` | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -133,6 +145,12 @@ separate scope-of-record.
 | `scripts/agent/tool_policy.py` | Modify | Medium (shared with shellprefix001; changes preflight signature and path extraction used across approval and gateway) | 2 | N/A (`git-fame` unavailable) | not applicable (rsynced) |
 | `scripts/agent/tool_audit.py` | Modify | Low-Medium (audit scope only; called per approval/exec event) | 3 | N/A (`git-fame` unavailable) | not applicable (rsynced) |
 | `tests/agent/test_tool_policy.py` | Modify | Low (tests only; shared with shellprefix001) | 2 | N/A (`git-fame` unavailable) | not applicable (rsynced) |
+| `scripts/agent/tool_approval.py` | Modify | Not assessed (amendment 2026-11-04) | N/A | N/A | Not assessed (amendment 2026-11-04) |
+| `scripts/agent/repository_gateway.py` | Modify | Not assessed (amendment 2026-11-04) | N/A | N/A | Not assessed (amendment 2026-11-04) |
+| `scripts/agent/tool_runner.py` | Modify | Not assessed (amendment 2026-11-04) | N/A | N/A | Not assessed (amendment 2026-11-04) |
+| `tests/agent/test_tool_approval_preflight.py` | Modify | Not assessed (amendment 2026-11-04) | N/A | N/A | Not assessed (amendment 2026-11-04) |
+| `tests/agent/test_repository_gateway.py` | Modify | Not assessed (amendment 2026-11-04) | N/A | N/A | Not assessed (amendment 2026-11-04) |
+| `tests/agent/test_tool_runner.py` | Modify | Not assessed (amendment 2026-11-04) | N/A | N/A | Not assessed (amendment 2026-11-04) |
 
 ## Design
 This Issue leaves two design choices open, so `skills/python-design/SKILL.md` was applied
@@ -175,9 +193,15 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
 
 1. **Phase 1: Failing-test baseline**
    - [ ] Add the `REQ-005` regression tests to `tests/agent/test_tool_policy.py` with a stub `RuntimeToolRegistry` declaring `paths`/`repo_path`; confirm they FAIL on current code and record the failures as the baseline. No source change yet. (`tests/agent/test_tool_policy.py`; `REQ-005`)
+   - [ ] Failing-baseline and regression coverage for the middleware preflight call-site update (row 4) (REQ-003; `tests/agent/test_tool_approval_preflight.py`) — amendment 2026-11-04
+   - [ ] Failing-baseline and regression coverage for the gateway write-gate call-site update (row 5) (REQ-003; `tests/agent/test_repository_gateway.py`) — amendment 2026-11-04
+   - [ ] Failing-baseline and regression coverage for the runner fallback preflight call-site update (row 6) (REQ-003; `tests/agent/test_tool_runner.py`) — amendment 2026-11-04
 2. **Phase 2: Core logic implementation**
    - [ ] Thread an optional `RuntimeToolRegistry` into `check_preflight`, `check_allowed_root`, and `_escalate_for_path`; resolve the union of configured `path_keys` and the registered tool's `resource_scope_keys`. (`scripts/agent/tool_policy.py`; `REQ-001`, `REQ-003`)
    - [ ] Check every string element of a list-valued path argument; fail closed on a value that is neither `str` nor `list[str]`; keep denial codes unchanged; do not touch the shared `_iter_string_arg_values`. (`scripts/agent/tool_policy.py`; `REQ-002`)
+   - [ ] Pass ctx.services_required.runtime_tools as the optional registry argument to check_preflight in check_approval (REQ-003; `scripts/agent/tool_approval.py`) — amendment 2026-11-04
+   - [ ] Pass ctx.services_required.runtime_tools as the optional registry argument to check_preflight in _gate_write (REQ-003; `scripts/agent/repository_gateway.py`) — amendment 2026-11-04
+   - [ ] Pass ctx.services_required.runtime_tools as the optional registry argument to check_preflight at the gateway-bypass call site (REQ-003; `scripts/agent/tool_runner.py`) — amendment 2026-11-04
 3. **Phase 3: Audit scope**
    - [ ] Update `_extract_resource_scope` in `scripts/agent/tool_audit.py` to resolve the same union of keys and check list elements. (`scripts/agent/tool_audit.py`; `REQ-004`)
 4. **Phase 4: Verification**
@@ -209,11 +233,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing-test baseline (`tests/agent/test_tool_policy.py`, stub registry) | Pending | — | — | |
-| 2 | Core logic in `scripts/agent/tool_policy.py` (registry threading, key union, list handling, fail closed) | Pending | — | — | |
-| 3 | Audit scope in `scripts/agent/tool_audit.py` (`_extract_resource_scope`) | Pending | — | — | |
-| 4 | Verification: suite, ruff, mypy, bandit | Pending | — | — | |
-| 5 | Deployment hand-off (commit/push; deploy is user decision) | Pending | — | — | |
+| 1 | Failing-test baseline (`tests/agent/test_tool_policy.py`, stub registry) | In Progress | — | — |  |
+| 2 | Core logic in `scripts/agent/tool_policy.py` (registry threading, key union, list handling, fail closed) | In Progress | — | — |  |
+| 3 | Audit scope in `scripts/agent/tool_audit.py` (`_extract_resource_scope`) | In Progress | — | — |  |
+| 4 | Verification: suite, ruff, mypy, bandit | Pending | — | — |  |
+| 5 | Deployment hand-off (commit/push; deploy is user decision) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -223,7 +247,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261104-065555_01_scripts_agent_tool_policy.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261104-065555_02_scripts_agent_tool_audit.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261104-065555_04_scripts_agent_tool_approval.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261104-065555_05_scripts_agent_repository_gateway.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261104-065555_06_scripts_agent_tool_runner.py.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -232,7 +260,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261101-155552
-- **Related target files**: `scripts/agent/tool_policy.py`, `scripts/agent/tool_audit.py`, `tests/agent/test_tool_policy.py` — the full list of `File Path` values from `Implementation Target Files` above, once `Frozen`
+- **Related target files**: `scripts/agent/tool_policy.py`, `scripts/agent/tool_audit.py`, `tests/agent/test_tool_policy.py`, `scripts/agent/tool_approval.py`, `scripts/agent/repository_gateway.py`, `scripts/agent/tool_runner.py`, `tests/agent/test_tool_approval_preflight.py`, `tests/agent/test_repository_gateway.py`, `tests/agent/test_tool_runner.py` — the full list of `File Path` values from `Implementation Target Files` above, once `Frozen`
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
@@ -244,3 +272,11 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Required Changes 1; Constraints (no fail-open); Acceptance Criteria 3 | `scripts/agent/tool_policy.py` | Phase 2 | AC-3 | unknown-tool test | Confirmed by repository evidence |
 | REQ-004 | Implementation Intent; Required Changes 3; Acceptance Criteria 2 | `scripts/agent/tool_audit.py` | Phase 3 | AC-2 | audit resource_scope test | Confirmed by repository evidence |
 | REQ-005 | Testing Expectations; Acceptance Criteria 4; AI Implementation Instruction | `tests/agent/test_tool_policy.py` | Phase 1, Phase 4 | AC-1, AC-2, AC-3, AC-4 | whole suite | Explicit in issue |
+| REQ-003 | Amendment 2026-11-04: The preflight must apply registered tools declared resource_scope_keys at every call site (Scope: thread the registry so declared keys are reachable at every preflight call site); an omitted registry leaves the union unapplied in production | scripts/agent/tool_approval.py | Phase 2 | N/A: none cites REQ-003 | tests/agent/test_tool_approval_preflight.py | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-04: The preflight must apply registered tools declared resource_scope_keys at every call site (Scope: thread the registry so declared keys are reachable at every preflight call site); an omitted registry leaves the union unapplied in production | scripts/agent/repository_gateway.py | Phase 2 | N/A: none cites REQ-003 | tests/agent/test_repository_gateway.py | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-04: The preflight must apply registered tools declared resource_scope_keys at every call site (Scope: thread the registry so declared keys are reachable at every preflight call site); an omitted registry leaves the union unapplied in production | scripts/agent/tool_runner.py | Phase 2 | N/A: none cites REQ-003 | tests/agent/test_tool_runner.py | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-04: Amendment 2026-11-04 row 4 names this file in Related Tests; check_workitem_traceability.py requires a documented companion to be a row of the Implementation Target Files table | tests/agent/test_tool_approval_preflight.py | Phase 1 | N/A: none cites REQ-003 | itself | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-04: Amendment 2026-11-04 row 5 names this file in Related Tests; check_workitem_traceability.py requires a documented companion to be a row of the Implementation Target Files table | tests/agent/test_repository_gateway.py | Phase 1 | N/A: none cites REQ-003 | itself | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-04: Amendment 2026-11-04 row 6 names this file in Related Tests; check_workitem_traceability.py requires a documented companion to be a row of the Implementation Target Files table | tests/agent/test_tool_runner.py | Phase 1 | N/A: none cites REQ-003 | itself | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261104-065555 -->
