@@ -269,3 +269,88 @@ class TestPrepareToolCallsBatchOrdering:
         assert "call_good" in prepared_ids
         assert len(failures) == 1
         assert failures[0][0] == "call_bad"
+
+
+class TestPrepareToolCallsDuplicateId:
+    """REQ-001/AC-002: a call id appearing more than once in a batch is a preparation
+    failure (`duplicate_id`) for every occurrence, before the approval gate.
+
+    Asserted through the failure reason text: the flat failure tuple carries no
+    `error_type` (the kind lives only in `_reject`'s internal `ToolCallResult`).
+    """
+
+    def _valid_registry(self) -> MagicMock:
+        runtime_tool = MagicMock()
+        runtime_tool.input_schema = {"type": "object", "properties": {}}
+        runtime_tool.allow_extra_fields = True
+        registry = MagicMock()
+        registry.runtime_tool_stub = runtime_tool
+        registry.get.return_value = runtime_tool
+        registry.tool_spec_for_call = MagicMock(
+            side_effect=lambda call_id, name, args: ToolSpec(
+                call_id=call_id, name=name, args=args
+            )
+        )
+        return registry
+
+    def test_shared_id_rejects_both_occurrences(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.runtime_tools = self._valid_registry()
+
+        calls = [
+            _tc("read_text_file", '{"path": "/tmp/a"}', call_id="call_dup"),
+            _tc("read_text_file", '{"path": "/tmp/b"}', call_id="call_dup"),
+        ]
+        prepared, failures = prepare_tool_calls(ctx, calls)
+
+        assert prepared == []
+        assert len(failures) == 2
+        for tc_id, name, args, text, is_error, llm_text in failures:
+            assert tc_id == "call_dup"
+            assert is_error is True
+            assert text == (
+                "duplicate tool call id 'call_dup' appears 2 times in this round"
+            )
+            assert text == llm_text
+
+    def test_duplicate_pair_rejected_unique_call_survives(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.runtime_tools = self._valid_registry()
+
+        calls = [
+            _tc("read_text_file", "{}", call_id="call_a"),
+            _tc("read_text_file", "{}", call_id="call_dup"),
+            _tc("write_text_file", "{}", call_id="call_dup"),
+        ]
+        prepared, failures = prepare_tool_calls(ctx, calls)
+
+        assert [p.call_id for p in prepared] == ["call_a"]
+        assert [f[0] for f in failures] == ["call_dup", "call_dup"]
+        assert all("appears 2 times in this round" in f[3] for f in failures)
+
+    def test_occurrence_rejected_for_other_reason_is_not_flagged_as_duplicate(
+        self,
+    ) -> None:
+        """Counting is over `prepared` entries only (Plan D1): a prepared call sharing
+        its id with an occurrence already rejected for another reason stays prepared —
+        the misexecution hazard requires two same-id calls in `prepared`."""
+        ctx = _make_ctx()
+        registry = self._valid_registry()
+        ctx.services_required.runtime_tools = registry
+
+        def _get(name: str) -> MagicMock:
+            if name == "broken_tool":
+                raise KeyError(name)
+            return registry.runtime_tool_stub
+
+        registry.get = MagicMock(side_effect=_get)
+
+        calls = [
+            _tc("broken_tool", "{}", call_id="call_dup"),
+            _tc("read_text_file", "{}", call_id="call_dup"),
+        ]
+        prepared, failures = prepare_tool_calls(ctx, calls)
+
+        assert [p.call_id for p in prepared] == ["call_dup"]
+        assert len(failures) == 1
+        assert "unregistered tool" in failures[0][3]

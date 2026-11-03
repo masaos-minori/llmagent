@@ -177,11 +177,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Preparation-phase duplicate-id detection (`tool_preparation.py`) | In Progress | — | — |  |
-| 2 | Scheduler defense-in-depth (`tool_scheduler.py`) | In Progress | — | — |  |
-| 3 | Tests (`tests/agent/`) | In Progress | — | — |  |
-| 4 | Documentation (`agent_06_01_...md`) | In Progress | — | — |  |
-| 5 | Deployment & Verification | Pending | — | — |  |
+| 1 | Preparation-phase duplicate-id detection (`tool_preparation.py`) | Completed | 20261103-104234 | 20261103-104234 |  |
+| 2 | Scheduler defense-in-depth (`tool_scheduler.py`) | Completed | 20261103-104234 | 20261103-104234 |  |
+| 3 | Tests (`tests/agent/`) | Completed | 20261103-104234 | 20261103-104234 |  |
+| 4 | Documentation (`agent_06_01_...md`) | Completed | 20261103-104234 | 20261103-104234 |  |
+| 5 | Deployment & Verification | Completed | 20261103-104234 | 20261103-104234 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

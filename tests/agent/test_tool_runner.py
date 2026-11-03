@@ -1050,10 +1050,26 @@ class TestStatsForRealVsSynthesizedRows:
 
     @pytest.mark.asyncio
     async def test_never_rans_synthesized_row_skips_stats(self) -> None:
+        """dupcallid001 amendment: the original scenario relied on two calls sharing
+        the `_tc`-derived id `call_read_text_file` — a duplicate id is now rejected in
+        preparation, so the guard-stop synthesized row is produced by unique-id calls
+        instead (the empty-result guard trips mid-round and never dispatches the last).
+        """
         ctx = _make_ctx(_cfg(serial_tool_calls=True))
         ctx.cfg.tool.tool_empty_result_max_repeats = 2
         ctx.services_required.tools.execute = AsyncMock(return_value=_ok(""))
-        calls = _declared("read_text_file", "list_directory", "read_text_file")
+        calls = [
+            _tc("read_text_file"),
+            _tc("list_directory"),
+            {
+                "id": "call_read_2",
+                "function": {"name": "read_text_file", "arguments": "{}"},
+            },
+            {
+                "id": "call_read_3",
+                "function": {"name": "read_text_file", "arguments": "{}"},
+            },
+        ]
         failed: set[str] = set()
 
         with _approve_all():
@@ -1061,11 +1077,21 @@ class TestStatsForRealVsSynthesizedRows:
                 ctx, calls, 0, failed, guard=ToolLoopGuard(ctx)
             )
 
-        # Only the two executed calls hit stats; the guard-stop synthesized row
-        # bypasses stats (see complete_round).
-        assert ctx.stats.stat_tool_calls == 2
+        # The empty-result guard trips after the second empty `read_text_file` result
+        # and `_run_plan_batches` never dispatches `call_read_3`. Only the three
+        # executed rows hit stats; the guard-stop synthesized row bypasses stats
+        # (see complete_round).
+        assert ctx.services_required.tools.execute.await_count == 3
+        assert ctx.stats.stat_tool_calls == 3
         assert ctx.stats.stat_tool_errors == 0
         assert failed == set()
+        synthesized = [
+            m
+            for m in ctx.conv.history
+            if m.get("role") == "tool" and m.get("tool_call_id") == "call_read_3"
+        ]
+        assert len(synthesized) == 1
+        assert "loop guard" in synthesized[0]["content"]
 
 
 class TestExecuteAllToolCalls:
@@ -1373,6 +1399,88 @@ class TestRunApprovalGateEndToEnd:
 
         mock_prompt.assert_awaited_once()
         executor.execute.assert_awaited_once_with("write_file", {})
+
+
+class TestExecuteAllToolCallsDuplicateCallId:
+    """Round-level regression (REQ-001/REQ-003; AC-001/AC-002/AC-003): two calls
+    sharing one id execute neither call twice nor with the other call's arguments,
+    never reach the approval prompt, and each declared occurrence gets one
+    consistent rejection answer in history and persisted rows.
+    """
+
+    @pytest.mark.asyncio
+    async def test_duplicate_id_round_executes_nothing_and_answers_both_rows(
+        self,
+    ) -> None:
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        ctx.services_required.audit_logger = MagicMock()
+        executed: list[tuple[str, dict]] = []
+
+        def _record(name: str, args: dict) -> ToolCallResult:
+            executed.append((name, args))
+            return ToolCallResult(
+                output="result", is_error=False, request_id="req-1", server_key=""
+            )
+
+        ctx.services_required.tools.execute = AsyncMock(side_effect=_record)
+
+        dup_calls = [
+            {
+                "id": "call_dup",
+                "function": {
+                    "name": "read_text_file",
+                    "arguments": '{"path": "/tmp/a"}',
+                },
+            },
+            {
+                "id": "call_dup",
+                "function": {
+                    "name": "read_text_file",
+                    "arguments": '{"path": "/tmp/b"}',
+                },
+            },
+        ]
+
+        gate_seen: list[list[Any]] = []
+
+        def _gate(_ctx: Any, prepared: list[Any]) -> tuple[list[Any], list[Any]]:
+            gate_seen.append(list(prepared))
+            return prepared, []
+
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            side_effect=_gate,
+        ):
+            await execute_all_tool_calls(ctx, dup_calls, 0, guard=ToolLoopGuard(ctx))
+
+        # AC-001: nothing ran — not the shared id twice, not with either arg set.
+        assert executed == []
+        # AC-002: the batch gate ran once but no occurrence reached it.
+        assert gate_seen == [[]]
+
+        # AC-003/REQ-003: each declared occurrence is answered with one rejection row.
+        dup_rows = [
+            m
+            for m in ctx.conv.history
+            if m.get("role") == "tool" and m.get("tool_call_id") == "call_dup"
+        ]
+        assert len(dup_rows) == 2
+        for row in dup_rows:
+            assert (
+                "duplicate tool call id 'call_dup' appears 2 times in this round"
+                in row["content"]
+            )
+
+        saved_rows = ctx.turn.persistence_boundary.save_phase_grouped.call_args.args[0]
+        saved_dup = [row for row in saved_rows if row[3] == "call_dup"]
+        assert len(saved_dup) == 2
+        for row in saved_dup:
+            assert (
+                "duplicate tool call id 'call_dup' appears 2 times in this round"
+                in row[1]
+            )
 
 
 class TestApplyTurnCharLimit:

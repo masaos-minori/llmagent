@@ -43,8 +43,14 @@ Round-level test on existing harness fixtures; no production code change in this
 
 ### Details
 - Keep the test deterministic: fixed ids and args, no timing assumptions.
-- If the harness needs an approval-gate stub that fails the test when invoked, reuse the existing
-  denial-path fixtures' pattern.
+- Verification 20261103: `_make_ctx()`'s `_default_runtime_tools()` stub resolves any tool name
+  to a permissive non-write `ToolSpec`, so on the current code both duplicate calls are prepared
+  and the collapse reproduces (the executor receives the second call's arguments twice) — the red
+  baseline is the silent collapse, not a crash. Approval assertion: patch
+  `agent.tool_approval.run_approval_checks` (imported at call time by `_run_approval_gate`) and
+  assert the gate receives an empty `prepared` list — no occurrence reaches the prompt.
+  `_saved_text()` matches only the first row per call id, so assert both same-id rows by
+  iterating the `save_phase_grouped` call args directly.
 
 ## Compatibility considerations
 - Must not alter existing runner tests; new class only.
@@ -71,10 +77,8 @@ Round-level test on existing harness fixtures; no production code change in this
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add the round-level duplicate-id test (Procedure 1-3) | Completed | 20261103-104234 | 20261103-104234 | Added TestExecuteAllToolCallsDuplicateCallId. Red evidence (code stashed): baseline executed the second call's arguments twice and the first call's never. Amendment per Plan Risks: existing TestStatsForRealVsSynthesizedRows::test_never_rans_synthesized_row_skips_stats relied on a duplicate `_tc`-derived id; rewritten with unique ids (guard-stop synthesized row preserved). |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261103-104234 | 20261103-104234 | tests/agent/test_tool_runner.py 88 passed; full suite 11393 passed / 0 failed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -24,6 +24,9 @@ then the code; seq 06 (round-level test) runs after both code changes; seq 03 (d
   whose `call_id` occurs more than once in the batch moves to `failures` via `_reject` with kind
   `duplicate_id` (new) and a reason naming the id and its occurrence count. A call already
   rejected for another reason is not re-rejected as a duplicate.
+- The count is over `prepared` entries only (Plan D1 mechanism): a prepared call whose id also
+  appears on an occurrence already rejected for another reason is not flagged — the misexecution
+  hazard requires two same-id calls in `prepared` (verification 20261103).
 - Empty/missing ids are already rejected per call by `_prepare_one` ("tool call is missing an
   id"); they never reach the duplicate check as prepared entries, so the existing missing-id
   tests stay untouched (REQ-005).
@@ -45,7 +48,10 @@ then the code; seq 06 (round-level test) runs after both code changes; seq 03 (d
    `PreparedToolCall` results; for every prepared call whose id count exceeds 1, remove it from
    `prepared` and append a failure tuple built by `_reject` called with the new `duplicate_id` (new)
    kind and reason "duplicate tool call id '<id>' appears N times in this round", in
-   original relative order.
+   original relative order. Verification 20261103: implement the post-pass as a private helper
+   `_move_duplicate_ids` (new) called from `prepare_tool_calls` — `prepare_tool_calls` is
+   radon A(3) and the inline counting/filtering would push it to B; the helper keeps both
+   functions in class A.
 3. Update the `_reject` docstring (prep:51) to list the `duplicate_id` (new) kind among the
    failure kinds.
 
@@ -61,9 +67,12 @@ Batch post-pass over prepared results; no change to `_prepare_one` semantics.
 ### Companion test files
 - `tests/agent/test_tool_preparation.py`
   - Procedure: add a `TestPrepareToolCallsDuplicateId` (new) class: two calls sharing one id —
-    both land in `failures` with `error_type` set to the `duplicate_id` (new) kind and `prepared`
-    is empty; a three-call case where the duplicate pair is rejected but a unique-id call stays
-    prepared.
+    both land in `failures` and `prepared` is empty. Assert the rejection through the failure
+    reason text (`duplicate tool call id ... appears N times in this round`): the flat failure
+    tuple carries no `error_type` (the `duplicate_id` kind lives only in `_reject`'s internal
+    `ToolCallResult` and log line), matching the existing per-kind tests' text assertions
+    (verification 20261103). Add a three-call case where the duplicate pair is rejected but a
+    unique-id call stays prepared, with both lists in original relative order.
   - Validation: `uv run pytest tests/agent/test_tool_preparation.py -q` green after step 2; the
     new tests fail before it.
 
@@ -95,10 +104,8 @@ Batch post-pass over prepared results; no change to `_prepare_one` semantics.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Write red companion tests, then implement (Procedure 1-3) | Completed | 20261103-104234 | 20261103-104234 | Red baseline: 3 failed in TestPrepareToolCallsDuplicateId (new). Implemented `_move_duplicate_ids` (new) post-pass + `prepare_tool_calls` wiring + `_reject` docstring kind list. radon: helper A(4), prepare_tool_calls A(3), _prepare_one C(12) unchanged. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261103-104234 | 20261103-104234 | ruff/mypy/lint-imports/bandit clean; full suite 11393 passed / 0 failed; diff-cover 100%; pre-commit all hooks passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

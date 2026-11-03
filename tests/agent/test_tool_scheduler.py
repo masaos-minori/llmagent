@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pytest
 from agent.tool_scheduler import (
+    DuplicateToolCallIdError,
     MissingToolSpecError,
     ScheduledGroup,
     build_execution_groups,
@@ -492,3 +493,34 @@ class TestConcurrentBatches:
     def test_empty_calls_empty_batches(self) -> None:
         plan = build_execution_groups([], {})
         assert plan.batches == ()
+
+
+# ── duplicate call_id guard (REQ-002 defense-in-depth) ────────────────────────
+
+
+class TestDuplicateCallIdGuard:
+    def test_duplicate_ids_raise_instead_of_collapsing(self) -> None:
+        """Two raw calls sharing one id with a single matching call_specs entry must
+        raise instead of resolving both to the same ToolSpec (AC-001)."""
+        tc1 = _tc("read_text_file", "call_dup")
+        tc2 = _tc("write_text_file", "call_dup")
+        spec = _spec(tc1, is_write=True)
+        with pytest.raises(DuplicateToolCallIdError) as exc:
+            build_execution_groups([tc1, tc2], {tc1["id"]: spec})
+        assert "call_dup" in str(exc.value)
+
+    def test_duplicate_ids_raise_under_force_serial(self) -> None:
+        """The guard sits before the force_serial dispatch, so the forced-serial
+        path cannot escape it either."""
+        tc1 = _tc("read_text_file", "call_dup")
+        tc2 = _tc("write_text_file", "call_dup")
+        spec = _spec(tc1, is_write=True)
+        with pytest.raises(DuplicateToolCallIdError):
+            build_execution_groups([tc1, tc2], {tc1["id"]: spec}, force_serial=True)
+
+    def test_unique_ids_behave_as_before(self) -> None:
+        """REQ-004: unique-id scheduling is unchanged by the guard."""
+        tcs = [_tc("search_docs", "call_1"), _tc("get_chunk", "call_2")]
+        plan = build_execution_groups(tcs, {tc["id"]: _spec(tc) for tc in tcs})
+        assert len(plan.batches) == 1
+        assert _ids(plan.batches[0].groups[0]) == {"call_1", "call_2"}

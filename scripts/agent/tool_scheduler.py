@@ -57,6 +57,16 @@ class MissingToolSpecError(Exception):
     """
 
 
+class DuplicateToolCallIdError(Exception):
+    """Raised when the same tool call id appears more than once in one batch.
+
+    Defense-in-depth behind `prepare_tool_calls()`'s `duplicate_id` rejection
+    (agent.tool_preparation): id-keyed spec lookup would silently resolve two
+    raw calls to one ToolSpec, so a duplicate reaching the scheduler is a loud
+    scheduling failure, not a silent collapse.
+    """
+
+
 @dataclass(frozen=True)
 class SerializationEvent:
     """Record of one serialization decision made while building an ExecutionPlan."""
@@ -271,10 +281,19 @@ def build_execution_groups(
 
     Raises:
         MissingToolSpecError: if a tool call's call_id has no entry in call_specs.
+        DuplicateToolCallIdError: if the same call_id appears more than once in
+            tool_calls; raised before any phase building or force_serial dispatch
+            so no partially built plan escapes.
     """
     specs_ordered: list[ToolSpec] = []
+    seen_ids: set[str] = set()
     for tc in tool_calls:
         call_id = tc["id"]
+        if call_id in seen_ids:
+            raise DuplicateToolCallIdError(
+                f"Duplicate call_id={call_id!r} (tool={tc['function']['name']!r})"
+            )
+        seen_ids.add(call_id)
         spec = call_specs.get(call_id)
         if spec is None:
             raise MissingToolSpecError(

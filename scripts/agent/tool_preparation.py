@@ -54,9 +54,9 @@ def _reject(tc_id: str, name: str, args: dict, kind: str, reason: str) -> _PrepF
     Mirrors `_reject_validation()`'s `ToolCallResult` construction
     (scripts/agent/tool_runner.py:92-102), but tags `error_type` with the
     specific failure `kind` (`configuration`, `unknown_tool`, `validation`,
-    `schema`, `metadata`) instead of the single `"validation"` literal, and
-    returns the flat 6-tuple shape `execute_one_tool_call()` produces rather
-    than a `ToolCallResult`.
+    `schema`, `metadata`, `duplicate_id`) instead of the single `"validation"`
+    literal, and returns the flat 6-tuple shape `execute_one_tool_call()`
+    produces rather than a `ToolCallResult`.
     """
     result = ToolCallResult(
         output=reason,
@@ -146,6 +146,44 @@ def _prepare_one(ctx: AgentContext, tc: dict) -> PreparedToolCall | _PrepFailure
     )
 
 
+def _move_duplicate_ids(
+    prepared: list[PreparedToolCall],
+) -> tuple[list[PreparedToolCall], list[_PrepFailure]]:
+    """Move every prepared call whose `call_id` occurs more than once in the batch
+    out of `prepared`, as a `duplicate_id` rejection (REQ-001, AC-001, AC-002).
+
+    Batch-level post-pass over the `_prepare_one` results. Counting sees only
+    `prepared` entries: the misexecution hazard is two same-id calls surviving
+    preparation together, where the id-keyed `call_specs`/`pc_by_id` dicts in
+    `tool_runner._execute_with_dag()` silently resolve both to the last
+    occurrence (the second call's arguments execute twice, the first's never).
+    A call already rejected for another reason never reached `prepared` and is
+    not re-rejected here. Survivors and rejections keep their relative order;
+    `complete_round`'s `_merge_in_declared_order` re-establishes declared batch
+    order for the persisted rows.
+    """
+    counts: dict[str, int] = {}
+    for pc in prepared:
+        counts[pc.call_id] = counts.get(pc.call_id, 0) + 1
+    kept: list[PreparedToolCall] = []
+    failures: list[_PrepFailure] = []
+    for pc in prepared:
+        if counts[pc.call_id] > 1:
+            failures.append(
+                _reject(
+                    pc.call_id,
+                    pc.name,
+                    pc.args,
+                    "duplicate_id",
+                    f"duplicate tool call id {pc.call_id!r} appears "
+                    f"{counts[pc.call_id]} times in this round",
+                )
+            )
+        else:
+            kept.append(pc)
+    return kept, failures
+
+
 def prepare_tool_calls(
     ctx: AgentContext, tool_calls: list[dict]
 ) -> tuple[list[PreparedToolCall], list[_PrepFailure]]:
@@ -157,6 +195,11 @@ def prepare_tool_calls(
     any step, also in original relative order. Each failure tuple carries its
     own `tc_id`, so the caller can reinsert it at its original batch index
     without this function tracking indices itself.
+
+    Duplicate call ids are rejected after the per-call loop by
+    `_move_duplicate_ids()`; those rejections are appended after the per-call
+    ones, and `_merge_in_declared_order()` (agent.tool_round_completion)
+    re-establishes declared batch order downstream.
     """
     prepared: list[PreparedToolCall] = []
     failures: list[_PrepFailure] = []
@@ -166,4 +209,6 @@ def prepare_tool_calls(
             prepared.append(outcome)
         else:
             failures.append(outcome)
+    prepared, dup_failures = _move_duplicate_ids(prepared)
+    failures.extend(dup_failures)
     return prepared, failures

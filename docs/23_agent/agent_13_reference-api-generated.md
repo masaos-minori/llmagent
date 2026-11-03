@@ -194,6 +194,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/tool_runner.py` | `execute_one_tool_call` | `async def execute_one_tool_call(ctx, pc, guard) -> tuple[str, str, dict, str, bool, str]` | Execute and truncate one already-prepared tool call. |
 |  | `execute_all_tool_calls` | `async def execute_all_tool_calls(ctx, tool_calls, turn, out_failed_keys, *, guard) -> None` | Execute all tool calls then append results in original order. |
 | `scripts/agent/tool_scheduler.py` | `MissingToolSpecError` | `class MissingToolSpecError` | Raised when a tool call's call_id has no entry in the call_specs map |
+|  | `DuplicateToolCallIdError` | `class DuplicateToolCallIdError` | Raised when the same tool call id appears more than once in one batch. |
 |  | `SerializationEvent` | `class SerializationEvent` | Record of one serialization decision made while building an ExecutionPlan. |
 |  | `ScheduledGroup` | `class ScheduledGroup` | One group of calls within a batch. |
 |  | `ScheduledBatch` | `class ScheduledBatch` | One or more ScheduledGroups that run concurrently with each other. |

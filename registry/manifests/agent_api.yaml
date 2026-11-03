@@ -826,6 +826,11 @@ entries:
   summary: Raised when a tool call's call_id has no entry in the call_specs map
 - file: scripts/agent/tool_scheduler.py
   kind: class
+  name: DuplicateToolCallIdError
+  signature: class DuplicateToolCallIdError
+  summary: Raised when the same tool call id appears more than once in one batch.
+- file: scripts/agent/tool_scheduler.py
+  kind: class
   name: SerializationEvent
   signature: class SerializationEvent
   summary: Record of one serialization decision made while building an ExecutionPlan.

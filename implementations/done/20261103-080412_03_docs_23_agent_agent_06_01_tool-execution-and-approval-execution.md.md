@@ -39,6 +39,10 @@ Two targeted edits to existing lists/sentences.
 ### Details
 - Match the checklist's existing phrasing style (one rule per numbered item, failure kind named).
 - Keep the failure-kind list consistent with `tool_preparation.py` docstrings after seq 01 lands.
+- Verification 20261103: the checklist is the five-item bullet list in the "Argument Validation"
+  section (existence, JSON parse, registry resolution, schema validation, metadata construction);
+  the new uniqueness rule is its sixth bullet. The invariant sentence is the
+  `build_execution_groups()`/`call_id`-key paragraph in the scheduling section (doc:49).
 
 ## Compatibility considerations
 - `docs/00_index.md` mapping already lists this doc for agent tool-execution tasks; no index
@@ -66,10 +70,8 @@ Two targeted edits to existing lists/sentences.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Apply the two targeted doc edits (Procedure 1-2) | Completed | 20261103-104234 | 20261103-104234 | Sixth preparation-checklist bullet added (uniqueness post-pass, `duplicate_id`, per-occurrence tool rows); scheduling invariant sentence extended with the `DuplicateToolCallIdError` guard (doc:49). |
+| 2 | Run the doc checker sequence (`rules/toolchain.md`) | Completed | 20261103-104234 | 20261103-104234 | check_docs_consistency --domain agent: no issues; stale_detector: not stale. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

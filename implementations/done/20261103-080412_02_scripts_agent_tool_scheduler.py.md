@@ -46,6 +46,11 @@ Explicit duplicate-id guard in the existing walk over `tool_calls`.
   same `specs_ordered`), so place the guard before the `force_serial` branch.
 - Error message names the duplicated id and the tool name of the second occurrence, mirroring the
   `MissingToolSpecError` message style.
+- Verification 20261103: `build_execution_groups` is radon B(9) at HEAD; the guard must be a
+  single `if` inside the existing spec walk so the function stays within class B (B(10) ceiling).
+- Companion test uses the file's `_tc`/`_spec` helpers: two raw calls sharing one id and a single
+  `call_specs` entry for that id (the current code resolves both to one spec, so the test is red
+  without the raise).
 
 ### Companion test files
 - `tests/agent/test_tool_scheduler.py`
@@ -84,10 +89,8 @@ Explicit duplicate-id guard in the existing walk over `tool_calls`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Write red companion tests, then implement (Procedure 1-3) | Completed | 20261103-104234 | 20261103-104234 | Red baseline: new tests fail pre-change (ImportError for `DuplicateToolCallIdError`; collapse behavior additionally proven by the seq 06 round test on stashed code). Guard is a single `if` in the spec walk before the force_serial branch; docstring Raises updated. radon: build_execution_groups B(9) -> B(10), stays class B. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261103-104234 | 20261103-104234 | Scheduler + comprehensive + serialization suites green; tests/agent 4030 passed; generate_reference_table regenerated for the new public `DuplicateToolCallIdError` (manifest drift resolved). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

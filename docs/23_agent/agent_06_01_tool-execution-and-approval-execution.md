@@ -46,7 +46,7 @@ Dispatch path of `ToolExecutor.execute(tool_name, args)` (single path, no fallba
 4. **Calls not matching rules 1–3 within the same phase** — Pooled into a single parallel execution group.
 5. **`force_serial=True`** (supplied from `ctx.cfg.tool.serial_tool_calls`) — Bypasses all the above and generates individual serial phases in calling order.
 
-Grouping is performed by `agent/tool_scheduler.py::build_execution_groups()` using `call_id` as the key for each `ToolSpec` (constructed per call via `agent/tool_runner.py::_execute_with_dag()`'s `RuntimeToolRegistry.tool_spec_for_call()`) — not on a per-tool-name basis. Even different calls to the same tool name can be executed in parallel within the same batch if their `resource_scopes` do not overlap.
+Grouping is performed by `agent/tool_scheduler.py::build_execution_groups()` using `call_id` as the key for each `ToolSpec` (constructed per call via `agent/tool_runner.py::_execute_with_dag()`'s `RuntimeToolRegistry.tool_spec_for_call()`) — not on a per-tool-name basis. Even different calls to the same tool name can be executed in parallel within the same batch if their `resource_scopes` do not overlap. As defense-in-depth behind the preparation duplicate-id check, `build_execution_groups()` raises `DuplicateToolCallIdError` when the same `call_id` appears more than once among the raw calls it walks, instead of resolving the duplicates to a single `ToolSpec`.
 
 #### Execution Order
 
@@ -62,6 +62,7 @@ For each call, the following steps are performed in order; failure in any step r
 - Resolution via `RuntimeToolRegistry` — rejected without fallback if disconnected or if the target tool is unregistered
 - For registered tools: schema validation via `agent/tool_arg_validator.py::validate_tool_arguments()` + custom hooks
 - Metadata construction via `RuntimeToolRegistry.tool_spec_for_call()`
+- Uniqueness of `id` across the batch (post-pass over the prepared calls): a call id appearing more than once in one round rejects every occurrence before the approval gate with failure kind `duplicate_id` (`agent/tool_preparation.py::_move_duplicate_ids()`) — each rejected occurrence is answered with its own tool row carrying the rejection reason
 
 Only calls that pass the preparation phase are passed to approval, execution, and scheduling as a `PreparedToolCall` (`call_id`/`name`/`args`/`spec`/`original_call`). `execute_one_tool_call()` and `_execute_with_dag()` only reference the `PreparedToolCall.spec` (resolved during the preparation phase) and do not perform their own argument validation or registry lookups.
 
