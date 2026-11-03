@@ -537,8 +537,13 @@ class TestMemoryPruneRealLoader:
             [
                 ("old-1", "semantic", "2025-01-01T00:00:00"),
                 ("old-2", "episodic", "2025-01-01T00:00:00"),
-                ("recent-1", "semantic", "2026-10-19T00:00:00"),
             ],
+        )
+        # recent-1 is anchored to SQL now so the row never ages out of the retention
+        # window; a hardcoded date made this test fail once real time passed it.
+        conn.execute(
+            "INSERT INTO memories (memory_id, memory_type, updated_at) "
+            "VALUES ('recent-1', 'semantic', datetime('now', '-1 days'))"
         )
         conn.commit()
         # Real SQLiteHelper bound to the temp-file DB; db_path bypasses build_db_config.

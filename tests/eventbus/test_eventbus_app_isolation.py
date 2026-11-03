@@ -4,34 +4,19 @@ Event Bus app state isolation tests.
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-
-
-async def _init_state(cfg: Any) -> None:
-    import pathlib
-
-    from eventbus import app as eb_app
-
-    eb_app.app.state.config = cfg
-    pathlib.Path(cfg.db_path).parent.mkdir(parents=True, exist_ok=True)
-    eb_app.app.state.db = eb_app.open_db(cfg.db_path)
-    schema_path = (
-        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
-    )
-    eb_app.app.state.envelope_schema = eb_app.orjson.loads(schema_path.read_bytes())
-    pathlib.Path(cfg.storage_dir).mkdir(parents=True, exist_ok=True)
-    eb_app.app.state.broker = eb_app.EventBroker(cfg)
 
 
 def _make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     from eventbus import app as eb_app
     from eventbus.config import EventBusConfig
 
+    tmp_path.mkdir(
+        parents=True, exist_ok=True
+    )  # lifespan opens db without mkdir'ing its parent
     cfg = EventBusConfig(
         port=8015,
         db_path=str(tmp_path / "eventbus.sqlite"),
@@ -49,14 +34,11 @@ def _make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
-    # Initialize app.state before creating TestClient
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(_init_state(cfg))
-    finally:
-        loop.close()
-
+    # TestClient's context manager runs lifespan(), which is the single state
+    # initializer (config/db/schema/broker/tasks) and also closes the DB and
+    # cancels its tasks on exit. A prior manual pre-initialization here leaked
+    # orphan DB connections, broker instances, and a closed event loop per call,
+    # which surfaced as order-dependent failures in the full suite.
     client = TestClient(eb_app.app)
     client.headers["Authorization"] = "Bearer test-token"
     return client
