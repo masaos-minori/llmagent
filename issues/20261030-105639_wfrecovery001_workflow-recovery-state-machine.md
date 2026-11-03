@@ -86,7 +86,8 @@ This is a correctness and durability defect in the persistence contract, indepen
 - Make stale recovery update the attempt and its marker in one transaction, keep it idempotent on repeat, and keep the conditional takeover pinned to the observed owner and lease so concurrent recoverers still converge to one winner.
 - Register the schema change as a new step in the `workflow.sqlite` migration registry with its own pre/post conditions, a defined handling of retained rows that violate the new constraints, and a rollback procedure.
 - Replace the unconditional `running`/`completed` writes in `WorkflowEngine.run()` with expected-state transitions; reject resume of `completed` and `running` tasks and of `halted` tasks per the decided contract.
-- Raise explicit not-found and transition-conflict errors for zero-row updates.
+- Raise explicit not-found and transition-conflict errors for zero-row updates. For `finish_attempt()` this typed error is the attempt fence: finishing an attempt that is no longer `running` MUST raise it (the lease-recovery work deferred this fence to this issue; see Dependencies).
+- Flip the fencing gate test `TestFencingGateAC7` in `tests/agent/workflow/test_stale_recovery_lease.py` from "the fence does not exist" to an enforcement test of the fence, in the same change that adds it.
 - Expose the persisted attempt number to the adapter and add it to the `stage_completed` audit event so audit, attempt, marker, and artifact rows share (task, stage, attempt number).
 - Correct the comments in `idempotency_ops.py` and `state_store.py` to match the implemented semantics.
 - Amend ADR-001 INV-08 (event key and "started" versus "completed" meaning) and, if the recovery semantics change, INV-07, following the ADR change protocol (`docs/00_governance/governance_01_documentation-policy.md`, `governance_05_change-impact-and-dependency-graphs.md`); keep the INV-07 test-citation row accurate.
@@ -104,6 +105,7 @@ This is a correctness and durability defect in the persistence contract, indepen
 - Attempt numbers per task-stage pair are strictly increasing across engine restarts, and the retry budget counts persisted attempts.
 - An invalid task or attempt status, and an invalid transition, is rejected by the application API and, when written with raw SQL, by the database.
 - A zero-row task or attempt update raises a typed error instead of returning silently.
+- Finishing an attempt that is no longer `running` (for example one already recovered as stale) raises the typed fence error, and the former absence-gate test is replaced by a test that enforces the fence.
 - Two concurrent claims of the same task, or of the same task-stage attempt number, result in exactly one winner.
 - Repeating stale recovery any number of times yields the same final state.
 - The existing lease-recovery tests still pass unchanged in meaning: a live lease is not recovered, and two concurrent recoverers produce exactly one recovery.
@@ -145,6 +147,13 @@ Yes. Intent, boundaries, and failure behavior only; no code or DDL restatement (
 - Shares `scripts/db/schema_sql.py` and the registry with `plans/done/20261029-233524_toolexec001_idempotent-tool-call-snapshot.md` (tool-call lifecycle tables, already registered); order any new step after the existing steps.
 - Shares `docs/10_adr/` editing with `plans/done/20261029-214650_adrauth001_adr-authority-model.md`. `config/adr_authority.toml` now exists; check it for a primary-claim registration of ADR-001 invariants before amending INV-07 or INV-08 (not verified).
 - Related closed work that must not regress: `issues/done/20261021-093421_turn003_task-status-overwritten-after-failure.md` (adapter must not overwrite the engine's status).
+- Related open issues filed from the 2026-11-03 workflow review (each names this issue as the owner of the state-machine contract; read each before planning):
+  - `issues/20261103-134148_wfreview005_unjustified-suppressions-and-stale-test-provenance.md`: leaves the fencing gate test `TestFencingGateAC7` to this issue. The gate asserts that the fence is absent, so it fails the moment this issue adds it; flipping it is this issue's work. The suppression half of wfreview005 was fixed separately in PR #14, so only its provenance-docstring half remains.
+  - `issues/20261103-134148_wfreview006_duplicate-attempt-crud-apis.md`: attempt-row CRUD exists in `attempt_ops`, `StateStore`, and the raw insert in `begin_stage_if_new`. This issue's Required Changes already route attempt start and finish through one implementation, so it overlaps wfreview006. Sequencing is an owner decision (Unresolved Questions); whichever lands first, the other MUST be re-checked against it.
+  - `issues/20261103-134147_wfreview004_workflow-adapter-and-engine-private-attribute-access.md`: routes engine and adapter access through public `StateStore` members. This issue changes `StateStore` internals, so landing the seam fix first or in the same plan wave avoids editing the same code twice.
+  - `issues/20261103-134148_wfreview007_docs-turn-status-table-vs-adapter-halt-write.md`: corrects the turn-status table and adapter-write wording in the agent_03_03 document that this issue also rewrites. If this issue lands first, re-check wfreview007's wording against the new table; if wfreview007 lands first, build on its corrected table.
+  - `issues/20261103-134147_wfreview001_workflow-diagnostics-empty-session-id.md`: lists `processed_events`, attempt recovery, and task-status semantics as out of scope and points here. No overlap to resolve.
+- Release-unit lesson: `issues/done/20261030-191057_flowimp002_plan-release-units.md` records that an earlier plan for this issue split the schema change and the attempt write path into separate phases, and neither passed the suite alone because the new `attempt_number` column breaks every existing attempt insert. The plan for this issue MUST ship the schema step and the write-path change as one release unit.
 
 ## Unresolved Questions
 - 不明: whether resuming an existing task is a supported feature. No production caller passes `existing_task_id`. If it is not planned, the owner may prefer removing the parameter and narrowing this issue to the validation, atomicity, and attempt-number parts.
@@ -155,6 +164,8 @@ Yes. Intent, boundaries, and failure behavior only; no code or DDL restatement (
 - 不明: whether the owner accepts the lease-based recovery as the final stale-recovery design while still wanting the marker, attempt-number, and status-validation parts of this issue. The archive of the earlier procedures records only that the attempt-number recovery design was superseded, not that these defects were accepted.
 - 不明: whether `attempt_number` uniqueness replaces the row-count based `count_attempts()` for the retry budget, and how a lease-expired attempt of the same task-stage counts toward `max_attempts`.
 - 不明: whether `config/adr_authority.toml` registers a primary claim on ADR-001 invariants (it now exists; not read for this refresh).
+- 不明: sequencing against `issues/20261103-134148_wfreview006_duplicate-attempt-crud-apis.md` and `issues/20261103-134147_wfreview004_workflow-adapter-and-engine-private-attribute-access.md`. Assumption (recommendation, not an owner decision): this issue absorbs the attempt-side consolidation of wfreview006, because it already requires one attempt-start and attempt-finish path; wfreview004 lands first or in the same plan wave.
+- 不明: the exact semantics of the attempt fence (which statuses a `finish_attempt()` call may leave, and whether a lease takeover by another owner also fences the original owner's later finish).
 - Assumption: concurrent workers on one `workflow.sqlite` are possible (the memo requires it); the deployment model for multiple agent processes is not confirmed from the files read.
 
 ## AI Implementation Instruction
