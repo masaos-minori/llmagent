@@ -1,7 +1,7 @@
 ## Goal
 
 Make `LLMTurnRunner` free the event loop while its diagnostic writes run: `run()` awaits
-`flush_guard_hints (new) after every guard check it makes (before finalizing, returning a
+`flush_guard_hints` (new) after every guard check it makes (before finalizing, returning a
 `TurnResult`, or continuing), and `_handle_llm_error` runs its three diagnostic writes
 through `await asyncio.to_thread` in the current order with the existing per-write
 containment and warning logs unchanged (REQ-002, REQ-003; AC-2, AC-3).
@@ -25,7 +25,7 @@ code document of the plan before the plan-wide validation.
 - `_handle_llm_error` (189-247+): three contained writes — `save` for `llm_transport_error`
   (203-210), `save_partial_completion` (217-223), `save` for `mid_turn_error` (233-247),
   each inside `try/except Exception` with its own warning text;
-  `stat_partial_completions` update (around 246) is outside the writes.
+  `stat_partial_completions` update (229) is outside the writes.
 - `check_error_limit` produces no guard hint (`_save_guard_hint` call sites are only the
   six listed in the seq 01 document), so no flush is needed after it; its `TurnResult`
   return path is unchanged.
@@ -112,7 +112,7 @@ In-place call-site rewrites; no new methods, no signature changes.
   - Procedure: add the run() flush-order tests (new) following the existing run() patch
     pattern (`_stream_llm` AsyncMock with a tool_calls message,
     `patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock(...))`): (i) trip —
-    the MagicMock guard's `check_all` returns a message, `flush_guard_hints (new) is an
+    the MagicMock guard's `check_all` returns a message, `flush_guard_hints` (new) is an
     AsyncMock, and a `MagicMock` manager records call order asserting the flush await
     happens before the finalize path returns the `TurnResult` (REQ-006(d); AC-2); (ii)
     non-trip — all three checks return None and the manager order shows

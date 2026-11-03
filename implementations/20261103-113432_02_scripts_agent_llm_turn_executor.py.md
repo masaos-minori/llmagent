@@ -1,7 +1,7 @@
 ## Goal
 
 Turn the guard deferral mode on for the production `ToolLoopGuard` by passing the
-`defer_hints (new) keyword at the sole construction site, and pin that wiring with a test
+`defer_hints` (new) keyword at the sole construction site, and pin that wiring with a test
 (REQ-002; AC-2 second half, REQ-006(e)).
 
 ## Scope

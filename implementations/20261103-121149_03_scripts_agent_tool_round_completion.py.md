@@ -2,7 +2,7 @@
 
 Partition the unanswered declared ids of a `ROUND_NOT_COMPLETED` round into in-flight
 (present in `RoundState.dispatched_ids`) and never-dispatched, answer each partition with
-its own reason (`ROUND_INFLIGHT (new) vs `ROUND_NOT_COMPLETED`), and keep one synthesized row
+its own reason (`ROUND_INFLIGHT` (new) vs `ROUND_NOT_COMPLETED`), and keep one synthesized row
 per declared id in declared order (REQ-002, REQ-004; AC-001, AC-002, AC-003).
 
 ## Scope
@@ -111,13 +111,13 @@ and stats behavior is unchanged.
     "verify before repeating", `c`'s row text is the not-executed round text, `a` keeps its
     real result row, and the synthesized rows appear in declared order (REQ-002; AC-001,
     AC-002, AC-003).
-    (ii) `test_guard_stop_path_unchanged (new): same state with `GUARD_STOP` reason → every
-    unanswered id gets the guard-stop text even when present in `dispatched_ids (new) (REQ-003;
+    (ii) `test_guard_stop_path_unchanged` (new): same state with `GUARD_STOP` reason → every
+    unanswered id gets the guard-stop text even when present in `dispatched_ids` (new) (REQ-003;
     AC-004).
-    (iii) `test_prep_failure_and_denied_ids_are_not_resynthesized (new): `b` in
-    `prep_failures` and `c` in `denied_ids`, both also in `dispatched_ids (new) → no extra
+    (iii) `test_prep_failure_and_denied_ids_are_not_resynthesized` (new): `b` in
+    `prep_failures` and `c` in `denied_ids`, both also in `dispatched_ids` (new) → no extra
     synthesized rows, each id answered once (REQ-004).
-    (iv) characterization `test_duplicate_declared_id_synthesizes_one_row (new): declared
+    (iv) characterization `test_duplicate_declared_id_synthesizes_one_row` (new): declared
     `["x", "x"]`, nothing collected → exactly one synthesized row (today's `seen`-set
     behavior preserved).
     (v) Regression: `TestMergeInDeclaredOrder`, `TestCompleteRoundPersistence`,
@@ -133,7 +133,7 @@ and stats behavior is unchanged.
   unchanged — no persistence or schema impact (REQ-004).
 - blockio001's Pending procedures do not touch this module (cross-plan overlap is
   tool_runner/test_tool_runner only; Plan Assumptions 20261103 note).
-- No `docs/` change here (seq 05 owns it). `dispatched_ids (new) is a dataclass field — not a
+- No `docs/` change here (seq 05 owns it). `dispatched_ids` (new) is a dataclass field — not a
   reference-table symbol; `tools/generate_reference_table.py --check` at plan validation.
 
 ## Security considerations
@@ -162,7 +162,7 @@ N/A: the partition reads internal ids only; the emitted texts come from the seq 
 - AC-005: new tests red pre-change, green post-change.
 
 ## Out of Scope
-- Writing/clearing `dispatched_ids (new) (seq 04), the enum member (seq 01), the text dict
+- Writing/clearing `dispatched_ids` (new) (seq 04), the enum member (seq 01), the text dict
   entry (seq 02), the cancellation test (seq 04's companion), the docs paragraph (seq 05).
 
 ## Execution Status

@@ -30,11 +30,13 @@ until both land in the same commit).
   `_write_registry` exist.
 - No test calls `_record_transport_failure` or `_record_round_serialization_events`
   directly (rg 20261103), so making them coroutines breaks no existing test call (REQ-007).
-- `inflightcancel001`, `wfretry001`, `maskargs001` and `toolarg001` share this file; the
-  first two are completed under `plans/done/` and toolarg001's helper rewrite is on master
-  (verified 20261103), satisfying the Plan's "after toolarg001" sequencing. `inflightcancel001`
-  (active) will add separate test functions; this document only appends new test functions
-  and imports — no edits to shared helpers (Plan Risks mitigation).
+- `inflightcancel001`, `wfretry001`, `maskargs001` and `toolarg001` share this file; all four
+  plans are archived under `plans/done/` with their code on master (re-verified 20261103),
+  satisfying the Plan's "after toolarg001" sequencing. `inflightcancel001`'s remaining work in
+  this file is its Pending procedure
+  `implementations/20261103-121149_04_scripts_agent_tool_runner.py.md` (its test row is
+  companion-eligible), which lands after this document; both sides only append new test
+  functions and imports — no edits to shared helpers (Plan Risks mitigation).
 - Plan REQ-006(a) mechanism constraint: the stub blocks the worker thread via a
   `threading.Event`; never `time.sleep` on the loop.
 

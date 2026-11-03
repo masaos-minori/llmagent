@@ -2,7 +2,7 @@
 
 Mark each call as dispatched in `_recorded_call` immediately before its transport is
 awaited and clear the marker when its result row is collected, threading the round's
-`dispatched_ids (new) set through `_execute_with_dag` → `_run_plan_batches` → `_run_group_calls`
+`dispatched_ids` (new) set through `_execute_with_dag` → `_run_plan_batches` → `_run_group_calls`
 → `_recorded_call` alongside the existing `collected` threading (REQ-001), and pin the
 end-to-end cancellation semantics with a blocking-stub-gateway test (AC-001..AC-005).
 
@@ -40,7 +40,7 @@ document (seq 05) then precedes the plan-wide validation. Intra-plan execution o
   squeeze under the gate.
 - Cross-plan test-file overlap: `tests/agent/test_tool_runner.py` is also extended by
   blockio001's seq 08 (`TestDiagnosticWritesOffEventLoop` (new), lands first); the new test
-  class here (`TestCancellationDispatchState (new)) is disjoint and name-collision-free.
+  class here (`TestCancellationDispatchState` (new)) is disjoint and name-collision-free.
 - `dispatched_ids` (new) is declared by the earlier sibling document (seq 03) as a
   defaulted `RoundState` field; this document adds no new `RoundState` construction.
 - Companion fixture pattern (verified 20261103): `_make_ctx`/`_cfg`/`_tc`/`_approve_all`
@@ -63,7 +63,7 @@ document (seq 05) then precedes the plan-wide validation. Intra-plan execution o
   in the gap between the add and the transport request still reads as in flight — "verify
   before repeating" is the safe statement there (Plan Assumption).
 - `_record_pending_state`/`tool_call_state` rows (toolstate001 mechanism) are untouched:
-  the pending-row path and `dispatched_ids (new) are parallel accounts of the same fact (Plan
+  the pending-row path and `dispatched_ids` (new) are parallel accounts of the same fact (Plan
   Dependencies note: related, not duplicate).
 
 ## Alternatives considered

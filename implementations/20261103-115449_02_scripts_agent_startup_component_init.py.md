@@ -15,7 +15,7 @@ row `tests/agent/test_startup_component_init.py` (seq 04, new file, companion-el
 document of its own) of
 `plans/20261101-144316_factorycleanup001_factory-leaks-client-on-build-failure.md`. Runs
 after `implementations/20261103-115449_01_scripts_agent_factory.py.md` — the
-`on_client_created (new) keyword it passes is declared there — and is the last code document of
+`on_client_created` (new) keyword it passes is declared there — and is the last code document of
 the plan before the plan-wide validation.
 
 ## Assumptions
@@ -38,8 +38,7 @@ the plan before the plan-wide validation.
   Files note). `tests/agent/test_startup_rollback.py::test_no_rollback_on_initialize_failure`
   (159) patches `ComponentInitializer.initialize` wholesale and is unaffected.
 - `on_client_created` (new) is declared by the earlier sibling document (seq 01); this
-  document adds `_exposed_http` (new), `_on_client_created` (new) and `_close_exposed_client (new)
-  (new).
+  document adds `_exposed_http` (new), `_on_client_created` (new) and `_close_exposed_client` (new).
 - Gated plan: the six unresolved startup issues named in the Plan's Dependencies section
   are not prerequisites per the Plan; each Pending row carries a `Gated:` note and
   scheduling is the owner's decision.
@@ -55,7 +54,7 @@ the plan before the plan-wide validation.
   `async def _close_exposed_client(self)` (new) when `self._ctx.services is None and
   self._exposed_http is not None`, then bare-`raise`. The post-assignment case and the
   success case take no extra action (REQ-003; `close_resources()` owns the assigned case).
-- `_close_exposed_client (new) awaits `self._exposed_http.aclose()` inside `try/except
+- `_close_exposed_client` (new) awaits `self._exposed_http.aclose()` inside `try/except
   Exception` with a `logger.warning(..., exc_info=True)` line naming the startup-failure
   cleanup; an `aclose` failure never replaces the original exception (REQ-002; AC-003). The
   contained type is `Exception`, per the Plan's Risks mitigation (a second cancellation
@@ -118,7 +117,7 @@ untouched (REQ-003).
   - Procedure: create the module with an async-test class using the preflight-fixture
     pattern (MagicMock `ctx` with `ctx.services = None`, MagicMock `view`), patching
     `agent.startup_component_init.build_agent_context` with a fake that records the
-    received `on_client_created (new) argument and (for failure tests) invokes it with a stub
+    received `on_client_created` (new) argument and (for failure tests) invokes it with a stub
     client whose `aclose` is an `AsyncMock` before raising the injected error:
     (i) `test_pre_assignment_failure_closes_exposed_client` (new): fake factory calls the
     hook then raises `RuntimeError("builder failed")`; assert `initialize()` raises the

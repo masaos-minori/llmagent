@@ -27,7 +27,7 @@ document of its own) of
   `all("not executed" in t for t in texts.values())`. It is a whole-enum closure test: it
   must be updated in the same commit as seq 01's member or it fails red for the wrong
   reason (count 3 != 2). The `all("not executed")` half is intentionally relaxed for
-  `ROUND_INFLIGHT (new) — the whole point is that the text no longer claims non-execution
+  `ROUND_INFLIGHT` (new) — the whole point is that the text no longer claims non-execution
   (Plan Goal).
 - Red-first: the new companion tests fail pre-change (`KeyError`/wrong text), satisfying
   AC-005.
@@ -84,7 +84,7 @@ One dict entry; the function body and signature stay untouched.
     (i) Update `TestStopReasonIsClosed` (43-61) in place: drop the hard-coded `== 2`
     (keep `len(set(texts.values())) == len(ToolCallStopReason)` so the test stays closed
     against future members); assert `GUARD_STOP` and `ROUND_NOT_COMPLETED` texts contain
-    "not executed" (byte-identical strings from today) and the `ROUND_INFLIGHT (new) text
+    "not executed" (byte-identical strings from today) and the `ROUND_INFLIGHT` (new) text
     contains "outcome unknown" and "verify before repeating" and does NOT contain
     "not executed" (REQ-002, AC-001).
     (ii) Add `TestInFlightText` (new) to the module: `pair_round_results(["a"], set(),

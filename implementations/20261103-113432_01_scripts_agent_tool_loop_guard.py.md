@@ -70,7 +70,7 @@ validation.
 2. In `__init__` (tool_loop_guard.py:101): add keyword-only `defer_hints: bool = False`,
    store `self._defer_hints`, and initialize `self._pending_guard_hints: list[dict[str,
    object]] = []`; state in the docstring that the mode defers hint writes to
-   `flush_guard_hints (new) and why (blocking SQLite write off the loop).
+   `flush_guard_hints` (new) and why (blocking SQLite write off the loop).
 3. Extract the contained save from `_save_guard_hint` into static
    `_persist_guard_hint_payload(ctx, payload)` (new): `ctx.diagnostics is None` guard, the
    `try/except Exception` block and the existing warning text move there unchanged;
@@ -94,7 +94,7 @@ branch or threshold logic changes.
   helper; no method may rise above its current rank (recheck `radon cc
   scripts/agent/tool_loop_guard.py -s` after the change).
 - Deferred hints with `ctx.diagnostics is None`: the `is None` guard lives in the persist
-  step; `_record_guard_hint (new) may still queue a payload — flush then no-ops per payload
+  step; `_record_guard_hint` (new) may still queue a payload — flush then no-ops per payload
   inside the persist step (same behavior as today's synchronous no-op).
 
 ### Companion test files
@@ -114,7 +114,7 @@ branch or threshold logic changes.
     `asyncio.to_thread` and assert it is not called).
   - Procedure: add the flush responsiveness test (REQ-006(a); AC-6): stub
     `ctx.diagnostics.save` to block on a `threading.Event` (blocks only the worker
-    thread), run `flush_guard_hints (new) as a task, assert a callback scheduled with
+    thread), run `flush_guard_hints` (new) as a task, assert a callback scheduled with
     `loop.call_soon` fires while the write is blocked, then set the event and assert the
     task completes; never sleep on the loop.
   - Procedure: leave every existing test unchanged — deferral-off default behavior is
@@ -128,8 +128,8 @@ branch or threshold logic changes.
 - No `docs/` change (Plan Documentation Impact N/A). `uv run python
   tools/generate_reference_table.py --check` after implementation: new methods are private
   or class members — regenerate manifests only if the checker reports drift.
-- The two public-ish symbols this document adds (`_record_guard_hint (new),
-  `flush_guard_hints (new)) are underscore-private, so no manifest regeneration is expected
+- The two public-ish symbols this document adds (`_record_guard_hint` (new),
+  `flush_guard_hints` (new)) are underscore-private, so no manifest regeneration is expected
   (dupcallid001 lesson: only public symbols force regeneration).
 
 ## Security considerations
@@ -158,7 +158,7 @@ branch or threshold logic changes.
   order, off the loop, with the event-time timestamp; with deferral off every existing
   assertion passes unchanged.
 - Flush with nothing pending makes no thread hop; a failing save degrades to the existing
-  warning without escaping `flush_guard_hints (new).
+  warning without escaping `flush_guard_hints` (new).
 
 ## Out of Scope
 - Enabling the keyword in production (`scripts/agent/llm_turn_executor.py`, seq 02) and
@@ -172,7 +172,7 @@ branch or threshold logic changes.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Write red companion tests, confirm they fail (Procedure 1; Companion test files) | Pending | — | — | |
-| 2 | Implement keyword, pending list, payload extraction, `_record_guard_hint (new), `flush_guard_hints (new) (Procedure 2-5) | Pending | — | — | |
+| 2 | Implement keyword, pending list, payload extraction, `_record_guard_hint` (new), `flush_guard_hints` (new) (Procedure 2-5) | Pending | — | — | |
 | 3 | Run this document's checks (Validation plan 1-3) | Pending | — | — | |
 
 ### Blocker Log

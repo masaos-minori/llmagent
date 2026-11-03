@@ -1,6 +1,6 @@
 ## Goal
 
-Add `ROUND_INFLIGHT (new) to `ToolCallStopReason` (Plan D2 Option A, the recommended route) so
+Add `ROUND_INFLIGHT` (new) to `ToolCallStopReason` (Plan D2 Option A, the recommended route) so
 a round stopped by cancellation can answer an in-flight call with a self-describing
 outcome-unknown reason instead of reusing `ROUND_NOT_COMPLETED` (REQ-002; AC-001).
 
@@ -98,7 +98,7 @@ N/A: no new input or trust boundary.
    all four code documents of this plan are executed.
 
 ## Completion criteria
-- `ToolCallStopReason` has exactly three members including `ROUND_INFLIGHT (new)
+- `ToolCallStopReason` has exactly three members including `ROUND_INFLIGHT` (new)
   (value `"round_inflight"`); `seq 02`'s updated `TestStopReasonIsClosed` passes.
 
 ## Out of Scope
