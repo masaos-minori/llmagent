@@ -96,7 +96,7 @@ N/A: no `docs/*.md` describes the compression swap or the history lock (the "Com
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
 |---|---|---|---|---|---|
-| scripts/agent/context.py | Modify | Medium: additive method on `ConversationState`, which `AgentContext` and about 30 modules import; no existing signature changes. Module size 15851 B of the 20480 B gate | 13 commits | Effectively 1 (about 95% of commits are one person under spelling variants of the name; `git-fame` is not installed, derived from `git log` author counts) | not applicable (rsynced) |
+| scripts/agent/context.py | Modify | Medium: additive method on `ConversationState`, which `AgentContext` and about 30 modules import; no existing signature changes. Module size 16219 B of the 20480 B gate (re-measured 20261103; 15851 B at planning time) | 13 commits | Effectively 1 (about 95% of commits are one person under spelling variants of the name; `git-fame` is not installed, derived from `git log` author counts) | not applicable (rsynced) |
 | scripts/agent/conversation_state_manager.py | Modify | Low: one runtime caller (`WorkflowEngineAdapter._prepare_turn_input`); change confined to `handle_history_compression` | 4 commits | Effectively 1 (all commits by one person under two spellings) | not applicable (rsynced) |
 | tests/agent/test_context_append_message.py | Modify | Low: test-only | 1 commit | Effectively 1 | not applicable (rsynced) |
 | tests/agent/test_history_compression_consistency.py | Modify | Low: test-only | 6 commits | Effectively 1 | not applicable (rsynced) |
@@ -138,7 +138,7 @@ Validation quality baseline (Step 5): `radon cc` ranks for the targets are A or 
 | scripts/agent/conversation_state_manager.py, tests/agent/test_history_compression_consistency.py | Unit / integration | `uv run pytest tests/agent/test_history_compression_consistency.py tests/agent/test_orchestrator.py tests/integration/test_orchestrator_integration.py tests/agent/test_history_manager.py` | Interleaving test passes and fails on the old code; existing compression tests unchanged (AC-2, AC-4) |
 | Both source files and tests | Static | `uv run ruff check` and `uv run ruff format --check` on the four files; `uv run mypy scripts/agent/context.py scripts/agent/conversation_state_manager.py` | No findings |
 | Both source files | Complexity / security | `radon cc scripts/agent/context.py scripts/agent/conversation_state_manager.py -s`; `uv run bandit -r scripts/agent -c pyproject.toml` | No rank above B; no new bandit finding (the two existing `assert_used` are unrelated) |
-| scripts/agent/context.py | Size gate and reference table | `uv run python tools/check_module_size.py`; `uv run python tools/generate_reference_table.py --check` | `context.py` stays under 20480 B (currently 15851 B); no table drift |
+| scripts/agent/context.py | Size gate and reference table | `uv run python tools/check_module_size.py`; `uv run python tools/generate_reference_table.py --check` | `context.py` stays under 20480 B (currently 16219 B, re-measured 20261103); no table drift |
 | scripts/agent/context.py, scripts/agent/conversation_state_manager.py | Coverage | `rules/toolchain.md` section 7 diff-cover sequence | Changed lines meet the Completion checklist threshold |
 | scripts/agent/ | Audit (REQ-004) | `rg -n "create_task|ensure_future|asyncio.gather" scripts/agent` and `rg -n "append_message|extend_messages|conv\.history" scripts/agent` | No new writer reachable during the compression await |
 
@@ -159,9 +159,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Audit re-check, lock-guarded swap method and its unit tests (scripts/agent/context.py, scripts/agent/conversation_state_manager.py, tests/agent/test_context_append_message.py) | Pending | — | — | |
-| 2 | Use the method in `handle_history_compression` and add the interleaving test (scripts/agent/conversation_state_manager.py, tests/agent/test_history_compression_consistency.py) | Pending | — | — | |
-| 3 | Validation commands, diff-cover and deploy hand-off | Pending | — | — | |
+| 1 | Audit re-check, lock-guarded swap method and its unit tests (scripts/agent/context.py, scripts/agent/conversation_state_manager.py, tests/agent/test_context_append_message.py) | In Progress | — | — |  |
+| 2 | Use the method in `handle_history_compression` and add the interleaving test (scripts/agent/conversation_state_manager.py, tests/agent/test_history_compression_consistency.py) | In Progress | — | — |  |
+| 3 | Validation commands, diff-cover and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -171,7 +171,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261103-111932_01_scripts_agent_context.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261103-111932_02_scripts_agent_conversation_state_manager.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -192,3 +193,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-003 | Issue Acceptance Criteria 2, Testing Expectations; `compress` result shapes (no-op, summary, fallback) in `scripts/agent/history.py` | tests/agent/test_context_append_message.py | Step 1 | AC-3 | `uv run pytest tests/agent/test_context_append_message.py` | Derived from confirmed evidence |
 | REQ-003 | Issue Testing Expectations (interleaved append during in-flight compression) | tests/agent/test_history_compression_consistency.py | Step 2 | AC-2, AC-4 | `uv run pytest tests/agent/test_history_compression_consistency.py` | Explicit in issue |
 | REQ-004 | Issue Required Changes 3 and 4, Unresolved Questions (background-task audit) | scripts/agent/conversation_state_manager.py | Step 1 | AC-5 | `rg` scan in the Validation plan | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261103-111932 -->

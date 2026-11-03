@@ -123,9 +123,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Return the partial text on timeout in `CLIView.read_multiline` (scripts/agent/cli_view.py) | Pending | — | — | |
-| 2 | Replace the timeout test and add the follow-up-read test (tests/test_cli_view.py) | Pending | — | — | |
-| 3 | Validation commands, UNK-01 pty check and deploy hand-off | Pending | — | — | |
+| 1 | Return the partial text on timeout in `CLIView.read_multiline` (scripts/agent/cli_view.py) | In Progress | — | — |  |
+| 2 | Replace the timeout test and add the follow-up-read test (tests/test_cli_view.py) | In Progress | — | — |  |
+| 3 | Validation commands, UNK-01 pty check and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -135,7 +135,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261103-110436_01_scripts_agent_cli_view.py.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -153,3 +153,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-002 | Issue Constraints, Acceptance Criteria (Ctrl+C/Ctrl+D unaffected, timeout value unchanged) | scripts/agent/cli_view.py | Step 1 | AC-2, AC-3 | Existing `TestReadMultiline` cases | Explicit in issue |
 | REQ-002 | Issue Constraints; existing EOF/KeyboardInterrupt tests | tests/test_cli_view.py | Step 2 | AC-2 | `uv run pytest tests/test_cli_view.py` | Explicit in issue |
 | REQ-003 | Issue Required Changes (regression test, verify next read), Testing Expectations, Unresolved Questions; `StdinReader` cancel semantics and `TestCancelledRequestDelivery` | tests/test_cli_view.py | Step 2 | AC-1, AC-4 | `uv run pytest tests/test_cli_view.py tests/agent/test_stdin_reader.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261103-110436 -->
