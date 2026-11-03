@@ -4,12 +4,15 @@ Unit tests for agent/tool_loop_guard.py — ToolLoopGuard.
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import logging
+import threading
 from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import orjson
+import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_loop_guard import UNAVAILABLE_REPEAT_HINT, ToolLoopGuard, TurnLoopState
@@ -675,3 +678,129 @@ class TestSaveGuardHintContainment:
         # REQ-001: no exception propagated; REQ-002: a warning was logged.
         assert any(r.levelno >= logging.WARNING for r in caplog.records)
         assert "kind=guard_hint" in caplog.text
+
+
+class TestGuardHintDeferral:
+    """REQ-001/REQ-006: defer_hints records guard-hint payloads at event time and
+    flush_guard_hints persists them in order, off the event loop."""
+
+    @staticmethod
+    def _defer_guard(**cfg_overrides: object) -> tuple[MagicMock, ToolLoopGuard]:
+        cfg = _cfg(**cfg_overrides)  # type: ignore[arg-type]
+        ctx = _make_ctx(cfg)
+        ctx.diagnostics = MagicMock()
+        guard = ToolLoopGuard(ctx, defer_hints=True)
+        return ctx, guard
+
+    @staticmethod
+    def _payloads(ctx: MagicMock) -> list[dict]:
+        return [orjson.loads(c.args[2]) for c in ctx.diagnostics.save.call_args_list]
+
+    @staticmethod
+    def _trip_dedup(guard: ToolLoopGuard) -> None:
+        seen: dict[str, int] = {}
+        guard.check_dedup(seen, _msg("write_file"))
+        guard.check_dedup(seen, _msg("write_file"))
+
+    async def test_deferred_hint_is_saved_only_on_flush(self) -> None:
+        ctx, guard = self._defer_guard(tool_dedup_max_repeats=2)
+        self._trip_dedup(guard)
+        ctx.diagnostics.save.assert_not_called()
+
+        await guard.flush_guard_hints()
+
+        payloads = self._payloads(ctx)
+        assert len(payloads) == 1
+        assert payloads[0]["guard_type"] == "dedup"
+
+    async def test_two_hints_flush_in_recorded_order(self) -> None:
+        ctx, guard = self._defer_guard(tool_dedup_max_repeats=2)
+        self._trip_dedup(guard)
+
+        from shared.tool_executor_helpers import tool_hash_key
+
+        key = tool_hash_key("write_file", {})
+        guard.check_retry({key}, _msg("write_file"))
+
+        ctx.diagnostics.save.assert_not_called()
+        await guard.flush_guard_hints()
+        assert [d["guard_type"] for d in self._payloads(ctx)] == ["dedup", "retry"]
+        # A second flush finds nothing pending.
+        await guard.flush_guard_hints()
+        assert len(self._payloads(ctx)) == 2
+
+    async def test_payload_timestamp_is_event_time(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ctx, guard = self._defer_guard(tool_dedup_max_repeats=2)
+        monkeypatch.setattr("agent.tool_loop_guard.now_iso_raw", lambda: "EVENT-TIME")
+        self._trip_dedup(guard)
+        monkeypatch.setattr("agent.tool_loop_guard.now_iso_raw", lambda: "FLUSH-TIME")
+
+        await guard.flush_guard_hints()
+        assert self._payloads(ctx)[0]["timestamp"] == "EVENT-TIME"
+
+    async def test_flush_contains_save_failure_and_keeps_flushing(
+        self, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ctx, guard = self._defer_guard(tool_dedup_max_repeats=2)
+        self._trip_dedup(guard)
+
+        from shared.tool_executor_helpers import tool_hash_key
+
+        key = tool_hash_key("write_file", {})
+        guard.check_retry({key}, _msg("write_file"))
+
+        calls = {"n": 0}
+
+        def refusing_save(*a: object) -> None:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError(
+                    "Sensitive information detected in diagnostic content"
+                )
+
+        ctx.diagnostics.save = refusing_save
+        with caplog.at_level(logging.WARNING, logger="agent.tool_loop_guard"):
+            await guard.flush_guard_hints()
+
+        assert "kind=guard_hint" in caplog.text
+        assert (
+            calls["n"] == 2
+        )  # the failure is contained; the remaining hint still flushes
+
+    async def test_flush_with_nothing_pending_makes_no_thread_hop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _ctx, guard = self._defer_guard()
+        hops = []
+
+        async def spy(func, *args: object) -> object:
+            hops.append(func)
+            return func(*args)
+
+        monkeypatch.setattr(asyncio, "to_thread", spy)
+        await guard.flush_guard_hints()
+        assert hops == []
+
+    async def test_flush_blocks_only_the_worker_thread_not_the_loop(self) -> None:
+        ctx, guard = self._defer_guard(tool_dedup_max_repeats=2)
+        self._trip_dedup(guard)
+
+        gate = threading.Event()
+
+        def blocking_save(*a: object) -> None:
+            gate.wait(timeout=5)
+
+        ctx.diagnostics.save = blocking_save
+
+        task = asyncio.create_task(guard.flush_guard_hints())
+        fired = asyncio.Event()
+        asyncio.get_running_loop().call_soon(fired.set)
+
+        # The loop keeps running scheduled callbacks while the write blocks.
+        await asyncio.wait_for(fired.wait(), timeout=2)
+        assert not task.done()
+
+        gate.set()
+        await asyncio.wait_for(task, timeout=5)

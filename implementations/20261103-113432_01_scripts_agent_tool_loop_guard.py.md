@@ -171,9 +171,9 @@ branch or threshold logic changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write red companion tests, confirm they fail (Procedure 1; Companion test files) | Pending | — | — | |
-| 2 | Implement keyword, pending list, payload extraction, `_record_guard_hint` (new), `flush_guard_hints` (new) (Procedure 2-5) | Pending | — | — | |
-| 3 | Run this document's checks (Validation plan 1-3) | Pending | — | — | |
+| 1 | Write red companion tests, confirm they fail (Procedure 1; Companion test files) | Completed | 20261103-165600 | 20261103-170600 | `TestGuardHintDeferral` 6 cases incl. loop-responsiveness; red confirmed (TypeError: unexpected keyword `defer_hints`) |
+| 2 | Implement keyword, pending list, payload extraction, `_record_guard_hint` (new), `flush_guard_hints` (new) (Procedure 2-5) | Completed | 20261103-165600 | 20261103-170600 | `asyncio` imported; `_persist_guard_hint_payload` extracted (warning text once); six call sites switched to `_record_guard_hint`; static `_save_guard_hint` signature kept |
+| 3 | Run this document's checks (Validation plan 1-3) | Completed | 20261103-165600 | 20261103-170600 | pytest guard+wiring 58 passed; ruff check+format clean; mypy clean; radon: no rank increase (`_save_guard_hint` B→A(1), new methods A); bandit no new finding; reference_table --check: no drift; NOTE: doc's "~200 B" estimate was low — actual addition ~1370 B, docstrings compressed to fit the gate: 20403 B < 20480 B (was 19032 B) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

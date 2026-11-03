@@ -9,6 +9,7 @@ state and the guard rules applied each time the LLM returns tool_calls.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 from collections.abc import Iterator
@@ -98,9 +99,14 @@ class ToolLoopGuard:
     per-turn loop state lives in TurnLoopState.
     """
 
-    def __init__(self, ctx: AgentContext) -> None:
-        """Initialize the tool loop guard with the agent context for diagnostic tracking."""
+    def __init__(self, ctx: AgentContext, *, defer_hints: bool = False) -> None:
+        """Initialize the tool loop guard with the agent context for diagnostic tracking.
+
+        ``defer_hints=True`` defers hint writes to ``flush_guard_hints`` (off-loop SQLite).
+        """
         self._ctx = ctx
+        self._defer_hints = defer_hints
+        self._pending_guard_hints: list[dict[str, object]] = []
         global _STARTUP_REPORTED
         if not _STARTUP_REPORTED:
             _STARTUP_REPORTED = True
@@ -141,13 +147,20 @@ class ToolLoopGuard:
         **fields: object,
     ) -> None:
         """Persist guard event to the diagnostic channel."""
-        if ctx.diagnostics is None:
-            return
         payload = {
             **fields,
             "guard_type": guard_type,
             "timestamp": now_iso_raw(),
         }
+        ToolLoopGuard._persist_guard_hint_payload(ctx, payload)
+
+    @staticmethod
+    def _persist_guard_hint_payload(
+        ctx: AgentContext, payload: dict[str, object]
+    ) -> None:
+        """Contained persist step for a guard-hint payload."""
+        if ctx.diagnostics is None:
+            return
         try:
             ctx.diagnostics.save(
                 ctx.session.session_id, "guard_hint", json_dumps(payload)
@@ -157,6 +170,32 @@ class ToolLoopGuard:
                 "Failed to persist guard_hint diagnostic for %s (kind=guard_hint)",
                 ctx.session.session_id,
                 exc_info=True,
+            )
+
+    def _record_guard_hint(self, guard_type: str, **fields: object) -> None:
+        """Build the event-time payload; queue it (defer on) or persist it now."""
+        payload = {
+            **fields,
+            "guard_type": guard_type,
+            "timestamp": now_iso_raw(),
+        }
+        if self._defer_hints:
+            self._pending_guard_hints.append(payload)
+            return
+        self._persist_guard_hint_payload(self._ctx, payload)
+
+    async def flush_guard_hints(self) -> None:
+        """Persist queued hints in recorded order off the loop via ``asyncio.to_thread``.
+
+        A failing save degrades to its contained warning; remaining hints flush.
+        """
+        if not self._pending_guard_hints:
+            return
+        payloads = list(self._pending_guard_hints)
+        self._pending_guard_hints.clear()
+        for payload in payloads:
+            await asyncio.to_thread(
+                self._persist_guard_hint_payload, self._ctx, payload
             )
 
     # ── Empty result repeat guard helpers ─────────────────────────────────────
@@ -204,8 +243,7 @@ class ToolLoopGuard:
             tool_name,
             count,
         )
-        self._save_guard_hint(
-            self._ctx,
+        self._record_guard_hint(
             "empty_result_repeat",
             tool_name=tool_name,
             repeat_count=count,
@@ -257,8 +295,7 @@ class ToolLoopGuard:
             server_key,
             count,
         )
-        self._save_guard_hint(
-            self._ctx,
+        self._record_guard_hint(
             "unavailable_repeat",
             server_key=server_key,
             repeat_count=count,
@@ -319,8 +356,7 @@ class ToolLoopGuard:
                 round_key,
                 repeat_count,
             )
-            self._save_guard_hint(
-                ctx,
+            self._record_guard_hint(
                 "cycle",
                 round_key=round_key,
                 repeat_count=repeat_count,
@@ -366,8 +402,7 @@ class ToolLoopGuard:
                 tool_names,
                 same_set_count,
             )
-            self._save_guard_hint(
-                ctx,
+            self._record_guard_hint(
                 "stagnation",
                 tool_names=str(tool_names),
                 repeat_count=same_set_count,
@@ -391,8 +426,7 @@ class ToolLoopGuard:
             if seen_calls[key] >= ctx.cfg.tool.tool_dedup_max_repeats:
                 name = func.get("name", "<unknown>")
                 logger.warning("Duplicate tool call blocked: %r", name)
-                self._save_guard_hint(
-                    ctx,
+                self._record_guard_hint(
                     "dedup",
                     tool_name=name,
                     repeat_count=seen_calls[key],
@@ -422,8 +456,7 @@ class ToolLoopGuard:
             if key in failed_calls:
                 name = func.get("name", "<unknown>")
                 logger.warning("Retry of failed tool call blocked: %r", name)
-                self._save_guard_hint(
-                    ctx,
+                self._record_guard_hint(
                     "retry",
                     tool_name=name,
                     hint=RETRY_HINT,
