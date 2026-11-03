@@ -1,14 +1,14 @@
 """scripts/agent/eventbus_subscriber.py
 
 EventBusSubscriber — SSE client for Event Bus's /subscribe endpoint, with
-automatic reconnection using a fresh consumer_id per attempt.
+automatic reconnection that resumes without losing events: a stable
+`consumer_id` on every attempt and the last processed seq as `since_seq`.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import uuid
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import Any
@@ -35,6 +35,7 @@ class EventBusSubscriberConfig:
     topics: list[str] | None = None
     max_reconnect_attempts: int = 5
     reconnect_delay_sec: float = 1.0
+    consumer_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -66,33 +67,51 @@ class EventBusSubscriber:
     ) -> None:
         """Store config and the shared HTTP client used for the SSE stream."""
         self._config = config
+        if not self._config.consumer_id:
+            raise ValueError("consumer_id must not be empty")
         self._http = http
 
     async def subscribe(self) -> AsyncGenerator[EventBusEvent]:
         """Yield events from Event Bus's SSE stream.
 
-        Reconnects with a fresh `consumer_id` on disconnection (per
-        `EventBroker.subscribe()`'s one-connection-per-non-empty-consumer_id
-        constraint — a fresh id never collides). Raises EventBusStreamError
-        after `max_reconnect_attempts` consecutive failures.
+        Resumes after a reconnect without losing events: sends the configured
+        stable `consumer_id` on every attempt and the last processed `seq` as
+        `since_seq` (an exclusive lower bound) so the broker replays any missed
+        events. A concurrent duplicate connection is signalled with HTTP 409 and
+        retried within the retry budget. Raises EventBusStreamError after
+        `max_reconnect_attempts` consecutive failures.
         """
         attempt = 0
+        last_seq: int | None = None
+        consumer_id = self._config.consumer_id
         while True:
-            consumer_id = uuid.uuid4().hex
             try:
-                async for event in self._stream_once(consumer_id):
+                async for event in self._stream_once(consumer_id, last_seq):
                     attempt = 0
                     yield event
+                    last_seq = (
+                        event.seq if last_seq is None else max(last_seq, event.seq)
+                    )
                 # A clean stream end (server closed normally) is treated the
-                # same as a disconnection: reconnect with a fresh consumer_id.
+                # same as a disconnection: reconnect with the same consumer_id
+                # and the last processed seq as since_seq.
             except (httpx.HTTPError, OSError) as e:
                 attempt += 1
-                logger.warning(
-                    "EventBusSubscriber stream disconnected (attempt %d/%d): %s",
-                    attempt,
-                    self._config.max_reconnect_attempts,
-                    e,
-                )
+                if (
+                    isinstance(e, httpx.HTTPStatusError)
+                    and e.response.status_code == 409
+                ):
+                    logger.warning(
+                        "EventBusSubscriber consumer_id %s already connected (HTTP 409); retrying",
+                        consumer_id,
+                    )
+                else:
+                    logger.warning(
+                        "EventBusSubscriber stream disconnected (attempt %d/%d): %s",
+                        attempt,
+                        self._config.max_reconnect_attempts,
+                        e,
+                    )
                 if attempt >= self._config.max_reconnect_attempts:
                     raise EventBusStreamError(
                         f"subscribe stream failed after {attempt} attempts"
@@ -100,10 +119,19 @@ class EventBusSubscriber:
                 await asyncio.sleep(self._config.reconnect_delay_sec)
                 continue
 
-    async def _stream_once(self, consumer_id: str) -> AsyncGenerator[EventBusEvent]:
-        """Open one SSE connection and yield events until it disconnects."""
+    async def _stream_once(
+        self, consumer_id: str, last_seq: int | None = None
+    ) -> AsyncGenerator[EventBusEvent]:
+        """Open one SSE connection and yield events until it disconnects.
+
+        Sends the stable `consumer_id` and, when `last_seq` is set, the last
+        processed seq as `since_seq` so the broker replays missed events. Never
+        sends `Last-Event-ID`.
+        """
         headers = {"Authorization": f"Bearer {self._config.consumer_token}"}
         params: dict[str, Any] = {"consumer_id": consumer_id}
+        if last_seq is not None:
+            params["since_seq"] = last_seq
         if self._config.topics:
             params["topic"] = self._config.topics
 

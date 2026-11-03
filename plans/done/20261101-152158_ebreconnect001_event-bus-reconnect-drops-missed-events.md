@@ -219,3 +219,5 @@ Interfaces: no public function signature changes; one new dataclass field; one n
 | REQ-005 | Issue Required Changes (test) and Testing Expectations | `tests/agent/test_eventbus_subscriber.py` | Step 1 | AC-1 to AC-5 | TEST-1 to TEST-7 | Explicit in issue |
 | REQ-006 | Issue Documentation Impact; stale phrase in `agent_02_runtime-architecture.md` | `docs/23_agent/agent_02_runtime-architecture.md` | Step 3 | AC-7 | `check_docs_consistency.py --domain agent` and the docs checkers | Derived from confirmed evidence |
 | REQ-007 | Issue Constraints and Out of Scope | `scripts/agent/eventbus_subscriber.py` | Step 2, Step 4 | AC-8 | Scope guard row of the Validation plan | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261103-151102 -->
