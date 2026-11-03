@@ -145,6 +145,8 @@ echo "Binaries   : ${DEPLOY_BIN}/ (${#BINARY_NAMES[@]} 本)"
 echo "--- config/*.toml → ${DEPLOY_CONFIG}/ ---"
 # Agent
 cp "${REPO_ROOT}/config/agent.toml"                     "${DEPLOY_CONFIG}/"
+# 共有設定 (scripts/shared/mcp_dedup.py が読む; 欠落時は overlay-only フォールバック)
+cp "${REPO_ROOT}/config/mcp_dedup.toml"                 "${DEPLOY_CONFIG}/"
 # MCP サーバー (各サーバー専用設定; agent.toml は読み込まない)
 cp "${REPO_ROOT}/config/web_search_mcp_server.toml"     "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/github_mcp_server.toml"         "${DEPLOY_CONFIG}/"
