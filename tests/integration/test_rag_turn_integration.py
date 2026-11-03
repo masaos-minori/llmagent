@@ -155,6 +155,8 @@ def _make_guard() -> MagicMock:
     guard.check_error_limit.return_value = None
     guard.check_empty_result_repeat.return_value = None
     guard.check_unavailable_repeat.return_value = None
+    # blockio001 REQ-002: run() awaits flush_guard_hints() after each guard check.
+    guard.flush_guard_hints = AsyncMock(return_value=None)
     return guard
 
 

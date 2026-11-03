@@ -173,8 +173,8 @@ Design decisions (python-design applied narrowly):
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Tests first: guard deferral, `_handle_llm_error`, tool-runner offload and executor wiring tests (tests/agent/test_tool_loop_guard.py, tests/agent/test_llm_turn_runner.py, tests/agent/test_tool_runner.py, tests/agent/test_llm_turn_executor.py) | Completed | — | 20261103-182304 | Red-first test procedures covered by the seq 01/02/03 companion sections and the seq 08 document |
 | 2 | Guard deferral and executor enablement (scripts/agent/tool_loop_guard.py, scripts/agent/llm_turn_executor.py) | Completed | — | 20261103-182304 | Procedures 20261103-113432_01/_02 generated |
-| 3 | Call-site offload: `_handle_llm_error` and guard flush, `_record_transport_failure`, serialization-event write (scripts/agent/llm_turn_runner.py, scripts/agent/tool_runner.py, scripts/agent/tool_run_recorder.py) | In Progress | — | — | Procedures 20261103-113432_03/_04/_05 generated; size-gate contingency recorded in the plan Risks |
-| 4 | Deployment and verification: validation sequence, regression set, deploy hand-off (all targets) | Pending | — | — |  |
+| 3 | Call-site offload: `_handle_llm_error` and guard flush, `_record_transport_failure`, serialization-event write (scripts/agent/llm_turn_runner.py, scripts/agent/tool_runner.py, scripts/agent/tool_run_recorder.py) | Completed | — | 20261103-183553 | Procedures 20261103-113432_03/_04/_05 generated; size-gate contingency recorded in the plan Risks |
+| 4 | Deployment and verification: validation sequence, regression set, deploy hand-off (all targets) | Completed | 20261103-183734 | 20261103-183734 | Full suite: 11435 passed / 5 failed / 9 skipped — the 5 failures were `tests/integration/test_rag_turn_integration.py` guard mocks missing the `flush_guard_hints` AsyncMock stub (introduced by the seq 03 rewrite, deterministic, fixed in companion); diff-cover vs dea4c18f6: 97% ≥ 90 (only missing line: `tool_loop_guard.py:405`); `pre-commit run --all-files` all Passed; deployed via deploy.sh on the user's instruction |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -185,11 +185,11 @@ Design decisions (python-design applied narrowly):
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | implementations/20261103-113432_01_scripts_agent_tool_loop_guard.py.md | 2 | Procedure | Completed | — | — |
-| implementations/20261103-113432_02_scripts_agent_llm_turn_executor.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261103-113432_02_scripts_agent_llm_turn_executor.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261103-113432_08_tests_agent_test_tool_runner.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261103-113432_05_scripts_agent_tool_run_recorder.py.md | 3 | Procedure | Completed | — | — |
 | implementations/20261103-113432_04_scripts_agent_tool_runner.py.md | 3 | Procedure | Completed | — | — |
-| implementations/20261103-113432_03_scripts_agent_llm_turn_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261103-113432_03_scripts_agent_llm_turn_runner.py.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
