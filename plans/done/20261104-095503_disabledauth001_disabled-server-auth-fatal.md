@@ -46,8 +46,8 @@ This table is the canonical, frozen source of implementation scope for this Plan
 |---|---|---|---|---|---|---|
 | `scripts/agent/startup_validation.py` | `mcp_auth` filter | Add `not srv.is_disabled` to the `missing_auth` comprehension in `StartupValidationPipeline.check_services` (checked in Step 2) | REQ-001, REQ-002; AC-1, AC-2 | `missing_auth = [key for key, srv in ctx.cfg.mcp.mcp_servers.items() if not srv.auth_token]` under "1b. MCP authentication check"; `McpServerConfig.is_disabled` is `startup_mode == StartupMode.NONE` (checked in Step 2) | `tests/agent/test_startup_validation.py`, `tests/agent/test_startup_severity_classification.py`, `tests/agent/test_startup.py` | Verified |
 | `tests/agent/test_startup_validation.py` | New tests | Add the disabled/empty-token, enabled/empty-token, and enabled-offenders-only-message tests using the file's `check_services` harness (checked in Step 2) | REQ-003; AC-3 | File exists with `TestRagConsistencyTimeout` and a posture-gate test; no `mcp_auth` test (rg, checked in Step 2) | `tests/agent/test_startup_validation.py` | Verified |
-| `tests/agent/test_startup_severity_classification.py` | Adjust existing tests and comment | Set `is_disabled=False` on the token-less `MagicMock` servers in the three `test_mcp_auth_*` tests; correct the "can no longer be constructed" comment (checked in Step 2) | REQ-004; AC-4 | `test_mcp_auth_fatal_when_any_server_missing_token` and `test_mcp_auth_fatal_lists_all_offending_servers` use `MagicMock(auth_token="")`, whose `is_disabled` is truthy (checked in Step 2) | `tests/agent/test_startup_severity_classification.py` | Verified |
-| `tests/agent/test_startup.py` | Adjust duplicate tests and comment | Same adjustment for the duplicate `mcp_auth` test block (checked in Step 2) | REQ-004; AC-4 | Lines of the same three tests with `MagicMock(auth_token="")` (rg, checked in Step 2) | `tests/agent/test_startup.py` | Verified |
+| `tests/agent/test_startup_severity_classification.py` | Adjust existing tests and comment | Set `is_disabled=False` on the token-less `MagicMock` servers of the two `test_mcp_auth_*` tests that build them (the OK test has none); correct the "can no longer be constructed" comment (checked in Step 2 and Step 3a) | REQ-004; AC-4 | `test_mcp_auth_fatal_when_any_server_missing_token` and `test_mcp_auth_fatal_lists_all_offending_servers` use `MagicMock(auth_token="")`, whose `is_disabled` is truthy (checked in Step 2) | `tests/agent/test_startup_severity_classification.py` | Verified |
+| `tests/agent/test_startup.py` | Adjust duplicate tests and comment | Same adjustment for the duplicate `mcp_auth` test block (two tests) and for the two tests of `TestCheckServicesFatalErrorMessageWithRemediation` that also build token-less `MagicMock` servers and assert the fatal outcome and its remediation text (checked in Step 2 and Step 3a) | REQ-004; AC-4 | Lines of the same three tests with `MagicMock(auth_token="")` (rg, checked in Step 2) | `tests/agent/test_startup.py` | Verified |
 | `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | `mcp_auth` description | Replace "unreachable via a real `McpServerConfig`" and "any entry has an empty `auth_token`" with the disabled-server exemption (checked in Step 2) | REQ-005; AC-5 | The `mcp_auth` bullet in the severity-mapping section states both (checked in Step 2) | N/A: documentation | Verified |
 | `docs/22_mcp/mcp_05_02_auth-profiles-and-sandboxing.md` | Enforcement-point wording | The "Enforcement Point" paragraph says startup records a fatal for any `[mcp_servers.*]` entry with an empty token; limit it to enabled entries (checked in Step 2) | REQ-005; AC-5 | The paragraph names the fatal `mcp_auth` outcome; the Authentication section already states the disabled exemption (checked in Step 2) | N/A: documentation | Verified |
 
@@ -72,7 +72,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 
 ## Tests
 - `REQ-003`: in `tests/agent/test_startup_validation.py`, run `check_services` with (a) a real disabled `McpServerConfig` with an empty token and no other offenders, (b) an enabled `MagicMock` server with `is_disabled=False` and an empty token, (c) a mix of one disabled and one enabled token-less server, asserting the message names only the enabled one.
-- `REQ-004`: update the `MagicMock` servers in the two existing `mcp_auth` blocks; keep their assertions.
+- `REQ-004`: update the token-less `MagicMock` servers in the two existing `mcp_auth` blocks and in the two remediation-message tests of `tests/agent/test_startup.py`; keep their assertions. The remediation text itself stays unchanged (it still says "every MCP server"; a wording refinement is outside `REQ-002`, which keeps the remediation wording).
 - Regression: `tests/agent/test_startup_validation.py`, `tests/agent/test_startup_severity_classification.py`, `tests/agent/test_startup.py`, `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup_rollback.py`, `tests/agent/test_startup_memory_failures.py`.
 - No real token or environment value is copied into tests or messages.
 
@@ -141,11 +141,11 @@ Baseline (Step 5): `radon cc` on `startup_validation.py` reports `StartupValidat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add failing `mcp_auth` tests | Pending | — | — | |
-| 2 | Phase 2: add the `is_disabled` filter | Pending | — | — | |
-| 3 | Phase 3: adjust existing mocks and comment | Pending | — | — | |
-| 4 | Phase 4: documentation updates | Pending | — | — | |
-| 5 | Phase 5: deployment hand-off and verification | Pending | — | — | |
+| 1 | Phase 1: add failing `mcp_auth` tests | In Progress | — | — |  |
+| 2 | Phase 2: add the `is_disabled` filter | In Progress | — | — |  |
+| 3 | Phase 3: adjust existing mocks and comment | In Progress | — | — |  |
+| 4 | Phase 4: documentation updates | In Progress | — | — |  |
+| 5 | Phase 5: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -155,7 +155,12 @@ Baseline (Step 5): `radon cc` on `startup_validation.py` reports `StartupValidat
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261104-141805_01_scripts_agent_startup_validation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261104-141805_02_tests_agent_test_startup_validation.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261104-141805_03_tests_agent_test_startup_severity_classification.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261104-141805_04_tests_agent_test_startup.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261104-141805_05_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261104-141805_06_docs_22_mcp_mcp_05_02_auth-profiles-and-sandboxing.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -176,3 +181,5 @@ Baseline (Step 5): `radon cc` on `startup_validation.py` reports `StartupValidat
 | REQ-004 | Derived: duplicate `MagicMock` block found in Step 2 | tests/agent/test_startup.py | 3 | AC-4 | `tests/agent/test_startup.py` | Confirmed by repository evidence |
 | REQ-005 | Documentation Impact; docs found in Step 2 | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | 4 | AC-5 | `tools/check_docs_*` | Confirmed by repository evidence |
 | REQ-005 | Documentation Impact; docs found in Step 2 | docs/22_mcp/mcp_05_02_auth-profiles-and-sandboxing.md | 4 | AC-5 | `tools/check_docs_*` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261104-141805 -->

@@ -55,7 +55,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/agent/lifecycle_router.py` | Router start entry and shutdown signal | Remove the `_in_cooldown` early return from `_ServerLifecycleRouter.start_http_subprocess`; raise a new typed `StartSuppressedError` instead of returning `None` when `_shutting_down` (checked in Step 2) | REQ-001, REQ-002, REQ-004; AC-1, AC-3, AC-4 | `start_http_subprocess` returns `None` on `_shutting_down` and on `_in_cooldown`; `ensure_ready` and `restart` keep their own `_in_cooldown` checks and call `_subprocess_mgr` directly (checked in Step 2) | `tests/agent/test_lifecycle.py`, `tests/agent/test_agent_factory.py`, `tests/agent/test_startup_mcp_starter.py` | Verified |
+| `scripts/agent/lifecycle_router.py` | Router start entry and shutdown signal | Remove the `_in_cooldown` early return from `_ServerLifecycleRouter.start_http_subprocess`; raise a new typed `StartSuppressedError` instead of returning `None` when `_shutting_down` (checked in Step 2) | REQ-001, REQ-002, REQ-004; AC-1, AC-3, AC-4 | `start_http_subprocess` returns `None` on `_shutting_down` and on `_in_cooldown`; `ensure_ready` and `restart` keep their own `_in_cooldown` checks and call `_subprocess_mgr` directly (checked in Step 2) | `tests/agent/test_lifecycle.py`, `tests/agent/test_startup_mcp_starter.py` | Verified |
 | `scripts/agent/startup_mcp_starter.py` | Starter mapping and first-failure visibility | Map `StartSuppressedError` to `StartupInterrupted` in `_start_http_subprocess_once`; log the first failure at warning level with server key and masked reason; keep retry wiring (checked in Step 2) | REQ-002, REQ-003; AC-2, AC-3 | `start_servers` logs the first failure at INFO only; `_start_http_subprocess_once` returns `None` when no `Popen` comes back; `from agent.startup import StartupInterrupted` is already imported lazily in this module (checked in Step 2) | `tests/agent/test_startup_mcp_starter.py`, `tests/agent/test_startup_mcp_lifecycle.py` | Verified |
 | `scripts/agent/lifecycle_protocol.py` | Contract text | `start_http_subprocess` docstring in `LifecycleManagerProtocol` describes the typed error instead of "or None" semantics for suppression (checked in Step 3) | REQ-006; AC-3 | Docstring reads "returns the Popen object or None"; the signature is shared by the router and `_SubprocessLifecycleManager` (checked in Step 3) | `tests/agent/test_lifecycle.py` | Verified |
 | `tests/agent/test_startup_mcp_starter.py` | New integration-style tests | Add a test class with the real router and starter, faking only the `HttpServerLifecycleManager` start; cover fail-then-succeed, fail-then-fail, and shutdown-suppressed start (checked in Step 2) | REQ-005; AC-1, AC-2, AC-3, AC-5 | File exists and has no cooldown or `_ServerLifecycleRouter` reference (rg, checked in Step 2) | `tests/agent/test_startup_mcp_starter.py` | Verified |
@@ -89,7 +89,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 
 ## Tests
 - `REQ-005`: new class in `tests/agent/test_startup_mcp_starter.py` using the real `_ServerLifecycleRouter` and `McpServerStarter`, faking `router._subprocess_mgr._http_mgr` so that `start` raises `HttpStartupError` once and then succeeds (and a variant that raises twice); assert the number of calls reaching the fake, the returned `Popen` list, the final exception type and text, and the router state.
-- `REQ-005`: a test where the router is already shutting down; assert `StartupInterrupted` and no subprocess call.
+- `REQ-005`: a test where the router is already shutting down; assert `StartupInterrupted` and no subprocess call. The fail-then-fail test patches `agent.startup_mcp_starter.RETRY_DELAY_SEC` to a negligible value so it does not sleep, and asserts the first-failure warning by patching the module's `logger` (see Assumptions).
 - `REQ-004`, `REQ-006`: rewrite the two characterization tests; keep `test_ensure_ready_raises_cooldown_error`, `test_restart_skips_when_in_cooldown`, and the retry-helper tests unchanged.
 - Regression: `tests/agent/test_startup_mcp_starter.py`, `tests/agent/test_startup_mcp_lifecycle.py`, `tests/agent/test_startup.py`, `tests/agent/test_retry_helper.py`, `tests/agent/test_lifecycle.py`, `tests/agent/test_agent_factory.py`, `tests/agent/test_startup_rollback.py`.
 
@@ -101,6 +101,9 @@ Yes. REQ-007 drives updates to the MCP subprocess startup document, the MCP life
 - The retry-helper exception chain (final error `__cause__` is the second failure, whose `__context__` is the first) is sufficient for "carry the first failure"; it was confirmed with a probe run in Step 3.
 - No caller of `start_http_subprocess` exists outside `scripts/agent/` (rg over `scripts/`, Step 3), so the Issue's stop condition does not trigger.
 - Overlap with other Frozen Plans is judged by `tools/check_plan_target_overlaps.py` in Step 8b; none is recorded here unless the tool reports one.
+- `tests/agent/test_agent_factory.py` is covered by its own row and procedure, not as a companion: the plan-coverage check counts the companions of every procedure in the repository, and a past procedure of another Plan lists that file as a companion, so naming it in the router row's `Related Tests` as well produced a false `companion-multi-row` finding. It was removed from the router row's `Related Tests` with the owner's approval; the router procedure's Validation plan still runs that test file (Step 3a of `plan-to-implementation-procedure`).
+- The starter module's `logger` is a `shared.logger.Logger` wrapper whose underlying logger has `propagate = False`, so pytest's `caplog` cannot capture its records; tests assert the first-failure warning by patching the module-level `logger` in `agent.startup_mcp_starter` (checked in Step 3a of `plan-to-implementation-procedure`).
+- `tests/agent/test_startup_mcp_starter.py` already mixes routing-drift tests with `McpServerStarter` health tests that build a real starter around a `MagicMock` context; the new class follows the second style (checked in Step 3a).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -174,12 +177,12 @@ Baseline (Step 5): `radon cc` reports `McpServerStarter.start_servers` C (16) an
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add failing integration-style tests | Pending | — | — | |
-| 2 | Phase 2: router start entry and protocol contract | Pending | — | — | |
-| 3 | Phase 3: starter mapping and first-failure log | Pending | — | — | |
-| 4 | Phase 4: rewrite characterization tests | Pending | — | — | |
-| 5 | Phase 5: documentation updates | Pending | — | — | |
-| 6 | Phase 6: deployment hand-off and verification | Pending | — | — | |
+| 1 | Phase 1: add failing integration-style tests | In Progress | — | — |  |
+| 2 | Phase 2: router start entry and protocol contract | In Progress | — | — |  |
+| 3 | Phase 3: starter mapping and first-failure log | In Progress | — | — |  |
+| 4 | Phase 4: rewrite characterization tests | In Progress | — | — |  |
+| 5 | Phase 5: documentation updates | In Progress | — | — |  |
+| 6 | Phase 6: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -189,7 +192,15 @@ Baseline (Step 5): `radon cc` reports `McpServerStarter.start_servers` C (16) an
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261104-140850_01_scripts_agent_lifecycle_router.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261104-140850_02_scripts_agent_startup_mcp_starter.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261104-140850_03_scripts_agent_lifecycle_protocol.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261104-140850_04_tests_agent_test_startup_mcp_starter.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261104-140850_05_tests_agent_test_lifecycle.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261104-140850_06_tests_agent_test_agent_factory.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261104-140850_07_docs_22_mcp_mcp_06_03_long-running-http-operation-startup_modesubprocess.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261104-140850_08_docs_22_mcp_mcp_03_04_tool-call-tracing-and-lifecycle.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261104-140850_09_docs_23_agent_agent_02_runtime-architecture.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -217,3 +228,5 @@ Baseline (Step 5): `radon cc` reports `McpServerStarter.start_servers` C (16) an
 | REQ-007 | Documentation Impact | docs/22_mcp/mcp_06_03_long-running-http-operation-startup_modesubprocess.md | 5 | AC-6 | `tools/check_docs_*` | Explicit in issue |
 | REQ-007 | Derived: shutdown-guard wording | docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md | 5 | AC-6 | `tools/check_docs_*` | Derived from confirmed evidence |
 | REQ-007 | Derived: shutdown-guard wording | docs/23_agent/agent_02_runtime-architecture.md | 5 | AC-6 | `tools/check_docs_*` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261104-140850 -->

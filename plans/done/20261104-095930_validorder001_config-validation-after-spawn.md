@@ -168,12 +168,12 @@ Baseline (Step 5): `radon cc` reports `StartupOrchestrator._check_services` at B
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing order and stage tests | Pending | — | — | |
-| 2 | Phase 2: split the validation pipeline | Pending | — | — | |
-| 3 | Phase 3: wire the config stage in the orchestrator | Pending | — | — | |
-| 4 | Phase 4: re-point and stub existing tests | Pending | — | — | |
-| 5 | Phase 5: documentation update | Pending | — | — | |
-| 6 | Phase 6: deployment hand-off and verification | Pending | — | — | |
+| 1 | Phase 1: failing order and stage tests | In Progress | — | — |  |
+| 2 | Phase 2: split the validation pipeline | In Progress | — | — |  |
+| 3 | Phase 3: wire the config stage in the orchestrator | In Progress | — | — |  |
+| 4 | Phase 4: re-point and stub existing tests | In Progress | — | — |  |
+| 5 | Phase 5: documentation update | In Progress | — | — |  |
+| 6 | Phase 6: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -183,7 +183,13 @@ Baseline (Step 5): `radon cc` reports `StartupOrchestrator._check_services` at B
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261104-142300_01_scripts_agent_startup_validation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261104-142300_02_scripts_agent_startup.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261104-142300_03_tests_agent_test_startup_validation.py.md | 1, 4 | Procedure | Pending | — | — |
+| implementations/20261104-142300_04_tests_agent_test_startup_rollback.py.md | 1, 4 | Procedure | Pending | — | — |
+| implementations/20261104-142300_05_tests_agent_test_startup_severity_classification.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261104-142300_06_tests_agent_test_startup.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261104-142300_07_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -209,3 +215,5 @@ Baseline (Step 5): `radon cc` reports `StartupOrchestrator._check_services` at B
 | REQ-006 | Derived: `run()` tests with a mock context | tests/agent/test_startup_rollback.py | 4 | AC-5 | Rollback fixture stub | Derived from confirmed evidence |
 | REQ-006 | Derived: harness limited to the runtime stage | tests/agent/test_startup_validation.py | 4 | AC-5 | `tests/agent/test_startup_validation.py` | Derived from confirmed evidence |
 | REQ-007 | Documentation Impact | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | 5 | AC-6 | `tools/check_docs_*` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261104-142300 -->
