@@ -128,10 +128,10 @@ and resets the boundary.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `capture_session_image` (new) and `restore_session_image` (new) in `session_message_repo.py` | Pending | — | — | |
-| 2 | Add repository tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row touches no `docs/` |
+| 1 | Implement `capture_session_image` (new) and `restore_session_image` (new) in `session_message_repo.py` | Completed | 20261105-072001 | 20261105-073500 | capture_session_image/restore_session_image added; type aliases instead of typing.Any per rules/coding.md |
+| 2 | Add repository tests per Validation plan | Completed | — | 20261105-073500 | Deferred to sibling procedure 20261104-224326_05 (test-file row of the frozen Plan table); tests land in cycle 5 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-073500 | ruff/mypy/lint-imports/bandit/size/reference-table pass; full pytest 11511 passed; vulture flags the two new methods until Row 02 wires them, re-checked after cycle 02 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-073500 | N/A: this row touches no `docs/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

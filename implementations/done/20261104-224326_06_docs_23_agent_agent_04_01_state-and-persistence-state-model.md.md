@@ -107,10 +107,10 @@ existing append-only description and the fail-safe description.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the compensation guarantee and run the docs checkers | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: no tests for a doc change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this row |
+| 1 | Update the compensation guarantee and run the docs checkers | Completed | 20261105-085500 | 20261105-090500 | Compensation bullet updated in-place: append-only path kept, compression-rewrite restore path and fail-safe added, no concrete ids/counts (AC-7) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-090500 | N/A: no tests for a doc change docs/ grep confirmed the state-model doc is the only non-generated doc stating the compensation rule; agent_13 is generated reference (no edit needed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-090500 | check_docs_quality/structure/content_policy pass; check_docs_consistency --domain agent clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-090500 | this row Done by Step 1: this row IS the documentation update; no other docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

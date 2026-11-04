@@ -774,6 +774,148 @@ class TestDeleteMessagesFrom:
         assert repo.delete_messages_from(None, 1) == 0
 
 
+class TestCaptureAndRestoreImage:
+    """capture_session_image / restore_session_image unit tests (Row 01)."""
+
+    def test_capture_returns_rows_with_message_id_and_created_at(
+        self, grouped_repo: tuple[SessionMessageRepository, sqlite3.Connection, dict]
+    ) -> None:
+        repo, conn, _state = grouped_repo
+        repo.save_many(
+            [
+                ("user", "a", None, None),
+                ("assistant", "b", None, None),
+                ("tool", "c", None, "x"),
+            ]
+        )
+        rows, _floor = repo.capture_session_image(1)
+        stored = conn.execute(
+            "SELECT message_id, created_at FROM messages ORDER BY message_id"
+        ).fetchall()
+        # The capture carries message_id (index 0) and created_at (index 5)
+        # verbatim, not only the role/content/tool fields (REQ-001, AC-1).
+        assert [(row[0], row[5]) for row in rows] == stored
+
+    def test_capture_returns_persisted_undo_floor(
+        self, grouped_repo: tuple[SessionMessageRepository, sqlite3.Connection, dict]
+    ) -> None:
+        repo, conn, _state = grouped_repo
+        repo.save_many(
+            [
+                ("user", "a", None, None),
+                ("assistant", "b", None, None),
+                ("tool", "c", None, "x"),
+            ]
+        )
+        conn.execute(
+            "UPDATE sessions SET undo_floor_message_id = 3 WHERE session_id = 1"
+        )
+        conn.commit()
+        image = repo.capture_session_image(1)
+        assert image[1] == 3  # captured value equals the persisted boundary
+
+    def test_restore_resets_boundary_and_keeps_only_rows_at_or_below_marker(
+        self, grouped_repo: tuple[SessionMessageRepository, sqlite3.Connection, dict]
+    ) -> None:
+        repo, conn, _state = grouped_repo
+        repo.save_many(
+            [
+                ("user", "m1", None, None),
+                ("assistant", "m2", None, None),
+                ("user", "m3", None, None),
+                ("assistant", "m4", None, None),
+                ("user", "m5", None, None),
+                ("assistant", "m6", None, None),
+            ]
+        )
+        image = repo.capture_session_image(1)
+        # Simulate a compression rewrite: all rows cleared, new summary above
+        # the marker (AUTOINCREMENT advances to id 7).
+        conn.execute("DELETE FROM messages WHERE session_id = 1")
+        conn.execute(
+            "INSERT INTO messages (message_id, session_id, role, content)"
+            " VALUES (7, 1, 'assistant', 'summary')"
+        )
+        conn.commit()
+
+        repo.restore_session_image(1, image, 6, 6)
+
+        ids = [
+            row[0]
+            for row in conn.execute(
+                "SELECT message_id FROM messages WHERE session_id = 1"
+                " ORDER BY message_id"
+            ).fetchall()
+        ]
+        assert ids == [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+        ]  # id 7 gone: above the marker, not in the image
+        floor = conn.execute(
+            "SELECT undo_floor_message_id FROM sessions WHERE session_id = 1"
+        ).fetchone()[0]
+        assert floor == 6
+
+    def test_restore_preserves_original_created_at(
+        self, grouped_repo: tuple[SessionMessageRepository, sqlite3.Connection, dict]
+    ) -> None:
+        repo, conn, _state = grouped_repo
+        repo.save_many(
+            [
+                ("user", "a", None, None),
+                ("assistant", "b", None, None),
+                ("tool", "c", None, "x"),
+            ]
+        )
+        image = repo.capture_session_image(1)
+        original_created_at = image[0][0][5]
+        # Mutate the live row after the capture.
+        conn.execute(
+            "UPDATE messages SET created_at = '2000-01-01T00:00:00Z' WHERE message_id = 1"
+        )
+        conn.commit()
+
+        repo.restore_session_image(1, image, 0, 3)
+        # The restore re-inserts from the pre-mutation image with explicit ids,
+        # so row 1 carries its original created_at, not the mutated value and
+        # not a fresh CURRENT_TIMESTAMP (AC-1).
+        restored = conn.execute(
+            "SELECT created_at FROM messages WHERE message_id = 1"
+        ).fetchone()[0]
+        assert restored == original_created_at
+        assert restored != "2000-01-01T00:00:00Z"
+
+    def test_failing_restore_leaves_rows_untouched_and_raises(
+        self, grouped_repo: tuple[SessionMessageRepository, sqlite3.Connection, dict]
+    ) -> None:
+        repo, conn, state = grouped_repo
+        repo.save_many(
+            [
+                ("user", "a", None, None),
+                ("assistant", "b", None, None),
+                ("tool", "c", None, "x"),
+            ]
+        )
+        image = repo.capture_session_image(1)
+        state["fail_next"] = 1
+        with pytest.raises(sqlite3.Error):
+            repo.restore_session_image(1, image, 3, 3)
+        # The failed transaction rolled back before any delete committed: rows
+        # are exactly the original ids 1..3, untouched (REQ-002, AC-4).
+        ids = [
+            row[0]
+            for row in conn.execute(
+                "SELECT message_id FROM messages WHERE session_id = 1"
+                " ORDER BY message_id"
+            ).fetchall()
+        ]
+        assert ids == [1, 2, 3]
+
+
 class TestSavePhaseGrouped:
     def test_writes_all_rows_in_one_call(self, repo: SessionMessageRepository) -> None:
         repo.save_phase_grouped(

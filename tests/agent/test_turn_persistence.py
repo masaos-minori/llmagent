@@ -318,6 +318,148 @@ class TestSnapshotRestore:
         assert conv.history == [{"role": "user", "content": "start"}]
 
 
+# ── Rewrite compensation (Row 02 pre-image restore) ───────────────────────────
+
+
+class TestRewriteCompensation:
+    """Compensation after a successful compression rewrite (REQ-002, REQ-003, REQ-004)."""
+
+    async def test_restore_after_rewrite_returns_turn_start_rows(self, wired) -> None:
+        conn, state = wired
+        conn.executemany(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, ?, ?)",
+            [("user", "prior-a"), ("assistant", "prior-b")],
+        )
+        conn.commit()
+        prior = conn.execute(
+            "SELECT message_id, created_at FROM messages WHERE session_id = 1"
+            " ORDER BY message_id"
+        ).fetchall()
+
+        session = AgentSession()
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=2)
+
+        # Compression rewrite succeeds and captures the pre-rewrite image.
+        await boundary.replace_messages([{"role": "assistant", "content": "summary"}])
+
+        # A later turn write fails: compensation restores the captured image.
+        state["fail_next"] = 1
+        with pytest.raises(ConversationPersistenceError):
+            await boundary.save_phase_grouped([("assistant", "partial", None, None)])
+
+        rows = _message_rows(conn)
+        assert rows == [(1, "user", "prior-a"), (2, "assistant", "prior-b")]
+        restored = conn.execute(
+            "SELECT message_id, created_at FROM messages WHERE session_id = 1"
+            " ORDER BY message_id"
+        ).fetchall()
+        assert restored == prior  # original message_id and created_at survive (REQ-001)
+
+    async def test_second_rewrite_does_not_move_the_captured_image(self, wired) -> None:
+        conn, state = wired
+        conn.executemany(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, ?, ?)",
+            [("user", "prior-a"), ("assistant", "prior-b")],
+        )
+        conn.commit()
+
+        session = AgentSession()
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=2)
+
+        # First-image-only: rewrite A captures the image; rewrite B keeps A's image.
+        await boundary.replace_messages([{"role": "assistant", "content": "summaryA"}])
+        await boundary.replace_messages([{"role": "assistant", "content": "summaryB"}])
+
+        state["fail_next"] = 1
+        with pytest.raises(ConversationPersistenceError):
+            await boundary.save_phase_grouped([("assistant", "partial", None, None)])
+
+        # Restored rows are the pre-rewrite-A rows, not anything rewrite B produced.
+        assert _message_rows(conn) == [
+            (1, "user", "prior-a"),
+            (2, "assistant", "prior-b"),
+        ]
+
+    async def test_failing_restore_leaves_rows_and_raises(self, wired) -> None:
+        conn, state = wired
+        conn.executemany(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, ?, ?)",
+            [("user", "prior-a"), ("assistant", "prior-b")],
+        )
+        conn.commit()
+
+        session = AgentSession()
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=2)
+        await boundary.replace_messages([{"role": "assistant", "content": "summary"}])
+
+        state["fail_next"] = 1
+        with patch.object(
+            SessionMessageRepository,
+            "restore_session_image",
+            side_effect=sqlite3.OperationalError("injected restore failure"),
+        ):
+            with pytest.raises(ConversationPersistenceError):
+                await boundary.save_phase_grouped(
+                    [("assistant", "partial", None, None)]
+                )
+
+        # AC-2: the failed restore rolled back atomically and the boundary did
+        # NOT fall back to delete-above-marker (which would leave zero rows);
+        # the post-rewrite rows are untouched.
+        assert _message_rows(conn) == [(3, "assistant", "summary")]
+
+    async def test_append_only_turn_captures_no_image(self, wired) -> None:
+        conn, state = wired
+        conn.executemany(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, ?, ?)",
+            [("user", "prior-a"), ("assistant", "prior-b")],
+        )
+        conn.commit()
+
+        session = AgentSession()
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=2)
+
+        await boundary.save("user", "turn-c")  # no rewrite: append-only turn
+        state["fail_next"] = 1
+        with pytest.raises(ConversationPersistenceError):
+            await boundary.save_phase_grouped([("assistant", "partial", None, None)])
+
+        assert boundary._pre_rewrite_image is None
+        # REQ-004: unchanged delete-above-marker compensation; prior rows survive.
+        assert _message_rows(conn) == [
+            (1, "user", "prior-a"),
+            (2, "assistant", "prior-b"),
+        ]
+
+    async def test_conv_undo_floor_restored_after_rewrite_compensation(
+        self, wired
+    ) -> None:
+        _conn, state = wired
+        session = AgentSession()
+        session.session_id = 1
+        conv = ConversationState()
+        conv.undo_floor = 0  # turn-start value
+        boundary = await _boundary(session, conv, marker=0)
+
+        await boundary.replace_messages([{"role": "assistant", "content": "summary"}])
+        conv.undo_floor = 3  # the manager's post-rewrite in-memory update
+
+        state["fail_next"] = 1
+        with pytest.raises(ConversationPersistenceError):
+            await boundary.save_phase_grouped([("assistant", "partial", None, None)])
+
+        # REQ-003/AC-3: the in-memory /undo floor matches its turn-start value.
+        assert conv.undo_floor == 0
+
+
 # ── Offloaded writes (REQ-005 off-thread proof, REQ-006 contention) ───────────
 
 

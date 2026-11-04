@@ -14,6 +14,11 @@ rows untouched and re-raises.
 - The `repo` fixture (in-memory DB, `_FakeSQLiteHelper`, real `SessionMessageRepository`) and
   the `grouped_repo` fixture (adds a single `fail_next` injection point) are reused; the new
   methods live on the same repository under test.
+  Corrected during adversarial verification (2026-11-05): the `repo` fixture yields only the
+  repository, while four of the five new tests need raw-connection access (created_at
+  comparison, `UPDATE sessions`, explicit-id summary insert). All five tests therefore use
+  `grouped_repo`, which yields `(repo, conn, state)` and behaves like `repo` while
+  `fail_next` stays 0; `grouped_repo` is used for the failing-restore test as planned.
 - The image is a `(rows, undo_floor)` tuple where `rows` is a list of
   `(message_id, role, content, tool_calls, tool_call_id, created_at)` ordered by `message_id`,
   and `restore_session_image(session_id, image, undo_floor, marker)` deletes all rows,
@@ -113,10 +118,10 @@ Add a `TestCaptureAndRestoreImage` (new) class after `TestDeleteMessagesFrom`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the repository capture/restore tests per Validation plan | Pending | — | — | depends on Row 01 methods |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/` |
+| 1 | Add the repository capture/restore tests per Validation plan | Completed | 20261105-084000 | 20261105-085000 | depends on Row 01 methods TestCaptureAndRestoreImage added after TestDeleteMessagesFrom; all five tests use grouped_repo (repo fixture lacks raw conn access - verification finding) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-085000 | no separate test step: this procedure's row IS the test-file row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-085000 | ruff pass; file suite 67 passed (62 existing unchanged + 5 new); Row 01 completion criteria now test-covered |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-085000 | N/A: no `docs/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

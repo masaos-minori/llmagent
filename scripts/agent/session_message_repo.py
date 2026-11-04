@@ -24,6 +24,19 @@ _INSERT_MESSAGE_SQL = (
     " VALUES (?, ?, ?, ?, ?)"
 )
 
+# Restore-path variant: re-inserts captured rows with their explicit message_id
+# and created_at so ids and timestamps survive a compensation restore.
+_INSERT_MESSAGE_SQL_WITH_IDS = (
+    "INSERT INTO messages (message_id, session_id, role, content, tool_calls,"
+    " tool_call_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+)
+
+# Pre-image row captured by capture_session_image: the columns the restore
+# re-inserts verbatim, ordered by message_id (REQ-001).
+type SessionImageRow = tuple[int, str, str, str | None, str | None, str]
+# Captured session pre-image: (rows ordered by message_id, persisted undo floor).
+type SessionImage = tuple[list[SessionImageRow], int]
+
 
 def _tool_calls_json(tool_calls: object | None) -> str | None:
     """Return tool_calls serialized to JSON, or None when empty/absent."""
@@ -212,6 +225,85 @@ class SessionMessageRepository:
             ).rowcount
             db.commit()
         # sqlite3.Error propagates to the boundary, which wraps and compensates
+        return int(deleted)
+
+    def capture_session_image(self, session_id: int | None) -> SessionImage:
+        """Capture the session's whole row image and its ``/undo`` boundary.
+
+        Read-only, same connection pattern as ``fetch_messages``. Returns a
+        :data:`SessionImage`: the session's rows (``message_id``, ``role``,
+        ``content``, ``tool_calls``, ``tool_call_id``, ``created_at``) ordered
+        by ``message_id``, and the persisted ``undo_floor_message_id``. The
+        boundary captures this image immediately before a compression rewrite so
+        the compensation can restore the turn-start state (REQ-001). Raises
+        ``sqlite3.Error`` on DB failure.
+        """
+        if session_id is None:
+            return ([], 0)
+        with SQLiteHelper("session").open() as db:
+            rows = db.fetchall(
+                "SELECT message_id, role, content, tool_calls, tool_call_id,"
+                " created_at FROM messages WHERE session_id = ?"
+                " ORDER BY message_id",
+                (session_id,),
+            )
+            undo_floor = db.execute(
+                "SELECT undo_floor_message_id FROM sessions WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()[0]
+        return (rows, int(undo_floor))
+
+    def restore_session_image(
+        self,
+        session_id: int | None,
+        image: SessionImage,
+        undo_floor: int,
+        marker: int,
+    ) -> int:
+        """Restore a captured pre-image in one ``begin_immediate`` transaction.
+
+        Deletes every row of the session, re-inserts the captured rows whose
+        ``message_id`` is at or below ``marker`` with their original
+        ``message_id`` and ``created_at``, and resets
+        ``sessions.undo_floor_message_id`` to ``undo_floor`` (REQ-001, REQ-004).
+        Rows above ``marker`` (this turn's partial rows) are discarded; rows at
+        or below it are restored, so the turn-start content survives even when
+        ``replace_messages`` rewrote the session earlier in the turn. Returns
+        the number of rows deleted. Raises ``sqlite3.Error`` on DB failure;
+        the failure rolls the whole transaction back, leaving existing rows
+        untouched (AC-4).
+        """
+        if session_id is None:
+            return 0
+        rows, _ = image
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            with db.begin_immediate():
+                deleted = db.execute(
+                    "DELETE FROM messages WHERE session_id = ?",
+                    (session_id,),
+                ).rowcount
+                db.executemany(
+                    _INSERT_MESSAGE_SQL_WITH_IDS,
+                    [
+                        (
+                            message_id,
+                            session_id,
+                            role,
+                            content,
+                            tool_calls,
+                            tool_call_id,
+                            created_at,
+                        )
+                        for message_id, role, content, tool_calls, tool_call_id, created_at in rows
+                        if message_id <= marker
+                    ],
+                )
+                db.execute(
+                    "UPDATE sessions SET undo_floor_message_id = ?"
+                    " WHERE session_id = ?",
+                    (undo_floor, session_id),
+                )
+        # sqlite3.Error propagates: the failed transaction rolls back atomically
         return int(deleted)
 
     def undo_deleted_rows(self, session_id: int | None) -> list[DeletedRow]:

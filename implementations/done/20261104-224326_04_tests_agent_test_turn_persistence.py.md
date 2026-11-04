@@ -111,10 +111,10 @@ Add a `TestRewriteCompensation` class after `TestSnapshotRestore`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the five boundary unit tests per Validation plan | Pending | — | — | depends on Row 01/02 methods |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/` |
+| 1 | Add the five boundary unit tests per Validation plan | Completed | 20261105-082000 | 20261105-083000 | depends on Row 01/02 methods TestRewriteCompensation added after TestSnapshotRestore; all five tests as planned |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-083000 | pre-change evidence: stashing Row 01/02 changes makes all five tests fail (new branch exercised); after change 13 passed, no existing test regressed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-083000 | ruff pass; file suite 13 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-083000 | N/A: no `docs/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

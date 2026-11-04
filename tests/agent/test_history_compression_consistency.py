@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 from collections.abc import Generator
+from contextlib import contextmanager
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -77,6 +78,19 @@ class _FakeSQLiteHelper:
 
     def close(self) -> None:
         pass
+
+    @contextmanager
+    def begin_immediate(self) -> Generator[None]:
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            self._conn.execute("COMMIT")
+        except Exception:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.OperationalError:
+                pass
+            raise
 
     def __enter__(self) -> _FakeSQLiteHelper:
         return self
@@ -450,6 +464,90 @@ async def test_compression_failure_restores_pre_turn_state(
         "User message 0",
         "Assistant reply 0",
     ]
+
+
+async def test_compress_then_later_write_failure_restores_turn_start_rows(
+    session_and_conn: tuple[AgentSession, sqlite3.Connection],
+) -> None:
+    """Compress-then-fail: a successful rewrite then a failing later write restores.
+
+    The turn compresses (the boundary rewrite succeeds and captures a pre-image)
+    and a later boundary write fails: compensation must restore the turn-start
+    rows (ids 1..6 with original ``created_at``), the persisted ``/undo``
+    boundary, and ``conv.history``/``conv.undo_floor`` — not wipe the session
+    (REQ-001, REQ-002, REQ-003, REQ-005; AC-5, AC-6).
+    """
+    session, conn = session_and_conn
+
+    turn_history = _make_history(3)  # 6 messages -> ids 1..6
+    for m in turn_history:
+        conn.execute(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, ?, ?)",
+            (m["role"], m["content"]),
+        )
+    conn.execute("UPDATE sessions SET undo_floor_message_id = 6 WHERE session_id = 1")
+    conn.commit()
+    pre_turn_rows = conn.execute(
+        "SELECT message_id, created_at FROM messages WHERE session_id = 1"
+        " ORDER BY message_id"
+    ).fetchall()
+
+    conv = ConversationState()
+    conv.history = list(turn_history)
+    conv.undo_floor = 3
+    conv.system_prompt_content = ""
+    boundary = await session.turn_boundary(conv)  # marker = 6, snapshot = pre-turn
+
+    await boundary.save("user", "this turn's question")  # id 7
+
+    hist_mgr = SimpleNamespace(
+        compress=AsyncMock(
+            return_value=(
+                list(conv.history),
+                SimpleNamespace(
+                    compressed_count=1, summary_added=True, is_fallback=False
+                ),
+            )
+        )
+    )
+    ctx = cast(
+        AgentContext,
+        SimpleNamespace(
+            conv=conv,
+            session=session,
+            turn=SimpleNamespace(persistence_boundary=boundary),
+            services_required=SimpleNamespace(hist_mgr=hist_mgr),
+        ),
+    )
+    mgr = ConversationStateManager(ctx, tasks=set(), on_discard=lambda t: None)
+    # Real manager path: rewrite succeeds, the pre-image is captured, and
+    # handle_history_compression sets conv.undo_floor to the snapshot length.
+    await mgr.handle_history_compression()
+
+    with patch.object(
+        SessionMessageRepository,
+        "save_phase_grouped",
+        side_effect=sqlite3.OperationalError("injected later-write failure"),
+    ):
+        with pytest.raises(ConversationPersistenceError):
+            await boundary.save_phase_grouped([("assistant", "partial", None, None)])
+
+    # Turn-start rows are back with their original ids and created_at (AC-5, AC-6).
+    rows = conn.execute(
+        "SELECT message_id, created_at FROM messages WHERE session_id = 1"
+        " ORDER BY message_id"
+    ).fetchall()
+    assert rows == pre_turn_rows
+
+    # Persisted /undo boundary reset to its turn-start value.
+    floor = conn.execute(
+        "SELECT undo_floor_message_id FROM sessions WHERE session_id = 1"
+    ).fetchone()[0]
+    assert floor == 6
+
+    # Memory and the in-memory /undo floor match their turn-start values (AC-3).
+    assert conv.undo_floor == 3
+    assert [m["content"] for m in conv.history] == [m["content"] for m in turn_history]
 
 
 def _gate_ctx(

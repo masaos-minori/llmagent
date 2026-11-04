@@ -65,28 +65,36 @@ and memory, so the session returns to its turn-start state instead of being wipe
 - New private helper (place next to `replace_messages`):
   ```python
   def `_rewrite_with_pre_image_capture` (new) (self, messages):
-      if self._pre_rewrite_image is None and self.session_id is not None:
-          self._pre_rewrite_image = self.session._message_repo.capture_session_image(
-              self.session_id
-          )
-      return self.session._message_repo.replace_messages(self.session_id, messages)
+      if self.session_id is None:
+          return None  # defensive: replace_messages guards before dispatching
+      image = self._pre_rewrite_image
+      if image is None:
+          image = self.session._message_repo.capture_session_image(self.session_id)
+      result = self.session._message_repo.replace_messages(self.session_id, messages)
+      self._pre_rewrite_image = image  # stored only after the rewrite returns
+      return result
   ```
   Replace the current `return await asyncio.to_thread(...)` body of `replace_messages` with
-  a call to that helper on the worker thread.
+  a call to that helper on the worker thread. (Local-then-store order corrected during
+  adversarial verification on 2026-11-05 to match the design decision "the image is kept
+  only after the rewrite returns": a failed rewrite must leave `_pre_rewrite_image` unset so
+  compensation keeps the delete-above-marker path.)
 - `_compensate` new body:
   ```python
   image = self._pre_rewrite_image
   if image is not None:
-      rows, undo_floor = image
       return await asyncio.to_thread(
           self.session._message_repo.restore_session_image,
-          self.session_id, rows, undo_floor, self.turn_start_message_id,
+          self.session_id, image, image[1], self.turn_start_message_id,
       )
   return await asyncio.to_thread(
       self.session._message_repo.delete_messages_from,
       self.session_id, self.turn_start_message_id,
   )
   ```
+  (`image` is passed whole: the Row 01 signature is
+  `restore_session_image(session_id, image, undo_floor, marker)`; `image[1]` is the captured
+  persisted `undo_floor`. Verified against the Row 01/05 signatures on 2026-11-05.)
 - `_fail_from_error` finally block:
   ```python
   finally:
@@ -154,10 +162,10 @@ and memory, so the session returns to its turn-start state instead of being wipe
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add pre-image capture + first-image-only rule in `replace_messages` | Pending | — | — | depends on Row 01 methods |
-| 2 | Branch `_compensate` to restore image; restore `conv.undo_floor` | Pending | — | — | |
-| 3 | Add boundary unit tests per Validation plan | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add pre-image capture + first-image-only rule in `replace_messages` | Completed | 20261105-074000 | 20261105-075500 | depends on Row 01 methods helper stores image only after rewrite returns (corrected snippet); session_id narrowing added for mypy |
+| 2 | Branch `_compensate` to restore image; restore `conv.undo_floor` | Completed | 20261105-074000 | 20261105-075500 | compensate branches on image (image passed whole per Row 01 signature); conv.undo_floor restored in finally |
+| 3 | Add boundary unit tests per Validation plan | Completed | — | 20261105-075500 | Deferred to sibling procedure 20261104-224326_04 (test-file row of the frozen Plan table); tests land in cycle 4 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-075500 | ruff/mypy/bandit/reference-table pass; full pytest 11511 passed; vulture: only pre-existing false positives remain, Row 01 dead-code flag resolved; capture uses plain read (no begin_immediate) after existing fixture incompatibility found in adversarial verification |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

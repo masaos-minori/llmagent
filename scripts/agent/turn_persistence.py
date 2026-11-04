@@ -3,10 +3,12 @@
 
 Turn-persistence boundary — makes one agent turn's session-DB persistence
 all-or-nothing (REQ-001). On any persistence failure inside a turn the
-boundary compensates (deletes the turn's partial DB rows via the repository's
-compensation delete), restores ``ConversationState`` memory to its turn-start
-snapshot, and raises :class:`ConversationPersistenceError` wrapping the
-underlying ``sqlite3.Error`` (REQ-002, REQ-003, REQ-004).
+boundary compensates (restores the captured pre-rewrite row image when the
+turn's compression rewrite succeeded, otherwise deletes the turn's partial
+DB rows via the repository's compensation delete), restores
+``ConversationState`` memory to its turn-start snapshot, and raises
+:class:`ConversationPersistenceError` wrapping the underlying ``sqlite3.Error``
+(REQ-002, REQ-003, REQ-004).
 
 Write routing (REQ-005) is realized at the repository: each phase-group (e.g. a
 tool round's assistant + tool-result messages) is persisted in a single
@@ -76,8 +78,9 @@ class TurnPersistence:
             conv: The ``ConversationState`` whose history is snapshotted at turn
                 start and restored on a compensated failure.
             turn_start_message_id: ``MAX(message_id)`` for the session at turn
-                start (``0`` when fresh); compensation deletes rows strictly
-                after this marker, never prior-turn rows.
+                start (``0`` when fresh); the append-only compensation deletes
+                rows strictly after this marker, and an image restore re-inserts
+                only captured rows at or below it — never prior-turn rows.
             snapshot: Defensive copy of ``conv.history`` captured at turn start.
         """
         self.session = session
@@ -85,6 +88,8 @@ class TurnPersistence:
         self.session_id = session.session_id
         self.turn_start_message_id = turn_start_message_id
         self._snapshot = snapshot
+        self._undo_floor_at_turn_start = conv.undo_floor
+        self._pre_rewrite_image: tuple | None = None
 
     async def save(
         self,
@@ -140,6 +145,9 @@ class TurnPersistence:
     async def replace_messages(self, messages: list[LLMMessage]) -> int | None:
         """Persist a compressed snapshot back to DB (REQ-006).
 
+        Captures the session's pre-rewrite row image on the worker thread before
+        the rewrite, so a later failure in the same turn can restore the
+        turn-start rows instead of only deleting rows above the marker (REQ-001).
         The repository call runs on a worker thread (REQ-005); its
         ``sqlite3.Error`` propagates back to the caller unchanged.
         """
@@ -147,19 +155,53 @@ class TurnPersistence:
             return None
         try:
             return await asyncio.to_thread(
-                self.session._message_repo.replace_messages, self.session_id, messages
+                self._rewrite_with_pre_image_capture, messages
             )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
             return None  # unreachable: _fail_from_error always raises
 
-    async def _compensate(self) -> int:
-        """Delete the turn's rows (``message_id > marker``) in one txn.
+    def _rewrite_with_pre_image_capture(self, messages: list[LLMMessage]) -> int | None:
+        """Capture the pre-rewrite image, then rewrite (sync, worker thread).
 
+        The image is captured before the rewrite but stored on ``self`` only
+        after the rewrite returns, so a failed rewrite leaves no image and
+        compensation keeps the delete-above-marker path (its transaction already
+        rolled back atomically). First-image-only: a second rewrite in the same
+        turn reuses the first image and cannot move the restored state past the
+        turn-start image (REQ-001, REQ-004). A capture failure propagates
+        before any rewrite happens.
+        """
+        if self.session_id is None:
+            return None  # defensive: replace_messages guards before dispatching
+        image = self._pre_rewrite_image
+        if image is None:
+            image = self.session._message_repo.capture_session_image(self.session_id)
+        result = self.session._message_repo.replace_messages(self.session_id, messages)
+        self._pre_rewrite_image = image  # stored only after the rewrite returns
+        return result
+
+    async def _compensate(self) -> int:
+        """Undo the turn's DB changes in one transaction (REQ-001, REQ-004).
+
+        When the turn rewrote the session (a compression) a captured pre-rewrite
+        image exists: restore it with :meth:`restore_session_image`, so the
+        turn-start rows and the persisted ``/undo`` boundary come back even
+        though ``replace_messages`` succeeded earlier. Without an image the
+        append-only path keeps deleting rows strictly above the marker.
         Offloaded to a worker thread like the writes (REQ-005).
         """
         if self.session_id is None:
             return 0
+        image = self._pre_rewrite_image
+        if image is not None:
+            return await asyncio.to_thread(
+                self.session._message_repo.restore_session_image,
+                self.session_id,
+                image,
+                image[1],
+                self.turn_start_message_id,
+            )
         return await asyncio.to_thread(
             self.session._message_repo.delete_messages_from,
             self.session_id,
@@ -183,6 +225,7 @@ class TurnPersistence:
             )
         finally:
             await self.conv.restore_messages(self._snapshot)
+            self.conv.undo_floor = self._undo_floor_at_turn_start
         raise ConversationPersistenceError(
             "turn not persisted; history rolled back", cause=exc
         ) from exc

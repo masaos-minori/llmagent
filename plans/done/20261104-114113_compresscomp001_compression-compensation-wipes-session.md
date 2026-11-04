@@ -167,10 +167,10 @@ Baseline (Step 5): `radon cc` reports `SessionMessageRepository.save_many` at C 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing real-database compress-then-fail test | In Progress | — | — |  |
-| 2 | Phase 2: repository image capture, restore, and tests | In Progress | — | — |  |
-| 3 | Phase 3: boundary compensation, undo floor restore, and tests | In Progress | — | — |  |
-| 4 | Phase 4: documentation update | In Progress | — | — |  |
+| 1 | Phase 1: failing real-database compress-then-fail test | Completed | — | 20261105-081336 |  |
+| 2 | Phase 2: repository image capture, restore, and tests | Completed | — | 20261105-081336 |  |
+| 3 | Phase 3: boundary compensation, undo floor restore, and tests | Completed | — | 20261105-081336 |  |
+| 4 | Phase 4: documentation update | Completed | — | 20261105-081336 |  |
 | 5 | Phase 5: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -181,12 +181,12 @@ Baseline (Step 5): `radon cc` reports `SessionMessageRepository.save_many` at C 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261104-224326_01_scripts_agent_session_message_repo.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261104-224326_02_scripts_agent_turn_persistence.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261104-224326_03_tests_agent_test_history_compression_consistency.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261104-224326_04_tests_agent_test_turn_persistence.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261104-224326_05_tests_agent_test_session_message_repo.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261104-224326_06_docs_23_agent_agent_04_01_state-and-persistence-state-model.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261104-224326_01_scripts_agent_session_message_repo.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261104-224326_02_scripts_agent_turn_persistence.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261104-224326_03_tests_agent_test_history_compression_consistency.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261104-224326_04_tests_agent_test_turn_persistence.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261104-224326_05_tests_agent_test_session_message_repo.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261104-224326_06_docs_23_agent_agent_04_01_state-and-persistence-state-model.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

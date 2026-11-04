@@ -62,8 +62,10 @@ Add one async test after `test_compression_failure_restores_pre_turn_state`:
   `(list(conv.history), SimpleNamespace(compressed_count=1, summary_added=True, is_fallback=False))`,
   `mgr = ConversationStateManager(ctx, tasks=set(), on_discard=lambda t: None)`;
   `await mgr.handle_history_compression()` (rewrite clears 1..7, inserts a summary above the marker).
-- Simulate the manager's post-rewrite in-memory update, then fail a later write:
-  set `conv.undo_floor = len(conv.history)`; with
+  `handle_history_compression` itself sets `conv.undo_floor = len(ctx.conv.history)` after the
+  successful rewrite, so no separate simulation step is needed (corrected during adversarial
+  verification on 2026-11-05 against `scripts/agent/conversation_state_manager.py`).
+- Fail a later write: with
   `patch.object(SessionMessageRepository, "save_phase_grouped", side_effect=sqlite3.OperationalError("injected later-write failure"))`,
   run `with pytest.raises(ConversationPersistenceError): await boundary.save_phase_grouped([("assistant", "partial", None, None)])`.
 - Assert:
@@ -87,6 +89,11 @@ Add one async test after `test_compression_failure_restores_pre_turn_state`:
 
 - New test lives on the file's patched in-memory database; it never touches the real session
   database. It does not modify any existing test.
+- The file's `_FakeSQLiteHelper` gains a plain `begin_immediate` passthrough (mirroring
+  `tests/agent/test_turn_persistence.py`) because `restore_session_image` runs inside one
+  (found in adversarial verification on 2026-11-05: the fixture lacked it and the restore
+  compensation raised `AttributeError`). This is a fixture capability, not a test change;
+  every existing test in the file still passes unchanged.
 
 ## Security considerations
 
@@ -121,10 +128,10 @@ Add one async test after `test_compression_failure_restores_pre_turn_state`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the compress-then-fail integration test per Validation plan | Pending | — | — | depends on Row 02 methods |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/` |
+| 1 | Add the compress-then-fail integration test per Validation plan | Completed | 20261105-080500 | 20261105-081500 | depends on Row 02 methods test added after test_compression_failure_restores_pre_turn_state; fixture gained begin_immediate passthrough (verification finding) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-081500 | no separate test step: this procedure's row IS the test-file row; AC-5 pre-change evidence captured via git stash of Row 01/02 changes: test failed with rows==[] (session wiped), passes after change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-081500 | ruff pass; file suite 17 passed incl. test_compression_failure_restores_pre_turn_state unchanged |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-081500 | N/A: no `docs/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
