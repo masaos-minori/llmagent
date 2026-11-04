@@ -149,10 +149,10 @@ Append a new test class; no edits to existing tests or to `repl.py` / `__main__.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | N/A for this row: rows 01/02 carry the production change |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Three `TestMainEntry` (new) tests; test 1 recorded failing on pre-change code |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261104-221126 | 20261104-221126 | N/A for this row: rows 01/02 carry the production change N/A for this row: rows 01/02 carry the production change |
+| 2 | Add or update tests per Validation plan | Completed | 20261104-221126 | 20261104-221126 | Three `TestMainEntry` (new) tests; test 1 recorded failing on pre-change code TestMainEntry class exists (test_repl.py L1105-1131) with 3 tests, final names: test_interrupted_startup_returns_quietly / test_genuine_startup_failure_propagates / test_main_module_delegates_to_repl_main; planned names superseded by sibling implementation |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261104-221126 | 20261104-221126 | pytest -k selection 3 passed, full file 83 passed, regression tests/agent/test_startup_rollback.py 14 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261104-221126 | 20261104-221126 | N/A for this row N/A for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
