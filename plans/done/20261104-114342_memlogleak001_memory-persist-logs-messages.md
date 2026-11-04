@@ -148,11 +148,11 @@ Baseline (Step 5): `radon cc` reports `SessionPersister.persist_session_memories
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing persister caplog tests | Pending | — | — | |
-| 2 | Phase 2: schema helper and its tests | Pending | — | — | |
-| 3 | Phase 3: persister uses the helper | Pending | — | — | |
-| 4 | Phase 4: regenerate the generated reference | Pending | — | — | |
-| 5 | Phase 5: deployment hand-off and verification | Pending | — | — | |
+| 1 | Phase 1: failing persister caplog tests | In Progress | — | — |  |
+| 2 | Phase 2: schema helper and its tests | In Progress | — | — |  |
+| 3 | Phase 3: persister uses the helper | In Progress | — | — |  |
+| 4 | Phase 4: regenerate the generated reference | In Progress | — | — |  |
+| 5 | Phase 5: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -162,11 +162,15 @@ Baseline (Step 5): `radon cc` reports `SessionPersister.persist_session_memories
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-070039_01_scripts_agent_message_schema.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-070039_02_scripts_agent_session_persister.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261105-070039_03_tests_agent_test_session_persister.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-070039_04_tests_agent_test_message_schema.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-070039_05_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
-- **Source issue**: issues/20261031-180407_memlogleak001_memory-persist-logs-messages.md
+- **Source issue**: issues/done/20261031-180407_memlogleak001_memory-persist-logs-messages.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
@@ -182,3 +186,5 @@ Baseline (Step 5): `radon cc` reports `SessionPersister.persist_session_memories
 | REQ-003 | Required Changes bullet 2; Constraints bullet 3 | scripts/agent/session_persister.py | 3 | AC-3 | Unexpected-key persister test | Explicit in issue |
 | REQ-004 | Required Changes bullet 3; Acceptance Criteria bullet 3 | tests/agent/test_session_persister.py | 1 | AC-2, AC-3, AC-4 | New `caplog` tests | Explicit in issue |
 | REQ-005 | Derived: new public function listed in generated reference | docs/23_agent/agent_13_reference-api-generated.md | 4 | AC-5 | `tools/generate_reference_table.py --check` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-070039 -->
