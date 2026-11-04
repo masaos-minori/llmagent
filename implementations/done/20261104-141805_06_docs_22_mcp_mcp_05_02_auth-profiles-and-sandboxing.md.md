@@ -65,8 +65,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the clause as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Replace the clause as described in Implementation > Procedure/Method | Completed | 20261104-165352 | 20261104-165352 |  |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261104-165352 | 20261104-165352 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

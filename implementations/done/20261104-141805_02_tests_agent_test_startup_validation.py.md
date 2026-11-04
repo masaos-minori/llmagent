@@ -65,9 +65,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the helper change and the three tests as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the new tests before the production change and record the failures, then run them after | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Pending | — | — | |
+| 1 | Write the helper change and the three tests as described in Implementation > Procedure/Method | Completed | 20261104-165352 | 20261104-165352 |  |
+| 2 | Run the new tests before the production change and record the failures, then run them after | Completed | 20261104-165352 | 20261104-165352 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Completed | 20261104-165352 | 20261104-165352 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

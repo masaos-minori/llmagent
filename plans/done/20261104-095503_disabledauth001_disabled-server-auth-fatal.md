@@ -141,11 +141,11 @@ Baseline (Step 5): `radon cc` on `startup_validation.py` reports `StartupValidat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add failing `mcp_auth` tests | In Progress | — | — |  |
-| 2 | Phase 2: add the `is_disabled` filter | In Progress | — | — |  |
-| 3 | Phase 3: adjust existing mocks and comment | In Progress | — | — |  |
-| 4 | Phase 4: documentation updates | In Progress | — | — |  |
-| 5 | Phase 5: deployment hand-off and verification | Pending | — | — |  |
+| 1 | Phase 1: add failing `mcp_auth` tests | Completed | 20261104-165352 | 20261104-165352 |  |
+| 2 | Phase 2: add the `is_disabled` filter | Completed | 20261104-165352 | 20261104-165352 |  |
+| 3 | Phase 3: adjust existing mocks and comment | Completed | 20261104-165352 | 20261104-165352 |  |
+| 4 | Phase 4: documentation updates | Completed | 20261104-165352 | 20261104-165352 |  |
+| 5 | Phase 5: deployment hand-off and verification | Pending | 20261104-165352 | 20261104-165352 | implementation+verification done (generate_reference_table --check passed); deployment is the user's decision (approval gate) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

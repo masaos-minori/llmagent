@@ -83,9 +83,9 @@ Revert the commit; this file is part of the release unit, so reverting only it m
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the comment and the token-less mocks as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the whole file and confirm it passes | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Pending | — | — | |
+| 1 | Edit the comment and the token-less mocks as described in Implementation > Procedure/Method | Completed | 20261104-165352 | 20261104-165352 |  |
+| 2 | Run the whole file and confirm it passes | Completed | 20261104-165352 | 20261104-165352 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Completed | 20261104-165352 | 20261104-165352 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

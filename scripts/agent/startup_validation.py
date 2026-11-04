@@ -128,7 +128,9 @@ class StartupValidationPipeline:
 
         # 1b. MCP authentication check
         missing_auth = [
-            key for key, srv in ctx.cfg.mcp.mcp_servers.items() if not srv.auth_token
+            key
+            for key, srv in ctx.cfg.mcp.mcp_servers.items()
+            if not srv.is_disabled and not srv.auth_token
         ]
         if missing_auth:
             pipeline.add_fatal(

@@ -237,19 +237,19 @@ class TestCheckServicesSeverityClassification:
     severity-mapping table for the full narrative this cross-references."""
 
     # ── mcp_auth ─────────────────────────────────────────────────────────────
-    # Servers below use MagicMock rather than a real McpServerConfig: row 1's
-    # own `_validate_auth_token()` now rejects an empty auth_token at
-    # construction time, so an empty-token McpServerConfig can no longer be
-    # constructed at all -- this pipeline step is a defense-in-depth check for
-    # a ctx assembled some other way (e.g. directly, as these unit tests do),
-    # not a path reachable through a real Agent startup once row 1 lands.
+    # Servers below use MagicMock rather than a real McpServerConfig. A real
+    # enabled server cannot have an empty auth_token (`_validate_auth_token()`
+    # rejects it at construction), so the enabled-offender cases build a mock
+    # with is_disabled=False. A disabled server may have an empty token and is
+    # exempt from the check; a MagicMock's is_disabled is truthy, so it must be
+    # set explicitly.
 
     @pytest.mark.asyncio
     async def test_mcp_auth_fatal_when_any_server_missing_token(self) -> None:
         ctx = _make_startup_ctx()
         ctx.cfg.mcp.mcp_servers = {
             "web": MagicMock(auth_token="valid-token"),
-            "shell": MagicMock(auth_token=""),
+            "shell": MagicMock(auth_token="", is_disabled=False),
         }
         pipeline, exc = await _run_check_services(ctx)
         assert exc is not None
@@ -275,8 +275,8 @@ class TestCheckServicesSeverityClassification:
     async def test_mcp_auth_fatal_lists_all_offending_servers(self) -> None:
         ctx = _make_startup_ctx()
         ctx.cfg.mcp.mcp_servers = {
-            "web": MagicMock(auth_token=""),
-            "shell": MagicMock(auth_token=""),
+            "web": MagicMock(auth_token="", is_disabled=False),
+            "shell": MagicMock(auth_token="", is_disabled=False),
         }
         pipeline, exc = await _run_check_services(ctx)
         assert exc is not None
@@ -887,7 +887,7 @@ class TestCheckServicesFatalErrorMessageWithRemediation:
     async def test_fatal_error_message_includes_remediation(self) -> None:
         """FATAL error message includes remediation step when available."""
         ctx = _make_startup_ctx()
-        ctx.cfg.mcp.mcp_servers = {"web": MagicMock(auth_token="")}
+        ctx.cfg.mcp.mcp_servers = {"web": MagicMock(auth_token="", is_disabled=False)}
         pipeline, exc = await _run_check_services(ctx)
         assert exc is not None
         assert isinstance(exc, RuntimeError)
@@ -903,8 +903,8 @@ class TestCheckServicesFatalErrorMessageWithRemediation:
         """Multiple FATAL outcomes are separated by double newline."""
         ctx = _make_startup_ctx()
         ctx.cfg.mcp.mcp_servers = {
-            "web": MagicMock(auth_token=""),
-            "shell": MagicMock(auth_token=""),
+            "web": MagicMock(auth_token="", is_disabled=False),
+            "shell": MagicMock(auth_token="", is_disabled=False),
         }
         pipeline, exc = await _run_check_services(ctx)
         assert exc is not None

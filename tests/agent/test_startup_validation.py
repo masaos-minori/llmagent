@@ -18,7 +18,12 @@ from agent.shared.health_models import (
     StartupValidationResult,
 )
 from agent.startup_validation import StartupValidationPipeline
-from shared.mcp_config import SecurityProfile
+from shared.mcp_config import (
+    McpServerConfig,
+    SecurityProfile,
+    StartupMode,
+    TransportType,
+)
 
 
 def _make_ctx() -> MagicMock:
@@ -33,9 +38,12 @@ async def _run_check_services(
     rag_service: MagicMock,
     *,
     wait_for_side_effect: BaseException | None = None,
+    mcp_servers: dict[str, object] | None = None,
 ) -> StartupValidationResult:
     """Run the real check_services() with every other check mocked to a clean pass."""
     ctx = _make_ctx()
+    if mcp_servers is not None:
+        ctx.cfg.mcp.mcp_servers = mcp_servers
     discovery = MagicMock(
         return_value=MagicMock(
             discover_all=AsyncMock(
@@ -50,6 +58,10 @@ async def _run_check_services(
         "check_routing_safety_tiers": MagicMock(return_value=[]),
         "RagMaintenanceService": MagicMock(return_value=rag_service),
     }
+    if mcp_servers is not None:
+        # A real server dict makes the mandatoriness cross-check read the on-disk
+        # registry; neutralise it so only the mcp_auth outcome is under test.
+        mocks["_check_component_mandatoriness"] = MagicMock()
     with ExitStack() as stack:
         for name, mock_obj in mocks.items():
             stack.enter_context(patch(f"agent.startup_validation.{name}", mock_obj))
@@ -201,3 +213,64 @@ async def test_runtime_registry_published_after_posture_gate() -> None:
     assert not result.has_fatal
     assert order.index("mandatoriness") < order.index("posture")
     assert order.index("posture") < order.index("publication")
+
+
+class TestMcpAuthDisabledServers:
+    """REQ-001, REQ-002: the mcp_auth step exempts disabled token-less servers."""
+
+    @pytest.mark.asyncio
+    async def test_disabled_server_without_token_passes_mcp_auth(self) -> None:
+        """REQ-001: a disabled server with an empty token yields an OK mcp_auth outcome."""
+        disabled = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="https://example.local/mcp",
+            startup_mode=StartupMode.NONE,
+            auth_token="",
+        )
+
+        result = await _run_check_services(
+            MagicMock(),
+            mcp_servers={"optional_srv": disabled},
+        )
+
+        outcomes = [o for o in result.outcomes if o.source == "mcp_auth"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.OK
+        assert not any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_enabled_server_without_token_is_fatal_and_named(self) -> None:
+        """REQ-002: an enabled token-less server is fatal and named in the message."""
+        result = await _run_check_services(
+            MagicMock(),
+            mcp_servers={"web": MagicMock(auth_token="", is_disabled=False)},
+        )
+
+        outcomes = [o for o in result.outcomes if o.source == "mcp_auth"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.FATAL
+        assert "web" in outcomes[0].message
+
+    @pytest.mark.asyncio
+    async def test_message_lists_only_enabled_offenders(self) -> None:
+        """REQ-002: a mix names only the enabled offender, not the disabled server."""
+        disabled = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="https://example.local/mcp",
+            startup_mode=StartupMode.NONE,
+            auth_token="",
+        )
+
+        result = await _run_check_services(
+            MagicMock(),
+            mcp_servers={
+                "optional_srv": disabled,
+                "web": MagicMock(auth_token="", is_disabled=False),
+            },
+        )
+
+        outcomes = [o for o in result.outcomes if o.source == "mcp_auth"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.FATAL
+        assert "web" in outcomes[0].message
+        assert "optional_srv" not in outcomes[0].message
