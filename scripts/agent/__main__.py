@@ -6,9 +6,7 @@ Runs the interactive REPL agent. sys.path manipulation is not needed because
 python -m resolves packages relative to the working directory (scripts/).
 """
 
-import asyncio
-
-from agent.repl import AgentREPL
+from agent.repl import main
 
 if __name__ == "__main__":
-    asyncio.run(AgentREPL().run())
+    main()

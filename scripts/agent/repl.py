@@ -159,7 +159,12 @@ class AgentREPL:
 
 def main() -> None:
     """Start the interactive REPL."""
-    asyncio.run(AgentREPL().run())
+    try:
+        asyncio.run(AgentREPL().run())
+    except StartupInterrupted:
+        # run() has already warned and cleaned up; an interrupted startup
+        # ends the process quietly with status 0, not as a crash traceback.
+        return
 
 
 if __name__ == "__main__":

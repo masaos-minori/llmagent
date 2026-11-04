@@ -149,10 +149,10 @@ Baseline (Step 5): `radon cc` reports `AgentREPL.run` at B (6) and nothing worse
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing interrupted-startup entry test | In Progress | — | — |  |
-| 2 | Phase 2: entry handling in `main` and `__main__` | In Progress | — | — |  |
-| 3 | Phase 3: propagation and delegation tests | In Progress | — | — |  |
-| 4 | Phase 4: documentation sentence | In Progress | — | — |  |
+| 1 | Phase 1: failing interrupted-startup entry test | Completed | — | 20261104-213711 |  |
+| 2 | Phase 2: entry handling in `main` and `__main__` | Completed | — | 20261104-213711 |  |
+| 3 | Phase 3: propagation and delegation tests | Completed | — | 20261104-213711 |  |
+| 4 | Phase 4: documentation sentence | Completed | — | 20261104-213838 |  |
 | 5 | Phase 5: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -163,10 +163,10 @@ Baseline (Step 5): `radon cc` reports `AgentREPL.run` at B (6) and nothing worse
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261104-175600_01_scripts_agent_repl.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261104-175600_02_scripts_agent___main__.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261104-175600_03_tests_agent_test_repl.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261104-175600_04_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261104-175600_01_scripts_agent_repl.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261104-175600_02_scripts_agent___main__.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261104-175600_03_tests_agent_test_repl.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261104-175600_04_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

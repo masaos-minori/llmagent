@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.commands.registry import CommandRegistry
-from agent.repl import AgentREPL
+from agent.repl import AgentREPL, main
 from agent.repl_input_loop import ReplInputLoop
 from agent.startup_banner import StartupBanner
 from db.models import WalCheckpointCounts
@@ -1100,6 +1100,35 @@ class TestRunStartupInterrupted:
 
         fatal_messages = [str(c[0][0]) for c in view.write_fatal.call_args_list]
         assert any("Startup failed: config invalid" in m for m in fatal_messages)
+
+
+class TestMainEntry:
+    """main() and agent.__main__ must treat an interrupted startup as a clean exit."""
+
+    def test_interrupted_startup_returns_quietly(self) -> None:
+        """REQ-001: main() returns None when startup raises StartupInterrupted."""
+        from agent.startup import StartupInterrupted
+
+        with patch("agent.repl.AgentREPL") as MockREPL:
+            MockREPL.return_value.run = AsyncMock(
+                side_effect=StartupInterrupted("shutdown requested")
+            )
+            assert main() is None
+
+    def test_genuine_startup_failure_propagates(self) -> None:
+        """REQ-003: a real startup failure still raises out of main()."""
+        with patch("agent.repl.AgentREPL") as MockREPL:
+            MockREPL.return_value.run = AsyncMock(side_effect=RuntimeError("boom"))
+            with pytest.raises(RuntimeError, match="boom"):
+                main()
+
+    def test_main_module_delegates_to_repl_main(self) -> None:
+        """REQ-002: agent.__main__ calls agent.repl.main exactly once."""
+        import runpy
+
+        with patch("agent.repl.main") as mock_main:
+            runpy.run_module("agent.__main__", run_name="__main__")
+        mock_main.assert_called_once()
 
 
 # ── _close_resources() WAL checkpoint ─────────────────────────────────────────
