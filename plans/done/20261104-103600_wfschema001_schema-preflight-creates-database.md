@@ -26,7 +26,7 @@ Verification corrections and findings:
 2. `SQLiteHelper` already exposes the resolved path as the `DB_PATH` property for both explicit and default targets, so the guard needs no helper change; `scripts/db/helper.py` and `scripts/agent/startup_component_init.py` need no modification (the caller raises `RuntimeError(result.error)` and passes the new message through unchanged).
 3. "Never creates the file or its WAL/SHM side files" holds only for an absent database: `open` runs `PRAGMA journal_mode=WAL`, so opening an existing database can still create or convert WAL side files. That behavior is unchanged and outside this Plan.
 4. No document describes the preflight's missing-database message (a search of `docs/` for the message texts and the function name finds only ADR citations of the test class and operator messages of the deploy scripts), so no documentation change is needed.
-5. The constant is also named in static text inside `tools/gen_wflease_procedures.py` (a generator of archived procedure text); it is a string, not an import, and is left as is.
+5. The constant reference once recorded in `tools/gen_wflease_procedures.py` is stale: that file no longer exists in `tools/`, and an `rg` over `scripts/`, `tests/`, `tools/`, and `docs/` finds `_WORKFLOW_SCHEMA_READ_ONLY` only at its definition and single use in `scripts/agent/services/workflow_schema.py` (re-verified in the plan-to-implementation-procedure Step 3a pass). Nothing outside the target file references the constant.
 
 ## Reason for Change
 A startup preflight must not modify the system it checks, and its error must name the real failure so the operator runs the right remediation. The constant name that contradicts its use invites a wrong later fix.
@@ -48,7 +48,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/agent/services/workflow_schema.py` | Existence guard and constant | Move the existence check to the resolved path (`db.DB_PATH`) before `open`; remove `_WORKFLOW_SCHEMA_READ_ONLY`; open with `write_mode=False` (checked in Step 2) | REQ-001, REQ-002, REQ-003; AC-1, AC-2, AC-3, AC-4 | Guard is `if db_path and not os.path.exists(db_path)`; the constant is defined once and used once in `db.open(write_mode=...)`; `SQLiteHelper.DB_PATH` returns the resolved path (checked in Step 2) | `tests/agent/test_repl_health.py` | Verified |
-| `tests/agent/test_repl_health.py` | New tests | Add default-path missing-database tests inside `TestCheckWorkflowSchema`, patching the helper's configuration builder to a temporary directory (checked in Step 2) | REQ-004; AC-1, AC-5 | `TestCheckWorkflowSchema` holds the valid, missing-table, missing-column, version, and explicit-path-not-found tests and the `_create_workflow_db` fixture; ADR-001 cites the class by name, so the class stays (checked in Step 2) | `tests/agent/test_repl_health.py` | Verified |
+| `tests/agent/test_repl_health.py` | New tests | Add default-path missing-database tests inside `TestCheckWorkflowSchema`, patching the helper's configuration builder to a temporary directory (checked in Step 2) | REQ-004; AC-1, AC-5 | `TestCheckWorkflowSchema` holds the valid, missing-table, missing-column, version, and explicit-path-not-found tests and the `_create_workflow_db` fixture; ADR-001 cites the class by name, so the class stays (checked in Step 2) | `itself` | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified.
@@ -98,7 +98,7 @@ Decision 1, how to prevent creation. Alternatives: (a) apply the existing guard 
 
 Decision 2, the constant. Remove it and pass `write_mode=False`: the only effect of `write_mode` is the foreign-key pragma, which a read-only check does not need.
 
-Consumer scan (`uv run python tools/scan_change_consumers.py --seed _WORKFLOW_SCHEMA_READ_ONLY`, run in Step 3; candidates only): `scripts/agent/services/workflow_schema.py` (target); `tests/agent/test_repl_health.py` (import site; it imports the function, not the constant, `not affected` for the constant; target for the new tests); `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` (cites the test class, `not affected`); `tools/gen_wflease_procedures.py` (static text, `not affected`: no import); archived issues (`not affected`: history).
+Consumer scan (`uv run python tools/scan_change_consumers.py --seed _WORKFLOW_SCHEMA_READ_ONLY`, run in Step 3; candidates only): `scripts/agent/services/workflow_schema.py` (target); `tests/agent/test_repl_health.py` (import site; it imports the function, not the constant, `not affected` for the constant; target for the new tests); `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` (cites the test class, `not affected`); `tools/gen_wflease_procedures.py` (static text, `not affected`: no import; the file has since been deleted from `tools/`, verified in the Step 3a pass, so it needs no action at all); archived issues (`not affected`: history).
 
 No persisted schema, public API, or shared constant of other modules is changed.
 
@@ -135,9 +135,9 @@ Baseline (Step 5): `radon cc` reports `check_workflow_schema` at C (12), and the
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing default-path missing-database test | Pending | — | — | |
-| 2 | Phase 2: existence guard on the resolved path and constant removal | Pending | — | — | |
-| 3 | Phase 3: deployment hand-off and verification | Pending | — | — | |
+| 1 | Phase 1: failing default-path missing-database test | In Progress | — | — |  |
+| 2 | Phase 2: existence guard on the resolved path and constant removal | In Progress | — | — |  |
+| 3 | Phase 3: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -147,7 +147,7 @@ Baseline (Step 5): `radon cc` reports `check_workflow_schema` at C (12), and the
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261104-205210_01_scripts_agent_services_workflow_schema.py.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -165,3 +165,5 @@ Baseline (Step 5): `radon cc` reports `check_workflow_schema` at C (12), and the
 | REQ-002 | Constraints bullet 1; Acceptance Criteria bullets 2-3 | scripts/agent/services/workflow_schema.py | 2 | AC-3 | Existing valid, table, column, and version tests | Explicit in issue |
 | REQ-003 | Required Changes bullet 3 | scripts/agent/services/workflow_schema.py | 2 | AC-4 | `uv run ruff check`, `uv run mypy --no-namespace-packages scripts/` | Explicit in issue |
 | REQ-004 | Required Changes bullet 4; Constraints bullet 4 | tests/agent/test_repl_health.py | 1 | AC-1, AC-5 | New default-path test | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261104-205210 -->
