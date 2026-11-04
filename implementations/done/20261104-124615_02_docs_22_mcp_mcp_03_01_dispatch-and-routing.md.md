@@ -64,8 +64,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert the audit-key bullet as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Insert the audit-key bullet as described in Implementation > Procedure/Method | Completed | 20261104-130418 | 20261104-130431 | Changed: docs/22_mcp/mcp_03_01_dispatch-and-routing.md (one added bullet). Step 2 stale check: clean. Procedure target is the doc itself, so the edit is Step 3d; Step 5 N/A |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261104-130431 | 20261104-130515 | Diff is one added line, none removed; check_docs_quality, check_docs_structure, check_docs_content_policy --strict, check_docs_japanese, check_docs_consistency --domain mcp, fast gates: pass. Step 4 N/A: documentation-only, no tests in Validation plan; the cycle-1 full suite ran against this tree with no code change since |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

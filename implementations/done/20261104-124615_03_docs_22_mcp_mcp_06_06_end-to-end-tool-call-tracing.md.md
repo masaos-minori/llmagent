@@ -64,8 +64,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the paragraph and the example value as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the documentation checkers and the search in the Validation plan | Pending | — | — | |
+| 1 | Replace the paragraph and the example value as described in Implementation > Procedure/Method | Completed | 20261104-130522 | 20261104-130535 | Changed: docs/22_mcp/mcp_06_06_end-to-end-tool-call-tracing.md (one paragraph and one example value). Step 2 stale check: clean. Procedure target is the doc itself, so the edit is Step 3d; Step 5 N/A |
+| 2 | Run the documentation checkers and the search in the Validation plan | Completed | 20261104-130535 | 20261104-130610 | Search for the old wording returns nothing; example idempotency_key is workflow-scoped; diff has two hunks only; check_docs_quality, check_docs_structure, check_docs_content_policy --strict, check_docs_japanese, check_docs_consistency --domain mcp, fast gates: pass. Step 4 N/A: documentation-only, no tests in Validation plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

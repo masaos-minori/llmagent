@@ -152,8 +152,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Documentation correction in `scripts/agent/shared/models.py`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`, and `docs/22_mcp/mcp_06_06_end-to-end-tool-call-tracing.md` | In Progress | — | — |  |
-| 2 | Verification: doc checkers clean, `models.py` edit comment-only, existing audit tests pass | Pending | — | — |  |
+| 1 | Documentation correction in `scripts/agent/shared/models.py`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`, and `docs/22_mcp/mcp_06_06_end-to-end-tool-call-tracing.md` | Completed | — | 20261104-130610 |  |
+| 2 | Verification: doc checkers clean, `models.py` edit comment-only, existing audit tests pass | Completed | — | 20261104-130617 | Carried out by code-implementation: doc checkers clean for both docs, models.py AST-equal to HEAD (comment only), audit tests pass (targeted 164, full suite 11445 passed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -163,9 +163,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261104-124615_01_scripts_agent_shared_models.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261104-124615_02_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261104-124615_03_docs_22_mcp_mcp_06_06_end-to-end-tool-call-tracing.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261104-124615_01_scripts_agent_shared_models.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261104-124615_02_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261104-124615_03_docs_22_mcp_mcp_06_06_end-to-end-tool-call-tracing.md.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
