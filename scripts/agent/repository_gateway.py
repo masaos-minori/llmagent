@@ -99,7 +99,9 @@ class RepositoryGateway:
         gate. This method applies the policy preflight and does not prompt.
         """
         try:
-            check_preflight(self._cfg, tool_name, args)
+            check_preflight(
+                self._cfg, tool_name, args, ctx.services_required.runtime_tools
+            )
         except PolicyViolationError as exc:
             logger.warning("gateway.policy_denied tool=%r reason=%s", tool_name, exc)
             return _denied_result(f"Policy blocked: {exc}")

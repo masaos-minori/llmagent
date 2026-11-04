@@ -233,10 +233,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing-test baseline (`tests/agent/test_tool_policy.py`, stub registry) | In Progress | — | — |  |
-| 2 | Core logic in `scripts/agent/tool_policy.py` (registry threading, key union, list handling, fail closed) | In Progress | — | — |  |
-| 3 | Audit scope in `scripts/agent/tool_audit.py` (`_extract_resource_scope`) | In Progress | — | — |  |
-| 4 | Verification: suite, ruff, mypy, bandit | Pending | — | — |  |
+| 1 | Failing-test baseline (`tests/agent/test_tool_policy.py`, stub registry) | Completed | — | 20261104-150434 |  |
+| 2 | Core logic in `scripts/agent/tool_policy.py` (registry threading, key union, list handling, fail closed) | Completed | — | 20261104-150434 |  |
+| 3 | Audit scope in `scripts/agent/tool_audit.py` (`_extract_resource_scope`) | Completed | — | 20261104-151731 |  |
+| 4 | Verification: suite, ruff, mypy, bandit | Completed | — | 20261104-160838 | full suite 11468 passed; ruff/mypy/bandit/lint-imports clean; diff-cover 100%; validation gates 14 pass 0 fail |
 | 5 | Deployment hand-off (commit/push; deploy is user decision) | Pending | — | — |  |
 
 ### Blocker Log
@@ -247,11 +247,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261104-065555_01_scripts_agent_tool_policy.py.md` | 1, 2 | Procedure | Pending | — | — |
-| `implementations/20261104-065555_02_scripts_agent_tool_audit.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261104-065555_04_scripts_agent_tool_approval.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261104-065555_05_scripts_agent_repository_gateway.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261104-065555_06_scripts_agent_tool_runner.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261104-065555_01_scripts_agent_tool_policy.py.md` | 1, 2 | Procedure | Completed | — | — |
+| `implementations/20261104-065555_02_scripts_agent_tool_audit.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261104-065555_04_scripts_agent_tool_approval.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261104-065555_05_scripts_agent_repository_gateway.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261104-065555_06_scripts_agent_tool_runner.py.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

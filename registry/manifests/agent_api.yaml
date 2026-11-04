@@ -736,7 +736,7 @@ entries:
 - file: scripts/agent/tool_policy.py
   kind: function
   name: check_allowed_root
-  signature: def check_allowed_root(cfg, tool_name, args) -> bool
+  signature: def check_allowed_root(cfg, tool_name, args, registry) -> bool
   summary: Return False when any path argument is outside cfg.approval.allowed_root.
 - file: scripts/agent/tool_policy.py
   kind: function
@@ -746,7 +746,7 @@ entries:
 - file: scripts/agent/tool_policy.py
   kind: function
   name: check_preflight
-  signature: def check_preflight(cfg, tool_name, args) -> None
+  signature: def check_preflight(cfg, tool_name, args, registry) -> None
   summary: Raise PolicyViolationError when a pre-flight check denies the tool call.
 - file: scripts/agent/tool_preparation.py
   kind: class

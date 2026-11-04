@@ -5,8 +5,10 @@ Change `scripts/agent/tool_audit.py` `_extract_resource_scope` so a list-valued 
 recorded as its elements joined into one scope value (`REQ-004`: audit records list elements in
 joined string form — today the whole list lands as a Python repr like `['/etc/shadow', ...]`) and the
 extracted path keys are the configured `approval_resource_keys.path_keys` unioned with the
-registered tool's declared `resource_scope_keys` (`REQ-005`), so `tool_approval` / `tool_exec`
-audit events for `read_multiple_files` and git tools name the checked paths in readable form.
+registered tool's declared `resource_scope_keys` (both `REQ-004`; verification 2026-11-04: the Plan
+assigns `REQ-005` to the test file requirement, not to the audit key union), so `tool_approval` /
+`tool_exec` audit events for `read_multiple_files` and git tools name the checked paths in readable
+form.
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
@@ -37,7 +39,7 @@ audit events for `read_multiple_files` and git tools name the checked paths in r
 - Empty list values are no longer recorded (today they render as `[]`): an empty scope entry adds
   no evidence. Scalar values keep today's `str(v)` semantics exactly, including empty strings.
 - Unknown tool names and `KeyError` from `runtime_tools.get` fall back to configured keys only,
-  mirroring sibling `20261104-065555_01` so audit keys and checked keys agree (`REQ-005`).
+  mirroring sibling `20261104-065555_01` so audit keys and checked keys agree (`REQ-004`).
 - Optional trailing `tool_name` parameter instead of a required one: the two writers always pass
   it, but the parameter shape stays backward compatible for any other caller.
 
@@ -109,6 +111,10 @@ Call sites:
     resource_scope = _extract_resource_scope(ctx, masked, tool_name)
 ```
 
+Verification note (2026-11-04): `ctx.services_required.runtime_tools` is typed `RuntimeToolRegistry | None`
+(`scripts/agent/context.py` line 361), so the After block gains one guard beyond the snippet — the union branch runs only when `runtime_tools is not None` (a `None` registry behaves like the `KeyError`
+fallback: configured keys only). Without the guard the snippet fails `mypy --no-namespace-packages scripts/`.
+
 ### Method
 Edit `_extract_resource_scope` in place and the two call lines; no new module-level symbols, no
 import change. `mask_args`, `_workflow_id_or_skip`, the event dataclasses, and both writers' other
@@ -125,10 +131,12 @@ logic are untouched.
   to path keys).
 - Test ownership: the failing-baseline audit assertions for this procedure (denied multi-path call
   records `resource_scope["paths"]` in the joined element form; declared-key `repo_path` recorded;
-  unregistered-name fallback) land in `tests/agent/test_tool_policy.py`, which is this Plan's row 3
-  and is owned by sibling `20261104-065555_01`'s companion procedure — this document adds no test
-  file of its own. `tests/agent/test_tool_audit.py`, named loosely by this row's Related Tests
-  cell, is not a Plan row and stays untouched (run as a regression check only).
+  unregistered-name fallback) land in `tests/agent/test_tool_policy.py`, which is this Plan's row 2
+  (row 3 is `scripts/agent/tool_audit.py` itself) and is shared as the companion of rows 1 and 3 —
+  this document adds no test file of its own. The assertions are added during the `_02` cycle (Step
+  1), not during `_01`'s cycle: they fail until this file's union lands, and `_01`'s Step 3 gates on
+  that suite being all green. `tests/agent/test_tool_audit.py`, named loosely by this row's Related
+  Tests cell, is not a Plan row and stays untouched (run as a regression check only).
 
 ## Compatibility considerations
 - Scalar and branch-key audit values are byte-identical to today; only list-valued path keys
@@ -150,8 +158,9 @@ logic are untouched.
   `uv run ruff format --check` on both.
 - `uv run mypy --no-namespace-packages scripts/ tests/agent/test_tool_policy.py` — clean on the
   changed signature.
-- `uv run bandit -r scripts/agent/tool_audit.py -c pyproject.toml` — no NEW findings (the 3
-  pre-existing High findings in this file are out of scope per the Plan Risks).
+- `uv run bandit -r scripts/agent/tool_audit.py -c pyproject.toml` — no NEW findings. Verification
+  note (2026-11-04): the Plan Risks' "3 pre-existing High findings" claim is stale; a run against
+  HEAD today reports "No issues identified" on this file.
 - Diff-scoped coverage per `rules/toolchain.md` section 7 (`diff-cover --fail-under=90`).
 
 ## Completion criteria
@@ -175,9 +184,9 @@ logic are untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the failing-baseline audit assertions land in sibling _01's companion test file (Plan Phase 1, row 3 ownership); confirm they fail on current code | Pending | — | — | See Details > test ownership |
-| 2 | Implement the `_extract_resource_scope` rewrite and the two call-site edits per Implementation > Procedure/Method/Details | Pending | — | — | Land after sibling _01 |
-| 3 | Re-run companion and audit suites (all green) and the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the failing-baseline audit assertions to `tests/agent/test_tool_policy.py` in this cycle (Plan Phase 1, row 2 ownership); confirm they fail on current code | Completed | 20261104-150610 | 20261104-150657 | See Details > test ownership Baseline: 5 failing assertions (repr form / TypeError on 3-arg call), 1 pin green |
+| 2 | Implement the `_extract_resource_scope` rewrite and the two call-site edits per Implementation > Procedure/Method/Details | Completed | 20261104-150657 | 20261104-151731 | Land after sibling _01 |
+| 3 | Re-run companion and audit suites (all green) and the validation sequence (`rules/toolchain.md`) | Completed | — | 20261104-151731 | 277 companion+audit tests green; full suite 11462 passed; gates pass; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -191,10 +200,12 @@ logic are untouched.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-004 (audit records list elements, joined form), REQ-005 (audit key union)
+- **Requirement ID**: REQ-004 (audit records list elements, joined form; audit key union —
+  verification 2026-11-04: the Plan's `REQ-005` row targets `tests/agent/test_tool_policy.py`)
 - **Source issue**: `issues/20261101-073742_pathkeys001_path-checks-skip-lists.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: `plans/20261101-155552_pathkeys001_path-checks-skip-lists.md`
+- **Source plan**: `plans/done/20261101-155552_pathkeys001_path-checks-skip-lists.md` (archived by
+  commit `60d796777`; path corrected during Step 3a verification)
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261104-065555
 - **Related target files**: `scripts/agent/tool_audit.py`, `tests/agent/test_tool_policy.py`

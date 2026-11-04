@@ -1152,3 +1152,65 @@ class TestRunApprovalChecks:
             check_preflight(
                 cfg, "github_push_files", {"owner": "other", "repo": "repo"}
             )
+
+
+def _stub_registry(**tools: tuple[str, ...]) -> MagicMock:
+    """Minimal registry stub: get(name) -> object with resource_scope_keys."""
+
+    def _get(name: str) -> MagicMock:
+        if name not in tools:
+            raise KeyError(name)
+        registered = MagicMock()
+        registered.resource_scope_keys = tools[name]
+        return registered
+
+    stub = MagicMock()
+    stub.get.side_effect = _get
+    return stub
+
+
+class TestApprovalPreflightDeclaredPathKeys:
+    """REQ-003 (pathkeys001): check_approval threads the runtime registry into
+    check_preflight so declared resource_scope_keys and list elements are checked
+    at the middleware call site."""
+
+    @pytest.mark.asyncio
+    async def test_list_element_outside_allowed_root_denied(self) -> None:
+        """Declared key `paths` list element outside allowed_root denies the call."""
+        cfg = _make_cfg(allowed_tools=["read_multiple_files"], allowed_root="/tmp")
+        ctx = _make_ctx(cfg=cfg)
+        ctx.services_required.runtime_tools = _stub_registry(
+            read_multiple_files=("paths",)
+        )
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
+            result = await check_approval(
+                ctx, "read_multiple_files", {"paths": ["/tmp/in", "/etc/shadow"]}
+            )
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_all_elements_inside_root_proceeds(self) -> None:
+        """All elements inside allowed_root proceed to the approval decision."""
+        cfg = _make_cfg(allowed_tools=["read_multiple_files"], allowed_root="/tmp")
+        ctx = _make_ctx(cfg=cfg)
+        ctx.services_required.runtime_tools = _stub_registry(
+            read_multiple_files=("paths",)
+        )
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: ok",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
+            result = await check_approval(
+                ctx, "read_multiple_files", {"paths": ["/tmp/a", "/tmp/b"]}
+            )
+        assert result is True

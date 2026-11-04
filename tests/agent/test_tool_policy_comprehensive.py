@@ -73,18 +73,24 @@ def _cfg(**overrides: Any) -> AgentConfig:
 class TestEscalateForPath:
     def test_already_high_base_risk_no_escalation(self) -> None:
         cfg = _cfg()
-        assert _escalate_for_path(cfg, "high", {}) is None
+        assert _escalate_for_path(cfg, "write_file", "high", {}) is None
 
     def test_no_matching_path_key_returns_none(self) -> None:
         cfg = _cfg(approval_resource_keys={"path_keys": [], "branch_keys": []})
-        assert _escalate_for_path(cfg, "medium", {"path": "/opt/llm/x"}) is None
+        assert (
+            _escalate_for_path(cfg, "write_file", "medium", {"path": "/opt/llm/x"})
+            is None
+        )
 
     def test_protected_path_escalates_to_high(self) -> None:
         cfg = _cfg(
             approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
             approval_protected_paths=["/opt/llm/"],
         )
-        assert _escalate_for_path(cfg, "medium", {"path": "/opt/llm/config"}) == "high"
+        assert (
+            _escalate_for_path(cfg, "write_file", "medium", {"path": "/opt/llm/config"})
+            == "high"
+        )
 
     def test_non_protected_path_no_escalation(self) -> None:
         cfg = _cfg(
@@ -92,7 +98,10 @@ class TestEscalateForPath:
             approval_protected_paths=["/opt/llm/"],
         )
         assert (
-            _escalate_for_path(cfg, "medium", {"path": "/home/user/file.txt"}) is None
+            _escalate_for_path(
+                cfg, "write_file", "medium", {"path": "/home/user/file.txt"}
+            )
+            is None
         )
 
     def test_multiple_protected_paths(self) -> None:
@@ -100,7 +109,10 @@ class TestEscalateForPath:
             approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
             approval_protected_paths=["/opt/llm/", "/etc/"],
         )
-        assert _escalate_for_path(cfg, "medium", {"path": "/etc/passwd"}) == "high"
+        assert (
+            _escalate_for_path(cfg, "write_file", "medium", {"path": "/etc/passwd"})
+            == "high"
+        )
 
 
 class TestEscalateForGithubBranch:

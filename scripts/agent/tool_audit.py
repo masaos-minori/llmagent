@@ -42,11 +42,38 @@ def _bounded_preview(masked: dict) -> dict:
     }
 
 
-def _extract_resource_scope(ctx: AgentContext, masked: dict) -> dict[str, str]:
-    """Pull path/branch keys from masked args for audit events."""
+def _extract_resource_scope(
+    ctx: AgentContext,
+    masked: dict,
+    tool_name: str | None = None,
+) -> dict[str, str]:
+    """Pull path/branch keys from masked args for audit events.
+
+    Path keys are the configured path_keys unioned with the registered tool's
+    declared resource_scope_keys; a list value is recorded as its non-empty
+    elements joined with ';'. An unknown tool name (KeyError) or an absent
+    registry falls back to the configured keys only.
+    """
     path_keys = set(ctx.cfg.approval.approval_resource_keys.get("path_keys", []))
+    runtime_tools = ctx.services_required.runtime_tools
+    if tool_name is not None and runtime_tools is not None:
+        try:
+            declared = runtime_tools.get(tool_name)
+            path_keys |= set(declared.resource_scope_keys)
+        except KeyError:
+            pass
     branch_keys = set(ctx.cfg.approval.approval_resource_keys.get("branch_keys", []))
-    return {k: str(v) for k, v in masked.items() if k in path_keys | branch_keys}
+    scope: dict[str, str] = {}
+    for key, value in masked.items():
+        if key not in path_keys | branch_keys:
+            continue
+        if key in path_keys and isinstance(value, list):
+            entries = [str(item) for item in value if str(item)]
+            if entries:
+                scope[key] = ";".join(entries)
+        else:
+            scope[key] = str(value)
+    return scope
 
 
 def _workflow_id_or_skip(ctx: AgentContext, writer: str, tool: str) -> str | None:
@@ -81,7 +108,7 @@ def audit_approval(
     if workflow_id is None:
         return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
-    resource_scope = _extract_resource_scope(ctx, masked)
+    resource_scope = _extract_resource_scope(ctx, masked, tool_name)
     evt = ToolApprovalEvent(
         event="tool_approval",
         task_id=ctx.turn.current_turn_id or "",
@@ -199,7 +226,7 @@ def audit_tool_exec(
     if workflow_id is None:
         return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
-    resource_scope = _extract_resource_scope(ctx, masked)
+    resource_scope = _extract_resource_scope(ctx, masked, tool_name)
     evt = ToolExecEvent(
         event="tool_exec",
         task_id=ctx.turn.current_turn_id or "",

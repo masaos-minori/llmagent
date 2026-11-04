@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.config_builders import build_agent_config
 from agent.repository_gateway import RepositoryGateway
 from agent.tool_enums import OperationType
 from agent.tool_exceptions import PolicyViolationError
@@ -18,6 +19,13 @@ from agent.tool_loop_guard import ToolLoopGuard
 from agent.tool_preparation import PreparedToolCall
 from agent.tool_runner import execute_one_tool_call
 from shared.tool_spec import ToolSpec
+
+from tests.agent._config_test_defaults import (
+    ALL_APPROVAL_RISK_RULES,
+    ALL_TOOL_NAMES,
+    ALL_TOOL_SAFETY_TIERS,
+    STRICT_PRODUCTION_OVERRIDES,
+)
 
 
 def _make_gateway(cfg=None, executor=None, audit_logger=None):
@@ -253,3 +261,105 @@ class TestDenialAuditEndToEnd:
 
         assert is_error is True
         ctx.services_required.audit_logger.info.assert_not_called()
+
+
+def _stub_registry(**tools: tuple[str, ...]) -> MagicMock:
+    """Minimal registry stub: get(name) -> object with resource_scope_keys."""
+
+    def _get(name: str) -> MagicMock:
+        if name not in tools:
+            raise KeyError(name)
+        registered = MagicMock()
+        registered.resource_scope_keys = tools[name]
+        return registered
+
+    stub = MagicMock()
+    stub.get.side_effect = _get
+    return stub
+
+
+def _make_real_cfg(**overrides: object):
+    """Build a minimal real AgentConfig (check_preflight needs real fields)."""
+    return build_agent_config(
+        {
+            **STRICT_PRODUCTION_OVERRIDES,
+            "allowed_tools": ALL_TOOL_NAMES,
+            "context_char_limit": 8000,
+            "context_compress_turns": 4,
+            "llm_retry_base_delay": 1.0,
+            "masked_fields": [],
+            "plan_blocked_tools": [],
+            "llm_temperature": 0.2,
+            "llm_max_tokens": 1024,
+            "tool_dedup_max_repeats": 3,
+            "tool_cycle_detect_window": 2,
+            "tool_error_max_consecutive": 3,
+            "embed_url": "http://127.0.0.1:9999",
+            "mcp_servers": {
+                "_dummy": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:9999",
+                    "auth_token": "test-token",
+                }
+            },
+            "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
+            "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
+            **overrides,
+        }
+    )
+
+
+class TestWriteGateDeclaredPathKeys:
+    """REQ-003 (pathkeys001): _gate_write threads the runtime registry into
+    check_preflight so declared resource_scope_keys and list elements are checked
+    at the gateway write gate."""
+
+    @pytest.mark.asyncio
+    async def test_list_element_outside_allowed_root_denied(self) -> None:
+        """Declared key `paths` list element outside allowed_root denies the write."""
+        cfg = _make_real_cfg(
+            allowed_tools=["write_file"],
+            allowed_root="/tmp",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        executor = AsyncMock()
+        executor.execute = AsyncMock(return_value=MagicMock(is_error=False))
+        gw = _make_gateway(cfg=cfg, executor=executor)
+        ctx = _make_ctx()
+        ctx.services_required.runtime_tools = _stub_registry(write_file=("paths",))
+        with patch(
+            "agent.repository_gateway.classify_operation_type",
+            return_value=OperationType.WRITE,
+        ):
+            result = await gw.execute(
+                ctx, "write_file", {"paths": ["/tmp/a", "/etc/shadow"]}
+            )
+        assert result.is_error is True
+        assert "Policy blocked" in result.output
+        executor.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_all_elements_inside_root_executes(self) -> None:
+        """All elements inside allowed_root pass the gate and execute."""
+        cfg = _make_real_cfg(
+            allowed_tools=["write_file"],
+            allowed_root="/tmp",
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+        )
+        expected = MagicMock(is_error=False, output="written")
+        executor = AsyncMock()
+        executor.execute = AsyncMock(return_value=expected)
+        gw = _make_gateway(cfg=cfg, executor=executor)
+        ctx = _make_ctx()
+        ctx.services_required.runtime_tools = _stub_registry(write_file=("paths",))
+        with patch(
+            "agent.repository_gateway.classify_operation_type",
+            return_value=OperationType.WRITE,
+        ):
+            result = await gw.execute(
+                ctx, "write_file", {"paths": ["/tmp/a", "/tmp/b"]}
+            )
+        assert result is expected
+        executor.execute.assert_awaited_once_with(
+            "write_file", {"paths": ["/tmp/a", "/tmp/b"]}
+        )

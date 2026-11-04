@@ -13,9 +13,11 @@ registry threading at every preflight call site).
 - Amendment-recorded row (owner-approved, class `scope`, 2026-11-04): this file was appended to the
   Plan's frozen table because the Scope bullet "the declared keys are reachable at every preflight
   call site" is not satisfied without this call-site update.
-- `ctx.services_required.runtime_tools` is already dereferenced unconditionally in the same class
-  (line 84, `classify_operation_type` call in `execute`), and `_gate_write` receives the same
-  `ctx`, so no guard is needed.
+- `ctx.services_required.runtime_tools` is typed `RuntimeToolRegistry | None` and is already
+  dereferenced in the same class (line 96, where `execute` resolves the tier for the
+  `classify_operation_type` call), and `_gate_write` receives the same
+  `ctx`, so no guard is needed; the trailing optional `registry` parameter accepts the `None` case
+  for mypy anyway.
 - Sibling `20261104-065555_01` must land first: `check_preflight` only accepts the extra `registry`
   parameter after that procedure is implemented.
 - `tools/check_plan_target_overlaps.py` re-run after the amendment: no finding names this Plan.
@@ -59,7 +61,7 @@ executor call, and `gateway.write` audit logging are untouched.
   - Procedure: add a failing-baseline test (Plan Phase 1) driving `RepositoryGateway.execute` for a
     write tool whose list-valued path argument has one element outside `allowed_root`: the result is
     the existing denied result (`Policy blocked:` / `denied_root_jail`) instead of execution (fails
-    on current code, which skips list values). Add a sibling all-insside case that executes.
+    on current code, which skips list values). Add a sibling all-inside case that executes.
   - Validation: `uv run pytest tests/agent/test_repository_gateway.py` — new tests fail before the
     sibling `20261104-065555_01` + this edit land, then all tests pass.
 
@@ -97,9 +99,9 @@ executor call, and `gateway.write` audit logging are untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the failing-baseline tests to the companion test file first (Plan Phase 1); confirm they fail on current code | Pending | — | — | |
-| 2 | Apply the one-line call-site edit per Implementation > Procedure | Pending | — | — | Land after sibling _01 |
-| 3 | Re-run the companion suite (all green) and the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the failing-baseline tests to the companion test file first (Plan Phase 1); confirm they fail on current code | Completed | 20261104-153548 | 20261104-153705 | Baseline: 1 failing (executed despite out-of-root list element), 1 pin green |
+| 2 | Apply the one-line call-site edit per Implementation > Procedure | Completed | — | 20261104-153705 | Land after sibling _01 |
+| 3 | Re-run the companion suite (all green) and the validation sequence (`rules/toolchain.md`) | Completed | 20261104-153705 | 20261104-154641 | 9 companion tests green; full suite 11466 passed; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -116,7 +118,8 @@ executor call, and `gateway.write` audit logging are untouched.
 - **Requirement ID**: REQ-003 (registry threaded at the gateway preflight call site)
 - **Source issue**: `issues/20261101-073742_pathkeys001_path-checks-skip-lists.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: `plans/20261101-155552_pathkeys001_path-checks-skip-lists.md`
+- **Source plan**: `plans/done/20261101-155552_pathkeys001_path-checks-skip-lists.md` (archived by
+  commit `60d796777`; path corrected during Step 3a verification)
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261104-065555
 - **Related target files**: `scripts/agent/repository_gateway.py`, `tests/agent/test_repository_gateway.py`

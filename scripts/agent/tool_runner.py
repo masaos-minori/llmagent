@@ -225,7 +225,7 @@ async def _execute_prepared_call(
     # Preflight check when gateway is None for non-READ operations
     if op != OperationType.READ:
         try:
-            check_preflight(ctx.cfg, name, args)
+            check_preflight(ctx.cfg, name, args, ctx.services_required.runtime_tools)
         except PolicyViolationError as exc:
             logger.warning("tool_runner.policy_denied tool=%r reason=%s", name, exc)
             raise  # Re-raise to prevent unauthorized execution

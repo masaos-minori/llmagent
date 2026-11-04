@@ -5,12 +5,14 @@ Unit tests for tool_policy.py: risk classification, path/repo checks, pre-flight
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
+from agent.tool_audit import _extract_resource_scope
 from agent.tool_enums import OperationType
 from agent.tool_exceptions import PolicyViolationError
 from agent.tool_policy import (
@@ -71,6 +73,40 @@ def _cfg(**overrides: Any) -> AgentConfig:
 # gates the executable; the code-side safe-shape rule decides subcommand/flag
 # acceptability. Interpreters and test runners are absent from the list by design (REQ-006).
 SHELL_PREFIXES_STRICT = ["ls", "cat", "echo", "git", "pwd", "find", "grep"]
+
+
+def _runtime_tool(
+    name: str,
+    scope_keys: tuple[str, ...] = (),
+    is_write: bool = False,
+) -> RuntimeTool:
+    """Build a RuntimeTool stub with the given declared resource_scope_keys."""
+    return RuntimeTool(
+        name=name,
+        server_key="test_server",
+        server_url="",
+        description="",
+        input_schema={},
+        raw_definition={},
+        status="active",
+        is_write=is_write,
+        requires_serial=False,
+        resource_scope_kind="filesystem" if scope_keys else "",
+        resource_scope_keys=scope_keys,
+        agent_safety_tier="READ_ONLY",
+        enabled_for_llm=True,
+        capabilities=(),
+    )
+
+
+def _stub_registry(**scope_keys_by_tool: tuple[str, ...]) -> RuntimeToolRegistry:
+    """Build a RuntimeToolRegistry whose tools declare the given scope keys."""
+    return RuntimeToolRegistry(
+        tools={
+            name: _runtime_tool(name, keys) for name, keys in scope_keys_by_tool.items()
+        },
+        allowed_servers=frozenset({"test_server"}),
+    )
 
 
 class TestClassifyOperationType:
@@ -339,13 +375,16 @@ class TestCheckPreflight:
         from agent.tool_policy import _escalate_for_path
 
         cfg = _cfg()
-        assert _escalate_for_path(cfg, "high", {}) is None
+        assert _escalate_for_path(cfg, "write_file", "high", {}) is None
 
     def test_no_matching_path_key_returns_none(self) -> None:
         from agent.tool_policy import _escalate_for_path
 
         cfg = _cfg(approval_resource_keys={"path_keys": [], "branch_keys": []})
-        assert _escalate_for_path(cfg, "medium", {"path": "/opt/llm/x"}) is None
+        assert (
+            _escalate_for_path(cfg, "write_file", "medium", {"path": "/opt/llm/x"})
+            is None
+        )
 
     def test_configured_path_key_absent_from_args_skipped(self) -> None:
         """A path_key configured but missing from args must be skipped (not
@@ -356,7 +395,7 @@ class TestCheckPreflight:
             approval_protected_paths=["/etc"],
             approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
         )
-        assert _escalate_for_path(cfg, "medium", {}) is None
+        assert _escalate_for_path(cfg, "write_file", "medium", {}) is None
 
 
 class TestEscalateForGithubBranch:
@@ -1491,3 +1530,188 @@ class TestPathArgumentConstraints:
         )
         result = classify_risk(cfg, "shell_run", {"command": "cat /home/user/file.txt"})
         assert result == "none"
+
+
+class TestDeclaredPathKeyUnion:
+    """REQ-001..REQ-003 (pathkeys001): the checked path argument names are the configured
+    path_keys unioned with the registered tool's declared resource_scope_keys; every
+    string element of a list-valued path argument is checked; a value that is neither
+    str nor list[str] fails closed."""
+
+    @staticmethod
+    def _root_cfg(tmp_path, path_keys: list[str] | None = None) -> AgentConfig:
+        return _cfg(
+            allowed_root=str(tmp_path),
+            approval_resource_keys={"path_keys": path_keys or [], "branch_keys": []},
+        )
+
+    def test_preflight_list_outside_element_denied(self, tmp_path) -> None:
+        """AC-1: a declared list-valued path key with one element outside allowed_root."""
+        cfg = self._root_cfg(tmp_path)
+        reg = _stub_registry(read_multiple_files=("paths",))
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(
+                cfg,
+                "read_multiple_files",
+                {"paths": [str(tmp_path / "in.txt"), "/etc/shadow"]},
+                reg,
+            )
+        assert exc_info.value.audit_decision == "denied_root_jail"
+
+    def test_preflight_list_all_inside_passes(self, tmp_path) -> None:
+        """AC-1 counterpart: a list with all elements inside allowed_root passes."""
+        cfg = self._root_cfg(tmp_path)
+        reg = _stub_registry(read_multiple_files=("paths",))
+        check_preflight(
+            cfg,
+            "read_multiple_files",
+            {"paths": [str(tmp_path / "a.txt"), str(tmp_path / "b.txt")]},
+            reg,
+        )  # does not raise
+
+    def test_preflight_declared_repo_path_denied(self, tmp_path) -> None:
+        """AC-2 (policy half): a declared non-list path key under a different name."""
+        cfg = self._root_cfg(tmp_path)
+        reg = _stub_registry(git_status=("repo_path",))
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(cfg, "git_status", {"repo_path": "/etc"}, reg)
+        assert exc_info.value.audit_decision == "denied_root_jail"
+
+    def test_preflight_union_dedup_applies_once(self, tmp_path) -> None:
+        """A key declared and configured at once is still checked (union, no bypass)."""
+        cfg = self._root_cfg(tmp_path, ["paths"])
+        reg = _stub_registry(read_multiple_files=("paths",))
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(
+                cfg,
+                "read_multiple_files",
+                {"paths": [str(tmp_path / "in.txt"), "/etc/out"]},
+                reg,
+            )
+        assert exc_info.value.audit_decision == "denied_root_jail"
+
+    def test_preflight_unregistered_tool_configured_keys_apply(self, tmp_path) -> None:
+        """AC-3: no registry entry -> configured keys still apply, no KeyError escapes."""
+        cfg = self._root_cfg(tmp_path, ["paths"])
+        reg = _stub_registry()  # empty registry
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(
+                cfg,
+                "not_registered_tool",
+                {"paths": [str(tmp_path / "in.txt"), "/etc/out"]},
+                reg,
+            )
+        assert exc_info.value.audit_decision == "denied_root_jail"
+
+    def test_preflight_non_string_path_value_denied(self, tmp_path) -> None:
+        """REQ-002 fail-closed: a not-inspectable value denies under a configured key."""
+        cfg = self._root_cfg(tmp_path, ["path"])
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(cfg, "write_file", {"path": 123})
+        assert exc_info.value.audit_decision == "denied_root_jail"
+
+    def test_preflight_list_non_string_element_denied(self, tmp_path) -> None:
+        """REQ-002 fail-closed: a list containing a non-string element denies."""
+        cfg = self._root_cfg(tmp_path, ["paths"])
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(
+                cfg, "custom_list_tool", {"paths": [str(tmp_path / "in.txt"), 123]}
+            )
+        assert exc_info.value.audit_decision == "denied_root_jail"
+
+    def test_absent_and_empty_values_keep_skip_semantics(self, tmp_path) -> None:
+        """Regression pin: key absent, empty string, and empty-string list elements
+        keep today's skip semantics (no deny, no smuggled pass)."""
+        cfg = self._root_cfg(tmp_path, ["path"])
+        check_preflight(cfg, "write_file", {})  # does not raise
+        check_preflight(cfg, "write_file", {"path": ""})  # does not raise
+        check_preflight(cfg, "write_file", {"path": [str(tmp_path / "in.txt"), ""]})
+
+    def test_registry_omitted_configured_behavior_unchanged(self, tmp_path) -> None:
+        """AC-4 pin: calls without a registry keep today's configured-key behavior."""
+        cfg = self._root_cfg(tmp_path, ["path"])
+        assert check_allowed_root(cfg, "write_file", {"path": str(tmp_path / "in.txt")})
+        assert not check_allowed_root(cfg, "write_file", {"path": "/etc/outside"})
+
+    def test_classify_risk_list_element_protected_escalates(self) -> None:
+        """REQ-001/REQ-002: a protected-path list element escalates via classify_risk."""
+        cfg = _cfg(
+            approval_resource_keys={"path_keys": [], "branch_keys": []},
+            approval_protected_paths=["/etc/"],
+        )
+        reg = _stub_registry(read_multiple_files=("paths",))
+        result = classify_risk(
+            cfg, "read_multiple_files", {"paths": ["/tmp/in", "/etc/shadow"]}, reg
+        )
+        assert result == "high"
+
+    def test_classify_risk_non_string_path_escalates(self) -> None:
+        """REQ-002 fail-closed: classify_risk escalates a not-inspectable path value."""
+        cfg = _cfg(approval_resource_keys={"path_keys": ["path"], "branch_keys": []})
+        assert classify_risk(cfg, "write_file", {"path": 123}) == "high"
+
+
+class TestAuditResourceScopeExtraction:
+    """REQ-004 (pathkeys001): the audit resource_scope resolves the same key union as
+    the policy and records list-valued path args as elements joined with ';'."""
+
+    @staticmethod
+    def _audit_ctx(
+        cfg: AgentConfig, registry: RuntimeToolRegistry | None = None
+    ) -> SimpleNamespace:
+        """Minimal ctx stub exposing only what _extract_resource_scope reads."""
+        return SimpleNamespace(
+            cfg=SimpleNamespace(approval=cfg.approval),
+            services_required=SimpleNamespace(runtime_tools=registry),
+        )
+
+    def test_list_value_recorded_as_joined_elements(self) -> None:
+        """AC-1 (audit half): elements joined with ';', not the Python repr."""
+        cfg = _cfg(approval_resource_keys={"path_keys": ["paths"], "branch_keys": []})
+        ctx = self._audit_ctx(cfg)
+        scope = _extract_resource_scope(ctx, {"paths": ["/opt/llm/a", "/etc/shadow"]})
+        assert scope == {"paths": "/opt/llm/a;/etc/shadow"}
+
+    def test_empty_elements_dropped_empty_list_absent(self) -> None:
+        """Empty-string elements are dropped; an all-empty list is not recorded."""
+        cfg = _cfg(approval_resource_keys={"path_keys": ["paths"], "branch_keys": []})
+        ctx = self._audit_ctx(cfg)
+        assert _extract_resource_scope(ctx, {"paths": ["/a", ""]}) == {"paths": "/a"}
+        assert _extract_resource_scope(ctx, {"paths": []}) == {}
+
+    def test_declared_key_recorded_without_configured_key(self) -> None:
+        """AC-2 (audit half): declared repo_path recorded under the declared key."""
+        cfg = _cfg(approval_resource_keys={"path_keys": [], "branch_keys": []})
+        reg = _stub_registry(git_status=("repo_path",))
+        ctx = self._audit_ctx(cfg, reg)
+        scope = _extract_resource_scope(ctx, {"repo_path": "/srv/repo"}, "git_status")
+        assert scope == {"repo_path": "/srv/repo"}
+
+    def test_declared_list_key_joined(self) -> None:
+        """Declared key union applies to list values as well."""
+        cfg = _cfg(approval_resource_keys={"path_keys": [], "branch_keys": []})
+        reg = _stub_registry(read_multiple_files=("paths",))
+        ctx = self._audit_ctx(cfg, reg)
+        scope = _extract_resource_scope(
+            ctx, {"paths": ["/a", "/b"]}, "read_multiple_files"
+        )
+        assert scope == {"paths": "/a;/b"}
+
+    def test_unregistered_tool_falls_back_to_configured_keys(self) -> None:
+        """AC-3 (audit half): KeyError fallback — configured keys only, no raise."""
+        cfg = _cfg(approval_resource_keys={"path_keys": ["path"], "branch_keys": []})
+        reg = _stub_registry(read_multiple_files=("paths",))
+        ctx = self._audit_ctx(cfg, reg)
+        scope = _extract_resource_scope(
+            ctx, {"path": "/x", "other": "/y"}, "no_such_tool"
+        )
+        assert scope == {"path": "/x"}
+
+    def test_scalar_and_branch_values_unchanged(self) -> None:
+        """AC-4 pin: scalar path values and branch keys keep today's str(v) form."""
+        cfg = _cfg(
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": ["branch"]}
+        )
+        ctx = self._audit_ctx(cfg)
+        scope = _extract_resource_scope(ctx, {"path": "/opt/llm/x", "branch": "main"})
+        assert scope == {"path": "/opt/llm/x", "branch": "main"}

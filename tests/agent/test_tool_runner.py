@@ -2804,3 +2804,52 @@ class TestDiagnosticWritesOffEventLoop:
         assert kwargs["reason"] == "forced_serial"
         assert isinstance(kwargs["round_id"], str)
         assert isinstance(kwargs["elapsed_ms"], float)
+
+
+class TestFallbackPreflightDeclaredPathKeys:
+    """REQ-003 (pathkeys001): the gateway-less fallback preflight in
+    execute_one_tool_call threads the runtime registry, so declared
+    resource_scope_keys and list elements are checked."""
+
+    @staticmethod
+    def _ctx_with_declared_paths() -> MagicMock:
+        cfg = _cfg(allowed_root="/tmp")
+        ctx = _make_ctx(cfg)
+        registry = MagicMock()
+
+        def _get(name: str) -> MagicMock:
+            if name != "write_file":
+                raise KeyError(name)
+            tool = MagicMock()
+            tool.is_write = True
+            tool.resource_scope_keys = ("paths",)
+            return tool
+
+        registry.get = MagicMock(side_effect=_get)
+        ctx.services_required.runtime_tools = registry
+        return ctx
+
+    @pytest.mark.asyncio
+    async def test_list_element_outside_allowed_root_raises(self) -> None:
+        """Declared key `paths` list element outside allowed_root raises the denial."""
+        ctx = self._ctx_with_declared_paths()
+        with pytest.raises(PolicyViolationError) as exc_info:
+            await execute_one_tool_call(
+                ctx,
+                _pc("write_file", {"paths": ["/tmp/a", "/etc/shadow"]}),
+                guard=ToolLoopGuard(ctx),
+            )
+        assert exc_info.value.audit_decision == "denied_root_jail"
+        ctx.services_required.tools.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_all_elements_inside_root_executes(self) -> None:
+        """All elements inside allowed_root pass the fallback gate and execute."""
+        ctx = self._ctx_with_declared_paths()
+        _id, _name, _args, full_text, is_error, _llm = await execute_one_tool_call(
+            ctx,
+            _pc("write_file", {"paths": ["/tmp/a", "/tmp/b"]}),
+            guard=ToolLoopGuard(ctx),
+        )
+        assert is_error is False
+        assert full_text == "result"

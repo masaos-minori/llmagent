@@ -145,6 +145,68 @@ def _iter_string_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[s
             yield val
 
 
+class _NotInspectablePathValueError(ValueError):
+    """Raised when a path-argument value is neither `str` nor `list[str]` (REQ-002).
+
+    Module-private signal: the callers in this file convert it into the unchanged
+    deny/escalate outcomes (`denied_root_jail` / `RiskLevel.HIGH`); it never escapes
+    the policy layer.
+    """
+
+
+def _resolve_path_keys(
+    cfg: AgentConfig,
+    tool_name: str,
+    registry: RuntimeToolRegistry | None,
+) -> list[str]:
+    """Return the checked path argument names: configured path_keys unioned with the
+    registered tool's declared resource_scope_keys (REQ-001).
+
+    `registry=None` or a `KeyError` (unregistered tool) falls back to the configured
+    keys only — an unknown tool never bypasses the configured checks and no lookup
+    error escapes the policy (REQ-003). Order is stable: configured keys first.
+    """
+    keys = list(cfg.approval.approval_resource_keys.get("path_keys", []))
+    if registry is None:
+        return keys
+    try:
+        tool = registry.get(tool_name)
+    except KeyError:
+        return keys
+    keys.extend(key for key in tool.resource_scope_keys if key not in keys)
+    return keys
+
+
+def _iter_path_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[str]:
+    """Yield each inspectable path value under the given keys (REQ-002).
+
+    A non-empty `str` value yields as today; a `list` value yields each non-empty
+    `str` element. A value that is neither, or a `list` containing a non-string
+    element, raises `_NotInspectablePathValueError` so callers fail closed. Absent
+    keys and empty strings keep today's skip semantics.
+    """
+    for key in keys:
+        val = args.get(key)
+        if val is None:
+            continue
+        if isinstance(val, str):
+            if val:
+                yield val
+        elif isinstance(val, list):
+            for item in val:
+                if isinstance(item, str):
+                    if item:
+                        yield item
+                else:
+                    raise _NotInspectablePathValueError(
+                        f"{key}: list element {item!r} is not a string"
+                    )
+        else:
+            raise _NotInspectablePathValueError(
+                f"{key}: value {val!r} is neither a string nor a list of strings"
+            )
+
+
 def _has_metacharacters(cmd: str) -> bool:
     """Return True if the raw command contains shell metacharacters/control operators."""
     return bool(_METACHAR_RE.search(cmd))
@@ -245,16 +307,28 @@ def _safe_shape_violation(exe: str, argv: list[str]) -> bool:
 
 def _escalate_for_path(
     cfg: AgentConfig,
+    tool_name: str,
     base: RiskLevel,
     args: dict[str, Any],
+    registry: RuntimeToolRegistry | None = None,
 ) -> RiskLevel | None:
-    """Return HIGH when any path arg is under a protected directory, else None."""
+    """Return HIGH when any path arg is under a protected directory, else None.
+
+    The checked key set is the configured path_keys unioned with the registered
+    tool's declared scope keys; every element of a list-valued arg is checked and a
+    not-inspectable value escalates (fail closed).
+    """
     if base == RiskLevel.HIGH:
         return None
-    path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
-    for val in _iter_string_arg_values(args, path_keys):
-        if any(val.startswith(p) for p in cfg.approval.approval_protected_paths):
-            return RiskLevel.HIGH
+    protected = cfg.approval.approval_protected_paths
+    try:
+        for val in _iter_path_arg_values(
+            args, _resolve_path_keys(cfg, tool_name, registry)
+        ):
+            if any(val.startswith(p) for p in protected):
+                return RiskLevel.HIGH
+    except _NotInspectablePathValueError:
+        return RiskLevel.HIGH
     return None
 
 
@@ -370,7 +444,7 @@ def classify_risk(
         return RiskLevel.NONE
     if override := _special_case_risk(cfg, tool_name, args):
         return override
-    if escalated := _escalate_for_path(cfg, base, args):
+    if escalated := _escalate_for_path(cfg, tool_name, base, args, registry):
         return escalated
     if escalated := _escalate_for_github_branch(cfg, tool_name, base, args):
         return escalated
@@ -381,19 +455,29 @@ def check_allowed_root(
     cfg: AgentConfig,
     tool_name: str,
     args: dict[str, Any],
+    registry: RuntimeToolRegistry | None = None,
 ) -> bool:
-    """Return False when any path argument is outside cfg.approval.allowed_root."""
+    """Return False when any path argument is outside cfg.approval.allowed_root.
+
+    The checked key set is the configured path_keys unioned with the registered
+    tool's declared scope keys; every element of a list-valued arg is checked and a
+    not-inspectable value denies (fail closed).
+    """
     if not cfg.approval.allowed_root:
         return True
     root = Path(cfg.approval.allowed_root).resolve()
-    path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
-    for val in _iter_string_arg_values(args, path_keys):
-        try:
-            resolved = Path(val).resolve()
-        except (ValueError, OSError):
-            return False
-        if not resolved.is_relative_to(root):
-            return False
+    try:
+        for val in _iter_path_arg_values(
+            args, _resolve_path_keys(cfg, tool_name, registry)
+        ):
+            try:
+                resolved = Path(val).resolve()
+            except (ValueError, OSError):
+                return False
+            if not resolved.is_relative_to(root):
+                return False
+    except _NotInspectablePathValueError:
+        return False
     return True
 
 
@@ -419,17 +503,19 @@ def check_preflight(
     cfg: AgentConfig,
     tool_name: str,
     args: dict[str, Any],
+    registry: RuntimeToolRegistry | None = None,
 ) -> None:
     """Raise PolicyViolationError when a pre-flight check denies the tool call.
 
-    Does nothing when all checks pass.
+    Does nothing when all checks pass. The optional registry makes the registered
+    tool's declared scope keys available to the root-jail check (REQ-003).
     """
     if cfg.tool.allowed_tools and tool_name not in cfg.tool.allowed_tools:
         raise PolicyViolationError(
             "denied_allowed_tools",
             f"{tool_name}: not in allowed_tools for this session",
         )
-    if not check_allowed_root(cfg, tool_name, args):
+    if not check_allowed_root(cfg, tool_name, args, registry):
         raise PolicyViolationError(
             "denied_root_jail",
             f"{tool_name}: path outside allowed_root ({cfg.approval.allowed_root!r})",

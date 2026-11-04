@@ -2,7 +2,7 @@
 
 ## Goal
 Pass the `RuntimeToolRegistry` reachable from `ctx` into the gateway-less `check_preflight` call at
-`scripts/agent/tool_runner.py` line 223, so the runner's fallback preflight applies the declared
+`scripts/agent/tool_runner.py` line 228, so the runner's fallback preflight applies the declared
 `resource_scope_keys` union and list handling added by sibling `20261104-065555_01` (`REQ-003`:
 registry threading at every preflight call site).
 
@@ -13,9 +13,11 @@ registry threading at every preflight call site).
 - Amendment-recorded row (owner-approved, class `scope`, 2026-11-04): this file was appended to the
   Plan's frozen table because the Scope bullet "the declared keys are reachable at every preflight
   call site" is not satisfied without this call-site update.
-- `ctx.services_required.runtime_tools` is already dereferenced unconditionally eight lines above
-  the target line (line 215, `classify_operation_type` call), so it is non-`None` wherever line 223
-  runs and needs no extra guard.
+- `ctx.services_required.runtime_tools` is typed `RuntimeToolRegistry | None` and is already
+  dereferenced eight lines above the target line (line 220, `classify_operation_type` call), so it
+  is non-`None` wherever line 228 runs and needs no extra guard; the trailing optional `registry`
+  parameter accepts the `None` case for mypy anyway. (Verification 2026-11-04: line citations in
+  this document had drifted by 5 lines.)
 - Sibling `20261104-065555_01` must land first: `check_preflight` only accepts the extra `registry`
   parameter after that procedure is implemented.
 - `tools/check_plan_target_overlaps.py` re-run after the amendment: no finding names this Plan.
@@ -27,7 +29,7 @@ registry threading at every preflight call site).
 
 ## Alternatives considered
 - Removing the gateway-less preflight and forcing all calls through the gateway: rejected — the
-  gateway-bypass justification comment at lines 200-210 documents this fallback as a required
+  gateway-bypass justification comment at lines 205-215 documents this fallback as a required
   safety layer; weakening it is out of the Plan's scope.
 
 ## Implementation
@@ -38,7 +40,7 @@ registry threading at every preflight call site).
 Single-line edit at the fallback preflight call:
 
 ```python
-# Before (line 223):
+# Before (line 228):
             check_preflight(ctx.cfg, name, args)
 # After:
             check_preflight(ctx.cfg, name, args, ctx.services_required.runtime_tools)
@@ -52,7 +54,7 @@ One-line call-site update; nothing else in the file changes. The gateway delegat
 - This is the last of the three `check_preflight` call sites (verified by grep across
   `scripts/`): middleware (`_04`), gateway (`_05`), runner fallback (this). The gateway branch
   returns earlier, so this line only runs when `ctx.services_required.gateway` is `None`.
-- The gateway-bypass justification docstring (lines 200-210) remains accurate; it does not cite
+- The gateway-bypass justification docstring (lines 205-215) remains accurate; it does not cite
   key-resolution details and needs no wording change.
 
 ### Companion test files
@@ -60,7 +62,7 @@ One-line call-site update; nothing else in the file changes. The gateway delegat
   - Procedure: add a failing-baseline test (Plan Phase 1) executing a non-READ tool call with no
     gateway in context and a list-valued path argument with one element outside `allowed_root`: the
     result is denied (`Policy blocked:` / `denied_root_jail`) instead of executed (fails on current
-    code, which skips list values). Add a sibling all-insside case that executes.
+    code, which skips list values). Add a sibling all-inside case that executes.
   - Validation: `uv run pytest tests/agent/test_tool_runner.py` — new tests fail before the sibling
     `20261104-065555_01` + this edit land, then all tests pass.
 
@@ -98,9 +100,9 @@ One-line call-site update; nothing else in the file changes. The gateway delegat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the failing-baseline tests to the companion test file first (Plan Phase 1); confirm they fail on current code | Pending | — | — | |
-| 2 | Apply the one-line call-site edit per Implementation > Procedure | Pending | — | — | Land after sibling _01 |
-| 3 | Re-run the companion suite (all green) and the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the failing-baseline tests to the companion test file first (Plan Phase 1); confirm they fail on current code | Completed | 20261104-154821 | 20261104-154858 | Baseline: 1 failing (no raise, executed despite out-of-root list element), 1 pin green |
+| 2 | Apply the one-line call-site edit per Implementation > Procedure | Completed | — | 20261104-154858 | Land after sibling _01 |
+| 3 | Re-run the companion suite (all green) and the validation sequence (`rules/toolchain.md`) | Completed | 20261104-154858 | 20261104-155928 | 96 companion tests green; full suite 11468 passed; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -117,7 +119,8 @@ One-line call-site update; nothing else in the file changes. The gateway delegat
 - **Requirement ID**: REQ-003 (registry threaded at the runner fallback preflight call site)
 - **Source issue**: `issues/20261101-073742_pathkeys001_path-checks-skip-lists.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: `plans/20261101-155552_pathkeys001_path-checks-skip-lists.md`
+- **Source plan**: `plans/done/20261101-155552_pathkeys001_path-checks-skip-lists.md` (archived by
+  commit `60d796777`; path corrected during Step 3a verification)
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261104-065555
 - **Related target files**: `scripts/agent/tool_runner.py`, `tests/agent/test_tool_runner.py`

@@ -10,6 +10,7 @@ Close the path-policy gap in `scripts/agent/tool_policy.py`: the preflight and r
 - Plan A3/DD-2: the shared `_iter_string_arg_values` is NOT modified — the same helper feeds the `branch_keys` loop in `_escalate_for_github_branch`, and list handling stays scoped to path extraction.
 - The new `registry` parameters default to `None`, so callers that omit them (the existing test suite, and any call site not yet updated by siblings `20261104-065555_04/_05/_06`) keep today's configured-key behavior exactly.
 - `tools/check_plan_target_overlaps.py` re-run at Step 2 of this cycle after the 2026-11-04 amendment: no finding names this Plan.
+- Verification note (2026-11-04): the union is applied to ALL of a registered tool's `resource_scope_keys` with no `resource_scope_kind` filter. Confirmed against source: `github_*` tools declare `["owner", "repo"]` and cicd tools declare `["repo", "workflow", "ref"]`/`["repo", "run_id"]`, so those values become path-checked when `allowed_root` is set — they are relative non-path strings and pass `is_relative_to` when the agent cwd is inside `allowed_root`; the Plan's reproduction explicitly includes the `mdq` tool's `paths=["/etc"]` (kind `mdq_store`), which rules out a filesystem-only filter.
 - Amendment recorded in this cycle (owner-approved, class `scope`): rows `scripts/agent/tool_approval.py`, `scripts/agent/repository_gateway.py`, `scripts/agent/tool_runner.py` were appended to the Plan's frozen table because the Scope bullet "the declared keys are reachable at every preflight call site" requires them; they are covered by sibling procedures, not this document.
 
 ## Design decisions
@@ -81,7 +82,7 @@ def check_preflight(
 (Adding `tool_name` to `_escalate_for_path`'s positional list is safe: it is private and only called from `classify_risk`, which already holds both values.)
 
 ### Method
-Edit the three functions in place and add the two private helpers near `_iter_string_arg_values` in the same file. No new public symbols, no import change (`RuntimeToolRegistry` is already imported under the module's TYPE_CHECKING import block).
+Edit the three functions in place and add the two private helpers near `_iter_string_arg_values` in the same file. No new public symbols, no import change (re-verified 2026-11-04: `tool_policy.py` has `from __future__ import annotations` at line 9 and `RuntimeToolRegistry` is already imported under the module's TYPE_CHECKING import block at line 35, exactly as the annotations in `classify_operation_type` and `classify_risk` already rely on).
 
 ### Details
 - Current behavior (verified against source): `_iter_string_arg_values` yields a value only when it is a non-empty `str`, so `paths=["/etc/shadow", ...]` yields nothing; `check_allowed_root` and `_escalate_for_path` read only `cfg.approval.approval_resource_keys.get("path_keys", [])`; `classify_risk` returns `RiskLevel.NONE` for `READ_ONLY`/`WRITE_SAFE` tiers before escalation runs, so the denial that matters for those tools is the `check_allowed_root` one.
@@ -91,7 +92,8 @@ Edit the three functions in place and add the two private helpers near `_iter_st
 
 ### Companion test files
 - `tests/agent/test_tool_policy.py`
-  - Procedure: extend the `TestClassifyRisk._registry_with` pattern (or a new module-level helper) so stub `RuntimeTool` entries can declare `resource_scope_keys`; add failing-baseline tests (Plan Phase 1): `read_multiple_files` with `paths=[inside, outside]` is denied (`denied_root_jail`) while `paths=[inside, inside]` passes; a git tool with `repo_path` outside `allowed_root` is denied; a list element check; a not-inspectable value (e.g. `path=123`) denies; an unregistered tool name with a list under a configured key still denies (configured keys apply, no raise); the five configured keys behave as before; and the audit-line assertions owned by sibling `20261104-065555_02` (a denied multi-path call records `resource_scope` `paths` as the joined element form, and a declared-key `repo_path` is recorded) land in this same file since this row owns it. Run once first to confirm the new tests FAIL on current code (baseline), then re-run after the source change.
+  - Procedure: extend the `TestClassifyRisk._registry_with` pattern (or a new module-level helper) so stub `RuntimeTool` entries can declare `resource_scope_keys`; add failing-baseline tests (Plan Phase 1): `read_multiple_files` with `paths=[inside, outside]` is denied (`denied_root_jail`) while `paths=[inside, inside]` passes; a git tool with `repo_path` outside `allowed_root` is denied; a list element check; a not-inspectable value (e.g. `path=123`) denies; an unregistered tool name with a list under a configured key still denies (configured keys apply, no raise); the five configured keys behave as before. Run once first to confirm the new tests FAIL on current code (baseline), then re-run after the source change.
+  - Verification note (2026-11-04): the audit-line assertions owned by sibling `20261104-065555_02` (a denied multi-path call records `resource_scope` `paths` as the joined element form, and a declared-key `repo_path` is recorded) also live in this test file, but they are added during the `_02` cycle, not this one — they fail until `tool_audit.py` implements the union, and this procedure's Step 3 gates on the companion suite being all green.
   - Validation: `uv run pytest tests/agent/test_tool_policy.py` — new tests fail before the change and all tests (existing included) pass after it.
 
 ## Compatibility considerations
@@ -99,6 +101,9 @@ Edit the three functions in place and add the two private helpers near `_iter_st
 - A list value under a configured key is denied today where it was skipped before — an intentional behavior change covered by Plan Assumption A1 and the whole-suite `AC-4` check.
 - shellprefix001 (already implemented and archived) shares this file and test file; this change does not touch the `shell_run` prefix path or its tests, so no reconciliation is pending.
 - `config/agent.toml` is a reference file and does not change.
+- Verification note (2026-11-04): "only called from `classify_risk`" holds for production code, but three existing direct test calls in `tests/agent/test_tool_policy.py`
+  (`_escalate_for_path(cfg, base, args)` in `TestCheckPreflight`, lines 338-359) use the 3-arg positional form. They are updated mechanically to pass a `tool_name` in
+  Step 2 of this cycle, alongside the signature change; their assertions are unchanged.
 
 ## Security considerations
 - Fail-closed is the requirement: an unknown tool keeps the configured checks (`KeyError` fallback), a not-inspectable path-like value denies rather than passes, and the union only adds checks — it never removes the configured ones (Plan DD-3).
@@ -111,7 +116,7 @@ Edit the three functions in place and add the two private helpers near `_iter_st
 - `uv run pytest tests/agent/test_tool_policy.py` — failing baseline first, then all green including the existing path/repo/prefix cases.
 - `uv run ruff check scripts/agent/tool_policy.py tests/agent/test_tool_policy.py` and `uv run ruff format --check` on both.
 - `uv run mypy --no-namespace-packages scripts/ tests/agent/test_tool_policy.py` — clean on the touched signatures.
-- `uv run bandit -r scripts/agent/tool_policy.py -c pyproject.toml` — no NEW findings (3 pre-existing High findings in this file are out of scope per the Plan Risks).
+- `uv run bandit -r scripts/agent/tool_policy.py -c pyproject.toml` — no NEW findings. Verification note (2026-11-04): the Plan Risks' "3 pre-existing High findings" claim is stale; a run against HEAD today reports "No issues identified", so the gate is zero findings on this file.
 - Diff-scoped coverage per `rules/toolchain.md` section 7 (`diff-cover --fail-under=90`) on the changed lines.
 
 ## Completion criteria
@@ -134,9 +139,9 @@ Edit the three functions in place and add the two private helpers near `_iter_st
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the failing-baseline tests to the companion test file first (Plan Phase 1); confirm they fail on current code | Pending | — | — | |
-| 2 | Implement the helper additions and signature changes per Implementation > Procedure/Method/Details | Pending | — | — | Land before siblings _04/_05/_06 pass the registry |
-| 3 | Re-run the companion suite (all green) and the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the failing-baseline tests to the companion test file first (Plan Phase 1); confirm they fail on current code | Completed | 20261104-144113 | 20261104-144408 | Baseline: 9 failing tests confirmed (DID NOT RAISE / medium!=high / TypeError on 4-arg call), 2 pin tests green |
+| 2 | Implement the helper additions and signature changes per Implementation > Procedure/Method/Details | Completed | 20261104-144408 | 20261104-150434 | Land before siblings _04/_05/_06 pass the registry |
+| 3 | Re-run the companion suite (all green) and the validation sequence (`rules/toolchain.md`) | Completed | — | 20261104-150434 | 313 companion tests green; full suite 11456 passed; gates pass; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -153,7 +158,8 @@ Edit the three functions in place and add the two private helpers near `_iter_st
 - **Requirement ID**: REQ-001 (configured ∪ declared key union), REQ-002 (list elements checked, fail closed), REQ-003 (registry threaded, unknown tool never fails open)
 - **Source issue**: `issues/20261101-073742_pathkeys001_path-checks-skip-lists.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: `plans/20261101-155552_pathkeys001_path-checks-skip-lists.md`
+- **Source plan**: `plans/done/20261101-155552_pathkeys001_path-checks-skip-lists.md` (archived by
+  commit `60d796777`; path corrected during Step 3a verification)
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261104-065555
 - **Related target files**: `scripts/agent/tool_policy.py`, `tests/agent/test_tool_policy.py`
