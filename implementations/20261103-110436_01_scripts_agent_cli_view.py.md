@@ -173,9 +173,9 @@ N/A: no new input handling or trust-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write red companion tests, confirm they fail (Procedure 1; Companion test files) | Pending | — | — | |
-| 2 | Replace `raise KeyboardInterrupt` with `break` + docstring sentence (Procedure 2-3) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. UNK-01 pty check; deploy hand-off is the user's decision | Pending | — | — | |
+| 1 | Write red companion tests, confirm they fail (Procedure 1; Companion test files) | Completed | 20261104-145610 | 20261104-145610 | stale-detector: Pass, all constructs found |
+| 2 | Replace `raise KeyboardInterrupt` with `break` + docstring sentence (Procedure 2-3) | Completed | 20261104-145700 | 20261104-150100 | Red run aborted with KeyboardInterrupt from cli_view.py:291 pre-fix; parallel session committed equivalent tests (2de5ab698), HEAD re-verified 59 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. UNK-01 pty check; deploy hand-off is the user's decision | Completed | 20261104-150100 | 20261104-165630 | Full suite 11469 passed / 7 skipped / 15 deselected under coverage; ruff/mypy/import-linter/bandit/pre-commit OK; changed-file count 2; radon cc B unchanged; ast-grep Not run (not installed); UNK-01 resolved via live pty check in 2de5ab698, follow-up filed as cliview002 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
