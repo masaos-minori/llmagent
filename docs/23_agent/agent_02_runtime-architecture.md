@@ -154,7 +154,7 @@ An optional subsystem enabled when `use_memory_layer=True`, accessed via `ctx.se
 
 ##### EventBus Client Modules (`agent/eventbus_client.py`, `agent/eventbus_subscriber.py`, `agent/eventbus_topic_admin_client.py`)
 
-Client-side libraries for the Event Bus HTTP API: `EventBusClient` publishes events, `EventBusSubscriber` consumes the `/subscribe` SSE stream (reconnecting with a fresh `consumer_id`), and `EventBusTopicAdminClient` updates the admin topics-authorization settings. No runtime component of the Agent process imports these modules; only their unit tests do, so the Agent does not currently publish to or subscribe from the Event Bus by itself.
+Client-side libraries for the Event Bus HTTP API: `EventBusClient` publishes events, `EventBusSubscriber` consumes the `/subscribe` SSE stream (reconnecting with the configured stable `consumer_id` and resuming with a `since_seq` parameter from the last processed event `seq`), and `EventBusTopicAdminClient` updates the admin topics-authorization settings. No runtime component of the Agent process imports these modules; only their unit tests do, so the Agent does not currently publish to or subscribe from the Event Bus by itself.
 
 ### Key Constraints
 

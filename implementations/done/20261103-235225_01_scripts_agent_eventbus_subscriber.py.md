@@ -89,9 +89,9 @@ Edit `EventBusSubscriberConfig`, `EventBusSubscriber.__init__`, `EventBusSubscri
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the companion test file first per Plan Phase 1 (`TEST-1`–`TEST-7`); new tests fail for the right reason | Pending | — | — | |
-| 2 | Implement the subscriber changes per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. the scope guard | Pending | — | — | |
+| 1 | Update the companion test file first per Plan Phase 1 (`TEST-1`–`TEST-7`); new tests fail for the right reason | Completed | 20261104-120627 | 20261104-121030 | TEST-1..TEST-7 added; new tests failed pre-impl with missing consumer_id field (right reason) |
+| 2 | Implement the subscriber changes per Implementation > Procedure/Method/Details | Completed | 20261104-121030 | 20261104-121030 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. the scope guard | Completed | 20261104-121030 | 20261104-122237 | ruff/mypy/bandit clean; radon _stream_once B(8); module-size gate OK; ref-table no drift; targeted+full suite green (11446 passed); diff-cover 100%; scope guard clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -55,8 +55,8 @@ All pass (the docs checkers from `routing.md` Tools "When to run which tool").
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the "EventBus Client Modules" sentence per Implementation > Procedure/Method/Details, after the sibling code procedure has landed | Pending | — | — | Apply after `20261103-235225_01` completes (REQ-006) |
-| 2 | Run the docs checkers named in Validation plan | Pending | — | — | |
+| 1 | Correct the "EventBus Client Modules" sentence per Implementation > Procedure/Method/Details, after the sibling code procedure has landed | Completed | 20261104-122237 | 20261104-122430 | Apply after `20261103-235225_01` completes (REQ-006) Parenthetical replaced with stable consumer_id + since_seq resume wording; sibling _01 landed first (REQ-006) |
+| 2 | Run the docs checkers named in Validation plan | Completed | 20261104-122430 | 20261104-122430 | All five docs checkers exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -181,9 +181,9 @@ Interfaces: no public function signature changes; one new dataclass field; one n
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Tests first in `tests/agent/test_eventbus_subscriber.py` | In Progress | — | — |  |
-| 2 | Phase 2: Subscriber implementation in `scripts/agent/eventbus_subscriber.py` | In Progress | — | — |  |
-| 3 | Phase 3: Documentation correction in `docs/23_agent/agent_02_runtime-architecture.md` | In Progress | — | — |  |
+| 1 | Phase 1: Tests first in `tests/agent/test_eventbus_subscriber.py` | Completed | — | 20261104-122310 |  |
+| 2 | Phase 2: Subscriber implementation in `scripts/agent/eventbus_subscriber.py` | Completed | — | 20261104-122310 |  |
+| 3 | Phase 3: Documentation correction in `docs/23_agent/agent_02_runtime-architecture.md` | Completed | — | 20261104-122516 |  |
 | 4 | Phase 4: Verification and deploy hand-off (`scripts/agent/eventbus_subscriber.py`) | Pending | — | — |  |
 
 ### Blocker Log
@@ -194,8 +194,8 @@ Interfaces: no public function signature changes; one new dataclass field; one n
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261103-235225_01_scripts_agent_eventbus_subscriber.py.md` | 1, 2 | Procedure | Pending | — | — |
-| `implementations/20261103-235225_03_docs_23_agent_agent_02_runtime-architecture.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261103-235225_01_scripts_agent_eventbus_subscriber.py.md` | 1, 2 | Procedure | Completed | — | — |
+| `implementations/20261103-235225_03_docs_23_agent_agent_02_runtime-architecture.md.md` | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
