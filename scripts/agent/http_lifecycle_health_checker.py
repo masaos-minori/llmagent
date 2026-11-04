@@ -76,7 +76,7 @@ async def _terminate_for_startup_failure(
         return await manager.process_terminator.terminate_with_timeout(
             proc, server_key, timeout=terminate_timeout_sec
         )
-    except Exception as e:  # noqa: BLE001 - must not mask the startup error raised next
+    except Exception as e:  # noqa: BLE001 — must not mask the startup error raised next
         logger.warning(
             "Lifecycle: terminating %r on startup failure failed (%s); "
             "treating the exit as unconfirmed",
