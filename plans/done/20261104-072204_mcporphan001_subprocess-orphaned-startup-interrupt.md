@@ -52,14 +52,14 @@ Make process termination and tracking removal one decision on the startup-failur
 - `REQ-008`: `TerminationOutcome` semantics and `ShutdownCoordinator.shutdown_all()`'s return contract are unchanged.
 
 ## Implementation Target Files
-**Freeze status**: `Frozen` (Step 8 validation passed: all three rows `Verified` — exists, requires modification, supporting evidence, linked to a Plan requirement; no file path in both Target and Reference tables; no directory/glob/group rows).
+**Freeze status**: `Frozen` (Step 8 validation passed: all three rows `Verified` — exists, requires modification, supporting evidence, linked to a Plan requirement; no file path in both Target and Reference tables; no directory/glob/group rows. Revalidated 2026-11-04 by `plan-to-implementation-procedure` Step 2/3a: all three rows' Repository Evidence re-confirmed against current source — `http_lifecycle_health_checker.py` L174-178 shutdown branch terminates nothing and L180-188 discards the outcome, `_raise_startup_failure` L239-249 pops both dicts, `test_shutdown_event_set_before_poll_raises_promptly` L1081+ pins only tracking removal. Rows 1-2 swapped so the raise-helper row precedes its call-site row in `seq` order — the Design option (a) sibling helper must be declared by an earlier-`seq` document (stale_detector sibling rule); revalidated rows pass all four freeze criteria.)
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/agent/http_lifecycle_health_checker.py` | Modify `poll_until_ready`: add termination + outcome gating to the "shutdown requested" and readiness-timeout branches | Both branches currently leave a live child untracked; terminate-first and gate tracking drop on `TerminationOutcome.confirmed` | REQ-001, REQ-002 / AC-1, AC-2 | Step 2 verified: lines 174-188 drop tracking before/without consuming the outcome; `_cleanup_server_resources` pops tracking | `tests/agent/test_http_lifecycle_integration.py` | Verified |
-| `scripts/agent/http_lifecycle.py` | Modify `_raise_startup_failure` (or add an unconfirmed variant) so confirmed exits drop tracking and unconfirmed exits keep tracking without clearing stderr handles | `_raise_startup_failure` unconditionally pops tracking; the unconfirmed path must keep the process tracked | REQ-003, REQ-005 / AC-3, AC-5 | Step 2 verified: `_raise_startup_failure` (lines 239-249) pops both dicts then raises; `_cleanup_server_resources` (lines 151-157) clears handles | `tests/agent/test_http_lifecycle_integration.py` | Verified |
+| `scripts/agent/http_lifecycle.py` | Add the unconfirmed sibling `_raise_startup_failure_unconfirmed` (option (a)) so confirmed exits keep dropping tracking via `_raise_startup_failure` and unconfirmed exits keep tracking without clearing stderr handles | `_raise_startup_failure` unconditionally pops tracking; the unconfirmed path must keep the process tracked; the helper must be declared by an earlier-`seq` row than its call sites | REQ-003, REQ-005 / AC-3, AC-5 | Step 2 revalidated 2026-11-04: `_raise_startup_failure` (lines 239-249) pops both dicts then raises; `_cleanup_server_resources` (lines 151-157) clears handles | `tests/agent/test_http_lifecycle_integration.py` | Verified |
+| `scripts/agent/http_lifecycle_health_checker.py` | Modify `poll_until_ready`: add termination + outcome gating to the "shutdown requested" and readiness-timeout branches | Both branches currently leave a live child untracked; terminate-first and gate tracking drop on `TerminationOutcome.confirmed` | REQ-001, REQ-002 / AC-1, AC-2 | Step 2 revalidated 2026-11-04: lines 174-178 (shutdown branch) terminate nothing; lines 180-188 (timeout branch) call `terminate_with_timeout` but discard the outcome; `_cleanup_server_resources` pops tracking | `tests/agent/test_http_lifecycle_integration.py` | Verified |
 | `tests/agent/test_http_lifecycle_integration.py` | Update `test_shutdown_event_set_before_poll_raises_promptly` and add unconfirmed-branch tests | Existing test pins only tracking removal, not termination; new behavior needs explicit coverage | REQ-007 / AC-4 | Step 2 verified: lines 1081-1110 assert `_http_procs`/`_http_pgids` empty but never that the child was terminated | `tests/agent/test_http_lifecycle_integration.py` | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze) for the full validation procedure):
@@ -97,7 +97,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 
 ## Assumptions
 - A-1: A process kept tracked on an unconfirmed startup-failure is picked up by `shutdown_all()` because it remains in `_http_procs`/`_http_pgids`, which `ShutdownCoordinator.shutdown_all` iterates. (Verified in `http_lifecycle_shutdown_coordinator.py`.)
-- A-2: `terminate_with_timeout` on a mock/fake pid whose group does not exist returns `ALREADY_EXITED` via the `ProcessLookupError` path, so the updated unit test with a fake pid does not hang. (Verified in `http_lifecycle_process_terminator.py` lines 194-197.)
+- A-2: On a fake pid whose group does not exist, `_resolve_pgid` returns `None` (`os.getpgid` `OSError` → `None`) and a live proc falls to the `proc.terminate()` fallback returning `EXIT_UNCONFIRMED` — not `ALREADY_EXITED`; a dead proc short-circuits to `ALREADY_EXITED`. Tests therefore drive outcomes with a patched terminator (T-2/T-3/T-5) or a real child (T-1), never a bare fake pid against the real terminator. (Verified in `http_lifecycle_process_terminator.py` `_resolve_pgid` lines 30-43 and the no-pgid branch lines 174-186; corrected 2026-11-04 at procedure generation.)
 - A-3: `start_new_session=True` is retained so process-group termination resolves a real pgid. (Constraint.)
 
 ## Unknowns
@@ -117,7 +117,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 
 ## Design
 - **Single gated decision.** Both startup-failure branches ("shutdown requested" and "readiness timeout") funnel through one rule: call `terminate_with_timeout`, then drop the tracking entries only when `outcome.confirmed` is true; otherwise keep `(server_key, proc)` in `_http_procs` and the pgid in `_http_pgids`, log the `EXIT_UNCONFIRMED` outcome, and raise the original `HttpStartupError`. The early-exit branch is untouched (the child is already dead).
-- **Tracking helper split.** `_raise_startup_failure` currently pops both dicts unconditionally. The confirmed path keeps using it (drop + raise). The unconfirmed path must raise *without* popping and without clearing the still-live child's stderr handles or health-check timestamps — it only needs the stderr tail text for the report. The implementation procedure chooses between (a) a sibling `_raise_startup_failure_unconfirmed` that builds and raises `HttpStartupError` without touching tracking, or (b) reading the stderr tail directly and raising a fresh `HttpStartupError`. Either way the confirmed and unconfirmed paths must not share a handle-clearing step.
+- **Tracking helper split.** `_raise_startup_failure` currently pops both dicts unconditionally. Option (a) chosen: the unconfirmed path uses a sibling `_raise_startup_failure_unconfirmed` (new) in `scripts/agent/http_lifecycle.py` that builds and raises `HttpStartupError` without touching `_http_procs`, `_http_pgids`, stderr handles, or health-check timestamps, and logs the retained-tracking error mirroring `ShutdownCoordinator._terminate_one`'s message (pid, pgid, manual `kill -TERM -{pgid}` hint). The confirmed path keeps using `_raise_startup_failure` unchanged (drop + raise). Unlike the coordinator (which pops the process entry first to prevent double-shutdown), the startup-failure path keeps the process entry tracked — that is what lets `shutdown_all()` pick the survivor up (REQ-003, A-1). On the unconfirmed path the health checker reads the stderr tail directly via `manager._stderr_log_manager.read_tail` instead of `_cleanup_server_resources`, so no handle-clearing step is shared with the confirmed path.
 - **Reuse, do not redefine.** `ProcessTerminator.terminate_with_timeout` and the `TerminationOutcome` vocabulary are reused as-is; no new termination mechanism and no change to `TerminationOutcome`.
 - **No masking.** If `terminate_with_timeout` raises, the original `HttpStartupError` (reason + stderr) is still raised; the termination error is logged, not propagated.
 - **Interface stability.** `poll_until_ready`'s signature, `start()`'s signature, and `shutdown_all()`'s return contract are unchanged.
@@ -158,7 +158,9 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Core logic — outcome-gated tracking on the startup-failure path | In Progress | 2026-11-04 | — | Procedure documents 20261104-130912_01 (http_lifecycle.py) and _02 (health_checker) generated this cycle; frozen rows 1-2 swapped so the helper row precedes its call site |
+| 2 | Tests | In Progress | 2026-11-04 | — | Procedure document 20261104-130912_03 generated this cycle |
+| 3 | Verification & consistency review | Pending | — | — | Check-only step (launcher review, test/static gates); carried out by code-implementation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -168,7 +170,9 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261104-130912_01_scripts_agent_http_lifecycle.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261104-130912_02_scripts_agent_http_lifecycle_health_checker.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261104-130912_03_tests_agent_test_http_lifecycle_integration.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -192,3 +196,4 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 | REQ-007 | Required Changes / Testing Expectations | `tests/agent/test_http_lifecycle_integration.py` | Step 2 | AC-4 | T-4, T-5, T-1, T-2, T-3 | Explicit in issue |
 | REQ-008 | Constraints | N/A: enforced by not modifying the terminator/coordinator (reference files) | Step 3 | AC-6 | ruff/mypy + existing tests | Explicit in issue |
 
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261104-130912 -->
