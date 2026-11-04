@@ -277,8 +277,8 @@ class CLIView(WriterBase):
 
         Timeout protection: wraps the read with asyncio.wait_for() so a blocked read
         cannot hang the caller; the read runs on a daemon thread, so an abandoned read
-        does not delay process exit. On TimeoutError, raises KeyboardInterrupt to allow
-        user interruption rather than silently swallowing the error.
+        does not delay process exit. On TimeoutError, the accumulated text read so far
+        is returned (same degradation as the EOF path) instead of raising.
         """
         parts = [first_line[:-1]]
         while True:
@@ -288,7 +288,7 @@ class CLIView(WriterBase):
                 )
             except TimeoutError:
                 logger.warning("Multiline input timed out")
-                raise KeyboardInterrupt
+                break
             except (EOFError, KeyboardInterrupt):
                 break
             if not cont:

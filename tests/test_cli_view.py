@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+import time
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -138,7 +139,7 @@ class TestReadMultiline:
 
 
 class TestReadMultilineTimeout:
-    def test_input_timeout_raises_keyboard_interrupt(
+    def test_input_timeout_returns_partial(
         self,
         view: CLIView,
         monkeypatch: pytest.MonkeyPatch,
@@ -154,14 +155,47 @@ class TestReadMultilineTimeout:
                     "builtins.input", side_effect=lambda p: (release.wait(5), "x")[1]
                 ),
                 caplog.at_level(logging.WARNING, logger="agent.cli_view"),
-                pytest.raises(KeyboardInterrupt),
             ):
-                loop.run_until_complete(view.read_multiline(loop, "hello\\"))
+                result = loop.run_until_complete(view.read_multiline(loop, "hello\\"))
         finally:
             release.set()
             loop.close()
+        assert result == "hello"
         assert "Multiline input timed out" in caplog.text
         assert {t for t in threading.enumerate() if not t.daemon} == non_daemon_before
+
+    def test_timeout_then_second_read(
+        self,
+        view: CLIView,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        monkeypatch.setattr("agent.cli_view._INPUT_TIMEOUT_S", 0.2)
+        release = threading.Event()
+        loop = asyncio.new_event_loop()
+        try:
+            # Phase 1: the continuation read times out and returns the partial text.
+            with (
+                patch(
+                    "builtins.input", side_effect=lambda p: (release.wait(5), "x")[1]
+                ),
+                caplog.at_level(logging.WARNING, logger="agent.cli_view"),
+            ):
+                first = loop.run_until_complete(view.read_multiline(loop, "hello\\"))
+            # Free the stale worker thread with a discardable line so it returns to
+            # its idle wait; the next read on the same view must not raise
+            # "a stdin read is already pending".
+            release.set()
+            time.sleep(0.2)
+            # Phase 2: a fresh read on the same CLIView completes without
+            # "a stdin read is already pending".
+            with patch("builtins.input", side_effect=["end"]):
+                second = loop.run_until_complete(view.read_multiline(loop, "world\\"))
+        finally:
+            release.set()
+            loop.close()
+        assert first == "hello"
+        assert second == "world\nend"
 
 
 # ── display helpers ────────────────────────────────────────────────────────────
