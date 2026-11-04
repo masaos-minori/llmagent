@@ -50,8 +50,7 @@ Every agent-side `tool_exec` record carries two additional fields (toolexec001):
 | `execution_snapshot_json` | always | Canonical JSON of the deployment fingerprint captured at call start: `deployed_rev`, `git_sha`, `config_hash`, per-DB `schema_versions`. Values are hashes only — never config contents or result bodies. |
 | `dedup_state` | only when non-empty | The dispatcher dedup branch taken: `duplicate_hit`, `snapshot_mismatch`, `result_truncated`, `replayed`, `unreplayable`, `store_error`. Empty for freshly executed or non-dispatch-originated calls. |
 
-The record also carries `idempotency_key` (the key the call was dispatched under) so an audit
-line can be matched against the durable store row and the workflow `tool_call_state` row.
+The record also carries `idempotency_key`: the workflow-scoped logical-call identity (workflow, task, turn, and call id joined by colons) that the Agent derives for the audit log. It is not the `X-Idempotency-Key` the call was dispatched under, and it is neither the durable store row's key nor the workflow `tool_call_state` row's key, so it cannot be used to match an audit line against those rows. To follow one call, join on `mcp_request_id` as described at the top of this document.
 
 Dedup outcome tags arrive through `error_type` when the dispatcher refuses a call:
 `idempotency_key_reused` (key seen with different content), `dedup_unreplayable` (interrupted
@@ -70,7 +69,7 @@ from a code-revision change. Tolerant readers record `"unknown"` (missing revisi
 Example line (synthetic values) — a replayed completed-hit served from the durable store:
 
 ``` text
-{"event":"tool_exec","tool":"write_file","is_error":false,"error_type":"","mcp_request_id":"req-000000000000","idempotency_key":"a1b2c3d4e5f60718293a4b5c6d7e8f9012345678901234567890123456789012","dedup_state":"duplicate_hit","execution_snapshot_json":"{\"config_hash\":\"…\",\"deployed_rev\":\"…\",\"git_sha\":\"…\",\"schema_versions\":{…}}","ts":1761900000.0}
+{"event":"tool_exec","tool":"write_file","is_error":false,"error_type":"","mcp_request_id":"req-000000000000","idempotency_key":"wf-0001:task-0001:turn-0001:call-0001","dedup_state":"duplicate_hit","execution_snapshot_json":"{\"config_hash\":\"…\",\"deployed_rev\":\"…\",\"git_sha\":\"…\",\"schema_versions\":{…}}","ts":1761900000.0}
 ```
 
 ## Per-Server Error Counters
