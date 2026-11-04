@@ -93,8 +93,8 @@ One sentence appended to an existing section; no new headings, tables, or links.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs checkers + generate_reference_table --check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | One sentence in the interruption section |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261104-221126 | 20261104-221126 | Docs checkers + generate_reference_table --check docs checkers: quality/policy/consistency clean; structure initially failed on a pre-existing master issue (agent_13_reference-api-generated.md grew 25949->25969 in dc26ea2f7 without ceiling re-record); fixed per the tool's documented re-accept convention in tools/check_docs_structure.py, now passes; generate_reference_table --check no drift |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261104-221126 | 20261104-221126 | One sentence in the interruption section exit-0/no-traceback sentence present in the SIGINT/SIGTERM Interruption During Startup section (doc L92), wording finalized by sibling row 04 in bccd14436 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
