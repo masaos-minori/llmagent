@@ -149,11 +149,11 @@ Baseline (Step 5): `radon cc` reports `AgentREPL.run` at B (6) and nothing worse
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing interrupted-startup entry test | Pending | — | — | |
-| 2 | Phase 2: entry handling in `main` and `__main__` | Pending | — | — | |
-| 3 | Phase 3: propagation and delegation tests | Pending | — | — | |
-| 4 | Phase 4: documentation sentence | Pending | — | — | |
-| 5 | Phase 5: deployment hand-off and verification | Pending | — | — | |
+| 1 | Phase 1: failing interrupted-startup entry test | In Progress | — | — |  |
+| 2 | Phase 2: entry handling in `main` and `__main__` | In Progress | — | — |  |
+| 3 | Phase 3: propagation and delegation tests | In Progress | — | — |  |
+| 4 | Phase 4: documentation sentence | In Progress | — | — |  |
+| 5 | Phase 5: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -163,7 +163,10 @@ Baseline (Step 5): `radon cc` reports `AgentREPL.run` at B (6) and nothing worse
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261104-175600_01_scripts_agent_repl.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261104-175600_02_scripts_agent___main__.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261104-175600_03_tests_agent_test_repl.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261104-175600_04_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -182,3 +185,5 @@ Baseline (Step 5): `radon cc` reports `AgentREPL.run` at B (6) and nothing worse
 | REQ-003 | Constraints bullet 3 | scripts/agent/repl.py | 2 | AC-2 | Propagation test | Explicit in issue |
 | REQ-004 | Required Changes bullet 3; Acceptance Criteria bullet 4 | tests/agent/test_repl.py | 1, 3 | AC-1, AC-2, AC-3, AC-4 | The three new tests | Explicit in issue |
 | REQ-005 | Documentation Impact; section found in Step 2 | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | 4 | AC-5 | `tools/check_docs_*` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261104-175600 -->
