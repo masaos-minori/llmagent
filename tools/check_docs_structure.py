@@ -136,7 +136,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # `StartSuppressedError` row to the generated agent API reference (registry manifest +
     # `python -m tools.generate_reference_table --type agent`); the ceiling equals the
     # accepted size.
-    "agent_13_reference-api-generated.md": 25949,
+    # Re-accepted at 25969 (2026-11-04): commit dc26ea2f7 (declared path scope keys and
+    # list elements in policy checks) regenerated the table and grew it 20 bytes without
+    # re-recording the ceiling; the ceiling equals the accepted size.
+    "agent_13_reference-api-generated.md": 25969,
     # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
     # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
     # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate
