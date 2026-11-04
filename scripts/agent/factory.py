@@ -82,6 +82,8 @@ def _build_audit_logger(ctx: AgentContext) -> Logger:
 def _build_llm_client(
     ctx: AgentContext,
     view: CLIView,
+    *,
+    on_client_created: Callable[[httpx.AsyncClient], None] | None = None,
 ) -> LlmClientResult:
     """Build httpx.AsyncClient and LLMClient; return both."""
 
@@ -93,6 +95,8 @@ def _build_llm_client(
         ) + completion_tokens
 
     http = httpx.AsyncClient(timeout=ctx.cfg.llm.http_timeout)
+    if on_client_created is not None:
+        on_client_created(http)
     llm = LLMClient(
         http,
         retry_base_delay=ctx.cfg.llm.llm_retry_base_delay,
@@ -320,15 +324,24 @@ def init_tracer(ctx: AgentContext) -> object:
     )
 
 
-def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
+def build_agent_context(
+    ctx: AgentContext,
+    view: CLIView,
+    *,
+    on_client_created: Callable[[httpx.AsyncClient], None] | None = None,
+) -> None:
     """Inject all services into ctx.services.
 
     Builds services sequentially, then creates a fully-initialized AppServices
     and assigns it to ctx.services.  CommandRegistry and Orchestrator are wired
     by AgentREPL._init_components() after this returns.
+
+    When on_client_created is given it is called with the fresh httpx.AsyncClient
+    right after construction and before LLMClient is built, so an async caller can
+    reach the client for failure cleanup inside the pre-assignment window.
     """
     audit_logger = _build_audit_logger(ctx)
-    llm_result = _build_llm_client(ctx, view)
+    llm_result = _build_llm_client(ctx, view, on_client_created=on_client_created)
     http = llm_result.http
     tools_result = _build_tool_executor(ctx, http)
     hist_result = _build_history_manager(ctx, view, http)

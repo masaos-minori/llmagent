@@ -167,9 +167,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Factory hook and its tests (scripts/agent/factory.py, tests/agent/test_agent_factory.py) | In Progress | — | — | Gated: the six unresolved startup issues named under Dependencies (interruptexit001, validorder001, mcporphan001, startretry001, disabledauth001, wfschema001) are not prerequisites per this Plan's Dependencies section; scheduling order is the owner's decision. Procedure 20261103-115449_01 generated |
-| 2 | Initializer cleanup and its tests (scripts/agent/startup_component_init.py, tests/agent/test_startup_component_init.py) | In Progress | — | — | Gated: same startup-issue gate as Step 1; REQ-003's tests must be re-run if validorder001 later reorders startup. Procedure 20261103-115449_02 generated |
-| 3 | Verification and deployment hand-off (all four target files) | Pending | — | — | Gated: same startup-issue gate as Step 1 |
+| 1 | Factory hook and its tests (scripts/agent/factory.py, tests/agent/test_agent_factory.py) | Complete | — | 20261104 | Implemented and validated: hook threaded through `build_agent_context`/`_build_llm_client`, called after `httpx.AsyncClient(...)` before `LLMClient`; 2 companion tests red-then-green; factory.py 45 pass; ruff/mypy/bandit/radon/module-size/lint-imports clean; builder order and `ctx.services` timing unchanged. Procedure archived to implementations/done/. |
+| 2 | Initializer cleanup and its tests (scripts/agent/startup_component_init.py, tests/agent/test_startup_component_init.py) | Complete | — | 20261104 | Implemented and validated: `initialize` wraps `_initialize` in `except BaseException`, closes exposed client on pre-assignment failure, re-raises unchanged; 5 new tests red-then-green; 146 regression pass; ruff/mypy/bandit/radon(A-rank)/module-size/lint-imports clean. Procedure archived to implementations/done/. |
+| 3 | Verification and deployment hand-off (all four target files) | Complete | — | 20261104 | Plan-wide validation passed: regression suite 146 pass; diff-cover vs master 95% (factory.py/startup_component_init.py 100%, fail-under=90). Deploy is user decision (approval gate). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -179,8 +179,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261103-115449_01_scripts_agent_factory.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261103-115449_02_scripts_agent_startup_component_init.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261103-115449_01_scripts_agent_factory.py.md | 1 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261103-115449_02_scripts_agent_startup_component_init.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

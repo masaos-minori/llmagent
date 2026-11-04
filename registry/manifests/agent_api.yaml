@@ -227,7 +227,7 @@ entries:
 - file: scripts/agent/factory.py
   kind: function
   name: build_agent_context
-  signature: def build_agent_context(ctx, view) -> None
+  signature: def build_agent_context(ctx, view, *, on_client_created) -> None
   summary: Inject all services into ctx.services.
 - file: scripts/agent/history.py
   kind: class

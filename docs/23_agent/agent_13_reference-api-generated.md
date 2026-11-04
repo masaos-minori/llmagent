@@ -78,7 +78,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `ToolExecutorResult` | `class ToolExecutorResult` | Result of building ToolExecutor, lifecycle manager, and health registry. |
 |  | `HistoryManagerResult` | `class HistoryManagerResult` | Result of building HistoryManager. |
 |  | `init_tracer` | `def init_tracer(ctx) -> object` | Build and return an OTel tracer; returns a NoOp stub when otel_enabled=False. |
-|  | `build_agent_context` | `def build_agent_context(ctx, view) -> None` | Inject all services into ctx.services. |
+|  | `build_agent_context` | `def build_agent_context(ctx, view, *, on_client_created) -> None` | Inject all services into ctx.services. |
 | `scripts/agent/history.py` | `HistoryCompressionError` | `class HistoryCompressionError` | Raised when LLM-based history compression fails. |
 |  | `CompressResult` | `class CompressResult` | Metadata returned by compress() and force_compress(). |
 |  | `HistoryManager` | `class HistoryManager` | Manages conversation history size via LLM-based compression. |

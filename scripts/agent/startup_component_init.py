@@ -21,6 +21,8 @@ from agent.services.workflow_schema import (
 )
 
 if TYPE_CHECKING:
+    import httpx
+
     from agent.cli_view import CLIView
     from agent.commands.registry import CommandRegistry
 
@@ -35,13 +37,21 @@ class ComponentInitializer:
         self._view = view
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
+        self._exposed_http: httpx.AsyncClient | None = None
 
     async def initialize(self) -> tuple[CommandRegistry, Orchestrator]:
         """Run full component initialization sequence.
 
-        Returns (cmds, orchestrator) after all components are wired.
+        Returns (cmds, orchestrator) after all components are wired. On a failure
+        before ctx.services is assigned, closes the httpx client exposed by the
+        factory so it is not leaked, then re-raises the original exception
+        unchanged (including BaseException subclasses such as StartupInterrupted).
         """
-        self._initialize()
+        try:
+            self._initialize()
+        except BaseException:
+            await self._cleanup_on_failure()
+            raise
         if self._cmds is None or self._orchestrator is None:
             raise RuntimeError(
                 "ComponentInitializer failed to initialize cmds/orchestrator"
@@ -52,7 +62,7 @@ class ComponentInitializer:
         """Setup readline, wire DI, init CommandRegistry and Orchestrator."""
         ctx = self._ctx
         self._view.setup_readline()
-        build_agent_context(ctx, self._view)
+        build_agent_context(ctx, self._view, on_client_created=self._on_client_created)
         from shared.llm_client import build_llm_url
 
         ctx.conv.llm_url = build_llm_url(ctx.cfg.llm.llm_url)
@@ -60,6 +70,40 @@ class ComponentInitializer:
         self._check_workflow_definition()
         self._check_workflow_schema()
         self._init_orchestrator()
+
+    def _on_client_created(self, client: httpx.AsyncClient) -> None:
+        """Remember the client the factory exposes before ctx.services is set.
+
+        Captured so the leaked-window client can be closed if initialization
+        fails before ctx.services is assigned.
+        """
+        self._exposed_http = client
+
+    async def _cleanup_on_failure(self) -> None:
+        """Close the exposed client when a startup failure leaks it.
+
+        Only closes when ctx.services was never assigned (the leaked window) and
+        a client was captured; a second cancellation propagates instead of being
+        swallowed (REQ-002, REQ-003).
+        """
+        if self._ctx.services is not None or self._exposed_http is None:
+            return
+        await self._close_exposed_client(self._exposed_http)
+
+    async def _close_exposed_client(self, client: httpx.AsyncClient) -> None:
+        """Close the client exposed during a failed startup initialization.
+
+        An aclose() failure is logged and contained; it never replaces the
+        original startup-failure exception that triggered this cleanup.
+        """
+        try:
+            await client.aclose()
+        except Exception:  # noqa: BLE001 — an aclose() failure during startup-failure cleanup must never mask the original exception (REQ-002); a second cancellation propagates instead
+            logger.warning(
+                "Failed to close the httpx client exposed during a failed "
+                "startup initialization",
+                exc_info=True,
+            )
 
     def _init_command_registry(self) -> None:
         """Build the command registry from the context."""

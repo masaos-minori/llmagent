@@ -243,6 +243,58 @@ class TestBuildAgentContext:
         assert ctx.stats.stat_input_tokens == 300
         assert ctx.stats.stat_output_tokens == 130
 
+    def test_hook_called_with_client_before_later_builders(
+        self, monkeypatch: Any
+    ) -> None:
+        # The on_client_created hook fires with the freshly constructed client
+        # before LLMClient and ToolExecutor are built (REQ-001).
+        order: list[str] = []
+        client = MagicMock(name="created_http_client")
+
+        mocks = _apply_patches(monkeypatch)
+        mocks["agent.factory.httpx.AsyncClient"].side_effect = lambda *args, **kwargs: (
+            order.append("AsyncClient"),
+            client,
+        )[1]
+        mocks["agent.factory.LLMClient"].side_effect = lambda *args, **kwargs: (
+            order.append("LLMClient"),
+            MagicMock(),
+        )[1]
+        mocks["agent.factory.ToolExecutor"].side_effect = lambda *args, **kwargs: (
+            order.append("ToolExecutor"),
+            MagicMock(),
+        )[1]
+
+        hook = MagicMock()
+        ctx = _make_ctx()
+        view = _make_view()
+
+        build_agent_context(ctx, view, on_client_created=hook)
+
+        hook.assert_called_once_with(client)
+        assert order.index("AsyncClient") < order.index("LLMClient")
+        assert order.index("LLMClient") < order.index("ToolExecutor")
+
+    def test_later_builder_failure_exposes_hooked_client(
+        self, monkeypatch: Any
+    ) -> None:
+        # A builder failing after the client exists still surfaces the error to
+        # the caller while the hook has already received the client (REQ-004).
+        client = MagicMock(name="created_http_client")
+
+        mocks = _apply_patches(monkeypatch)
+        mocks["agent.factory.httpx.AsyncClient"].return_value = client
+        mocks["agent.factory.ToolExecutor"].side_effect = RuntimeError("builder failed")
+
+        hook = MagicMock()
+        ctx = _make_ctx()
+        view = _make_view()
+
+        with pytest.raises(RuntimeError, match="builder failed"):
+            build_agent_context(ctx, view, on_client_created=hook)
+
+        hook.assert_called_once_with(client)
+
 
 # ── _build_jsonl_store ────────────────────────────────────────────────────────
 
