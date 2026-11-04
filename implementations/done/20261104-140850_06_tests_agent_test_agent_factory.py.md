@@ -87,9 +87,9 @@ Revert the commit; this file is part of the release unit, so reverting only it l
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the test and update the import as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the whole file and confirm it passes | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Pending | — | — | |
+| 1 | Replace the test and update the import as described in Implementation > Procedure/Method | Done | 20261104 | Added `StartSuppressedError` to the import; rewrote the post-shutdown start test to assert the typed raise. |
+| 2 | Run the whole file and confirm it passes | Done | 20261104 | Whole file passes. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Done | 20261104 | ruff format/check + check_mock_patch_targets clean; full suite 11467 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

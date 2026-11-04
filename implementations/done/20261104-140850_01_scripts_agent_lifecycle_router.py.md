@@ -104,9 +104,9 @@ Revert the commit, or revert this file by single path. The release unit must be 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the targeted tests of the Validation plan and record the allowed red states | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261104 | Added `StartSuppressedError`; dropped the cooldown early return and raised on shutdown. |
+| 2 | Run the targeted tests of the Validation plan and record the allowed red states | Done | 20261104 | Red-state tests rewritten by #05 and #06; both pass after the unit lands. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Done | 20261104 | ruff clean; mypy clean; lint-imports 6 kept; bandit 0 med/high; full suite 11467 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

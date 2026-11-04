@@ -20,6 +20,7 @@ from agent.factory import (
 )
 from agent.lifecycle import LifecycleState
 from agent.lifecycle_router import (
+    StartSuppressedError,
     _logger,
     _ServerLifecycleRouter,
     _SubprocessLifecycleManager,
@@ -690,14 +691,14 @@ class TestRouterPostShutdownGuards:
     """start_http_subprocess() and shutdown_idle() are inert once shutdown started."""
 
     @pytest.mark.asyncio
-    async def test_start_http_subprocess_returns_none_after_shutdown_all(self) -> None:
+    async def test_start_http_subprocess_raises_after_shutdown_all(self) -> None:
         router, subprocess_mgr = _make_router()
         await router.shutdown_all()
         cfg = router._server_configs["srv"]
 
-        result = await router.start_http_subprocess("srv", cfg)
+        with pytest.raises(StartSuppressedError):
+            await router.start_http_subprocess("srv", cfg)
 
-        assert result is None
         subprocess_mgr._http_mgr.start.assert_not_called()
 
     @pytest.mark.asyncio

@@ -74,8 +74,8 @@ N/A: revert the commit (released with the rest of the unit).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the docstring as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the validation plan: format, lint, docstring check, mypy, diff check | Pending | — | — | |
+| 1 | Replace the docstring as described in Implementation > Procedure/Method | Done | 20261104 | Protocol docstring now states None means no recorded process and a shutdown-suppressed start raises a typed error. |
+| 2 | Run the validation plan: format, lint, docstring check, mypy, diff check | Done | 20261104 | ruff format/check clean; check_docstrings clean; mypy clean; diff shows docstring lines only. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

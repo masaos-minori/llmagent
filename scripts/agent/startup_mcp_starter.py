@@ -22,6 +22,7 @@ from shared.mcp_config import (
 
 from agent.context import AgentContext
 from agent.http_lifecycle_health_checker import HealthChecker
+from agent.lifecycle_router import StartSuppressedError
 from agent.output_tags import OutputTag
 from agent.secrets_masker import _mask_secrets
 from agent.shared.retry_helper import retry_once_with_delay
@@ -99,7 +100,7 @@ class McpServerStarter:
                     BrokenPipeError,
                 ) as e:
                     # First attempt failure — use retry helper
-                    logger.info(
+                    logger.warning(
                         "First attempt failed for MCP subprocess %r: %s",
                         key,
                         _mask_secrets(str(e)),
@@ -186,10 +187,17 @@ class McpServerStarter:
         On success, tracks the spawned process and returns the new
         last_startup_time (`time.monotonic()`); returns None when the
         lifecycle manager reports no process was started.
+        Raises `StartupInterrupted` when the lifecycle manager reports the
+        start was suppressed by shutdown.
         """
-        proc = await self._ctx.services_required.lifecycle.start_http_subprocess(
-            key, cfg, shutdown_event=self._shutdown_event
-        )
+        try:
+            proc = await self._ctx.services_required.lifecycle.start_http_subprocess(
+                key, cfg, shutdown_event=self._shutdown_event
+            )
+        except StartSuppressedError as e:
+            from agent.startup import StartupInterrupted
+
+            raise StartupInterrupted(str(e)) from e
         if proc is not None:
             self._spawned_subprocesses.append(proc)
             return time.monotonic()

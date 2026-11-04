@@ -97,6 +97,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/lifecycle.py` | `LifecycleState` | `class LifecycleState` | Transport state for HTTP MCP servers. |
 |  | `assert_valid_transition` | `def assert_valid_transition(from_state, to_state) -> None` | Raise ValueError when the transition from_state -> to_state is not legal. |
 | `scripts/agent/lifecycle_protocol.py` | `LifecycleManagerProtocol` | `class LifecycleManagerProtocol` | Protocol for MCP server lifecycle managers. |
+| `scripts/agent/lifecycle_router.py` | `StartSuppressedError` | `class StartSuppressedError` | Raised when a start is refused because the lifecycle router is shutting down. |
 | `scripts/agent/llm_transport_errors.py` | `handle_llm_transport_error` | `def handle_llm_transport_error(e, ctx, diagnostic_store) -> bool` | Handle LLM transport error: partial or non-partial. |
 |  | `handle_partial_completion` | `def handle_partial_completion(e, ctx, diagnostic_store) -> None` | Save partial text to diagnostic channel only. |
 |  | `handle_non_partial_error` | `def handle_non_partial_error(e, ctx, diagnostic_store) -> None` | Save non-partial error to diagnostic channel and log. |

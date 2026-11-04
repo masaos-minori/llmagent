@@ -86,7 +86,7 @@ AgentREPL.run()
            + AsyncClient.close()
 ```
 
-`_ServerLifecycleRouter._shutting_down` protects `ensure_ready()`, `start_http_subprocess()`, `restart()`, and `shutdown_idle()`: once `shutdown_all()` is called, these methods return immediately after logging a line, without delegating to `HttpServerLifecycleManager`.
+`_ServerLifecycleRouter._shutting_down` protects `ensure_ready()`, `start_http_subprocess()`, `restart()`, and `shutdown_idle()`: once `shutdown_all()` is called, `ensure_ready()`, `restart()`, and `shutdown_idle()` return immediately after logging a line, and `start_http_subprocess()` raises a typed suppression error so a suppressed start is never mistaken for success; none of them delegates to `HttpServerLifecycleManager`.
 
 ### Implementation Note (Double SIGINT Guard)
 

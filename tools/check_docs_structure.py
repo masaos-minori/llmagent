@@ -132,7 +132,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 25609 (2026-11-02): the diagmask001 follow-up (commit d03973c41)
     # regenerated the table with the new `detects_secrets` row in agent/secrets_masker.py;
     # the ceiling equals the accepted size.
-    "agent_13_reference-api-generated.md": 25609,
+    # Re-accepted at 25949 (2026-11-04): the startup-start-contract release unit added the
+    # `StartSuppressedError` row to the generated agent API reference (registry manifest +
+    # `python -m tools.generate_reference_table --type agent`); the ceiling equals the
+    # accepted size.
+    "agent_13_reference-api-generated.md": 25949,
     # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
     # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
     # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate

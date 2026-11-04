@@ -39,6 +39,10 @@ def _is_http_subprocess_server(cfg: McpServerConfig) -> bool:
     )
 
 
+class StartSuppressedError(RuntimeError):
+    """Raised when a start is refused because the lifecycle router is shutting down."""
+
+
 class _SubprocessLifecycleManager(LifecycleManagerProtocol):
     """Manages HTTP subprocess server lifecycle operations.
 
@@ -266,15 +270,16 @@ class _ServerLifecycleRouter:
         cfg: McpServerConfig,
         shutdown_event: asyncio.Event | None = None,
     ) -> subprocess.Popen[bytes] | None:
-        """Start a single HTTP subprocess MCP server; returns the Popen object or None."""
+        """Start a single HTTP subprocess MCP server and return its Popen object.
+
+        This is the explicit start entry: the failure cooldown, which only throttles
+        automatic restarts in ``ensure_ready`` and ``restart``, does not apply here.
+        Raises StartSuppressedError when shutdown has begun.
+        """
         if self._shutting_down:
-            _logger.debug(
-                "Lifecycle: start_http_subprocess(%r) ignored — shutting down",
-                server_key,
+            raise StartSuppressedError(
+                f"start of MCP server {server_key!r} suppressed: shutting down"
             )
-            return None
-        if self._in_cooldown(server_key):
-            return None
         captured: subprocess.Popen[bytes] | None = None
 
         async def _start() -> None:

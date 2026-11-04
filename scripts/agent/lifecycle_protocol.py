@@ -59,7 +59,11 @@ class LifecycleManagerProtocol(Protocol):
         cfg: McpServerConfig,
         shutdown_event: asyncio.Event | None = None,
     ) -> subprocess.Popen[bytes] | None:
-        """Start a single HTTP subprocess MCP server; returns the Popen object or None."""
+        """Start a single HTTP subprocess MCP server and return its Popen object.
+
+        None means only that no process was recorded. A manager that refuses a start
+        because shutdown has begun raises a typed error instead of returning None.
+        """
         ...
 
     def get_process_snapshot(self, server_key: str) -> dict | None:

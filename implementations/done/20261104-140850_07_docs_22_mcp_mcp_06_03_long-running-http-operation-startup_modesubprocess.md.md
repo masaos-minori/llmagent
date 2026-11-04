@@ -62,8 +62,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert the paragraph as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Insert the paragraph as described in Implementation > Procedure/Method | Done | 20261104 | Added the cooldown/excluded-from-retry paragraph after the existing retry paragraph (added lines only). |
+| 2 | Run the documentation checkers named in the Validation plan | Done | 20261104 | check_docs_quality, check_docs_structure, check_docs_content_policy --strict, check_docs_japanese, check_docs_consistency --domain mcp all clean; diff is added-lines-only. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

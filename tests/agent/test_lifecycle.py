@@ -1316,13 +1316,18 @@ class TestCooldownCharacterization:
         mgr._subprocess_mgr.verify_running.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_start_http_subprocess_returns_none_in_cooldown(self) -> None:
+    async def test_start_http_subprocess_ignores_cooldown(self) -> None:
         mgr = self._mgr()
         mgr._failed_starts["s"] = time.monotonic()
+        proc = MagicMock()
+        start = AsyncMock(return_value=proc)
+        mgr._subprocess_mgr.start_http_subprocess = start
 
         result = await mgr.start_http_subprocess("s", _http_subprocess_cfg())
 
-        assert result is None
+        assert result is proc
+        start.assert_awaited_once()
+        assert "s" not in mgr._failed_starts
 
     @pytest.mark.asyncio
     async def test_restart_skips_when_in_cooldown(self) -> None:

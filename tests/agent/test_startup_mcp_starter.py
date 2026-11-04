@@ -194,3 +194,125 @@ async def test_verify_single_health_non_503_non_200_raises():
         )
         with pytest.raises(RuntimeError, match="HTTP 401"):
             await starter._verify_single_health("srv", cfg)
+
+
+# --- startup retry reaches the subprocess layer a second time (real router) ---
+
+
+def _real_router_ctx(failures):
+    """Build a real ``McpServerStarter`` around a real router with only the subprocess layer faked.
+
+    *failures* is a list of exceptions; the fake HTTP manager's ``start`` raises them in order
+    for the first ``len(failures)`` calls and records a single fake ``Popen`` afterwards.
+    Returns ``(ctx, router, fake_http_mgr, proc)``.
+    """
+    import subprocess
+    from unittest.mock import AsyncMock, MagicMock
+
+    from agent.lifecycle_router import _ServerLifecycleRouter
+    from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+    cfg = McpServerConfig(
+        transport=TransportType.HTTP,
+        url="http://localhost:9999",
+        auth_token="test-token",
+        startup_mode=StartupMode.SUBPROCESS,
+        cmd=["python", "server.py"],
+    )
+    router = _ServerLifecycleRouter({"srv": cfg}, MagicMock())
+    fake_http_mgr = AsyncMock()
+    fake_http_mgr._http_procs = {}
+    proc = MagicMock(spec=subprocess.Popen)
+    fake_http_mgr._http_procs["srv"] = proc
+    router._subprocess_mgr._http_mgr = fake_http_mgr
+
+    state = {"n": 0}
+
+    async def _start(server_key, config, shutdown_event=None):
+        state["n"] += 1
+        if state["n"] <= len(failures):
+            raise failures[state["n"] - 1]
+        fake_http_mgr._http_procs[server_key] = proc
+        return None
+
+    fake_http_mgr.start = AsyncMock(side_effect=_start)
+
+    ctx = MagicMock()
+    ctx.services_required.tools = MagicMock()
+    ctx.services_required.lifecycle = router
+    ctx.cfg.mcp.mcp_servers = {"srv": cfg}
+    return ctx, router, fake_http_mgr, proc
+
+
+class TestStartupRetryWithRealRouter:
+    """Integration-style: real router + real starter, only the subprocess layer faked."""
+
+    @pytest.mark.asyncio
+    async def test_first_failure_then_success_launches_second_attempt(self) -> None:
+        from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
+        from agent.lifecycle import LifecycleState
+        from agent.startup_mcp_starter import McpServerStarter
+
+        ctx, router, fake_http_mgr, proc = _real_router_ctx(
+            [HttpStartupError(StartupFailure("srv", "port busy", ""))]
+        )
+        with patch("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.0):
+            started = await McpServerStarter(ctx, MagicMock()).start_servers()
+
+        assert started == [proc]
+        assert fake_http_mgr.start.await_count == 2
+        assert router.get_transport_state("srv") == LifecycleState.RUNNING
+        assert "srv" not in router._failed_starts
+
+    @pytest.mark.asyncio
+    async def test_two_failures_abort_with_named_error_and_visible_first_failure(
+        self,
+    ) -> None:
+        from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
+        from agent.startup_mcp_starter import McpServerStarter
+
+        # Three failures: the start entry makes three subprocess-layer calls
+        # (initial attempt + retry helper's execute-and-retry); the retry helper
+        # swallows its first attempt and only aborts on its second.
+        ctx, router, fake_http_mgr, _proc = _real_router_ctx(
+            [
+                HttpStartupError(StartupFailure("srv", "first reason", "")),
+                HttpStartupError(StartupFailure("srv", "second reason", "")),
+                HttpStartupError(StartupFailure("srv", "third reason", "")),
+            ]
+        )
+        with (
+            patch("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.0),
+            patch("agent.startup_mcp_starter.logger") as patched_logger,
+        ):
+            with pytest.raises(HttpStartupError) as excinfo:
+                await McpServerStarter(ctx, MagicMock()).start_servers()
+
+        text = str(excinfo.value)
+        assert "srv" in text
+        assert "third reason" in text
+        assert fake_http_mgr.start.await_count == 3
+        assert isinstance(excinfo.value.__cause__, HttpStartupError)
+        warning_calls = [c for c in patched_logger.warning.call_args_list if c.args]
+        assert warning_calls, "first failure must be logged at WARNING"
+        first_call = warning_calls[0]
+        assert "First attempt failed" in first_call.args[0]
+        joined = " ".join(str(a) for a in first_call.args)
+        assert "srv" in joined
+        assert "first reason" in joined
+
+    @pytest.mark.asyncio
+    async def test_shutdown_suppressed_start_raises_startup_interrupted(self) -> None:
+        from unittest.mock import AsyncMock
+
+        from agent.startup import StartupInterrupted
+        from agent.startup_mcp_starter import McpServerStarter
+
+        ctx, router, fake_http_mgr, _proc = _real_router_ctx([])
+        fake_http_mgr.shutdown_all = AsyncMock(return_value=[])
+        await router.shutdown_all()
+
+        with pytest.raises(StartupInterrupted):
+            await McpServerStarter(ctx, MagicMock()).start_servers()
+
+        fake_http_mgr.start.assert_not_called()

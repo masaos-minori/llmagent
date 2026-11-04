@@ -321,6 +321,12 @@ entries:
   name: LifecycleManagerProtocol
   signature: class LifecycleManagerProtocol
   summary: Protocol for MCP server lifecycle managers.
+- file: scripts/agent/lifecycle_router.py
+  kind: class
+  name: StartSuppressedError
+  signature: class StartSuppressedError
+  summary: Raised when a start is refused because the lifecycle router is shutting
+    down.
 - file: scripts/agent/llm_transport_errors.py
   kind: function
   name: handle_llm_transport_error

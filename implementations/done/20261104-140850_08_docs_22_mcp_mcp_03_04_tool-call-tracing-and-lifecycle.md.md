@@ -67,8 +67,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the sentence as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Replace the sentence as described in Implementation > Procedure/Method | Done | 20261104 | Corrected the shutdown-guard sentence: start_http_subprocess() raises a typed suppression error; the other guarded methods return immediately. |
+| 2 | Run the documentation checkers named in the Validation plan | Done | 20261104 | check_docs_quality, check_docs_structure, check_docs_content_policy --strict, check_docs_japanese, check_docs_consistency --domain mcp all clean; diff is one removed/one added line. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

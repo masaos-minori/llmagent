@@ -174,7 +174,7 @@ Service checks accumulate results in `StartupValidationResult`, and startup is a
 
 `LifecycleManagerProtocol` (structural subtyping) is the lifecycle contract. The production implementation is `_ServerLifecycleRouter` in `agent/lifecycle_router.py` (constructed by `agent/factory.py`); HTTP subprocess startup, health polling, restart, and termination are delegated to `agent/http_lifecycle.py`.
 
-`ensure_ready`/`start_http_subprocess`/`restart` are guarded against being ignored once shutdown has started.
+Once shutdown has started, `ensure_ready` and `restart` are ignored, and `start_http_subprocess` raises a typed suppression error instead of returning silently.
 
 ## Keywords
 

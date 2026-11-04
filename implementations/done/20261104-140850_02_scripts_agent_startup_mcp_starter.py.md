@@ -90,9 +90,9 @@ Revert the commit; the release unit (router, starter, protocol docstring, charac
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the existing starter and retry tests and the sibling integration-style tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261104 | Imported `StartSuppressedError`; map suppression to `StartupInterrupted`; first-attempt log raised to WARNING. |
+| 2 | Run the existing starter and retry tests and the sibling integration-style tests | Done | 20261104 | Existing starter/retry tests unchanged; #04 integration tests pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Done | 20261104 | ruff clean; mypy clean; lint-imports 6 kept; bandit 0 med/high; full suite 11467 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
