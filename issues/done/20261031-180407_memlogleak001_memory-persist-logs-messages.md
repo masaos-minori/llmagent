@@ -77,3 +77,15 @@ Change only the key check and the warning text in `persist_session_memories`, pl
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261031-180407
 - **Related target files**: scripts/agent/session_persister.py, scripts/agent/message_schema.py
+
+## Adversarial Verification Results
+
+Verified against current source on 2026-11-04 during `issue-to-plan`. The original text above is kept unchanged; the corrected understanding is recorded here and in the plan.
+
+- Confirmed by code: the warning passes the whole message `m` to the logger for every message with a key outside `{role, content}`.
+- Correction: a whitelist-only check is not enough. History can still hold stored `_ephemeral` and `_memory_injected` system messages at session end, which would keep logging full content. The ephemeral keys authorized in `TRUSTED_SOURCES` must be allowed (this answers the open question in Required Changes).
+- Finding: `source` is validation-only and never stored on a history message; `validate_message` cannot be reused because it requires a `source` for ephemeral keys.
+- Finding: `message_schema.py` is a modification target, not read-only: a public helper is added there, which also adds a function to the generated agent reference document.
+- Finding: no prose document describes this warning (searched `docs/`).
+
+- Plan: `plans/20261104-114342_memlogleak001_memory-persist-logs-messages.md`

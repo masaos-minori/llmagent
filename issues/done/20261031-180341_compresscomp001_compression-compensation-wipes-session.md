@@ -83,3 +83,15 @@ Change only the persistence boundary and repository code needed for correct comp
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261031-180341
 - **Related target files**: scripts/agent/turn_persistence.py, scripts/agent/session_message_repo.py, scripts/agent/conversation_state_manager.py, tests/agent/test_history_compression_consistency.py
+
+## Adversarial Verification Results
+
+Verified against current source on 2026-11-04 during `issue-to-plan`. The original text above is kept unchanged; the corrected understanding is recorded here and in the plan.
+
+- Confirmed by code: `SessionMessageRepository.replace_messages` deletes all rows and re-inserts under `AUTOINCREMENT`, and `delete_messages_from` removes `message_id > marker`, so compensation after a rewrite deletes every re-inserted row.
+- Addition: the in-memory `conv.undo_floor` set after the rewrite is not restored by `ConversationState.restore_messages` (history only), and the persisted `undo_floor_message_id` also stays at the post-rewrite value.
+- Addition: `messages` has a `created_at` column that a faithful restore must capture; no other table references `messages.message_id`.
+- Correction: a failing compression write itself is already atomic and correctly compensated; the existing test patches `SessionMessageRepository.replace_messages` by name, so that name and signature stay.
+- Correction: `conversation_state_manager.py` needs no change (reference only). Chosen mechanism: capture a pre-rewrite image and restore it on compensation. Rejected: a single turn-wide transaction (large) and deferring the rewrite (moves the `/undo` boundary and changes `/undo` semantics).
+
+- Plan: `plans/20261104-114113_compresscomp001_compression-compensation-wipes-session.md`

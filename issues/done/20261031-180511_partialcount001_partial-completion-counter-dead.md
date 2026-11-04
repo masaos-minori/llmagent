@@ -78,3 +78,15 @@ Make writers and readers agree on one counter and remove the duplicate implement
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261031-180511
 - **Related target files**: scripts/agent/llm_turn_runner.py, scripts/agent/llm_transport_errors.py, scripts/agent/repl_input_loop.py, scripts/agent/commands/cmd_config_stats.py, scripts/agent/services/context_view.py, scripts/agent/session_persister.py, scripts/shared/llm_client.py
+
+## Adversarial Verification Results
+
+Verified against current source on 2026-11-04 during `issue-to-plan`. The original text above is kept unchanged; the corrected understanding is recorded here and in the plan.
+
+- Confirmed by code: `_handle_llm_error` increments the client attribute while the REPL warning, `/stats`, the context view, and the exit summary read `ctx.stats.stat_partial_completions`.
+- Finding: the client never increments the attribute; `LLMClient.stream` ignores the fifth value of the reconnect handler, which has different semantics.
+- Decision: the canonical counter is `ctx.stats.stat_partial_completions` (every reader and the stats tests already use it); the unused client attribute is removed.
+- Finding: `scripts/agent/llm_transport_errors.py` has no production importer, only `tests/agent/test_llm_partial_completion.py`; it is deleted and its tests move onto the runner path.
+- Addition: `tests/agent/test_orchestrator.py` pins the client counter in five assertions, and `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md` names the deleted handler as the source of the `partial_completion` kind.
+
+- Plan: `plans/20261104-115736_partialcount001_partial-completion-counter-dead.md`

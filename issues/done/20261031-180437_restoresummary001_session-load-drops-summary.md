@@ -83,3 +83,16 @@ Change only restore, the persisted-row filtering, and the matching tests. Keep t
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261031-180437
 - **Related target files**: scripts/agent/services/session_restore.py, scripts/agent/history.py, scripts/agent/session_message_repo.py, scripts/agent/conversation_state_manager.py
+
+## Adversarial Verification Results
+
+Verified against current source on 2026-11-04 during `issue-to-plan`. The original text above is kept unchanged; the corrected understanding is recorded here and in the plan.
+
+- Confirmed by code: `restore_session` rebuilds history as the current prompt plus non-system rows, and `_boundary_to_index` subtracts every system row, so the summary is dropped.
+- Finding: ephemeral system rows survive compression (the selection policy pulls every system message out before selecting turns) and are persisted without their marker; the filter belongs in `SessionMessageRepository.replace_messages`, which serves both the turn path and `/compact`.
+- Finding: the restore branch used when no current system prompt is set keeps every persisted row and is pinned by a test; it is not reachable in production startup and stays unchanged (recorded as an Unknown).
+- Finding: data written before the single-summary rule can hold several summary-shaped rows; the last one is restored and a warning is logged for the rest.
+- Owner decision (2026-11-04): restore the summary as a system row, recognized only by a shared constant and rebuilt canonically. Residual risk, stated in the plan: a local actor who can write the database can give one prefixed row system authority.
+- Existing restore tests that pin the drop of persisted system rows stay valid, because only the canonical summary shape is newly restored.
+
+- Plan: `plans/20261104-115505_restoresummary001_session-load-drops-summary.md`
