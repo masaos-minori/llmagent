@@ -433,7 +433,11 @@ class TestInv07EnvironmentFailureHandling:
     async def test_safety_tier_failure_produces_fatal(
         self, mock_ctx_with_strict_profile
     ) -> None:
-        """Verify that Safety Tier verification failure produces a FATAL error."""
+        """Verify that Safety Tier verification failure produces a FATAL error.
+
+        Safety tiers belong to the config-only stage (REQ-001), which aborts
+        startup without a rollback, so this drives ``_check_config``.
+        """
         instance = StartupOrchestrator.__new__(StartupOrchestrator)
         instance._ctx = mock_ctx_with_strict_profile
         instance._view = MagicMock()
@@ -461,4 +465,4 @@ class TestInv07EnvironmentFailureHandling:
             mock_rag.return_value.consistency.return_value.is_consistent = True
 
             with pytest.raises(RuntimeError, match="Startup validation failed"):
-                await instance._check_services()
+                instance._check_config()

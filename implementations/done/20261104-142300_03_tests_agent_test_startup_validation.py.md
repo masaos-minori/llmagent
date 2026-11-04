@@ -68,9 +68,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the helper and the tests as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the new tests before the production change and record the failures, then run them after | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Pending | — | — | |
+| 1 | Write the helper and the tests as described in Implementation > Procedure/Method | Completed | 20261104-183306 | 20261104-183306 | — |
+| 2 | Run the new tests before the production change and record the failures, then run them after | Completed | 20261104-183306 | 20261104-183306 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Completed | 20261104-183306 | 20261104-183306 | release-unit end-of-unit suite+coverage+diff-cover green; ruff/mypy/bandit/lint-imports/check_module_size/check_mock_patch_targets/check_suppression_justification clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

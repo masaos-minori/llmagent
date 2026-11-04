@@ -32,7 +32,7 @@ Documents the agent startup procedure, operational verification, health checks, 
 
 ## Design Intent
 
-The startup process is divided into two phases: server start and health check. If an exception occurs in any phase, a rollback is triggered to ensure all started subprocesses are reliably terminated.
+Startup validates configuration before it spawns anything, then starts the servers and checks their health. A configuration-only validation stage runs first, so a configuration failure is reported before any MCP subprocess exists and needs no rollback. If an exception occurs after servers have started, a rollback is triggered to ensure all started subprocesses are reliably terminated.
 
 `StartupOrchestrator` centrally manages the entire startup sequence. If startup fails, it closes all resources via `shutdown_all()` and re-raises the original exception. Even if the rollback itself fails, the original exception is preserved (only a log is recorded).
 
@@ -56,9 +56,11 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 
 ### Severity Mapping for Startup Verification
 
+Startup validation runs in two stages. The config-only stage (`mcp_auth`, `component_mandatoriness`, `routing_drift`, `routing_safety_tiers`) reads only configuration and static registries, so it runs before any MCP subprocess is spawned, reports its checks together, and aborts startup without a rollback. The runtime stage (`readiness`, `mcp_tool_discovery`, `rag_consistency`) needs running services and runs after the servers are started and verified; it skips tool discovery and the RAG check when readiness already reported a FATAL. A check that reads only configuration belongs to the config-only stage, and a check that needs a running service belongs to the runtime stage.
+
 | Severity | Meaning | Behavior |
 |---|---|---|
-| FATAL | Condition preventing startup | Throws `RuntimeError` after all checks complete, aborting startup |
+| FATAL | Condition preventing startup | Throws `RuntimeError` after the checks of the failing stage complete, aborting startup |
 | WARNING | Check performed but problem detected | Continues startup, but requires operator attention |
 | SKIPPED | Check could not be performed | Continues startup. Occurs when environment-dependent checks are unavailable |
 | OK | Check performed successfully | Indicates normal state (`readiness` OK means every required service is available and every MCP server posture gate passed) |
@@ -68,7 +70,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 - `tool_definitions` follows a unified severity scheme: FATAL when in strict mode, WARNING otherwise (`security_profile` is always `PRODUCTION`, so it does not affect the severity).
 - `routing_drift` follows `routing_drift_strict`: a detected drift is FATAL when strict and WARNING otherwise, and an unexpected failure of the drift check itself follows the same rule (FATAL when strict, WARNING otherwise), so a broken check is never reported as a clean result.
 - `mcp_tool_discovery` follows the ADR-004 rule: an unreachable or invalid required MCP server (`McpServerConfig.required`), a missing required tool, a duplicate tool name, or an unexpected discovery exception is FATAL and aborts startup; an unreachable or invalid non-required server is WARNING and startup continues with that server's tools disabled. Drift and tool-definition findings are FATAL only in strict mode. See [mcp_06_09](../22_mcp/mcp_06_09_startup-validation-behavior-tool_definitions_strict.md).
-- `mcp_auth` ("1b. MCP authentication check", runs before the service-readiness check): FATAL if any enabled `[mcp_servers.*]` entry (`startup_mode` other than `none`) has an empty `auth_token`, listing every offending enabled server key in one outcome. A disabled entry is exempt, because configuration construction accepts an empty `auth_token` for it. For an enabled entry the check is a defense in depth: construction itself already rejects an empty `auth_token` (see [mcp_06_01](../22_mcp/mcp_06_01_configuration-file-inventory.md)), so it only fires for a `ctx` assembled some other way than the normal config-load path. `check_services()` does not short-circuit on an earlier FATAL: every check listed here always runs and reports independently; only the final aggregated `has_fatal` decides whether startup aborts.
+- `mcp_auth` ("1b. MCP authentication check", runs in the config-only stage, before any MCP subprocess is spawned): FATAL if any enabled `[mcp_servers.*]` entry (`startup_mode` other than `none`) has an empty `auth_token`, listing every offending enabled server key in one outcome. A disabled entry is exempt, because configuration construction accepts an empty `auth_token` for it. For an enabled entry the check is a defense in depth: construction itself already rejects an empty `auth_token` (see [mcp_06_01](../22_mcp/mcp_06_01_configuration-file-inventory.md)), so it only fires for a `ctx` assembled some other way than the normal config-load path. The four config-only checks always run and report together before the abort decision. The runtime stage skips tool discovery and the RAG check when readiness already reported a FATAL; only the aggregated `has_fatal` of a stage decides whether startup aborts.
 - `readiness` covers required-service availability and every MCP server's Security Posture gate. A required service that is unavailable, or a server whose posture gate reports a Safety or Integrity failure, is FATAL and aborts startup whatever `McpServerConfig.required` says; a non-required server whose gate failure is Availability is WARNING and startup continues. An unreachable probe or an unreadable `/health` body is an Availability failure. See [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md) and [mcp_02_02](../22_mcp/mcp_02_02_startup-modes-and-health.md).
 
 ### Resource Cleanup on Shutdown

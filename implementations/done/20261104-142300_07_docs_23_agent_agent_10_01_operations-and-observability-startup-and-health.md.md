@@ -114,8 +114,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Make the edits as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Make the edits as described in Implementation > Procedure/Method | Completed | 20261104-183316 | 20261104-183316 | — |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261104-183316 | 20261104-183316 | docs checkers clean (quality/structure/content_policy--strict/japanese/consistency--domain agent) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

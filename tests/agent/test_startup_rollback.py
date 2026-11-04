@@ -51,16 +51,22 @@ class TestStartupRollback:
 
     @pytest.fixture(autouse=True)
     def _stub_component_init(self) -> Iterator[None]:
-        """Stub the component-wiring step that runs before the rollback window.
+        """Stub the component-wiring step and the config-only validation step that run
+        before the rollback window.
 
         run() delegates wiring to ComponentInitializer.initialize(), whose workflow
         preflight reads the real workflow DB. These tests only exercise the steps
-        after wiring, so the seam is stubbed instead of relying on host DB state.
+        after wiring, so the seams are stubbed instead of relying on host DB state.
         """
-        with patch.object(
-            ComponentInitializer,
-            "initialize",
-            new=AsyncMock(return_value=(MagicMock(), MagicMock())),
+        with (
+            patch.object(
+                ComponentInitializer,
+                "initialize",
+                new=AsyncMock(return_value=(MagicMock(), MagicMock())),
+            ),
+            patch.object(
+                StartupOrchestrator, "_check_config", new=MagicMock(), create=True
+            ),
         ):
             yield
 
@@ -270,3 +276,56 @@ class TestStartupRollback:
             await orch.run()
 
         mock_lifecycle.shutdown_all.assert_awaited_once()
+
+
+class TestConfigStageOrdering:
+    """REQ-005: the config-only validation stage runs before _start_servers, and a
+    config FATAL aborts before any subprocess start without a rollback."""
+
+    @pytest.mark.asyncio
+    async def test_config_stage_runs_before_start_servers(self) -> None:
+        """run() calls the config stage first; the recorded call order is
+        config, start, verify, services, prompt."""
+        orch, _ = _make_rollback_startup()
+        order: list[str] = []
+
+        def _config() -> None:
+            order.append("config")
+
+        def _start() -> None:
+            order.append("start")
+
+        def _verify() -> None:
+            order.append("verify")
+
+        async def _services() -> None:
+            order.append("services")
+
+        async def _prompt() -> None:
+            order.append("prompt")
+
+        orch._check_config = MagicMock(side_effect=_config)
+        orch._start_servers = AsyncMock(side_effect=_start)
+        orch._verify_mcp_health = AsyncMock(side_effect=_verify)
+        orch._check_services = AsyncMock(side_effect=_services)
+        orch._setup_prompt = AsyncMock(side_effect=_prompt)
+
+        await orch.run()
+
+        assert order == ["config", "start", "verify", "services", "prompt"]
+
+    @pytest.mark.asyncio
+    async def test_config_failure_aborts_before_start_without_rollback(self) -> None:
+        """A config FATAL raises before _start_servers runs and makes no shutdown_all
+        call, because nothing was spawned yet."""
+        orch, mock_lifecycle = _make_rollback_startup()
+        orch._check_config = MagicMock(
+            side_effect=RuntimeError("Startup validation failed: routing drift")
+        )
+        orch._start_servers = AsyncMock()
+
+        with pytest.raises(RuntimeError, match="Startup validation failed"):
+            await orch.run()
+
+        orch._start_servers.assert_not_called()
+        mock_lifecycle.shutdown_all.assert_not_awaited()

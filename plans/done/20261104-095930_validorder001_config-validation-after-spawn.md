@@ -168,11 +168,11 @@ Baseline (Step 5): `radon cc` reports `StartupOrchestrator._check_services` at B
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing order and stage tests | In Progress | — | — |  |
-| 2 | Phase 2: split the validation pipeline | In Progress | — | — |  |
-| 3 | Phase 3: wire the config stage in the orchestrator | In Progress | — | — |  |
-| 4 | Phase 4: re-point and stub existing tests | In Progress | — | — |  |
-| 5 | Phase 5: documentation update | In Progress | — | — |  |
+| 1 | Phase 1: failing order and stage tests | Completed | — | 20261104-183421 |  |
+| 2 | Phase 2: split the validation pipeline | Completed | — | 20261104-183421 |  |
+| 3 | Phase 3: wire the config stage in the orchestrator | Completed | — | 20261104-183421 |  |
+| 4 | Phase 4: re-point and stub existing tests | Completed | — | 20261104-183421 |  |
+| 5 | Phase 5: documentation update | Completed | — | 20261104-183421 |  |
 | 6 | Phase 6: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -183,13 +183,13 @@ Baseline (Step 5): `radon cc` reports `StartupOrchestrator._check_services` at B
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261104-142300_01_scripts_agent_startup_validation.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261104-142300_02_scripts_agent_startup.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261104-142300_03_tests_agent_test_startup_validation.py.md | 1, 4 | Procedure | Pending | — | — |
-| implementations/20261104-142300_04_tests_agent_test_startup_rollback.py.md | 1, 4 | Procedure | Pending | — | — |
-| implementations/20261104-142300_05_tests_agent_test_startup_severity_classification.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261104-142300_06_tests_agent_test_startup.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261104-142300_07_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261104-142300_01_scripts_agent_startup_validation.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261104-142300_02_scripts_agent_startup.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261104-142300_03_tests_agent_test_startup_validation.py.md | 1, 4 | Procedure | Completed | — | — |
+| implementations/20261104-142300_04_tests_agent_test_startup_rollback.py.md | 1, 4 | Procedure | Completed | — | — |
+| implementations/20261104-142300_05_tests_agent_test_startup_severity_classification.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261104-142300_06_tests_agent_test_startup.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261104-142300_07_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -87,6 +87,161 @@ def _rag_outcomes(result: StartupValidationResult) -> list[StartupCheckStatus]:
     return [o.status for o in result.outcomes if o.source == "rag_consistency"]
 
 
+def _run_check_config(
+    ctx: MagicMock,
+    *,
+    mcp_servers: dict[str, object] | None = None,
+    **overrides: object,
+) -> StartupValidationResult:
+    """Run the real check_config() config-only stage with the three module-level
+    config checks mocked to clean passes, overridden per-test via kwargs (named after
+    the agent.startup_validation import site), and return the captured result.
+
+    check_config() is synchronous, so this helper is synchronous too.
+    """
+    if mcp_servers is not None:
+        ctx.cfg.mcp.mcp_servers = mcp_servers
+    mocks: dict[str, object] = {
+        "check_routing_drift": MagicMock(return_value=[]),
+        "check_routing_safety_tiers": MagicMock(return_value=[]),
+        "_check_component_mandatoriness": MagicMock(),
+    }
+    mocks.update(overrides)
+    with ExitStack() as stack:
+        for name, mock_obj in mocks.items():
+            stack.enter_context(patch(f"agent.startup_validation.{name}", mock_obj))
+        return StartupValidationPipeline(ctx, MagicMock()).check_config()
+
+
+class TestCheckConfigStage:
+    """REQ-005, REQ-006: the config-only stage reports its four checks together and
+    without a short-circuit among them, driven directly through the real check_config()."""
+
+    @pytest.mark.asyncio
+    async def test_strict_drift_is_fatal(self) -> None:
+        """A strict-mode routing drift raises RuntimeError inside check_config and is
+        recorded as a FATAL routing_drift outcome."""
+        ctx = _make_ctx()
+        ctx.cfg.tool.routing_drift_strict = True
+        result = _run_check_config(
+            ctx,
+            check_routing_drift=MagicMock(
+                side_effect=RuntimeError("Strict mode: routing drift detected")
+            ),
+        )
+
+        outcomes = [o for o in result.outcomes if o.source == "routing_drift"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_safety_tier_failure_is_fatal(self) -> None:
+        """A safety-tier failure is always FATAL (fail-closed), regardless of drift policy."""
+        ctx = _make_ctx()
+        result = _run_check_config(
+            ctx,
+            check_routing_safety_tiers=MagicMock(
+                side_effect=RuntimeError("tier missing")
+            ),
+        )
+
+        outcomes = [o for o in result.outcomes if o.source == "routing_safety_tiers"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_non_strict_drift_is_warning(self) -> None:
+        """A non-strict routing drift reports its messages as a WARNING, not a FATAL."""
+        ctx = _make_ctx()
+        ctx.cfg.tool.routing_drift_strict = False
+        result = _run_check_config(
+            ctx,
+            check_routing_drift=MagicMock(
+                return_value=["Routing drift [web]: extra tool 'foo'"]
+            ),
+        )
+
+        outcomes = [o for o in result.outcomes if o.source == "routing_drift"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.WARNING
+        assert not result.has_fatal
+
+    @pytest.mark.asyncio
+    async def test_valid_config_passes_cleanly(self) -> None:
+        """A valid configuration runs all four config checks cleanly: no FATAL, no
+        WARNING, and an OK mcp_auth outcome."""
+        ctx = _make_ctx()
+        ctx.cfg.mcp.mcp_servers = {"web": MagicMock(auth_token="valid-token")}
+        result = _run_check_config(ctx)
+
+        assert not result.has_fatal
+        assert not any(o.status == StartupCheckStatus.WARNING for o in result.outcomes)
+        auth_outcomes = [o for o in result.outcomes if o.source == "mcp_auth"]
+        assert any(o.status == StartupCheckStatus.OK for o in auth_outcomes)
+
+    @pytest.mark.asyncio
+    async def test_config_checks_report_together_without_short_circuit(self) -> None:
+        """The four config checks all run and report together: an enabled token-less
+        server (FATAL mcp_auth) and a failing drift check (FATAL routing_drift) are both
+        present, proving no short-circuit among them."""
+        ctx = _make_ctx()
+        ctx.cfg.mcp.mcp_servers = {"web": MagicMock(auth_token="", is_disabled=False)}
+        result = _run_check_config(
+            ctx,
+            check_routing_drift=MagicMock(side_effect=RuntimeError("drift detected")),
+        )
+
+        fatal_sources = {
+            o.source for o in result.outcomes if o.status == StartupCheckStatus.FATAL
+        }
+        assert "mcp_auth" in fatal_sources
+        assert "routing_drift" in fatal_sources
+
+    @pytest.mark.asyncio
+    async def test_runtime_stage_no_longer_runs_config_checks(self) -> None:
+        """REQ-006: the runtime stage (check_services) no longer runs the config-only
+        checks: check_routing_drift is never called and neither mcp_auth nor
+        routing_drift appears among the runtime outcomes."""
+        recording = MagicMock()
+        ctx = _make_ctx()
+        ctx.cfg.mcp.mcp_servers = {"web": MagicMock(auth_token="valid-token")}
+        discovery = MagicMock(
+            return_value=MagicMock(
+                discover_all=AsyncMock(
+                    return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                )
+            )
+        )
+        mocks: dict[str, object] = {
+            "check_readiness": AsyncMock(return_value=HealthCheckResult()),
+            "McpToolDiscoveryService": discovery,
+            "check_routing_safety_tiers": MagicMock(return_value=[]),
+            "RagMaintenanceService": MagicMock(
+                return_value=MagicMock(is_consistent=True, issues=[])
+            ),
+            "_check_component_mandatoriness": MagicMock(),
+        }
+        with ExitStack() as stack:
+            for name, mock_obj in mocks.items():
+                stack.enter_context(patch(f"agent.startup_validation.{name}", mock_obj))
+            # Patch check_routing_drift last so it is the active reference during the
+            # call, letting this test observe whether the runtime stage touches it.
+            stack.enter_context(
+                patch("agent.startup_validation.check_routing_drift", recording)
+            )
+            stack.enter_context(
+                patch(
+                    "db.config.build_db_config",
+                    return_value=MagicMock(embedding_dims=768),
+                )
+            )
+            stack.enter_context(patch("shared.logger.Logger", MagicMock()))
+            result = await StartupValidationPipeline(ctx, MagicMock()).check_services()
+
+        recording.assert_not_called()
+        assert not any(
+            o.source in ("mcp_auth", "routing_drift") for o in result.outcomes
+        )
+
+
 class TestRagConsistencyTimeout:
     """Tests for REQ-002, REQ-003: RAG check timeout enforcement."""
 
@@ -161,10 +316,12 @@ class TestRagConsistencyTimeout:
 async def test_runtime_registry_published_after_posture_gate() -> None:
     """AC-5: runtime_tools is published only after the posture gate completes.
 
-    Records the call order of the mandatoriness cross-check, the posture
-    collection, and the discovery/publication step inside the real
-    ``check_services`` body and asserts the fail-closed sequence
-    mandatoriness -> posture -> publication.
+    Records the call order of the mandatoriness cross-check (config-only stage),
+    the posture collection, and the discovery/publication step (runtime stage)
+    across both stages and asserts the fail-closed sequence
+    mandatoriness -> posture -> publication. The mandatoriness cross-check lives
+    in the config-only stage (REQ-001/REQ-003), which runs before the runtime
+    stage, so both stages are driven in order.
     """
 
     order: list[str] = []
@@ -178,6 +335,9 @@ async def test_runtime_registry_published_after_posture_gate() -> None:
         return MagicMock(registry=MagicMock(), findings=[], unreachable=[])
 
     ctx = _make_ctx()
+    # The config-only stage reads mcp_servers during mcp_auth; an empty dict keeps
+    # that clean so only the mandatoriness ordering is under test.
+    ctx.cfg.mcp.mcp_servers = {}
     discovery = MagicMock()
     discovery.discover_all = AsyncMock(side_effect=_discover)
 
@@ -208,6 +368,8 @@ async def test_runtime_registry_published_after_posture_gate() -> None:
         )
         # check_services() builds its own Logger; keep it from touching log files.
         stack.enter_context(patch("shared.logger.Logger", MagicMock()))
+        # Config-only stage runs the mandatoriness cross-check before the runtime stage.
+        StartupValidationPipeline(ctx, MagicMock()).check_config()
         result = await StartupValidationPipeline(ctx, MagicMock()).check_services()
 
     assert not result.has_fatal
@@ -228,7 +390,7 @@ class TestMcpAuthDisabledServers:
             auth_token="",
         )
 
-        result = await _run_check_services(
+        result = _run_check_config(
             MagicMock(),
             mcp_servers={"optional_srv": disabled},
         )
@@ -241,7 +403,7 @@ class TestMcpAuthDisabledServers:
     @pytest.mark.asyncio
     async def test_enabled_server_without_token_is_fatal_and_named(self) -> None:
         """REQ-002: an enabled token-less server is fatal and named in the message."""
-        result = await _run_check_services(
+        result = _run_check_config(
             MagicMock(),
             mcp_servers={"web": MagicMock(auth_token="", is_disabled=False)},
         )
@@ -261,7 +423,7 @@ class TestMcpAuthDisabledServers:
             auth_token="",
         )
 
-        result = await _run_check_services(
+        result = _run_check_config(
             MagicMock(),
             mcp_servers={
                 "optional_srv": disabled,

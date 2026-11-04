@@ -117,12 +117,8 @@ class StartupValidationPipeline:
         self._ctx = ctx
         self._view = view
 
-    async def check_services(self) -> StartupValidationResult:
-        """Probe LLM/Embed health, validate MCP readiness and Security Posture, validate tool definitions."""
-        from shared.logger import Logger
-
-        logger = Logger(__name__, "/opt/llm/logs/agent.log")
-
+    def check_config(self) -> StartupValidationResult:
+        """Run the configuration-only checks; none needs a running MCP server."""
         ctx = self._ctx
         pipeline = StartupValidationResult()
 
@@ -141,6 +137,45 @@ class StartupValidationPipeline:
         else:
             pipeline.add_ok("mcp_auth")
 
+        # 3. Component mandatoriness cross-check (REQ-004)
+        # Runs before discovery publication: a registry conflict or an unknown
+        # server aborts startup so runtime_tools is never published (AC-3).
+        # Synchronous; reads no network state, so it costs nothing here.
+        _check_component_mandatoriness(ctx, pipeline)
+
+        # 5. Routing drift (static)
+        # Strictness starts as strict so that a failure while reading the setting
+        # fails closed.
+        drift_strict = True
+        try:
+            drift_strict = ctx.cfg.tool.routing_drift_strict
+            for msg in check_routing_drift(ctx, strict=drift_strict):
+                pipeline.add_warning("routing_drift", msg)
+        except RuntimeError as exc:
+            pipeline.add_fatal("routing_drift", str(exc))
+        except Exception as exc:  # noqa: BLE001 — an unexpected failure of the drift check follows routing_drift_strict (an unknown result is not a clean result), so it must be captured and classified rather than crash startup
+            _record_drift_check_failure(pipeline, exc, strict=drift_strict)
+
+        # 5b. Routing safety tiers
+        try:
+            for msg in check_routing_safety_tiers(ctx):
+                pipeline.add_warning("routing_safety_tiers", msg)
+        except Exception as exc:  # noqa: BLE001 — Safety Tier failures are Fail-Closed per INV-07; broad catch handles RuntimeError from check_tool_safety_tiers
+            pipeline.add_fatal(
+                "routing_safety_tiers", f"Routing safety tier check failed: {exc}"
+            )
+
+        return pipeline
+
+    async def check_services(self) -> StartupValidationResult:
+        """Probe LLM/Embed health, validate MCP readiness and Security Posture, discover tools, and check RAG consistency."""
+        from shared.logger import Logger
+
+        logger = Logger(__name__, "/opt/llm/logs/agent.log")
+
+        ctx = self._ctx
+        pipeline = StartupValidationResult()
+
         # 2. Service readiness
         try:
             result = await check_readiness(ctx)
@@ -153,11 +188,7 @@ class StartupValidationPipeline:
         except Exception as exc:  # noqa: BLE001 — an unexpected readiness-probe failure must be captured and reported as a pipeline fatal rather than crashing startup outright
             pipeline.add_fatal("readiness", f"Readiness check failed: {exc}")
 
-        # 3. Component mandatoriness cross-check (REQ-004)
-        # Runs before discovery publication: a registry conflict or an unknown
-        # server aborts startup so runtime_tools is never published (AC-3).
-        # Synchronous; reads no network state, so it costs nothing here.
-        _check_component_mandatoriness(ctx, pipeline)
+        # A readiness FATAL skips tool discovery and the RAG check.
         if pipeline.has_fatal:
             return pipeline
 
@@ -192,28 +223,6 @@ class StartupValidationPipeline:
                 "mcp_tool_discovery",
                 msg,
                 remediation="Check MCP server connectivity and configuration.",
-            )
-
-        # 5. Routing drift (static)
-        # Strictness starts as strict so that a failure while reading the setting
-        # fails closed.
-        drift_strict = True
-        try:
-            drift_strict = ctx.cfg.tool.routing_drift_strict
-            for msg in check_routing_drift(ctx, strict=drift_strict):
-                pipeline.add_warning("routing_drift", msg)
-        except RuntimeError as exc:
-            pipeline.add_fatal("routing_drift", str(exc))
-        except Exception as exc:  # noqa: BLE001 — an unexpected failure of the drift check follows routing_drift_strict (an unknown result is not a clean result), so it must be captured and classified rather than crash startup
-            _record_drift_check_failure(pipeline, exc, strict=drift_strict)
-
-        # 5b. Routing safety tiers
-        try:
-            for msg in check_routing_safety_tiers(ctx):
-                pipeline.add_warning("routing_safety_tiers", msg)
-        except Exception as exc:  # noqa: BLE001 — Safety Tier failures are Fail-Closed per INV-07; broad catch handles RuntimeError from check_tool_safety_tiers
-            pipeline.add_fatal(
-                "routing_safety_tiers", f"Routing safety tier check failed: {exc}"
             )
 
         # 6. RAG consistency

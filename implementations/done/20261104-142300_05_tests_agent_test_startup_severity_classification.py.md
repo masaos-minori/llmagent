@@ -114,9 +114,9 @@ Revert the commit; this file is part of the release unit, so reverting only it l
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the helper and re-point the tests as described in Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Run the whole file and confirm it passes | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Pending | — | — | |
+| 1 | Edit the helper and re-point the tests as described in Implementation > Procedure/Method | Completed | 20261104-183306 | 20261104-183306 | — |
+| 2 | Run the whole file and confirm it passes | Completed | 20261104-183306 | 20261104-183306 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan | Completed | 20261104-183306 | 20261104-183306 | release-unit end-of-unit suite+coverage+diff-cover green; ruff/mypy/bandit/lint-imports/check_module_size/check_mock_patch_targets/check_suppression_justification clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

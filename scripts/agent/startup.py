@@ -68,6 +68,7 @@ class StartupOrchestrator:
         self._cmds, self._orchestrator = await ComponentInitializer(
             self._ctx, self._view
         ).initialize()
+        self._check_config()
         try:
             await self._start_servers()
             await self._verify_mcp_health()
@@ -124,11 +125,24 @@ class StartupOrchestrator:
         """
         await self._mcp_starter.verify_health()
 
+    def _check_config(self) -> None:
+        """Run the config-only validation stage before any MCP subprocess is spawned."""
+        self._finish_validation_stage(
+            self._validation_pipeline.check_config(), report_readiness=False
+        )
+
     async def _check_services(self) -> None:
         """Probe LLM/Embed health, validate MCP readiness and Security Posture, validate tool definitions."""
         pipeline = await self._validation_pipeline.check_services()
+        self._finish_validation_stage(pipeline, report_readiness=True)
+
+    def _finish_validation_stage(
+        self, pipeline: StartupValidationResult, *, report_readiness: bool
+    ) -> None:
+        """Display a stage's outcomes, optionally report readiness, and abort on a FATAL."""
         self._display_pipeline_results(pipeline)
-        self._report_readiness(pipeline)
+        if report_readiness:
+            self._report_readiness(pipeline)
 
         if pipeline.has_fatal:
             fatal_parts: list[str] = []

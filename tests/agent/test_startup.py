@@ -161,11 +161,13 @@ async def _run_check_services(
     ctx: MagicMock,
     *,
     embedding_dims: int | None = None,
+    stage: str = "services",
     **overrides: object,
 ) -> tuple[StartupValidationResult, Exception | None]:
     """Run StartupOrchestrator._check_services() with clean-pass mocks for all 5 patched checks,
     overridden per-test via kwargs (named after the agent.startup import site), and return
     (captured pipeline outcomes, exception raised by _check_services() or None).
+    `stage` selects the config-only stage ("config") or the runtime stage ("services").
     """
     consistent_rag = MagicMock()
     consistent_rag.consistency.return_value = MagicMock(is_consistent=True, issues=[])
@@ -225,10 +227,20 @@ async def _run_check_services(
             )
         )
         try:
-            await startup._check_services()
+            if stage == "config":
+                startup._check_config()
+            else:
+                await startup._check_services()
         except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
             exc = e
     return captured["pipeline"], exc
+
+
+async def _run_check_config(
+    ctx: MagicMock, **overrides: object
+) -> tuple[StartupValidationResult, Exception | None]:
+    """Run StartupOrchestrator._check_config() and return (captured result, exception or None)."""
+    return await _run_check_services(ctx, stage="config", **overrides)
 
 
 class TestCheckServicesSeverityClassification:
@@ -251,7 +263,7 @@ class TestCheckServicesSeverityClassification:
             "web": MagicMock(auth_token="valid-token"),
             "shell": MagicMock(auth_token="", is_disabled=False),
         }
-        pipeline, exc = await _run_check_services(ctx)
+        pipeline, exc = await _run_check_config(ctx)
         assert exc is not None
         outcomes = [o for o in pipeline.outcomes if o.source == "mcp_auth"]
         assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
@@ -264,7 +276,7 @@ class TestCheckServicesSeverityClassification:
             "web": MagicMock(auth_token="valid-token"),
             "shell": MagicMock(auth_token="also-valid"),
         }
-        pipeline, exc = await _run_check_services(
+        pipeline, exc = await _run_check_config(
             ctx, _check_component_mandatoriness=MagicMock()
         )
         assert exc is None
@@ -278,7 +290,7 @@ class TestCheckServicesSeverityClassification:
             "web": MagicMock(auth_token="", is_disabled=False),
             "shell": MagicMock(auth_token="", is_disabled=False),
         }
-        pipeline, exc = await _run_check_services(ctx)
+        pipeline, exc = await _run_check_config(ctx)
         assert exc is not None
         outcomes = [o for o in pipeline.outcomes if o.source == "mcp_auth"]
         assert len(outcomes) == 1
@@ -402,7 +414,7 @@ class TestCheckServicesSeverityClassification:
     @pytest.mark.asyncio
     async def test_routing_drift_warning_on_messages(self) -> None:
         ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_services(
+        pipeline, exc = await _run_check_config(
             ctx,
             check_routing_drift=MagicMock(
                 return_value=["Routing drift [web]: extra tool 'foo'"]
@@ -419,7 +431,7 @@ class TestCheckServicesSeverityClassification:
         recorded outcomes for this source (no pipeline.add_ok('routing_drift') call
         exists anywhere in _check_services())."""
         ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_services(
+        pipeline, exc = await _run_check_config(
             ctx, check_routing_drift=MagicMock(return_value=[])
         )
         assert exc is None
@@ -431,7 +443,7 @@ class TestCheckServicesSeverityClassification:
     @pytest.mark.asyncio
     async def test_routing_safety_tiers_warning_on_messages(self) -> None:
         ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_services(
+        pipeline, exc = await _run_check_config(
             ctx,
             check_routing_safety_tiers=MagicMock(
                 return_value=["tool 'foo' has no declared safety tier"]
@@ -446,7 +458,7 @@ class TestCheckServicesSeverityClassification:
     async def test_routing_safety_tiers_emits_no_outcome_when_clean(self) -> None:
         """Same no-OK behavior as routing_drift: no add_ok call exists for this source."""
         ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_services(
+        pipeline, exc = await _run_check_config(
             ctx, check_routing_safety_tiers=MagicMock(return_value=[])
         )
         assert exc is None
@@ -888,7 +900,7 @@ class TestCheckServicesFatalErrorMessageWithRemediation:
         """FATAL error message includes remediation step when available."""
         ctx = _make_startup_ctx()
         ctx.cfg.mcp.mcp_servers = {"web": MagicMock(auth_token="", is_disabled=False)}
-        pipeline, exc = await _run_check_services(ctx)
+        pipeline, exc = await _run_check_config(ctx)
         assert exc is not None
         assert isinstance(exc, RuntimeError)
         # The mcp_auth FATAL carries its own remediation text into the startup error.
@@ -906,7 +918,7 @@ class TestCheckServicesFatalErrorMessageWithRemediation:
             "web": MagicMock(auth_token="", is_disabled=False),
             "shell": MagicMock(auth_token="", is_disabled=False),
         }
-        pipeline, exc = await _run_check_services(ctx)
+        pipeline, exc = await _run_check_config(ctx)
         assert exc is not None
         assert isinstance(exc, RuntimeError)
         # Should contain both FATAL outcome messages
