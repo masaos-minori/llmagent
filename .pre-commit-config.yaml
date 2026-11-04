@@ -23,25 +23,25 @@ repos:
         types: [python]
       - id: docs-consistency
         name: Check document quality
-        entry: python -m tools.check_docs_quality
+        entry: uv run python -m tools.check_docs_quality
         language: system
         pass_filenames: false
         types_or: [markdown]
       - id: tool-descriptions-sync
         name: Check tools/TOOL_DESCRIPTIONS.md sync
-        entry: python -m tools.check_tool_descriptions_sync
+        entry: uv run python -m tools.check_tool_descriptions_sync
         language: system
         pass_filenames: false
         files: ^(tools/(.*\.py|TOOL_DESCRIPTIONS\.md)|\.github/workflows/.*\.yml|\.pre-commit-config\.yaml|tox\.ini)$
       - id: check-compat-shims
         name: Check backward-compat leftovers and stale doc symbols
-        entry: python -m tools.check_compat_shims --check-removed-names --check-doc-symbols
+        entry: uv run python -m tools.check_compat_shims --check-removed-names --check-doc-symbols
         language: system
         pass_filenames: false
         files: ^(scripts/.*\.py|docs/.*\.md|tests/.*\.py|tools/(check_compat_shims\.py|compat_exceptions\.toml))$
       - id: check-suppression-justification
         name: Check noqa/type:ignore/nosec suppression justifications
-        entry: python -m tools.check_suppression_justification
+        entry: uv run python -m tools.check_suppression_justification
         language: system
         pass_filenames: false
         types: [python]
@@ -53,43 +53,43 @@ repos:
         always_run: true
       - id: adr-invariant-matrix
         name: Check ADR Invariant Matrix cited test paths exist
-        entry: python -m tools.check_adr_invariant_matrix
+        entry: uv run python -m tools.check_adr_invariant_matrix
         language: system
         pass_filenames: false
         types_or: [python, markdown]
       - id: adr-reference-scoped
         name: Check ADR-cited source files carry an ADR-XXX reference
-        entry: python -m tools.check_adr_reference
+        entry: uv run python -m tools.check_adr_reference
         language: system
         pass_filenames: false
         types_or: [python, markdown]
       - id: adr-structure
         name: Check ADR Known Deviations heading and Implementation Notes/References drift
-        entry: python -m tools.check_adr_structure
+        entry: uv run python -m tools.check_adr_structure
         language: system
         pass_filenames: false
         types_or: [python, markdown]
       - id: manifest-check
         name: Check contract manifests against live sources
-        entry: python -m tools.generate_reference_table --check
+        entry: uv run python -m tools.generate_reference_table --check
         language: system
         pass_filenames: false
         files: ^(registry/manifests/.*\.yaml|schemas/contract_manifest\.json|tools/generate_reference_table\.py|tools/_contract_manifests\.py|tools/check_adr_invariant_matrix\.py|config/agent\.toml|scripts/.*|docs/.*\.md)$
       - id: skills-references
         name: Check skills/rules/prompts file references resolve
-        entry: python -m tools.check_skills_references
+        entry: uv run python -m tools.check_skills_references
         language: system
         pass_filenames: false
         files: ^((skills|rules|prompts|templates)/.*\.md|AGENTS\.md|routing\.md)$
       - id: docs-japanese
         name: Check docs are English-only
-        entry: python -m tools.check_docs_japanese
+        entry: uv run python -m tools.check_docs_japanese
         language: system
         pass_filenames: false
         files: ^docs/.*\.md$
       - id: known-deviation-sync
         name: Check ADR Known Deviations sync
-        entry: python -m tools.check_known_deviation_sync
+        entry: uv run python -m tools.check_known_deviation_sync
         language: system
         pass_filenames: false
         files: ^docs/.*\.md$
@@ -101,43 +101,43 @@ repos:
         types_or: [markdown]
       - id: plan-target-overlaps
         name: Check active Frozen Plans do not overlap on target files
-        entry: python -m tools.check_plan_target_overlaps
+        entry: uv run python -m tools.check_plan_target_overlaps
         language: system
         pass_filenames: false
         files: ^plans/[^/]+\.md$
       - id: conftest-integrity
         name: Check tests/conftest.py required fixtures
-        entry: python -m tools.check_conftest_integrity
+        entry: uv run python -m tools.check_conftest_integrity
         language: system
         pass_filenames: false
         files: ^tests/.*conftest.*$
       - id: workitem-traceability
         name: Check work item Traceability links (active items only)
-        entry: python -m tools.check_workitem_traceability --active-only
+        entry: uv run python -m tools.check_workitem_traceability --active-only
         language: system
         pass_filenames: false
         files: ^(issues|plans|implementations)/.*\.md$
       - id: gates-hook-parity
         name: Check validation gates and pre-commit hooks stay in parity
-        entry: python -m tools.run_validation_gates drift
+        entry: uv run python -m tools.run_validation_gates drift
         language: system
         pass_filenames: false
         files: ^(\.pre-commit-config\.yaml|routing\.md|tools/run_validation_gates\.py)$
       - id: mock-patch-targets
         name: Check mock.patch targets reach the code under test
-        entry: python -m tools.check_mock_patch_targets
+        entry: uv run python -m tools.check_mock_patch_targets
         language: system
         pass_filenames: false
         files: ^(tests/.*\.py|scripts/.*\.py|tools/check_mock_patch_targets\.py)$
       - id: check-docstrings
         name: Check scripts/ module docstring format (baseline-gated)
-        entry: python -m tools.check_docstrings
+        entry: uv run python -m tools.check_docstrings
         language: system
         pass_filenames: false
         files: ^(scripts/.*\.py|tools/check_docstrings(_baseline\.txt|\.py))$
       - id: check-module-size
         name: Check scripts/ module size (baseline-gated)
-        entry: python -m tools.check_module_size
+        entry: uv run python -m tools.check_module_size
         language: system
         pass_filenames: false
         files: ^(scripts/.*\.py|tools/check_module_size(_baseline\.txt|\.py))$
