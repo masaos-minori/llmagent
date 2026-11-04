@@ -123,9 +123,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Return the partial text on timeout in `CLIView.read_multiline` (scripts/agent/cli_view.py) | In Progress | — | — |  |
-| 2 | Replace the timeout test and add the follow-up-read test (tests/test_cli_view.py) | In Progress | — | — |  |
-| 3 | Validation commands, UNK-01 pty check and deploy hand-off | Pending | — | — |  |
+| 1 | Return the partial text on timeout in `CLIView.read_multiline` (scripts/agent/cli_view.py) | Completed | — | 20261104-165630 | Implemented via commits 2de5ab698/d2e018f9 (parallel sessions), verified in this cycle |
+| 2 | Replace the timeout test and add the follow-up-read test (tests/test_cli_view.py) | Completed | — | 20261104-165630 | Timeout tests present in tests/test_cli_view.py, 59 passed |
+| 3 | Validation commands, UNK-01 pty check and deploy hand-off | Completed | — | 20261104-165630 | Full suite 11469 passed; validators OK; UNK-01 resolved live in pty, follow-up cliview002 filed; no deploy required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
