@@ -6,6 +6,7 @@ Pure-function tests for the round's result pairing: no fixtures, no patching.
 from __future__ import annotations
 
 from agent.message_schema import validate_message
+from agent.services.session_restore import INTERRUPTED_TOOL_CALL_MARKER
 from agent.tool_enums import ToolCallStopReason
 from agent.tool_result_pairing import build_denied_messages, pair_round_results
 
@@ -41,16 +42,30 @@ class TestPairingIsByDeclaredId:
 
 
 class TestStopReasonIsClosed:
-    def test_each_reason_has_its_own_text_that_says_the_call_was_not_executed(
-        self,
-    ) -> None:
+    def test_each_reason_has_its_own_text(self) -> None:
         texts = {
             reason: pair_round_results(["a"], set(), {}, reason)[1][0][1]
             for reason in ToolCallStopReason
         }
 
-        assert len(set(texts.values())) == len(ToolCallStopReason) == 2
-        assert all("not executed" in t for t in texts.values())
+        assert len(set(texts.values())) == len(ToolCallStopReason)
+
+    def test_not_executed_reasons_say_the_call_was_not_executed(self) -> None:
+        for reason in (
+            ToolCallStopReason.GUARD_STOP,
+            ToolCallStopReason.ROUND_NOT_COMPLETED,
+        ):
+            text = pair_round_results(["a"], set(), {}, reason)[1][0][1]
+            assert "not executed" in text
+
+    def test_inflight_reason_says_outcome_unknown_not_not_executed(self) -> None:
+        text = pair_round_results(["a"], set(), {}, ToolCallStopReason.ROUND_INFLIGHT)[
+            1
+        ][0][1]
+
+        assert "outcome unknown" in text
+        assert "verify before repeating" in text
+        assert "not executed" not in text
 
     def test_texts_differ_from_the_denial_text_and_are_not_empty(self) -> None:
         denied = build_denied_messages(["a"])[1][0][1]
@@ -58,6 +73,25 @@ class TestStopReasonIsClosed:
         for reason in ToolCallStopReason:
             text = pair_round_results(["a"], set(), {}, reason)[1][0][1]
             assert text and text != denied
+
+
+class TestInFlightText:
+    def test_inflight_reason_synthesizes_exactly_one_matching_pair(self) -> None:
+        history, rows = pair_round_results(
+            ["a"], set(), {}, ToolCallStopReason.ROUND_INFLIGHT
+        )
+
+        assert len(history) == 1 and len(rows) == 1
+        assert history[0]["tool_call_id"] == "a"
+        assert rows[0] == ("tool", history[0]["content"], None, "a")
+
+    def test_inflight_text_differs_from_denial_and_interrupted_texts(self) -> None:
+        text = pair_round_results(["a"], set(), {}, ToolCallStopReason.ROUND_INFLIGHT)[
+            1
+        ][0][1]
+
+        assert text != build_denied_messages(["a"])[1][0][1]
+        assert text != INTERRUPTED_TOOL_CALL_MARKER
 
 
 class TestOrderIsDeclaredOrder:

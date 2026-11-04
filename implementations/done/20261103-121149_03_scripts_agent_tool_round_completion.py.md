@@ -30,7 +30,9 @@ then the plan-wide validation.
 - `ROUND_INFLIGHT` (new) is declared by the seq 01 sibling and mapped in `_STOP_TEXT` by
   the seq 02 sibling; this document adds `dispatched_ids` (new).
 - `tool_runner.py:495` constructs `RoundState([...])` positionally; a defaulted field keeps
-  that call unchanged (seq 04 only reads `state.dispatched_ids`).
+  that call unchanged (seq 04 only reads `state.dispatched_ids`). Re-verified 20261104:
+  construction is now at 499 after blockio001 landed; module size 3527 B and all
+  `complete_round` anchors (55, 76, 77-79, 80-81) unchanged.
 - `TestCompleteRoundPersistence` (companion file, 83-160) is the fixture pattern to mirror:
   a MagicMock `ctx`, real `RoundState`, a stub `collect` coroutine, assertions on
   `ctx.conv.extend_messages` calls. `TestCompleteRoundRoundAtomicity` (207+) covers the
@@ -127,12 +129,14 @@ and stats behavior is unchanged.
 
 ## Compatibility considerations
 - `complete_round` has a single caller (the `finish` closure in
-  `scripts/agent/tool_runner.py:498-505`, verified 20261103); its signature is unchanged,
-  so seq 04's threading lands independently of this module.
+  `scripts/agent/tool_runner.py:498-505`, verified 20261103; 501-510 as of 20261104 after
+  blockio001 landed); its signature is unchanged, so seq 04's threading lands independently
+  of this module.
 - Row/history shapes (`LLMMessage` tool entries, `("tool", text, None, call_id)` rows)
   unchanged — no persistence or schema impact (REQ-004).
-- blockio001's Pending procedures do not touch this module (cross-plan overlap is
-  tool_runner/test_tool_runner only; Plan Assumptions 20261103 note).
+- blockio001's procedures (now landed, f9573d415/c7f2e0514) do not touch this module
+  (cross-plan overlap is tool_runner/test_tool_runner only; re-confirmed 20261104 via
+  git log: module untouched, size 3527 B unchanged).
 - No `docs/` change here (seq 05 owns it). `dispatched_ids` (new) is a dataclass field — not a
   reference-table symbol; `tools/generate_reference_table.py --check` at plan validation.
 
@@ -170,9 +174,9 @@ N/A: the partition reads internal ids only; the emitted texts come from the seq 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm red companion partition tests fail (Procedure 1; Companion test files) | Pending | — | — | Commit with seq 01+02 (the mapping and member are required) |
-| 2 | Add the field and the partition branch (Procedure 2-3) | Pending | — | — | |
-| 3 | Run this document's checks (Validation plan 1-3) | Pending | — | — | |
+| 1 | Confirm red companion partition tests fail (Procedure 1; Companion test files) | Completed | 20261104-091720 | 20261104-094856 | Red confirmed (3 failed); all 12 tests green after Implementation |
+| 2 | Add the field and the partition branch (Procedure 2-3) | Completed | 20261104-094856 | 20261104-094856 | Partition extracted into `_synthesize_cancelled_rows` helper: inline version pushed `complete_round` to C(14), over the `radon -n C` gate |
+| 3 | Run this document's checks (Validation plan 1-3) | Completed | 20261104-094856 | 20261104-094856 | ruff/format/mypy clean; radon: complete_round A(4), helper B(6); size OK; lint-imports 6 kept |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

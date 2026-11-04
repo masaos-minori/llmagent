@@ -4,7 +4,9 @@ Pure logic that pairs a tool round's declared tool_call ids with results.
 
 A round answers every id its assistant message declared. An id that has no
 result when the round ends (the round raised, or a guard stopped it) gets one
-synthesized tool row stating that the call was not executed. No I/O.
+synthesized tool row whose text matches the stop reason: a not-executed
+statement, or, for `ToolCallStopReason.ROUND_INFLIGHT`, an outcome-unknown
+statement. No I/O.
 """
 
 from __future__ import annotations
@@ -22,6 +24,10 @@ _STOP_TEXT: dict[ToolCallStopReason, str] = {
     ),
     ToolCallStopReason.ROUND_NOT_COMPLETED: (
         "Tool call not executed: the tool round did not complete."
+    ),
+    ToolCallStopReason.ROUND_INFLIGHT: (
+        "Tool call was dispatched before the round stopped: outcome unknown, the call may"
+        " have run on the server; verify before repeating."
     ),
 }
 

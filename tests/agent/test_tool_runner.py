@@ -1028,6 +1028,107 @@ class TestMidRoundGuardStop:
         assert [r[0] for r in results] == ["w0", "w1"]
 
 
+class TestCancellationDispatchState:
+    """AC-001..AC-003 (plan 20261101-144325): the hint a cancelled round
+    synthesizes per missing call reflects that call's dispatch state.
+
+    Cancelled mid-execution: the call had been dispatched → outcome-unknown
+    text. Never dispatched (later serial call, or cancelled before the
+    execution phase): the call provably never ran → "not executed" text.
+    A completed round keeps its real rows untouched (AC-003 characterization).
+    """
+
+    @pytest.mark.asyncio
+    async def test_call_in_flight_at_cancellation_gets_the_outcome_unknown_hint(
+        self,
+    ) -> None:
+        ctx = _make_ctx(_cfg(serial_tool_calls=True))
+        started = asyncio.Event()
+        block = asyncio.Event()
+
+        async def blocking_execute(name: str, args: dict) -> ToolCallResult:
+            started.set()
+            await block.wait()  # never set: the round is cancelled while here
+            return _ok("never-reached")
+
+        ctx.services_required.tools.execute = blocking_execute
+        calls = [
+            {"id": "c0", "function": {"name": "read_text_file", "arguments": "{}"}},
+            {"id": "c1", "function": {"name": "read_text_file", "arguments": "{}"}},
+        ]
+        task = asyncio.create_task(
+            execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+        )
+        with _approve_all():
+            await started.wait()
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        # c0 was dispatched before the cancel: outcome unknown, the transport
+        # state is not observable from the agent side.
+        assert "may have run on the server" in _saved_text(ctx, "c0")
+        assert _saved_text(ctx, "c0") != (
+            "Tool call not executed: the tool round did not complete."
+        )
+        # c1 was never dispatched (serial group, execution had not reached it).
+        assert _saved_text(ctx, "c1") == (
+            "Tool call not executed: the tool round did not complete."
+        )
+        assert _saved_tool_ids(ctx) == ["c0", "c1"]
+
+    @pytest.mark.asyncio
+    async def test_completed_round_keeps_real_results_and_synthesizes_nothing(
+        self,
+    ) -> None:
+        ctx = _make_ctx(_cfg())
+        calls = [
+            {"id": "c0", "function": {"name": "read_text_file", "arguments": "{}"}},
+            {"id": "c1", "function": {"name": "read_text_file", "arguments": "{}"}},
+        ]
+        with _approve_all():
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+        # AC-003: dispatched_ids must be drained by completed calls (discard on
+        # write), so a completed round carries no synthesized row at all.
+        assert _saved_text(ctx, "c0") == "result"
+        assert _saved_text(ctx, "c1") == "result"
+        assert _saved_tool_ids(ctx) == ["c0", "c1"]
+
+    @pytest.mark.asyncio
+    async def test_cancellation_before_any_dispatch_answers_all_as_not_executed(
+        self,
+    ) -> None:
+        ctx = _make_ctx(_cfg())
+        approval_started = asyncio.Event()
+        block = asyncio.Event()
+
+        async def blocking_approval(
+            ctx: Any, prepared: list[Any]
+        ) -> tuple[list[Any], list[str]]:
+            approval_started.set()
+            await block.wait()  # cancelled while awaiting approval
+            return prepared, []
+
+        calls = [
+            {"id": "c0", "function": {"name": "read_text_file", "arguments": "{}"}},
+            {"id": "c1", "function": {"name": "read_text_file", "arguments": "{}"}},
+        ]
+        task = asyncio.create_task(
+            execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+        )
+        with patch("agent.tool_approval.run_approval_checks", new=blocking_approval):
+            await approval_started.wait()
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        # No call reached execution: every row is the provable "not executed".
+        not_executed = "Tool call not executed: the tool round did not complete."
+        assert _saved_text(ctx, "c0") == not_executed
+        assert _saved_text(ctx, "c1") == not_executed
+        assert _saved_tool_ids(ctx) == ["c0", "c1"]
+
+
 class TestStatsForRealVsSynthesizedRows:
     @pytest.mark.asyncio
     async def test_every_failed_call_increments_stats_and_failed_keys(self) -> None:

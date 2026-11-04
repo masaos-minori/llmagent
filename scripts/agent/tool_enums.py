@@ -48,7 +48,12 @@ class GuardDecisionType(StrEnum):
 
 
 class ToolCallStopReason(StrEnum):
-    """Why a declared tool call was not executed in a round."""
+    """Why a declared tool call was not executed in a round.
+
+    For a `ROUND_INFLIGHT` call the request was dispatched but its server-side
+    outcome is unknown.
+    """
 
     GUARD_STOP = "guard_stop"
     ROUND_NOT_COMPLETED = "round_not_completed"
+    ROUND_INFLIGHT = "round_inflight"

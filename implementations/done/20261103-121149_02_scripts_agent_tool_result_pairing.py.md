@@ -21,6 +21,8 @@ document of its own) of
   reads `text = _STOP_TEXT[stop_reason]` once, and synthesizes one row per missing id
   with a `seen` set; rows are `("tool", text, None, call_id)`. radon: `pair_round_results`
   A(5). Module is 2503 B (gate 20480 B) — ample.
+  Re-verified 20261104: every anchor, radon rank and size above matches the current tree;
+  `INTERRUPTED_TOOL_CALL_MARKER` is at `session_restore.py:27`.
 - `ROUND_INFLIGHT` (new) is declared by the earlier sibling document (seq 01).
 - The companion file's `TestStopReasonIsClosed` (43-61) today asserts
   `len(set(texts.values())) == len(ToolCallStopReason) == 2` and
@@ -143,9 +145,9 @@ One dict entry; the function body and signature stay untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write red companion tests, confirm they fail (Procedure 1; Companion test files) | Pending | — | — | Commit together with seq 01 |
-| 2 | Add the `_STOP_TEXT` entry (Procedure 3) | Pending | — | — | |
-| 3 | Run this document's checks (Validation plan 1-3) | Pending | — | — | |
+| 1 | Write red companion tests, confirm they fail (Procedure 1; Companion test files) | Completed | 20261104-091538 | 20261104-091712 | Commit together with seq 01 |
+| 2 | Add the `_STOP_TEXT` entry (Procedure 3) | Completed | — | 20261104-091712 |  |
+| 3 | Run this document's checks (Validation plan 1-3) | Completed | — | 20261104-091712 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

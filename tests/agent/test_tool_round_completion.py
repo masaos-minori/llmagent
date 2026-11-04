@@ -138,6 +138,120 @@ class TestCompleteRoundPersistence:
         ctx.session.save.assert_not_called()
 
 
+class TestCompleteRoundDispatchPartition:
+    """A cancelled (``ROUND_NOT_COMPLETED``) round answers an in-flight declared
+    id (present in ``dispatched_ids``) with the outcome-unknown text and a
+    never-dispatched id with the not-executed text (REQ-002; AC-001..AC-003)."""
+
+    _NOT_EXECUTED = "Tool call not executed: the tool round did not complete."
+
+    @staticmethod
+    def _make_ctx() -> MagicMock:
+        ctx = MagicMock()
+        ctx.conv.extend_messages = AsyncMock(return_value=None)
+        ctx.turn.persistence_boundary.save_phase_grouped = AsyncMock(return_value=None)
+        return ctx
+
+    async def test_inflight_and_never_dispatched_get_their_own_texts(self) -> None:
+        ctx = self._make_ctx()
+        state = RoundState(
+            declared_ids=["a", "b", "c"],
+            collected={"a": ("a", "t", "{}", "real", False, "llm")},
+            dispatched_ids={"b"},
+        )
+
+        await complete_round(
+            ctx,
+            state,
+            [{"id": "a"}, {"id": "b"}, {"id": "c"}],
+            0,
+            None,
+            ToolCallStopReason.ROUND_NOT_COMPLETED,
+            AsyncMock(return_value=[("tool", "llm", None, "a")]),
+        )
+
+        synthesized = ctx.conv.extend_messages.await_args.args[0]
+        assert [m["tool_call_id"] for m in synthesized] == ["b", "c"]
+        assert "outcome unknown" in synthesized[0]["content"]
+        assert "verify before repeating" in synthesized[0]["content"]
+        assert synthesized[1]["content"] == self._NOT_EXECUTED
+
+        rows = ctx.turn.persistence_boundary.save_phase_grouped.await_args.args[0]
+        assert [r[3] for r in rows] == ["a", "b", "c"]  # AC-003, declared order
+        assert rows[0][1] == "llm"  # a keeps its real result (AC-004)
+        assert "outcome unknown" in rows[1][1]
+        assert rows[2][1] == self._NOT_EXECUTED
+
+    async def test_guard_stop_path_unchanged(self) -> None:
+        ctx = self._make_ctx()
+        state = RoundState(
+            declared_ids=["a", "b", "c"],
+            collected={"a": ("a", "t", "{}", "real", False, "llm")},
+            dispatched_ids={"b"},
+        )
+
+        await complete_round(
+            ctx,
+            state,
+            [{"id": "a"}, {"id": "b"}, {"id": "c"}],
+            0,
+            None,
+            ToolCallStopReason.GUARD_STOP,
+            AsyncMock(return_value=[("tool", "llm", None, "a")]),
+        )
+
+        synthesized = ctx.conv.extend_messages.await_args.args[0]
+        assert [m["tool_call_id"] for m in synthesized] == ["b", "c"]
+        for msg in synthesized:  # REQ-003; AC-004
+            assert msg["content"] == (
+                "Tool call not executed: the round was stopped by a loop guard."
+            )
+
+    async def test_prep_failure_and_denied_ids_are_not_resynthesized(self) -> None:
+        ctx = self._make_ctx()
+        state = RoundState(
+            declared_ids=["a", "b", "c"],
+            collected={"a": ("a", "t", "{}", "real", False, "llm")},
+            prep_failures=[("b", "t", {}, "rejected", True, "")],
+            denied_ids=["c"],
+            dispatched_ids={"b", "c"},
+        )
+
+        await complete_round(
+            ctx,
+            state,
+            [{"id": "a"}, {"id": "b"}, {"id": "c"}],
+            0,
+            None,
+            ToolCallStopReason.ROUND_NOT_COMPLETED,
+            AsyncMock(return_value=[("tool", "llm", None, "a")]),
+        )
+
+        appended = ctx.conv.extend_messages.await_args.args[0]
+        assert [m["tool_call_id"] for m in appended] == ["c"]  # denied only
+        assert appended[0]["content"] == "Tool execution denied by user."
+        # b and c are answered (prep row, denied row): neither is resynthesized,
+        # even though both are in dispatched_ids.
+        assert "b" not in [m["tool_call_id"] for m in appended]
+
+    async def test_duplicate_declared_id_synthesizes_one_row(self) -> None:
+        ctx = self._make_ctx()
+        state = RoundState(declared_ids=["x", "x"])
+
+        await complete_round(
+            ctx,
+            state,
+            [{"id": "x"}, {"id": "x"}],
+            0,
+            None,
+            ToolCallStopReason.ROUND_NOT_COMPLETED,
+            AsyncMock(return_value=[]),
+        )
+
+        synthesized = ctx.conv.extend_messages.await_args.args[0]
+        assert [m["tool_call_id"] for m in synthesized] == ["x"]  # seen-set behavior
+
+
 # ── Round atomicity (AC-005) ────────────────────────────────────────────────
 
 _ROUND_SCHEMA_SQL = """

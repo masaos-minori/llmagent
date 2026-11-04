@@ -69,6 +69,7 @@ async def _recorded_call(
     pc: PreparedToolCall,
     guard: ToolLoopGuard,
     collected: dict[str, tuple],
+    dispatched: set[str],
 ) -> tuple[str, str, dict, str, bool, str]:
     """Execute one call and record its result in *collected* the moment it exists.
 
@@ -87,6 +88,7 @@ async def _recorded_call(
     """
     state_key = _record_pending_state(ctx, pc)
     try:
+        dispatched.add(pc.call_id)
         result = await execute_one_tool_call(ctx, pc, guard)
     except Exception as exc:  # noqa: BLE001 — per-call boundary: one raising call must not abort its siblings; CancelledError (BaseException) intentionally propagates (REQ-002, AC-5)
         logger.exception(
@@ -98,9 +100,11 @@ async def _recorded_call(
         )
         error_row = (pc.call_id, pc.name, pc.args, failure_text, True, llm_text)
         collected[pc.call_id] = error_row
+        dispatched.discard(pc.call_id)
         _finalize_state(ctx, state_key, "failed")
         return error_row
     collected[pc.call_id] = result
+    dispatched.discard(pc.call_id)
     _finalize_state(ctx, state_key, "completed")
     return result
 
@@ -111,6 +115,7 @@ async def _run_group_calls(
     ctx: AgentContext,
     guard: ToolLoopGuard,
     collected: dict[str, tuple],
+    dispatched: set[str],
 ) -> list[Any]:
     """Execute one group of tool calls, sequentially when serialize=True, gathered otherwise.
 
@@ -119,13 +124,13 @@ async def _run_group_calls(
     if serialize:
         results: list[Any] = []
         for pc in group:
-            results.append(await _recorded_call(ctx, pc, guard, collected))
+            results.append(await _recorded_call(ctx, pc, guard, collected, dispatched))
             if guard.scan_empty_result_repeat():
                 break
         return results
     return list(
         await asyncio.gather(
-            *(_recorded_call(ctx, pc, guard, collected) for pc in group)
+            *(_recorded_call(ctx, pc, guard, collected, dispatched) for pc in group)
         )
     )
 
@@ -387,6 +392,7 @@ async def _run_plan_batches(
     pc_by_id: dict[str, PreparedToolCall],
     guard: ToolLoopGuard,
     collected: dict[str, tuple],
+    dispatched: set[str],
 ) -> list[Any]:
     """Run every batch of the plan, flattening group results into one list.
 
@@ -405,7 +411,9 @@ async def _run_plan_batches(
         ]
         batch_results = await asyncio.gather(
             *(
-                _run_group_calls(pcs, group.sequential, ctx, guard, collected)
+                _run_group_calls(
+                    pcs, group.sequential, ctx, guard, collected, dispatched
+                )
                 for pcs, group in zip(pc_groups, batch.groups)
             )
         )
@@ -421,6 +429,7 @@ async def _execute_with_dag(
     guard: ToolLoopGuard,
     collected: dict[str, tuple],
     force_serial: bool = False,
+    dispatched: set[str] | None = None,
 ) -> list[Any]:
     """Run approved calls through the single DAG execution plan.
 
@@ -434,6 +443,8 @@ async def _execute_with_dag(
     """
     call_specs: dict[str, ToolSpec] = {pc.call_id: pc.spec for pc in approved_calls}
     pc_by_id: dict[str, PreparedToolCall] = {pc.call_id: pc for pc in approved_calls}
+    if dispatched is None:
+        dispatched = set()
 
     round_id = str(uuid4())
     t0 = time.perf_counter()
@@ -447,7 +458,7 @@ async def _execute_with_dag(
     _record_serialization_stats(serialization_events)
 
     call_order = {pc.call_id: i for i, pc in enumerate(approved_calls)}
-    results = await _run_plan_batches(ctx, plan, pc_by_id, guard, collected)
+    results = await _run_plan_batches(ctx, plan, pc_by_id, guard, collected, dispatched)
     results.sort(key=lambda r: call_order.get(r[0], 0))
 
     elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -520,6 +531,7 @@ async def execute_all_tool_calls(
                 guard,
                 state.collected,
                 force_serial=ctx.cfg.tool.serial_tool_calls,
+                dispatched=state.dispatched_ids,
             )
     except BaseException:
         try:

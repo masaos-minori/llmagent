@@ -23,7 +23,9 @@ seq 02 document (companion of the `scripts/agent/tool_result_pairing.py` row).
   `execute_all_tool_calls`) and 527 (`GUARD_STOP`); the plan row cites 518/522 — line
   drift only, symbols unchanged. Match site: only `tool_result_pairing.py::_STOP_TEXT`
   (19-26). No `isinstance`/exhaustive-match elsewhere (rg over `scripts/` confirmed).
-- `tool_enums.py` is 1112 B (gate 20480 B) — ample.
+  Re-verified 20261104 after blockio001 landed: construction sites are now `tool_runner.py`
+  526 (`ROUND_NOT_COMPLETED`) and 530 (`GUARD_STOP`); symbols unchanged.
+- `tool_enums.py` is 1112 B (gate 20480 B) — ample (re-measured 20261104: 1112 B).
 - The only test that enumerates the members is `TestStopReasonIsClosed` in
   `tests/agent/test_tool_result_pairing.py` (43-61), which asserts
   `len(set(texts.values())) == len(ToolCallStopReason) == 2` and
@@ -110,8 +112,8 @@ N/A: no new input or trust boundary.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the member and docstring clause (Procedure 1-2), committed together with seq 02 | Pending | — | — | blockio001 procedures land first per the memo order; re-check line anchors after they land |
-| 2 | Run this document's static checks (Validation plan 2-3) | Pending | — | — | |
+| 1 | Add the member and docstring clause (Procedure 1-2), committed together with seq 02 | Completed | 20261104-091538 | 20261104-091712 | blockio001 landed (f9573d415); anchors re-verified 20261104 (finish calls now 526/530) |
+| 2 | Run this document's static checks (Validation plan 2-3) | Completed | — | 20261104-091712 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -182,11 +182,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Dispatch tracking (`tool_runner.py`) | In Progress | — | — | Procedure 20261103-121149_04 generated (companion covers the test row); lands after blockio001's tool_runner procedure |
-| 2 | Per-id synthesis text (`tool_round_completion.py`, `tool_result_pairing.py`, `tool_enums.py`) | In Progress | — | — | Procedures 20261103-121149_01/_02/_03 generated (companions cover the test rows); intra-plan order 01 → 02 → 03 → 04 |
-| 3 | Tests (`tests/agent/`) | In Progress | — | — | Red-first tests are Procedure 1 steps of the seq 02/03/04 companion sections; no separate test documents |
-| 4 | Documentation (`agent_06_01_...md`) | In Progress | — | — | Procedure 20261103-121149_05 generated; runs after the code documents |
-| 5 | Deployment & Verification | Pending | — | — | |
+| 1 | Dispatch tracking (`tool_runner.py`) | Completed | 20261104-093150 | 20261104-094856 | Procedure 20261103-121149_04 implemented: `dispatched` threaded through `_recorded_call` → `_execute_with_dag`; size gate 20974 B ≤ 21000 baseline |
+| 2 | Per-id synthesis text (`tool_round_completion.py`, `tool_result_pairing.py`, `tool_enums.py`) | Completed | 20261104-091712 | 20261104-094856 | Procedures 20261103-121149_01/_02/_03 implemented in order 01 → 02 → 03 → 04; `ROUND_INFLIGHT` member + total `_STOP_TEXT` + dispatch-state partition (`_synthesize_cancelled_rows`) |
+| 3 | Tests (`tests/agent/`) | Completed | 20261104-091712 | 20261104-094856 | Red-first confirmed per companion section (pairing 3 failed, completion 3 failed, runner 1 failed pre-change); all green post-change; full suite 11451 passed; diff-cover 95% ≥ 90 |
+| 4 | Documentation (`agent_06_01_...md`) | Completed | 20261104-094856 | 20261104-094856 | Procedure 20261103-121149_05 implemented; `check_docs_consistency.py --domain agent`: No issues found |
+| 5 | Deployment & Verification | Completed | 20261104-094856 | 20261104-094856 | ruff + mypy clean on touched files; tool runner / round completion / pairing suites green; new tests confirmed fail-before/pass-after; no production deployment steps in this plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -196,11 +196,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261103-121149_01_scripts_agent_tool_enums.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261103-121149_02_scripts_agent_tool_result_pairing.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261103-121149_03_scripts_agent_tool_round_completion.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261103-121149_04_scripts_agent_tool_runner.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261103-121149_05_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261103-121149_01_scripts_agent_tool_enums.py.md | 2 | Procedure | Completed | — | 20261104-094856 |
+| implementations/20261103-121149_02_scripts_agent_tool_result_pairing.py.md | 2 | Procedure | Completed | — | 20261104-094856 |
+| implementations/20261103-121149_03_scripts_agent_tool_round_completion.py.md | 2 | Procedure | Completed | — | 20261104-094856 |
+| implementations/20261103-121149_04_scripts_agent_tool_runner.py.md | 1, 3 | Procedure | Completed | — | 20261104-094856 |
+| implementations/20261103-121149_05_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 4 | Procedure | Completed | — | 20261104-094856 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

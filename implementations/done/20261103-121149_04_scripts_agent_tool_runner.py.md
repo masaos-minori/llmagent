@@ -30,24 +30,36 @@ document (seq 05) then precedes the plan-wide validation. Intra-plan execution o
   (523) → re-raise, and finishes `GUARD_STOP` (527). radon: `_recorded_call` A(2),
   `_run_group_calls` A(5), `_run_plan_batches` B(9), `_execute_with_dag` A(5),
   `execute_all_tool_calls` B(7) — added parameters add no branches.
+  Re-verified 20261104 after blockio001 landed: `_recorded_call` 67-105 unchanged,
+  `except Exception` 91, `execute_one_tool_call` 256, `_run_group_calls` 108,
+  `_run_plan_batches` 384, `_execute_with_dag` 418, `execute_all_tool_calls` 468,
+  `RoundState` construction 499, `_execute_with_dag(...)` call (passes `state.collected`)
+  517-523, `except BaseException` 524, `finish` calls 526/530; radon ranks unchanged.
 - Size gate (Plan Risks 20261103): `tool_runner.py` is 20444 B against the 20480 B
   `check_module_size.py` gate (36 B headroom, not baselined), and blockio001's Pending
   procedure `implementations/20261103-113432_04_scripts_agent_tool_runner.py.md` edits the
   same file first, shrinking the headroom further. This document's edits add on the order
-  of 200-250 B. If `uv run python tools/check_module_size.py` fails after the edits:
+  of 200-250 B. Re-verified 20261104: blockio001 landed and baselined the file at 21000 B
+  (`tools/check_module_size_baseline.txt` entry `agent/tool_runner.py 21000`); the file is
+  now 20504 B — ~496 B headroom for this document's ~200-250 B. If
+  `uv run python tools/check_module_size.py` fails after the edits:
   record a Blocker Log row, stop before committing, and report to the owner — the owner
   decides `--update-baseline` vs a tool_runner split Plan; do not compact unrelated code to
   squeeze under the gate.
 - Cross-plan test-file overlap: `tests/agent/test_tool_runner.py` is also extended by
   blockio001's seq 08 (`TestDiagnosticWritesOffEventLoop` (new), lands first); the new test
   class here (`TestCancellationDispatchState` (new)) is disjoint and name-collision-free.
+  Re-confirmed 20261104: blockio001 landed (`TestDiagnosticWritesOffEventLoop` at 2543);
+  `TestCancellationDispatchState` absent.
 - `dispatched_ids` (new) is declared by the earlier sibling document (seq 03) as a
   defaulted `RoundState` field; this document adds no new `RoundState` construction.
 - Companion fixture pattern (verified 20261103): `_make_ctx`/`_cfg`/`_tc`/`_approve_all`
   helpers (118-703), transport stubbed at `ctx.services_required.tools.execute`
   (`AsyncMock`) as in `TestMidRoundGuardStop` (971-1028); assertions via
   `_saved_text`/`_saved_tool_ids` (682-691) which read the persisted batch written through
-  `complete_round`.
+  `complete_round`. Re-verified 20261104: `_cfg` 45, `_make_ctx` 119, `_tc` 160,
+  `TestMidRoundGuardStop` 972-1030, `_saved_tool_ids` 683, `_saved_text` 688,
+  `_approve_all` 693.
 - Red-first: the cancellation tests fail pre-change (both unanswered ids get the
   not-executed text today), satisfying AC-005.
 
@@ -90,9 +102,9 @@ document (seq 05) then precedes the plan-wide validation. Intra-plan execution o
    `collected[pc.call_id] = error_row` write and after the `collected[pc.call_id] = result`
    write. One-line comment naming the in-flight/never-dispatched contract (REQ-001).
 5. Run `uv run python tools/check_module_size.py` immediately after the edits. If
-   `tool_runner.py` exceeds 20480 B: record a Blocker Log row in this document, stop before
-   committing, and report to the owner (Plan Risks contingency); do not compact unrelated
-   code.
+   `tool_runner.py` exceeds its baseline entry (21000 B): record a Blocker Log row in this
+   document, stop before committing, and report to the owner (Plan Risks contingency); do
+   not compact unrelated code.
 
 ### Method
 Signature threading of one set parameter plus three statements in `_recorded_call`; no
@@ -102,7 +114,8 @@ branching added (radon ranks unchanged: A(2)/A(5)/B(9)/A(5)/B(7) ceilings).
 - Line citations here predate blockio001's Pending `tool_runner.py` edits (its seq 04
   lands first per the memo order): expect line-number drift; anchor on the symbols
   (`_recorded_call`, `_run_group_calls`, `_run_plan_batches`, `_execute_with_dag`,
-  `execute_all_tool_calls`) and re-verify before editing.
+  `execute_all_tool_calls`) and re-verify before editing. Drift now measured (blockio001
+  landed 20261104): see the Assumptions re-verification note for current lines.
 - The set is per round (`RoundState` instance per `execute_all_tool_calls` call) — no
   module-level or ctx-level state.
 - `CancelledError` propagation semantics of `_recorded_call`'s `except Exception` are
@@ -186,9 +199,9 @@ N/A: no new input; ids are internal.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write red companion cancellation tests, confirm they fail (Procedure 1; Companion test files) | Pending | — | — | Land after blockio001's seq 08 test class in the shared file |
-| 2 | Thread `dispatched` through the four-function chain and mark in `_recorded_call` (Procedure 2-4) | Pending | — | — | Expect line drift from blockio001's tool_runner edits; anchor on symbols |
-| 3 | Size-gate checkpoint and this document's checks (Procedure 5; Validation plan 2-4) | Pending | — | — | Blocker + stop-and-report if `tool_runner.py` exceeds 20480 B |
+| 1 | Write red companion cancellation tests, confirm they fail (Procedure 1; Companion test files) | Completed | 20261104-093150 | 20261104-094856 | `TestCancellationDispatchState` (3 tests) added; red confirmed (1 failed on the outcome-unknown assertion; the 2 characterization tests pass by design) |
+| 2 | Thread `dispatched` through the four-function chain and mark in `_recorded_call` (Procedure 2-4) | Completed | 20261104-093150 | 20261104-094856 | `add` before the transport await in `_recorded_call`, `discard` after both `collected` writes; `dispatched: set[str]` required in the three inner functions, `_execute_with_dag(dispatched=None)` normalizes, `execute_all_tool_calls` passes `state.dispatched_ids` |
+| 3 | Size-gate checkpoint and this document's checks (Procedure 5; Validation plan 2-4) | Completed | 20261104-094856 | 20261104-094856 | Size gate: 20974 B ≤ 21000 baseline (first pass hit 21016 B; fixed by making `dispatched` required and dropping redundant None-normalization). ruff/format/mypy clean, radon unchanged, full suite 11451 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -101,8 +101,8 @@ N/A.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the synthesized-row paragraph and add the two sentences (Procedure 1-3) | Pending | — | — | Runs after seq 01-04 land |
-| 2 | Run the docs consistency checker (Validation plan 1) | Pending | — | — | |
+| 1 | Rewrite the synthesized-row paragraph and add the two sentences (Procedure 1-3) | Completed | 20261104-094856 | 20261104-094856 | Paragraph now names the three cases and both shipped texts; ADR-004 link + cross-reference sentence added; invariant sentences kept word-for-word |
+| 2 | Run the docs consistency checker (Validation plan 1) | Completed | 20261104-094856 | 20261104-094856 | `check_docs_consistency.py --domain agent`: No issues found; diff touches only the reflection/state-recording sections |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
