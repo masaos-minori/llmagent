@@ -787,10 +787,15 @@ def find_plan_coverage_findings(
         for companion in extract_companion_files(doc.text)
     }
     for companion in sorted(companion_candidates):
+        # Exclude the companion's own row: a companion legitimately lists its
+        # own path in its own `Related Tests` cell (the canonical "itself"
+        # pattern), and SKILL.md requires only "exactly one *other* row" to name
+        # it. Counting the self-reference would flag every valid single-target
+        # companion as multi-row.
         named_in = [
             path
             for path, tests_cell in rows
-            if companion in _BACKTICK_PATH_RE.findall(tests_cell)
+            if path != companion and companion in _BACKTICK_PATH_RE.findall(tests_cell)
         ]
         if len(named_in) > 1:
             findings.append(
