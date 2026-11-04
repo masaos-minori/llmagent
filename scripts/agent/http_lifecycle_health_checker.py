@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from shared.mcp_config import McpServerConfig
 
+from agent.http_lifecycle_errors import TerminationOutcome
 from agent.secrets_masker import _mask_secrets
 
 if TYPE_CHECKING:
@@ -58,6 +59,31 @@ async def _interruptible_poll_sleep(
     for task in pending:
         task.cancel()
     return shutdown_task in done
+
+
+async def _terminate_for_startup_failure(
+    manager: HttpServerLifecycleManager,
+    server_key: str,
+    proc: subprocess.Popen[bytes],
+    terminate_timeout_sec: float,
+) -> TerminationOutcome:
+    """Terminate the live child on a startup-failure path, proving or disproving its exit.
+
+    A terminator exception is logged and classified EXIT_UNCONFIRMED so it never
+    masks the HttpStartupError the caller raises next (REQ-005 no-masking).
+    """
+    try:
+        return await manager.process_terminator.terminate_with_timeout(
+            proc, server_key, timeout=terminate_timeout_sec
+        )
+    except Exception as e:  # noqa: BLE001 - must not mask the startup error raised next
+        logger.warning(
+            "Lifecycle: terminating %r on startup failure failed (%s); "
+            "treating the exit as unconfirmed",
+            server_key,
+            e,
+        )
+        return TerminationOutcome.EXIT_UNCONFIRMED
 
 
 class HealthChecker:
@@ -113,6 +139,10 @@ class HealthChecker:
         Polls the health endpoint in a loop, checking for early exit and shutdown
         events between polls. Raises HttpStartupError on early exit, shutdown,
         or timeout.
+
+        On a live-child failure (shutdown or timeout) the child is terminated
+        first and tracking is dropped only when the termination confirms the exit;
+        an unconfirmed exit keeps the process tracked for shutdown_all().
 
         Note: A new AsyncClient is created per call site (not reused across calls).
         This prioritizes correctness — no leaked connections on failure paths —
@@ -172,20 +202,36 @@ class HealthChecker:
                 except (httpx.HTTPError, OSError) as e:
                     logger.info("Lifecycle: health-check poll %r: %s", server_key, e)
                 if await _interruptible_poll_sleep(poll_interval_sec, shutdown_event):
-                    stderr_full = manager._cleanup_server_resources(server_key)
-                    manager._raise_startup_failure(
-                        server_key, "shutdown requested", stderr_full
+                    outcome = await _terminate_for_startup_failure(
+                        manager, server_key, proc, terminate_timeout_sec
                     )
+                    if outcome.confirmed:
+                        stderr_full = manager._cleanup_server_resources(server_key)
+                        manager._raise_startup_failure(
+                            server_key, "shutdown requested", stderr_full
+                        )
+                    else:
+                        stderr_full = manager._stderr_log_manager.read_tail(
+                            server_key
+                        ).decode(errors="replace")
+                        manager._raise_startup_failure_unconfirmed(
+                            server_key, "shutdown requested", stderr_full
+                        )
 
-            stderr_full = manager._cleanup_server_resources(server_key)
-            await manager.process_terminator.terminate_with_timeout(
-                proc, server_key, timeout=terminate_timeout_sec
+            outcome = await _terminate_for_startup_failure(
+                manager, server_key, proc, terminate_timeout_sec
             )
-            manager._raise_startup_failure(
-                server_key,
-                f"did not become healthy within {cfg.startup_timeout_sec}s",
-                stderr_full,
-            )
+            timeout_reason = f"did not become healthy within {cfg.startup_timeout_sec}s"
+            if outcome.confirmed:
+                stderr_full = manager._cleanup_server_resources(server_key)
+                manager._raise_startup_failure(server_key, timeout_reason, stderr_full)
+            else:
+                stderr_full = manager._stderr_log_manager.read_tail(server_key).decode(
+                    errors="replace"
+                )
+                manager._raise_startup_failure_unconfirmed(
+                    server_key, timeout_reason, stderr_full
+                )
 
     @staticmethod
     async def verify_running_async(

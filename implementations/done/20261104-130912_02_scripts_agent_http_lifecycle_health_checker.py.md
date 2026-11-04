@@ -105,15 +105,15 @@ outcome-gated rule: terminate, then drop tracking only on `TerminationOutcome.co
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Requires row 01 landed first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests live in the row-03 document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation | Pending | — | — | N/A per Plan Documentation Impact |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261104-180947 | 20261104-181102 | `_terminate_for_startup_failure` added after `_interruptible_poll_sleep`; shutdown and timeout branches rewritten to the gated split; docstring Raises/Note updated; `TerminationOutcome` import added |
+| 2 | Add or update tests per Validation plan | Completed | 20261104-181102 | 20261104-181215 | See Blocker Log: 5 terminator patches in the companion file adapted to the `TerminationOutcome` contract (deviation from the no-edit assumption) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261104-181215 | 20261104-181251 | ruff/format/mypy clean; radon -nc empty; neighboring suites 100 passed |
+| 4 | Update documentation | Completed | — | 20261104-181251 | N/A per Plan Documentation Impact |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | The Assumptions section states the companion file patches `terminate_with_timeout` with bare `AsyncMock()`s; in fact 5 patches use `AsyncMock(return_value=True)` (pre-`TerminationOutcome` bool leftover). The new `outcome.confirmed` read broke 4 tests (AttributeError on bool). Fix: patched all 5 sites with `AsyncMock(return_value=TerminationOutcome.EXITED)`, which preserves each test's confirmed-path intent; verified by re-running the suite green | Yes | 20261104-181215 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

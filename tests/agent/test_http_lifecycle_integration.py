@@ -8,6 +8,8 @@ does today, not what it ought to do tomorrow.
 from __future__ import annotations
 
 import asyncio
+import io
+import logging
 import os
 import signal
 import subprocess
@@ -864,7 +866,9 @@ class TestErrorRecovery:
             patch.object(asyncio, "sleep", return_value=None),
         ):
             with patch.object(
-                mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=AsyncMock(return_value=TerminationOutcome.EXITED),
             ):
                 with pytest.raises(HttpStartupError):
                     await mgr.start("test", cfg)
@@ -946,7 +950,9 @@ class TestErrorRecovery:
                 new=MagicMock(return_value=b"timeout stderr"),
             ):
                 with patch.object(
-                    mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+                    mgr._process_terminator,
+                    "terminate_with_timeout",
+                    new=AsyncMock(return_value=TerminationOutcome.EXITED),
                 ):
                     with pytest.raises(HttpStartupError) as exc_info:
                         await mgr.start("test", cfg)
@@ -1036,7 +1042,9 @@ class TestErrorRecovery:
                 new=MagicMock(return_value=b""),
             ):
                 with patch.object(
-                    mgr._process_terminator, "terminate_with_timeout", new=AsyncMock()
+                    mgr._process_terminator,
+                    "terminate_with_timeout",
+                    new=AsyncMock(return_value=TerminationOutcome.EXITED),
                 ):
                     with pytest.raises(HttpStartupError):
                         await mgr.start("test", cfg)
@@ -1094,10 +1102,16 @@ class TestShutdownEventPollInterruption:
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.get = AsyncMock(return_value=mock_resp)
 
+        terminator_mock = AsyncMock(return_value=TerminationOutcome.EXITED)
         with (
             patch.object(subprocess, "Popen", return_value=proc_mock),
             patch.object(os, "getpgid", return_value=9999),
             patch.object(httpx, "AsyncClient", mock_client),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=terminator_mock,
+            ),
         ):
             with pytest.raises(HttpStartupError) as exc_info:
                 await mgr.start("test", cfg, shutdown_event=shutdown_event)
@@ -1106,6 +1120,7 @@ class TestShutdownEventPollInterruption:
         assert isinstance(failure, StartupFailure)
         assert failure.server_key == "test"
         assert failure.reason == "shutdown requested"
+        terminator_mock.assert_awaited_once()
         assert mgr._http_procs.get("test") is None
         assert mgr._http_pgids.get("test") is None
 
@@ -1135,3 +1150,209 @@ class TestShutdownEventPollInterruption:
             await mgr.start("test", cfg, shutdown_event=shutdown_event)
 
         assert mgr._http_procs.get("test") is proc_mock
+
+
+class TestStartupFailureTerminateOrTrack:
+    """New in implementations/20261104-130912_03_tests_agent_test_http_lifecycle_integration.py.md:
+
+    On a live-child startup-failure path the child is terminated first and tracking
+    is dropped only when the termination confirms the exit; an unconfirmed exit
+    keeps the process tracked so shutdown_all() still names it.
+    """
+
+    @pytest.mark.asyncio
+    async def test_real_child_terminated_and_reaped_on_shutdown_request(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """T-1: real child, real terminator; the confirmed kill removes the process group."""
+        cfg = _make_cfg(
+            cmd=["python", "-c", "import time; time.sleep(30)"],
+            startup_timeout_sec=30,
+        )
+        shutdown_event = asyncio.Event()
+        shutdown_event.set()
+        captured_pgid: int | None = None
+        real_popen = subprocess.Popen
+
+        def spy_popen(*args: object, **kwargs: object) -> subprocess.Popen[bytes]:
+            nonlocal captured_pgid
+            proc = real_popen(*args, **kwargs)
+            captured_pgid = os.getpgid(proc.pid)
+            return proc
+
+        try:
+            with patch.object(subprocess, "Popen", side_effect=spy_popen):
+                with pytest.raises(HttpStartupError) as exc_info:
+                    await mgr.start("test", cfg, shutdown_event=shutdown_event)
+            assert exc_info.value.failure.reason == "shutdown requested"
+            with pytest.raises(ProcessLookupError):
+                os.killpg(captured_pgid if captured_pgid is not None else -1, 0)
+        finally:
+            if captured_pgid is not None:
+                try:
+                    os.killpg(captured_pgid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
+        assert mgr._http_procs.get("test") is None
+        assert mgr._http_pgids.get("test") is None
+
+    @pytest.mark.asyncio
+    async def test_confirmed_termination_on_shutdown_clears_tracking(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """T-3: shutdown-requested branch terminates first; a confirmed exit clears tracking."""
+        cfg = _make_cfg()
+        proc_mock = Mock(pid=7777, poll=Mock(return_value=None))
+        mgr._http_procs["test"] = proc_mock
+        mgr._http_pgids["test"] = 7777
+        mgr._stderr_files["test"] = io.BytesIO()
+        shutdown_event = asyncio.Event()
+        shutdown_event.set()
+        terminator_mock = AsyncMock(return_value=TerminationOutcome.EXITED)
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=terminator_mock,
+            ),
+            patch.object(
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b""),
+            ),
+            patch.object(httpx, "AsyncClient"),
+        ):
+            with pytest.raises(HttpStartupError) as exc_info:
+                await mgr._health_poll_until_ready(
+                    "test", cfg, proc_mock, time.monotonic() + 5.0, shutdown_event
+                )
+
+        terminator_mock.assert_awaited_once_with(proc_mock, "test", timeout=5.0)
+        assert mgr._http_procs.get("test") is None
+        assert mgr._http_pgids.get("test") is None
+        assert exc_info.value.failure.reason == "shutdown requested"
+
+    @pytest.mark.asyncio
+    async def test_unconfirmed_termination_on_shutdown_keeps_tracking(
+        self,
+        mgr: HttpServerLifecycleManager,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Shutdown-branch mirror of T-2: unconfirmed exit keeps all tracking."""
+        cfg = _make_cfg()
+        proc_mock = Mock(pid=7777, poll=Mock(return_value=None))
+        mgr._http_procs["test"] = proc_mock
+        mgr._http_pgids["test"] = 7777
+        mgr._stderr_files["test"] = io.BytesIO()
+        shutdown_event = asyncio.Event()
+        shutdown_event.set()
+        terminator_mock = AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED)
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=terminator_mock,
+            ),
+            patch.object(
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b"shutdown stderr"),
+            ),
+            patch.object(httpx, "AsyncClient"),
+        ):
+            with caplog.at_level(logging.ERROR, logger="agent.http_lifecycle"):
+                with pytest.raises(HttpStartupError) as exc_info:
+                    await mgr._health_poll_until_ready(
+                        "test", cfg, proc_mock, time.monotonic() + 5.0, shutdown_event
+                    )
+
+        terminator_mock.assert_awaited_once_with(proc_mock, "test", timeout=5.0)
+        assert exc_info.value.failure.reason == "shutdown requested"
+        assert "shutdown stderr" in exc_info.value.failure.stderr_full
+        assert mgr._http_procs.get("test") is proc_mock
+        assert mgr._http_pgids.get("test") == 7777
+        assert "startup failure with exit not confirmed" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_timeout_with_unconfirmed_exit_keeps_process_tracked(
+        self,
+        mgr: HttpServerLifecycleManager,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """T-2: an unconfirmed timeout keeps all tracking and shutdown_all names the server."""
+        cfg = _make_cfg(startup_timeout_sec=5)
+        proc_mock = Mock(pid=7777, poll=Mock(return_value=None))
+        mgr._http_procs["test"] = proc_mock
+        mgr._http_pgids["test"] = 7777
+        mgr._stderr_files["test"] = io.BytesIO()
+        terminator_mock = AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED)
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=terminator_mock,
+            ),
+            patch.object(
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b"timeout stderr"),
+            ),
+            patch.object(httpx, "AsyncClient"),
+        ):
+            with caplog.at_level(logging.ERROR, logger="agent.http_lifecycle"):
+                with pytest.raises(HttpStartupError) as exc_info:
+                    await mgr._health_poll_until_ready(
+                        "test", cfg, proc_mock, time.monotonic() - 1.0, None
+                    )
+
+            assert mgr._http_procs.get("test") is proc_mock
+            assert mgr._http_pgids.get("test") == 7777
+            handle = mgr._stderr_files.get("test")
+            assert handle is not None and not handle.closed
+            assert "startup failure with exit not confirmed" in caplog.text
+
+            outcomes = await mgr.shutdown_all()
+
+        assert ("test", TerminationOutcome.EXIT_UNCONFIRMED) in outcomes
+        assert exc_info.value.failure.reason == "did not become healthy within 5s"
+        assert "timeout stderr" in exc_info.value.failure.stderr_full
+
+    @pytest.mark.asyncio
+    async def test_terminator_exception_does_not_mask_startup_error(
+        self,
+        mgr: HttpServerLifecycleManager,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """T-5: a terminator OSError is classified EXIT_UNCONFIRMED, never masks the startup error."""
+        cfg = _make_cfg(startup_timeout_sec=5)
+        proc_mock = Mock(pid=7777, poll=Mock(return_value=None))
+        mgr._http_procs["test"] = proc_mock
+        mgr._http_pgids["test"] = 7777
+        mgr._stderr_files["test"] = io.BytesIO()
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=AsyncMock(side_effect=OSError("boom")),
+            ),
+            patch.object(
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b"patched tail"),
+            ),
+            patch.object(httpx, "AsyncClient"),
+        ):
+            with caplog.at_level(
+                logging.WARNING, logger="agent.http_lifecycle_health_checker"
+            ):
+                with pytest.raises(HttpStartupError) as exc_info:
+                    await mgr._health_poll_until_ready(
+                        "test", cfg, proc_mock, time.monotonic() - 1.0, None
+                    )
+
+        assert exc_info.value.failure.reason == "did not become healthy within 5s"
+        assert "patched tail" in exc_info.value.failure.stderr_full
+        assert mgr._http_procs.get("test") is proc_mock
+        assert mgr._http_pgids.get("test") == 7777
+        assert "treating the exit as unconfirmed" in caplog.text

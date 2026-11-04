@@ -99,10 +99,10 @@ Insert one new method directly after `_raise_startup_failure` (lines 239-249) in
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests live in the row-03 document; this row is verified by them |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation | Pending | — | — | N/A per Plan Documentation Impact: no doc states startup-failure tracking behavior |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261104-180609 | 20261104-180721 | `_raise_startup_failure_unconfirmed` added after `_raise_startup_failure` (:252); docstring of the confirmed path extended |
+| 2 | Add or update tests per Validation plan | Completed | 20261104-181437 | 20261104-181656 | Tests live in the row-03 document; landed and green: T-2/T-5 pass, failing baseline confirmed, plus the shutdown-arm unconfirmed test (coverage gap) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261104-180721 | 20261104-180832 | ruff/format/mypy clean; radon -nc empty (no C+ block); reference-table check: no drift; 100 existing tests green unmodified |
+| 4 | Update documentation | Completed | — | 20261104-180832 | N/A per Plan Documentation Impact: no doc states startup-failure tracking behavior |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

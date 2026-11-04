@@ -239,9 +239,40 @@ class HttpServerLifecycleManager:
     def _raise_startup_failure(
         self, server_key: str, reason: str, stderr_full: str
     ) -> NoReturn:
-        """Drop tracked process/pgid entries and raise HttpStartupError with the given reason."""
+        """Drop tracked process/pgid entries and raise HttpStartupError with the given reason.
+
+        Confirmed path only (tracking already dropped); an exit that could not be
+        confirmed must use _raise_startup_failure_unconfirmed instead.
+        """
         self._http_procs.pop(server_key, None)
         self._http_pgids.pop(server_key, None)
+        raise HttpStartupError(
+            StartupFailure(
+                server_key=server_key, reason=reason, stderr_full=stderr_full
+            )
+        )
+
+    def _raise_startup_failure_unconfirmed(
+        self, server_key: str, reason: str, stderr_full: str
+    ) -> NoReturn:
+        """Raise HttpStartupError keeping a not-confirmed process fully tracked.
+
+        Sibling of _raise_startup_failure for the exit-unconfirmed outcome: the live
+        process, its pgid, and its stderr-log tracking are retained so
+        shutdown_all() still names the server for manual cleanup.
+        """
+        proc = self._http_procs.get(server_key)
+        pid = getattr(proc, "pid", None)
+        pgid = self._http_pgids.get(server_key)
+        logger.error(
+            "Lifecycle: %r pid=%s pgid=%s startup failure with exit not confirmed; "
+            "process, pgid and stderr-log tracking retained, stop it manually with: "
+            "kill -TERM -%s",
+            server_key,
+            pid,
+            pgid,
+            pgid,
+        )
         raise HttpStartupError(
             StartupFailure(
                 server_key=server_key, reason=reason, stderr_full=stderr_full

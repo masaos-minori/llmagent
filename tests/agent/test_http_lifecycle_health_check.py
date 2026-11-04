@@ -29,6 +29,7 @@ import agent.http_lifecycle as hl_module
 import agent.http_lifecycle_health_checker as hc_module
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager, HttpStartupError
+from agent.http_lifecycle_errors import TerminationOutcome
 from agent.http_lifecycle_health_checker import HealthChecker
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from starlette.requests import Request
@@ -94,7 +95,7 @@ class TestHealthPollClientLifecycle:
             patch.object(
                 mgr._process_terminator,
                 "terminate_with_timeout",
-                AsyncMock(return_value=True),
+                AsyncMock(return_value=TerminationOutcome.EXITED),
             ),
             pytest.raises(HttpStartupError),
         ):
@@ -128,7 +129,7 @@ class TestHealthPollClientLifecycle:
                 patch.object(
                     mgr._process_terminator,
                     "terminate_with_timeout",
-                    AsyncMock(return_value=True),
+                    AsyncMock(return_value=TerminationOutcome.EXITED),
                 ),
             ):
                 for server_key in ("test-server", "test-server-2"):
@@ -263,7 +264,7 @@ class TestStartupPollWithDistinctServerToken:
             patch.object(
                 mgr._process_terminator,
                 "terminate_with_timeout",
-                AsyncMock(return_value=True),
+                AsyncMock(return_value=TerminationOutcome.EXITED),
             ),
             pytest.raises(HttpStartupError),
         ):
@@ -324,7 +325,7 @@ class TestHealthPollDegradedTolerance:
             patch.object(
                 mgr._process_terminator,
                 "terminate_with_timeout",
-                AsyncMock(return_value=True),
+                AsyncMock(return_value=TerminationOutcome.EXITED),
             ),
         ):
             router.get("http://localhost:8080/health").mock(
@@ -357,7 +358,7 @@ class TestHealthPollDegradedTolerance:
             patch.object(
                 mgr._process_terminator,
                 "terminate_with_timeout",
-                AsyncMock(return_value=True),
+                AsyncMock(return_value=TerminationOutcome.EXITED),
             ),
             pytest.raises(HttpStartupError),
         ):

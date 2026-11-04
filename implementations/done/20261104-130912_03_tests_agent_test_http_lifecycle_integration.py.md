@@ -107,10 +107,10 @@ with a bare `AsyncMock()`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update T-4 and the three bare-`AsyncMock` tests | Pending | — | — | |
-| 2 | Add T-1, T-2, T-3, T-5 per Validation plan | Pending | — | — | Requires rows 01 and 02 landed |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation | Pending | — | — | N/A per Plan Documentation Impact |
+| 1 | Update T-4 and the three bare-`AsyncMock` tests | Completed | 20261104-181437 | 20261104-181550 | T-4 gained the explicit `TerminationOutcome.EXITED` terminator patch plus `assert_awaited_once`; the three listed tests pinned to `EXITED` |
+| 2 | Add T-1, T-2, T-3, T-5 per Validation plan | Completed | 20261104-181550 | 20261104-181656 | New class `TestStartupFailureTerminateOrTrack`; failing baseline verified: 4/4 fail against pre-row-01/02 code (path-scoped stash), 52/52 pass with rows 01-02 landed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261104-181656 | 20261104-181740 | Targeted file: 52 passed, identical on two runs (T-1 real child ~<10 s); companions green; ruff/format clean |
+| 4 | Update documentation | Completed | — | 20261104-181740 | N/A per Plan Documentation Impact |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

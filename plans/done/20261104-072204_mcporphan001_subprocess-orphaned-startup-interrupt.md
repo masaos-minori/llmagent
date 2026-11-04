@@ -158,9 +158,9 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Core logic — outcome-gated tracking on the startup-failure path | In Progress | 2026-11-04 | — | Procedure documents 20261104-130912_01 (http_lifecycle.py) and _02 (health_checker) generated this cycle; frozen rows 1-2 swapped so the helper row precedes its call site |
-| 2 | Tests | In Progress | 2026-11-04 | — | Procedure document 20261104-130912_03 generated this cycle |
-| 3 | Verification & consistency review | Pending | — | — | Check-only step (launcher review, test/static gates); carried out by code-implementation |
+| 1 | Core logic — outcome-gated tracking on the startup-failure path | Completed | 2026-11-04 | 20261104-190326 | Procedure documents 20261104-130912_01 (http_lifecycle.py) and _02 (health_checker) generated this cycle; frozen rows 1-2 swapped so the helper row precedes its call site |
+| 2 | Tests | Completed | 2026-11-04 | 20261104-190326 | Procedure document 20261104-130912_03 generated this cycle |
+| 3 | Verification & consistency review | Completed | — | 20261104-190326 | Check-only step (launcher review, test/static gates); carried out by code-implementation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -170,9 +170,9 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261104-130912_01_scripts_agent_http_lifecycle.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261104-130912_02_scripts_agent_http_lifecycle_health_checker.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261104-130912_03_tests_agent_test_http_lifecycle_integration.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261104-130912_01_scripts_agent_http_lifecycle.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261104-130912_02_scripts_agent_http_lifecycle_health_checker.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261104-130912_03_tests_agent_test_http_lifecycle_integration.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
