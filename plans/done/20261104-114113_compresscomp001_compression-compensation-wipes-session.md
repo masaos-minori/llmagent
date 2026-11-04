@@ -167,11 +167,11 @@ Baseline (Step 5): `radon cc` reports `SessionMessageRepository.save_many` at C 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing real-database compress-then-fail test | Pending | — | — | |
-| 2 | Phase 2: repository image capture, restore, and tests | Pending | — | — | |
-| 3 | Phase 3: boundary compensation, undo floor restore, and tests | Pending | — | — | |
-| 4 | Phase 4: documentation update | Pending | — | — | |
-| 5 | Phase 5: deployment hand-off and verification | Pending | — | — | |
+| 1 | Phase 1: failing real-database compress-then-fail test | In Progress | — | — |  |
+| 2 | Phase 2: repository image capture, restore, and tests | In Progress | — | — |  |
+| 3 | Phase 3: boundary compensation, undo floor restore, and tests | In Progress | — | — |  |
+| 4 | Phase 4: documentation update | In Progress | — | — |  |
+| 5 | Phase 5: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -181,7 +181,12 @@ Baseline (Step 5): `radon cc` reports `SessionMessageRepository.save_many` at C 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261104-224326_01_scripts_agent_session_message_repo.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261104-224326_02_scripts_agent_turn_persistence.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261104-224326_03_tests_agent_test_history_compression_consistency.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261104-224326_04_tests_agent_test_turn_persistence.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261104-224326_05_tests_agent_test_session_message_repo.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261104-224326_06_docs_23_agent_agent_04_01_state-and-persistence-state-model.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -206,3 +211,5 @@ Baseline (Step 5): `radon cc` reports `SessionMessageRepository.save_many` at C 
 | REQ-005 | Testing Expectations | tests/agent/test_turn_persistence.py | 3 | AC-2, AC-3, AC-4 | Boundary unit tests | Explicit in issue |
 | REQ-005 | Testing Expectations | tests/agent/test_session_message_repo.py | 2 | AC-1, AC-2 | Repository tests | Explicit in issue |
 | REQ-006 | Documentation Impact | docs/23_agent/agent_04_01_state-and-persistence-state-model.md | 4 | AC-7 | `tools/check_docs_*` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261104-224326 -->
