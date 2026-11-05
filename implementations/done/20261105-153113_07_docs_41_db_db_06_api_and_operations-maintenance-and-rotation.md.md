@@ -49,12 +49,19 @@ append-only: the existing numeric-consistency description stays intact.
      (`fk_unverified`, `embedding_unverified`, `schema_unverified`), each defaulting to
      `False`, set by `check_rag_consistency` when the corresponding probe raises
      `sqlite3.Error` or `sqlite-vec` is unavailable.
-   - Clarify that `is_consistent(report)` remains the numeric predicate and is orthogonal to
-     these flags: a report can be numerically clean yet `unverified`.
+   - Clarify how `is_consistent(report)` relates to the flags. Adjustment (2026-11-05, seq 05
+     interlock): the flags are also fail-closed `_CHECKS` rules (predicate-only, no issue
+     builder, like `diagnostic_errors`/`read_smoke_test_ok`), so a flag-set report is
+     inconsistent even at all-zero counts; they are no longer purely "orthogonal".
    - State consumer expectations: recovery verification and the recovery drill treat any
      unverified dimension as a verification failure (not a pass), per REQ-004/AC-004.
 3. Cross-reference the numeric `_CHECKS` predicates already documented above so readers see the
-   two layers (numeric vs. verification-status) side by side.
+   two layers (numeric vs. verification-status) side by side. Adjustment (2026-11-05): the
+   existing L50 predicate list and the L57 "two rules with no builder" claim are stale against
+   shipped `_CHECKS` (they omit `fk_inconsistency_count`, `dimension_mismatch`,
+   `unknown_schema`, `corpus_meta_verified`, and the new flag rules). Update those two stale
+   claims minimally so the appended subsection does not contradict them; this supersedes the
+   strict "no existing sentence altered" constraint for those two sentences only.
 4. Confirm the `docs/00_index.md` mapping for this doc still points here and that no other doc
    cites the old `...-rag-write-integrity.md` name.
 
@@ -97,10 +104,10 @@ branching (seq 04).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Append-only doc update. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs only. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document. |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-184806 | 20261105-184806 | Appended `### 8.1 Verification Status (unverified-dimension flags)` at the end of section 8 (before `---`/`## Keywords`). Minimal stale-claim fixes applied to the L50 `_CHECKS` predicate list (added `fk_inconsistency_count`, `dimension_mismatch`, `unknown_schema`, `corpus_meta_verified`, flag rules) and the L57 "two rules with no builder" sentence, per the interlock adjustment recorded in this doc's Procedure step 3. |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-184806 | 20261105-184806 | N/A: docs only. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-184806 | 20261105-184806 | `tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py`, `check_docs_consistency.py --domain db` all pass (exit 0). One follow-up fix at the pre-commit gate run: `check_docs_quality` initially rejected the appended 8.1 line for carrying `REQ-004/AC-004` traceability markers (Current-Specification-Only Policy); markers removed, checker re-passed, and `run_validation_gates.py` re-verified with 0 Fail/Blocked. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-184806 | 20261105-184806 | This document's target: `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`. `docs/00_index.md` carries no db_06-specific mapping row (nothing to repoint); no doc references the removed `...-rag-write-integrity.md` name. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -16,17 +16,16 @@ a verification failure in the audit artifact, not a pass. Add a drill test asser
   `verification` dict therefore drives pass/fail without changing that formula.
 - The report carries per-dimension unverified flags (`scripts/db/models.py`, seq 03); the drill
   reads them via `check_rag_consistency` on the restored database.
-- **Open decision (Need confirmation):** the drill currently runs only physical checks for rag
-  (`_verify_rag_session`: integrity + `required_table_rag`, L91-L98) and does not run logical
-  consistency verification. This Plan adds it. Two follow-on questions must be decided:
-  1. Reuse `_run_logical_verification` (`scripts/db/recovery.py`), whose `sqlite3.Error`
-     guardrail returns `(True, None)` so a verification gap never aborts a completed physical
-     restore — versus a direct `check_rag_consistency` that surfaces an unverified state.
-     Reusing the guardrail would contradict AC-004 for the extension-missing case.
-  2. The drill fixtures (`tests/db/test_recovery_drill.py`) use minimal core tables without
-     vec0/`rag_corpus_meta`, so full logical verification marks the healthy sweep unverified.
-     Either upgrade the fixtures or, for the unit test, inject a report with an unverified
-     flag.
+- **Decision (resolved 2026-11-05, user-confirmed):** the drill currently runs only physical
+  checks for rag (`_verify_rag_session`: integrity + `required_table_rag`, L91-L98) and does
+  not run logical consistency verification. This Plan adds it:
+  1. Wire a direct `check_rag_consistency` call in `_verify_rag_session` (guarded to
+     `domain == "rag"`), NOT `_run_logical_verification`: its `sqlite3.Error` guardrail
+     returns `(True, None)` and would contradict AC-004 for the extension-missing case.
+  2. Upgrade the drill's rag fixture (`_RAG_DDL`) to a full plain RAG core schema (`chunks`,
+     a `chunks_vec` with an `embedding BLOB` column, the fts5 tables + triggers — mirroring
+     `tests/db/test_rag_consistency.py`, no external extension) so the healthy sweep verifies
+     clean end-to-end; inject a report with an unverified flag only for the failure-path test.
 
 ## Design decisions
 
@@ -34,17 +33,17 @@ a verification failure in the audit artifact, not a pass. Add a drill test asser
   every dimension is verified and `rag_is_consistent`; `False` when any dimension is
   unverified or the report is inconsistent. This keeps the pass formula unchanged and the
   artifact schema additive.
-- For the test, inject a report with an unverified flag rather than rewriting every fixture, so
-  the healthy-sweep test stays green while the unverified path is exercised.
+- For the tests: the upgraded rag fixture exercises the healthy verified path end-to-end;
+  the unverified-failure path is exercised by injecting a report with an unverified flag.
 
 ## Alternatives considered
 
 - Adding per-dimension sub-keys versus one combined key. Chose one
   key: the drill reports a domain-level pass/fail, and AC-004 concerns the domain pass, not
   per-dimension drill reporting. Per-dimension detail lives in the recovery log (seq 04).
-- Upgrading the drill fixtures to a full vec0 schema versus injecting a report. Chose injection
-  for the unit test (isolated, fast); fixture upgrades can follow if end-to-end coverage is
-  desired.
+- Upgrading the drill fixtures to a full plain RAG core schema versus injecting a report for
+  every path. Chose fixture upgrade for the healthy path (real end-to-end verification, no
+  external extension needed) plus report injection for the unverified-failure path.
 
 ## Implementation
 ### Target file
@@ -82,6 +81,18 @@ verified-passes) using report injection.
   restore; the logical unverified state is surfaced in the artifact's `verification` dict.
 - Injecting a report (rather than rebuilding fixtures) keeps the healthy-sweep test
   green while still exercising the fail-closed branch.
+- Verification findings (2026-11-05, HEAD d6acadd14) on the drill wiring:
+  - `_verify_rag_session` (`recovery_drill.py` L91-L98) is shared by the rag AND session
+    domains; the consistency sub-key must be added only when `domain == "rag"`.
+  - `test_verify_per_domain_reports_expected_verdicts` (`tests/db/test_recovery_drill.py`
+    L250-L253) asserts the rag `verification` dict with an exact equality; it must be
+    updated to include `"rag_consistency": True` (the session assertion is unchanged).
+  - The drill's rag fixture (`_RAG_DDL`, only the `documents` table) cannot pass logical
+    verification, so the healthy-sweep tests need either a fixture upgrade (add `chunks`,
+    a `chunks_vec` with an `embedding BLOB` column, and the fts5 tables — the same plain
+    schema `tests/db/test_rag_consistency.py` uses, no external extension required) or a
+    verified-report patch injected in those tests.
+  - The CLI subprocess tests drill only `workflow`, so they are unaffected.
 
 ## Compatibility considerations
 Test-only change for the assertions; the drill wiring is additive (one new verification sub-key).
@@ -115,15 +126,15 @@ branching (seq 04), and the RAG consistency tests (seq 05).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Drill wiring + tests. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-184806 | 20261105-184806 | `scripts/db/recovery_drill.py`: `_verify_rag_session` now adds `"rag_consistency"` (all flags false AND `rag_is_consistent`) only when `domain == "rag"`; direct `check_rag_consistency` on the isolated copy, per the user-confirmed decision (not `_run_logical_verification`). Fixture `_RAG_DDL` upgraded to the full plain RAG core schema. |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-184806 | 20261105-184806 | New: `test_rag_verified_fixture_passes_drill`, `test_rag_unverified_dimension_fails_drill` (report injection). `test_verify_per_domain_reports_expected_verdicts` rag dict updated with `"rag_consistency": True`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-184806 | 20261105-184806 | tests/db 411 passed; tests/deploy 27 passed (interlock: see Blocker Log); ruff clean; lint-imports 6 kept/0 broken; mypy success (557 files, fresh cache). Immutability invariant test still green. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-184806 | 20261105-184806 | N/A: docs handled by seq 07. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | `tests/deploy/test_init_db_ledger_gate.py::test_recovery_drill_runs_under_flag_and_leaves_fixtures_untouched` failed: the drill now runs the fail-closed logical layer on rag, and that test's `documents`-only rag fixture made the drill FAIL. | Yes — interlock: upgraded its rag provisioner (`_provision_minimal_rag` → `_provision_rag_core`) to the plain RAG core schema; second failure (`no such column: chunk_index` diagnostic) fixed by completing the `chunks` columns to match the drill fixture. tests/deploy 27 passed. | 2026-11-05 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

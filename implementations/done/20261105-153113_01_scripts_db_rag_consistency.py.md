@@ -13,7 +13,13 @@ the expected dimension count.
 
 - The additive verification-status field is defined in the sibling procedure
   `scripts/db/models.py` (seq 03); this module consumes it via the
-  `RagConsistencyReport` dataclass and does not define it.
+  `RagConsistencyReport` dataclass and does not define it. Seq 03 MUST land
+  before this change: the split probes set those flags.
+- Execution interlock (verification finding 2026-11-05, HEAD d6acadd14): on the
+  current fixture the embedding probe raises on every fixture (no `embedding`
+  column). Landing the split without seq 05's fixture update would add a
+  diagnostic error to every report and regress `is_consistent` on all healthy
+  fixture tests. Land seq 05 step 1 (fixture) in the same cycle as this change.
 - On the non-`vec0` test harness (`chunks_vec` without an `embedding` column) the
   embedding probe raises `sqlite3.Error`. The fixtures in
   `tests/db/test_rag_consistency.py` (seq 05) must expose a `vec0`-compatible
@@ -107,10 +113,10 @@ The additive status field itself (seq 03), the probe-layer error signatures
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by seq 05. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-184806 | 20261105-184806 | Combined block split into three per-probe guards setting `fk_unverified`/`embedding_unverified`/`schema_unverified` + diagnostics; `_embedding_dimension_issue` now renders `get_embedding_dims()`. Interlock applied in-cycle: seq 05 step 1 fixtures (`embedding BLOB` column + `_insert_vec`) and the three `TestCollectionFailureDiagnostics` prefix updates landed here to keep the targeted suite green. |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-184806 | 20261105-184806 | Diagnostic-prefix tests updated in-cycle; error-path/independence tests land in seq 05. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-184806 | 20261105-184806 | tests/db/test_rag_consistency.py 59 passed; full suite 11628 passed/9 skipped; ruff, mypy (557 files), lint-imports 6 kept/0 broken. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-184806 | 20261105-184806 | N/A: docs handled by seq 07. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

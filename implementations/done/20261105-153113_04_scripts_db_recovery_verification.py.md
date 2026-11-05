@@ -13,8 +13,10 @@ through as if consistent.
 - The report now carries per-dimension unverified flags (`fk_unverified`,
   `embedding_unverified`, `schema_unverified`; `scripts/db/models.py`, seq 03). This layer
   reads them; it does not define them.
-- `_verify_rag_logic` is called by `scripts/db/recovery.py` (`_run_logical_verification`) on
-  the restored database during recovery. The physical-restore-completion guardrail in
+- `_verify_rag_logic` is dispatched by `_run_logical_verification` (this module, L111-L128,
+  via `_LOGICAL_VERIFIERS`), which `scripts/db/recovery.py` (L243) calls on the restored
+  database during recovery (verification finding 2026-11-05: the dispatcher lives in this
+  module, not in `recovery.py`). The physical-restore-completion guardrail in
   `_run_logical_verification` (returns `(True, None)` on `sqlite3.Error` so a verification
   gap never aborts a completed physical restore) still applies; this Plan changes the
   *logical* result, not that guardrail.
@@ -106,10 +108,10 @@ and the tests (seq 05).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Additive branching. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by seq 06. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-184806 | 20261105-184806 | `_verify_rag_logic` now branches on the unverified flags before the numeric predicate; `_rag_inconsistency_detail` names `fk_unverified`/`embedding_unverified`/`schema_unverified` first (probe-computation order), then the count entries; docstring updated to match. `_run_logical_verification` untouched (steps 3-4 confirmed by the green suite). |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-184806 | 20261105-184806 | Covered by seq 06 (drill unverified-fails test). Existing `test_db_recovery.py` patched-report tests (L362-L461) stay green unchanged. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-184806 | 20261105-184806 | tests/db/test_db_recovery.py + test_recovery_drill.py 73 passed; ruff clean; lint-imports 6 kept/0 broken; mypy success (557 files, fresh cache). Consumers confirmed: only `db.recovery` imports this module; full-suite re-run at batch close. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-184806 | 20261105-184806 | N/A: docs handled by seq 07. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

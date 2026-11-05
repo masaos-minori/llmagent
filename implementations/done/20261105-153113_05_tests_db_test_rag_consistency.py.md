@@ -67,6 +67,13 @@ per-probe guard (seq 01).
    unknown value never aggregates as healthy (AC-002).
 5. **Regression**: confirm the existing suite still passes after the fixture change, so a
    healthy database remains verified.
+6. **Update the existing `TestCollectionFailureDiagnostics` tests** (verification finding
+   2026-11-05): after the per-probe split (seq 01), the exact prefix-set assertions at
+   L957-L1000 gain new probe-failure prefixes — missing `chunks` also yields the FK-probe
+   diagnostic, missing `documents` also yields the FK-probe diagnostic, and missing
+   `chunks_vec` also yields the embedding-probe diagnostic. Update the three expected prefix
+   sets (and `test_a_consistent_database_records_no_diagnostics` stays green only via the
+   fixture `embedding` column).
 
 ### Method
 Fixture augmentation plus new test classes covering error injection, independence, and
@@ -117,14 +124,16 @@ The orchestrator split (seq 01), the report status field (seq 03), consumer prop
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Fixture update + new test classes. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-184806 | 20261105-184806 | Fixture `chunks_vec` gained `embedding BLOB` + `_insert_vec` helper (landed in the seq 01 cycle as the interlock this doc required). New classes: `TestFailClosedProbeErrors`, `_RaisingSQLiteHelper`, `TestVerificationStatusContract`. |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-184806 | 20261105-184806 | The three `TestCollectionFailureDiagnostics` prefix assertions were rewritten in the seq 01 cycle. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-184806 | 20261105-184806 | tests/db 409 passed; ruff clean; lint-imports 6 kept/0 broken; mypy success (557 files, fresh cache — see Blocker Log). Full suite 11634 passed/9 skipped; diff-cover 100%. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-184806 | 20261105-184806 | N/A: docs handled by seq 07. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
+| 1 | `test_zero_counts_never_aggregate_an_unverified_dimension_as_healthy` failed: a constructed report with a flag set but no diagnostics stayed `is_consistent is True` because `_CHECKS` had no flag-reading rule. | Yes — added three fail-closed rules (`not report.fk_unverified`, `not report.embedding_unverified`, `not report.schema_unverified`) to `_CHECKS` in `scripts/db/rag_consistency.py`, per this procedure's AC-002. This supersedes seq 03's earlier "rules stay diagnostic-only" note. | 2026-11-05 |
+| 3 | `uv run mypy` reported 4 errors in a nonexistent file (`tests/test_terminal_output_storage.py`) — stale mypy daemon cache. | Yes — re-run with `--cache-dir=/tmp/opencode/mypy_cache_fresh`: Success, 557 files. | 2026-11-05 |
 | — | — | — | — |
 
 ### Work Items Created

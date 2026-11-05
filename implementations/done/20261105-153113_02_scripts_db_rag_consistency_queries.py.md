@@ -109,10 +109,10 @@ The orchestrator split (seq 01), the report status field (seq 03), consumer prop
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Preservation step; orchestrator change is seq 01. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by seq 05. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-184806 | 20261105-184806 | Preservation confirmed: `git diff` shows zero changes to this module; the three fatal-class probes carry no `except` (only the acknowledged `_safe_url_count_query` at L59 and the documented False-contract probes at L225/L284). Propagation demonstrated by the passing per-probe diagnostic tests after the seq 01 split. |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-184806 | 20261105-184806 | Covered by seq 01 (diagnostics tests) and seq 05 (error-injection tests). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-184806 | 20261105-184806 | pytest -k "probe or error or diagnostics or smoke" 7 passed; full suite green in the seq 01 cycle; ruff/mypy/lint-imports clean. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-184806 | 20261105-184806 | N/A: docs handled by seq 07. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

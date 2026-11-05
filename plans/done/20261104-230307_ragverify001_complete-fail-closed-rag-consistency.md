@@ -270,11 +270,11 @@ N/A: no release unit (contract field is additive; each phase is independently ve
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: probe-layer error propagation | In Progress | — | — |  |
-| 2 | Phase 2: fail-closed aggregation | In Progress | — | — |  |
-| 3 | Phase 3: report contract status field | In Progress | — | — |  |
-| 4 | Phase 4: consumer propagation | In Progress | — | — |  |
-| 5 | Phase 5: test and documentation completion | In Progress | — | — |  |
+| 1 | Phase 1: probe-layer error propagation | Completed | 20261105-184806 | 20261105-184806 | seq 01 (per-probe guards + diagnostics) and seq 02 (query-layer preservation confirmed). |
+| 2 | Phase 2: fail-closed aggregation | Completed | 20261105-184806 | 20261105-184806 | Three unverified-flag rules added to `_CHECKS` (seq 05 interlock in `scripts/db/rag_consistency.py`). |
+| 3 | Phase 3: report contract status field | Completed | 20261105-184806 | 20261105-184806 | seq 03: `fk_unverified`/`embedding_unverified`/`schema_unverified` added to `RagConsistencyReport`. |
+| 4 | Phase 4: consumer propagation | Completed | 20261105-184806 | 20261105-184806 | seq 04 (`_verify_rag_logic` + detail names) and seq 06 (drill `rag_consistency` sub-key). |
+| 5 | Phase 5: test and documentation completion | Completed | 20261105-184806 | 20261105-184806 | seq 05/06 tests (incl. tests/deploy interlock), seq 07 doc section 8.1; all four docs checkers pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
