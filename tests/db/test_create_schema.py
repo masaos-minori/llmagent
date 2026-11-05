@@ -1132,30 +1132,36 @@ class TestEventbusSchemaCreation:
         assert columns == ["seq", "event_id"]
         assert "consumer_delivery" not in tables
 
-    def test_unstamped_existing_database_is_not_stamped(self, tmp_path: Path) -> None:
-        """create_eventbus_schema() never vouches for an unverified database."""
+    def test_unstamped_matching_shape_is_stamped_with_zero_ddl(
+        self, tmp_path: Path
+    ) -> None:
+        """An unstamped database whose shape matches canonical is stamped with no DDL."""
         db_file = tmp_path / "eventbus_unstamped.sqlite"
         raw = sqlite3.connect(str(db_file))
         raw.executescript(build_eventbus_schema_sql())
         raw.execute("PRAGMA user_version = 0")
         raw.close()
         cfg = _make_db_config(db_file, "eventbus")
-        with patch("db.helper.build_db_config", return_value=cfg):
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch.object(SQLiteHelper, "executescript") as ddl_spy,
+        ):
             cs.create_eventbus_schema()
+        assert ddl_spy.call_count == 0
         conn = sqlite3.connect(str(db_file))
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         conn.close()
-        assert version == 0
+        assert version == eventbus_schema_version()
 
     def test_unstamped_old_shape_fails_explicitly(self, tmp_path: Path) -> None:
-        """An old-shape database is not migrated: the DDL fails and nothing is stamped."""
+        """An old-shape unstamped database is refused by the shape gate, unstamped."""
         db_file = tmp_path / "eventbus_old_shape.sqlite"
         raw = sqlite3.connect(str(db_file))
         raw.execute("CREATE TABLE events (seq INTEGER PRIMARY KEY, event_id TEXT)")
         raw.close()
         cfg = _make_db_config(db_file, "eventbus")
         with patch("db.helper.build_db_config", return_value=cfg):
-            with pytest.raises(sqlite3.OperationalError):
+            with pytest.raises(RuntimeError, match="missing table"):
                 cs.create_eventbus_schema()
         conn = sqlite3.connect(str(db_file))
         version = conn.execute("PRAGMA user_version").fetchone()[0]
@@ -1163,8 +1169,8 @@ class TestEventbusSchemaCreation:
         assert version == 0
 
     def test_malformed_stamped_database_fails_closed(self, tmp_path: Path) -> None:
-        """A malformed database stamped with the current version is rejected after
-        the DDL and before commit, and the deviation is left as-is (REQ-003)."""
+        """A malformed database stamped with the current version is refused before any
+        DDL, and the deviation is left as-is (REQ-002/REQ-003)."""
         db_file = tmp_path / "eventbus_malformed_stamped.sqlite"
         raw = sqlite3.connect(str(db_file))
         raw.executescript(
@@ -1188,6 +1194,136 @@ class TestEventbusSchemaCreation:
             notnull["topic"] == 0
         )  # still malformed: nothing was repaired or committed
         assert version == eventbus_schema_version()
+
+
+def _schema_snapshot(conn: sqlite3.Connection) -> tuple[object, ...]:
+    """Return sqlite_master rows and user_version: the byte-facts a refusal must not change."""
+    rows = sorted(
+        (str(r[0]), str(r[1]), str(r[2]), str(r[3] or ""))
+        for r in conn.execute("SELECT type, name, tbl_name, sql FROM sqlite_master")
+    )
+    version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    return (version, *rows)
+
+
+class TestEventbusValidateFirstPaths:
+    """create_eventbus_schema() validates an existing database BEFORE any mutation:
+    DDL runs only on the fresh path; every refusal leaves the database unchanged
+    (REQ-001/REQ-002/REQ-003)."""
+
+    def test_fresh_path_applies_ddl_once(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "eventbus_fresh_ddl.sqlite"
+        cfg = _make_db_config(db_file, "eventbus")
+        real_executescript = SQLiteHelper.executescript
+        calls: list[str] = []
+
+        def ddl_spy(self: SQLiteHelper, sql_script: str) -> object:
+            calls.append(sql_script)
+            return real_executescript(self, sql_script)
+
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch.object(SQLiteHelper, "executescript", ddl_spy),
+        ):
+            cs.create_eventbus_schema()
+        assert len(calls) == 1
+        conn = sqlite3.connect(str(db_file))
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        assert version == eventbus_schema_version()
+        conn.close()
+
+    def test_current_version_database_is_validated_with_zero_ddl(
+        self, tmp_path: Path
+    ) -> None:
+        """A current-version database is validated, never re-DDL'd, and gains the
+        baseline row only when absent (path b)."""
+        db_file = tmp_path / "eventbus_current.sqlite"
+        raw = sqlite3.connect(str(db_file))
+        raw.executescript(build_eventbus_schema_sql())
+        raw.commit()
+        raw.close()
+        cfg = _make_db_config(db_file, "eventbus")
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch.object(SQLiteHelper, "executescript") as ddl_spy,
+        ):
+            cs.create_eventbus_schema()
+            cs.create_eventbus_schema()  # re-running stays a validated no-op
+        assert ddl_spy.call_count == 0
+        conn = sqlite3.connect(str(db_file))
+        rows = conn.execute(
+            "SELECT id, from_version, to_version FROM schema_migrations"
+            " WHERE id='eventbus_ledger_baseline'"
+        ).fetchall()
+        conn.close()
+        assert rows == [
+            (
+                "eventbus_ledger_baseline",
+                eventbus_schema_version(),
+                eventbus_schema_version(),
+            )
+        ]
+
+    def test_refusal_branches_leave_schema_facts_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        """Every refusal branch leaves sqlite_master and user_version byte-identical."""
+        cases = {
+            "stamped_other_version": (
+                "CREATE TABLE events (seq INTEGER PRIMARY KEY)",
+                3,
+            ),
+            "stamped_future_version": (
+                "CREATE TABLE events (seq INTEGER PRIMARY KEY)",
+                99,
+            ),
+            "unstamped_old_shape": ("CREATE TABLE events (seq INTEGER PRIMARY KEY)", 0),
+        }
+        for name, (ddl, version) in cases.items():
+            db_file = tmp_path / f"eventbus_refuse_{name}.sqlite"
+            raw = sqlite3.connect(str(db_file))
+            raw.execute(ddl)  # nosec B608 — fixed test DDL
+            raw.execute(f"PRAGMA user_version = {version}")  # nosec B608 — fixed test int
+            raw.commit()
+            before = _schema_snapshot(raw)
+            raw.close()
+            cfg = _make_db_config(db_file, "eventbus")
+            with patch("db.helper.build_db_config", return_value=cfg):
+                with pytest.raises(RuntimeError):
+                    cs.create_eventbus_schema()
+            conn = sqlite3.connect(str(db_file))
+            after = _schema_snapshot(conn)
+            conn.close()
+            assert after == before, name
+
+    def test_current_version_malformed_database_is_refused_with_zero_ddl(
+        self, tmp_path: Path
+    ) -> None:
+        """Path (b) refuses a malformed current-version database before any DDL."""
+        db_file = tmp_path / "eventbus_malformed_zero_ddl.sqlite"
+        raw = sqlite3.connect(str(db_file))
+        raw.executescript(
+            build_eventbus_schema_sql().replace(
+                "    topic                  TEXT    NOT NULL,",
+                "    topic                  TEXT,",
+            )
+        )
+        raw.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
+        raw.commit()
+        before = _schema_snapshot(raw)
+        raw.close()
+        cfg = _make_db_config(db_file, "eventbus")
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch.object(SQLiteHelper, "executescript") as ddl_spy,
+        ):
+            with pytest.raises(RuntimeError, match="columns differ"):
+                cs.create_eventbus_schema()
+        assert ddl_spy.call_count == 0
+        conn = sqlite3.connect(str(db_file))
+        after = _schema_snapshot(conn)
+        conn.close()
+        assert after == before
 
 
 # ── EventBus schema fingerprint validator (REQ-001: shape gate independent of user_version) ──

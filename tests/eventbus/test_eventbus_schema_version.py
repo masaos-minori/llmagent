@@ -4,11 +4,13 @@ eventbus.sqlite carries a schema version (PRAGMA user_version stamped by
 schema.sql). open_db() refuses a database stamped with another version, stamps an
 unstamped database only when its tables match schema.sql, and refuses the rest.
 
-The version is pinned to 5 (dlqbox001 added the dlq_outbox table; version 4 added
-the forward-only migration ledger schema_migrations via dbmig001; version 3 enforced
-the date-time format check via rfc3339-validator plus removed the dead published_at
-schema default; version 2 was the idx_events_redelivered_from unique index bump); a
-database still stamped 1 must be refused with the recreate message.
+The version is pinned to 6 (ebschema001 rebuilt dlq_outbox down to a single inline
+FK via the registered 5 -> 6 step; dlqbox001 added the dlq_outbox table at version
+5; version 4 added the forward-only migration ledger schema_migrations via dbmig001;
+version 3 enforced the date-time format check via rfc3339-validator plus removed the
+dead published_at schema default; version 2 was the idx_events_redelivered_from
+unique index bump); a database still stamped 1 must be refused with the recreate
+message.
 """
 
 from __future__ import annotations
@@ -71,14 +73,15 @@ def test_unstamped_old_shape_is_refused_and_left_unstamped(tmp_path: Path) -> No
     assert _version(path) == 0
 
 
-def test_schema_version_is_pinned_to_five() -> None:
-    """Contract lock: schema.sql must stamp PRAGMA user_version = 5.
+def test_schema_version_is_pinned_to_six() -> None:
+    """Contract lock: schema.sql must stamp PRAGMA user_version = 6.
 
     dbmig001 added the forward-only migration ledger (schema_migrations) moving
-    version 3 -> 4; dlqbox001 added the dlq_outbox table moving version 4 -> 5
-    (see scripts/eventbus/migrations.py).
+    version 3 -> 4; dlqbox001 added the dlq_outbox table moving version 4 -> 5;
+    ebschema001 rebuilt dlq_outbox down to a single inline FK moving version
+    5 -> 6 (see scripts/eventbus/migrations.py).
     """
-    assert eventbus_schema_version() == 5
+    assert eventbus_schema_version() == 6
 
 
 def test_new_database_has_redelivered_from_index(tmp_path: Path) -> None:
@@ -118,8 +121,8 @@ def test_database_stamped_one_is_refused(tmp_path: Path) -> None:
 def test_registered_v3_database_migrates_at_startup(tmp_path: Path) -> None:
     """A database at the pre-ledger baseline (user_version 3) migrates at startup.
 
-    The registered 3 -> 4 -> 5 path runs through the shared runner gate-gated
-    (row 03 wiring): startup succeeds, the ledger records both steps, and the
+    The registered 3 -> 4 -> 5 -> 6 path runs through the shared runner gate-gated
+    (row 03 wiring): startup succeeds, the ledger records all three steps, and the
     shared fingerprint passes. This is the dbmig001 behaviour that replaces
     today's hard refusal for a lower-but-registered version.
     """
@@ -141,20 +144,21 @@ def test_registered_v3_database_migrates_at_startup(tmp_path: Path) -> None:
 
     migrated = open_db(str(path))
     try:
-        assert _version(path) == 5
+        assert _version(path) == 6
         rows = migrated.execute(
             "SELECT id, from_version, to_version FROM schema_migrations"
         ).fetchall()
         assert {(r[0], r[1], r[2]) for r in rows} == {
             ("eventbus_ledger_baseline", 3, 4),
             ("eventbus_dlq_outbox", 4, 5),
+            ("eventbus_dlq_outbox_fk_dedup", 5, 6),
         }
     finally:
         migrated.close()
 
 
 def test_future_version_is_refused(tmp_path: Path) -> None:
-    """A database stamped beyond the baseline (user_version 6) refuses at startup.
+    """A database stamped beyond the baseline (user_version 7) refuses at startup.
 
     No registered forward path reaches a target below the current version, so the
     runner raises an unknown-path refusal and startup keeps the recreate guidance
@@ -163,7 +167,7 @@ def test_future_version_is_refused(tmp_path: Path) -> None:
     path = tmp_path / "eventbus.sqlite"
     open_db(str(path)).close()
     raw = sqlite3.connect(path)
-    raw.execute("PRAGMA user_version = 6")  # nosec B608 — fixed test int
+    raw.execute("PRAGMA user_version = 7")  # nosec B608 — fixed test int
     raw.close()
     with pytest.raises(RuntimeError, match="recreate the database"):
         open_db(str(path))
