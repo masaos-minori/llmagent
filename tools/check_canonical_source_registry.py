@@ -839,7 +839,7 @@ class CanonicalSourceRegistry:
         return duplicates
 
     def validate_all(self, repo_root: Path) -> dict[str, Any]:
-        result = {
+        result: dict[str, Any] = {
             "valid": True,
             "errors": [],
             "warnings": [],

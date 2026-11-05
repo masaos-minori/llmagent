@@ -674,6 +674,7 @@ TOOLCHAIN_GATES: tuple[Gate, ...] = (
                 "--no-namespace-packages",
                 "scripts/",
                 "tests/eventbus",
+                "tools",
             ),
         ),
         source=SOURCE_TOOLCHAIN,
