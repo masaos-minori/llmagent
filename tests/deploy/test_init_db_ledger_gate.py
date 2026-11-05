@@ -119,10 +119,76 @@ CREATE VIRTUAL TABLE chunks_fts USING fts5(
         conn.close()
 
 
-def _provision_minimal_session(path: pathlib.Path) -> None:
+def _provision_session(path: pathlib.Path) -> None:
+    """Create a complete session fixture (all seven logical-check tables).
+
+    The drill's session domain runs the fail-closed logical layer
+    (check_session_consistency), whose read-smoke-test requires all seven tables; a
+    single-table fixture would report session_consistent False and fail the drill.
+    `memories_vec` is a regular table here (a vec0 virtual table needs the external
+    sqlite-vec extension, which this env lacks); the check reads it like any table.
+    """
     conn = sqlite3.connect(str(path))
     try:
-        conn.execute("CREATE TABLE sessions (id INTEGER PRIMARY KEY)")
+        conn.executescript(
+            """CREATE TABLE sessions (
+    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    title TEXT,
+    undo_floor_message_id INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE messages (
+    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    tool_calls TEXT,
+    tool_call_id TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE memories (
+    memory_id TEXT PRIMARY KEY,
+    memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
+    source_type TEXT NOT NULL DEFAULT 'conversation',
+    session_id INTEGER,
+    turn_id TEXT,
+    project TEXT NOT NULL DEFAULT '',
+    repo TEXT NOT NULL DEFAULT '',
+    branch TEXT NOT NULL DEFAULT '',
+    content TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    tags TEXT NOT NULL DEFAULT '[]',
+    importance REAL NOT NULL DEFAULT 0.5,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+CREATE VIRTUAL TABLE memories_fts USING fts5(
+    memory_id UNINDEXED,
+    content,
+    summary,
+    tags
+);
+CREATE TABLE memory_links (
+    src_id TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+    dst_id TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+    PRIMARY KEY (src_id, dst_id)
+);
+CREATE TABLE session_diagnostics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    content TEXT NOT NULL,
+    workflow_id TEXT,
+    task_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+CREATE INDEX idx_session_diagnostics_session ON session_diagnostics(session_id);
+CREATE TABLE memories_vec (
+    memory_id TEXT PRIMARY KEY,
+    embedding BLOB
+)"""
+        )
         conn.commit()
     finally:
         conn.close()
@@ -250,7 +316,7 @@ def test_recovery_drill_runs_under_flag_and_leaves_fixtures_untouched(
     db_dir.mkdir(parents=True, exist_ok=True)
     scripts_dir = _write_stub_scripts(tmp_path)
     _provision_rag_core(db_dir / "rag.sqlite")
-    _provision_minimal_session(db_dir / "session.sqlite")
+    _provision_session(db_dir / "session.sqlite")
     _provision_workflow(db_dir / "workflow.sqlite", with_ledger=True)
     _provision_canonical_eventbus(db_dir / "eventbus.sqlite")
     before = {name: _hash(db_dir / name) for name in _LIVE_FILES}

@@ -22,18 +22,25 @@ import pytest
 from db.config import DbConfig
 from db.models import RagConsistencyReport
 from db.recovery_drill import DOMAINS, MIGRATE_POLICY_DOMAINS, run_drill
+from db.schema_sql import build_rag_schema_sql, build_session_schema_sql
 
 _EVENTBUS_SCHEMA = (
     Path(__file__).resolve().parents[2] / "scripts" / "eventbus" / "schema.sql"
 )
 
-# Minimal core-table DDL per domain. session/workflow ship vec0/fts5 virtual tables
-# that require the external sqlite-vec extension; the drill's checks for them cover
-# integrity + the required table, so their fixtures carry the core tables only (no
-# external-extension dependency). rag additionally runs the fail-closed logical
-# layer (`check_rag_consistency`), so its fixture mirrors the plain RAG core schema
-# used by tests/db/test_rag_consistency.py (chunks, a plain `chunks_vec` with a
-# valid 1024-dim embedding BLOB column, fts5 tables + triggers).
+# Per-domain fixtures. session/workflow ship vec0/fts5 virtual tables that require
+# the external sqlite-vec extension; the drill's identity+integrity checks for them
+# cover only the core tables, but rag/session additionally run the fail-closed
+# logical layer (`check_rag_consistency` / `check_session_consistency`), whose
+# read-smoke-test requires the full table set. When the sqlite-vec extension loads,
+# the production DDL SSOT (`build_rag_schema_sql` / `build_session_schema_sql`) is
+# used verbatim so the fixture is structurally identical to production. When it does
+# not load (this CI env), the rag fixture falls back to the plain RAG core schema
+# (chunks, a plain `chunks_vec` carrying a valid 1024-dim embedding BLOB, fts5 +
+# triggers, matching tests/db/test_rag_consistency.py) and the session fixture falls
+# back to a plain 7-table copy of the session schema with `memories_vec` as a regular
+# table instead of a vec0 virtual table. Both fallbacks still satisfy the logical
+# checks, so the healthy sweep stays green without the extension.
 _RAG_DDL = """CREATE TABLE documents (
     doc_id    INTEGER PRIMARY KEY AUTOINCREMENT,
     url       TEXT NOT NULL UNIQUE,
@@ -80,12 +87,113 @@ AFTER UPDATE ON chunks BEGIN
     VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
 END"""
 
-_SESSION_DDL = """CREATE TABLE sessions (
+# Plain-table fallback for session when vec0 is unavailable. Mirrors
+# build_session_schema_sql() exactly, except `memories_vec` is a regular table
+# (a vec0 virtual table cannot be created without the extension). The logical
+# check reads all seven tables, so this keeps the read-smoke-test green.
+_SESSION_FALLBACK_DDL = """CREATE TABLE sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
     title TEXT,
     undo_floor_message_id INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE messages (
+    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    tool_calls TEXT,
+    tool_call_id TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE memories (
+    memory_id TEXT PRIMARY KEY,
+    memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
+    source_type TEXT NOT NULL DEFAULT 'conversation',
+    session_id INTEGER,
+    turn_id TEXT,
+    project TEXT NOT NULL DEFAULT '',
+    repo TEXT NOT NULL DEFAULT '',
+    branch TEXT NOT NULL DEFAULT '',
+    content TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    tags TEXT NOT NULL DEFAULT '[]',
+    importance REAL NOT NULL DEFAULT 0.5,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+CREATE VIRTUAL TABLE memories_fts USING fts5(
+    memory_id UNINDEXED,
+    content,
+    summary,
+    tags
+);
+CREATE TABLE memory_links (
+    src_id TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+    dst_id TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+    PRIMARY KEY (src_id, dst_id)
+);
+CREATE TABLE session_diagnostics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    content TEXT NOT NULL,
+    workflow_id TEXT,
+    task_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+CREATE INDEX idx_session_diagnostics_session ON session_diagnostics(session_id);
+CREATE TABLE memories_vec (
+    memory_id TEXT PRIMARY KEY,
+    embedding BLOB
 )"""
+
+#: Concrete embedding dimension for fixtures. Must match get_embedding_dims()
+#: (Qwen3, 1024) so the rag dimension probe passes on a populated fixture.
+EMBED_DIMS = 1024
+
+
+def _has_vec_extension() -> bool:
+    """True when the sqlite-vec extension loads in this environment."""
+    conn = sqlite3.connect(":memory:")
+    try:
+        conn.execute("CREATE VIRTUAL TABLE t USING vec0(a INTEGER)")
+        return True
+    except sqlite3.Error:
+        return False
+    finally:
+        conn.close()
+
+
+#: Whether this environment can create vec0 virtual tables. Drives whether the
+#: rag/session fixtures use the production DDL SSOT or the plain-table fallback.
+_VEC_AVAILABLE = _has_vec_extension()
+
+
+def _build_rag(path: Path, *, prod: bool = False) -> None:
+    conn = _connect(path)
+    try:
+        if prod:
+            conn.executescript(build_rag_schema_sql(EMBED_DIMS))
+        else:
+            conn.executescript(_RAG_DDL)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _build_session(path: Path, *, prod: bool = False) -> None:
+    conn = _connect(path)
+    try:
+        if prod:
+            conn.executescript(build_session_schema_sql(EMBED_DIMS))
+        else:
+            conn.executescript(_SESSION_FALLBACK_DDL)
+        conn.commit()
+    finally:
+        conn.close()
+
 
 _WORKFLOW_TABLES_DDL = """CREATE TABLE tasks (
     task_id TEXT PRIMARY KEY,
@@ -113,8 +221,13 @@ _COMMON_ARTIFACT_KEYS = {
     "archive_path",
     "archive_ts",
     "drill_ts",
+    "drill_start_ts",
+    "archive_ts_epoch",
+    "restore_start_ts",
+    "restore_end_ts",
     "rto_seconds",
-    "rpo_window_seconds",
+    "backup_duration_seconds",
+    "rpo_seconds",
     "integrity",
     "verification",
     "policy",
@@ -129,24 +242,6 @@ _LEDGER_KEYS = {"current_version", "baseline_row", "ledger_present"}
 
 def _connect(path: Path) -> sqlite3.Connection:
     return sqlite3.connect(str(path))
-
-
-def _build_rag(path: Path) -> None:
-    conn = _connect(path)
-    try:
-        conn.executescript(_RAG_DDL)
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def _build_session(path: Path) -> None:
-    conn = _connect(path)
-    try:
-        conn.executescript(_SESSION_DDL)
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def _build_workflow(path: Path, *, with_ledger: bool = True) -> None:
@@ -173,8 +268,8 @@ def _build_eventbus(path: Path) -> None:
 def _domain_dbs(tmp_path: Path) -> dict[str, Path]:
     """Build all four healthy domain DBs under tmp_path; return {domain: path}."""
     paths = {domain: tmp_path / f"{domain}.sqlite" for domain in DOMAINS}
-    _build_rag(paths["rag"])
-    _build_session(paths["session"])
+    _build_rag(paths["rag"], prod=_VEC_AVAILABLE)
+    _build_session(paths["session"], prod=_VEC_AVAILABLE)
     _build_workflow(paths["workflow"], with_ledger=True)
     _build_eventbus(paths["eventbus"])
     return paths
@@ -267,8 +362,19 @@ def test_each_domain_artifact_carries_schema_fields(
             "migrate" if domain in MIGRATE_POLICY_DOMAINS else "recreate"
         )
         assert art["integrity"] is True
+        assert art["backup_duration_seconds"] >= 0
         assert art["rto_seconds"] > 0  # monotonic clock measured a restore
-        assert art["rpo_window_seconds"] >= 0
+        assert (
+            art["rpo_seconds"] >= 0
+        )  # recovery-point age, non-negative by construction
+        # Epoch anchors are monotonic: drill start -> archive -> restore start.
+        assert art["restore_start_ts"] >= art["archive_ts_epoch"]
+        assert art["archive_ts_epoch"] >= art["drill_start_ts"]
+        # rto_seconds is the rounded restore span; the raw span matches within rounding.
+        assert (
+            abs(art["rto_seconds"] - (art["restore_end_ts"] - art["restore_start_ts"]))
+            <= 1e-3
+        )
         assert art["archive_path"] is not None
         assert art["archive_ts"] is not None
         assert art["drill_ts"] is not None
@@ -298,6 +404,7 @@ def test_verify_per_domain_reports_expected_verdicts(
     assert artifacts["session"]["verification"] == {
         "integrity": True,
         "required_table_session": True,
+        "session_consistent": True,
     }
     assert artifacts["workflow"]["verification"] == {
         "integrity": True,
@@ -397,6 +504,146 @@ def test_rag_broken_fts_fixture_fails_drill(
     assert art["verification"]["rag_consistency"] is False
     # The core table is present: the failure is the consistency layer, not identity.
     assert art["verification"]["required_table_rag"] is True
+
+
+# ── Negative fixtures: one per damage class (AC-002) ─────────────────────────
+# Each starts from a healthy, seeded fixture and deletes exactly one element, so a
+# failing drill is provably caused by the damage and not the fixture. The damage is
+# detectable through row-count / referential mismatches, which hold whether or not
+# the sqlite-vec extension is present (the vec tables are exercised via their row
+# counts here); a loadable copy is what gates these tests.
+_EMBED_1024 = bytes(1024 * 4)  # float32 embedding, matches get_embedding_dims()
+
+
+def _seed_healthy_rag(path: Path) -> int:
+    """Insert one document/chunk/vector into an already-built rag fixture.
+
+    Returns the new chunk_id. The fts5 trigger populates chunks_fts, so the seeded
+    copy is consistent (chunks == vec == fts == 1).
+    """
+    conn = _connect(path)
+    try:
+        doc = conn.execute(
+            "INSERT INTO documents (url, fetched_at) "
+            "VALUES ('https://example.com/a', '2026-01-01T00:00:00Z')"
+        ).lastrowid
+        cur = conn.execute(
+            "INSERT INTO chunks (doc_id, content, normalized_content) VALUES (?, ?, ?)",
+            (doc, "sample rag content", "sample rag content"),
+        )
+        chunk_id = cur.lastrowid
+        assert chunk_id is not None
+        conn.execute(
+            "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
+            (chunk_id, _EMBED_1024),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return chunk_id
+
+
+def _seed_healthy_session(path: Path) -> None:
+    """Insert one session/message and one memory/link into an already-built session fixture."""
+    conn = _connect(path)
+    try:
+        sid = conn.execute(
+            "INSERT INTO sessions (created_at) VALUES ('2026-01-01T00:00:00Z')"
+        ).lastrowid
+        conn.execute(
+            "INSERT INTO messages (session_id, role, content, created_at) "
+            "VALUES (?, 'user', 'hi', '2026-01-01T00:00:00Z')",
+            (sid,),
+        )
+        conn.execute(
+            "INSERT INTO memories (memory_id, memory_type, content) "
+            "VALUES ('m1', 'semantic', 'mem content')"
+        )
+        conn.execute("INSERT INTO memory_links (src_id, dst_id) VALUES ('m1', 'm1')")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _drill_one(
+    domain: str, paths: dict[str, Path], tmp_path: Path
+) -> tuple[bool, dict]:
+    """Drill a single domain and return (passed, artifact)."""
+    cfg = _config(paths)
+    archive = tmp_path / "archive"
+    drill = tmp_path / "drills"
+    with patch("db.recovery_drill.build_db_config", return_value=cfg):
+        ok = run_drill(domain, str(archive), str(drill))
+    (art,) = _load_artifacts(drill)
+    return ok, art
+
+
+def test_rag_fts_gap_fails_drill_with_integrity_ok(_domain_dbs, tmp_path):
+    """A chunk with no FTS entry (fts_gap) fails the rag drill while integrity holds."""
+    chunk_id = _seed_healthy_rag(_domain_dbs["rag"])
+    conn = _connect(_domain_dbs["rag"])
+    try:
+        # Remove the FTS entry for the chunk without touching the chunk row.
+        conn.execute(
+            "INSERT INTO chunks_fts (chunks_fts, rowid, content) "
+            "VALUES ('delete', ?, ?)",
+            (chunk_id, "sample rag content"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    ok, art = _drill_one("rag", _domain_dbs, tmp_path)
+    assert ok is False
+    assert art["integrity"] is True
+    assert art["verification"]["rag_consistency"] is False
+    assert art["verification"]["required_table_rag"] is True
+
+
+def test_rag_missing_vec_fails_drill_with_integrity_ok(_domain_dbs, tmp_path):
+    """A chunk with no vector row (vec < chunks) fails the rag drill; integrity holds."""
+    _seed_healthy_rag(_domain_dbs["rag"])
+    conn = _connect(_domain_dbs["rag"])
+    try:
+        conn.execute("DELETE FROM chunks_vec WHERE chunk_id = 1")
+        conn.commit()
+    finally:
+        conn.close()
+    ok, art = _drill_one("rag", _domain_dbs, tmp_path)
+    assert ok is False
+    assert art["integrity"] is True
+    assert art["verification"]["rag_consistency"] is False
+
+
+def test_session_orphaned_message_fails_drill_with_integrity_ok(_domain_dbs, tmp_path):
+    """A message referencing a deleted session fails the session drill; integrity holds."""
+    _seed_healthy_session(_domain_dbs["session"])
+    conn = _connect(_domain_dbs["session"])
+    try:
+        conn.execute("DELETE FROM sessions")
+        conn.commit()
+    finally:
+        conn.close()
+    ok, art = _drill_one("session", _domain_dbs, tmp_path)
+    assert ok is False
+    assert art["integrity"] is True
+    assert art["verification"]["session_consistent"] is False
+
+
+def test_session_orphaned_memory_link_fails_drill_with_integrity_ok(
+    _domain_dbs, tmp_path
+):
+    """A memory link referencing a deleted memory fails the session drill; integrity holds."""
+    _seed_healthy_session(_domain_dbs["session"])
+    conn = _connect(_domain_dbs["session"])
+    try:
+        conn.execute("DELETE FROM memories WHERE memory_id = 'm1'")
+        conn.commit()
+    finally:
+        conn.close()
+    ok, art = _drill_one("session", _domain_dbs, tmp_path)
+    assert ok is False
+    assert art["integrity"] is True
+    assert art["verification"]["session_consistent"] is False
 
 
 # ── Audited failure ──────────────────────────────────────────────────────────
