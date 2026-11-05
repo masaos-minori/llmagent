@@ -7,7 +7,7 @@ Medium
 ## Scope
 - **In-Scope**: three new test files (`tests/tools/test_module_nodes.py`, `tests/tools/test_run_refactor_validation.py`, `tests/tools/test_audit_plan_target_paths.py`) built on temporary directories, fixed inputs, and faked subprocess calls.
 - **Out-of-Scope**: tests for `fix_docs_section_marks.py`, `fix_docstring_blank_line.py`, `fix_procedure_new_markers.py`, `generate_mcp_inventory.py`, `migrate_runtime_tool_calls.py`, `check_skills_references.py`; any change to the three tools; recording a defect found by a test (that is filed as a separate issue).
-- **Dependencies**: this Plan lands before the Plans from `issues/20261104-152002_toolcommon001_shared-helper-for-tools.md`, `issues/20261104-152002_toolsizegate001_apply-size-gate-to-tools.md`, and `issues/20261104-152906_toolwrite001_make-mutating-tools-dry-run-and-atomic.md` (the last one changes `module_nodes.py extract`); none of them has a Plan yet, so the order is recorded here and in their own Plans.
+- **Dependencies**: this Plan lands before the Plans for `toolcommon001`, `toolsizegate001`, `toolwrite001` (the last one changes `module_nodes.py extract`), and `toolcli001` (it changes the `audit_plan_target_paths.py` entry). Each of those four Plans records the order in its own `Depends on` line (verified 2026-11-05, checked in Step 3a); this Plan depends on none of them.
 
 ## Background
 No test under `tests/` imports `module_nodes` or `run_refactor_validation`, and no test exercises `audit_plan_target_paths` directly: `tests/tools/test_amend_plan.py` mentions it only through `amend_plan.py`'s subprocess wiring (verified 2026-11-05, checked in Step 2). `module_nodes.py` moves exact source ranges between files; `run_refactor_validation.py` decides whether a refactor passes; `audit_plan_target_paths.py` flags missing Implementation Target Files paths.
@@ -22,9 +22,9 @@ Test gap on tools that modify or gate source; the dependent issues touch these f
 Cover each tool's main behavior and failure paths through its public functions and `main`, with `tmp_path` fixtures and monkeypatched subprocess calls, never running the real toolchain or touching the repository.
 
 ## Requirements
-- `REQ-001`: `module_nodes` tests MUST cover `measure` (line span and encoded byte size per top-level non-import node, imports skipped, `--min` filter, `--json` output, missing file returns 1), `extract` (exact text moved by `--name` and by `--range`, `--dedent`, destination appended or created, source keeps the remaining lines, unknown name and missing selector exit non-zero), and `compare` (identical move exits 0, a changed body exits 1, using `--old-src` files).
+- `REQ-001`: `module_nodes` tests MUST cover `measure` (line span and encoded byte size per top-level non-import node, imports skipped, `--min` filter, `--json` output, missing file returns 1), `extract` (exact text moved by `--name` and by `--range`, `--dedent`, destination appended or created, source keeps the remaining lines, unknown name and missing selector exit non-zero), and `compare` (identical move exits 0, a changed body exits 1, a missing function exits 1 and prints `MISSING`). `compare` always reads the old source through `git show <old-rev>:<old-src>`, so its tests MUST fake `module_nodes.subprocess.run` and assert the recorded argv; `extract` errors (unknown name, no selector, invalid `--range`, `--dedent` on a line indented by less than 4 spaces) raise `SystemExit` with an `ERROR:` message, so those tests use `pytest.raises(SystemExit)` rather than a return value.
 - `REQ-002`: `run_refactor_validation` tests MUST cover command construction (`_pytest_args` with and without coverage, the diff-cover argument list with `--include`), result aggregation in `validate` and `main` with `_run` faked (an all-pass case printing `GATE PASSED` and returning 0, a failing step printing `GATE FAILED: ...` and returning 1), `_radon_gate` grading (grade C or worse fails, grade B passes), and `--skip` dropping a step.
-- `REQ-003`: `audit_plan_target_paths` tests MUST cover an existing target path (no finding), a missing target path, a create-hint exemption, a missing `registry/` path without a create hint, skipped header and non-path rows, rows outside the `## Implementation Target Files` section ignored, and `main` returning 1 with findings and 0 without, with the summary line.
+- `REQ-003`: `audit_plan_target_paths` tests MUST cover an existing target path (no finding), a missing target path, a create-hint exemption (the hint is matched against the second table cell only, not the "Reason for Modification" cell; see UNK-02), a missing `registry/` path without a create hint, skipped header and non-path rows, rows outside the `## Implementation Target Files` section ignored, and `main` returning 1 with findings and 0 without, with the summary line. `main()` takes no argument and reads `sys.argv[1:]`, so its tests monkeypatch `sys.argv` (which keeps working if a later Plan gives `main` an `argv` parameter).
 - `REQ-004`: Every test MUST write only inside `tmp_path`, MUST NOT run ruff, mypy, pytest, or git against the real repository, and MUST leave the production files unchanged.
 
 ## Implementation Target Files
@@ -62,12 +62,15 @@ N/A: the Issue states documentation is not required, and no tool behavior change
 ## Assumptions
 - Tests import the tools as `tools.<name>`, matching `tests/tools/test_check_module_size.py` (judgment based on the existing style).
 - `audit_plan_target_paths.audit` resolves target paths against the current working directory, so tests use `monkeypatch.chdir(tmp_path)` (read from the source, `Path(target).exists()`).
-- `module_nodes compare` is tested with `--old-src` files; the `--old-rev` git path is covered by faking `subprocess.run`, never by running git against the repository.
+- `module_nodes compare` has no local-file mode: `_cmd_compare` always runs `git show {old_rev}:{old_src}` with `check=True` (read from the source, checked in Step 3a; the earlier draft of this Plan assumed `--old-src` files). Tests fake `module_nodes.subprocess.run` with a `CompletedProcess` whose `stdout` is the old source, and never run git against the repository. A failing git call raises `CalledProcessError` (not caught by the tool); testing that is optional.
+- `audit_plan_target_paths.ROW_RE` captures the first two table cells, and `CREATE_HINTS` is matched against the second one. The current Plan template puts "New file" in the third cell, so a real Plan row for a new file is reported as missing: running the tool on this Plan reports its three new test files (exit 1, verified 2026-11-05). The tests pin the current behavior (hint in the second cell exempts, hint only in the third cell does not) and do not change the tool.
+- `run_refactor_validation` tests build radon output lines in the exact shape `_RADON_BLOCK` matches (`    F 10:0 name - C (12)`); a class line or a differently shaped line is ignored by the gate.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | Whether the byte-size rule of `module_nodes measure` is specified anywhere other than its docstring | No other document found | Treat the docstring and the `measure` code (encoded bytes of the node's lines joined by newlines) as the contract; ask the owner only if a test contradicts it | False |
+| UNK-02 | Whether `audit_plan_target_paths` matching its create hints against the second table cell (not the "Reason for Modification" cell of the current Plan template) is intended | No document states which cell carries the hint; the tool's header skip list still names the older `Change Type` column | Pin the current behavior in the tests; file a separate issue for the owner (a test never changes the tool, per Scope) | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -78,7 +81,7 @@ N/A: the Issue states documentation is not required, and no tool behavior change
 
 ## Design
 - Path A: three new files, no interface or schema change. Validation quality baseline: `N/A: no Python target under scripts/ or tools/` (the targets are new test files; the three tools are reference only).
-- `module_nodes`: build small source fixtures in `tmp_path`, call `measure`, `_extract_lines`, and `main([...])` with argument lists so the real argparse paths run; assert on exact moved text and on file contents after `extract`.
+- `module_nodes`: build small source fixtures in `tmp_path`, call `measure`, `_extract_lines`, and `main([...])` with argument lists so the real argparse paths run; assert on exact moved text and on file contents after `extract`. For `compare`, monkeypatch `module_nodes.subprocess.run` to return the old source and assert the recorded `git show` argv.
 - `run_refactor_validation`: monkeypatch the module-level `_run` with a recorder returning scripted `(returncode, output)` pairs; assert the recorded commands and the printed `PASS` and `FAIL` lines.
 - `audit_plan_target_paths`: write plan files with an `## Implementation Target Files` table into `tmp_path`, `monkeypatch.chdir(tmp_path)`, and call `audit` and `main`.
 - Consumer scan: not applicable; no persisted schema, public API, or shared constant changes.
@@ -110,16 +113,17 @@ N/A: no release unit
 - **Risk**: A test exposes a defect in a tool → **Mitigation**: record it as a separate issue and keep the tool unchanged (Issue Constraints).
 - **Risk**: A faked `_run` hides a real command-construction error → **Mitigation**: assert the full recorded argument lists, not only the return codes.
 - **Risk**: `extract` tests write outside `tmp_path` through relative paths → **Mitigation**: pass absolute `tmp_path` paths and assert `git status` shows no change after the run.
+- **Risk**: A `compare` test that does not fake `subprocess.run` runs the real `git show` against the repository → **Mitigation**: an autouse fixture in `test_module_nodes.py` replaces `module_nodes.subprocess.run` with a function that fails the test unless a test installs its own fake.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `audit_plan_target_paths` tests | Pending | — | — | |
-| 2 | Add `run_refactor_validation` tests | Pending | — | — | |
-| 3 | Add `module_nodes` tests | Pending | — | — | |
-| 4 | Verify the suite, lint, and mutation check | Pending | — | — | |
+| 1 | Add `audit_plan_target_paths` tests | In Progress | — | — |  |
+| 2 | Add `run_refactor_validation` tests | In Progress | — | — |  |
+| 3 | Add `module_nodes` tests | In Progress | — | — |  |
+| 4 | Verify the suite, lint, and mutation check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -129,7 +133,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-132713_01_tests_tools_test_module_nodes.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261105-132713_02_tests_tools_test_run_refactor_validation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-132713_03_tests_tools_test_audit_plan_target_paths.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -149,3 +155,5 @@ N/A: no release unit
 | REQ-004 | Constraints; Acceptance Criteria 3 | `tests/tools/test_module_nodes.py` | 3, 4 | AC-4 | Full `tests/tools` run | Explicit in issue |
 | REQ-004 | Constraints; Acceptance Criteria 3 | `tests/tools/test_run_refactor_validation.py` | 2, 4 | AC-4 | Full `tests/tools` run | Explicit in issue |
 | REQ-004 | Constraints; Acceptance Criteria 3 | `tests/tools/test_audit_plan_target_paths.py` | 1, 4 | AC-4 | Full `tests/tools` run | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-132713 -->
