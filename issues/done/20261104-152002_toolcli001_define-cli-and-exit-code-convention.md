@@ -11,6 +11,7 @@ Confirmed by repository evidence on 2026-11-04:
 
 - Exit codes in `tools/*.py` are mostly `0` (pass) and `1` (finding), with `2` used in 11 places (for example usage errors); no document states the contract.
 - Five tools do not use `argparse`: `check_docs_japanese.py`, `check_dependency_graph_cycles.py`, `check_needs_confirmation_inventory.py`, `check_tool_descriptions_sync.py`, `audit_plan_target_paths.py`; they offer no `--help`.
+- Four private library modules (`_adr_authority_core.py`, `_front_matter_schema.py`, `_docs_consistency_lib.py`, `_contract_manifests.py`) also lack `argparse`; they have no entry point, so "all tools support `--help`" means the executable tools only (verified 2026-11-05).
 - `generate_reference_table.py` (1060 lines) has no `main` function; its entry is a module-level `if __name__ == "__main__":` block. `pyproject.toml` console scripts point to `tools.check_docs_consistency:main_*` and similar entries.
 
 ## Problem

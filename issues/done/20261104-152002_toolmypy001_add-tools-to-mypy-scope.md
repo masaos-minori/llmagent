@@ -27,7 +27,8 @@ Fix the existing errors, then widen the mypy scope in one place and align every 
 - `pyproject.toml` (`[tool.mypy]`)
 - `.github/workflows/ci.yml`, `.pre-commit-config.yaml`
 - `rules/toolchain.md`, `routing.md` (documented mypy commands)
-- `tools/run_validation_gates.py` (gate command table; exact location: Unknown)
+- `tools/run_validation_gates.py` (`TOOLCHAIN_GATES` `mypy` gate, command tuple lists `scripts/` and `tests/eventbus`; located 2026-11-05)
+- Further places that state the scope, found by adversarial verification on 2026-11-05: `tox.ini` (`typecheck` command), `rules/coding.md` (Tool configuration and mypy note), `skills/python-lint-typecheck/workflow.md` (scope text and the Step 6 command), and `routing.md` "Adding a new tool" step 2 (says `tools/` is not covered).
 
 ## Required Changes
 - Fix the two `attr-defined` errors with real typing (no blanket `# type: ignore`).
@@ -57,10 +58,10 @@ Update the toolchain documentation for the new scope (operational notes only).
 - Typing `tests/` beyond `tests/eventbus`.
 
 ## Dependencies
-- `issues/20261104-152002_toolcommon001_shared-helper-for-tools.md`: land this first so the shared-helper refactor is type-checked.
+- This issue must land before `issues/20261104-152002_toolcommon001_shared-helper-for-tools.md`, `issues/20261104-152906_toolreport001_share-report-model-and-renderers.md`, and `issues/20261104-152906_toolwrite001_make-mutating-tools-dry-run-and-atomic.md`, so their refactors are type-checked. (Corrected by adversarial verification on 2026-11-05: the original text said toolcommon001 should land first, which contradicts toolcommon001's own Dependencies.)
 
 ## Unresolved Questions
-- Extra CI and pre-commit time from checking `tools/`: unknown.
+- Extra CI and pre-commit time from checking `tools/`: a warm-cache run of `uv run mypy --no-namespace-packages scripts/ tests/eventbus tools` took 0.8 s on 2026-11-05 (557 files, no "Source file found twice", the same 2 errors only); the cold run with `--no-incremental` is unmeasured.
 
 ## AI Implementation Instruction
 Fix the typing at the source of the `object` inference rather than silencing it. Change the scope only after the command is clean.

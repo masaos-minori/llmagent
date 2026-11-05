@@ -10,7 +10,7 @@ Extend the module size gate to `tools/` with a grandfathering baseline, then spl
 Confirmed by repository evidence on 2026-11-04:
 
 - `tools/check_module_size.py` measures only `.py` files under `scripts/` (`--scripts-dir`, default `scripts`) against 24576 B (raised from 20480 B on 2026-11-04), with a baseline file `tools/check_module_size_baseline.txt` as a ceiling; that baseline is now empty.
-- 14 files directly under `tools/` exceed 24576 B. The largest are `manage_workitem_stage.py` (57,146 B, 1526 lines; its `build_parser` is 208 lines), `generate_reference_table.py` (42,997 B), `run_validation_gates.py` (42,591 B, 1264 lines), `check_canonical_source_conflicts.py` (41,349 B), and `stale_detector.py` (40,847 B).
+- 15 files directly under `tools/` exceed 24576 B (the original text said 14; corrected by adversarial verification on 2026-11-05; the 14th and 15th are `_adr_authority_core.py` at 25,689 B and `check_docs_structure.py` at 24,977 B). The largest are `manage_workitem_stage.py` (57,146 B, 1526 lines; its `build_parser` is 208 lines), `generate_reference_table.py` (42,997 B), `run_validation_gates.py` (42,591 B, 1264 lines), `check_canonical_source_conflicts.py` (41,349 B), and `stale_detector.py` (40,847 B).
 - `routing.md` ties the size gate to `scripts/**/*.py` modules only.
 
 ## Problem
@@ -28,7 +28,7 @@ Cover `tools/` with the same gate and a separate baseline so only new growth fai
 - `tools/manage_workitem_stage.py`, `tools/run_validation_gates.py` (first split candidates)
 
 ## Required Changes
-- Let `check_module_size.py` accept `tools/` (second directory or separate invocation) with its own baseline of the 14 current violations.
+- Let `check_module_size.py` accept `tools/` (second directory or separate invocation) with its own baseline of the 15 current violations.
 - Wire the new invocation into pre-commit and CI and update the scope text in `routing.md` and toolchain docs.
 - Split `manage_workitem_stage.py` and `run_validation_gates.py` in separate changes and tighten the baseline after each.
 
@@ -48,7 +48,7 @@ Cover `tools/` with the same gate and a separate baseline so only new growth fai
 Update the gate scope text in `routing.md` and `rules/toolchain.md`.
 
 ## Out of Scope
-- Splitting the remaining 12 oversized tools.
+- Splitting the remaining 13 oversized tools.
 - Changing the 24576 B limit for `scripts/`.
 
 ## Dependencies

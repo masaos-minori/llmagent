@@ -9,10 +9,10 @@ Replace the copy-pasted bootstrap, repository-root, and git-subprocess code in `
 ## Background
 Confirmed by repository evidence on 2026-11-04:
 
-- `if __package__ in (None, ""): sys.path.insert(0, str(Path(__file__).resolve().parent.parent))` appears in 27 files under `tools/` (for example `check_adr_structure.py`, `manage_frontmatter.py`).
+- `if __package__ in (None, ""): sys.path.insert(0, str(Path(__file__).resolve().parent.parent))` appears in 24 files under `tools/` (for example `check_adr_structure.py`, `manage_frontmatter.py`); 27 files contain a `sys.path.insert`, the other three (`check_compat_shims.py`, `check_component_mandatoriness.py`, `check_db_separation.py`) use a different form. Corrected by adversarial verification on 2026-11-05 (the original text said 27 for the guarded form).
 - `REPO_ROOT = Path(__file__).resolve().parent.parent` is defined in 23 files.
 - 8 files call `git` through `subprocess` with their own wrappers (`check_adr_preservation.py`, `classify_changes.py`, `check_workitem_traceability.py`, `rename_doc.py`, `scan_change_consumers.py`, `module_nodes.py`, `run_validation_gates.py`, `manage_binaries.py`).
-- Invocation is mixed: `.pre-commit-config.yaml` runs `uv run python -m tools.*`, while most `.github/workflows/ci.yml` steps run `uv run python tools/<name>.py`. The path form is why the `sys.path` bootstrap exists.
+- Invocation is mixed: `.pre-commit-config.yaml` runs `uv run python -m tools.*`, while most `.github/workflows/ci.yml` steps run `uv run python tools/<name>.py`. The path form is why the `sys.path` bootstrap exists. Added by adversarial verification on 2026-11-05: the path form is not limited to `ci.yml` (7 steps); it is also used by 8 steps in `governance-docs-consistency.yml`, one step each in `backward-compat-check.yml`, `agent-docs-consistency.yml`, `deployment-docs-consistency.yml`, `overview-docs-consistency.yml`, `mcp-docs-consistency.yml`, `rag-docs-consistency.yml`, and `rag-docs-quality.yml`, and by `deploy/deploy.sh` (three `python3 "${REPO_ROOT}/tools/manage_binaries.py"` calls on the deploy path, one of the 8 git-wrapper files). Skills, rules, and `routing.md` also document the path form in many commands.
 
 ## Problem
 The same code is repeated and has already diverged in behavior details (each git wrapper handles errors and encoding on its own). Any fix must be applied in many places.
@@ -25,8 +25,8 @@ Introduce one small private helper module (repo root resolution, a `git` runner 
 
 ## Target Files or Areas
 - New private helper module under `tools/` (name: to be decided)
-- The 27 bootstrap files, the 23 `REPO_ROOT` files, and the 8 git-wrapper files listed above
-- `.github/workflows/ci.yml` (invocation form)
+- The 27 `sys.path.insert` files (24 with the `__package__` guard), the 23 `REPO_ROOT` files, and the 8 git-wrapper files listed above
+- `.github/workflows/*.yml` that call `tools/<name>.py` by path (nine files, see Background), `deploy/deploy.sh`, and the docs that state the invocation form (invocation form)
 - `tools/TOOL_DESCRIPTIONS.md` (private helper entry)
 
 ## Required Changes
