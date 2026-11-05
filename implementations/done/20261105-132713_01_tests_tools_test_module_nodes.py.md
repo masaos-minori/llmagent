@@ -74,10 +74,10 @@ N/A: revert the commit; deleting the file loses only the tests.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the file with the fixture, the autouse guard, and the `measure` tests | Pending | — | — | |
-| 2 | Add the `extract` tests, including the `SystemExit` negative paths | Pending | — | — | |
-| 3 | Add the `compare` tests with the faked `subprocess.run` | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Pending | — | — | |
+| 1 | Create the file with the fixture, the autouse guard, and the `measure` tests | Completed | 20261105-141851 | 20261105-142231 | Stale check clean. Changed: tests/tools/test_module_nodes.py (new, 22 tests) |
+| 2 | Add the `extract` tests, including the `SystemExit` negative paths | Completed | 20261105-141851 | 20261105-142231 | extract tests incl. SystemExit negatives |
+| 3 | Add the `compare` tests with the faked `subprocess.run` | Completed | 20261105-141851 | 20261105-142231 | compare tests with faked subprocess.run; autouse guard |
+| 4 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Completed | 20261105-141851 | 20261105-142231 | ruff, mypy, mock-patch check clean; mutation (size <= min_bytes) failed test_measure_min_filters_small_nodes and was reverted; full suite 11567 passed (-n 8); diff-cover N/A (no source file changed); docs N/A: no docs/00_index.md mapping for tests/tools |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the two stale statements | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` "When to run which tool" | Pending | — | — | |
+| 1 | Replace the two stale statements | Completed | 20261105-153420 | 20261105-154210 | Stale check clean. Changed: skills/python-code-review/workflow.md (two stale tools/ mypy statements) |
+| 2 | Run the documentation checkers named in `routing.md` "When to run which tool" | Completed | 20261105-153420 | 20261105-154210 | check_skills_references, check_skills_heading_cycles: no issues; repo-wide search for the 'does not cover tools/' phrasing finds nothing; run_validation_gates exit 0; full suite 11607 passed (-n 8; first run hit the xdist collection mismatch, rerun passed); docs N/A: skills file, no docs/00_index.md row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

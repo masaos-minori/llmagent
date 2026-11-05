@@ -74,10 +74,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the file with the `_run` recorder and the command-construction tests | Pending | — | — | |
-| 2 | Add the radon, diff-cover, and `--skip` tests | Pending | — | — | |
-| 3 | Add the `validate` and `main` aggregation tests, including the failing step | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Pending | — | — | |
+| 1 | Create the file with the `_run` recorder and the command-construction tests | Completed | 20261105-142303 | 20261105-142641 | Stale check clean. Changed: tests/tools/test_run_refactor_validation.py (new, 24 tests) |
+| 2 | Add the radon, diff-cover, and `--skip` tests | Completed | 20261105-142303 | 20261105-142641 | radon, diff-cover, and --skip tests |
+| 3 | Add the `validate` and `main` aggregation tests, including the failing step | Completed | 20261105-142303 | 20261105-142641 | validate and main aggregation tests incl. failing step |
+| 4 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Completed | 20261105-142303 | 20261105-142641 | ruff, mypy, mock-patch check clean; mutation (radon threshold B->C) failed test_radon_gate_fails_at_grade_c and was reverted; full suite 11591 passed (-n 8); diff-cover N/A (no source file changed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

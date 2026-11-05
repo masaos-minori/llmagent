@@ -58,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the scope sentences and the two commands | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` "When to run which tool" | Pending | — | — | |
+| 1 | Update the scope sentences and the two commands | Completed | 20261105-151330 | 20261105-151701 | Stale check clean. Changed: skills/python-lint-typecheck/workflow.md (scope sentence, tools/ paragraph, Step 6 table command, Step 6 command block) |
+| 2 | Run the documentation checkers named in `routing.md` "When to run which tool" | Completed | 20261105-151330 | 20261105-151701 | check_skills_references and check_skills_heading_cycles: no issues; run_validation_gates exit 0; full suite 11607 passed (-n 8); docs N/A: skills file, no docs/00_index.md row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

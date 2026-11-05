@@ -54,8 +54,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the stale comment | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` "When to run which tool" | Pending | — | — | |
+| 1 | Replace the stale comment | Completed | 20261105-152914 | 20261105-153410 | Stale check clean. Changed: skills/python-implementation/workflow.md (mypy command comment) |
+| 2 | Run the documentation checkers named in `routing.md` "When to run which tool" | Completed | 20261105-152914 | 20261105-153410 | check_skills_references, check_skills_heading_cycles: no issues; rg 'omits tools' returns nothing; run_validation_gates exit 0; full suite 11607 passed (-n 8); docs N/A: skills file, no docs/00_index.md row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

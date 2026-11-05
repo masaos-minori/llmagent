@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Annotate `result` in `validate_all` | Pending | — | — | |
-| 2 | Run mypy, the file's tests, ruff, and the suppression check (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Annotate `result` in `validate_all` | Completed | 20261105-143226 | 20261105-143611 | Stale check clean. Changed: tools/check_canonical_source_registry.py (result annotated dict[str, Any] in validate_all) |
+| 2 | Run mypy, the file's tests, ruff, and the suppression check (`rules/toolchain.md`) | Completed | 20261105-143226 | 20261105-143611 | mypy tools: 0 errors (66 files); combined scripts/ tests/eventbus tools: 0 errors (557 files); ruff, bandit, suppression check clean; 25 tests pass; full suite 11607 passed (-n 8); diff-cover N/A: tools/ is outside coverage source ['scripts']; docs N/A: no behavior or description change for the tools/ overview row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

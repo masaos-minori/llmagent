@@ -73,10 +73,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the file with the Plan fixture helper and the existing, missing, and skipped-row tests | Pending | — | — | |
-| 2 | Add the create-hint, registry, and section-bound tests | Pending | — | — | |
-| 3 | Add the `main` tests with a patched `sys.argv` | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Pending | — | — | |
+| 1 | Create the file with the Plan fixture helper and the existing, missing, and skipped-row tests | Completed | 20261105-142654 | 20261105-143205 | Stale check clean. Changed: tests/tools/test_audit_plan_target_paths.py (new, 16 tests) |
+| 2 | Add the create-hint, registry, and section-bound tests | Completed | 20261105-142654 | 20261105-143205 | create-hint (second cell only), registry, section-bound tests |
+| 3 | Add the `main` tests with a patched `sys.argv` | Completed | 20261105-142654 | 20261105-143205 | main tests with patched sys.argv |
+| 4 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Completed | 20261105-142654 | 20261105-143205 | ruff, mypy, mock-patch check clean; mutation (negated Path(target).exists()) failed 8 tests and was reverted; full suite 11607 passed (-n 8); diff-cover N/A (no source file changed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

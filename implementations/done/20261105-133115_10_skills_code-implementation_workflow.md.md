@@ -54,8 +54,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the stale sentence | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` "When to run which tool" | Pending | — | — | |
+| 1 | Replace the stale sentence | Completed | 20261105-152420 | 20261105-152905 | Stale check clean. Changed: skills/code-implementation/workflow.md (Step 3e tools/ mypy sentence) |
+| 2 | Run the documentation checkers named in `routing.md` "When to run which tool" | Completed | 20261105-152420 | 20261105-152905 | check_skills_references, check_skills_heading_cycles: no issues; rg 'does not cover' shows no tools/ claim; run_validation_gates exit 0; full suite 11607 passed (-n 8); docs N/A: skills file, no docs/00_index.md row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

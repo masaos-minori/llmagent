@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `"tools"` to the `mypy` gate tuple | Pending | — | — | |
-| 2 | Run the tests, the drift check, and ruff/bandit (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `"tools"` to the `mypy` gate tuple | Completed | 20261105-145544 | 20261105-150109 | Stale check clean. Changed: tools/run_validation_gates.py (mypy gate tuple gains "tools") |
+| 2 | Run the tests, the drift check, and ruff/bandit (`rules/toolchain.md`) | Completed | 20261105-145544 | 20261105-150109 | ruff clean; mypy 557 files 0 errors; 56 tests pass; drift: 42 checkers mapped, hooks in parity; run_validation_gates exit 0; bandit reports the same 5 Low-severity findings as HEAD (pre-existing, unchanged); full suite 11607 passed (-n 8); diff-cover N/A: tools/ outside coverage source; docs N/A: tools/TOOL_DESCRIPTIONS.md does not state the mypy scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
