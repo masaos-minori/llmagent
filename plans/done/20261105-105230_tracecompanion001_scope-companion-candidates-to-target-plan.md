@@ -24,7 +24,7 @@ Select the checked Plan's procedures once with one small helper and use that lis
 ## Requirements
 - `REQ-001`: `companion_candidates` MUST be built only from implementation documents whose `Source plan` basename equals the checked Plan's basename (the same predicate the per-document loop uses).
 - `REQ-002`: A regression test MUST show that a companion declared only by procedures of Plan A, and named in `Related Tests` of two rows of Plan B, yields no `companion-multi-row` when Plan B is checked.
-- `REQ-003`: A positive test MUST show that when both rows of the same Plan name the companion and a procedure of that Plan declares it, `companion-multi-row` is still reported.
+- `REQ-003`: A positive test MUST show that when both rows of the same Plan name the companion and a procedure of that Plan declares it, `companion-multi-row` is still reported. The existing `TestPlanCoverage.test_companion_named_in_two_rows_is_multi_row` (`tests/tools/test_check_workitem_traceability.py:590`) already shows exactly this (verified 2026-11-05, checked in Step 3a), so it is kept unchanged and no second positive test is added.
 - `REQ-004`: Finding codes, output format, exit codes, and the other three rules MUST stay unchanged.
 
 ## Implementation Target Files
@@ -33,7 +33,7 @@ Select the checked Plan's procedures once with one small helper and use that lis
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `tools/check_workitem_traceability.py` | Scope the candidate set to the checked Plan's procedures | Replace the repository-wide `companion_candidates` comprehension with one built from the checked Plan's procedures; share the selection with the per-document loop | `REQ-001`, `REQ-004`; AC-1, AC-4 | `find_plan_coverage_findings`: loop skips by `Source plan` basename, `companion_candidates` filters only `doc.kind == "implementation"` (checked in Step 3) | `tests/tools/test_check_workitem_traceability.py` | Verified |
-| `tests/tools/test_check_workitem_traceability.py` | Add regression and positive tests | Add the cross-plan regression test and the same-plan positive test using the file's existing procedure-document helper | `REQ-002`, `REQ-003`; AC-2, AC-3 | File exists with companion helpers and `extract_companion_files` tests (checked in Step 3) | itself | Verified |
+| `tests/tools/test_check_workitem_traceability.py` | Add regression and positive tests | Add the cross-plan regression test using the file's existing `_write_plan` and `_write_procedure` helpers; the same-plan positive test already exists and stays unchanged | `REQ-002`, `REQ-003`; AC-2, AC-3 | File exists with companion helpers and `extract_companion_files` tests (checked in Step 3) | itself | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -47,7 +47,7 @@ Select the checked Plan's procedures once with one small helper and use that lis
 - AC-4: `uv run pytest tests/tools/test_check_workitem_traceability.py -q` passes and `--plan-coverage` on an existing Plan reports no new findings (`REQ-004`).
 
 ## Tests
-- Unit: cross-plan regression (`REQ-002`), same-plan positive (`REQ-003`), existing tests unchanged (`REQ-004`).
+- Unit: cross-plan regression (`REQ-002`, new), same-plan positive (`REQ-003`, existing at `:590`), existing tests unchanged (`REQ-004`).
 - Manual: run `uv run python tools/check_workitem_traceability.py --plan-coverage <existing plan>` before and after the change and compare the findings (`REQ-004`).
 
 ## Documentation Impact
@@ -56,6 +56,8 @@ N/A: neither the module docstring of the changed function's scope nor `tools/TOO
 ## Assumptions
 - The `Source plan` basename comparison used by the per-document loop is the correct plan-identity predicate for the candidate set too (judgment; same predicate, so no new behavior).
 - The `startretry001` Plan workaround stays as is (Issue Out of Scope).
+- The test row is eligible as a companion of the `tools/check_workitem_traceability.py` row: it is a row of this Plan under `tests/`, exactly one other row (the tools row) names it in `Related Tests`, and it needs no design decision of its own. One procedure document therefore covers both rows, which also lets the regression test be written and seen failing before the fix inside that one cycle (judgment from the companion rule of `plan-to-implementation-procedure`, checked in Step 3a).
+- Overlap judgment (`check_plan_target_overlaps.py`, Step 2): `tools/check_workitem_traceability.py` is also targeted by the `toolcommon001` and `toolreport001` Plans; both are sequenced after this Plan (a sequencing dependency, not a conflict) and `toolcommon001` records a `Depends on` line for it.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -75,7 +77,7 @@ N/A: neither the module docstring of the changed function's scope nor `tools/TOO
 
 ## Implementation steps
 1. **Phase 1: Failing tests first**
-   - [ ] Add the cross-plan regression test and the same-plan positive test (`REQ-002`, `REQ-003`; `tests/tools/test_check_workitem_traceability.py`)
+   - [ ] Add the cross-plan regression test and confirm it fails on the current code; the same-plan positive test already exists (`REQ-002`, `REQ-003`; `tests/tools/test_check_workitem_traceability.py`)
 2. **Phase 2: Scope the candidate set**
    - [ ] Add the helper and build `companion_candidates` from it; keep the per-document loop semantics (`REQ-001`, `REQ-004`; `tools/check_workitem_traceability.py`)
 3. **Phase 3: Verification**
@@ -90,7 +92,7 @@ N/A: no release unit
 | `tools/check_workitem_traceability.py` | Unit regression and positive tests | `uv run pytest tests/tools/test_check_workitem_traceability.py -q` | All pass; regression test fails before Phase 2 |
 | `tools/check_workitem_traceability.py` | Smoke on live data | `uv run python tools/check_workitem_traceability.py --plan-coverage <existing plan>` before and after | Identical findings |
 | both files | Lint, format, type, security | `uv run ruff format`, `uv run ruff check`, `uv run mypy --no-namespace-packages tools/check_workitem_traceability.py`, `uv run bandit tools/check_workitem_traceability.py` | Clean |
-| diff | Coverage | `uv run diff-cover coverage.xml --compare-branch=master` | N/A: baseline needs a diff; at least 90 percent on changed lines after Phase 2 |
+| diff | Coverage | `uv run diff-cover coverage.xml --compare-branch=master` | N/A: `tools/` is outside `[tool.coverage.run] source = ["scripts"]` in `pyproject.toml`, so the changed lines cannot be measured (verified 2026-11-05, checked in Step 3a); the regression test and the positive test cover the changed function |
 
 ## Risks
 - **Risk**: The filter hides a genuine same-plan multi-row case whose procedure carries a different `Source plan` spelling → **Mitigation**: reuse the exact predicate of the per-document loop and keep the positive test.
@@ -101,9 +103,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the regression and positive tests | Pending | — | — | |
-| 2 | Scope the candidate set to the checked Plan | Pending | — | — | |
-| 3 | Verify with tests, live-data smoke run, and tool checks | Pending | — | — | |
+| 1 | Add the regression and positive tests | In Progress | — | — |  |
+| 2 | Scope the candidate set to the checked Plan | In Progress | — | — |  |
+| 3 | Verify with tests, live-data smoke run, and tool checks | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -113,7 +115,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-163306_01_tools_check_workitem_traceability.py.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -129,5 +131,7 @@ N/A: no release unit
 |---|---|---|---|---|---|---|
 | REQ-001 | Required Changes bullet 1; `find_plan_coverage_findings` (Step 3) | `tools/check_workitem_traceability.py` | 2 | AC-1 | Unit regression test | Confirmed by repository evidence |
 | REQ-002 | Required Changes bullet 2 | `tests/tools/test_check_workitem_traceability.py` | 1 | AC-2 | Regression test | Explicit in issue |
-| REQ-003 | Required Changes bullet 3 | `tests/tools/test_check_workitem_traceability.py` | 1 | AC-3 | Positive test | Explicit in issue |
+| REQ-003 | Required Changes bullet 3 | `tests/tools/test_check_workitem_traceability.py` | 1 | AC-3 | Existing positive test (`:590`), kept unchanged | Explicit in issue |
 | REQ-004 | Constraints; Acceptance Criteria 3 | `tools/check_workitem_traceability.py` | 2, 3 | AC-4 | Existing suite plus live-data smoke run | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-163306 -->
