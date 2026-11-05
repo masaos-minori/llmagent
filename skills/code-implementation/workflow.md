@@ -393,7 +393,7 @@ Also, for every changed non-`docs/` file, apply the rows of `routing.md` Tools â
 run which tool" its type triggers (e.g. `tools/*.py`, `scripts/**/*.py`,
 `skills/*.md`/`rules/*.md`/`prompts/*.md`, `tests/`) â€” Step 6 covers `docs/*.md` only.
 A changed `tools/*.py` file also follows `routing.md` "Adding a new tool": pass the file
-path to `uv run mypy` explicitly, because a bare `uv run mypy` does not cover `tools/`.
+path to `uv run mypy` explicitly as the narrowest check (a bare `uv run mypy` also covers `tools/` but reports every file's findings).
 `uv run python tools/run_validation_gates.py` (fast mode, the default) may be used to run
 the routing checkers the changed files trigger; it does not replace the tools above, and
 MUST NOT be run with `--full` here (Step 4 owns the single full-suite run).

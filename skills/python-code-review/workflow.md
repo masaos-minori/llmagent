@@ -38,7 +38,7 @@ Run a tool to confirm a finding before reporting it; MUST NOT present a suspecte
 
 Within a Phase, run its tools after the manual checks, so a tool confirms or refutes a
 manual finding rather than replacing it. Run Python tools through `uv run` and pass touched
-files explicitly (a bare `uv run mypy` does not cover `tools/`). If a tool is unavailable,
+files explicitly (the narrowest check). If a tool is unavailable,
 record the affected checks as `Needs confirmation` (`skills/DESIGN.md` Evidence labels) and
 continue — MUST NOT stop the review.
 
@@ -153,7 +153,7 @@ Do:
 - check CI quality gates and type-checking coverage for the touched paths: read the
   workflows under `.github/workflows/` (notably `ci.yml`), `.pre-commit-config.yaml`, and
   `tox.ini`, and confirm each touched path is covered by lint, type-check, test, and
-  `lint-imports` gates (for example, `mypy`'s configured `files` scope omits `tools/`)
+  `lint-imports` gates (for example, CI's `ruff` and `bandit` steps run on `scripts/` only)
 
 **Completed when**: test coverage and CI gate coverage have been checked for every path touched by the diff, and `pytest` has been run (or recorded `Needs confirmation` because isolation could not be confirmed).
 

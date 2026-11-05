@@ -327,7 +327,7 @@ Run, in this order, each through `uv run`:
 
 ```bash
 ruff format <changed files> && ruff check <changed files>
-mypy --no-namespace-packages <changed files>              # or pyright; pass paths explicitly (mypy's configured scope omits tools/)
+mypy --no-namespace-packages <changed files>              # or pyright; pass the changed paths explicitly (the narrowest check)
 PYTHONPATH=scripts lint-imports   # when imports changed
 pytest <tests for the change> -m "not integration and not production_paths_allowed"   # then the wider suite (below)
 python tools/run_validation_gates.py          # project gates for the changed files
