@@ -138,8 +138,13 @@ in Assumptions as a sequencing dependency, not a contradiction.)
 - The drill keeps its current isolation model (copy into `tmp_path`-style
   isolated files; live databases are never opened for write) and only gains
   verification depth.
-- The rename is a breaking artifact change applied in-repo only after UNK-01 is
-  answered; no compatibility alias is added unless operations require one.
+- UNK-01 is resolved (downgraded from `Blocking? = True` during adversarial
+  verification): a repo-wide scan shows every `rpo_window_seconds` reference
+  resolves to this Plan's own target rows (`scripts/db/recovery_drill.py`,
+  `tests/db/test_recovery_drill.py`, the `db_07` runbook table), so the rename to
+  `backup_duration_seconds` is self-contained within this release unit and needs
+  no external operations confirmation. No compatibility alias is added unless
+  operations require one after this change ships.
 - Overlap judgment: `tests/db/test_recovery_drill.py` is shared with
   `ragverify001` (Phase 4 drill-consumption tests) and `sqliterec001` (Phase 4
   drill action-value tests); `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`
@@ -153,7 +158,7 @@ in Assumptions as a sequencing dependency, not a contradiction.)
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Do external consumers (dashboards, cron wrappers, stored artifacts) read `rpo_window_seconds`? | in-repo consumers are only `tests/db/test_recovery_drill.py` (L73-L74, L228) and the runbook table; external usage unconfirmed | confirm with operations before the rename lands | True |
+| UNK-01 | Do external consumers (dashboards, cron wrappers, stored artifacts) read `rpo_window_seconds`? | repo-wide scan resolves every in-repo reference to this Plan's own target rows: `scripts/db/recovery_drill.py` (producer), `tests/db/test_recovery_drill.py` (L74, L228), and the `db_07` runbook table (L178); no dashboard, cron wrapper, or external artifact reader outside the repository references it | confirmed by repo-wide grep — all consumers are target rows of this Plan, so the rename is self-contained within this release unit; no external confirmation is required to land it | False |
 | UNK-02 | Is `sqlite-vec` loadable in the test/CI environment, and through which helper? | `rules/env.md` documents the production extension path only | confirm in the first Phase 1 test run; add an explicit skip/unavailable state in the artifact rather than a silent pass | False |
 | UNK-03 | What are the production RPO and RTO objectives? | none recorded anywhere in the repository | operations decision; out of scope for this Plan (measurements only), carried to the drill metrics documentation | False |
 | UNK-04 | Which anonymized production-equivalent fixture set is acceptable as the canonical drill fixture? | no anonymized fixture set exists; `scripts/db/schema_sql.py` is the DDL SSOT | derive from `schema_sql.py` and confirm the derived set during Phase 1 fixture authoring | False |
@@ -296,3 +301,5 @@ Grounded in Step 3/5 analysis:
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-174750 -->
