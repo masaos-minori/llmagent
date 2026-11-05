@@ -1,7 +1,13 @@
 ## Goal
-Expose the canonical RAG fixture builders in `tests/db/test_rag_consistency.py` for
-reuse by the drill test, and reconcile the fixture source with AC-002's requirement
-that fixtures carry real FTS and vector structures.
+Regression guard for the canonical RAG fixture source `tests/db/test_rag_consistency.py`:
+confirm it stays green after the recovery-drill release unit (proc 01 + proc 02) lands.
+No code change to `tests/db/test_rag_consistency.py` is required.
+
+The plan's row 03 assumed the drill reuses this file's builders; adversarial verification
+(see below) found that assumption unrealized — the drill uses `scripts/db/schema_sql.py`
+directly and keeps its plain-table fallback inline. Exposing public builder names or adding a production-equivalent wrapper would therefore
+be unused API (no in-repo consumer; `tests/` is not on `sys.path`). Scope is reduced to
+the regression guard per plan-owner decision.
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
@@ -61,33 +67,19 @@ the existing consistency tests depend on the plain-table behavior.
 `tests/db/test_rag_consistency.py`
 
 ### Procedure
-1. Verify the finding above against live source before editing (`_RAG_SCHEMA`
-   `L33-L78`, `chunks_vec` plain table `L52-L54`).
-2. Expose the existing builders. Convert the three private helpers to public names
-   and update the internal callers within this file:
-   - `_make_rag_db()` → `make_rag_db()` (returns `_FakeSQLiteHelper`)
-   - `_insert_doc(db)` → `insert_doc(db)`
-   - `_insert_chunk(db, doc_id, content)` → `insert_chunk(db, doc_id, content)`
-   Add module docstring notes that these build the **non-vec** consistency-test
-   fixture (plain `chunks_vec`), distinct from the production builder below.
-3. Add the production-equivalent builder for the drill's AC-002 path:
-   ```python
-   from db.schema_sql import build_rag_schema_sql
+Adversarial verification (Step 3a) found the plan's premise unrealized; see the finding
+above. Per plan-owner decision the scope is reduced to a regression guard:
 
-   def rag_production_schema(dims: int) -> str:
-       """Production-equivalent rag DDL with real fts5 + vec0 (DDL SSOT).
-
-       Distinct from _RAG_SCHEMA, which uses a plain chunks_vec table to avoid the
-       vec0 extension. Use this for fixtures that must carry real vector structures
-       (e.g. the recovery-drill negative cases).
-       """
-       return build_rag_schema_sql(dims)
-   ```
-   Optionally add a materializer that creates a file connection with this schema for
-   the drill to restore against.
-4. Confirm with the plan owner whether row 03 intends (a) only exposing the existing
-   non-vec builders, or (b) also adding the vec-carrying production builder above.
-   This procedure implements (b), which is required to satisfy AC-002.
+1. Verify the finding against live source (done in Step 2/3a): `test_recovery_drill.py`
+   imports `build_rag_schema_sql`/`build_session_schema_sql` from `db.schema_sql` and keeps
+   its plain-table fallback inline; it imports nothing from `test_rag_consistency.py`.
+   `tests/` is not on `sys.path` (only `scripts/` and `tools/`), so siblings cannot import
+   this file as a module. No in-repo consumer of the proposed public builder names
+   exists.
+2. Implement: **no change** to `tests/db/test_rag_consistency.py`. Exposing public builder
+   names or adding a production-equivalent wrapper would be unused API and is dropped.
+3. Validate: `uv run pytest tests/db/test_rag_consistency.py` stays green (AC-002
+   regression guard).
 
 ### Method
 - Keep the vec-avoiding `_RAG_SCHEMA` untouched; add the vec-carrying builder as a
@@ -124,10 +116,8 @@ the existing consistency tests depend on the plain-table behavior.
 - Full suite + coverage gate and static gates per `rules/toolchain.md`.
 
 ## Completion criteria
-- Existing RAG fixture builders are importable by sibling tests.
-- A canonical vec-carrying production RAG builder exists for AC-002, derived from
-  `schema_sql.py`.
-- Existing consistency tests remain green.
+- Existing RAG consistency tests remain green after the release unit lands (regression
+  guard). No builder-exposure or production-builder addition is performed.
 
 ## Out of Scope
 - Changing `check_rag_consistency` logic (`ragverify001`).
@@ -138,8 +128,10 @@ the existing consistency tests depend on the plain-table behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Expose canonical RAG fixture builders for reuse | Pending | — | — | |
-| 2 | Add production-equivalent vec-carrying builder (AC-002) | Pending | — | — | Decision point (see Finding) |
+| 1 | Implement the change | Completed | 20261105-181000 | 20261105-181000 | N/A: no code change — scope reduced to regression guard; exposing builders / rag_production_schema would be unused API (adversarial finding) |
+| 2 | Add or update tests | Completed | 20261105-181000 | 20261105-181000 | N/A: no test change needed |
+| 3 | Run the validation sequence | Completed | 20261105-181000 | 20261105-181000 | existing test_rag_consistency.py stays green |
+| 4 | Update documentation | Completed | 20261105-181000 | 20261105-181000 | N/A: procedure-doc correction only; no docs/00_index.md task-scope mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

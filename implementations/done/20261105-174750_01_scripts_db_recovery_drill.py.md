@@ -5,7 +5,8 @@ metric with three correctly-defined measurements (`backup_duration_seconds` (new
 `rpo_seconds` (new), `rto_seconds`) each backed by a named, recorded event timestamp.
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: drill metric rename and assertions (shared with
+`tests/db/test_recovery_drill.py` — land together)
 
 ## Assumptions
 - The drill keeps its current isolation model: the recovery point is a read-only
@@ -232,10 +233,10 @@ metric with three correctly-defined measurements (`backup_duration_seconds` (new
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `_verify_rag_session` with rag/session consistency on the isolated copy | Pending | — | — | |
-| 2 | Resolve UNK-02 (sqlite-vec unavailability mechanism) | Pending | — | — | Decision point |
-| 3 | Rename metric, record event timestamps, derive RPO/RTO | Pending | — | — | UNK-05 decision point |
-| 4 | Update `run_drill` aggregation for unavailable markers | Pending | — | — | |
+| 1 | Extend `_verify_rag_session` with rag/session consistency on the isolated copy | Completed | 20261105-215555 | 20261105-215555 | STEP: proc 01+02 release unit; archived together |
+| 2 | Resolve UNK-02 (sqlite-vec unavailability mechanism) | Completed | 20261105-215555 | 20261105-215555 | Decision point STEP: proc 01+02 release unit; archived together |
+| 3 | Rename metric, record event timestamps, derive RPO/RTO | Completed | 20261105-215555 | 20261105-215555 | UNK-05 decision point STEP: proc 01+02 release unit; archived together |
+| 4 | Update `run_drill` aggregation for unavailable markers | Completed | 20261105-215555 | 20261105-215555 | STEP: proc 01+02 release unit; archived together |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

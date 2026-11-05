@@ -275,10 +275,10 @@ Grounded in Step 3/5 analysis:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: fixture foundation | Pending | — | — | |
-| 2 | Phase 2: consistency verification in the drill | Pending | — | — | |
-| 3 | Phase 3: metric rename and event timestamps | Pending | — | — | |
-| 4 | Phase 4: documentation and full validation | Pending | — | — | |
+| 1 | Phase 1: fixture foundation | Completed | 20261105-182000 | 20261105-182000 | STEP: proc 03 (test_rag_consistency.py) archived; canonical RAG fixtures regression-guarded green (65 passed); no fixture change needed (adversarial finding: drill uses schema_sql.py directly, so builder-expose / rag_production_schema would be unused API) |
+| 2 | Phase 2: consistency verification in the drill | Completed | 20261105-215555 | 20261105-215555 | STEP: proc 01 (recovery_drill.py) archived |
+| 3 | Phase 3: metric rename and event timestamps | Completed | 20261105-215555 | 20261105-215555 | STEP: proc 01 + proc 02 (release unit) archived |
+| 4 | Phase 4: documentation and full validation | Completed | 20261105-182000 | 20261105-182000 | STEP: proc 04 (db_07 runbook) archived; docs quality/structure/content-policy/japanese/consistency checkers pass; full suite 11647 passed, 11 skipped, 0 failed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

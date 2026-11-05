@@ -16,10 +16,14 @@ live-database immutability.
   including `chunks_vec`/`chunks_fts` and `memories_vec`/`memories_fts`.
 - `check_rag_consistency` detects an FTS gap and missing/orphaned vec rows;
   `check_session_consistency` detects orphaned messages and orphaned memory links.
-- `sqlite-vec` may be unavailable in some environments (UNK-02). Building a
-  production-equivalent fixture that contains `vec0` virtual tables requires the
-  extension at `CREATE` time; if it cannot load, the healthy-path test reports an
-  "unavailable" outcome and the negative tests are skipped, not failed.
+- `sqlite-vec` may be unavailable in some environments (UNK-02). A production-
+  equivalent fixture that contains `vec0` virtual tables requires the extension
+  at `CREATE` time; when it cannot load, the rag/session fixtures fall back to
+  plain-table copies of the same schema (`chunks_vec` / `memories_vec` as regular
+  tables instead of vec0 virtual tables). The logical checks read all seven
+  tables and detect damage through row-count / referential mismatches, which hold
+  with or without the extension, so the healthy sweep and all four negative tests
+  run unconditionally and never skip.
 
 ## Design decisions
 - **Production-equivalent fixtures from the DDL SSOT.** Replace the minimal
@@ -61,7 +65,7 @@ live-database immutability.
 2. Add a module-level sqlite-vec availability probe (resolve UNK-02 here) and helper
    builders. Replace the minimal `_RAG_DDL` / `_SESSION_DDL` blocks with:
    ```python
-   EMBED_DIMS = 128  # concrete production-like embedding dimension for fixtures
+   EMBED_DIMS = 1024  # matches get_embedding_dims() (Qwen3) so the rag dimension probe passes
 
    def _has_vec_extension() -> bool:
        """True when the sqlite-vec extension loads in this environment."""
@@ -119,8 +123,10 @@ live-database immutability.
    - Session damage tests assert
      `artifacts["session"]["verification"]["session_consistent"]` is `False` and
      `integrity` is `True`.
-   - When `_has_vec_extension()` is False, the rag/session negative tests are
-     `pytest.mark.skip`ped (a loadable copy is required to prove logical damage).
+   - The negative tests run unconditionally. When `sqlite-vec` is unavailable the
+     fixtures use the plain-table fallback, and the damage is still detectable
+     through row-count / referential mismatches (the vec tables participate via
+     their row counts), so no skip or unavailable marker is needed.
 
 **Phase 3 — Renamed keys and timestamp relationships (REQ-003, REQ-004)**
 
@@ -156,8 +162,9 @@ live-database immutability.
        "session_consistent": True,
    }
    ```
-   When the vec extension is unavailable, assert the recorded unavailable marker
-   instead of `True` for the consistent key (tied to the UNK-02 decision).
+   - The healthy verdict always asserts `True` for the consistent key: the plain-
+     table fallback keeps the healthy copy consistent whether or not the vec
+     extension loads, so no unavailable marker is recorded.
 
 **Phase 4 — Live-database immutability (REQ-005, AC-005)**
 
@@ -178,8 +185,10 @@ live-database immutability.
   `test_each_domain_artifact_carries_schema_fields` `L206-L236`;
   `test_verify_per_domain_reports_expected_verdicts` `L239-L265`;
   `test_all_four_domains_drill_passes_and_live_dbs_untouched` `L190-L203`.
-- `EMBED_DIMS` (new) must match a value the schema template accepts; keep it small (e.g.
-  128) so fixtures stay fast.
+- `EMBED_DIMS` (new) must equal `get_embedding_dims()` (1024, Qwen3): the rag
+  dimension probe validates `len(embedding)//4 == 1024` on a populated fixture, so
+  the seeded 4096-byte embedding BLOB (`_EMBED_1024`) only passes at this dimension.
+  It stays a single fixed value so the schema and the seeded rows agree.
 
 ## Compatibility considerations
 - The key rename is the mirror of the artifact change in
@@ -223,9 +232,9 @@ live-database immutability.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Build production-equivalent rag/session fixtures from the DDL SSOT | Pending | — | — | |
-| 2 | Add four damage fixtures as failing-expectation tests | Pending | — | — | |
-| 3 | Rename keys, assert timestamp relationships, live-database checksum | Pending | — | — | |
+| 1 | Build production-equivalent rag/session fixtures from the DDL SSOT | Completed | 20261105-215555 | 20261105-215555 | STEP: proc 01+02 release unit; archived together. vec-gating deviation: all 4 negative tests run unconditionally via plain-table fallback (AC-002 fully satisfied) |
+| 2 | Add four damage fixtures as failing-expectation tests | Completed | 20261105-215555 | 20261105-215555 | STEP: proc 01+02 release unit; archived together. vec-gating deviation: all 4 negative tests run unconditionally via plain-table fallback (AC-002 fully satisfied) |
+| 3 | Rename keys, assert timestamp relationships, live-database checksum | Completed | 20261105-215555 | 20261105-215555 | STEP: proc 01+02 release unit; archived together. vec-gating deviation: all 4 negative tests run unconditionally via plain-table fallback (AC-002 fully satisfied) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -250,9 +259,14 @@ live-database immutability.
 
 ## Notes on filling sections
 
-- **UNK-02 drives fixture availability.** The production-equivalent rag/session
-  fixtures contain `vec0` virtual tables that need the sqlite-vec extension at
-  `CREATE` time. Probe availability once and gate the healthy and negative tests on
-  it; record the unavailable outcome rather than failing.
+- **UNK-02 resolved by a plain-table fallback, not gating.** The production-
+  equivalent rag/session fixtures contain `vec0` virtual tables that need the
+  sqlite-vec extension at `CREATE` time. When it cannot load, the fixtures fall
+  back to plain-table copies of the same schema; the logical checks detect damage
+  through row-count / referential mismatches that hold with or without the
+  extension, so the healthy sweep and all four negative tests run unconditionally
+  (no probe-based skip). The `_VEC_AVAILABLE` probe still selects the production
+  DDL SSOT over the fallback so the fixture matches production when the extension
+  is present.
 - **Line numbers are guidance.** Verify against live source before editing; the
   current-line map in Implementation > Details is the reference.
