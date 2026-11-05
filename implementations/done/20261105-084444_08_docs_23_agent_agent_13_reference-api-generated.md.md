@@ -11,7 +11,9 @@ removed from the output.
 - The document currently lists the three functions of the deleted module
   (`handle_llm_transport_error`, `handle_partial_completion`,
   `handle_non_partial_error`).
-- `tools/generate_reference_table.py --type agent` rebuilds the table from live source.
+- `tools/generate_reference_table.py --manifests --type agent` rebuilds both the
+  generated table and the registry manifest `registry/manifests/agent_api.yaml` from
+  live source.
 
 ## Design decisions
 
@@ -27,7 +29,9 @@ removed from the output.
 
 ### Procedure
 
-- Run `uv run python tools/generate_reference_table.py --type agent`.
+- Run `uv run python tools/generate_reference_table.py --manifests --type agent`; this
+  also regenerates `registry/manifests/agent_api.yaml`, clearing the drift left by the
+  companion module-deletion document (manifest L335/340/345 list the deleted module).
 - Confirm the deleted module's three functions no longer appear in the table.
 
 ### Method
@@ -36,8 +40,9 @@ removed from the output.
 
 ### Details
 
-- Before the change `--check` reports no drift; after deleting the module and
-  regenerating, `--check` still reports no drift.
+- After the companion module deletion, `--check` reports drift in
+  `registry/manifests/agent_api.yaml` (allowed red state inside the unit); after this
+  regeneration, `--check` reports no drift.
 
 ## Compatibility considerations
 
@@ -69,8 +74,8 @@ removed from the output.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `generate_reference_table.py --check` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-05 | 2026-11-05 | Regenerated with generate_reference_table.py --manifests --type agent; 3 deleted functions absent from docs and manifest; drift test 16 passed; consistency WARNING cleared. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-05 | 2026-11-05 | quality/structure/content-policy/japanese/consistency clean; generate_reference_table.py --check reports No drift found. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -70,8 +70,8 @@ points at the live runner path.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Documentation checkers per routing.md |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-05T15:30 | 2026-11-05 | Step 3b verification clean (stale_detector: not stale). L70 partial_completion Source cell updated to scripts/agent/llm_turn_runner.py::_handle_llm_error; llm_transport_error row unchanged. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-05 | 2026-11-05 | quality/structure/japanese clean; consistency WARNING on agent_13_reference-api-generated.md:102 attributed to procedure 08 and cleared by its regeneration. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

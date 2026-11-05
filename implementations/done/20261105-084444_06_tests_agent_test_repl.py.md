@@ -36,14 +36,21 @@ the partial-completion counter and not for a normal turn, using a real `RuntimeS
   "Partial LLM completion stored" warning.
 - Add `test_dispatch_line_no_warning_without_increment` (new): a normal turn leaves
   the counter unchanged and emits no such warning.
-- In the existing warning tests, remove the
-  `repl._ctx.services_required.llm.stat_partial_completions = 0` stub lines and keep
-  the `ctx.stats.stat_partial_completions` snapshot.
+- Remove every `ctx.services_required.llm.stat_partial_completions` stub line in the file, not just the
+  two in the warning tests: `_make_bare_repl` (L50), `test_handle_turn_partial_completion_increments_counter`
+  (L297), `test_handle_turn_non_partial_completion_no_increment` (L315), `_make_wired_repl` (L494), and
+  `test_stats_command_output_includes_llm_fields` (L634). Keep the `ctx.stats.stat_partial_completions`
+  snapshot lines in the warning tests.
 
 ### Method
 
-- Build a bare repl with a real `RuntimeStats`, feed `["hello", "/exit"]` to
-  `builtins.input`, and assert on `repl._view.write_warning.call_args_list`.
+- Build a bare repl with `_make_bare_repl()`, set `repl._ctx.stats = RuntimeStats()`
+  (new import `from agent.context import RuntimeStats`), raise the counter through a
+  side effect on `repl._orchestrator.handle_turn` (normal case: no side effect), and
+  call `repl._input_loop._dispatch_line("hello", repl._ctx)` directly — no
+  `builtins.input` patch is needed. Assert on
+  `repl._view.write_warning.call_args_list` (partial warnings == 1 / none).
+  Insert both new tests in `TestReplLoop` after `test_partial_completion_warning_when_llm_is_none`.
 
 ### Details
 
@@ -79,10 +86,10 @@ the partial-completion counter and not for a normal turn, using a real `RuntimeS
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-05T13:40 | 2026-11-05 | Applied tests/agent/test_repl.py: added RuntimeStats import, removed 5 client-counter stub lines (L50/297/315/494/634), added test_dispatch_line_warns_on_partial_increment and test_dispatch_line_no_warning_without_increment to TestReplLoop. |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-05T13:40 | 2026-11-05 | Targeted tests green: test_repl.py 85 passed; testmon impact-selected run 707 passed, 516 deselected. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-05 | 2026-11-05 | Step 3e: run_validation_gates fast pass (check_mock_patch_targets et al.); ruff format+check clean; skipped: mypy — tests/agent not in mypy files scope. Full suite once: 11572 passed, 9 skipped. diff-cover N/A: test-only change, coverage source=scripts, no changed source lines. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-05 | 2026-11-05 | N/A: no docs/00_index.md task-scope mapping for tests/agent/test_repl.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

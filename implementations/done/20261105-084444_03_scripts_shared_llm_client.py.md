@@ -4,7 +4,7 @@ Remove the now-unused partial-completion counter from the LLM client so the coun
 has a single owner (`RuntimeStats`).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: partial-counter-owner (plan Release units: Phases 2, 3 — validated and released together)
 
 ## Assumptions
 
@@ -71,10 +71,10 @@ has a single owner (`RuntimeStats`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-05T14:55 | 2026-11-05T15:00 | Step 3b verification 2026-11-05: clean (attribute at llm_client.py L82 in the stats block confirmed; stale_detector: not stale). Correction: unit line added. Removed self.stat_partial_completions init line from LLMClient constructor (between stat_parse_errors and apply_config). |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-05T15:00 | 2026-11-05T15:05 | Targeted: tests/shared 1225 passed; plan-listed integration run (test_rag_llm_integration.py + test_orchestrator_integration.py) 47 passed; runner-path re-run 181 passed. Step 3e: ruff clean; mypy clean (490 files); vulture: 0 findings for stat_partial_completions (pre-existing unrelated findings unchanged). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-05 | 2026-11-05 | End-of-unit full-suite run 1: 11565 passed / 2 failed (mdq flaky per Failure Log + manifest-drift test). Allowed re-run 2: 11566 passed / 1 failed = test_live_docs_have_no_drift = allowed-red manifest drift (Failure Log), cleared by companion 08. diff-cover: scripts/agent/llm_turn_runner.py 100% (Total 1 line, Missing 0); coverage.xml written. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-05 | 2026-11-05 | Matching row 'LLM client (streaming/retry)' -> agent_05_llm-and-streaming.md exists, but no doc content references the removed attribute (grep: only agent_03_02/03_03 mention stat_partial_completions, all via ctx.stats, prose unchanged); no edit made. Stale references in agent_10_05/agent_13 are companions 07/08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

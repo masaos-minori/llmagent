@@ -164,10 +164,10 @@ Baseline (Step 5): `radon cc` reports `LLMTurnRunner.run` at C (15), `_handle_ll
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing runner-path and REPL warning tests | In Progress | — | — |  |
-| 2 | Phase 2: writer moves to `ctx.stats` and orchestrator assertions switch | In Progress | — | — |  |
-| 3 | Phase 3: delete the duplicate module and the unused client attribute | In Progress | — | — |  |
-| 4 | Phase 4: documentation correction and regenerated reference | In Progress | — | — |  |
+| 1 | Phase 1: failing runner-path and REPL warning tests | Completed | — | 2026-11-05 | Procedures 20261105-084444 archived to implementations/done/ 2026-11-05; tests and gates green. |
+| 2 | Phase 2: writer moves to `ctx.stats` and orchestrator assertions switch | Completed | — | 2026-11-05 | Procedures 20261105-084444 archived to implementations/done/ 2026-11-05; tests and gates green. |
+| 3 | Phase 3: delete the duplicate module and the unused client attribute | Completed | — | 2026-11-05 | Procedures 20261105-084444 archived to implementations/done/ 2026-11-05; tests and gates green. |
+| 4 | Phase 4: documentation correction and regenerated reference | Completed | — | 2026-11-05 | Procedures 20261105-084444 archived to implementations/done/ 2026-11-05; tests and gates green. |
 | 5 | Phase 5: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -178,14 +178,14 @@ Baseline (Step 5): `radon cc` reports `LLMTurnRunner.run` at C (15), `_handle_ll
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-084444_01_scripts_agent_llm_turn_runner.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-084444_02_scripts_agent_llm_transport_errors.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-084444_03_scripts_shared_llm_client.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-084444_04_tests_agent_test_llm_partial_completion.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-084444_05_tests_agent_test_orchestrator.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-084444_01_scripts_agent_llm_turn_runner.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-084444_02_scripts_agent_llm_transport_errors.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-084444_03_scripts_shared_llm_client.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-084444_04_tests_agent_test_llm_partial_completion.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-084444_05_tests_agent_test_orchestrator.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261105-084444_06_tests_agent_test_repl.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-084444_07_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261105-084444_08_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261105-084444_07_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261105-084444_08_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
