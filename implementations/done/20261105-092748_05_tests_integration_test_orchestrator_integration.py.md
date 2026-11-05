@@ -57,9 +57,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the baseline result of `tests/integration/test_orchestrator_integration.py` | Pending | — | — | |
-| 2 | Migrate the fixture and the five resume tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) after procedure `_02` is applied | Pending | — | — | |
+| 1 | Record the baseline result of `tests/integration/test_orchestrator_integration.py` | Completed | 20261105-132311 | 20261105-132311 | Baseline: 38 passed. |
+| 2 | Migrate the fixture and the five resume tests | Completed | 20261105-132311 | 20261105-132311 | Configured both patched store classes; migrated the three direct-resume and two execute_turn tests to the store seam. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) after procedure `_02` is applied | Completed | 20261105-132311 | 20261105-132311 | 38 pass, unchanged assertions; ruff clean; mock-patch-targets no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

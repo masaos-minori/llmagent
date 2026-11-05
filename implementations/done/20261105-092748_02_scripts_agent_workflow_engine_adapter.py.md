@@ -62,9 +62,11 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Switch `_init_workflow_task` and `_activate_workflow` to the store methods and `engine.version`; remove dead imports | Pending | — | — | |
-| 2 | Run the orchestrator and integration suites after procedures `_04` and `_05` are applied | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`); deploy only as the user's decision per `skills/deploy/SKILL.md` | Pending | — | — | |
+| 2 | Run the orchestrator and integration suites after procedures `_04` and `_05` are applied | Completed | 20261105-132311 | 20261105-132311 | 130 orchestrator + 38 integration pass, matching baseline; migrated the mock-store test doubles. |
+| 3 | Run the validation sequence (`rules/toolchain.md`); deploy only as the user's decision per `skills/deploy/SKILL.md` | Completed | 20261105-132311 | 20261105-132311 | ruff/mypy/lint-imports/bandit/module-size/reference-table/mock-patch-targets all clean. |
+| 1 | Switch `_init_workflow_task` and `_activate_workflow` to the store methods and `engine.version`; remove dead imports | Completed | 2026-11-05 | 2026-11-05 | `rg "store\._db|_workflow_engine\._wdef|task_ops"` finds nothing in the adapter. |
+| 2 | Run the orchestrator and integration suites after procedures `_04` and `_05` are applied | Completed | 2026-11-05 | 2026-11-05 | 130 orchestrator + 38 integration pass, matching baseline; migrated the mock-store test doubles. |
+| 3 | Run the validation sequence (`rules/toolchain.md`); deploy only as the user's decision per `skills/deploy/SKILL.md` | Completed | 2026-11-05 | 2026-11-05 | ruff/mypy/lint-imports/bandit/module-size/reference-table/mock-patch-targets all clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

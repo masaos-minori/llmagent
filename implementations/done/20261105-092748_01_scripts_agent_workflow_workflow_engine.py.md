@@ -65,9 +65,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the failing `version` test to the companion file | Pending | — | — | |
-| 2 | Add the `version` property and switch both call sites to `get_connection()` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the failing `version` test to the companion file | Completed | 20261105-132311 | 20261105-132311 | Failed with AttributeError on current code; passes after the property. |
+| 2 | Add the `version` property and switch both call sites to `get_connection()` | Completed | 20261105-132311 | 20261105-132311 | No `_store._db` reference remains in the engine. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-132311 | 20261105-132311 | ruff/mypy/lint-imports/bandit/module-size/reference-table all clean; 154 workflow tests pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

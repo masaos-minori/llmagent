@@ -60,9 +60,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the baseline result of `tests/agent/test_orchestrator.py` | Pending | — | — | |
-| 2 | Migrate the fixture (A), delete the restore lines (B), and rewrite the resume tests (C) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) after procedure `_02` is applied | Pending | — | — | |
+| 1 | Record the baseline result of `tests/agent/test_orchestrator.py` | Completed | 20261105-132311 | 20261105-132311 | Baseline: 130 passed. |
+| 2 | Migrate the fixture (A), delete the restore lines (B), and rewrite the resume tests (C) | Completed | 20261105-132311 | 20261105-132311 | Dropped the `create_task` import; added `version` to the `_RetryThenHaltEngine` double so it exposes the adapter's new public attribute. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) after procedure `_02` is applied | Completed | 20261105-132311 | 20261105-132311 | 130 pass, unchanged assertions; ruff clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

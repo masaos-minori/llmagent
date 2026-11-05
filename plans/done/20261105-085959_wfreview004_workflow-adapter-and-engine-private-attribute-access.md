@@ -131,9 +131,9 @@ The change is delivered in two release groups: the engine change and the propert
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Version accessor and engine seam | In Progress | — | — |  |
-| 2 | Adapter rewiring with test migration | In Progress | — | — |  |
-| 3 | Deploy hand-off and verification | Pending | — | — |  |
+| 1 | Version accessor and engine seam | Completed | 20261105-132311 | 20261105-132311 |  |
+| 2 | Adapter rewiring with test migration | Completed | 20261105-132311 | 20261105-132311 |  |
+| 3 | Deploy hand-off and verification | Completed | 20261105-132311 | 20261105-132311 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
