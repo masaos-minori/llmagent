@@ -72,39 +72,6 @@ def _check_read_smoke_test(db: SQLiteHelper) -> bool:
     return True
 
 
-def _check_write_smoke_test(db: SQLiteHelper) -> bool | None:
-    """Insert a throwaway row into session_diagnostics and verify row count unchanged.
-
-    Returns None when the table does not exist or cannot be written to.
-    Uses NULL for session_id to avoid FK constraint violations (no real session exists during smoke test).
-    Omits id column to let SQLite auto-generate it (INTEGER PRIMARY KEY AUTOINCREMENT).
-    """
-    try:
-        before = int(
-            db.execute("SELECT COUNT(*) FROM session_diagnostics").fetchone()[0]
-        )
-        db.execute(
-            "INSERT INTO session_diagnostics(session_id, kind, content, created_at) VALUES (NULL, 'smoke', 'smoke', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"
-        )
-        db.commit()
-        after = int(
-            db.execute("SELECT COUNT(*) FROM session_diagnostics").fetchone()[0]
-        )
-        # Clean up the throwaway row (delete the last inserted row)
-        rows = db.execute(
-            "SELECT id FROM session_diagnostics WHERE kind='smoke' ORDER BY id DESC LIMIT 1"
-        ).fetchall()
-        if rows:
-            db.execute("DELETE FROM session_diagnostics WHERE id=?", (rows[0][0],))
-        db.commit()
-        final = int(
-            db.execute("SELECT COUNT(*) FROM session_diagnostics").fetchone()[0]
-        )
-        return after == before + 1 and final == before
-    except sqlite3.Error:
-        return None
-
-
 def _check_required_tables_exist(db: SQLiteHelper) -> list[str]:
     """Check that all required tables exist; return list of missing table names."""
     required_tables = [
@@ -130,10 +97,9 @@ def _check_required_tables_exist(db: SQLiteHelper) -> list[str]:
 def check_session_consistency(db: SQLiteHelper) -> SessionConsistencyReport:
     """Return a SessionConsistencyReport for the given database connection.
 
-    All queries are read-only except the write smoke test which inserts and deletes
-    a throwaway row within the same check group. Orphan detection uses the same
-    pattern as check_rag_consistency(): per-group try/except isolation so one
-    failing check group does not abort the others.
+    Every query is read-only. Orphan detection uses the same pattern as
+    check_rag_consistency(): per-group try/except isolation so one failing check
+    group does not abort the others.
     """
     diagnostic_errors: list[str] = []
 
@@ -142,7 +108,6 @@ def check_session_consistency(db: SQLiteHelper) -> SessionConsistencyReport:
     orphaned_message_count = orphaned_memory_link_count = 0
     session_diagnostics_readable = False
     read_smoke_test_ok = False
-    write_smoke_test_ok: bool | None = None
     affected_orphaned_message_ids: tuple[int, ...] | None = None
     affected_orphaned_memory_link_pairs: tuple[tuple[str, str], ...] | None = None
 
@@ -184,12 +149,6 @@ def check_session_consistency(db: SQLiteHelper) -> SessionConsistencyReport:
     except sqlite3.Error as e:
         diagnostic_errors.append(f"Read smoke test failed: {e}")
 
-    # Write smoke test
-    try:
-        write_smoke_test_ok = _check_write_smoke_test(db)
-    except sqlite3.Error as e:
-        diagnostic_errors.append(f"Write smoke test failed: {e}")
-
     report = SessionConsistencyReport(
         sessions=sessions,
         messages=messages,
@@ -198,7 +157,6 @@ def check_session_consistency(db: SQLiteHelper) -> SessionConsistencyReport:
         orphaned_memory_link_count=orphaned_memory_link_count,
         session_diagnostics_readable=session_diagnostics_readable,
         read_smoke_test_ok=read_smoke_test_ok,
-        write_smoke_test_ok=write_smoke_test_ok,
         affected_orphaned_message_ids=affected_orphaned_message_ids,
         affected_orphaned_memory_link_pairs=affected_orphaned_memory_link_pairs,
         diagnostic_errors=tuple(diagnostic_errors) if diagnostic_errors else None,
@@ -210,15 +168,13 @@ def is_consistent(report: SessionConsistencyReport) -> bool:
     """Return True only when all consistency checks pass.
 
     Consistent requires: no orphaned messages, no orphaned memory links,
-    session diagnostics readable, read smoke test passes, write smoke test
-    is not False (None means not run/applicable), and no diagnostic errors.
+    session diagnostics readable, read smoke test passes, and no diagnostic errors.
     """
     consistent: bool = (
         report.orphaned_message_count == 0
         and report.orphaned_memory_link_count == 0
         and report.session_diagnostics_readable
         and report.read_smoke_test_ok
-        and report.write_smoke_test_ok is not False
         and not report.diagnostic_errors
     )
     return consistent

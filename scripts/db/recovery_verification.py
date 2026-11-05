@@ -63,8 +63,9 @@ def _rag_inconsistency_detail(report: RagConsistencyReport) -> str:
 def _session_inconsistency_detail(report: SessionConsistencyReport) -> str:
     """Summarize a session report's inconsistencies as counts/identifiers only (REQ-010/AC-7).
 
-    `write_smoke_test_ok is False` is the only trigger for the write-smoke entry:
-    None means the test was not run, which is not an inconsistency.
+    Entries are included only when they indicate an inconsistency: orphan counts above
+    zero, an unreadable diagnostics table, a failed read smoke test, or non-empty
+    diagnostic_errors.
     """
     errors = report.diagnostic_errors or ()
     entries: list[tuple[bool, str]] = [
@@ -78,7 +79,6 @@ def _session_inconsistency_detail(report: SessionConsistencyReport) -> str:
         ),
         (not report.session_diagnostics_readable, "diag_not_readable"),
         (not report.read_smoke_test_ok, "read_smoke_fail"),
-        (report.write_smoke_test_ok is False, "write_smoke_fail"),
         (bool(errors), f"errors={len(errors)}"),
     ]
     return "; ".join(text for include, text in entries if include)

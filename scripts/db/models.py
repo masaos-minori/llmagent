@@ -174,7 +174,6 @@ class SessionConsistencyReport:
     orphaned_memory_link_count: int = 0
     session_diagnostics_readable: bool = False
     read_smoke_test_ok: bool = False
-    write_smoke_test_ok: bool | None = None
     affected_orphaned_message_ids: tuple[int, ...] | None = None
     affected_orphaned_memory_link_pairs: tuple[tuple[str, str], ...] | None = None
     diagnostic_errors: tuple[str, ...] | None = None
