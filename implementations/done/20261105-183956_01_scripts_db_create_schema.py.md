@@ -28,7 +28,7 @@ Give `create_eventbus_schema` three mutually exclusive, validate-first lifecycle
 2. Rewrite `create_eventbus_schema` (L137-L172) into four branches selected before any DDL:
    - (a) No `events` table (fresh): `db.executescript(build_eventbus_schema_sql())`; then `_record_eventbus_baseline(db.conn)`. No validation.
    - (b) `events` present and `user_version == eventbus_schema_version()`: call `validate_canonical` (new) on the connection BEFORE any DDL; on success stamp the baseline row only if absent (`_record_eventbus_baseline`); zero `executescript`.
-   - (c) `events` present and `user_version == 0`: call `assert_matches(db.conn)` (shape only); on success stamp via `_record_eventbus_baseline` (which stamps to the current version); on `RuntimeError` refuse unchanged.
+   - (c) `events` present and `user_version == 0`: call `assert_matches(db.conn)` (shape only); on success stamp `PRAGMA user_version = eventbus_schema_version()` explicitly and insert the baseline via `_record_eventbus_baseline`; on `RuntimeError` refuse unchanged. Verification finding found during execution: `_record_eventbus_baseline` only inserts the ledger row and does NOT stamp `user_version`, so the procedure's earlier wording "stamps via `_record_eventbus_baseline`" required this explicit PRAGMA statement on path (c).
    - (d) `events` present and any other version: refuse unchanged with a message naming the registered CLI and the recreate route (no row content).
 3. Delete the existing-database `db.executescript(build_eventbus_schema_sql())` call currently at L150 and the `if existing and before == 0:` reset branch at L154-L158 (the `PRAGMA user_version = 0` line).
 4. Keep `_record_eventbus_baseline` as-is (it reads `eventbus_schema_version()` dynamically and uses `INSERT OR IGNORE`).
@@ -79,10 +79,10 @@ Give `create_eventbus_schema` three mutually exclusive, validate-first lifecycle
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the three-path `create_eventbus_schema` rewrite in `scripts/db/create_schema.py` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the three-path `create_eventbus_schema` rewrite in `scripts/db/create_schema.py` | Completed | 20261105-223731 | 20261105-224758 | Three-path rewrite done; validation-first, no executescript on any existing database. Verification correction: path (c) needs an explicit PRAGMA stamp because _record_eventbus_baseline only inserts the ledger row. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-224758 | test_unstamped_existing_database_is_not_stamped renamed to stamped_with_zero_ddl (now stamps current version); test_unstamped_old_shape_fails_explicitly now expects RuntimeError 'missing table'; new TestEventbusValidateFirstPaths (fresh-DDL spy, zero-DDL current path, snapshot byte-identity refusal tests). Spy correction: patch.object(wraps=...) fails on class methods (self not bound) - used an explicit wrapper function instead. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-224758 | ruff/mypy clean; 78 test_create_schema tests + 948 tests/db+tests/eventbus passed; lint-imports + check_db_separation clean; full suite at batch end. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-224758 | N/A: doc updates owned by seq 09/seq 10 per Out of Scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

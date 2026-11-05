@@ -62,10 +62,10 @@ Correct the EventBus schema passages of `docs/24_eventbus/eventbus_06_persistenc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | docs-only row; no tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-225252 | 20261105-225414 | Verification: L32 stale paragraph confirmed (user_version = 3, 'ADR-008: no migration mechanism'); the 'Recreate procedure' intro anchor is on L32 not L36. Replaced with version-6 three-path contract, 3->4->5->6 chain, ADR-008 amendment sentence, plus fingerprint-contract and single-inline-FK bullets before the Recreate procedure list. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-225414 | docs-only row; no tests docs-only row; no tests. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-225414 | check_docs_quality/structure/content_policy(--strict)/japanese, check_docs_consistency --domain eventbus and db: all clean; check_module_size OK. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-225414 | This row IS the documentation update. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -71,10 +71,10 @@ Add the acceptance tests for `tests/db/test_eventbus_schema_equivalence.py`: fre
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the convergence and REQ-004 deviation tests to `tests/db/test_eventbus_schema_equivalence.py` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add the convergence and REQ-004 deviation tests to `tests/db/test_eventbus_schema_equivalence.py` | Completed | 20261105-224950 | 20261105-224950 | Verification: anchors match current file. Convergence test (_migrated_v6_db: 3->4->5, seed 3 dlq_outbox rows, 5->6) + 4 deviation tests added; existing 3 tests unchanged. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-224950 | N/A: this row IS the test procedure; no companion files. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-224950 | ruff/mypy clean; 8 tests passed (3 existing + 5 new); lint-imports already verified clean with tests/db run; full suite at batch end. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-224950 | N/A: doc updates owned by seq 09/seq 10 per Out of Scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -72,10 +72,10 @@ Extend the EventBus schema-identity contract and publish its canonical-validatio
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `build_fingerprint` (views + partial predicate) and add `validate_canonical` in `scripts/shared/eventbus_schema_fingerprint.py` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Extend `build_fingerprint` (views + partial predicate) and add `validate_canonical` in `scripts/shared/eventbus_schema_fingerprint.py` | Completed | 20261105-221844 | 20261105-222355 | Adversarial verification: all anchors match current source; no corrections needed. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-222355 | N/A: REQ-004 deviation tests owned by seq 06 row (no companion test files). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-222355 | ruff/mypy/lint-imports/check_db_separation clean; targeted pytest (migrations, dlq_index, equivalence: 28 passed); full suite at batch end. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-222355 | N/A: doc updates out of scope per Out of Scope (seq 09, seq 10). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

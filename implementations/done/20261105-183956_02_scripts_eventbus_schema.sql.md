@@ -68,10 +68,10 @@ Move canonical EventBus DDL to version 6 and give `dlq_outbox` exactly one forei
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the duplicate FK and bump `schema.sql` to version 6 | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove the duplicate FK and bump `schema.sql` to version 6 | Completed | 20261105-222451 | 20261105-222730 | Verification: anchors match; correction applied - deleting the L65 table-level FK also required removing the trailing comma on L64 to keep the DDL valid. Companion test edits deferred until seq 03 registers the 5->6 step (release unit canonical-version-6). |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-223520 | Companion test_eventbus_schema_version.py updated: pin renamed to pinned_to_six (==6), docstring records 3->4->5->6, startup test expects version 6 + 3 ledger rows, future-version probe moved 6->7. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-223520 | Validation run jointly with seq 03 per release unit canonical-version-6: 42 targeted eventbus tests + 102 create_schema/db_migrations tests passed; lint-imports and check_db_separation clean; full suite at batch end. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-223520 | N/A: doc updates owned by seq 09/seq 10 per Out of Scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

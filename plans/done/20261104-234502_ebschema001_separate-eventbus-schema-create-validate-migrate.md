@@ -205,13 +205,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-183956_01_scripts_db_create_schema.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261105-183956_02_scripts_eventbus_schema.sql.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-183956_03_scripts_eventbus_migrations.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-183956_04_scripts_shared_eventbus_schema_fingerprint.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-183956_06_tests_db_test_eventbus_schema_equivalence.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-183956_09_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261105-183956_10_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261105-183956_01_scripts_db_create_schema.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261105-183956_02_scripts_eventbus_schema.sql.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-183956_03_scripts_eventbus_migrations.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-183956_04_scripts_shared_eventbus_schema_fingerprint.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-183956_06_tests_db_test_eventbus_schema_equivalence.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-183956_09_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261105-183956_10_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

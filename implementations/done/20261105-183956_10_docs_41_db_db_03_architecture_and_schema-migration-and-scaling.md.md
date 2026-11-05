@@ -22,9 +22,9 @@ Update the EventBus migration passage of `docs/41_db/db_03_architecture_and_sche
 `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`
 
 ### Procedure
-1. Edit the eventbus migration paragraph (L52): replace "There is one registered forward-only migration, the ledger bootstrap that bumps the baseline from `3` to `4` (`eventbus_ledger_baseline` in `eventbus/migrations.py`)" with the three-step chain — `eventbus_ledger_baseline` (3 -> 4, ledger bootstrap), `eventbus_dlq_outbox` (new) (4 -> 5, outbox baseline), and `eventbus_dlq_outbox_fk_dedup` (new) (5 -> 6, rebuilds `dlq_outbox` to a single inline foreign key) — and change `PRAGMA user_version = N;` to `PRAGMA user_version = 6;`.
+1. Edit the eventbus migration paragraph (L52). Verification correction: the procedure quoted the pre-dlqbox001 clause "There is one registered forward-only migration ... 3 -> 4"; the passage already states "There are two registered forward-only migrations" (ledger bootstrap 3 -> 4 and `eventbus_dlq_outbox` 4 -> 5) with `PRAGMA user_version = N;`. Update it to the three-step chain — `eventbus_ledger_baseline` (3 -> 4, ledger bootstrap), `eventbus_dlq_outbox` (4 -> 5, outbox baseline), and `eventbus_dlq_outbox_fk_dedup` (new) (5 -> 6, rebuilds `dlq_outbox` to a single inline foreign key) — and change `PRAGMA user_version = N;` to `PRAGMA user_version = 6;`. Also update the "the outbox step re-verifies the canonical `schema.sql` fingerprint" clause: after seq 03 the 4 -> 5 step verifies its version-5 intermediate shape with a version-scoped verifier, and the full canonical fingerprint is re-verified by the 5 -> 6 step (pre-commit and post-commit).
 2. In the same paragraph, add a clause that each step re-verifies the canonical fingerprint (`assert_matches` against `scripts/shared/eventbus_schema_fingerprint.py`) as its postcondition and that `validate_canonical` (new) gates the create path on version 6 plus shape before any mutation.
-3. Edit the eventbus.sqlite row of the "Supported Upgrade Baseline" table (L77): change "Registered forward-only migration (`eventbus/migrations.py`) adds the ledger, bumps the baseline to `user_version 4`, and re-verifies the `schema.sql` fingerprint, preserving rows" to describe the full `3 -> 4 -> 5 -> 6` chain ending at version 6, re-verifying the fingerprint contract at each step, preserving rows. Leave the "Never — the ledger is the replayable migration history" removal condition and the EventBus service owner unchanged.
+3. Edit the eventbus.sqlite row of the "Supported Upgrade Baseline" table (L87). Verification correction: the quoted anchor was stale — the row already ends "...then the `dlq_outbox` step brings the database to `user_version 5` while re-verifying the `schema.sql` fingerprint, preserving rows". Update it to describe the full `3 -> 4 -> 5 -> 6` chain ending at version 6, each step verifying the shape it lands (the final FK-dedup step against the full canonical fingerprint), preserving rows. Leave the "Never — the ledger is the replayable migration history" removal condition and the EventBus service owner unchanged.
 
 ### Method
 - Two in-place edits (the L52 paragraph and the L77 table cell); no other section or row is touched. The workflow.sqlite row (L76) and the mdq.sqlite row (L78) are left as-is.
@@ -61,10 +61,10 @@ Update the EventBus migration passage of `docs/41_db/db_03_architecture_and_sche
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | docs-only row; no tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-225143 | 20261105-225414 | Verification corrections applied: L52 anchor stale - passage already described two migrations (3->4, 4->5) after dlqbox001, and L87 row already reached user_version 5; updated to the three-step chain, PRAGMA user_version = 6, scoped-vs-full verifier contract, validate_canonical create gate, and stale 'Before that bootstrap lands' sentence replaced with the current startup/create contract. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-225414 | docs-only row; no tests docs-only row; no tests. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-225414 | All docs checkers + consistency --domain db clean. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-225414 | This row IS the documentation update. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
