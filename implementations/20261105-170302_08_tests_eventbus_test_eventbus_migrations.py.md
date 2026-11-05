@@ -71,10 +71,10 @@ Update `tests/eventbus/test_eventbus_migrations.py` for dbmigsafe001: pin the re
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement steps 1-5 (registry pin, refusal conversions, reason pins, seq ordering, CLI coverage) | Pending | — | — | |
-| 2 | Run targeted pytest: `uv run pytest tests/eventbus/test_eventbus_migrations.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | No docs change in this document (docs are carried by doc 09) | Pending | — | — | |
+| 1 | Implement steps 1-5 (registry pin, refusal conversions, reason pins, seq ordering, CLI coverage) | Completed | — | 20261105-213147 |  |
+| 2 | Run targeted pytest: `uv run pytest tests/eventbus/test_eventbus_migrations.py` | Completed | — | 20261105-213147 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-213147 |  |
+| 4 | No docs change in this document (docs are carried by doc 09) | Completed | — | 20261105-213147 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
