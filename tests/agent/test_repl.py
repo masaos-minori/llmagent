@@ -34,6 +34,7 @@ def _isolate_shared_reader() -> Iterator[None]:
     yield
     reset_stdin_reader()
 
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
