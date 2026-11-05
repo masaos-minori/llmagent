@@ -5,7 +5,7 @@
 **Release unit**: N/A: not part of a release unit
 
 - In scope: `tools/check_dependency_graph_cycles.py` only: a `_parse_args` (new) helper, the `main(argv)` signature, and the `__main__` call.
-- Plan: `plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 3 (Phase 3).
+- Plan: `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 3 (Phase 3).
 
 ## Assumptions
 - `main` is graded C (16) by `radon cc` today (verified 2026-11-05), so the new parsing must live in the helper and `main` must gain no branch; a plain call `_parse_args(argv)` adds none.
@@ -56,6 +56,14 @@ N/A: revert the commit.
 ## Out of Scope
 - The cycle detection logic and the governance workflow.
 
+## Adversarial Verification (20261106)
+- Applied `rules/ai-execution.md` Adversarial Verification (Base). Claims treated as unverified; checked `tools/check_dependency_graph_cycles.py`, `tests/tools/test_check_dependency_graph_cycles.py`, `.github/workflows/governance-docs-consistency.yml`, `tools/run_validation_gates.py`, and parent plan `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`.
+- Claim 1 (`main` graded C (16) by `radon cc`; parsing must live in helper so `main` gains no branch): CONFIRMED. `radon cc -s` reports `main - C (16)`.
+- Claim 2 (CI runs `python tools/check_dependency_graph_cycles.py`; tests call `cdgc.main()` under pytest's `sys.argv`, so `_parse_args(None)` must parse `[]`): CONFIRMED. Tests call `cdgc.main()` at module-integration section (no argument); the `parse_args([] if argv is None else argv)` design reads no `sys.argv` when `main()` is called with no argument.
+- Claim 3 (no other open Plan targets this file): CONFIRMED. Only the parent `toolcli001` Plan references this file; that Plan is archived in `plans/done/`.
+- Deliverable state: `main()` still takes no argument and `__main__` is `raise SystemExit(main())` (no `argparse` yet); implementation steps remain `Pending` (not executed under this verify-only task). No behavioral claim is stale.
+- Gates: `pytest` -> 13 passed; `ruff check` clean; `mypy` -> no issues; `bandit` -> 0 findings; `radon cc -s` -> `main - C (16)`.
+
 ## Execution Status
 
 ### Execution Status
@@ -80,7 +88,7 @@ N/A: revert the commit.
 - **Requirement ID**: `REQ-003` (`--help` through `argparse`), `REQ-005` (no hook or CI change)
 - **Source issue**: issues/20261104-152002_toolcli001_define-cli-and-exit-code-convention.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
+- **Source plan**: plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261105-162554
 - **Related target files**: `tools/check_dependency_graph_cycles.py`

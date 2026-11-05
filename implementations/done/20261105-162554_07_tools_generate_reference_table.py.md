@@ -1,11 +1,34 @@
 ## Goal
 - Give `tools/generate_reference_table.py` a `main(argv=None) -> int` entry that contains its current argument handling, with the `__main__` block reduced to `sys.exit(main())` and unchanged behavior, exit codes, and output (`REQ-004`: `main()` and unchanged behavior; `REQ-005`: no hook or CI change).
 
+## Adversarial Verification (20261106)
+
+**Result: the descriptions of the current code are accurate; one path reference was stale
+and is now corrected.** Verified by reading `tools/generate_reference_table.py` directly
+(1060 lines, 42,997 B).
+
+- `__main__` block spans lines 974-1060: confirmed — `if __name__ == "__main__":` at line
+  974, file ends at line 1060.
+- Exit/error line numbers (Assumptions): confirmed exactly — `raise SystemExit(1)` at line
+  1008; `raise SystemExit(0)` at lines 1010 and 1040; `parser.error(...)` (exit 2) at lines
+  1016 and 1043.
+- Grade-C helpers untouched by the extraction (Assumptions): confirmed exactly by
+  `radon cc` — `_config_ownership_entries` C (17), `_health_contract_entries` C (14),
+  `_invariant_coverage_entries` C (12).
+- File size 42,997 B above the 24576 B limit: confirmed.
+- No in-process caller (Assumptions): confirmed — no test references `main`; callers invoke
+  the file by path or `-m` with `--check/--manifests/--type/--dry-run`.
+
+Correction only: the parent Plan path was cited as `plans/...` in two places; the file
+actually lives at `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`
+(the same archived-path pattern seen in cycles 02 and 09). Both references updated.
+Implementation steps left `Pending`; nothing was executed.
+
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 - In scope: `tools/generate_reference_table.py` only: move the inline parser and dispatch of the `__main__` block (lines 974-1060) into `main`, split into small helpers.
-- Plan: `plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 4 (Phase 4).
+- Plan: `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md` (archived under `plans/done/`; the draft path `plans/...` is stale), Plan step 4 (Phase 4).
 
 ## Assumptions
 - The block builds the parser inline and uses `raise SystemExit(1)` (line 1008) and `raise SystemExit(0)` (lines 1010 and 1040) inside the `--check` and `--manifests` branches, `parser.error(...)` (exit `2`) at lines 1016 and 1043, and falls through with no explicit exit after a normal run (verified 2026-11-05). In `main` those become `return 1`, `return 0`, and a final `return 0`; `parser.error` keeps exiting `2`.
@@ -84,7 +107,7 @@ N/A: revert the commit; the checks above write nothing.
 - **Requirement ID**: `REQ-004` (`main()` and unchanged behavior), `REQ-005` (no hook or CI change)
 - **Source issue**: issues/20261104-152002_toolcli001_define-cli-and-exit-code-convention.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
+- **Source plan**: plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md (archived under `plans/done/`)
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261105-162554
 - **Related target files**: `tools/generate_reference_table.py`

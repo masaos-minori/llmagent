@@ -5,7 +5,7 @@
 **Release unit**: N/A: not part of a release unit
 
 - In scope: `tools/audit_plan_target_paths.py` only: a `_parse_args` (new) helper and the `main(argv)` signature.
-- Plan: `plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 3 (Phase 3).
+- Plan: `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 3 (Phase 3).
 
 ## Assumptions
 - Today `main()` takes no argument and reads `sys.argv[1:]`; `tools/amend_plan.py` runs the tool by path with one plan argument, and `tests/tools/test_audit_plan_target_paths.py` (added by the `toolstest001` Plan) calls `main()` after patching `sys.argv`, in sorted-order and exit-code cases (verified 2026-11-05).
@@ -56,6 +56,15 @@ N/A: revert the commit.
 ## Out of Scope
 - The audit logic, the create-hint matching, and `amend_plan.py`.
 
+## Adversarial Verification (20261106)
+- Applied `rules/ai-execution.md` Adversarial Verification (Base). Claims treated as unverified; checked `tools/audit_plan_target_paths.py`, `tests/tools/test_audit_plan_target_paths.py`, `tools/amend_plan.py`, `tools/run_validation_gates.py`, and the open plans referencing this tool.
+- Claim 1 (`main()` takes no argument and reads `sys.argv[1:]`; `amend_plan.py` runs it by path with one plan argument; tests call `main()` after patching `sys.argv`): CONFIRMED. `main()` line 55 reads `sys.argv[1:]` (line 56); `amend_plan.py` invokes `[TOOLS_DIR/"audit_plan_target_paths.py", rel]` (lines 512-513); tests `monkeypatch.setattr(sys, "argv", [...])` then call `main()` (lines 135, 150, 167).
+- Claim 2 (keeps the `sys.argv` fallback vs. the other four: `main(None)` uses `sys.argv[1:]`): CONFIRMED. Current `main()` reads `sys.argv[1:]` directly; the design's `main(None)` branch preserves this so `amend_plan.py` and patched-argv tests keep working.
+- Claim 3 (`audit` graded C (19); no other open Plan targets this file; `toolstest001` tests land first): CONFIRMED. `radon cc -s` reports `audit - C (19)`; no open plan lists `tools/audit_plan_target_paths.py` as a change target; the tests exist (dependency satisfied).
+- Detail check: `argparse` is not yet imported and `main()` takes no argument — consistent with Step 1.
+- Deliverable state: implementation steps remain `Pending` (not executed under this verify-only task). No behavioral claim is stale.
+- Gates: `pytest` (this + `test_amend_plan.py`) -> 48 passed; `ruff check` clean; `mypy` -> no issues; `bandit` -> 0 findings.
+
 ## Execution Status
 
 ### Execution Status
@@ -80,7 +89,7 @@ N/A: revert the commit.
 - **Requirement ID**: `REQ-003` (`--help` through `argparse`), `REQ-005` (no hook or CI change)
 - **Source issue**: issues/20261104-152002_toolcli001_define-cli-and-exit-code-convention.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
+- **Source plan**: plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261105-162554
 - **Related target files**: `tools/audit_plan_target_paths.py`

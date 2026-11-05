@@ -5,11 +5,11 @@
 **Release unit**: N/A: not part of a release unit
 
 - In scope: `tools/check_docs_japanese.py` only: a `_parse_args` (new) helper, `main(argv)`, and the `__main__` call.
-- Plan: `plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 3 (Phase 3).
+- Plan: `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md` (plan phase archived; Plan step 3 / Phase 3).
 
 ## Assumptions
 - Every caller passes no argument: the `docs-japanese` pre-commit hook (`python -m tools.check_docs_japanese`, `pass_filenames: false`) and the `check_docs_japanese` gate in `tools/run_validation_gates.py` (verified 2026-11-05).
-- Existing tests call `main()` or the helper functions without arguments while `sys.argv` holds pytest's arguments; `argparse` with no argument would reject them (verified 2026-11-05: `parse_args()` under pytest exits 2), so the new helper must parse `[]` when it is given `None`.
+- Existing tests import and call only the helper functions `contains_japanese` and `find_japanese_files` (see `tests/tools/test_check_docs_japanese.py`); they do **not** call `main()`. The `argparse`-under-`pytest` concern (a bare `parse_args()` reading `sys.argv` and exiting 2) therefore does **not** currently apply to these tests. The helper still must parse `[]` when given `None`, because the module entry points (`python -m tools.check_docs_japanese`, the `docs-japanese` hook with `pass_filenames: false`, and the `run_validation_gates.py` gate) all invoke `main()` with no argument.
 - Plan overlap: no other open Plan targets this file.
 
 ## Design decisions
@@ -56,6 +56,14 @@ N/A: revert the commit.
 ## Out of Scope
 - Changing the Japanese detection, its exit codes, or the hook configuration.
 
+## Adversarial Verification (20261106)
+- Applied `rules/ai-execution.md` Adversarial Verification (Base). Claims treated as unverified; checked `tools/check_docs_japanese.py`, `.pre-commit-config.yaml`, `tools/run_validation_gates.py`, `tests/tools/test_check_docs_japanese.py`, and parent plan `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`.
+- Claim 1 (callers pass no argument: hook `python -m tools.check_docs_japanese` `pass_filenames: false`; gate in `run_validation_gates.py`): CONFIRMED. Both invoke with no argument; plan Background adds `pyproject.toml` console scripts calling other tools' `main()` with no argument.
+- Claim 2 (tests call `main()` or helpers; argparse under pytest rejects): CORRECTED. Tests import and call only `contains_japanese` and `find_japanese_files`; they do not call `main()`, so the pytest-argparse risk does not currently apply. The `parse_args([] if argv is None else argv)` requirement still holds for the no-argument module entry points.
+- Claim 3 (no other open Plan targets this file): CONFIRMED. Only the parent `toolcli001` Plan references `check_docs_japanese.py`; that Plan is archived in `plans/done/`.
+- Deliverable state: `main()` still takes no argument and `__main__` is `sys.exit(main())` (no `argparse` yet); implementation steps remain `Pending` (not executed under this verify-only task). No behavioral claim is stale.
+- Gates: `pytest tests/tools/test_check_docs_japanese.py` -> 2 passed; `ruff format`/`ruff check` clean; `mypy tools/check_docs_japanese.py` -> no issues; `bandit` -> 0 findings.
+
 ## Execution Status
 
 ### Execution Status
@@ -80,7 +88,7 @@ N/A: revert the commit.
 - **Requirement ID**: `REQ-003` (`--help` through `argparse`), `REQ-005` (no hook or CI change)
 - **Source issue**: issues/20261104-152002_toolcli001_define-cli-and-exit-code-convention.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
+- **Source plan**: `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261105-162554
 - **Related target files**: `tools/check_docs_japanese.py`

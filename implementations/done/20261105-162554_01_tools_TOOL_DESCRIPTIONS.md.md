@@ -5,7 +5,7 @@
 **Release unit**: N/A: not part of a release unit
 
 - In scope: one new section in `tools/TOOL_DESCRIPTIONS.md` (the convention, the option names that already exist, and the deviation list). The audit itself is read-only and its result is the deviation list.
-- Plan: `plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan steps 1 and 2 (Phases 1 and 2).
+- Plan: `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan steps 1 and 2 (Phases 1 and 2).
 
 ## Assumptions
 - Verified 2026-11-05: 11 explicit `return 2` sites exist in four tools (`check_ci_results.py` 6, `manage_workitem_stage.py` 2, `mark_procedure_new_symbols.py` 2, `classify_changes.py` 1); argparse-based tools already exit `2` on a usage error.
@@ -61,6 +61,15 @@ N/A: revert the commit.
 ## Out of Scope
 - Changing any tool's exit code or option name, the Index section, and copying the convention into `docs/*.md`.
 
+## Adversarial Verification (20261106)
+- Applied `rules/ai-execution.md` Adversarial Verification (Base) to this procedure's factual claims. Claims treated as unverified; searched for refuting evidence in `tools/`, `tools/_docs_consistency_lib.py`, and `tools/run_validation_gates.py`.
+- Claim 1 (`Assumptions`: 11 explicit `return 2` sites across `check_ci_results.py` 6, `manage_workitem_stage.py` 2, `mark_procedure_new_symbols.py` 2, `classify_changes.py` 1): CONFIRMED. `grep -c "return 2"` matches exactly; these are the only four tools with `return 2`.
+- Claim 2 (`Assumptions`: `check_docs_japanese.py`, `check_dependency_graph_cycles.py`, `check_needs_confirmation_inventory.py`, `check_tool_descriptions_sync.py` return `1` on missing input/file): CONFIRMED. Each `main()` returns `1` when its docs/inventory target is absent (verified source lines); convention would call this `2`, recorded as deviation under `REQ-006`.
+- Claim 3 (`Assumptions`: `check_needs_confirmation_inventory.py` warnings do not produce non-zero exit, only ERROR findings do): CONFIRMED. `report_and_exit()` (`tools/_docs_consistency_lib.py`) returns `1` only when `severity == "ERROR"`, else `0` even with warnings.
+- Claim 4 (`Assumptions`: `run_validation_gates.py classify` maps exit `0` to `Pass`, any other code to `Fail`): CONFIRMED. `classify()` returns `"Pass"` for returncode `0`, `"Fail"` otherwise.
+- Deliverable state: the `## CLI and Exit-Code Convention` section is NOT yet present in `tools/TOOL_DESCRIPTIONS.md`; implementation steps remain `Pending` (not executed under this verify-only task). No claim is stale or inaccurate; no correction required.
+- Gate: `uv run python tools/check_tool_descriptions_sync.py` -> `No issues found.` (exit 0).
+
 ## Execution Status
 
 ### Execution Status
@@ -85,7 +94,7 @@ N/A: revert the commit.
 - **Requirement ID**: `REQ-001` (audit with reasons), `REQ-002` (documented convention), `REQ-006` (callers reviewed before any exit-code change)
 - **Source issue**: issues/20261104-152002_toolcli001_define-cli-and-exit-code-convention.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
+- **Source plan**: plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261105-162554
 - **Related target files**: `tools/TOOL_DESCRIPTIONS.md`

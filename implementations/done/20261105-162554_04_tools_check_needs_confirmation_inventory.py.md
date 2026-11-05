@@ -5,7 +5,7 @@
 **Release unit**: N/A: not part of a release unit
 
 - In scope: `tools/check_needs_confirmation_inventory.py` only: a `_parse_args` (new) helper, the `main(argv)` signature, and the `__main__` call.
-- Plan: `plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 3 (Phase 3).
+- Plan: `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 3 (Phase 3).
 
 ## Assumptions
 - Callers pass no argument: the `check-needs-confirmation` console script in `pyproject.toml` calls `tools.check_needs_confirmation_inventory:main`, `.github/workflows/governance-docs-consistency.yml` and the `check_needs_confirmation_inventory` gate run it by path, and `tests/tools/test_check_needs_confirmation_inventory.py` calls `mod.main()` while `sys.argv` holds pytest's arguments, so `_parse_args(None)` must parse `[]` (verified 2026-11-05).
@@ -54,6 +54,15 @@ N/A: revert the commit.
 ## Out of Scope
 - The inventory checks and the console script definition.
 
+## Adversarial Verification (20261106)
+- Applied `rules/ai-execution.md` Adversarial Verification (Base). Claims treated as unverified; checked `tools/check_needs_confirmation_inventory.py`, `tests/tools/test_check_needs_confirmation_inventory.py`, `pyproject.toml`, `.github/workflows/governance-docs-consistency.yml`, `tools/run_validation_gates.py`, and parent plan `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`.
+- Claim 1 (callers pass no argument: `check-needs-confirmation` console script `tools.check_needs_confirmation_inventory:main` in `pyproject.toml`; CI by path; tests call `mod.main()` under pytest's `sys.argv`, so `_parse_args(None)` must parse `[]`): CONFIRMED. Console script present (`pyproject.toml:184`); CI runs by path (`python tools/check_needs_confirmation_inventory.py`); tests import `as mod` and call `mod.main()` with no argument.
+- Claim 2 (`main` ends with `return report_and_exit(all_issues)`, keeping "warnings do not fail, errors do"): CONFIRMED. `report_and_exit` (`tools/_docs_consistency_lib.py`) returns `1` only on ERROR, else `0`.
+- Claim 3 (no other open Plan targets this file): CONFIRMED. Only the parent `toolcli001` Plan references this file; archived in `plans/done/`.
+- Detail check: `argparse` is not yet imported (count 0) and `main()` takes no argument — procedure Step 1's "check whether it is already imported first" is consistent.
+- Deliverable state: implementation steps remain `Pending` (not executed under this verify-only task). No behavioral claim is stale.
+- Gates: `pytest` -> 32 passed; `ruff check` clean; `mypy` -> no issues.
+
 ## Execution Status
 
 ### Execution Status
@@ -78,7 +87,7 @@ N/A: revert the commit.
 - **Requirement ID**: `REQ-003` (`--help` through `argparse`), `REQ-005` (no hook or CI change)
 - **Source issue**: issues/20261104-152002_toolcli001_define-cli-and-exit-code-convention.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
+- **Source plan**: plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261105-162554
 - **Related target files**: `tools/check_needs_confirmation_inventory.py`

@@ -5,7 +5,7 @@
 **Release unit**: N/A: not part of a release unit
 
 - In scope: `tools/check_tool_descriptions_sync.py` only: a `_parse_args` (new) helper, the `main(argv)` signature, and the `__main__` call.
-- Plan: `plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 3 (Phase 3).
+- Plan: `plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md`, Plan step 3 (Phase 3).
 
 ## Assumptions
 - Callers pass no argument: the `tool-descriptions-sync` pre-commit hook (`python -m tools.check_tool_descriptions_sync`, `pass_filenames: false`), the `check_tool_descriptions_sync` gate in `tools/run_validation_gates.py`, the `check-tool-descriptions` console script in `pyproject.toml`, and `routing.md` instructions (verified 2026-11-05).
@@ -54,6 +54,15 @@ N/A: revert the commit.
 ## Out of Scope
 - The sync checks themselves and the document the checker reads.
 
+## Adversarial Verification (20261106)
+- Applied `rules/ai-execution.md` Adversarial Verification (Base). Claims treated as unverified; checked `tools/check_tool_descriptions_sync.py`, `tests/tools/test_check_tool_descriptions_sync.py`, `.pre-commit-config.yaml`, `pyproject.toml`, `tools/run_validation_gates.py`, `routing.md`, and the open plans referencing this tool.
+- Claim 1 (callers pass no argument: `tool-descriptions-sync` hook `pass_filenames: false`; gate in `run_validation_gates.py`; `check-tool-descriptions` console script in `pyproject.toml`; `routing.md`): CONFIRMED. Hook entry `python -m tools.check_tool_descriptions_sync` with `pass_filenames: false` (`pyproject.toml:185` console script, `run_validation_gates.py:844` gate).
+- Claim 2 (test does not call `main`; console/in-process callers pass no `argv`, so `_parse_args(None)` parses `[]`): CONFIRMED. `grep -c main tests/tools/test_check_tool_descriptions_sync.py` == 0.
+- Claim 3 (no other open Plan targets this file): CONFIRMED. The four open plans mentioning this tool (`toolsizegate001`, `toolcommon001`, `toolwrite001`, `toolreport001`) cite `check_tool_descriptions_sync.py` only as a **validation command to run**; their `Implementation Target Files` target `tools/TOOL_DESCRIPTIONS.md`, never the checker script itself.
+- Detail check: `argparse` is not yet imported (count 0) and `main()` takes no argument — consistent with Step 1.
+- Deliverable state: implementation steps remain `Pending` (not executed under this verify-only task). No behavioral claim is stale.
+- Gates: `pytest` -> 3 passed; `ruff check` clean; `mypy` -> no issues; live run -> `No issues found.`.
+
 ## Execution Status
 
 ### Execution Status
@@ -78,7 +87,7 @@ N/A: revert the commit.
 - **Requirement ID**: `REQ-003` (`--help` through `argparse`), `REQ-005` (no hook or CI change)
 - **Source issue**: issues/20261104-152002_toolcli001_define-cli-and-exit-code-convention.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
+- **Source plan**: plans/done/20261105-105637_toolcli001_define-cli-and-exit-code-convention.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261105-162554
 - **Related target files**: `tools/check_tool_descriptions_sync.py`

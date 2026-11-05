@@ -5,7 +5,36 @@
 **Release unit**: N/A: not part of a release unit
 
 - In scope: the `companion_candidates` set in `find_plan_coverage_findings` of `tools/check_workitem_traceability.py`, and one new test in its companion test file. The existing same-plan positive test is kept unchanged.
-- Plan: `plans/20261105-105230_tracecompanion001_scope-companion-candidates-to-target-plan.md`, Plan steps 1 and 2 (Phases 1 and 2).
+- Plan: `plans/done/20261105-105230_tracecompanion001_scope-companion-candidates-to-target-plan.md` (archived under `plans/done/`; the original draft path `plans/...` is stale), Plan steps 1 and 2 (Phases 1 and 2).
+
+## Adversarial Verification (20261106)
+
+**Result: the structural claims are accurate; one path reference was stale and is now
+corrected.** Verified by reading `tools/check_workitem_traceability.py` directly.
+
+- Per-document loop skip (doc says lines 735-739): confirmed. Lines 734-739 skip
+  non-`implementation` docs and docs whose `Source plan` basename differs from
+  `plan_path.name`.
+- `companion_candidates` (doc says lines 783-788): confirmed. Lines 783-788 build the set
+  filtering only on `doc.kind == "implementation"` (iterating `extract_companion_files`),
+  i.e. it does NOT yet scope to the checked Plan — the cross-plan pollution this fix targets.
+- Grade (doc says `D (25)` by `radon cc`): confirmed exactly —
+  `F 714:0 find_plan_coverage_findings - D (25)`.
+- Same-plan positive case (doc says
+  `TestPlanCoverage.test_companion_named_in_two_rows_is_multi_row` at
+  `tests/tools/test_check_workitem_traceability.py:590`): confirmed present at line 590.
+- Callers (doc says the `workitem-traceability` pre-commit hook with `--active-only` and the
+  `check_workitem_traceability` gate in `tools/run_validation_gates.py` are unaffected):
+  confirmed — `.pre-commit-config.yaml:116` runs
+  `python -m tools.check_workitem_traceability --active-only` (flag defined at
+  `tools/check_workitem_traceability.py:883/934`); gate registered at
+  `tools/run_validation_gates.py:1238`. Finding codes/output/exit codes are unchanged by the
+  proposed scope narrowing.
+
+Correction only: the Plan path was cited as `plans/...` in two places; the file actually
+lives at `plans/done/20261105-105230_tracecompanion001_scope-companion-candidates-to-target-plan.md`
+(the same archived-path pattern seen in cycle 02). Both references updated. Implementation
+steps left `Pending`; nothing was executed.
 
 ## Assumptions
 - Verified 2026-11-05: the per-document loop skips documents whose `Source plan` basename differs from the checked Plan's basename (lines 735-739), while `companion_candidates` (lines 783-788) filters only on `doc.kind == "implementation"`; `find_plan_coverage_findings` is graded D (25) by `radon cc`, so the shared selection moves into a small helper instead of another inline condition.
@@ -89,7 +118,7 @@ N/A: revert the commit.
 - **Requirement ID**: `REQ-001` (candidate set scoped to the Plan), `REQ-002` (cross-plan regression test), `REQ-003` (same-plan positive case kept), `REQ-004` (codes, output, and exit codes unchanged)
 - **Source issue**: issues/20261104-152002_tracecompanion001_scope-companion-candidates-to-target-plan.md
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: plans/20261105-105230_tracecompanion001_scope-companion-candidates-to-target-plan.md
+- **Source plan**: plans/done/20261105-105230_tracecompanion001_scope-companion-candidates-to-target-plan.md (archived under `plans/done/`)
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261105-163306
 - **Related target files**: `tools/check_workitem_traceability.py`, `tests/tools/test_check_workitem_traceability.py`
