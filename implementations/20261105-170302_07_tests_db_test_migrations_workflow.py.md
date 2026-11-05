@@ -72,10 +72,10 @@ Update `tests/db/test_migrations_workflow.py` for the dbmigsafe001 behavior chan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement steps 1-6 (test conversions, CLI/status extensions, REQ-007 integration test) | Pending | — | — | |
-| 2 | Run targeted pytest: `uv run pytest tests/db/test_migrations_workflow.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | No docs change in this document (docs are carried by doc 09) | Pending | — | — | |
+| 1 | Implement steps 1-6 (test conversions, CLI/status extensions, REQ-007 integration test) | Completed | 20261105-212244 | 20261105-212903 |  |
+| 2 | Run targeted pytest: `uv run pytest tests/db/test_migrations_workflow.py` | Completed | — | 20261105-212903 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-212903 |  |
+| 4 | No docs change in this document (docs are carried by doc 09) | Completed | — | 20261105-212903 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
