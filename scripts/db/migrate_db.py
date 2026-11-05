@@ -4,12 +4,13 @@
 Operator entry point for the ``workflow.sqlite`` forward-only migration path
 (dbmig001). ``--dry-run``, ``--apply``, and ``--status`` run through the shared
 framework (``shared.db_migrations.MigrationRunner``) and the workflow registry
-(``db.migrations_workflow.REGISTRY``). Unlike the eventbus CLI (row 05) the
-workflow database is embedded in the agent process rather than behind a
-listening service, so no service-listener guard is needed; the CLI relies on
-SQLite busy/lock handling and refuses when the exclusive step fails.
-REQ-001 migration framework, REQ-002 backup gate, REQ-004 dry-run, REQ-006
-ledger status.
+(``db.migrations_workflow.REGISTRY``). ``--apply`` requires ``--archive-dir``:
+the operator-supplied durable pre-migration archive target (REQ-001). Unlike
+the eventbus CLI (row 05) the workflow database is embedded in the agent
+process rather than behind a listening service, so no service-listener guard
+is needed; the CLI relies on SQLite busy/lock handling and refuses when the
+exclusive step fails. REQ-001 migration framework and archive, REQ-002 backup
+gate, REQ-004 dry-run and refusal exit classes, REQ-006 ledger status.
 """
 
 from __future__ import annotations
@@ -32,10 +33,23 @@ from db.migrations_workflow import REGISTRY, runner, verify_backup
 logger = logging.getLogger(__name__)
 
 # Exit code classes (dbmig001 row 07 contract): distinguish refusal classes at
-# the process boundary where tests can observe them.
+# the process boundary where tests can observe them. Gate-family reasons
+# (dbmigsafe001 REQ-004) map to EXIT_GATE_FAILURE; all other refusals map to
+# EXIT_REFUSAL.
 EXIT_OK = 0
 EXIT_GATE_FAILURE = 1
 EXIT_REFUSAL = 2
+
+# Refusal reasons whose failure is a pre-migration safety-gate failure rather
+# than a planning/semantic refusal.
+_GATE_FAMILY_REASONS = frozenset(
+    {
+        MigrationRefusalReason.NO_VERIFIED_BACKUP,
+        MigrationRefusalReason.CHECKPOINT_BUSY,
+        MigrationRefusalReason.NO_ARCHIVE_TARGET,
+        MigrationRefusalReason.ARCHIVE_FAILURE,
+    }
+)
 
 # Legacy workflow schema marker table: the string version log that predates the
 # integer ledger. Read for a cross-check on --status.
@@ -67,8 +81,11 @@ def _legacy_marker(conn: sqlite3.Connection) -> str | None:
 def _cmd_status(conn: sqlite3.Connection) -> int:
     """Print the current version, legacy marker, and every ledger row.
 
-    Output is machine-readable with stable field names because row 11's drill
-    harness reports ledger state next to drill artifacts.
+    Field semantics (REQ-006): ``user_version=`` is the integer migration code
+    from ``PRAGMA user_version``; ``marker=`` is the semantic
+    ``workflow_schema_version`` string. Both names are stable machine-readable
+    fields because row 11's drill harness reports ledger state next to drill
+    artifacts.
     """
     rows = read_ledger(conn)
     print(f"user_version={_current_version(conn)}")
@@ -91,17 +108,19 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument(
         "--dry-run",
         action="store_true",
-        help="Gate against a throwaway copy; mutate nothing.",
+        help="Gate against a throwaway backup-API snapshot; mutate nothing.",
     )
     mode.add_argument(
         "--apply",
         action="store_true",
-        help="Apply the registered forward path, gate-gated.",
+        help="Apply the registered forward path, gate-gated, archiving the "
+        "pre-run state to --archive-dir (required).",
     )
     mode.add_argument(
         "--status",
         action="store_true",
-        help="Print the current version, legacy marker, and ledger rows.",
+        help="Print user_version= (integer migration code), marker= (semantic "
+        "workflow_schema_version string), and ledger rows.",
     )
     parser.add_argument(
         "--db",
@@ -110,6 +129,15 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "Operate on this database file instead of the configured workflow "
             "database (rehearsal on a copy)."
+        ),
+    )
+    parser.add_argument(
+        "--archive-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Durable pre-migration archive directory (required for --apply; "
+            "must already exist and be writable). Never inferred or defaulted."
         ),
     )
     args = parser.parse_args(argv)
@@ -164,15 +192,20 @@ def main(argv: list[str] | None = None) -> int:
             )
             return EXIT_OK
 
-        applied = runner.apply(conn, path, verify_backup)
+        # REQ-001: every --apply run names a durable archive target; no default
+        # location is ever inferred (parser.error exits with code 2 = refusal).
+        if args.archive_dir is None:
+            parser.error("--apply requires --archive-dir")
+
+        applied = runner.apply(conn, path, verify_backup, archive_dir=args.archive_dir)
         print(
             f"applied {len(applied)} step(s); "
             f"user_version now {_current_version(conn)}."
         )
         return EXIT_OK
     except MigrationRefusalError as exc:
-        if exc.reason == MigrationRefusalReason.NO_VERIFIED_BACKUP:
-            logger.error("gate failed (no verified backup): %s", exc)
+        if exc.reason in _GATE_FAMILY_REASONS:
+            logger.error("gate failed (%s): %s", exc.reason, exc)
             return EXIT_GATE_FAILURE
         logger.error("refused: %s", exc)
         return EXIT_REFUSAL

@@ -112,10 +112,10 @@ for DB_NAME in "workflow.sqlite" "eventbus.sqlite"; do
     case "${DB_NAME}" in
       workflow.sqlite)
         echo "Bootstrap the ledger first:" >&2
-        echo "  python ${DEPLOY_SCRIPTS}/db/migrate_db.py --apply" >&2 ;;
+        echo "  python ${DEPLOY_SCRIPTS}/db/migrate_db.py --apply --archive-dir <dir>" >&2 ;;
       eventbus.sqlite)
         echo "Bootstrap the ledger first:" >&2
-        echo "  python ${DEPLOY_SCRIPTS}/eventbus/migrate.py --apply" >&2 ;;
+        echo "  python ${DEPLOY_SCRIPTS}/eventbus/migrate.py --apply --archive-dir <dir>" >&2 ;;
     esac
     exit 1
   fi

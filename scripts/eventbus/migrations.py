@@ -35,7 +35,7 @@ _LEDGER_VERSION = 4
 
 # Target ``PRAGMA user_version`` once the dlq_outbox step lands (dlqbox001). Must
 # match the ``PRAGMA user_version`` line in scripts/eventbus/schema.sql, which is
-# the fingerprint source the post-outbox postcondition re-verifies.
+# the fingerprint source the pre-outbox-step-completion verifier checks.
 _OUTBOX_VERSION = 5
 
 _LEDGER_CREATE_SQL = (
@@ -119,14 +119,14 @@ def _precondition_outbox_step(conn: sqlite3.Connection) -> None:
         )
 
 
-def _postcondition_ledger_baseline(conn: sqlite3.Connection) -> None:
-    """Re-verify this step's own effect: ledger present, core tables, stamp 4.
+def _precommit_ledger_baseline(conn: sqlite3.Connection) -> None:
+    """Verify before commit: ledger present, core tables, stamp 4.
 
     The full canonical fingerprint is intentionally NOT run here: schema.sql is
     the fingerprint source and already contains shapes added by later registered
     steps (dlq_outbox), so a full-shape assert would fail at this intermediate
     version. Full-shape verification runs at path end (schema.py, migrate.py)
-    and in the post-outbox postcondition below.
+    and in the pre-outbox-step-completion verifier below.
     """
     current = int(conn.execute("PRAGMA user_version").fetchone()[0])
     if current != _LEDGER_VERSION:
@@ -142,8 +142,8 @@ def _postcondition_ledger_baseline(conn: sqlite3.Connection) -> None:
         raise RuntimeError(f"ledger bootstrap left core tables missing: {missing}")
 
 
-def _postcondition_fingerprint(conn: sqlite3.Connection) -> None:
-    """Re-verify the canonical EventBus shape after the outbox lands."""
+def _precommit_fingerprint(conn: sqlite3.Connection) -> None:
+    """Verify before commit that the canonical EventBus shape holds after the outbox mutation."""
     assert_matches(conn, label="eventbus.sqlite")
 
 
@@ -157,7 +157,7 @@ REGISTRY: dict[str, MigrationSpec] = {
         to_version=_LEDGER_VERSION,
         preconditions=(_precondition_baseline,),
         mutation_sql=_BOOTSTRAP_MUTATION_SQL,
-        postcondition=_postcondition_ledger_baseline,
+        pre_commit_verification=_precommit_ledger_baseline,
     ),
     "eventbus_dlq_outbox": MigrationSpec(
         id="eventbus_dlq_outbox",
@@ -165,7 +165,7 @@ REGISTRY: dict[str, MigrationSpec] = {
         to_version=_OUTBOX_VERSION,
         preconditions=(_precondition_outbox_step,),
         mutation_sql=_OUTBOX_MUTATION_SQL,
-        postcondition=_postcondition_fingerprint,
+        pre_commit_verification=_precommit_fingerprint,
     ),
 }
 

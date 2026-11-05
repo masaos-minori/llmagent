@@ -201,8 +201,8 @@ def _precondition_baseline(conn: sqlite3.Connection) -> None:
         )
 
 
-def _postcondition_fingerprint(conn: sqlite3.Connection) -> None:
-    """Re-verify the ledger landed and the version was stamped to the step target."""
+def _precommit_fingerprint(conn: sqlite3.Connection) -> None:
+    """Verify before commit that the ledger landed and the version was stamped."""
     current = int(conn.execute("PRAGMA user_version").fetchone()[0])
     if current != _LEDGER_VERSION:
         raise RuntimeError(
@@ -265,8 +265,8 @@ def _precondition_tool_state(conn: sqlite3.Connection) -> None:
         )
 
 
-def _postcondition_tool_state(conn: sqlite3.Connection) -> None:
-    """Re-verify this step's own effect: lifecycle tables, stamped head code."""
+def _precommit_tool_state(conn: sqlite3.Connection) -> None:
+    """Verify before commit this step's own effect: lifecycle tables, stamped head code."""
     current = int(conn.execute("PRAGMA user_version").fetchone()[0])
     if current != _TOOL_STATE_VERSION:
         raise RuntimeError(
@@ -328,8 +328,8 @@ def _precondition_task_nonce(conn: sqlite3.Connection) -> None:
         )
 
 
-def _postcondition_task_nonce(conn: sqlite3.Connection) -> None:
-    """Re-verify this step's own effect: renamed column, stamped head code."""
+def _precommit_task_nonce(conn: sqlite3.Connection) -> None:
+    """Verify before commit this step's own effect: renamed column, stamped head code."""
     current = int(conn.execute("PRAGMA user_version").fetchone()[0])
     if current != _TASK_NONCE_VERSION:
         raise RuntimeError(
@@ -389,8 +389,8 @@ def _precondition_attempt_lease(conn: sqlite3.Connection) -> None:
         )
 
 
-def _postcondition_attempt_lease(conn: sqlite3.Connection) -> None:
-    """Re-verify this step's own effect: lease columns, stamped head code."""
+def _precommit_attempt_lease(conn: sqlite3.Connection) -> None:
+    """Verify before commit this step's own effect: lease columns, stamped head code."""
     current = int(conn.execute("PRAGMA user_version").fetchone()[0])
     if current != _ATTEMPT_LEASE_VERSION:
         raise RuntimeError(
@@ -415,7 +415,7 @@ REGISTRY: dict[str, MigrationSpec] = {
         to_version=1,
         preconditions=(_precondition_baseline,),
         mutation_sql=_BOOTSTRAP_MUTATION_SQL,
-        postcondition=_postcondition_fingerprint,
+        pre_commit_verification=_precommit_fingerprint,
     ),
     "workflow_tool_call_state": MigrationSpec(
         id="workflow_tool_call_state",
@@ -423,7 +423,7 @@ REGISTRY: dict[str, MigrationSpec] = {
         to_version=2,
         preconditions=(_precondition_tool_state,),
         mutation_sql=_TOOL_STATE_MUTATION_SQL,
-        postcondition=_postcondition_tool_state,
+        pre_commit_verification=_precommit_tool_state,
     ),
     "workflow_task_nonce": MigrationSpec(
         id="workflow_task_nonce",
@@ -431,7 +431,7 @@ REGISTRY: dict[str, MigrationSpec] = {
         to_version=3,
         preconditions=(_precondition_task_nonce,),
         mutation_sql=_TASK_NONCE_MUTATION_SQL,
-        postcondition=_postcondition_task_nonce,
+        pre_commit_verification=_precommit_task_nonce,
     ),
     "workflow_attempt_lease": MigrationSpec(
         id="workflow_attempt_lease",
@@ -439,7 +439,7 @@ REGISTRY: dict[str, MigrationSpec] = {
         to_version=4,
         preconditions=(_precondition_attempt_lease,),
         mutation_sql=_ATTEMPT_LEASE_MUTATION_SQL,
-        postcondition=_postcondition_attempt_lease,
+        pre_commit_verification=_precommit_attempt_lease,
     ),
 }
 

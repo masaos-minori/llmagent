@@ -1,10 +1,11 @@
 """scripts/shared/db_migrations.py — Domain-neutral forward-only migration framework.
 
 Provides a registry-entry dataclass, a path-resolving runner, a pre-migration
-backup/integrity gate, ledger primitives, dry-run mode, and refusal semantics so
-the ``db`` and ``eventbus`` layers share one migration lifecycle
-(REQ-001 migration framework, REQ-002 backup gate, REQ-003 refusal semantics,
-REQ-004 dry-run, REQ-006 ledger).
+backup/integrity gate, an opt-in durable archive, ledger primitives, dry-run
+mode, and refusal semantics so the ``db`` and ``eventbus`` layers share one
+migration lifecycle (REQ-001 migration framework and durable archive, REQ-002
+backup gate, REQ-003 refusal semantics, REQ-004 dry-run, REQ-005 ledger append
+order, REQ-006 ledger).
 
 The framework lives in ``shared`` because ``.importlinter`` forbids
 ``eventbus`` -> ``db`` and ``shared`` -> ``db``; both layers may import ``shared``,
@@ -21,14 +22,17 @@ layer passes a wrapper around ``eventbus_schema_fingerprint.assert_matches``.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
-import shutil
 import sqlite3
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -57,12 +61,20 @@ BackupVerifier = Callable[[sqlite3.Connection, str], None]
 
 
 class MigrationRefusalReason(StrEnum):
-    """Refusal class raised before any mutation (REQ-003)."""
+    """Refusal class raised before any mutation (REQ-003).
+
+    The gate-family values name the unmet safety requirement;
+    ``NO_VERIFIED_BACKUP`` is reserved for backup-integrity and verifier failures.
+    """
 
     DOWNGRADE = "downgrade"
     UNKNOWN_PATH = "unknown_path"
     CYCLE = "cycle"
     NO_VERIFIED_BACKUP = "no_verified_backup"
+    CHECKPOINT_BUSY = "checkpoint_busy"
+    IN_MEMORY_DATABASE = "in_memory_database"
+    NO_ARCHIVE_TARGET = "no_archive_target"
+    ARCHIVE_FAILURE = "archive_failure"
 
 
 _DEFAULT_REFUSAL_MESSAGES: dict[MigrationRefusalReason, str] = {
@@ -70,6 +82,10 @@ _DEFAULT_REFUSAL_MESSAGES: dict[MigrationRefusalReason, str] = {
     MigrationRefusalReason.UNKNOWN_PATH: "no ordered forward path exists to the target",
     MigrationRefusalReason.CYCLE: "migration path revisits a version (cycle)",
     MigrationRefusalReason.NO_VERIFIED_BACKUP: "no verified backup exists before migration",
+    MigrationRefusalReason.CHECKPOINT_BUSY: "WAL checkpoint did not complete cleanly (busy)",
+    MigrationRefusalReason.IN_MEMORY_DATABASE: "cannot gate or archive an in-memory database",
+    MigrationRefusalReason.NO_ARCHIVE_TARGET: "archive target directory is missing or unwritable",
+    MigrationRefusalReason.ARCHIVE_FAILURE: "durable pre-migration archive could not be created",
 }
 
 
@@ -93,12 +109,13 @@ class MigrationRefusalError(RuntimeError):
 class MigrationSpec:
     """A single forward migration step in a domain registry.
 
-    ``mutation_sql`` runs inside one runner-owned transaction; ``postcondition``
-    re-verifies the resulting schema shape. ``preconditions`` run against the live
-    connection before the mutation. ``disable_foreign_keys`` opts the step into a
-    foreign-key switch (restored after commit/rollback); ``pre_commit_verification``
-    runs inside the transaction and can reject the step before it commits. Versions
-    are integers defined per domain registry.
+    ``mutation_sql`` runs inside one runner-owned transaction; ``preconditions`` run
+    against the live connection before the mutation. ``postcondition`` re-verifies
+    the resulting schema shape and is for observational checks only —
+    mutation-integrity assertions belong in ``pre_commit_verification``, which runs
+    inside the transaction and can reject the step before it commits (REQ-003).
+    ``disable_foreign_keys`` opts the step into a foreign-key switch (restored
+    after commit/rollback). Versions are integers defined per domain registry.
     """
 
     id: str
@@ -116,12 +133,17 @@ class MigrationSpec:
 
 @dataclass(frozen=True)
 class LedgerRow:
-    """One applied migration recorded in the ``schema_migrations`` ledger."""
+    """One applied migration recorded in the ``schema_migrations`` ledger.
+
+    ``seq`` is the ledger ``rowid``: append order survives same-second
+    ``applied_at`` collisions (REQ-005).
+    """
 
     id: str
     applied_at: str
     from_version: int
     to_version: int
+    seq: int = 0
 
 
 def ensure_ledger(conn: sqlite3.Connection) -> None:
@@ -130,7 +152,7 @@ def ensure_ledger(conn: sqlite3.Connection) -> None:
 
 
 def read_ledger(conn: sqlite3.Connection) -> list[LedgerRow]:
-    """Return every applied migration ordered by ``applied_at`` then id.
+    """Return every applied migration in append order (``rowid``, REQ-005).
 
     Tolerates a database that predates the ledger (no ``schema_migrations`` table
     yet): such a database has applied nothing, so an empty list is returned. Callers
@@ -144,15 +166,16 @@ def read_ledger(conn: sqlite3.Connection) -> list[LedgerRow]:
     if has_table is None:
         return []
     rows = conn.execute(
-        f"SELECT id, applied_at, from_version, to_version FROM {_LEDGER_TABLE} "  # nosec B608 — table name is a module-level constant, no user input
-        "ORDER BY applied_at, id"
+        f"SELECT rowid, id, applied_at, from_version, to_version FROM {_LEDGER_TABLE} "  # nosec B608 — table name is a module-level constant, no user input
+        "ORDER BY rowid"
     ).fetchall()
     return [
         LedgerRow(
-            id=row[0],
-            applied_at=row[1],
-            from_version=int(row[2]),
-            to_version=int(row[3]),
+            id=row[1],
+            applied_at=row[2],
+            from_version=int(row[3]),
+            to_version=int(row[4]),
+            seq=int(row[0]),
         )
         for row in rows
     ]
@@ -209,22 +232,23 @@ def _run_pre_migration_gate(
     """Run the pre-migration gate and refuse without a verified backup (REQ-002).
 
     Order: WAL checkpoint -> SQLite backup-API copy into a temp file ->
-    ``PRAGMA integrity_check`` on the copy -> injected domain verifier. A clean
-    checkpoint is required (a non-zero busy count means the WAL could not be
-    flushed, so no recovery point exists). The temp copy is always closed and
-    deleted, even on failure, and never overwrites the live DB file.
+    ``PRAGMA integrity_check`` on the copy -> injected domain verifier. A
+    non-zero busy count from ``PRAGMA wal_checkpoint(FULL)`` means another
+    connection still holds the WAL (REQ-004). Only backup-integrity and
+    verifier failures carry ``NO_VERIFIED_BACKUP``. The temp copy is always
+    closed and deleted.
     """
     checkpoint = live_conn.execute("PRAGMA wal_checkpoint(FULL)").fetchone()
     if int(checkpoint[0]) != 0:
         raise MigrationRefusalError(
-            MigrationRefusalReason.NO_VERIFIED_BACKUP,
-            "WAL checkpoint did not complete cleanly; refusing migration",
+            MigrationRefusalReason.CHECKPOINT_BUSY,
+            "WAL checkpoint busy; another connection holds the database",
         )
 
     db_path = live_conn.execute("PRAGMA database_list").fetchone()[2]
     if not db_path or db_path == ":memory:":
         raise MigrationRefusalError(
-            MigrationRefusalReason.NO_VERIFIED_BACKUP,
+            MigrationRefusalReason.IN_MEMORY_DATABASE,
             "cannot back up an in-memory database before migration",
         )
 
@@ -258,6 +282,114 @@ def _run_pre_migration_gate(
             os.unlink(tmp_path)
         except OSError as e:
             logger.warning("Failed to remove backup temp file %s: %s", tmp_path, e)
+
+
+@dataclass(frozen=True)
+class MigrationArchive:
+    """One durable pre-migration archive plus its audit artifact (REQ-001)."""
+
+    archive_path: Path
+    audit_path: Path
+    sha256: str
+    source_version: int
+    created_at: str
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 16), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _remove_incomplete_archive(*paths: Path) -> None:
+    """Delete partial archive/audit files so a failed archive leaves no decoy."""
+    for path in paths:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Failed to remove incomplete archive file %s", path)
+
+
+def archive_pre_migration(
+    live_conn: sqlite3.Connection,
+    archive_dir: Path,
+) -> MigrationArchive:
+    """Copy the pre-run database state to a durable archive (REQ-001, fail closed).
+
+    Called after the gate and before any mutation, so the archive captures the
+    exact pre-run state. The target directory comes only from the caller and
+    must exist and be writable, else ``NO_ARCHIVE_TARGET``; any other failure
+    raises ``ARCHIVE_FAILURE`` and partial files are removed. Nothing prunes
+    archives. The archive is ``<db-stem>-v<user_version>-<utc-stamp>.sqlite``
+    with a ``<same-stem>.audit.json`` sidecar recording path, SHA-256, source
+    database/version, creation time, and ``retention_status`` ``"unset"``.
+    """
+    archive_dir = Path(archive_dir)
+    db_path = live_conn.execute("PRAGMA database_list").fetchone()[2]
+    if not db_path or db_path == ":memory:":
+        raise MigrationRefusalError(
+            MigrationRefusalReason.IN_MEMORY_DATABASE,
+            "cannot archive an in-memory database before migration",
+        )
+
+    if not archive_dir.is_dir() or not os.access(archive_dir, os.W_OK | os.X_OK):
+        raise MigrationRefusalError(
+            MigrationRefusalReason.NO_ARCHIVE_TARGET,
+            f"archive target is missing or unwritable: {archive_dir}",
+        )
+
+    source_version = int(live_conn.execute("PRAGMA user_version").fetchone()[0])
+    now = datetime.now(UTC)
+    created_at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    archive_path = archive_dir / (
+        f"{Path(db_path).stem}-v{source_version}-{now.strftime('%Y%m%dT%H%M%SZ')}.sqlite"
+    )
+    audit_path = archive_path.with_suffix(".audit.json")
+
+    archive_conn: sqlite3.Connection | None = None
+    try:
+        archive_conn = sqlite3.connect(str(archive_path))
+        live_conn.backup(archive_conn)
+        integrity = str(archive_conn.execute("PRAGMA integrity_check").fetchone()[0])
+        if integrity != "ok":
+            raise MigrationRefusalError(
+                MigrationRefusalReason.ARCHIVE_FAILURE,
+                f"archive integrity check failed: {integrity}",
+            )
+        archive_conn.close()
+        archive_conn = None
+        sha256 = _sha256_file(archive_path)
+        audit = {
+            "archive_path": str(archive_path),
+            "sha256": sha256,
+            "source_db": db_path,
+            "source_version": source_version,
+            "created_at": created_at,
+            "retention_status": "unset",
+        }
+        audit_path.write_text(json.dumps(audit, indent=2) + "\n", encoding="utf-8")
+    except MigrationRefusalError:
+        _remove_incomplete_archive(archive_path, audit_path)
+        raise
+    except OSError as e:
+        _remove_incomplete_archive(archive_path, audit_path)
+        raise MigrationRefusalError(
+            MigrationRefusalReason.NO_ARCHIVE_TARGET,
+            f"cannot write archive to {archive_dir}: {e}",
+        ) from e
+    except sqlite3.Error as e:
+        _remove_incomplete_archive(archive_path, audit_path)
+        raise MigrationRefusalError(
+            MigrationRefusalReason.ARCHIVE_FAILURE,
+            f"archive copy failed: {e}",
+        ) from e
+
+    logger.info("Pre-migration archive: %s (sha256=%s).", archive_path, sha256)
+    return MigrationArchive(
+        archive_path, audit_path, sha256, source_version, created_at
+    )
 
 
 class MigrationRunner:
@@ -342,24 +474,27 @@ class MigrationRunner:
         backup_verifier: BackupVerifier,
         *,
         dry_run: bool = False,
+        archive_dir: Path | None = None,
     ) -> list[LedgerRow]:
         """Apply a resolved forward path, one transaction per step (REQ-001/004).
 
-               Runs the pre-migration gate once, then each step in one runner-owned
-               transaction: preconditions, optional foreign-key switch, BEGIN IMMEDIATE,
-               the mutation statements, the ledger row, ``PRAGMA foreign_key_check`` when
-               keys were switched off, any ``pre_commit_verification``, then commit; the
-               postcondition re-check runs after commit and the foreign-key setting is
-               restored in ``finally``. A failing step rolls back that step entirely and
-               leaves the database at the last ledger-recorded version (AC-2). Dry-run
-               runs resolution + gate against a throwaway copy and mutates nothing (AC-5).
+        Runs the pre-migration gate once, then each step in one runner-owned
+        transaction: preconditions, optional foreign-key switch, BEGIN IMMEDIATE,
+        the mutation statements, the ledger row, ``PRAGMA foreign_key_check`` when
+        keys were switched off, any ``pre_commit_verification``, then commit; the
+        postcondition re-check runs after commit and the foreign-key setting is
+        restored in ``finally``. A failing step rolls back that step entirely and
+        leaves the database at the last ledger-recorded version (AC-2). Dry-run
+        gates a throwaway backup-API snapshot and mutates nothing (AC-5). With
+        ``archive_dir`` supplied (apply only), the pre-run state is archived
+        first (REQ-001).
 
-               Args:
-                   conn: Open connection to the canonical database being migrated.
-                   path: Ordered forward path from :meth:`plan`.
-                   backup_verifier: Domain backup verifier injected by the caller.
-                   dry_run: When True, run resolution + gate against a throwaway copy and
-        mutate nothing.
+        Args:
+            conn: Open connection to the canonical database being migrated.
+            path: Ordered forward path from :meth:`plan`.
+            backup_verifier: Domain backup verifier injected by the caller.
+            dry_run: When True, gate a throwaway snapshot and mutate nothing.
+            archive_dir: Optional durable archive target; a failure refuses.
         """
         if not path:
             logger.info("No migration steps to apply.")
@@ -367,22 +502,22 @@ class MigrationRunner:
 
         if dry_run:
             logger.info(
-                "Dry-run: gating %d step(s) against a throwaway copy.", len(path)
+                "Dry-run: gating %d step(s) against a throwaway snapshot.", len(path)
             )
             db_path = conn.execute("PRAGMA database_list").fetchone()[2]
             if not db_path or db_path == ":memory:":
                 raise MigrationRefusalError(
-                    MigrationRefusalReason.NO_VERIFIED_BACKUP,
+                    MigrationRefusalReason.IN_MEMORY_DATABASE,
                     "cannot dry-run against an in-memory database",
                 )
-            fd, tmp_path = tempfile.mkstemp(
-                suffix=".sqlite", prefix="migration-dryrun-"
-            )
+            fd, tmp_path = tempfile.mkstemp(suffix=".sqlite", prefix="migration-dryrun-")
             os.close(fd)
             try:
-                shutil.copyfile(db_path, tmp_path)
+                # Backup-API snapshot (not a file copy): committed -wal content
+                # is included, so the gate sees what the steps would see.
                 dry_conn = sqlite3.connect(tmp_path)
                 try:
+                    conn.backup(dry_conn)
                     _run_pre_migration_gate(dry_conn, backup_verifier)
                 finally:
                     dry_conn.close()
@@ -403,6 +538,10 @@ class MigrationRunner:
 
         _run_pre_migration_gate(conn, backup_verifier)
 
+        if archive_dir is not None:
+            # Archive the exact pre-run state, before the ledger is created.
+            archive_pre_migration(conn, archive_dir)
+
         # Create the ledger only after the gate passes, so a gate refusal leaves
         # the original database byte-for-byte intact (AC-2).
         ensure_ledger(conn)
@@ -413,12 +552,14 @@ class MigrationRunner:
             self._apply_step(conn, spec)
             if spec.postcondition is not None:
                 spec.postcondition(conn)
+            last = read_ledger(conn)[-1]
             applied.append(
                 LedgerRow(
                     id=spec.id,
-                    applied_at=read_ledger(conn)[-1].applied_at,
+                    applied_at=last.applied_at,
                     from_version=spec.from_version,
                     to_version=spec.to_version,
+                    seq=last.seq,
                 )
             )
             logger.info(

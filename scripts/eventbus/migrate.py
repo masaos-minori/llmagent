@@ -4,10 +4,12 @@
 Operator entry point for the ``eventbus.sqlite`` forward-only migration path
 (dbmig001). ``--dry-run``, ``--apply``, and ``--status`` run through the
 shared framework (``shared.db_migrations.MigrationRunner``) and the EventBus
-registry (``eventbus.migrations.REGISTRY``). The CLI refuses to mutate while the
-EventBus service holds the database (a listener on the configured port), keeping
-the single-writer assumption (ADR-008). REQ-001 migration framework, REQ-002
-backup gate, REQ-004 dry-run, REQ-006 ledger status.
+registry (``eventbus.migrations.REGISTRY``). ``--apply`` requires
+``--archive-dir``: the operator-supplied durable pre-migration archive target
+(REQ-001). The CLI refuses to mutate while the EventBus service holds the
+database (a listener on the configured port), keeping the single-writer
+assumption (ADR-008). REQ-001 migration framework and archive, REQ-002 backup
+gate, REQ-004 dry-run and refusal exit classes, REQ-006 ledger status.
 """
 
 from __future__ import annotations
@@ -31,11 +33,24 @@ from eventbus.migrations import REGISTRY, runner, verify_backup
 logger = logging.getLogger(__name__)
 
 # Exit code classes (dbmig001 row 05 contract): distinguish refusal classes at
-# the process boundary where tests can observe them.
+# the process boundary where tests can observe them. Gate-family reasons
+# (dbmigsafe001 REQ-004) map to EXIT_GATE_FAILURE; all other refusals map to
+# EXIT_REFUSAL.
 EXIT_OK = 0
 EXIT_GATE_FAILURE = 1
 EXIT_REFUSAL = 2
 EXIT_SERVICE_BUSY = 3
+
+# Refusal reasons whose failure is a pre-migration safety-gate failure rather
+# than a planning/semantic refusal.
+_GATE_FAMILY_REASONS = frozenset(
+    {
+        MigrationRefusalReason.NO_VERIFIED_BACKUP,
+        MigrationRefusalReason.CHECKPOINT_BUSY,
+        MigrationRefusalReason.NO_ARCHIVE_TARGET,
+        MigrationRefusalReason.ARCHIVE_FAILURE,
+    }
+)
 
 # Fallback port when the config cannot be parsed for one; the configured port
 # always wins when present.
@@ -59,7 +74,12 @@ def _current_version(conn: sqlite3.Connection) -> int:
 
 
 def _cmd_status(conn: sqlite3.Connection) -> int:
-    """Print the current version and every ledger row, then return success."""
+    """Print the current version and every ledger row, then return success.
+
+    Field semantics (REQ-006): ``user_version=`` is the integer migration code
+    from ``PRAGMA user_version``. The EventBus domain has no semantic string
+    version store, so unlike the workflow CLI there is no ``marker=`` field.
+    """
     rows = read_ledger(conn)
     print(f"user_version={_current_version(conn)}")
     if not rows:
@@ -80,17 +100,28 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument(
         "--dry-run",
         action="store_true",
-        help="Gate against a throwaway copy; mutate nothing.",
+        help="Gate against a throwaway backup-API snapshot; mutate nothing.",
     )
     mode.add_argument(
         "--apply",
         action="store_true",
-        help="Apply the registered forward path, gate-gated.",
+        help="Apply the registered forward path, gate-gated, archiving the "
+        "pre-run state to --archive-dir (required).",
     )
     mode.add_argument(
         "--status",
         action="store_true",
-        help="Print the current version and ledger rows.",
+        help="Print user_version= (integer migration code) and ledger rows. "
+        "The EventBus domain has no semantic string marker field.",
+    )
+    parser.add_argument(
+        "--archive-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Durable pre-migration archive directory (required for --apply; "
+            "must already exist and be writable). Never inferred or defaulted."
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -127,15 +158,21 @@ def main(argv: list[str] | None = None) -> int:
             )
             return EXIT_OK
 
-        applied = runner.apply(conn, path, verify_backup)
+        # REQ-001: every --apply run names a durable archive target; no default
+        # location is ever inferred.
+        if args.archive_dir is None:
+            logger.error("refused: --apply requires --archive-dir")
+            return EXIT_REFUSAL
+
+        applied = runner.apply(conn, path, verify_backup, archive_dir=args.archive_dir)
         print(
             f"applied {len(applied)} step(s); "
             f"user_version now {_current_version(conn)}."
         )
         return EXIT_OK
     except MigrationRefusalError as exc:
-        if exc.reason == MigrationRefusalReason.NO_VERIFIED_BACKUP:
-            logger.error("gate failed (no verified backup): %s", exc)
+        if exc.reason in _GATE_FAMILY_REASONS:
+            logger.error("gate failed (%s): %s", exc.reason, exc)
             return EXIT_GATE_FAILURE
         logger.error("refused: %s", exc)
         return EXIT_REFUSAL
