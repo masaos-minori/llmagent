@@ -110,6 +110,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `validate_message` | `def validate_message(msg) -> ValidationResult` | Validate *msg* against the strict schema. |
 |  | `is_trusted_source` | `def is_trusted_source(source_id) -> bool` | Check if *source_id* is authorized to inject ephemeral keys. |
 |  | `get_allowed_ephemeral_keys` | `def get_allowed_ephemeral_keys(source_id) -> set[str]` | Get ephemeral keys allowed for a trusted source. |
+|  | `unexpected_message_keys` | `def unexpected_message_keys(msg) -> set[str]` | Return the keys of *msg* outside the role's allowed keys and the authorized ephemeral keys. |
 | `scripts/agent/mode_classification.py` | `classify_and_inject_mode` | `async def classify_and_inject_mode(query, ctx) -> None` | Inject MDQ/RAG routing hint into system prompt based on query classification. |
 | `scripts/agent/orchestrator.py` | `Orchestrator` | `class Orchestrator` | Turn-level coordinator: compression -> LLM loop -> tool dispatch. |
 | `scripts/agent/output_tags.py` | `OutputTag` | `class OutputTag` | Bracketed prefix tags for REPL/CLI status messages. |

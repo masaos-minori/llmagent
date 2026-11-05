@@ -139,7 +139,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 25969 (2026-11-04): commit dc26ea2f7 (declared path scope keys and
     # list elements in policy checks) regenerated the table and grew it 20 bytes without
     # re-recording the ceiling; the ceiling equals the accepted size.
-    "agent_13_reference-api-generated.md": 25969,
+    # Re-accepted at 26145 (2026-11-05): memlogleak001 added the public
+    # `unexpected_message_keys` row to the agent API reference (regenerated via
+    # `generate_reference_table.py --manifests`); the ceiling equals the accepted size.
+    "agent_13_reference-api-generated.md": 26145,
     # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
     # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
     # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate

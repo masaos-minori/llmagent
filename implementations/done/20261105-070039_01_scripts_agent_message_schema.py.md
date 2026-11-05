@@ -33,8 +33,14 @@ Add the public `unexpected_message_keys` (new) helper to `scripts/agent/message_
   role). This derives every allowed set from the schema constants, so it cannot drift
   from `validate_message` or `_sanitize_message` (Risk: helper/`validate_message`
   drift).
-- Type the parameter as `dict` to match `validate_message`'s existing signature and the
-  dict-shaped history messages the persister iterates; no `LLMMessage` import needed.
+- Type the parameter as `dict` to match `validate_message`'s existing signature;
+  no `LLMMessage` import needed. The persister's history items are `LLMMessage` (a
+  TypedDict; `context.py` `ConversationState.history` is `list[LLMMessage]`), so the
+  call site wraps with `dict(m)` and the role lookup uses `msg.get("role") or ""` to
+  satisfy mypy (a possibly-`None` key is not assignable to the `str` key type of
+  `ROLE_KEY_WHITELIST`). These are the only two deviations from the Procedure code
+  block below, both forced by the type checker; the behaviour is identical to the
+  stated design.
 
 ## Alternatives considered
 
@@ -63,7 +69,7 @@ Add one public function after `get_allowed_ephemeral_keys` (end of module):
       unknown role) plus the ephemeral keys authorized in TRUSTED_SOURCES, so the result
       never duplicates a key list and stays in sync with validate_message.
       """
-      allowed = set(ROLE_KEY_WHITELIST.get(msg.get("role"), {"role", "content"}))
+      allowed = set(ROLE_KEY_WHITELIST.get(msg.get("role") or "", {"role", "content"}))
       allowed.update(_ALL_EPHEMERAL_KEYS)
       return set(msg.keys()) - allowed
   ```
@@ -122,10 +128,10 @@ Add one public function after `get_allowed_ephemeral_keys` (end of module):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `unexpected_message_keys` (new) helper per Procedure | Pending | — | — | |
-| 2 | Add helper unit tests per Validation plan (Row 04) | Pending | — | — | covered by Row 04 doc |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | referenced by Row 05 |
+| 1 | Add the `unexpected_message_keys` (new) helper per Procedure | Completed | 20261105-104354 | 20261105-104354 | Applied; mypy forced msg.get("role") or "" in schema and dict(m) wrapper at persister call site (history items are LLMMessage TypedDict) |
+| 2 | Add helper unit tests per Validation plan (Row 04) | Completed | 20261105-104354 | 20261105-104354 | covered by Row 04 doc |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-104354 | 20261105-104354 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-104354 | 20261105-104354 | referenced by Row 05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

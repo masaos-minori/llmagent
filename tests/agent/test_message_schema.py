@@ -7,6 +7,7 @@ from agent.message_schema import (
     TRUSTED_SOURCES,
     get_allowed_ephemeral_keys,
     is_trusted_source,
+    unexpected_message_keys,
     validate_message,
 )
 
@@ -257,3 +258,47 @@ class TestTrustedSourceHelpers:
             }
         )
         assert result.success is True
+
+
+class TestUnexpectedMessageKeys:
+    def test_user_message_has_no_unexpected_keys(self) -> None:
+        assert unexpected_message_keys({"role": "user", "content": "hello"}) == set()
+
+    def test_assistant_with_tool_calls_has_no_unexpected_keys(self) -> None:
+        msg = {
+            "role": "assistant",
+            "content": "ok",
+            "tool_calls": [
+                {"id": "tc1", "function": {"name": "test", "arguments": "{}"}}
+            ],
+        }
+        assert unexpected_message_keys(msg) == set()
+
+    def test_tool_result_has_no_unexpected_keys(self) -> None:
+        msg = {
+            "role": "tool",
+            "content": "result",
+            "tool_call_id": "tc1",
+            "name": "test",
+        }
+        assert unexpected_message_keys(msg) == set()
+
+    def test_system_message_has_no_unexpected_keys(self) -> None:
+        assert (
+            unexpected_message_keys({"role": "system", "content": "be nice"}) == set()
+        )
+
+    def test_authorized_ephemeral_key_is_not_unexpected(self) -> None:
+        msg = {"role": "system", "content": "x", "_ephemeral": True}
+        assert unexpected_message_keys(msg) == set()
+
+    def test_off_whitelist_key_is_reported(self) -> None:
+        assert unexpected_message_keys(
+            {"role": "user", "content": "hi", "rogue_key": "v"}
+        ) == {"rogue_key"}
+
+    def test_unknown_role_falls_back_to_role_content(self) -> None:
+        # An unknown role falls back to {'role', 'content'}; an extra key is reported.
+        assert unexpected_message_keys(
+            {"role": "unknown", "content": "hi", "rogue_key": "v"}
+        ) == {"rogue_key"}

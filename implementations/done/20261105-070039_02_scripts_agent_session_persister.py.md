@@ -75,7 +75,7 @@ REQ-003; AC-2, AC-3).
   with
   ```python
   for m in self._ctx.conv.history:
-      unexpected = unexpected_message_keys(m)
+      unexpected = unexpected_message_keys(dict(m))
       if unexpected:
           logger.warning(
               "Unexpected keys in history message for role '%s': %s",
@@ -142,10 +142,10 @@ REQ-003; AC-2, AC-3).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the key check + warning per Procedure | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | covered by Row 03 doc |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/` |
+| 1 | Replace the key check + warning per Procedure | Completed | 20261105-104354 | 20261105-104354 | Applied; mypy forced dict(m) wrapper since conv.history items are LLMMessage TypedDict |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-104354 | 20261105-104354 | covered by Row 03 doc |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-104354 | 20261105-104354 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-104354 | 20261105-104354 | N/A: no `docs/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

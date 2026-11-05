@@ -127,10 +127,10 @@ changed (Row 02).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no `docs/` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-104354 | 20261105-104354 | — |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-104354 | 20261105-104354 | Added two caplog tests; fail on pre-change code |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-104354 | 20261105-104354 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-104354 | 20261105-104354 | N/A: no `docs/` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

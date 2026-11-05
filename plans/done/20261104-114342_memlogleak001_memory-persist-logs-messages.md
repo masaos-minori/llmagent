@@ -148,10 +148,10 @@ Baseline (Step 5): `radon cc` reports `SessionPersister.persist_session_memories
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing persister caplog tests | In Progress | — | — |  |
-| 2 | Phase 2: schema helper and its tests | In Progress | — | — |  |
-| 3 | Phase 3: persister uses the helper | In Progress | — | — |  |
-| 4 | Phase 4: regenerate the generated reference | In Progress | — | — |  |
+| 1 | Phase 1: failing persister caplog tests | Completed | — | 20261105-104710 |  |
+| 2 | Phase 2: schema helper and its tests | Completed | — | 20261105-104710 |  |
+| 3 | Phase 3: persister uses the helper | Completed | — | 20261105-104710 |  |
+| 4 | Phase 4: regenerate the generated reference | Completed | — | 20261105-104710 |  |
 | 5 | Phase 5: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -162,11 +162,11 @@ Baseline (Step 5): `radon cc` reports `SessionPersister.persist_session_memories
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-070039_01_scripts_agent_message_schema.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-070039_02_scripts_agent_session_persister.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-070039_03_tests_agent_test_session_persister.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-070039_04_tests_agent_test_message_schema.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-070039_05_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261105-070039_01_scripts_agent_message_schema.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-070039_02_scripts_agent_session_persister.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-070039_03_tests_agent_test_session_persister.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-070039_04_tests_agent_test_message_schema.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-070039_05_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

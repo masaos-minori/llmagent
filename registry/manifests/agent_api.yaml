@@ -387,6 +387,12 @@ entries:
   name: get_allowed_ephemeral_keys
   signature: def get_allowed_ephemeral_keys(source_id) -> set[str]
   summary: Get ephemeral keys allowed for a trusted source.
+- file: scripts/agent/message_schema.py
+  kind: function
+  name: unexpected_message_keys
+  signature: def unexpected_message_keys(msg) -> set[str]
+  summary: Return the keys of *msg* outside the role's allowed keys and the authorized
+    ephemeral keys.
 - file: scripts/agent/mode_classification.py
   kind: async function
   name: classify_and_inject_mode

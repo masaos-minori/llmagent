@@ -94,3 +94,15 @@ def get_allowed_ephemeral_keys(source_id: str) -> set[str]:
     if source_id in TRUSTED_SOURCES:
         return TRUSTED_SOURCES[source_id]
     return set()
+
+
+def unexpected_message_keys(msg: dict) -> set[str]:
+    """Return the keys of *msg* outside the role's allowed keys and the authorized ephemeral keys.
+
+    Uses ROLE_KEY_WHITELIST for the role (falling back to {'role', 'content'} for an
+    unknown role) plus the ephemeral keys authorized in TRUSTED_SOURCES, so the result
+    never duplicates a key list and stays in sync with validate_message.
+    """
+    allowed = set(ROLE_KEY_WHITELIST.get(msg.get("role") or "", {"role", "content"}))
+    allowed.update(_ALL_EPHEMERAL_KEYS)
+    return set(msg.keys()) - allowed

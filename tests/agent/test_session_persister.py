@@ -307,3 +307,57 @@ class TestPersistSessionMemoriesGate:
         await persister.persist_session_memories()
 
         ctx.services.memory.on_session_stop.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_tool_and_ephemeral_history_logs_no_warning_and_no_content(
+        self, caplog
+    ) -> None:
+        secret = "sk-live-deadbeefcafe"
+        ctx = _ctx(1)
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock()
+        ctx.conv.history = [
+            {"role": "user", "content": "what is the weather?"},
+            {
+                "role": "assistant",
+                "content": "checking",
+                "tool_calls": [
+                    {
+                        "id": "tc1",
+                        "function": {"name": "weather", "arguments": "{}"},
+                    }
+                ],
+            },
+            {"role": "tool", "content": secret, "tool_call_id": "tc1"},
+            {"role": "system", "content": "produce a final answer", "_ephemeral": True},
+        ]
+        persister = SessionPersister(ctx, MagicMock(), MagicMock())
+
+        with caplog.at_level(logging.WARNING, logger="agent.session_persister"):
+            await persister.persist_session_memories()
+
+        assert not any(record.levelname == "WARNING" for record in caplog.records), (
+            f"unexpected warning: {caplog.text}"
+        )
+        assert secret not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_unexpected_key_logs_role_and_key_without_content(
+        self, caplog
+    ) -> None:
+        secret = "sk-live-deadbeefcafe"
+        ctx = _ctx(1)
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock()
+        ctx.conv.history = [
+            {"role": "user", "content": "hello"},
+            {"role": "user", "content": secret, "rogue_key": "value"},
+        ]
+        persister = SessionPersister(ctx, MagicMock(), MagicMock())
+
+        with caplog.at_level(logging.WARNING, logger="agent.session_persister"):
+            await persister.persist_session_memories()
+
+        assert "user" in caplog.text
+        assert "rogue_key" in caplog.text
+        assert secret not in caplog.text

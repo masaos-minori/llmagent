@@ -113,10 +113,10 @@ source (`--check` exits 0) (REQ-005; AC-5, AC-8).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-104354 | 20261105-104354 | — |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-104354 | 20261105-104354 | N/A: doc-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-104354 | 20261105-104354 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-104354 | 20261105-104354 | Regenerated via --manifests; also updated registry/manifests/agent_api.yaml (was stale); --check exits 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

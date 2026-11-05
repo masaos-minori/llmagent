@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 from agent.cli_view import CLIView
 from agent.diagnostic_store import DiagnosticStore
 from agent.memory.models import HistoryMessage
+from agent.message_schema import unexpected_message_keys
 from agent.output_tags import OutputTag
 
 logger = logging.getLogger(__name__)
@@ -195,13 +196,12 @@ class SessionPersister:
             try:
                 history = []
                 for m in self._ctx.conv.history:
-                    expected_keys = {"role", "content"}
-                    extra_keys = set(m.keys()) - expected_keys
-                    if extra_keys:
+                    unexpected = unexpected_message_keys(dict(m))
+                    if unexpected:
                         logger.warning(
-                            "Unexpected keys in history message: %s — full message: %s",
-                            extra_keys,
-                            m,
+                            "Unexpected keys in history message for role '%s': %s",
+                            m.get("role"),
+                            sorted(unexpected),
                         )
                     history.append(
                         HistoryMessage(role=m["role"], content=m.get("content") or "")
