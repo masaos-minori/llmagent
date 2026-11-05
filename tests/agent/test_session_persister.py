@@ -16,6 +16,7 @@ import orjson
 import pytest
 from agent.diagnostic_store import DiagnosticStore
 from agent.session_persister import SessionPersister
+from agent.workflow.state_store import StateStore
 
 _SCHEMA = """
 CREATE TABLE session_diagnostics (
@@ -151,6 +152,65 @@ class TestPersistSessionDiagnosticsContainment:
 
         view.write_warning.assert_called_once()
         assert "store down" in view.write_warning.call_args[0][0]
+
+
+def _mock_store() -> MagicMock:
+    store = MagicMock(spec=StateStore)
+    store.get_task_count.return_value = 2
+    store.get_workflow_count.return_value = 1
+    store.get_execute_attempt_count.return_value = 3
+    store.get_artifact_uris.return_value = []
+    return store
+
+
+class TestPersistSessionDiagnosticsStoreClose:
+    """The StateStore the persister opens is closed on every exit path."""
+
+    @staticmethod
+    async def _persist(db_session_id: int, store: MagicMock) -> None:
+        persister = SessionPersister(
+            _ctx(db_session_id), DiagnosticStore(), MagicMock()
+        )
+        with patch("agent.workflow.state_store.StateStore", return_value=store):
+            await persister.persist_session_diagnostics()
+
+    @pytest.mark.asyncio
+    async def test_closes_store_on_success(self, db) -> None:
+        store = _mock_store()
+
+        await self._persist(1, store)
+
+        store.close.assert_called_once_with()
+        assert db.count() == 1
+
+    @pytest.mark.asyncio
+    async def test_closes_store_when_a_query_raises_sqlite_error(self, db) -> None:
+        store = _mock_store()
+        store.get_task_count.side_effect = sqlite3.Error("db")
+
+        await self._persist(1, store)
+
+        store.close.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_closes_store_when_attempt_count_is_none(self, db) -> None:
+        store = _mock_store()
+        store.get_execute_attempt_count.return_value = None
+
+        await self._persist(1, store)
+
+        store.close.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_close_failure_is_logged_and_contained(self, db, caplog) -> None:
+        store = _mock_store()
+        store.close.side_effect = sqlite3.Error("close failed")
+
+        with caplog.at_level(logging.WARNING, logger="agent.session_persister"):
+            await self._persist(1, store)
+
+        assert "close" in caplog.text
+        assert db.count() == 1
 
 
 class TestPersistSessionDiagnosticsRoundTrip:
