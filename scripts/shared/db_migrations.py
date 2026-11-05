@@ -510,7 +510,7 @@ class MigrationRunner:
                     MigrationRefusalReason.IN_MEMORY_DATABASE,
                     "cannot dry-run against an in-memory database",
                 )
-            fd, tmp_path = tempfile.mkstemp(suffix=".sqlite", prefix="migration-dryrun-")
+            fd, tmp_path = tempfile.mkstemp(suffix=".sqlite", prefix="migration-dry-")
             os.close(fd)
             try:
                 # Backup-API snapshot (not a file copy): committed -wal content

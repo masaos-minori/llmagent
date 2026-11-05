@@ -23,7 +23,7 @@ import sqlite3
 import sys
 
 from shared.db_migrations import ensure_ledger
-from shared.eventbus_schema_fingerprint import assert_matches
+from shared.eventbus_schema_fingerprint import assert_matches, validate_canonical
 
 from db.helper import SQLiteHelper
 from db.migrations_workflow import ensure_baseline
@@ -135,39 +135,57 @@ def create_workflow_schema() -> None:
 
 
 def create_eventbus_schema() -> None:
-    """Create eventbus.sqlite tables (events, consumer_delivery, consumer_offsets)."""
+    """Create or validate eventbus.sqlite (events, consumer_delivery, consumer_offsets).
+
+    Three mutually exclusive, validate-first paths (REQ-001/REQ-002/REQ-003):
+    a fresh database receives the canonical DDL once; an existing database is
+    validated (version + shape) BEFORE any mutation and stamped only when it
+    matches canonical; every other case is refused with the database left
+    byte-unchanged. Upgrades of older stamped databases belong to the eventbus
+    layer (scripts/eventbus/migrate.py --apply or service startup), never to
+    this db-layer create function.
+    """
     with SQLiteHelper("eventbus").open(write_mode=True) as db:
         existing = db.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='events'"
         ).fetchone()
         before = int(db.execute("PRAGMA user_version").fetchone()[0])
-        if existing and before not in (0, eventbus_schema_version()):
+        if not existing:
+            # Fresh database: canonical DDL once (schema.sql stamps the current
+            # user_version), then the ledger baseline row. No validation needed.
+            _execute_schema_ddl(db, build_eventbus_schema_sql(), "Event Bus")
+            if db.conn is not None:
+                _record_eventbus_baseline(db.conn)
+        elif before == eventbus_schema_version():
+            # Current version: validate version + shape BEFORE any DDL (zero
+            # executescript); stamp the baseline row only when absent (INSERT
+            # OR IGNORE). A refusal here leaves the database byte-unchanged.
+            if db.conn is None:
+                raise RuntimeError("eventbus.sqlite: connection missing at validation")
+            validate_canonical(db.conn)
+            _record_eventbus_baseline(db.conn)
+        elif before == 0:
+            # Unstamped database: stamp only when its shape already matches
+            # canonical. Shape-only assert_matches is intentional: validate_
+            # canonical would enforce the current version on a version-0
+            # database and refuse the very stamp this path must apply.
+            if db.conn is None:
+                raise RuntimeError("eventbus.sqlite: connection missing at validation")
+            assert_matches(db.conn)
+            # Explicit stamp: _record_eventbus_baseline only inserts the ledger
+            # row; the version half of path (c) is applied here.
+            db.execute(
+                f"PRAGMA user_version = {eventbus_schema_version()}"  # nosec B608 — int from schema.sql
+            )
+            _record_eventbus_baseline(db.conn)
+        else:
+            # Any other version: refused unchanged. Numeric versions are schema
+            # facts; the message carries no table/column/row content.
             raise RuntimeError(
                 f"eventbus.sqlite schema version {before} differs from "
-                f"{eventbus_schema_version()}; recreate the database"
+                f"{eventbus_schema_version()}; migrate it with "
+                "scripts/eventbus/migrate.py --apply or recreate the database"
             )
-        try:
-            db.executescript(build_eventbus_schema_sql())
-        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            logger.error("Failed to execute Event Bus schema DDL: %s", e)
-            raise
-        if existing and before == 0:
-            # Leave an unverified legacy database unstamped; the EventBus service
-            # stamps it only after checking its tables against schema.sql. No
-            # baseline row lands on this path.
-            db.execute("PRAGMA user_version = 0")
-        elif existing:
-            # A database already stamped with the current version must still match
-            # the canonical shape; fail closed before committing (REQ-003), then
-            # stamp the ledger baseline row.
-            if db.conn is not None:
-                assert_matches(db.conn)
-                _record_eventbus_baseline(db.conn)
-        else:
-            # Fresh database: schema.sql stamped user_version to the current
-            # version; stamp the ledger baseline row.
-            if db.conn is not None:
-                _record_eventbus_baseline(db.conn)
         db.commit()
     logger.info("Event Bus schema created successfully.")
 

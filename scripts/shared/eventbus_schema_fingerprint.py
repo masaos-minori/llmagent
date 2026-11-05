@@ -1,11 +1,12 @@
 """scripts/shared/eventbus_schema_fingerprint.py — Shared EventBus schema shape validator.
 
 Derives a structural fingerprint
-(tables, columns, indexes, table-level constraints, foreign keys, triggers)
-from scripts/eventbus/schema.sql via a fresh in-memory apply and compares it
-against a target connection. Raises RuntimeError on any deviation, even when
-PRAGMA user_version matches (REQ-001). Imports only the standard library so
-shared-is-leaf and eventbus-is-isolated stay KEPT."""
+(tables, views, columns, indexes with partial predicates, table-level
+constraints, foreign keys, triggers) from scripts/eventbus/schema.sql via a
+fresh in-memory apply and compares it against a target connection. Raises
+RuntimeError on any deviation, even when PRAGMA user_version matches (REQ-001).
+validate_canonical composes the version gate with the shape check. Imports only
+the standard library so shared-is-leaf and eventbus-is-isolated stay KEPT."""
 
 import re
 import sqlite3
@@ -17,8 +18,10 @@ _SCHEMA_PATH = Path(__file__).resolve().parent.parent / "eventbus" / "schema.sql
 _COMMENT_RE = re.compile(r"--[^\n]*")
 _WS_RE = re.compile(r"\s+")
 _CONSTRAINT_RE = re.compile(r"\b(unique|check|primary key)\s*\(")
+_VERSION_STAMP_RE = re.compile(r"PRAGMA\s+user_version\s*=\s*(\d+)")
+_INDEX_WHERE_RE = re.compile(r"\bWHERE\s+(.*)$", re.IGNORECASE | re.DOTALL)
 
-# A table entry is (table, columns, indexes, constraints, foreign_keys, triggers).
+# An object entry is (name, columns, indexes, constraints, foreign_keys, triggers).
 TableEntry = tuple[
     str,
     tuple[object, ...],
@@ -33,6 +36,14 @@ Fingerprint = tuple[TableEntry, ...]
 def _schema_sql() -> str:
     """Return the canonical EventBus DDL text from scripts/eventbus/schema.sql."""
     return _SCHEMA_PATH.read_text()
+
+
+def _canonical_schema_version() -> int:
+    """Return the PRAGMA user_version stamp from schema.sql (last stamp wins)."""
+    stamps = _VERSION_STAMP_RE.findall(_schema_sql())
+    if not stamps:
+        raise RuntimeError("schema.sql contains no PRAGMA user_version stamp")
+    return int(stamps[-1])
 
 
 def _normalize_ddl(sql: str) -> str:
@@ -68,15 +79,26 @@ def _columns(
 
 
 def _indexes(conn: Connection, table: str) -> tuple[object, ...]:
-    """Return (name, unique, partial, key_columns) per index on the table."""
-    found: list[tuple[str, int, int, tuple[tuple[int, int, str], ...]]] = []
+    """Return (name, unique, partial, key_columns, predicate) per index on the table.
+
+    predicate is the normalized trailing WHERE clause of the index's own DDL,
+    or None for non-partial indexes.
+    """
+    found: list[tuple[str, int, int, tuple[tuple[int, int, str], ...], str | None]] = []
     for row in conn.execute(f'PRAGMA index_list("{table}")'):  # nosec B608 — table name read from sqlite_master
         name = str(row[1])
         keys = tuple(
             (int(k[0]), int(k[1]), str(k[2] or ""))
             for k in conn.execute(f'PRAGMA index_info("{name}")')  # nosec B608 — index name read from index_list
         )
-        found.append((name, int(row[2]), int(row[4]), keys))
+        ddl = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='index' AND name=?", (name,)
+        ).fetchone()
+        predicate: str | None = None
+        match = _INDEX_WHERE_RE.search(str(ddl[0] or "")) if ddl else None
+        if match:
+            predicate = _normalize_ddl(match.group(1))
+        found.append((name, int(row[2]), int(row[4]), keys, predicate))
     return tuple(sorted(found, key=lambda item: str(item[0])))
 
 
@@ -109,28 +131,30 @@ def apply_schema_in_memory() -> Connection:
 
 
 def build_fingerprint(conn: Connection) -> Fingerprint:
-    """Derive the structural fingerprint of conn: tables, columns, indexes,
-    table-level constraints, foreign keys, and triggers-if-any."""
-    tables = [
-        str(r[0])
+    """Derive the structural fingerprint of conn: tables, views, columns, indexes
+    (with partial predicates), table-level constraints, foreign keys, and
+    triggers-if-any."""
+    objects = [
+        (str(r[0]), str(r[1]))
         for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE"
-            " 'sqlite_%' ORDER BY name"
+            "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view')"
+            " AND name NOT LIKE 'sqlite_%' ORDER BY name"
         )
     ]
     entries: list[TableEntry] = []
-    for table in tables:
+    for name, _obj_type in objects:
         ddl = conn.execute(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            "SELECT sql FROM sqlite_master WHERE type IN ('table', 'view') AND name=?",
+            (name,),
         ).fetchone()
         entries.append(
             (
-                table,
-                _columns(conn, table),
-                _indexes(conn, table),
+                name,
+                _columns(conn, name),
+                _indexes(conn, name),
                 _table_level_constraints(str(ddl[0] or "")),
-                _foreign_keys(conn, table),
-                _triggers(conn, table),
+                _foreign_keys(conn, name),
+                _triggers(conn, name),
             )
         )
     return tuple(entries)
@@ -181,3 +205,21 @@ def assert_matches(conn: Connection, *, label: str = "eventbus.sqlite") -> None:
     the first differing object so operators get an actionable message.
     """
     _raise_first_difference(expected_fingerprint(), build_fingerprint(conn), label)
+
+
+def validate_canonical(conn: Connection, *, label: str = "eventbus.sqlite") -> None:
+    """Raise RuntimeError unless conn is the canonical schema.sql database.
+
+    Composes the PRAGMA user_version gate (against the schema.sql stamp) with
+    assert_matches; the version gate runs first so a mismatch never reaches the
+    fingerprint diff. A refused database must be recreated or migrated through
+    the registered forward-only migration path.
+    """
+    actual = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    expected = _canonical_schema_version()
+    if actual != expected:
+        raise RuntimeError(
+            f"{label}: PRAGMA user_version {actual} != schema.sql stamp {expected} — "
+            "recreate the database or migrate through the registered forward-only path"
+        )
+    assert_matches(conn, label=label)

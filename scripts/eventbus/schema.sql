@@ -61,8 +61,7 @@ CREATE TABLE IF NOT EXISTS dlq_outbox (
     attempts          INTEGER NOT NULL DEFAULT 0,
     last_error        TEXT,
     next_attempt_at   TEXT,
-    completed_at      TEXT,
-    FOREIGN KEY (event_id) REFERENCES events(event_id)
+    completed_at      TEXT
 );
 
 -- Index for the worker's pending scan: status filter ordered by next_attempt_at
@@ -72,4 +71,4 @@ CREATE INDEX IF NOT EXISTS idx_dlq_outbox_status
 -- Schema version of this DDL. Bump it whenever the schema changes in a way that
 -- requires recreating the database; open_db() refuses a database stamped otherwise.
 -- Existing databases upgrade only through the eventbus registry's registered steps.
-PRAGMA user_version = 5;
+PRAGMA user_version = 6;

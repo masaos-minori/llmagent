@@ -3,8 +3,9 @@
 Registers the ``eventbus.sqlite`` migration path on the domain-neutral framework
 in ``shared.db_migrations`` (REQ-001 migration framework, REQ-009 registered paths
 preserve rows). This is the domain-specific home where future EventBus version
-steps register; it currently holds the ledger bootstrap step (3 -> 4) and the
-dlqbox001 ``dlq_outbox`` step (4 -> 5).
+steps register; it currently holds the ledger bootstrap step (3 -> 4), the
+dlqbox001 ``dlq_outbox`` step (4 -> 5), and the ebschema001
+``eventbus_dlq_outbox_fk_dedup`` rebuild (5 -> 6).
 
 This module imports only ``shared.db_migrations``, ``shared.eventbus_schema_fingerprint``,
 and the standard library, so the ``.importlinter`` contracts ``eventbus-is-isolated``
@@ -33,10 +34,16 @@ _BASELINE_VERSION = 3
 # Target ``PRAGMA user_version`` of the ledger bootstrap step.
 _LEDGER_VERSION = 4
 
-# Target ``PRAGMA user_version`` once the dlq_outbox step lands (dlqbox001). Must
-# match the ``PRAGMA user_version`` line in scripts/eventbus/schema.sql, which is
-# the fingerprint source the pre-outbox-step-completion verifier checks.
+# Target ``PRAGMA user_version`` of the frozen 4 -> 5 dlq_outbox step (dlqbox001).
+# NOT the current schema.sql stamp anymore: ebschema001 moved canonical schema.sql
+# to version 6 (single-FK dlq_outbox); this step stays the double-FK v5
+# intermediate, and the 5 -> 6 rebuild step below converges on the new stamp.
 _OUTBOX_VERSION = 5
+
+# Target ``PRAGMA user_version`` of the FK-dedup rebuild step (ebschema001). Must
+# match the ``PRAGMA user_version`` line in scripts/eventbus/schema.sql, which is
+# the fingerprint source the post-rebuild verifier checks.
+_FK_DEDUP_VERSION = 6
 
 _LEDGER_CREATE_SQL = (
     "CREATE TABLE IF NOT EXISTS schema_migrations ("
@@ -52,9 +59,11 @@ _BOOTSTRAP_MUTATION_SQL = (
     f"{_LEDGER_CREATE_SQL} PRAGMA user_version = {_LEDGER_VERSION};"
 )
 
-# dlq_outbox DDL + pending-scan index, byte-identical in shape to the same block
-# appended to scripts/eventbus/schema.sql, so baseline-created and migrated
-# databases are fingerprint-equal (dlqbox001 row 01 contract).
+# dlq_outbox DDL + pending-scan index, frozen in its released double-FK v5 shape.
+# Intentionally NOT identical to canonical scripts/eventbus/schema.sql anymore:
+# schema.sql v6 carries a single inline FK (ebschema001); the registered 5 -> 6
+# rebuild step below converges migrated databases on the canonical fingerprint
+# (dlqbox001 row 01 contract, superseded by ebschema001 for the v5 intermediate).
 _DLQ_OUTBOX_SQL = """CREATE TABLE IF NOT EXISTS dlq_outbox (
     event_id          TEXT    PRIMARY KEY REFERENCES events(event_id),
     requested_at      TEXT    NOT NULL,
@@ -70,6 +79,43 @@ CREATE INDEX IF NOT EXISTS idx_dlq_outbox_status
     ON dlq_outbox(status, next_attempt_at);"""
 
 _OUTBOX_MUTATION_SQL = f"{_DLQ_OUTBOX_SQL} PRAGMA user_version = {_OUTBOX_VERSION};"
+
+# FK-dedup rebuild (ebschema001): rebuild dlq_outbox down to the single inline FK
+# of canonical schema.sql v6 via create-copy-drop-rename. The uniquely named
+# intermediate table never collides with the live dlq_outbox and never appears in
+# the fingerprint; the index is recreated explicitly so the fingerprinted index
+# definition is identical to canonical.
+_FK_DEDUP_CREATE_SQL = """CREATE TABLE dlq_outbox_v6 (
+    event_id          TEXT    PRIMARY KEY REFERENCES events(event_id),
+    requested_at      TEXT    NOT NULL,
+    status            TEXT    NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending', 'done', 'failed')),
+    attempts          INTEGER NOT NULL DEFAULT 0,
+    last_error        TEXT,
+    next_attempt_at   TEXT,
+    completed_at      TEXT
+);"""
+
+_FK_DEDUP_COPY_SQL = (
+    "INSERT INTO dlq_outbox_v6 (event_id, requested_at, status, attempts,"
+    " last_error, next_attempt_at, completed_at)"
+    " SELECT event_id, requested_at, status, attempts, last_error,"
+    " next_attempt_at, completed_at FROM dlq_outbox;"
+)
+
+_FK_DEDUP_RENAME_SQL = (
+    "DROP TABLE dlq_outbox; ALTER TABLE dlq_outbox_v6 RENAME TO dlq_outbox;"
+)
+
+_FK_DEDUP_INDEX_SQL = (
+    "CREATE INDEX IF NOT EXISTS idx_dlq_outbox_status"
+    " ON dlq_outbox(status, next_attempt_at);"
+)
+
+_FK_DEDUP_MUTATION_SQL = (
+    f"{_FK_DEDUP_CREATE_SQL} {_FK_DEDUP_COPY_SQL} {_FK_DEDUP_RENAME_SQL}"
+    f" {_FK_DEDUP_INDEX_SQL} PRAGMA user_version = {_FK_DEDUP_VERSION};"
+)
 
 
 def _precondition_baseline(conn: sqlite3.Connection) -> None:
@@ -119,6 +165,36 @@ def _precondition_outbox_step(conn: sqlite3.Connection) -> None:
         )
 
 
+def _precondition_fk_dedup_step(conn: sqlite3.Connection) -> None:
+    """Refuse unless the database is a post-outbox version-5 database.
+
+    Rejects: a database not exactly at the outbox version, a forged stamp (no
+    ``schema_migrations`` table), a database missing the core eventbus tables,
+    and a database without ``dlq_outbox`` (there is nothing to rebuild).
+    """
+    current = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if current != _OUTBOX_VERSION:
+        raise RuntimeError(
+            f"eventbus.sqlite is at user_version {current}; the FK-dedup rebuild "
+            f"step applies only to a {_OUTBOX_VERSION}-stamped database",
+        )
+    tables = _table_names(conn)
+    if "schema_migrations" not in tables:
+        raise RuntimeError(
+            "eventbus.sqlite is stamped 5 without a migration ledger; refusing a "
+            "forged stamp (migrate a lower-stamped database through the registered "
+            "path)",
+        )
+    missing = sorted(set(_REQUIRED_TABLES) - tables)
+    if missing:
+        raise RuntimeError(f"eventbus.sqlite is missing core tables: {missing}")
+    if "dlq_outbox" not in tables:
+        raise RuntimeError(
+            "eventbus.sqlite has no dlq_outbox; the FK-dedup rebuild step applies "
+            "only to a database carrying it"
+        )
+
+
 def _precommit_ledger_baseline(conn: sqlite3.Connection) -> None:
     """Verify before commit: ledger present, core tables, stamp 4.
 
@@ -143,8 +219,45 @@ def _precommit_ledger_baseline(conn: sqlite3.Connection) -> None:
 
 
 def _precommit_fingerprint(conn: sqlite3.Connection) -> None:
-    """Verify before commit that the canonical EventBus shape holds after the outbox mutation."""
+    """Verify before commit that the canonical EventBus shape holds after the mutation.
+
+    Used by the 5 -> 6 FK-dedup step (both slots): its result is the full canonical
+    shape, so the full fingerprint applies. Earlier intermediate steps use scoped
+    verifiers instead — schema.sql is the fingerprint source and already contains
+    shapes added by later registered steps.
+    """
     assert_matches(conn, label="eventbus.sqlite")
+
+
+def _precommit_outbox_baseline(conn: sqlite3.Connection) -> None:
+    """Verify before commit: dlq_outbox landed at the version-5 intermediate shape.
+
+    The full canonical fingerprint is intentionally NOT run here: schema.sql v6
+    carries the single-FK dlq_outbox that the later 5 -> 6 step lands, so a
+    full-shape assert would fail against this frozen double-FK intermediate
+    (same contract as _precommit_ledger_baseline). Full-shape verification runs
+    at path end (schema.py, migrate.py) and in the 5 -> 6 step's verifier.
+    """
+    current = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if current != _OUTBOX_VERSION:
+        raise RuntimeError(
+            f"eventbus.sqlite is at user_version {current}, not {_OUTBOX_VERSION}, "
+            "after the dlq_outbox step",
+        )
+    tables = _table_names(conn)
+    missing = sorted(
+        (set(_REQUIRED_TABLES) | {"schema_migrations", "dlq_outbox"}) - tables
+    )
+    if missing:
+        raise RuntimeError(f"dlq_outbox step left tables missing: {missing}")
+    if (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name"
+            " = 'idx_dlq_outbox_status'"
+        ).fetchone()
+        is None
+    ):
+        raise RuntimeError("dlq_outbox step did not create idx_dlq_outbox_status")
 
 
 # Ordered registry consumed by startup wiring (scripts/eventbus/schema.py) and the
@@ -165,7 +278,17 @@ REGISTRY: dict[str, MigrationSpec] = {
         to_version=_OUTBOX_VERSION,
         preconditions=(_precondition_outbox_step,),
         mutation_sql=_OUTBOX_MUTATION_SQL,
+        pre_commit_verification=_precommit_outbox_baseline,
+    ),
+    "eventbus_dlq_outbox_fk_dedup": MigrationSpec(
+        id="eventbus_dlq_outbox_fk_dedup",
+        from_version=_OUTBOX_VERSION,
+        to_version=_FK_DEDUP_VERSION,
+        preconditions=(_precondition_fk_dedup_step,),
+        mutation_sql=_FK_DEDUP_MUTATION_SQL,
+        disable_foreign_keys=True,
         pre_commit_verification=_precommit_fingerprint,
+        postcondition=_precommit_fingerprint,
     ),
 }
 
