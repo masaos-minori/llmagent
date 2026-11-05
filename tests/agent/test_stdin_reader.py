@@ -7,11 +7,12 @@ import subprocess  # nosec B404 — fixed argv, no shell
 import sys
 import threading
 import time
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from agent.stdin_reader import StdinReader
+from agent.stdin_reader import StdinReader, get_stdin_reader, reset_stdin_reader
 
 _SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
 
@@ -200,3 +201,22 @@ class TestAbandonedReadDoesNotDelayProcessExit:
         elapsed = time.monotonic() - start
         assert returncode == 0, proc.stderr.read() if proc.stderr else ""
         assert elapsed < 2.0
+
+
+class TestSharedAccessor:
+    @pytest.fixture(autouse=True)
+    def _isolate_shared_reader(self) -> Iterator[None]:
+        reset_stdin_reader()
+        yield
+        reset_stdin_reader()
+
+    def test_repeated_calls_return_the_same_instance(self) -> None:
+        assert get_stdin_reader() is get_stdin_reader()
+
+    def test_reset_yields_a_fresh_instance(self) -> None:
+        first = get_stdin_reader()
+        reset_stdin_reader()
+        assert get_stdin_reader() is not first
+
+    def test_new_instance_starts_no_thread_before_its_first_read(self) -> None:
+        assert get_stdin_reader()._thread is None

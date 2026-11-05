@@ -1,4 +1,8 @@
-"""scripts/agent/stdin_reader.py — Blocking stdin reads on a daemon thread so an abandoned read never delays process exit."""
+"""scripts/agent/stdin_reader.py — Blocking stdin reads on a daemon thread so an abandoned read never delays process exit.
+
+Exposes one process-shared reader through get_stdin_reader() so every call site
+shares the cancelled-request line hand-off.
+"""
 
 from __future__ import annotations
 
@@ -105,3 +109,20 @@ class StdinReader:
                     target.loop.call_soon_threadsafe(_deliver, target.future, line, exc)
                 except RuntimeError:
                     pass  # the loop is closed: nobody is waiting for this line
+
+
+_shared_reader: StdinReader | None = None
+
+
+def get_stdin_reader() -> StdinReader:
+    """Return the process-shared reader, creating it on first use."""
+    global _shared_reader
+    if _shared_reader is None:
+        _shared_reader = StdinReader()
+    return _shared_reader
+
+
+def reset_stdin_reader() -> None:
+    """Drop the shared instance so the next get_stdin_reader() builds a fresh reader."""
+    global _shared_reader
+    _shared_reader = None

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from agent.commands.output_port import CliOutputPort, OutputPort
-from agent.stdin_reader import StdinReader
+from agent.stdin_reader import get_stdin_reader
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ class CLIView(WriterBase):
         self._port = port or CliOutputPort()
         self._spinner_task: asyncio.Task[None] | None = None
         self._stop_spinner_event: asyncio.Event | None = None
-        self._stdin_reader = StdinReader(prompt="... ")
+        self._stdin_reader = get_stdin_reader()
 
     @property
     def port(self) -> OutputPort:

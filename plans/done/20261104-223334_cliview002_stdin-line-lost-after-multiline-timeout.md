@@ -154,10 +154,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: shared reader accessor in scripts/agent/stdin_reader.py + accessor tests in tests/agent/test_stdin_reader.py | In Progress | — | — |  |
-| 2 | Phase 2: wiring of scripts/agent/cli_view.py and scripts/agent/repl_input_loop.py + regression test in tests/test_cli_view.py | In Progress | — | — |  |
-| 3 | Phase 3: wiring of scripts/agent/tool_approval.py | In Progress | — | — |  |
-| 4 | Phase 4: docs/23_agent/agent_07_05_cli-and-commands-repl-io.md paragraph + docs checkers | In Progress | — | — |  |
+| 1 | Phase 1: shared reader accessor in scripts/agent/stdin_reader.py + accessor tests in tests/agent/test_stdin_reader.py | Completed | — | 20261105-100610 | procedure seq 01 archived 20261105 (step 1 cites stdin_reader.py + test_stdin_reader.py, both covered) |
+| 2 | Phase 2: wiring of scripts/agent/cli_view.py and scripts/agent/repl_input_loop.py + regression test in tests/test_cli_view.py | Completed | — | 20261105-103500 | procedures seq 02 + seq 03 archived 20261105; manual marking: close tool could not map the step's cited paths; scope deviation: tests/agent/test_repl.py fixture edit approved by owner (doc 03 Blocker Log) |
+| 3 | Phase 3: wiring of scripts/agent/tool_approval.py | Completed | — | 20261105-104500 | procedure seq 04 archived 20261105; approval suites 122 pass unchanged |
+| 4 | Phase 4: docs/23_agent/agent_07_05_cli-and-commands-repl-io.md paragraph + docs checkers | Completed | — | 20261105-105200 | procedure seq 07 archived 20261105; docs checkers clean |
 | 5 | Phase 5: deployment hand-off (skills/deploy/SKILL.md) | Pending | — | — |  |
 
 ### Blocker Log
@@ -168,11 +168,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-090427_01_scripts_agent_stdin_reader.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-090427_02_scripts_agent_cli_view.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-090427_03_scripts_agent_repl_input_loop.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-090427_04_scripts_agent_tool_approval.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-090427_07_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261105-090427_01_scripts_agent_stdin_reader.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-090427_02_scripts_agent_cli_view.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-090427_03_scripts_agent_repl_input_loop.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-090427_04_scripts_agent_tool_approval.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-090427_07_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

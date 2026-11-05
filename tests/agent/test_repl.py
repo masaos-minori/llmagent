@@ -14,6 +14,7 @@ import os
 import sqlite3
 import threading
 import time
+from collections.abc import Iterator
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -22,7 +23,16 @@ from agent.commands.registry import CommandRegistry
 from agent.repl import AgentREPL, main
 from agent.repl_input_loop import ReplInputLoop
 from agent.startup_banner import StartupBanner
+from agent.stdin_reader import reset_stdin_reader
 from db.models import WalCheckpointCounts
+
+
+@pytest.fixture(autouse=True)
+def _isolate_shared_reader() -> Iterator[None]:
+    """ReplInputLoop now shares the module reader: reset it so each test gets a fresh one."""
+    reset_stdin_reader()
+    yield
+    reset_stdin_reader()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

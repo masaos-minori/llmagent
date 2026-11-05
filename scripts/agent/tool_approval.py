@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import GITHUB_DANGEROUS_TOOLS, GITHUB_WRITE_TOOLS
 
-from agent.stdin_reader import StdinReader
+from agent.stdin_reader import get_stdin_reader
 from agent.tool_audit import audit_approval
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_exceptions import (
@@ -120,15 +120,9 @@ async def _build_preview_with_dry_run(
     return preview
 
 
-_approval_reader: StdinReader | None = None
-
-
 async def _approval_read(prompt: str) -> str:
-    """Read one approval answer on the module's daemon reader thread."""
-    global _approval_reader
-    if _approval_reader is None:
-        _approval_reader = StdinReader()
-    return await _approval_reader.read(prompt=prompt)
+    """Read one approval answer on the shared daemon reader thread."""
+    return await get_stdin_reader().read(prompt=prompt)
 
 
 async def _prompt_user_approval(risk: RiskLevel) -> bool:

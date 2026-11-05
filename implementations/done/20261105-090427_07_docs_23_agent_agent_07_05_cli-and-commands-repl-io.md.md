@@ -56,7 +56,7 @@ N/A: no companion test files for this target (docs target; checker gate in Valid
 ### Implementation Checklist
 | # | Target File(s) | Action Summary | Acceptance Criteria | Status |
 |---|----------------|----------------|---------------------|--------|
-| 1 | docs/23_agent/agent_07_05_cli-and-commands-repl-io.md | Append the hand-off guarantee bullet. | Chapter states the guarantee; all docs checkers report no findings. | Pending |
+| 1 | docs/23_agent/agent_07_05_cli-and-commands-repl-io.md | Append the hand-off guarantee bullet. | Chapter states the guarantee; all docs checkers report no findings. | Completed (20261105) |
 
 ## Compatibility considerations
 
@@ -92,8 +92,8 @@ Delete the added bullet; nothing else in the chapter depends on it.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the hand-off bullet per Implementation > Procedure | Pending | — | — | |
-| 2 | Run the docs checkers (Validation plan) | Pending | — | — | |
+| 1 | Append the hand-off bullet per Implementation > Procedure | Completed | 20261105-105000 | 20261105-105200 | adversarial verification: anchor Input Reader bullet confirmed at L40; bullet style matches (bold lead-in + backticked test names); cited tests TestReadMultilineTimeout and TestCancelledRequestDelivery both exist; one accuracy gap found: the procedure's 'not lost' claim omits the discard case (line discarded when no later read happens) -> landed bullet adds the discard clause; stale_detector clean bullet appended after Input Reader anchor; landed wording adds the discard clause beyond the procedure's draft (see Step 1 verification notes); Input Reader 'owned by its caller' wording left as-is per the frozen append-only decision - residual phrasing noted for the owner |
+| 2 | Run the docs checkers (Validation plan) | Completed | — | 20261105-105200 | check_docs_quality/check_docs_structure/check_docs_content_policy/check_docs_consistency --domain agent/generate_reference_table --check: all clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

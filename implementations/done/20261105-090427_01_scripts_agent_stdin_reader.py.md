@@ -118,10 +118,10 @@ so reverting this document's change alone is self-contained.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the shared accessor and reset hook per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add accessor identity/isolation tests in the companion `tests/agent/test_stdin_reader.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs carried by sibling procedure seq 07 |
+| 1 | Add the shared accessor and reset hook per Implementation > Procedure/Method/Details | Completed | 20261105-095059 | 20261105-095059 | Changed files: scripts/agent/stdin_reader.py, tests/agent/test_stdin_reader.py |
+| 2 | Add accessor identity/isolation tests in the companion `tests/agent/test_stdin_reader.py` | Completed | 20261105-095059 | 20261105-100500 | targeted 16 passed; testmon 670 passed/565 deselected |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-095059 | 20261105-100500 | Not run: ast-grep scan - tool not installed on host (no bare except added this cycle); gate fix: regenerated registry/manifests/agent_api.yaml for new public symbols full suite 11525 passed/9 skipped; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-100610 | N/A: docs carried by sibling procedure seq 07 N/A: docs carried by sibling procedure seq 07 (docs/00_index.md row 'CLI view / readline'); no doc edit in this cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

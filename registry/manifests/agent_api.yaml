@@ -523,6 +523,17 @@ entries:
   name: StdinReader
   signature: class StdinReader
   summary: Owns one daemon thread that performs one blocking read per request.
+- file: scripts/agent/stdin_reader.py
+  kind: function
+  name: get_stdin_reader
+  signature: def get_stdin_reader() -> StdinReader
+  summary: Return the process-shared reader, creating it on first use.
+- file: scripts/agent/stdin_reader.py
+  kind: function
+  name: reset_stdin_reader
+  signature: def reset_stdin_reader() -> None
+  summary: Drop the shared instance so the next get_stdin_reader() builds a fresh
+    reader.
 - file: scripts/agent/tool_approval.py
   kind: async function
   name: check_approval

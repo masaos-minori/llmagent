@@ -116,9 +116,9 @@ shared hand-off.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drop the lazy global and rewire the helper per Implementation > Procedure | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs carried by sibling procedure seq 07 |
+| 1 | Drop the lazy global and rewire the helper per Implementation > Procedure | Completed | 20261105-104000 | 20261105-104500 | adversarial verification: _approval_reader referenced only inside tool_approval.py (L123 global, L128-131 lazy init; no test or other-module references); helper forwards per-call prompt confirmed; prompts '  Execute? [yes/no]: '/'  Execute? [y/N]: ' at _prompt_user_approval; stale_detector clean Changed file: scripts/agent/tool_approval.py (global+lazy init dropped, helper calls get_stdin_reader(), docstring updated); grep confirms no StdinReader construction left in module |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-104500 | 4 approval suites 122 passed (paths+concurrency repeated x2); ruff/mypy/lint-imports/bandit(no baseline change)/pyright/check_docstrings/reference-table checks pass; no test edits needed (Assumption confirmed) |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-104500 | N/A: docs carried by sibling procedure seq 07 N/A: docs carried by sibling procedure seq 07 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

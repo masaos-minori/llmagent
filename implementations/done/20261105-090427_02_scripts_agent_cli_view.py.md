@@ -126,10 +126,10 @@ pre-change isolation at the cost of the hand-off behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewire the constructor and import per Implementation > Procedure/Method | Pending | — | — | |
-| 2 | Add the regression test and fixture reset in the companion test file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs carried by sibling procedure seq 07 |
+| 1 | Rewire the constructor and import per Implementation > Procedure/Method | Completed | 20261105-101500 | 20261105-101500 | adversarial verification: all doc claims confirmed against source (ctor L115 'StdinReader(prompt="... ")' single construction site; single read call site L287 passes per-call prompt; import L20 used only for ctor; companion class TestReadMultilineTimeout exists, same-view second-read case already covered by test_timeout_then_second_read); stale_detector clean Changed files: scripts/agent/cli_view.py, tests/test_cli_view.py |
+| 2 | Add the regression test and fixture reset in the companion test file | Completed | 20261105-101500 | 20261105-101655 | 60 passed incl. new hand-off test; deterministic x3; consumer suites test_stdin_reader+test_repl 99 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-101655 | ruff/mypy/lint-imports/bandit/pyright/check_mock_patch_targets/gates pass; testmon 60 selected; F401 fix: identity assertion now uses get_stdin_reader() |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-101655 | N/A: docs carried by sibling procedure seq 07 N/A: docs carried by sibling procedure seq 07 (docs/00_index.md row 'CLI view / readline') |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

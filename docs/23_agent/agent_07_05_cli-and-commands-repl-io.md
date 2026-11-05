@@ -38,6 +38,7 @@ Documents the design intent and operational decisions for the REPL input/output 
 - **EOF / Ctrl-D:** Graceful shutdown (REPL input returns `None` and exits the loop)
 - **Ctrl-C:** Caught within input; during input wait, it leads to REPL termination similar to EOF (asserted by `TestSignalDuringPromptEndsLoop`)
 - **Input Reader:** Every interactive prompt read runs on a daemon reader thread owned by its caller, not on the loop executor, so a read that is cancelled or still pending when the loop exits does not hold the process open (`TestPromptReadDoesNotUseAnExecutor`, `TestAbandonedReadDoesNotDelayProcessExit`)
+- **Hand-off After Timeout:** A multiline continuation read is bounded by a timeout in the CLI view; on timeout the request is abandoned and the partial text is still returned. A line typed while or after that read is abandoned is not lost: every interactive prompt (`> `, `... `, and the approval prompts) reads through one process-shared reader instance, and the reader hands a late line to the newest pending request; the line is discarded only when no later read ever happens (`TestReadMultilineTimeout`, `TestCancelledRequestDelivery`)
 
 ### Shutdown Behavior
 

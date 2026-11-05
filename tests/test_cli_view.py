@@ -12,12 +12,14 @@ import asyncio
 import logging
 import threading
 import time
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.cli_view import CLIView, WriterBase
 from agent.commands.output_port import CliOutputPort, OutputPort
+from agent.stdin_reader import get_stdin_reader, reset_stdin_reader
 
 if TYPE_CHECKING:
     from pytest import CaptureFixture
@@ -36,6 +38,14 @@ def mock_rl():
 @pytest.fixture
 def view(mock_rl: MagicMock) -> CLIView:
     return CLIView(["/help", "/exit", "/session"])
+
+
+@pytest.fixture(autouse=True)
+def _isolate_shared_reader() -> Iterator[None]:
+    """CLIView now shares the module reader: reset it so each test gets a fresh one."""
+    reset_stdin_reader()
+    yield
+    reset_stdin_reader()
 
 
 # ── setup_readline() ─────────────────────────────────────────────────────────
@@ -196,6 +206,42 @@ class TestReadMultilineTimeout:
             loop.close()
         assert first == "hello"
         assert second == "world\nend"
+
+    def test_timeout_then_fresh_view_receives_typed_line(
+        self,
+        view: CLIView,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        monkeypatch.setattr("agent.cli_view._INPUT_TIMEOUT_S", 0.2)
+        release = threading.Event()
+        loop = asyncio.new_event_loop()
+        try:
+            with (
+                patch(
+                    "builtins.input",
+                    side_effect=lambda p: (release.wait(5), "typed")[1],
+                ),
+                caplog.at_level(logging.WARNING, logger="agent.cli_view"),
+            ):
+                # Phase 1: the continuation read times out while the worker stays
+                # blocked in input(), which stands for the line the user is typing.
+                first = loop.run_until_complete(view.read_multiline(loop, "hello\\"))
+                # Phase 2: a fresh CLIView registers its read on the same shared
+                # reader; call_soon releases the blocked worker only after the
+                # read coroutine has run its first step, so the timed-out line is
+                # delivered to the new request (hand-off), with no timing sleeps.
+                fresh = CLIView(["/help", "/exit", "/session"])
+                assert view._stdin_reader is get_stdin_reader()
+                assert fresh._stdin_reader is view._stdin_reader
+                second = loop.create_task(fresh.read_multiline(loop, "next\\"))
+                loop.call_soon(release.set)
+                result = loop.run_until_complete(second)
+        finally:
+            release.set()
+            loop.close()
+        assert first == "hello"
+        assert result == "next\ntyped"
 
 
 # ── display helpers ────────────────────────────────────────────────────────────
