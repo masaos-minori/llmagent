@@ -41,9 +41,11 @@ performs only read-only probes; there is no write smoke test.
 2. Replace the clause `and a write smoke test (both)` so the sentence reads:
    ```
    ...table existence and orphaned messages / memory links (Session); both domains verify
-   read-only (no write smoke test). The logical-verification stage only **recommends**
-   repair...
+   read-only. The logical-verification stage only **recommends** repair...
    ```
+   The replacement does not repeat the phrase "write smoke test": a documentation sentence states
+   the current behavior, and the Completion criteria require zero remaining "write smoke"
+   references (reworded in Step 3b, 2026-11-05: the earlier wording carried "(no write smoke test)").
 3. Grep the doc for `write smoke` / `write_smoke_test_ok` and confirm zero remaining references.
 
 ### Method
@@ -86,10 +88,10 @@ seq 03), and the tests (seq 04/05).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | In-place clause edit. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs only. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document is the doc change. |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-165704 | 20261105-170509 | In-place clause edit. Stale check clean (before the change). Changed: docs/41_db/db_07_api_and_operations-recovery-and-reference.md (sentence reworded without the phrase 'write smoke test') |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-165704 | 20261105-170509 | N/A: docs only. N/A: docs only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-165704 | 20261105-170509 | unit run: ruff/mypy/bandit/lint-imports clean; full suite (-n 8, --cov) 11615 passed; consumer tests (tests/agent -k 'session or maintenance') 307 passed; run_validation_gates exit 0; check_docs_quality, check_docs_structure, check_docs_content_policy --strict, check_docs_japanese, check_needs_confirmation_inventory, check_adr_invariant_matrix, check_docs_consistency --domain db: all clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-165704 | 20261105-170509 | This document is the doc change. The procedure is the doc change; no docs/00_index.md mapping row for scripts/db, so routed docs update is N/A for seq 01-05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

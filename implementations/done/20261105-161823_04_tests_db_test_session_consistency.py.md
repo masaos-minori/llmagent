@@ -2,7 +2,7 @@
 
 Update `tests/db/test_session_consistency.py` for the deleted write smoke test: drop the
 `write_smoke_test_ok` assertions, replace the now-obsolete cleanup test with a no-mutation
-characterization test, and add a spy asserting no INSERT/DELETE executes during
+characterization test, and add a SQL trace asserting no INSERT/UPDATE/DELETE/COMMIT executes during
 `check_session_consistency()`.
 
 ## Scope
@@ -15,15 +15,15 @@ characterization test, and add a spy asserting no INSERT/DELETE executes during
   those source edits; otherwise they assert a field that no longer exists.
 - The read-only probes remain, so healthy-DB assertions still hold: `session_diagnostics_readable`
   and `read_smoke_test_ok` are still `True` on a healthy DB.
-- `_FakeSQLiteHelper` (L18-L30) wraps a real in-memory `sqlite3.Connection`, so a spy can be
-  installed on `conn.execute` to observe the SQL text.
+- `_FakeSQLiteHelper` (L18-L30) wraps a real in-memory `sqlite3.Connection`, so a SQL trace can be
+  installed with `conn.set_trace_callback` to observe every statement.
 
 ## Design decisions
 
 - Replace `test_write_smoke_test_cleans_up` with a whole-path no-mutation test rather than
   deleting it: the plan's Tests section requires a characterization test that snapshots
-  `session_diagnostics` row count and contents before/after and asserts equality, plus a spy
-  that no INSERT/DELETE executes. This directly covers AC-001/REQ-001.
+  `session_diagnostics` row count and contents before/after and asserts equality, plus a SQL trace
+  showing that no INSERT/UPDATE/DELETE/COMMIT executes. This directly covers AC-001/REQ-001.
 
 ## Alternatives considered
 
@@ -56,21 +56,12 @@ characterization test, and add a spy asserting no INSERT/DELETE executes during
            "SELECT COUNT(*) FROM session_diagnostics"
        ).fetchone()[0]
 
-       inserted_or_deleted = []
-
-       original_execute = db.conn.execute
-
-       def _spy_execute(sql, params=()):
-           stmt = sql.strip().upper()
-           if any(stmt.startswith(kw) for kw in ("INSERT", "DELETE", "UPDATE")):
-               inserted_or_deleted.append(sql)
-           return original_execute(sql, params)
-
-       db.conn.execute = _spy_execute
+       statements: list[str] = []
+       db.conn.set_trace_callback(statements.append)
        try:
            report = check_session_consistency(db)
        finally:
-           db.conn.execute = original_execute
+           db.conn.set_trace_callback(None)
 
        after_rows = db.execute(
            "SELECT * FROM session_diagnostics ORDER BY id"
@@ -79,26 +70,32 @@ characterization test, and add a spy asserting no INSERT/DELETE executes during
            "SELECT COUNT(*) FROM session_diagnostics"
        ).fetchone()[0]
 
+       mutating = [
+           s for s in statements
+           if s.split()[0].upper() in {"INSERT", "UPDATE", "DELETE", "REPLACE", "BEGIN", "COMMIT"}
+       ]
        assert report.sessions >= 0
        assert before_count == after_count
        assert before_rows == after_rows
-       assert inserted_or_deleted == []
+       assert mutating == []
    ```
 3. Confirm no other test references `write_smoke_test_ok` or `_check_write_smoke_test`.
 4. Grep the file for `write_smoke_test_ok` and confirm zero remaining references.
 
 ### Method
 Remove two assertions, replace one obsolete test with a no-mutation characterization test
-using a spy on the wrapped connection. No new module-level symbol.
+using a SQL trace on the wrapped connection. No new module-level symbol.
 
 ### Details
-- The spy installs on `db.conn.execute` (the underlying `sqlite3.Connection`), which every
-  query in `check_session_consistency()` flows through via `_FakeSQLiteHelper.execute`. Any
-  INSERT/UPDATE/DELETE is recorded; a fully read-only path records nothing.
+- The check records every statement SQLite runs with `conn.set_trace_callback` on the wrapped
+  `sqlite3.Connection`. Assigning a replacement to `db.conn.execute` is not possible: the
+  attribute of a `sqlite3.Connection` is read-only (verified in Step 3a, 2026-11-05:
+  `AttributeError`). The trace includes the implicit `BEGIN` and `COMMIT`, so a fully read-only
+  path records no INSERT/UPDATE/DELETE/REPLACE/BEGIN/COMMIT.
 - `before_rows == after_rows` asserts byte-level equality of the diagnostics table, covering
   AC-001's "row-count snapshot before and after ... identical".
 - This test must run against the post-seq-01 code where the write probe is gone; on the old
-  code it would fail because the spy would record the throwaway INSERT/DELETE.
+  code it would fail because the trace would record the throwaway INSERT/DELETE.
 
 ## Compatibility considerations
 Test-only change. The new no-mutation test asserts the read-only contract (AC-001/REQ-001)
@@ -113,7 +110,7 @@ N/A: revert the commit.
 
 ## Validation plan
 - `uv run pytest tests/db/test_session_consistency.py` — healthy-DB, no-content, missing-table,
-  and the new no-mutation/spy tests.
+  and the new no-mutation/trace tests.
 - `uv run pytest tests/db/test_db_recovery.py -k "session"` — remaining trigger semantics (seq 05).
 - `uv run lint-imports` (0 broken contracts), `uv run ruff check .`, `uv run mypy scripts/`.
 
@@ -121,7 +118,7 @@ N/A: revert the commit.
 - No test asserts `report.write_smoke_test_ok`.
 - A no-mutation characterization test asserts identical `session_diagnostics` contents and
   row count before/after `check_session_consistency()`.
-- A spy asserts no INSERT/UPDATE/DELETE statement executes during the check.
+- A SQL trace asserts no INSERT/UPDATE/DELETE/COMMIT statement executes during the check.
 
 ## Out of Scope
 The source removal (`scripts/db/session_consistency.py`, seq 01), the field removal
@@ -133,10 +130,10 @@ The source removal (`scripts/db/session_consistency.py`, seq 01), the field remo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Assertion removal + no-mutation test. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document is the test change. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs only (seq 06). |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-165704 | 20261105-170509 | Assertion removal + no-mutation test. Stale check clean; Step 3a: replaced the spy on sqlite3.Connection.execute (read-only attribute, AttributeError) with conn.set_trace_callback. Changed: tests/db/test_session_consistency.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-165704 | 20261105-170509 | This document is the test change. 8 tests pass (default and fixed order); mutation (INSERT added to the check) failed test_check_consistency_leaves_database_unchanged and was reverted |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-165704 | 20261105-170509 | unit run: ruff/mypy/bandit/lint-imports clean; full suite (-n 8, --cov) 11615 passed; consumer tests (tests/agent -k 'session or maintenance') 307 passed; run_validation_gates exit 0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-165704 | 20261105-170509 | N/A: docs only (seq 06). N/A: tests only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

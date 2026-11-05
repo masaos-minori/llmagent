@@ -100,10 +100,10 @@ The probe/wiring removal (`scripts/db/session_consistency.py`, seq 01), the fiel
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Entry deletion + docstring; commits with seq 01/02/04/05. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by seq 05. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs only (seq 06). |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-165704 | 20261105-170509 | Entry deletion + docstring; commits with seq 01/02/04/05. Stale check clean. Changed: scripts/db/recovery_verification.py (write_smoke_fail entry and docstring). Failure Log: 4 targeted tests failed after seq 02/03 (fixture and expected string), attributed to seq 05 (allowed red state) |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-165704 | 20261105-170509 | Covered by seq 05. N/A: tests are in seq 05 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-165704 | 20261105-170509 | unit run: ruff/mypy/bandit/lint-imports clean; full suite (-n 8, --cov) 11615 passed; consumer tests (tests/agent -k 'session or maintenance') 307 passed; run_validation_gates exit 0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-165704 | 20261105-170509 | N/A: docs only (seq 06). N/A: no docs/00_index.md mapping for scripts/db; wording is seq 06 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

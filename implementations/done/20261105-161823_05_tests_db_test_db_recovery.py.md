@@ -2,8 +2,8 @@
 
 Update `tests/db/test_db_recovery.py` for the removed `write_smoke_fail` trigger: drop
 `write_smoke_test_ok` from the `_session_report` fixture, remove it from the
-all-inconsistencies assertion, and delete the two obsolete tests that asserted the
-write-smoke entry never appears.
+all-inconsistencies assertion, and replace the two obsolete tests that asserted the
+write-smoke entry never appears with one single-entry test.
 
 ## Scope
 **Release unit**: session report contract removal
@@ -21,16 +21,17 @@ write-smoke entry never appears.
 
 ## Design decisions
 
-- Delete the two obsolete tests rather than keep them: they asserted that a `write_smoke_test_ok`
-  value of `None`/`True` does not produce a `write_smoke_fail` entry. After the entry is
-  deleted there is no write-smoke entry to exclude, so the assertions no longer test anything
-  about the removed behavior.
+- Replace the two obsolete tests with one single-entry test rather than delete them: they
+  asserted that a `write_smoke_test_ok` value of `None`/`True` does not produce a
+  `write_smoke_fail` entry, which is moot after the entry is deleted, but both also asserted
+  `detail == "orphan_msgs=1"`, and no other test covers a report with a single entry.
 
 ## Alternatives considered
 
-- Keeping the two tests and just dropping the field argument versus deleting them. Chose
-  deletion: the tests' sole purpose was bounding the removed entry; with the entry gone they
-  assert only `orphan_msgs=1`, which other tests already cover.
+- Keeping both tests with the field argument dropped versus deleting both versus keeping one.
+  Chose one: after the argument is dropped the two tests are identical, and deleting both would
+  leave no test of a single-entry detail (the Plan's `REQ-002` keeps the remaining trigger
+  semantics under test).
 
 ## Implementation
 ### Target file
@@ -51,22 +52,25 @@ write-smoke entry never appears.
          "read_smoke_fail; errors=2"
      )
      ```
-3. Delete the two obsolete tests:
-   - `test_session_write_smoke_none_is_not_reported_as_a_failure` (current L1056-L1068)
-   - `test_session_write_smoke_pass_is_not_reported_as_a_failure` (current L1070-L1082)
+3. Replace the two obsolete tests (`test_session_write_smoke_none_is_not_reported_as_a_failure`,
+   current L1056-L1068, and `test_session_write_smoke_pass_is_not_reported_as_a_failure`, current
+   L1070-L1082) with one test, `test_session_detail_with_only_an_orphan_lists_only_that_entry` (new),
+   that builds `_session_report(orphaned_message_count=1)`, runs `_run_logical_verification` as they do,
+   and asserts `ok is False` and `detail == "orphan_msgs=1"`. It keeps the only single-entry coverage
+   of `_session_inconsistency_detail` (verified in Step 3a, 2026-11-05: no other test asserts
+   `orphan_msgs=1`) and shows that fields left at their defaults add no entry.
 4. Grep the file for `write_smoke_test_ok` and confirm zero remaining references.
 
 ### Method
-Remove one fixture key, edit one expected-string literal, delete two test methods. No new symbol.
+Remove one fixture key, edit one expected-string literal, replace two test methods with one.
 
 ### Details
 - The all-inconsistencies test's expected string lists entries in declaration order
   (`orphan_msgs`, `orphan_mem_links`, `diag_not_readable`, `read_smoke_fail`, `write_smoke_fail`,
   `errors`). Deleting the middle entry shortens the string but preserves the order of the rest.
-- The two deleted tests each set only `orphaned_message_count=1` plus a `write_smoke_test_ok`
-  value and asserted `detail == "orphan_msgs=1"`. That exact assertion is still produced by the
-  remaining code path, but it no longer depends on the removed entry, so the tests add no
-  coverage.
+- The two replaced tests each set only `orphaned_message_count=1` plus a `write_smoke_test_ok`
+  value and asserted `detail == "orphan_msgs=1"`; after the field is gone they would be
+  duplicates, so one test remains.
 - This change must run against the post-seq-03 code where `_session_inconsistency_detail` has no
   `write_smoke_fail` entry; on the old code the updated all-inconsistencies assertion would fail
   because the string still contained `write_smoke_fail`.
@@ -90,7 +94,7 @@ N/A: revert the commit.
 ## Completion criteria
 - `_session_report` no longer sets `write_smoke_test_ok`.
 - The all-inconsistencies assertion omits `write_smoke_fail`.
-- The two obsolete write-smoke tests are removed.
+- The two obsolete write-smoke tests are replaced by one single-entry test.
 - Zero remaining references to `write_smoke_test_ok` or `write_smoke_fail` in the file.
 
 ## Out of Scope
@@ -103,10 +107,10 @@ seq 03), and the doc wording (seq 06).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Fixture key + assertion + test deletions. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document is the test change. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs only (seq 06). |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-165704 | 20261105-170509 | Fixture key + assertion + test deletions. Stale check clean; Step 3a: the two replaced tests were the only single-entry coverage, so one test was kept. Changed: tests/db/test_db_recovery.py (fixture key, expected string, two tests replaced by one) |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-165704 | 20261105-170509 | This document is the test change. 75 tests pass across both DB files (baseline 76: -2 +1 +0) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-165704 | 20261105-170509 | unit run: ruff/mypy/bandit/lint-imports clean; full suite (-n 8, --cov) 11615 passed; consumer tests (tests/agent -k 'session or maintenance') 307 passed; run_validation_gates exit 0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-165704 | 20261105-170509 | N/A: docs only (seq 06). N/A: tests only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

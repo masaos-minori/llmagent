@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the Index heading without the count | Pending | — | — | |
-| 2 | Run the sync checker, its tests, and the reference search (`routing.md` "When to run which tool") | Pending | — | — | |
+| 1 | Rewrite the Index heading without the count | Completed | 20261105-165124 | 20261105-165458 | Stale check clean. Changed: tools/TOOL_DESCRIPTIONS.md (Index heading without the count) |
+| 2 | Run the sync checker, its tests, and the reference search (`routing.md` "When to run which tool") | Completed | 20261105-165124 | 20261105-165458 | check_tool_descriptions_sync: No issues found.; its 3 tests pass; rg 'Index \(' finds no remaining count; run_validation_gates exit 0; full suite 11616 passed (-n 8); docs N/A: the changed file is itself the documentation deliverable |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

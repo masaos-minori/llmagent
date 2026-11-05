@@ -80,7 +80,7 @@ L174-L179 and `_check_read_smoke_test`); nothing new is added.
    )
    ```
 5. Update the docstrings that describe the write-smoke exception:
-   - Module docstring (L2-L8): remove the implication that any query mutates.
+   - Module docstring (L2-L8): no change; it has no write-smoke wording (verified in Step 3a, 2026-11-05).
    - `check_session_consistency` docstring (L133-L134): change "All queries are read-only
      except the write smoke test which inserts and deletes a throwaway row within the same
      check group." to state that every query is read-only.
@@ -143,10 +143,10 @@ tests (seq 04/05), and the doc wording (seq 06).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Deletion + wiring cleanup; commits with seq 02/03. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by seq 04. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs only (seq 06). |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-165704 | 20261105-170509 | Deletion + wiring cleanup; commits with seq 02/03. Stale check clean; Step 3a: module docstring needs no change (no write wording). Changed: scripts/db/session_consistency.py (probe, group, kwarg, is_consistent term, docstrings removed) |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-165704 | 20261105-170509 | Covered by seq 04. N/A: tests are in seq 04/05. Failure Log: after this member 2 targeted tests failed (write_smoke_test_ok assertions), attributed to seq 04 (allowed red state) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-165704 | 20261105-170509 | unit run: ruff/mypy/bandit/lint-imports clean; full suite (-n 8, --cov) 11615 passed; consumer tests (tests/agent -k 'session or maintenance') 307 passed; run_validation_gates exit 0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-165704 | 20261105-170509 | N/A: docs only (seq 06). N/A: no docs/00_index.md mapping for scripts/db; wording is seq 06 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
