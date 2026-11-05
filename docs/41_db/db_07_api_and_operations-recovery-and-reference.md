@@ -176,12 +176,17 @@ Exit code is `0` when every drilled domain passes and `1` when any domain fails.
 | `domain` | Persistence domain drilled. |
 | `policy` | `migrate` (workflow/eventbus, ledger-bearing) or `recreate` (rag/session). |
 | `archive_path` / `archive_ts` | The verified recovery point and the time it was taken. |
-| `rto_seconds` | Measured restore-and-verify wall time (measurement semantics, not a threshold). |
-| `rpo_window_seconds` | Gap between `drill_ts` and the archive timestamp. |
+| `rto_seconds` | Measured restore-and-verify wall time (restore start to completion). Measurement semantics, not a threshold. |
+| `backup_duration_seconds` | Archive elapsed time: archive completion minus archive start. The field formerly (mis)labeled `rpo_window_seconds`. Measurement semantics, not a threshold. |
+| `rpo_seconds` | Recovery-point age at the assumed failure time: assumed-failure timestamp minus archive completion (staleness of the recovery point). Measurement semantics, not a threshold. The assumed-failure event is a documented operational decision (see UNK-05). |
 | `integrity` | Boolean: the restored copy passed the integrity check. |
 | `verification` | Per-domain checks (`integrity`, `required_table_<domain>`, plus per-domain fields). |
 | `ledger` | workflow/eventbus only: `current_version`, `baseline_row`, `ledger_present`. A missing `ledger_present` in a migrate-policy domain is a drill finding. |
 | `error` | Populated when the drill could not complete; the artifact is still written. |
+
+> The drill artifact field `rpo_window_seconds` was renamed to
+> `backup_duration_seconds`; `rpo_seconds` and `rto_seconds` are now defined as
+> distinct measurements derived from recorded event timestamps.
 
 Frequency and artifact retention are owner decisions tracked under UNK-01; this section states the procedure only. {defer the drill cadence and the artifact retention window until UNK-01}
 
