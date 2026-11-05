@@ -66,7 +66,7 @@ Target sequence: detect and classify → preserve the damaged database → locat
 
 ### 9.5a Automated vs. operator-only breakdown
 
-`check_rag_consistency()` / `check_session_consistency()` run automatically after a restore and check FTS index health and chunk-to-FTS referential integrity (RAG), table existence and orphaned messages / memory links (Session), and a write smoke test (both). The logical-verification stage only **recommends** repair and never performs it. Repair is operator-triggered: `/session rag-rebuild-fts`, `/session rag-rebuild-vec`, or manual session data repair.
+`check_rag_consistency()` / `check_session_consistency()` run automatically after a restore and check FTS index health and chunk-to-FTS referential integrity (RAG), table existence and orphaned messages / memory links (Session); both domains verify read-only. The logical-verification stage only **recommends** repair and never performs it. Repair is operator-triggered: `/session rag-rebuild-fts`, `/session rag-rebuild-vec`, or manual session data repair.
 
 ### 9.6 Dry Run contract
 
