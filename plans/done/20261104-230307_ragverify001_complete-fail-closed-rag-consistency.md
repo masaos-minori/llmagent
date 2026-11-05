@@ -30,10 +30,15 @@ probe errors never become report failures.
 
 ## Problem
 Three failure mechanisms were confirmed in current code:
-1. Silent exception swallowing: `_safe_url_count_query` in
-   `scripts/db/rag_consistency.py` returns `{}` on `except Exception`, and the
-   combined FK/embedding/schema probe in `scripts/db/rag_consistency_queries.py`
-   ends with `except sqlite3.Error: pass`.
+1. Silent exception swallowing: the combined FK/embedding/schema fatal-class
+   probe in `scripts/db/rag_consistency.py` wraps all three in one `try`
+   block ending with `except sqlite3.Error: pass` (L93-L100). A single
+   failing probe cancels the other two and leaves their counters at
+   healthy-looking zeros, so a missing or broken table reads as a
+   consistent report. (`_safe_url_count_query` in
+   `scripts/db/rag_consistency_queries.py` intentionally returns `{}` on
+   per-query failure; the source issue records this as acknowledged design,
+   not a bug to fix.)
 2. Zero-as-healthy: unset probe results are stored as numeric zeros
    (`basic.get(...) or 0`, `orphan_docs or 0`), so a failed query looks like a
    healthy zero-mismatch report.
@@ -75,13 +80,13 @@ requirement; overlap check recorded below)
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/db/rag_consistency.py | Refactor: fail-closed probe orchestration and aggregation | `_safe_url_count_query` returns `{}` on `except Exception`; unset probe results default to zero; embedding issue builder passes a flag as expected value | REQ-001, REQ-002 / AC-001, AC-002 | `scripts/db/rag_consistency.py` L54-L60, L103-L106, L248 | tests/db/test_rag_consistency.py | Verified |
-| scripts/db/rag_consistency_queries.py | Refactor: per-probe error signatures; independent schema/FK/embedding checks | single `try` block with `except sqlite3.Error: pass` aborts remaining checks | REQ-001, REQ-003 / AC-001, AC-003 | `scripts/db/rag_consistency_queries.py` L141-L177, L221 | tests/db/test_rag_consistency.py | Verified |
-| scripts/db/models.py | Feature: explicit verification status on `RagConsistencyReport` | report contract has numeric flags/counts only; no way to express "not verified" | REQ-001, REQ-002 / AC-002 | `scripts/db/models.py` L307-L342 (`RagConsistencyReport`) | tests/db/test_rag_consistency.py | Verified |
+| scripts/db/rag_consistency.py | Refactor: fail-closed probe orchestration and aggregation | combined FK/embedding/schema fatal-class probe swallows `sqlite3.Error` (L93-L100), leaving healthy zeros and cancelling the other checks; `_embedding_dimension_issue` renders the 0/1 `dimension_mismatch` flag instead of the expected dimension count | REQ-001, REQ-002 / AC-001, AC-002 | `scripts/db/rag_consistency.py` L90-L101, L337-L346 | tests/db/test_rag_consistency.py | Verified |
+| scripts/db/rag_consistency_queries.py | Refactor: per-probe error signatures; independent schema/FK/embedding checks | fatal-class probes (`_check_fk_consistency`/`_check_embedding_dimension`/`_check_schema_recognition`) already propagate `sqlite3.Error`; keep each probe's error distinct from a clean zero so the orchestrator marks the dimension unverified, and distinguish `sqlite-vec` unavailability | REQ-001, REQ-003 / AC-001, AC-003 | `scripts/db/rag_consistency_queries.py` L230-L291 | tests/db/test_rag_consistency.py | Verified |
+| scripts/db/models.py | Feature: explicit verification status on `RagConsistencyReport` | report contract has numeric flags/counts only; no way to express "not verified" | REQ-001, REQ-002 / AC-002 | `scripts/db/models.py` L96-L152 (`RagConsistencyReport`) | tests/db/test_rag_consistency.py | Verified |
 | scripts/db/recovery_verification.py | Feature: propagate consistency verification failure to `RecoveryResult` | `_verify_rag_logic` passes any report without failure fields through | REQ-004 / AC-004 | `scripts/db/recovery_verification.py` L87-L93, L33-L44 | tests/db/test_recovery_drill.py | Verified |
 | tests/db/test_rag_consistency.py | Test: fail-closed contract and error-path regression tests | existing tests do not cover probe-error or unknown-vs-zero cases | REQ-005 / AC-005 | `tests/db/test_rag_consistency.py` (16 tests, no error-injection cases) | tests/db/test_rag_consistency.py | Verified |
 | tests/db/test_recovery_drill.py | Test: drill consumes failure-aware report | drill pass path currently ignores unverified dimensions | REQ-004, REQ-005 / AC-004, AC-005 | `tests/db/test_recovery_drill.py` | tests/db/test_recovery_drill.py | Verified |
-| docs/41_db/db_06_api_and_operations-rag-write-integrity.md | Docs: document the verification-failure contract | current doc describes numeric consistency semantics only | REQ-006 / AC-006 | file exists; content not yet read | N/A: docs | Verified |
+| docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md | Docs: document the verification-failure contract | section 8 currently documents numeric consistency semantics (`is_consistent` predicate list, `RagConsistencyReport` fields) with no verification-status concept | REQ-006 / AC-006 | section 8 (`db_06_...-maintenance-and-rotation.md` L46-L60) reads the contract today | N/A: docs | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -123,7 +128,7 @@ requirement; overlap check recorded below)
   stay green with the additive contract change.
 
 ## Documentation Impact
-- Yes. `docs/41_db/db_06_api_and_operations-rag-write-integrity.md` must document
+- Yes. `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md` must document
   the verification-failure contract, driven by `REQ-006`. Naming per
   `docs/00_index.md`'s task mapping; this is the RAG write-integrity task doc.
 
@@ -138,11 +143,11 @@ requirement; overlap check recorded below)
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Do production operations depend on current numeric severity or zero-count passes? | actual operator/monitoring usage of the consistency report in production | confirm with operations before the contract change lands; contract change must not flip production passes to failures unreviewed | True |
+| UNK-01 | Do production operations depend on current numeric severity or zero-count passes? | production consumers: `scripts/agent/startup_reporter.py` renders `rag_counts['FATAL']/['WARNING']/['SKIPPED']` in the readiness summary (L88-L100); `scripts/agent/startup_validation.py` routes on `rag_check.is_consistent` and finding severity (L238-L250); `/session rag-consistency` prints `is_consistent` (`cmd_session.py:152`) | Dependency confirmed. Change is additive: all numeric fields (`fatal_count`, `degraded_count`, per-check counts) and `issues`/`findings` in `RagConsistencyReport` (models.py L96-L152) retain their meaning, so `startup_reporter.py`/`startup_validation.py` work unchanged; the new verification-status field is orthogonal to severity. Fail-closed flips a dimension to unverified only when a probe genuinely errors or `sqlite-vec` is unavailable (a prior masked real problem), so a healthy production DB stays verified/pass. Guardrail: consumer regression suite (`tests/agent/`, `tests/rag/`) must stay green before landing (already in Tests). | False |
 | UNK-02 | Should severity become typed enums (blocking / non-blocking / informational) or stay numeric? | consumer preference for enum vs numeric severity | decide at implementation-step Phase 3 against consumer usage; plan recommends keeping numeric severity and adding a separate status field | False |
 | UNK-03 | Is a legitimately empty corpus a pass or a failure under the new contract? | intended semantics for empty-corpus deployments | decide during Phase 2 aggregation design; document the decision | False |
 | UNK-04 | Is `sqlite-vec` guaranteed loadable in test/CI environments? | `rules/env.md` documents the production extension path only | confirm during the first test run of Phase 1 | False |
-| UNK-05 | What does `docs/41_db/db_06_api_and_operations-rag-write-integrity.md` currently promise about consistency semantics? | current doc wording not yet read | read the doc in the docs step before rewriting | False |
+| UNK-05 | What does `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md` currently promise about consistency semantics? | section 8 (L46-L60) documents `check_rag_consistency`/`is_consistent`/`summarize_issues`/`RagConsistencyReport` as numeric-only; it lists the `_CHECKS` predicates but states no verification-status field | Section 8 already covers the numeric contract; append the verification-failure status semantics (REQ-006) without rewriting existing numeric descriptions | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -153,16 +158,17 @@ requirement; overlap check recorded below)
 | scripts/db/recovery_verification.py | Feature | medium (drill and recovery consumers) | 1 commit | 1 | N/A: no deployment file change |
 | tests/db/test_rag_consistency.py | Test | low | 3 commits | 1 | N/A: tests only |
 | tests/db/test_recovery_drill.py | Test | low | N/A | 1 | N/A: tests only |
-| docs/41_db/db_06_api_and_operations-rag-write-integrity.md | Docs | low | N/A | 1 | N/A: docs only |
+| docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md | Docs | low | N/A | 1 | N/A: docs only |
 
 ## Design
 Grounded in Step 3/5 analysis:
 
 - Failure-model mapping: the three confirmed mechanisms map to three design
   commitments. (1) Error propagation: each probe returns its result plus an
-  explicit error marker; `_safe_url_count_query` stops converting `Exception`
-  into an empty dict, and the combined probe `try` block is split so FK,
-  embedding, and schema checks run independently. (2) Unknown is not zero:
+  explicit error marker; each fatal-class probe keeps propagating `sqlite3.Error`;
+  the orchestrator's combined `try` block (`rag_consistency.py` L93-L100) is
+  split into one guarded call per probe so FK, embedding, and schema checks run
+  independently and each records its error. (2) Unknown is not zero:
   dimensions whose probe failed or returned unknown are excluded from healthy
   aggregation. (3) Consumer-visible status: `RagConsistencyReport` gains an
   explicit verification status; `scripts/db/recovery_verification.py`
@@ -201,11 +207,13 @@ Grounded in Step 3/5 analysis:
 
 ## Implementation steps
 1. **Phase 1: Probe-layer error propagation**
-   - [ ] Split the combined FK/embedding/schema probe into independent checks
-     with explicit error signatures (REQ-001, REQ-003; scripts/db/rag_consistency_queries.py)
-   - [ ] Stop `_safe_url_count_query` from converting `Exception` into `{}` and
-     correct the `expected={report.dimension_mismatch}` bug (REQ-001, REQ-002;
-     scripts/db/rag_consistency.py)
+   - [ ] Split the combined FK/embedding/schema probe into independent
+     guarded calls in `scripts/db/rag_consistency.py`, recording each
+     probe's `sqlite3.Error` into `diagnostic_errors` so one failure does
+     not cancel the others (REQ-001, REQ-003; scripts/db/rag_consistency.py)
+   - [ ] Correct the `_embedding_dimension_issue` display bug: render the
+     expected embedding dimension count instead of the 0/1
+     `dimension_mismatch` flag (REQ-001; scripts/db/rag_consistency.py)
 2. **Phase 2: Fail-closed aggregation**
    - [ ] Aggregate probe results so unverified dimensions never count as
      healthy (REQ-002; scripts/db/rag_consistency.py)
@@ -221,7 +229,7 @@ Grounded in Step 3/5 analysis:
    - [ ] Add error-path and zero-vs-unknown regression tests (REQ-005;
      tests/db/test_rag_consistency.py)
    - [ ] Update the contract documentation (REQ-006;
-     docs/41_db/db_06_api_and_operations-rag-write-integrity.md)
+     docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md)
    - [ ] Deployment validation check: `deploy.sh` copies `scripts/` tree files;
      no new files or config entries are introduced, so no deploy.sh change is
      required — verify with `bash -n deploy.sh` and a deployed-file spot check
@@ -262,11 +270,11 @@ N/A: no release unit (contract field is additive; each phase is independently ve
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: probe-layer error propagation | Pending | — | — | |
-| 2 | Phase 2: fail-closed aggregation | Pending | — | — | |
-| 3 | Phase 3: report contract status field | Pending | — | — | |
-| 4 | Phase 4: consumer propagation | Pending | — | — | |
-| 5 | Phase 5: test and documentation completion | Pending | — | — | |
+| 1 | Phase 1: probe-layer error propagation | In Progress | — | — |  |
+| 2 | Phase 2: fail-closed aggregation | In Progress | — | — |  |
+| 3 | Phase 3: report contract status field | In Progress | — | — |  |
+| 4 | Phase 4: consumer propagation | In Progress | — | — |  |
+| 5 | Phase 5: test and documentation completion | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -276,7 +284,13 @@ N/A: no release unit (contract field is additive; each phase is independently ve
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-153113_01_scripts_db_rag_consistency.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261105-153113_02_scripts_db_rag_consistency_queries.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-153113_03_scripts_db_models.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261105-153113_04_scripts_db_recovery_verification.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261105-153113_05_tests_db_test_rag_consistency.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261105-153113_06_tests_db_test_recovery_drill.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261105-153113_07_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -285,7 +299,9 @@ N/A: no release unit (contract field is additive; each phase is independently ve
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 2026-11-04 23:03 JST
-- **Related target files**: scripts/db/rag_consistency.py, scripts/db/rag_consistency_queries.py, scripts/db/models.py, scripts/db/recovery_verification.py, tests/db/test_rag_consistency.py, tests/db/test_recovery_drill.py, docs/41_db/db_06_api_and_operations-rag-write-integrity.md
+- **Related target files**: scripts/db/rag_consistency.py, scripts/db/rag_consistency_queries.py, scripts/db/models.py, scripts/db/recovery_verification.py, tests/db/test_rag_consistency.py, tests/db/test_recovery_drill.py, docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-153113 -->
