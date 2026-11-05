@@ -85,12 +85,13 @@ LLM-level stage failure it is the LLM error kind itself — no terminal-failure 
 | A stage raises and the engine re-raises it (e.g. an LLM-level failure, persisted on the attempt row with kind `llm_failure`) | `failed` | workflow engine | the engine observes the failing stage directly, and writes `failed` exactly once |
 | A retryable stage exhausts `max_attempts`, or its stage deadline expires, or its failure kind is not in `retry_policy.retry_on`, or the failure is side-effect-flagged | `halted` | workflow engine | the engine stops the run itself |
 | The turn is cancelled while a stage is running | `halted` | turn adapter | the engine cannot observe cancellation, so the adapter records the stop in the existing terminal vocabulary instead of introducing a new status |
-| The turn fails before the engine starts | `pending` | neither | the row keeps the value it was created with, because no stage ever ran |
+| Turn-entry preparation fails after the task row exists | `halted` | turn adapter | no stage ran, but the turn failed terminally and the adapter records the same end state as a stage halt; the turn result carries `error_kind` `workflow_halted` |
+| Task creation, resumption, or activation fails before the engine starts, including a rejected resume of a `halted` task | `pending` | neither | no status write, so a freshly created row keeps `pending` |
 
 - A successful turn produces exactly one `completed` write.
 - Cancellation is recorded `halted` on purpose: no `cancelled` status exists, and `halted` is already
   the terminal, non-resumable state described in [Resuming Existing Tasks](#resuming-existing-tasks)
-  and in `## Operational Notes`. Cancellation is the only status write the adapter makes.
+  and in `## Operational Notes`. The adapter makes exactly two status writes, both `halted`: a cancellation at any point after the task row exists, and a turn-entry preparation failure.
 - A failing status write is a storage fault, not a turn outcome: it propagates out of the turn
   instead of being rescued by a second, adapter-side write.
 - A cancelled turn is distinguishable from a retry-exhausted halt by the attempt records: the
@@ -108,7 +109,9 @@ LLM-level stage failure it is the LLM error kind itself — no terminal-failure 
 > Turn-entry preparation — clearing the previous turn's ephemeral messages, injecting memory,
 > classifying the turn mode, appending the user message, and compressing history — runs once per
 > turn before the engine runs. It is not a stage and is not re-run when the `execute` stage is
-> retried.
+> retried. A preparation failure marks the task `halted` and the turn returns `error_kind`
+> `workflow_halted` (see "Task Status Transitions"), while a cancellation propagates to the
+> caller instead.
 
 ### Turn-End and Teardown Ownership
 
