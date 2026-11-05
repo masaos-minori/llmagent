@@ -44,12 +44,12 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/stdin_reader.py | Add a module-level shared-`StdinReader` accessor plus a test reset hook; class semantics unchanged | The three call sites own separate instances; one shared instance is the fix carrier | REQ-002 | Class `StdinReader` in this file: docstring states one daemon thread, one read per request, cancelled-request delivery to the newest request or discard; no module-level accessor exists today (checked in Step 2/3) | tests/agent/test_stdin_reader.py | Verified |
-| scripts/agent/cli_view.py | Replace the instance-owned `StdinReader(prompt="... ")` (L115) with the shared instance; `read_multiline` continuation read (L286-288) calls `read(prompt="... ")` on it | Stale `... ` worker swallowing the next tty line is the confirmed loss mechanism | REQ-001, REQ-002, REQ-003 | Import at L20; `self._stdin_reader = StdinReader(prompt="... ")` at L115; `wait_for`/timeout `break` at L286-291; `_stdin_reader` referenced only by `read_multiline` (checked in Step 3) | tests/test_cli_view.py | Verified |
-| scripts/agent/repl_input_loop.py | Replace `StdinReader(prompt="> ")` (L70) with the shared instance; pass `prompt="> "` at the read call sites (L145, L192) | Second competing reader instance in the REPL flow | REQ-001, REQ-002 | Import at L16; reader created at L70; `read()` at L145 and L192; `read_multiline` called at L198 (checked in Step 3) | tests/agent/test_repl.py | Verified |
+| scripts/agent/stdin_reader.py | Add a module-level shared-`StdinReader` accessor plus a test reset hook; class semantics unchanged | The three call sites own separate instances; one shared instance is the fix carrier | REQ-002 | Class `StdinReader` in this file: docstring states one daemon thread, one read per request, cancelled-request delivery to the newest request or discard; no module-level accessor exists today (checked in Step 2/3) | `tests/agent/test_stdin_reader.py` | Verified |
+| scripts/agent/cli_view.py | Replace the instance-owned `StdinReader(prompt="... ")` (L115) with the shared instance; `read_multiline` continuation read (L286-288) calls `read(prompt="... ")` on it | Stale `... ` worker swallowing the next tty line is the confirmed loss mechanism | REQ-001, REQ-002, REQ-003 | Import at L20; `self._stdin_reader = StdinReader(prompt="... ")` at L115; `wait_for`/timeout `break` at L286-291; `_stdin_reader` referenced only by `read_multiline` (checked in Step 3) | `tests/test_cli_view.py` | Verified |
+| scripts/agent/repl_input_loop.py | Replace `StdinReader(prompt="> ")` (L70) with the shared instance; pass `prompt="> "` at the read call sites (L145, L192) | Second competing reader instance in the REPL flow | REQ-001, REQ-002 | Import at L16; reader created at L70; `read()` at L145 and L192; `read_multiline` called at L198 (checked in Step 3) | `tests/agent/test_repl.py` | Verified |
 | scripts/agent/tool_approval.py | Replace the lazy `_approval_reader = StdinReader()` (L130) with the shared instance | Third competing reader instance; same loss class for approval answers | REQ-002 | `from agent.stdin_reader import StdinReader`; `_approval_read` lazily creates a module-global reader at L130 and always passes a per-call prompt (checked in Step 3) | tests/agent/test_tool_approval_paths.py | Verified |
 | tests/agent/test_stdin_reader.py | Add tests: shared accessor returns the same instance across call sites; reset hook restores isolation | New accessor surface needs direct coverage (REQ-002) | REQ-002, REQ-004 | Existing classes `TestRequestDrivenRead`, `TestCancelledRequestDelivery` (L43-136) prove the same-instance delivery semantics the shared instance relies on (checked in Step 2/3) | itself | Verified |
-| tests/test_cli_view.py | Add the timeout-then-fresh-read regression test mirroring the pty scenario (patched `builtins.input`, shortened timeout) | Confirms REQ-001 end-to-end at the `read_multiline` surface | REQ-001, REQ-004 | File exists; `TestReadMultiline` (L99-136) already drives `read_multiline` through patched `builtins.input` (checked in Step 3) | itself | Verified |
+| tests/test_cli_view.py | Add the timeout-then-fresh-read regression test mirroring the pty scenario (patched `builtins.input`, shortened timeout) | Confirms REQ-001 end-to-end at the `read_multiline` surface | REQ-001, REQ-004 | File exists; `TestReadMultiline` (L99-136) already drives `read_multiline` through patched `builtins.input` (checked in Step 3); adversarial re-check (this cycle): a `TestReadMultilineTimeout` class (same file) already covers the timeout→partial-return path with patched `builtins.input` + `release.wait` synchronization — the new test reuses that synchronization pattern and targets only the not-yet-covered next-read delivery path | itself | Verified |
 | docs/23_agent/agent_07_05_cli-and-commands-repl-io.md | Add one paragraph stating the post-timeout hand-off guarantee (next pending read receives the next line via the single shared reader) | Issue Documentation Impact: the agent reference chapter for this behavior exists | REQ-005 | File exists (57 lines); L52 already documents the `> ` prompt and `... ` continuation prompt; resolved via `docs/00_index.md` "CLI view / readline" row (checked in Step 3) | N/A: docs checker in Validation plan | Verified |
 
 ## Reference Files
@@ -82,7 +82,7 @@ Yes — `REQ-005` drives one paragraph in the chapter resolved via `docs/00_inde
 - The archived `cliview001` Plan is not amended: it is `Completed` (all target rows implemented, step 5 deploy step excluded no deploy), and its UNK-01 resolution path explicitly prescribes filing this follow-up Issue instead of an amendment. The Issue's "requires amending the `cliview001` Plan" wording is corrected to: amendment is only needed if the fix landed in that Plan's target files, which it does not (this Plan carries the change).
 - REPL stdin reads are sequential (no two genuinely concurrent stdin requests): `ReplInputLoop` awaits every read in order, and tool-approval prompts occur while no stdin read is pending; so routing all sites through one reader does not newly trip the "already pending" refusal.
 - Patching `builtins.input` reaches the worker because `StdinReader` looks the default read function up at call time (`tests/agent/test_stdin_reader.py::test_default_read_function_is_looked_up_at_call_time`), so the regression tests need no fake-reader injection.
-- Module-singleton test isolation is handled by the reset hook (Phase 1), not by fixture ordering.
+- Module-singleton test isolation is handled by the reset hook (Phase 1), not by fixture ordering. Extended by this cycle's Step 3a re-check: after the wiring lands, existing `CLIView`-constructing suites (`tests/test_cli_view.py`) share the module-level reader across tests, so their fixtures/setup must call the reset hook to keep cases isolated; the pre-existing `TestReadMultilineTimeout` class already covers timeout→partial-return and is left unchanged.
 - `git-fame` produced no author rows for the target files on this host, so `Bus Factor` is `N/A` in `Affected areas`.
 - No conflict with the active Plans under `plans/` was observed at Step 3 (their targets are session/compression/counter files); the Frozen overlap check runs at Step 8b.
 
@@ -154,10 +154,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: shared reader accessor in scripts/agent/stdin_reader.py + accessor tests in tests/agent/test_stdin_reader.py | Pending | — | — |  |
-| 2 | Phase 2: wiring of scripts/agent/cli_view.py and scripts/agent/repl_input_loop.py + regression test in tests/test_cli_view.py | Pending | — | — |  |
-| 3 | Phase 3: wiring of scripts/agent/tool_approval.py | Pending | — | — |  |
-| 4 | Phase 4: docs/23_agent/agent_07_05_cli-and-commands-repl-io.md paragraph + docs checkers | Pending | — | — |  |
+| 1 | Phase 1: shared reader accessor in scripts/agent/stdin_reader.py + accessor tests in tests/agent/test_stdin_reader.py | In Progress | — | — |  |
+| 2 | Phase 2: wiring of scripts/agent/cli_view.py and scripts/agent/repl_input_loop.py + regression test in tests/test_cli_view.py | In Progress | — | — |  |
+| 3 | Phase 3: wiring of scripts/agent/tool_approval.py | In Progress | — | — |  |
+| 4 | Phase 4: docs/23_agent/agent_07_05_cli-and-commands-repl-io.md paragraph + docs checkers | In Progress | — | — |  |
 | 5 | Phase 5: deployment hand-off (skills/deploy/SKILL.md) | Pending | — | — |  |
 
 ### Blocker Log
@@ -168,7 +168,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-090427_01_scripts_agent_stdin_reader.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-090427_02_scripts_agent_cli_view.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-090427_03_scripts_agent_repl_input_loop.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-090427_04_scripts_agent_tool_approval.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261105-090427_07_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -188,3 +192,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Required Changes + Testing Expectations | tests/test_cli_view.py, tests/agent/test_stdin_reader.py | 1, 2 | AC-4 | Validation plan rows for both test files + regression suites | Explicit in issue |
 | REQ-005 | Documentation Impact (chapter resolved via docs/00_index.md CLI-view row) | docs/23_agent/agent_07_05_cli-and-commands-repl-io.md | 4 | AC-5 | docs checkers row in the Validation plan | Confirmed by repository evidence |
 | REQ-006 | Issue Dependencies/scope handling + `scripts/` change (rules/env.md Architecture) | scripts/agent/stdin_reader.py, scripts/agent/cli_view.py, scripts/agent/repl_input_loop.py, scripts/agent/tool_approval.py | 5 | N/A: deploy has its own approval gate in skills/deploy/SKILL.md | deploy hand-off (Phase 5) | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-090427 -->
