@@ -118,21 +118,28 @@ _LOGICAL_VERIFIERS: dict[str, Callable[[SQLiteHelper], tuple[bool, str | None]]]
 }
 
 
+_MANDATORY_LOGICAL_TARGETS = frozenset({"rag", "session"})
+
+
 def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | None]:
     """Run logical consistency verification on the restored database.
 
     Returns (consistent, detail_string) — detail contains a short summary
     of counts/identifiers only (no row content), matching REQ-010/AC-7.
 
-    An unknown target, or a database this stage cannot open, is reported as
-    consistent: a verification gap must never block a completed physical restore.
+    An unknown mandatory target, or a database this stage cannot open, fails
+    closed as (False, "verification_unavailable"): a verification gap must never
+    be reported as success for a mandatory check. Non-mandatory targets
+    (workflow, eventbus) keep the skip result.
     """
     verify = _LOGICAL_VERIFIERS.get(target)
     if verify is None:
+        if target in _MANDATORY_LOGICAL_TARGETS:
+            return False, "verification_unavailable"
         return True, None
     try:
         with SQLiteHelper(target, db_path=str(db_path)).open() as db:
             return verify(db)
     except sqlite3.Error as e:
-        logger.warning("Logical verification could not open DB: %s", e)
-        return True, None
+        logger.error("Logical verification could not open DB: %s", e)
+        return False, "verification_unavailable"

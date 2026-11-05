@@ -7,6 +7,7 @@ verification lives in db.recovery_verification.
 """
 
 import logging
+import os
 import shutil
 import sqlite3
 from enum import StrEnum
@@ -116,9 +117,23 @@ def _dry_run_integrity_ok() -> RecoveryResult:
     )
 
 
-def _failure(action: str, detail: str | None, dry_run: bool) -> RecoveryResult:
+def _failure(
+    action: str,
+    detail: str | None,
+    dry_run: bool,
+    *,
+    logical_ok: bool | None = None,
+    active_db_state: str | None = None,
+) -> RecoveryResult:
     """Build the failed RecoveryResult every recovery guard reports."""
-    return RecoveryResult(success=False, action=action, detail=detail, dry_run=dry_run)
+    return RecoveryResult(
+        success=False,
+        action=action,
+        detail=detail,
+        dry_run=dry_run,
+        logical_ok=logical_ok,
+        active_db_state=active_db_state,
+    )
 
 
 def _vacuum_db(target: str = "rag") -> RecoveryResult:
@@ -226,10 +241,11 @@ def backup_is_usable(backup: Path, target: str) -> tuple[str | None, str]:
 def _post_restore_failure(
     db_path: Path, target: str, dry_run: bool
 ) -> RecoveryResult | None:
-    """Return the failure result for a post-restore check, or None when both pass.
+    """Return the failure result for the post-activation re-check, or None when both pass.
 
     The physical re-check runs before the logical-verification stage, which is the
-    order the restore reports them in.
+    order the restore reports them in. Runs on the live path after activation;
+    candidate verification before activation lives in :func:`_verify_candidate`.
     """
     post_condition, post_detail = _run_integrity_check(db_path, target)
     if post_condition != DbCondition.HEALTHY:
@@ -249,43 +265,181 @@ def _post_restore_failure(
     return None
 
 
+def _verify_candidate(
+    candidate: Path, target: str
+) -> tuple[DbCondition, str | None, bool | None, str | None]:
+    """Run both mandatory verifications on the staged candidate before activation.
+
+    Returns (condition, integrity_detail, logical_ok, logical_detail). logical_ok
+    is False when the physical check already failed and the logical stage did not
+    run; it is the verifier's own verdict otherwise.
+    """
+    condition, integrity_detail = _run_integrity_check(candidate, target)
+    if condition != DbCondition.HEALTHY:
+        return condition, integrity_detail, False, None
+    logical_ok, logical_detail = _run_logical_verification(candidate, target)
+    return condition, None, logical_ok, logical_detail
+
+
+def _activate_candidate(
+    db_path: Path, temp_restore: Path, staged: dict[str, Path]
+) -> None:
+    """Swap the verified candidate into the live path and move its sidecars.
+
+    Single atomic os.replace of the database, then a move of each staged sidecar
+    to its final db_path.name + suffix location. Fail-closed: a move failure
+    raises for the caller's OSError handler (REQ-002).
+    """
+    os.replace(temp_restore, db_path)
+    for suffix, staged_path in staged.items():
+        shutil.move(staged_path, Path(str(db_path) + suffix))
+
+
+def _cleanup_staged(temp_restore: Path, staged: dict[str, Path]) -> None:
+    """Remove the staged candidate files; the live path and archives stay untouched."""
+    for path in (temp_restore, *staged.values()):
+        if path.exists():
+            path.unlink()
+
+
+def _rollback_or_non_serviceable(
+    db_path: Path, corrupt_archive: Path, failure: RecoveryResult, dry_run: bool
+) -> RecoveryResult:
+    """Restore the archived original after a post-activation verification failure.
+
+    Reports action "rollback_failed" with active_db_state "non_serviceable" when
+    the rollback itself fails, preserving every artifact (AC-004). On a successful
+    rollback the live path again holds the original database.
+    """
+    try:
+        os.replace(corrupt_archive, db_path)
+    except OSError as exc:
+        logger.error("Rollback of the archived original failed: %s", exc)
+        return RecoveryResult(
+            success=False,
+            action="rollback_failed",
+            detail=f"{failure.detail}; rollback failed: {exc}",
+            dry_run=dry_run,
+            logical_ok=False,
+            active_db_state="non_serviceable",
+        )
+    return RecoveryResult(
+        success=False,
+        action=failure.action,
+        detail=failure.detail,
+        dry_run=dry_run,
+        logical_ok=False,
+        active_db_state="preserved_original",
+    )
+
+
 def _restore_from_backup(
     db_path: Path,
     backup_path: str | Path | None,
     target: str = "rag",
     dry_run: bool = False,
 ) -> RecoveryResult:
-    """Restore DB from backup; returns RecoveryResult."""
+    """Restore DB from backup; returns RecoveryResult.
+
+    The candidate is staged, verified physically and logically, and only then
+    activated (REQ-003): a candidate that fails verification never touches the
+    live database, which is reported with active_db_state "preserved_original".
+    """
     backup, detail = _resolve_backup(backup_path)
     if backup is None:
-        return _failure("no_backup", detail, dry_run)
+        return _failure(
+            "no_backup", detail, dry_run, active_db_state="preserved_original"
+        )
 
     action, detail = _backup_is_usable(backup, target)
     if action is not None:
-        return _failure(action, detail, dry_run)
+        return _failure(action, detail, dry_run, active_db_state="preserved_original")
 
     ts = format_timestamp()
     corrupt_archive = db_path.with_name(f"{db_path.stem}_corrupt_{ts}{db_path.suffix}")
     temp_restore = db_path.with_name(f"{db_path.stem}.tmp_{ts}{db_path.suffix}")
     quarantine_dir = db_path.parent / f"{db_path.stem}_sidecar_quarantine_{ts}"
 
+    staged: dict[str, Path] = {}
+    activated = False
     try:
-        _stage_restore(db_path, backup, corrupt_archive, temp_restore, quarantine_dir)
+        staged = _stage_restore(
+            db_path, backup, corrupt_archive, temp_restore, quarantine_dir
+        )
+
+        condition, integrity_detail, logical_ok, logical_detail = _verify_candidate(
+            temp_restore, target
+        )
+        if condition != DbCondition.HEALTHY:
+            _cleanup_staged(temp_restore, staged)
+            msg = (
+                integrity_detail
+                or f"candidate integrity check failed: {condition.value}"
+            )
+            logger.error("Candidate integrity check failed: %s", msg)
+            return _failure(
+                "restore_verify_failed",
+                msg,
+                dry_run,
+                logical_ok=False,
+                active_db_state="preserved_original",
+            )
+        if not logical_ok:
+            action_value = (
+                "verification_unavailable"
+                if logical_detail == "verification_unavailable"
+                else "logical_verify_failed"
+            )
+            err_detail = logical_detail or f"logical verification failed: {target}"
+            logger.error("Candidate logical verification failed: %s", err_detail)
+            _cleanup_staged(temp_restore, staged)
+            return _failure(
+                action_value,
+                err_detail,
+                dry_run,
+                logical_ok=False,
+                active_db_state="preserved_original",
+            )
+
+        _activate_candidate(db_path, temp_restore, staged)
+        activated = True
 
         failure = _post_restore_failure(db_path, target, dry_run)
         if failure is not None:
-            return failure
+            return _rollback_or_non_serviceable(
+                db_path, corrupt_archive, failure, dry_run
+            )
 
         logger.info("DB restored from backup: %s", backup)
         # Cleanup quarantine directory after successful restore
         shutil.rmtree(quarantine_dir, ignore_errors=True)
         return RecoveryResult(
-            success=True, action="restored", detail=str(backup), dry_run=dry_run
+            success=True,
+            action="restored",
+            detail=str(backup),
+            dry_run=dry_run,
+            logical_ok=True,
+            active_db_state="restored",
         )
     except OSError as e:
         logger.error("Recovery failed: %s", e)
-        if temp_restore.exists():
-            temp_restore.unlink()
+        _cleanup_staged(temp_restore, staged)
+        if activated and corrupt_archive.exists():
+            # The swap already happened when this failure hit: put the archived
+            # original back so the live path never holds an unverified file.
+            try:
+                os.replace(corrupt_archive, db_path)
+            except OSError as rollback_exc:
+                logger.error(
+                    "Rollback of the archived original failed: %s", rollback_exc
+                )
+                return _failure(
+                    "error",
+                    str(e),
+                    dry_run,
+                    logical_ok=False,
+                    active_db_state="non_serviceable",
+                )
         return _failure("error", str(e), dry_run)
 
 
@@ -338,10 +492,14 @@ def recover_corruption(
       "vacuum_failed"                       — integrity ok but VACUUM raised
       "restored"                            — integrity failed; DB restored from backup_path
       "no_backup"                           — integrity failed; no usable backup_path
-      "restore_verify_failed"               — restored from backup, but post-restore integrity
-                                                check failed
-      "logical_verify_failed"               — restored from backup, but post-restore logical
-                                                verification failed
+      "restore_verify_failed"               — staged candidate failed the integrity check;
+                                                the live database was not replaced
+      "logical_verify_failed"               — staged candidate failed logical verification;
+                                                the live database was not replaced
+      "verification_unavailable"            — logical verification could not run on the
+                                                candidate (mandatory target unverifiable)
+      "rollback_failed"                     — post-activation re-check failed and the
+                                                rollback of the archived original also failed
       "unsupported_target"                  — target is not one of "rag"/"session"/"workflow"/
                                                 "eventbus"
       "error"                               — could not open DB or OS-level failure

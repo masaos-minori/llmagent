@@ -159,13 +159,22 @@ class RagConsistencyReport:
 
 @dataclass(frozen=True)
 class RecoveryResult:
-    """Structured result of a corruption recovery attempt."""
+    """Structured result of a corruption recovery attempt.
+
+    active_db_state names the database state that is actually active after the
+    attempt: "restored" (candidate verified and activated), "preserved_original"
+    (verification failed; the live database is the untouched original), or
+    "non_serviceable" (post-activation failure and the rollback also failed).
+    """
 
     success: bool
-    action: str  # e.g. "no_backup", "bad_backup", "backup_wrong_domain", "logical_verify_failed", etc.
+    action: str  # e.g. "no_backup", "bad_backup", "backup_wrong_domain", "logical_verify_failed", "verification_unavailable", ...
     detail: str | None = None
     dry_run: bool = False
     logical_ok: bool | None = None
+    active_db_state: str | None = (
+        None  # "restored" | "preserved_original" | "non_serviceable"
+    )
 
 
 @dataclass(frozen=True)
