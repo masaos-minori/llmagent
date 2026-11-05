@@ -53,8 +53,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the loader validation bullets | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Edit the loader validation bullets | Completed | 2026-11-05 | 2026-11-05 | Tightened the timeout_sec and max_attempts/backoff_sec bullets; added the rejection-error bullet. |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 2026-11-05 | 2026-11-05 | All five checkers pass after re-accepting the agent API reference ceiling at 26421. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
