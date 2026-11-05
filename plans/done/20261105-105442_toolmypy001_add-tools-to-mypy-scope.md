@@ -142,9 +142,9 @@ N/A: no release unit (Phase 1 is valid alone; Phase 2 must not land before Phase
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix the typing in `validate_all` | In Progress | — | — |  |
-| 2 | Widen the mypy scope in configuration, gate table, and docs | In Progress | — | — |  |
-| 3 | Verify with mypy, tests, gates, and record run time | Pending | — | — |  |
+| 1 | Fix the typing in `validate_all` | Completed | — | 20261105-143612 |  |
+| 2 | Widen the mypy scope in configuration, gate table, and docs | Completed | — | 20261105-154220 |  |
+| 3 | Verify with mypy, tests, gates, and record run time | Completed | — | 20261105-154305 | Run by code-implementation. Cold mypy (--no-incremental) before 26.9 s (491 files), after 30.3 s (557 files, +3.4 s); 0 errors; no 'Source file found twice'; pre-commit mypy hook Passed; check_suppression_justification, check_skills_references, run_validation_gates clean; tests/tools covered by the full suite (11607 passed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -154,18 +154,18 @@ N/A: no release unit (Phase 1 is valid alone; Phase 2 must not land before Phase
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-133115_01_tools_check_canonical_source_registry.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-133115_02_pyproject.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_03_.github_workflows_ci.yml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_04_tox.ini.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_05_tools_run_validation_gates.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_06_rules_toolchain.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_07_rules_coding.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_08_skills_python-lint-typecheck_workflow.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_09_routing.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_10_skills_code-implementation_workflow.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_11_skills_python-implementation_workflow.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-133115_12_skills_python-code-review_workflow.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-133115_01_tools_check_canonical_source_registry.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-133115_02_pyproject.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_03_.github_workflows_ci.yml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_04_tox.ini.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_05_tools_run_validation_gates.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_06_rules_toolchain.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_07_rules_coding.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_08_skills_python-lint-typecheck_workflow.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_09_routing.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_10_skills_code-implementation_workflow.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_11_skills_python-implementation_workflow.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-133115_12_skills_python-code-review_workflow.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

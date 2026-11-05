@@ -120,10 +120,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `audit_plan_target_paths` tests | In Progress | — | — |  |
-| 2 | Add `run_refactor_validation` tests | In Progress | — | — |  |
-| 3 | Add `module_nodes` tests | In Progress | — | — |  |
-| 4 | Verify the suite, lint, and mutation check | Pending | — | — |  |
+| 1 | Add `audit_plan_target_paths` tests | Completed | — | 20261105-143206 |  |
+| 2 | Add `run_refactor_validation` tests | Completed | — | 20261105-142642 |  |
+| 3 | Add `module_nodes` tests | Completed | — | 20261105-142252 |  |
+| 4 | Verify the suite, lint, and mutation check | Completed | — | 20261105-143225 | Run by code-implementation: full suite, ruff, mypy, check_mock_patch_targets on the three files; one mutation per tool failed a test and was reverted; git diff tools/ empty |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -133,9 +133,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-132713_01_tests_tools_test_module_nodes.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-132713_02_tests_tools_test_run_refactor_validation.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-132713_03_tests_tools_test_audit_plan_target_paths.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-132713_01_tests_tools_test_module_nodes.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-132713_02_tests_tools_test_run_refactor_validation.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-132713_03_tests_tools_test_audit_plan_target_paths.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
