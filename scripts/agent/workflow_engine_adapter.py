@@ -36,7 +36,6 @@ from agent.workflow import (
     WorkflowStageFailure,
     WorkflowTimeoutError,
 )
-from agent.workflow.task_ops import create_task, get_task_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -288,7 +287,6 @@ class WorkflowEngineAdapter:
         store: StateStore | None = None,
     ) -> tuple[str, TaskRecord]:
         """Create a workflow task and audit its start."""
-        assert self._workflow_engine._wdef is not None  # noqa: B101 — _wdef is required for workflow task creation; None indicates misconfiguration
         close_store = False
         if store is None:
             store = StateStore()
@@ -297,22 +295,21 @@ class WorkflowEngineAdapter:
         try:
             if existing_task_id is None:
                 workflow_id = str(uuid.uuid4())
-                task = create_task(
-                    store._db,
+                task = store.create_task(
                     session_id=session_id,
                     turn_number=ctx.stats.stat_turns,
-                    workflow_version=self._workflow_engine._wdef.version,
+                    workflow_version=self._workflow_engine.version,
                     workflow_id=workflow_id,
                 )
                 audit_workflow_start(
                     ctx,
                     task.task_id,
-                    self._workflow_engine._wdef.version,
+                    self._workflow_engine.version,
                     workflow_id=workflow_id,
                     session_id=session_id,
                 )
             else:
-                _fetched = get_task_by_id(store._db, existing_task_id)
+                _fetched = store.get_task_by_id(existing_task_id)
                 if _fetched is None:
                     raise RuntimeError(f"Task {existing_task_id} not found")
                 if _fetched.status == "halted":
@@ -333,7 +330,7 @@ class WorkflowEngineAdapter:
         # tool_runner records tool_call_state through this facade while active.
         ctx.workflow.tool_call_recorder = self._state_store
         ctx.workflow.workflow_id = task.workflow_id
-        ctx.workflow.current_workflow_version = self._workflow_engine._wdef.version
+        ctx.workflow.current_workflow_version = self._workflow_engine.version
         ctx.workflow.active = True
 
     def _deactivate_workflow(self, ctx: AgentContext) -> None:

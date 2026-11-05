@@ -101,16 +101,17 @@ def _patch_workflow_loader():
 
     with (
         patch("agent.orchestrator.WorkflowLoader"),
-        patch("agent.orchestrator.StateStore"),
+        patch("agent.orchestrator.StateStore") as orchestrator_state_store,
         patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine_instance),
-        patch("agent.workflow_engine_adapter.create_task", return_value=mock_task),
         patch("agent.workflow_engine_adapter.audit_workflow_start"),
-        patch("agent.workflow_engine_adapter.StateStore"),
+        patch("agent.workflow_engine_adapter.StateStore") as adapter_state_store,
         patch(
             "agent.workflow_engine_adapter.WorkflowEngine",
             return_value=mock_engine_instance,
         ),
     ):
+        orchestrator_state_store.return_value.create_task.return_value = mock_task
+        adapter_state_store.return_value.create_task.return_value = mock_task
         yield
 
 
@@ -762,25 +763,23 @@ class TestWorkflowResumeWithRealDB:
         existing_task.task_id = "existing-task-id"
         existing_task.workflow_id = "existing-wf-id"
 
+        store = MagicMock()
+        store.get_task_by_id.return_value = existing_task
+
         ctx = _make_ctx()
 
         with (
-            patch(
-                "agent.workflow_engine_adapter.get_task_by_id",
-                return_value=existing_task,
-            ),
-            patch("agent.workflow_engine_adapter.create_task") as mock_create,
             patch("agent.orchestrator.StateStore"),
             patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
             workflow_id, task = orch._workflow_adapter._init_workflow_task(
-                ctx, "test-session", existing_task_id="existing-task-id"
+                ctx, "test-session", existing_task_id="existing-task-id", store=store
             )
             assert workflow_id == "existing-wf-id"
             assert task.task_id == "existing-task-id"
-            mock_create.assert_not_called()
+            store.create_task.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_resume_does_not_audit_for_existing_task(self) -> None:
@@ -789,21 +788,19 @@ class TestWorkflowResumeWithRealDB:
         existing_task.task_id = "existing-task-id"
         existing_task.workflow_id = "existing-wf-id"
 
+        store = MagicMock()
+        store.get_task_by_id.return_value = existing_task
+
         ctx = _make_ctx()
 
         with (
-            patch(
-                "agent.workflow_engine_adapter.get_task_by_id",
-                return_value=existing_task,
-            ),
-            patch("agent.workflow_engine_adapter.create_task"),
             patch("agent.orchestrator.StateStore"),
             patch("agent.workflow_engine_adapter.audit_workflow_start") as mock_audit,
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
             orch._workflow_adapter._init_workflow_task(
-                ctx, "test-session", existing_task_id="existing-task-id"
+                ctx, "test-session", existing_task_id="existing-task-id", store=store
             )
             mock_audit.assert_not_called()
 
@@ -815,13 +812,12 @@ class TestWorkflowResumeWithRealDB:
         halted_task.workflow_id = "halted-wf-id"
         halted_task.status = "halted"
 
+        store = MagicMock()
+        store.get_task_by_id.return_value = halted_task
+
         ctx = _make_ctx()
 
         with (
-            patch(
-                "agent.workflow_engine_adapter.get_task_by_id", return_value=halted_task
-            ),
-            patch("agent.workflow_engine_adapter.create_task") as mock_create,
             patch("agent.orchestrator.StateStore"),
             patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
@@ -829,9 +825,9 @@ class TestWorkflowResumeWithRealDB:
             orch._workflow_def = MagicMock(version="test-v1")
             with pytest.raises(RuntimeError, match="halted"):
                 orch._workflow_adapter._init_workflow_task(
-                    ctx, "test-session", existing_task_id="halted-task-id"
+                    ctx, "test-session", existing_task_id="halted-task-id", store=store
                 )
-            mock_create.assert_not_called()
+            store.create_task.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_resumed_task_prepares_once(self) -> None:
@@ -857,14 +853,11 @@ class TestWorkflowResumeWithRealDB:
         )
 
         with (
-            patch(
-                "agent.workflow_engine_adapter.get_task_by_id",
-                return_value=existing_task,
-            ),
-            patch("agent.workflow_engine_adapter.create_task") as mock_create,
-            patch("agent.orchestrator.StateStore"),
+            patch("agent.orchestrator.StateStore") as state_store_cls,
             patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
+            state_store_cls.return_value.get_task_by_id.return_value = existing_task
+            mock_create = state_store_cls.return_value.create_task
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
 
@@ -916,14 +909,11 @@ class TestWorkflowResumeWithRealDB:
         on_error = MagicMock()
 
         with (
-            patch(
-                "agent.workflow_engine_adapter.get_task_by_id",
-                return_value=existing_task,
-            ),
-            patch("agent.workflow_engine_adapter.create_task") as mock_create,
-            patch("agent.orchestrator.StateStore"),
+            patch("agent.orchestrator.StateStore") as state_store_cls,
             patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
+            state_store_cls.return_value.get_task_by_id.return_value = existing_task
+            mock_create = state_store_cls.return_value.create_task
             orch = Orchestrator(ctx, on_error=on_error)
             orch._workflow_def = MagicMock(version="test-v1")
 

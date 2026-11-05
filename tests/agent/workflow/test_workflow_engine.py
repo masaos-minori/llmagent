@@ -153,6 +153,11 @@ class TestWorkflowEngineHappyPath:
             event_id = f"{task.task_id}:{stage}:1"
             assert is_event_processed(store._db, event_id)
 
+    def test_engine_exposes_definition_version(self, store) -> None:
+        wdef = _make_wdef()
+        engine = WorkflowEngine(wdef, store)
+        assert engine.version == wdef.version
+
 
 class TestWorkflowEngineRetry:
     @pytest.mark.asyncio

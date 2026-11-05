@@ -32,7 +32,6 @@ from agent.workflow import (
 )
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 from agent.workflow.state_store import StateStore
-from agent.workflow.task_ops import create_task
 from agent.workflow.workflow_engine import WorkflowEngine
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
@@ -187,8 +186,7 @@ def _patch_workflow_loader():
 
     with (
         patch("agent.orchestrator.WorkflowLoader") as mock_loader,
-        patch("agent.orchestrator.StateStore"),
-        patch("agent.workflow_engine_adapter.create_task", return_value=mock_task),
+        patch("agent.orchestrator.StateStore") as state_store_cls,
         patch("agent.workflow_engine_adapter.audit_workflow_start"),
         patch(
             "agent.workflow_engine_adapter.WorkflowEngine",
@@ -206,6 +204,7 @@ def _patch_workflow_loader():
             retry_policy=RetryPolicy(max_attempts=3, backoff_sec=1),
         )
         mock_loader.return_value.load.return_value = _default_wdef
+        state_store_cls.return_value.create_task.return_value = mock_task
         yield mock_loader
 
 
@@ -392,8 +391,6 @@ class TestHandleTurnInvokesWorkflowEngine:
         monkeypatch.setattr(
             "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
         )
-        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
-
         ctx = _make_ctx()
         on_error = MagicMock()
         orch = _make_orchestrator(ctx, on_error=on_error)
@@ -493,8 +490,6 @@ class TestHandleTurnInvokesWorkflowEngine:
         monkeypatch.setattr(
             "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
         )
-        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
-
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
 
@@ -590,8 +585,6 @@ class TestExecuteStageRetryRunsTurnEntryOnce:
         monkeypatch.setattr(
             "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
         )
-        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
-
         ctx = _make_ctx()
         memory = _wire_entry_services(ctx)
 
@@ -696,7 +689,6 @@ def _temp_workflow_store(monkeypatch: Any, tmp_path: Path) -> str:
             self._db.open(write_mode=True, row_factory=True)
 
     monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
-    monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
     return db_path
 
 
@@ -839,8 +831,6 @@ class TestEntryWorkFailureIsNotRetried:
         monkeypatch.setattr(
             "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
         )
-        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
-
         ctx = _make_ctx()
         _wire_entry_services(ctx)
         monkeypatch.setattr(
@@ -938,8 +928,6 @@ class TestEntryWorkOutsideStageTimeout:
         monkeypatch.setattr(
             "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
         )
-        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
-
         ctx = _make_ctx()
         _wire_entry_services(ctx)
         monkeypatch.setattr(
@@ -1041,8 +1029,6 @@ class TestEntryWorkOutsideStageTimeout:
         monkeypatch.setattr(
             "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
         )
-        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
-
         ctx = _make_ctx()
         _wire_entry_services(ctx)
         monkeypatch.setattr(
@@ -2180,25 +2166,23 @@ class TestInitWorkflowTaskResumeReuse:
         existing_task.task_id = "existing-task-id"
         existing_task.workflow_id = "existing-wf-id"
 
+        store = MagicMock()
+        store.get_task_by_id.return_value = existing_task
+
         ctx = _make_ctx()
 
         with (
-            patch(
-                "agent.workflow_engine_adapter.get_task_by_id",
-                return_value=existing_task,
-            ),
-            patch("agent.workflow_engine_adapter.create_task") as mock_create,
             patch("agent.orchestrator.StateStore"),
             patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
             workflow_id, task = orch._workflow_adapter._init_workflow_task(
-                ctx, "test-session", existing_task_id="existing-task-id"
+                ctx, "test-session", existing_task_id="existing-task-id", store=store
             )
             assert workflow_id == "existing-wf-id"
             assert task.task_id == "existing-task-id"
-            mock_create.assert_not_called()
+            store.create_task.assert_not_called()
 
     def test_resume_does_not_call_audit_workflow_start_for_existing_task(self) -> None:
         """When resuming an existing task, audit_workflow_start should NOT be called again."""
@@ -2208,21 +2192,19 @@ class TestInitWorkflowTaskResumeReuse:
         existing_task.task_id = "existing-task-id"
         existing_task.workflow_id = "existing-wf-id"
 
+        store = MagicMock()
+        store.get_task_by_id.return_value = existing_task
+
         ctx = _make_ctx()
 
         with (
-            patch(
-                "agent.workflow_engine_adapter.get_task_by_id",
-                return_value=existing_task,
-            ),
-            patch("agent.workflow_engine_adapter.create_task"),
             patch("agent.orchestrator.StateStore"),
             patch("agent.workflow_engine_adapter.audit_workflow_start") as mock_audit,
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
             orch._workflow_adapter._init_workflow_task(
-                ctx, "test-session", existing_task_id="existing-task-id"
+                ctx, "test-session", existing_task_id="existing-task-id", store=store
             )
             mock_audit.assert_not_called()
 
@@ -2235,13 +2217,12 @@ class TestInitWorkflowTaskResumeReuse:
         halted_task.workflow_id = "halted-wf-id"
         halted_task.status = "halted"
 
+        store = MagicMock()
+        store.get_task_by_id.return_value = halted_task
+
         ctx = _make_ctx()
 
         with (
-            patch(
-                "agent.workflow_engine_adapter.get_task_by_id", return_value=halted_task
-            ),
-            patch("agent.workflow_engine_adapter.create_task") as mock_create,
             patch("agent.orchestrator.StateStore"),
             patch("agent.workflow_engine_adapter.audit_workflow_start"),
         ):
@@ -2249,9 +2230,9 @@ class TestInitWorkflowTaskResumeReuse:
             orch._workflow_def = MagicMock(version="test-v1")
             with pytest.raises(RuntimeError, match="halted"):
                 orch._workflow_adapter._init_workflow_task(
-                    ctx, "test-session", existing_task_id="halted-task-id"
+                    ctx, "test-session", existing_task_id="halted-task-id", store=store
                 )
-            mock_create.assert_not_called()
+            store.create_task.assert_not_called()
 
 
 class TestEphemeralMessageLifecycle:
@@ -3176,7 +3157,6 @@ def _status_harness(
     # StateStore() returns our pre-built probe store rather than opening a second connection).
     monkeypatch.setattr("agent.orchestrator.StateStore", lambda: store)
     monkeypatch.setattr("agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine)
-    monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
 
     ctx = _make_ctx()
     orch = _make_orchestrator(ctx, on_error=on_error)
@@ -3810,6 +3790,11 @@ class _RetryThenHaltEngine:
 
     def __init__(self, wdef: Any) -> None:
         self._wdef = wdef
+
+    @property
+    def version(self) -> str:
+        """Expose the definition version the adapter reads (mirrors WorkflowEngine)."""
+        return self._wdef.version
 
     def build_turn_control_message(self, task_id: str) -> str | None:
         """Mirror the WorkflowEngine turn-entry detection contract (toolexec001 row 08); no state here."""

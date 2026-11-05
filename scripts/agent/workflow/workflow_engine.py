@@ -134,6 +134,11 @@ class WorkflowEngine:
         self._store = store
         self._tracer = tracer
 
+    @property
+    def version(self) -> str:
+        """The workflow definition version, exposed so callers avoid reading _wdef."""
+        return self._wdef.version
+
     def _span_ctx(self, name: str) -> _Span | nullcontext[_NoOpSpan]:
         """Return a span context manager; uses NoOpSpan when no tracer is available."""
         if self._tracer is not None:
@@ -306,7 +311,7 @@ class WorkflowEngine:
             event_id = f"{task.task_id}:{stage_id}:{attempt}"
 
             attempt_rec = begin_stage_if_new(
-                self._store._db,
+                self._store.get_connection(),
                 event_id,
                 task.task_id,
                 stage_id,
@@ -366,7 +371,7 @@ class WorkflowEngine:
             self._store.finish_attempt(attempt_rec.attempt_id, "completed")
             if artifact_uri:
                 record_artifact(
-                    self._store._db,
+                    self._store.get_connection(),
                     task.task_id,
                     stage_id,
                     artifact_uri,
