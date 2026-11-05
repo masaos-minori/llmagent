@@ -130,6 +130,7 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_output_tokens = None
     ctx.stats.stat_tool_errors = 0
     ctx.stats.stat_tool_calls = 0
+    ctx.stats.stat_partial_completions = 0
     ctx.turn.current_turn_id = None
     ctx.session.session_id = "test-session"
     # Orchestrator creates a per-turn persistence boundary via turn_boundary();
@@ -152,7 +153,6 @@ def _make_ctx() -> MagicMock:
     hist_mgr.compress = AsyncMock(side_effect=_compress)
     ctx.services_required.hist_mgr = hist_mgr
     llm_svc = MagicMock()
-    llm_svc.stat_partial_completions = 0
     llm_svc.stat_parse_errors = 0
     llm_svc.stat_heartbeat_timeouts = 0
     llm_svc.stat_reconnects = 0
@@ -1127,7 +1127,7 @@ class TestHandleTurnLLMTransportError:
         ctx.services_required.llm.stream = AsyncMock(side_effect=err)
         await orch.handle_turn("hello")
 
-        assert ctx.services_required.llm.stat_partial_completions == 1
+        assert ctx.stats.stat_partial_completions == 1
 
     @pytest.mark.asyncio
     async def test_prestream_error_stores_diagnostic_not_pop(self) -> None:
@@ -1243,7 +1243,7 @@ class TestHandleTurnLLMTransportError:
         ctx.services_required.llm.stream = AsyncMock(side_effect=err)
         await orch.handle_turn("hello")
 
-        assert ctx.services_required.llm.stat_partial_completions == 1
+        assert ctx.stats.stat_partial_completions == 1
         call_args = orch._diagnostic_store.save.call_args_list
         assert any("llm_transport_error" in str(a) for a in call_args)
 
@@ -1256,7 +1256,7 @@ class TestHandleTurnLLMTransportError:
         ctx.services_required.llm.stream = AsyncMock(side_effect=err)
         await orch.handle_turn("hello")
 
-        assert ctx.services_required.llm.stat_partial_completions == 0
+        assert ctx.stats.stat_partial_completions == 0
         call_args = orch._diagnostic_store.save.call_args_list
         assert any("mid_turn_error" in str(a) for a in call_args)
 
@@ -1275,7 +1275,7 @@ class TestHandleTurnLLMTransportError:
         ctx.services_required.llm.stream = AsyncMock(side_effect=err)
         await orch.handle_turn("hello")
 
-        assert ctx.services_required.llm.stat_partial_completions == 0
+        assert ctx.stats.stat_partial_completions == 0
         orch._diagnostic_store.save.assert_called()
 
     @pytest.mark.asyncio
@@ -1289,7 +1289,7 @@ class TestHandleTurnLLMTransportError:
         ctx.services_required.llm.stream = AsyncMock(side_effect=err)
         await orch.handle_turn("hello")
 
-        assert ctx.services_required.llm.stat_partial_completions == 1
+        assert ctx.stats.stat_partial_completions == 1
         saved_content = orch._diagnostic_store.save.call_args[0][2]
         assert "[INCOMPLETE: MALFORMED_SSE_FRAME]" in saved_content
 

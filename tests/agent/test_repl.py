@@ -20,6 +20,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.commands.registry import CommandRegistry
+from agent.context import RuntimeStats
 from agent.repl import AgentREPL, main
 from agent.repl_input_loop import ReplInputLoop
 from agent.startup_banner import StartupBanner
@@ -47,7 +48,6 @@ def _make_bare_repl() -> AgentREPL:
     repl = AgentREPL.__new__(AgentREPL)
     ctx = MagicMock()
     ctx.conv.shutdown_requested = False
-    ctx.services_required.llm.stat_partial_completions = 0
     ctx.session.session_id = 1
     ctx.cfg.approval.allowed_root = "/opt/llm"
     ctx.cfg.rag.db_path = "/tmp/opt/llm/db/session.db"
@@ -294,7 +294,6 @@ class TestReplLoop:
     async def test_partial_completion_warning_emitted(self) -> None:
         """write_warning is called when stat_partial_completions increases after handle_turn."""
         repl = _make_bare_repl()
-        repl._ctx.services_required.llm.stat_partial_completions = 0
         repl._ctx.stats.stat_partial_completions = 0
         mock_banner = MagicMock()
 
@@ -312,7 +311,6 @@ class TestReplLoop:
     async def test_no_partial_completion_no_warning(self) -> None:
         """write_warning is NOT called for partial completions when stat unchanged."""
         repl = _make_bare_repl()
-        repl._ctx.services_required.llm.stat_partial_completions = 0
         repl._ctx.stats.stat_partial_completions = 0
         mock_banner = MagicMock()
         with patch("builtins.input", side_effect=["hello", "/exit"]):
@@ -329,6 +327,31 @@ class TestReplLoop:
         mock_banner = MagicMock()
         with patch("builtins.input", side_effect=["hello", "/exit"]):
             await repl._input_loop.run(mock_banner)
+        write_warning_calls = repl._view.write_warning.call_args_list
+        partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
+        assert not partial_warnings
+
+    @pytest.mark.asyncio
+    async def test_dispatch_line_warns_on_partial_increment(self) -> None:
+        """_dispatch_line warns once when the turn increments ctx.stats.stat_partial_completions."""
+        repl = _make_bare_repl()
+        repl._ctx.stats = RuntimeStats()
+
+        def _increment_partial(*_args, **_kwargs):
+            repl._ctx.stats.stat_partial_completions += 1
+
+        repl._orchestrator.handle_turn = AsyncMock(side_effect=_increment_partial)
+        await repl._input_loop._dispatch_line("hello", repl._ctx)
+        write_warning_calls = repl._view.write_warning.call_args_list
+        partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
+        assert len(partial_warnings) == 1
+
+    @pytest.mark.asyncio
+    async def test_dispatch_line_no_warning_without_increment(self) -> None:
+        """_dispatch_line emits no partial warning when the counter is unchanged."""
+        repl = _make_bare_repl()
+        repl._ctx.stats = RuntimeStats()
+        await repl._input_loop._dispatch_line("hello", repl._ctx)
         write_warning_calls = repl._view.write_warning.call_args_list
         partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
         assert not partial_warnings
@@ -491,7 +514,6 @@ class TestPersistSessionDiagnostics:
         ctx.stats.stat_partial_completions = 1
         ctx.session.session_id = 42
         ctx.services = MagicMock()
-        ctx.services_required.llm.stat_partial_completions = 1
         ctx.services_required.llm.stat_parse_errors = 0
         ctx.services_required.llm.stat_heartbeat_timeouts = 0
         ctx.services_required.llm.stat_reconnects = 2
@@ -631,7 +653,6 @@ def _make_repl_for_shutdown() -> AgentREPL:
     repl = AgentREPL.__new__(AgentREPL)
     ctx = MagicMock()
     ctx.conv.shutdown_requested = False
-    ctx.services_required.llm.stat_partial_completions = 0
     repl._ctx = ctx
     view = MagicMock()
     view.read_multiline = AsyncMock(return_value="")

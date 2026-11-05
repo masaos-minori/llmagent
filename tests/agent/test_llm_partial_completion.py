@@ -1,11 +1,17 @@
 """tests/test_llm_partial_completion.py
-Verify partial LLM completions never enter ctx.conv.history.
+Verify partial-completion handling on the live runner path (LLMTurnRunner._handle_llm_error):
+partial output never enters ctx.conv.history, reaches the diagnostic channels, and
+increments the single counter ctx.stats.stat_partial_completions.
 """
 
 from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+
+import pytest
+from agent.context import RuntimeStats
+from agent.llm_turn_runner import LLMTurnRunner
 
 
 def _make_transport_error(
@@ -21,25 +27,6 @@ def _make_transport_error(
     )
 
 
-def _make_ctx(history: list | None = None):
-    """Minimal AgentContext mock for partial completion tests."""
-    if history is None:
-        history = []
-    llm = SimpleNamespace(stat_partial_completions=0)
-    services = SimpleNamespace(llm=llm)
-    session = SimpleNamespace(session_id="test-sess-1")
-    stats = SimpleNamespace(stat_turns=1, stat_partial_completions=0)
-
-    conv = SimpleNamespace(history=history)
-
-    return SimpleNamespace(
-        session=session,
-        stats=stats,
-        services_required=services,
-        conv=conv,
-    )
-
-
 def _make_diagnostic_store():
     ds = MagicMock()
     ds.save = MagicMock()
@@ -47,109 +34,68 @@ def _make_diagnostic_store():
     return ds
 
 
+def _make_ctx(history: list | None = None):
+    """Runner-shaped context: a real RuntimeStats and no services_required.
+
+    The handler must not need the LLM client attribute (REQ-001): a context without
+    `services_required` pins that.
+    """
+    if history is None:
+        history = []
+    return SimpleNamespace(
+        session=SimpleNamespace(session_id="test-sess-1"),
+        stats=RuntimeStats(),
+        conv=SimpleNamespace(history=history),
+        diagnostics=_make_diagnostic_store(),
+    )
+
+
 # ── history invariant ─────────────────────────────────────────────────────────
 
 
-def test_partial_completion_does_not_append_to_history() -> None:
-    from agent.llm_transport_errors import handle_partial_completion
-
+@pytest.mark.asyncio
+async def test_partial_completion_does_not_append_to_history() -> None:
     ctx = _make_ctx(history=[{"role": "user", "content": "hello"}])
     initial_len = len(ctx.conv.history)
     e = _make_transport_error(partial_text="partial output")
-    handle_partial_completion(e, ctx, _make_diagnostic_store())
+    result = await LLMTurnRunner(ctx, MagicMock())._handle_llm_error(e, turn=1)
     assert len(ctx.conv.history) == initial_len
-
-
-def test_partial_completion_empty_history_stays_empty() -> None:
-    from agent.llm_transport_errors import handle_partial_completion
-
-    ctx = _make_ctx(history=[])
-    e = _make_transport_error(partial_text="partial output")
-    handle_partial_completion(e, ctx, _make_diagnostic_store())
-    assert ctx.conv.history == []
+    assert result.action == "fail"
 
 
 # ── diagnostic store ──────────────────────────────────────────────────────────
 
 
-def test_partial_completion_writes_session_diagnostics() -> None:
-    from agent.llm_transport_errors import handle_partial_completion
-
+@pytest.mark.asyncio
+async def test_partial_completion_saved_to_diagnostic_channel() -> None:
     ctx = _make_ctx()
-    ds = _make_diagnostic_store()
     e = _make_transport_error(partial_text="partial output")
-    handle_partial_completion(e, ctx, ds)
-    assert ds.save.called
-    call_args = ds.save.call_args
-    assert "llm_transport_error" in call_args[0][1]
-
-
-def test_partial_completion_calls_save_partial_completion() -> None:
-    from agent.llm_transport_errors import handle_partial_completion
-
-    ctx = _make_ctx()
-    ds = _make_diagnostic_store()
-    e = _make_transport_error(partial_text="partial output")
-    handle_partial_completion(e, ctx, ds)
-    ds.save_partial_completion.assert_called_once()
+    await LLMTurnRunner(ctx, MagicMock())._handle_llm_error(e, turn=1)
+    ctx.diagnostics.save.assert_called_once()
+    call_args = ctx.diagnostics.save.call_args[0]
+    assert call_args[1] == "llm_transport_error"
+    assert call_args[2].endswith("\n[INCOMPLETE: PREMATURE_EOF]")
+    ctx.diagnostics.save_partial_completion.assert_called_once()
 
 
 # ── stat counter ──────────────────────────────────────────────────────────────
 
 
-def test_partial_completion_increments_stat() -> None:
-    from agent.llm_transport_errors import handle_partial_completion
-
+@pytest.mark.asyncio
+async def test_partial_completion_increments_stat() -> None:
     ctx = _make_ctx()
-    before = ctx.services_required.llm.stat_partial_completions
     e = _make_transport_error(partial_text="partial output")
-    handle_partial_completion(e, ctx, _make_diagnostic_store())
-    assert ctx.services_required.llm.stat_partial_completions == before + 1
+    await LLMTurnRunner(ctx, MagicMock())._handle_llm_error(e, turn=1)
+    assert ctx.stats.stat_partial_completions == 1
 
 
 # ── non-partial error ─────────────────────────────────────────────────────────
 
 
-def test_non_partial_error_does_not_modify_history() -> None:
-    from agent.llm_transport_errors import handle_non_partial_error
-
-    ctx = _make_ctx(history=[{"role": "user", "content": "hello"}])
-    initial_len = len(ctx.conv.history)
-    e = _make_transport_error(partial_text="", kind="CONNECT_ERROR")
-    handle_non_partial_error(e, ctx, _make_diagnostic_store())
-    assert len(ctx.conv.history) == initial_len
-
-
-def test_non_partial_error_writes_mid_turn_error() -> None:
-    from agent.llm_transport_errors import handle_non_partial_error
-
+@pytest.mark.asyncio
+async def test_non_partial_error_leaves_stat_at_zero() -> None:
     ctx = _make_ctx()
-    ds = _make_diagnostic_store()
     e = _make_transport_error(partial_text="", kind="CONNECT_ERROR")
-    handle_non_partial_error(e, ctx, ds)
-    ds.save.assert_called_once()
-    call_args = ds.save.call_args
-    assert "mid_turn_error" in call_args[0][1]
-
-
-# ── router ────────────────────────────────────────────────────────────────────
-
-
-def test_handle_llm_transport_error_routes_partial() -> None:
-    from agent.llm_transport_errors import handle_llm_transport_error
-
-    ctx = _make_ctx()
-    e = _make_transport_error(partial_text="some partial text")
-    result = handle_llm_transport_error(e, ctx, _make_diagnostic_store())
-    assert result is True
-    assert ctx.services_required.llm.stat_partial_completions == 1
-
-
-def test_handle_llm_transport_error_routes_non_partial() -> None:
-    from agent.llm_transport_errors import handle_llm_transport_error
-
-    ctx = _make_ctx()
-    ds = _make_diagnostic_store()
-    e = _make_transport_error(partial_text="", kind="CONNECT_ERROR")
-    result = handle_llm_transport_error(e, ctx, ds)
-    assert result is False
+    result = await LLMTurnRunner(ctx, MagicMock())._handle_llm_error(e, turn=1)
+    assert ctx.stats.stat_partial_completions == 0
+    assert result.action == "fail"
