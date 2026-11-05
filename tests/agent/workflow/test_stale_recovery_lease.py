@@ -308,12 +308,17 @@ class TestLegacyFallback:
 
 
 class TestFencingGateAC7:
-    """AC-7 fencing tokens: gated on the wfrecovery001 plan (Pending in plans/done/).
+    """AC-7 fencing tokens: the fence is not yet implemented and is specified by
+    the wfrecovery001 Plan.
 
     `AttemptFencedError` and the finish_attempt fence do not exist until that plan
     lands, so this gate asserts their current absence. The moment the fence appears
     this test fails and forces this file to be flipped into a passing enforcement
-    gate. See implementations/done/20261031-212239_wfrecovery001_recovery-dag.md.
+    gate. See:
+    - issues/done/20261030-105639_wfrecovery001_workflow-recovery-state-machine.md
+    - plans/done/20261030-114041_wfrecovery001_workflow-recovery-state-machine.md
+    - implementations/done/20261101-145309_04_scripts_agent_workflow_attempt_ops.py.md
+    - implementations/done/20261101-163219_12_tests_agent_workflow_test_stale_recovery_lease.py.md
     """
 
     def test_finish_attempt_fence_not_yet_implemented(self) -> None:
