@@ -7,10 +7,10 @@ Low
 ## Scope
 - **In-Scope**: change the heading `## Index (65 modules)` to `## Index` in `tools/TOOL_DESCRIPTIONS.md`.
 - **Out-of-Scope**: reworking the document structure or the other tables; adding a count check to `check_tool_descriptions_sync.py`; a convention for batch-specific tools.
-- **Dependencies**: N/A: none. `issues/20261104-152002_toolcli001_define-cli-and-exit-code-convention.md` also edits this document, so the two changes apply in either order; this Plan is sequenced first because it is a one-line edit.
+- **Dependencies**: N/A: none. the `toolcli001` Plan also edits this document and records a `Depends on` line for this Plan (verified 2026-11-05, checked in Step 3a), so this one-line edit lands first; this Plan depends on none of the other Plans that edit the document.
 
 ## Background
-The heading read `61 modules` while `tools/` held more files, and was corrected by hand to 65. Adversarial verification on 2026-11-05 confirmed that `check_tool_descriptions_sync.py` compares only the set of backticked `*.py` names in the document with `tools/*.py` and checks `tools/<name>.py` and `-m tools.<name>` references in CI, pre-commit, and tox configuration: it has no check of the number (`main` computes `undocumented`, `stale`, and `dangling` only). Earlier implementation procedures also record the count as already stale and left alone.
+The heading read `61 modules` while `tools/` held more files, and was corrected by hand to 65; on 2026-11-05 `tools/` holds 66 non-package modules, so it has drifted again. Adversarial verification on 2026-11-05 confirmed that `check_tool_descriptions_sync.py` compares only the set of backticked `*.py` names in the document with `tools/*.py` and checks `tools/<name>.py` and `-m tools.<name>` references in CI, pre-commit, and tox configuration: it has no check of the number (`main` computes `undocumented`, `stale`, and `dangling` only). Earlier implementation procedures also record the count as already stale and left alone.
 
 ## Problem
 A hand-maintained number in a document that already has a mechanical checker drifts silently, so a clean checker result does not show the document is accurate.
@@ -31,7 +31,7 @@ Remove the number, as the Issue prefers and its AI Implementation Instruction st
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `tools/TOOL_DESCRIPTIONS.md` | Remove the hand-maintained count | Rewrite the heading `## Index (65 modules)` as `## Index` | `REQ-001`, `REQ-003`; AC-1, AC-3 | Heading at the start of the Index table; 65 non-package modules in `tools/` today; no anchor or parser references the heading text (`rg` over rules, skills, templates, prompts, tools, tests, docs found none) (checked in Step 2 and Step 3) | `tests/tools/test_check_tool_descriptions_sync.py` | Verified |
+| `tools/TOOL_DESCRIPTIONS.md` | Remove the hand-maintained count | Rewrite the heading `## Index (65 modules)` as `## Index` | `REQ-001`, `REQ-003`; AC-1, AC-3 | Heading at the start of the Index table; 66 non-package modules in `tools/` on 2026-11-05 after `tools/proc_step_status.py` was added by commit `91c033e32` without a heading update, so the count is stale again while the checker reports `No issues found.` (checked in Step 3a); no anchor or parser references the heading text (`rg` over rules, skills, templates, prompts, tools, tests, docs found none) (checked in Step 2 and Step 3) | `tests/tools/test_check_tool_descriptions_sync.py` | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -64,11 +64,11 @@ Yes: the change is itself the documentation update of `tools/TOOL_DESCRIPTIONS.m
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
 |---|---|---|---|---|---|
-| `tools/TOOL_DESCRIPTIONS.md` | Modify | Low (one heading; the checker reads backticked file names only) | 82 | High (one author across the repository history) | not applicable (rsynced) |
+| `tools/TOOL_DESCRIPTIONS.md` | Modify | Low (one heading; the checker reads backticked file names only) | 83 | High (one author across the repository history) | not applicable (rsynced) |
 
 ## Design
 - Path A (one target file, no interface or schema change). Validation quality baseline: `N/A: no Python target`.
-- Churn on `tools/TOOL_DESCRIPTIONS.md` is the highest in the repository (82 commits in 30 days), so the edit is a single-line change to keep merge conflicts minimal, and it is sequenced before the `toolcli001` edit of the same document.
+- Churn on `tools/TOOL_DESCRIPTIONS.md` is the highest in the repository (83 commits in 30 days), so the edit is a single-line change to keep merge conflicts minimal, and it is sequenced before the `toolcli001` edit of the same document.
 - Consumer scan: not applicable; no persisted schema, public API, or shared constant changes.
 
 ## Implementation steps
@@ -96,8 +96,8 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the module count from the Index heading | Pending | — | — | |
-| 2 | Run the sync checker, its tests, and the reference search | Pending | — | — | |
+| 1 | Remove the module count from the Index heading | In Progress | — | — |  |
+| 2 | Run the sync checker, its tests, and the reference search | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -107,7 +107,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-155758_01_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -124,3 +124,5 @@ N/A: no release unit
 | REQ-001 | Required Changes 1; Implementation Intent; AI Implementation Instruction | `tools/TOOL_DESCRIPTIONS.md` | 1 | AC-1 | Sync checker run | Explicit in issue |
 | REQ-002 | Constraints; Acceptance Criteria 2; `check_tool_descriptions_sync.py` `main` (Step 3) | `tools/TOOL_DESCRIPTIONS.md` | 2 | AC-2 | Checker and its existing tests | Confirmed by repository evidence |
 | REQ-003 | Unresolved Questions; repository search (Step 3) | `tools/TOOL_DESCRIPTIONS.md` | 2 | AC-3 | Reference search | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-155758 -->
