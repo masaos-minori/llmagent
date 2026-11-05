@@ -75,10 +75,10 @@ Make the workflow CLI (`scripts/db/migrate_db.py`) supply the operator's durable
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement steps 1-5 (flag, validation, forwarding, exit mapping, status semantics) | Pending | — | — | |
-| 2 | CLI tests carried by procedure 07 (no tests in this document) | Pending | — | — | |
-| 3 | Operational dependency check (deploy.sh/init_db.sh grep, Plan Phase 8) + `rules/toolchain.md` sequence | Pending | — | — | |
-| 4 | No docs change in this document (docs are carried by doc 09) | Pending | — | — | |
+| 1 | Implement steps 1-5 (flag, validation, forwarding, exit mapping, status semantics) | Completed | 20261105-211702 | 20261105-211848 | deploy/init_db.sh hint strings updated to name --archive-dir (echo-only, not an invocation); tests/deploy/test_init_db_ledger_gate.py substring assertion still satisfied |
+| 2 | CLI tests carried by procedure 07 (no tests in this document) | Completed | — | 20261105-211848 | CLI tests carried by procedure 07; 6 known-failing assertions in tests/db/test_migrations_workflow.py are procedure 07 anchors |
+| 3 | Operational dependency check (deploy.sh/init_db.sh grep, Plan Phase 8) + `rules/toolchain.md` sequence | Completed | — | 20261105-211848 | Plan Phase 8 check: only invoke-like reference is an echo hint in deploy/init_db.sh L115 (no live --apply invocation in deploy scripts); ruff/mypy/module-size green |
+| 4 | No docs change in this document (docs are carried by doc 09) | Completed | — | 20261105-211848 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
