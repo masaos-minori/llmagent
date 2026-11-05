@@ -586,13 +586,15 @@ class TestRecoverCorruption:
 
         mock_cursor = MagicMock()
         # DB check (corrupt), backup check (ok), domain-identity check
-        # (required table present), post-restore re-verification (ok).
+        # (required table present), candidate check (pre-activation, ok),
+        # post-restore re-verification (ok).
         # _run_logical_verification() is bypassed below since it isn't
         # this test's concern (covered by tests/db/test_db_recovery.py).
         mock_cursor.fetchone.side_effect = [
             ("corrupt",),
             ("ok",),
             ("documents",),
+            ("ok",),
             ("ok",),
         ]
         mock_db = MagicMock()
@@ -686,8 +688,15 @@ class TestRecoverCorruption:
         from unittest.mock import MagicMock, patch
 
         mock_cursor = MagicMock()
-        # DB check (corrupt), backup check (ok), post-restore check (corrupt)
-        mock_cursor.fetchone.side_effect = [("corrupt",), ("ok",), ("corrupt",)]
+        # DB check (corrupt), backup check (ok), domain-identity check (table present),
+        # candidate check (pre-activation, ok), post-restore re-check (corrupt) -> rollback.
+        mock_cursor.fetchone.side_effect = [
+            ("corrupt",),
+            ("ok",),
+            ("documents",),
+            ("ok",),
+            ("corrupt",),
+        ]
         mock_db = MagicMock()
         mock_db.execute.return_value = mock_cursor
 
@@ -705,10 +714,17 @@ class TestRecoverCorruption:
 
         with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
-            result = recover_corruption(backup_path=str(backup_file))
+            # Stubbed: the physical-branch contract is what this test exercises;
+            # the unstubbed verification would fail closed on the mock files (seq 03).
+            with patch(
+                "db.recovery._run_logical_verification", return_value=(True, None)
+            ):
+                result = recover_corruption(backup_path=str(backup_file))
 
         assert result.success is False
         assert result.action == "restore_verify_failed"
+        assert result.logical_ok is False
+        assert result.active_db_state == "preserved_original"
 
     def test_unknown_condition_preserves_db_and_does_not_restore(
         self, monkeypatch: pytest.MonkeyPatch

@@ -1144,7 +1144,9 @@ class TestVerificationStatusContract:
         assert report.schema_unverified is False
         assert is_consistent(report) is True
 
-    def test_zero_counts_never_aggregate_an_unverified_dimension_as_healthy(self) -> None:
+    def test_zero_counts_never_aggregate_an_unverified_dimension_as_healthy(
+        self,
+    ) -> None:
         """AC-002: an unverified dimension makes the report inconsistent at all-zero counts."""
         for flag in ("fk_unverified", "embedding_unverified", "schema_unverified"):
             assert is_consistent(self._clean_report(**{flag: True})) is False

@@ -62,12 +62,15 @@ def test_recover_corrupt_rag_restores(mock_db_cfg, mock_sqlite_helper):
         mock_integrity.side_effect = [
             (DbCondition.CORRUPTION, "corruption error"),  # For DB
             (DbCondition.HEALTHY, None),  # For Backup
+            (DbCondition.HEALTHY, None),  # Candidate check (pre-activation)
             (DbCondition.HEALTHY, None),  # Post-restore re-verification
         ]
 
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
+            patch("shutil.move"),
+            patch("pathlib.Path.unlink"),
             patch("os.replace"),
             patch(
                 "db.recovery._run_logical_verification",
@@ -78,6 +81,8 @@ def test_recover_corrupt_rag_restores(mock_db_cfg, mock_sqlite_helper):
 
             assert result.success is True
             assert result.action == "restored"
+            assert result.logical_ok is True
+            assert result.active_db_state == "restored"
 
 
 def test_recover_corrupt_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
@@ -268,12 +273,17 @@ def test_recover_restore_verify_failed(mock_db_cfg, mock_sqlite_helper):
         mock_integrity.side_effect = [
             (DbCondition.CORRUPTION, "corruption error"),  # current DB
             (DbCondition.HEALTHY, None),  # backup
-            (DbCondition.CORRUPTION, "still corrupt"),  # post-restore re-check
+            (
+                DbCondition.CORRUPTION,
+                "still corrupt",
+            ),  # candidate check (pre-activation)
         ]
 
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
+            patch("shutil.move"),
+            patch("pathlib.Path.unlink"),
             patch("os.replace"),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
@@ -329,10 +339,11 @@ def test_recover_unknown_preserved_operator_intervention_required(
 
 
 def _mock_restore_side_effect():
-    """Return side_effect list for restore path: DB corruption → backup healthy → post-restore healthy."""
+    """Return side_effect list for restore path: DB corruption -> backup healthy -> candidate healthy -> post-restore healthy."""
     return [
         (DbCondition.CORRUPTION, "corruption error"),  # current DB
         (DbCondition.HEALTHY, None),  # backup
+        (DbCondition.HEALTHY, None),  # candidate check (pre-activation)
         (DbCondition.HEALTHY, None),  # post-restore re-check
     ]
 
@@ -357,6 +368,8 @@ def test_recover_rag_fts_gap(mock_db_cfg, mock_sqlite_helper):
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
+            patch("shutil.move"),
+            patch("pathlib.Path.unlink"),
             patch("os.replace"),
             patch(
                 "db.recovery_verification.check_rag_consistency",
@@ -367,7 +380,8 @@ def test_recover_rag_fts_gap(mock_db_cfg, mock_sqlite_helper):
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
-            assert result.logical_ok is not True
+            assert result.logical_ok is False
+            assert result.active_db_state == "preserved_original"
 
 
 def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
@@ -390,6 +404,8 @@ def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
+            patch("shutil.move"),
+            patch("pathlib.Path.unlink"),
             patch("os.replace"),
             patch(
                 "db.recovery_verification.check_rag_consistency",
@@ -400,7 +416,8 @@ def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
-            assert result.logical_ok is not True
+            assert result.logical_ok is False
+            assert result.active_db_state == "preserved_original"
 
 
 def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
@@ -423,6 +440,8 @@ def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
+            patch("shutil.move"),
+            patch("pathlib.Path.unlink"),
             patch("os.replace"),
             patch(
                 "db.recovery_verification.check_rag_consistency",
@@ -433,7 +452,8 @@ def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
-            assert result.logical_ok is not True
+            assert result.logical_ok is False
+            assert result.active_db_state == "preserved_original"
 
 
 def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
@@ -456,6 +476,8 @@ def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
+            patch("shutil.move"),
+            patch("pathlib.Path.unlink"),
             patch("os.replace"),
             patch(
                 "db.recovery_verification.check_rag_consistency",
@@ -466,7 +488,8 @@ def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
-            assert result.logical_ok is not True
+            assert result.logical_ok is False
+            assert result.active_db_state == "preserved_original"
 
 
 def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
@@ -490,6 +513,8 @@ def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
+            patch("shutil.move"),
+            patch("pathlib.Path.unlink"),
             patch("os.replace"),
             patch(
                 "db.recovery_verification.check_rag_consistency",
@@ -500,7 +525,8 @@ def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
-            assert result.logical_ok is not True
+            assert result.logical_ok is False
+            assert result.active_db_state == "preserved_original"
 
 
 # --- _classify_error() direct unit tests ---
@@ -655,9 +681,9 @@ from db.recovery_restore import (
 def test_quarantine_sidecar_files():
     """Stale -wal/-shm files present before restore should be quarantined."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test.db"
-        wal_path = Path(tmpdir) / "test-wal"
-        shm_path = Path(tmpdir) / "test-shm"
+        db_path = Path(tmpdir) / "test.sqlite"
+        wal_path = db_path.parent / f"{db_path.name}-wal"
+        shm_path = db_path.parent / f"{db_path.name}-shm"
 
         # Create dummy files
         db_path.write_bytes(b"\x00" * 100)
@@ -679,9 +705,9 @@ def test_quarantine_sidecar_files():
         assert not wal_path.exists()
         assert not shm_path.exists()
 
-        # Quarantined copies should exist
-        assert len(list(quarantine_dir.glob("test-wal_corrupt_*"))) == 1
-        assert len(list(quarantine_dir.glob("test-shm_corrupt_*"))) == 1
+        # Quarantined copies should exist under the full-filename form
+        assert len(list(quarantine_dir.glob("test.sqlite-wal_corrupt_*"))) == 1
+        assert len(list(quarantine_dir.glob("test.sqlite-shm_corrupt_*"))) == 1
 
         shutil.rmtree(quarantine_dir, ignore_errors=True)
 
@@ -689,9 +715,9 @@ def test_quarantine_sidecar_files():
 def test_stage_backup_sidecars():
     """Backup -wal/-shm sidecars should be staged alongside temp_restore."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        backup_path = Path(tmpdir) / "backup.db"
-        backup_wal = Path(tmpdir) / "backup-wal"
-        backup_shm = Path(tmpdir) / "backup-shm"
+        backup_path = Path(tmpdir) / "backup.sqlite"
+        backup_wal = backup_path.parent / f"{backup_path.name}-wal"
+        backup_shm = backup_path.parent / f"{backup_path.name}-shm"
         temp_restore_parent = Path(tmpdir) / "restore_target"
         temp_restore_parent.mkdir()
 
@@ -711,19 +737,58 @@ def test_stage_backup_sidecars():
         assert "-wal" in staged
         assert "-shm" in staged
 
-        # Staged sidecars should exist at destination
+        # Staged sidecars should exist at destination with full-filename names
         assert staged["-wal"].exists()
         assert staged["-shm"].exists()
-        assert staged["-wal"].name == "backup-wal"
-        assert staged["-shm"].name == "backup-shm"
+        assert staged["-wal"].name == "backup.sqlite-wal"
+        assert staged["-shm"].name == "backup.sqlite-shm"
+
+
+def test_quarantine_sidecar_files_raises_on_copy_failure():
+    """Fail-closed (REQ-002): a quarantine copy failure raises instead of skipping the sidecar."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.sqlite"
+        wal_path = db_path.parent / f"{db_path.name}-wal"
+        db_path.write_bytes(b"\x00" * 100)
+        wal_path.write_text("STALE_WAL_CONTENT")
+        quarantine_dir = db_path.parent / "quarantine"
+        quarantine_dir.mkdir()
+
+        with patch(
+            "db.recovery_restore.shutil.copy2", side_effect=OSError("copy failed")
+        ):
+            with pytest.raises(OSError):
+                _quarantine_sidecar_files(db_path, quarantine_dir)
+
+        # The sidecar stays in place: no silent removal without a quarantined copy.
+        assert wal_path.exists()
+
+
+def test_stage_backup_sidecars_raises_on_copy_failure():
+    """Fail-closed (REQ-002): a staging copy failure raises instead of staging a partial unit."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        backup_path = Path(tmpdir) / "backup.sqlite"
+        backup_wal = backup_path.parent / f"{backup_path.name}-wal"
+        backup_path.write_bytes(b"\x00" * 100)
+        backup_wal.write_text("BACKUP_WAL_CONTENT")
+        staged_dir = Path(tmpdir) / "staged"
+        staged_dir.mkdir()
+
+        with patch(
+            "db.recovery_restore.shutil.copy2", side_effect=OSError("copy failed")
+        ):
+            with pytest.raises(OSError):
+                _stage_backup_sidecars(backup_path, staged_dir)
+
+        assert not any(staged_dir.iterdir())
 
 
 def test_restore_with_stale_wal_shm_before_swap(mock_db_cfg, mock_sqlite_helper):
     """Stale -wal/-shm files present before restore should be quarantined and not affect restore."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test.db"
-        wal_path = Path(tmpdir) / "test-wal"
-        shm_path = Path(tmpdir) / "test-shm"
+        db_path = Path(tmpdir) / "test.sqlite"
+        wal_path = db_path.parent / f"{db_path.name}-wal"
+        shm_path = db_path.parent / f"{db_path.name}-shm"
 
         # Create dummy files
         db_path.write_bytes(b"\x00" * 100)
@@ -735,7 +800,7 @@ def test_restore_with_stale_wal_shm_before_swap(mock_db_cfg, mock_sqlite_helper)
         assert shm_path.exists()
 
         # Create a valid backup (SQLite header for health check)
-        backup_path = Path(tmpdir) / "backup.db"
+        backup_path = Path(tmpdir) / "backup.sqlite"
         backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
 
         with (
@@ -748,12 +813,15 @@ def test_restore_with_stale_wal_shm_before_swap(mock_db_cfg, mock_sqlite_helper)
         ):
             mock_integrity.side_effect = [
                 (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate check (pre-activation)
                 (DbCondition.HEALTHY, None),  # post-restore re-check
             ]
             result = _restore_from_backup(db_path, str(backup_path), target="rag")
 
         assert result.success is True
         assert result.action == "restored"
+        assert result.logical_ok is True
+        assert result.active_db_state == "restored"
 
         # Stale sidecars should be removed from original location
         assert not wal_path.exists()
@@ -769,9 +837,9 @@ def test_restore_with_backup_wal_shm_sidecars(mock_db_cfg, mock_sqlite_helper):
     with tempfile.TemporaryDirectory() as tmpdir:
         db_dir = Path(tmpdir) / "db_dir"
         db_dir.mkdir()
-        db_path = db_dir / "test.db"
-        wal_path = db_dir / "test-wal"
-        shm_path = db_dir / "test-shm"
+        db_path = db_dir / "test.sqlite"
+        wal_path = db_dir / "test.sqlite-wal"
+        shm_path = db_dir / "test.sqlite-shm"
 
         # Create stale sidecars on db_path
         db_path.write_bytes(b"\x00" * 100)
@@ -781,9 +849,9 @@ def test_restore_with_backup_wal_shm_sidecars(mock_db_cfg, mock_sqlite_helper):
         # Backup with its own WAL/SHM in a separate directory
         backup_dir = Path(tmpdir) / "backup_dir"
         backup_dir.mkdir()
-        backup_path = backup_dir / "backup.db"
-        backup_wal = backup_dir / "backup-wal"
-        backup_shm = backup_dir / "backup-shm"
+        backup_path = backup_dir / "backup.sqlite"
+        backup_wal = backup_dir / "backup.sqlite-wal"
+        backup_shm = backup_dir / "backup.sqlite-shm"
 
         backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
         backup_wal.write_text("BACKUP_WAL_CONTENT")
@@ -805,20 +873,192 @@ def test_restore_with_backup_wal_shm_sidecars(mock_db_cfg, mock_sqlite_helper):
         ):
             mock_integrity.side_effect = [
                 (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate check (pre-activation)
                 (DbCondition.HEALTHY, None),  # post-restore re-check
             ]
             result = _restore_from_backup(db_path, str(backup_path), target="rag")
 
         assert result.success is True
         assert result.action == "restored"
+        assert result.logical_ok is True
+        assert result.active_db_state == "restored"
 
         # Restored DB should have WAL/SHM sidecars from backup
-        restored_wal = db_dir / "test-wal"
-        restored_shm = db_dir / "test-shm"
+        restored_wal = db_dir / "test.sqlite-wal"
+        restored_shm = db_dir / "test.sqlite-shm"
         assert restored_wal.exists(), "Restored WAL sidecar should exist"
         assert restored_shm.exists(), "Restored SHM sidecar should exist"
         assert restored_wal.read_text() == "BACKUP_WAL_CONTENT"
         assert restored_shm.read_text() == "BACKUP_SHM_CONTENT"
+
+
+def test_unverified_candidate_is_never_activated(mock_db_cfg, mock_sqlite_helper):
+    """Verify-before-activate (REQ-003): a failing candidate never touches the live DB."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.sqlite"
+        original_bytes = b"CORRUPT ORIGINAL CONTENT"
+        db_path.write_bytes(original_bytes)
+        backup_path = Path(tmpdir) / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification") as mock_logical,
+            patch("os.replace") as mock_replace,
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (
+                    DbCondition.CORRUPTION,
+                    "candidate is corrupt",
+                ),  # candidate (pre-activation)
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "restore_verify_failed"
+        assert result.logical_ok is False
+        assert result.active_db_state == "preserved_original"
+        # The swap never ran and the live bytes are byte-identical.
+        mock_replace.assert_not_called()
+        mock_logical.assert_not_called()
+        assert db_path.read_bytes() == original_bytes
+        # Staged candidate files are cleaned up; the corrupt archive stays for forensics.
+        assert not list(Path(tmpdir).glob("*.tmp_*"))
+        assert list(Path(tmpdir).glob("test_corrupt_*"))
+
+
+def test_post_activation_failure_rolls_back_the_original(
+    mock_db_cfg, mock_sqlite_helper
+):
+    """REQ-004: a failed post-activation re-check puts the archived original back."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.sqlite"
+        original_bytes = b"CORRUPT ORIGINAL CONTENT"
+        db_path.write_bytes(original_bytes)
+        backup_path = Path(tmpdir) / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+                (DbCondition.CORRUPTION, "post-activation check failed"),  # re-check
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "restore_verify_failed"
+        assert result.logical_ok is False
+        assert result.active_db_state == "preserved_original"
+        # Real os.replace ran: activation swapped in the candidate, rollback swapped
+        # the archived original back, so the live path holds the original bytes.
+        assert db_path.read_bytes() == original_bytes
+        assert not list(Path(tmpdir).glob("test_corrupt_*"))
+
+
+def test_failed_rollback_reports_non_serviceable(mock_db_cfg, mock_sqlite_helper):
+    """AC-004: when the rollback itself fails, the result reports rollback_failed / non_serviceable."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.sqlite"
+        db_path.write_bytes(b"CORRUPT ORIGINAL CONTENT")
+        backup_path = Path(tmpdir) / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+            patch(
+                "os.replace",
+                side_effect=[None, OSError("rollback replace failed")],
+            ) as mock_replace,
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+                (DbCondition.CORRUPTION, "post-activation check failed"),  # re-check
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "rollback_failed"
+        assert result.logical_ok is False
+        assert result.active_db_state == "non_serviceable"
+        # First replace activated the candidate, the second (rollback) failed.
+        assert mock_replace.call_count == 2
+
+
+def test_os_error_after_activation_with_failed_rollback_reports_non_serviceable(
+    mock_db_cfg, mock_sqlite_helper
+) -> None:
+    """REQ-002/AC-004: an OSError after activation whose rollback also fails is reported."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.sqlite"
+        db_path.write_bytes(b"CORRUPT ORIGINAL CONTENT")
+        backup_path = Path(tmpdir) / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+            # Activation's os.replace succeeds; the handler's rollback replace fails.
+            patch("os.replace", side_effect=[None, OSError("rollback replace failed")]),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+                OSError("disk I/O failure in the post-activation re-check"),
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "error"
+        assert result.active_db_state == "non_serviceable"
+
+
+def test_wal_shm_sidecars_land_at_final_locations_after_activation(
+    mock_db_cfg, mock_sqlite_helper
+) -> None:
+    """WAL integration: a successful restore lands sidecars at <db>.sqlite-wal / -shm."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_dir = Path(tmpdir) / "db_dir"
+        db_dir.mkdir()
+        db_path = db_dir / "test.sqlite"
+        db_path.write_bytes(b"CORRUPT ORIGINAL CONTENT")
+        (db_dir / "test.sqlite-wal").write_text("STALE_WAL_CONTENT")
+        (db_dir / "test.sqlite-shm").write_text("STALE_SHM_CONTENT")
+
+        backup_dir = Path(tmpdir) / "backup_dir"
+        backup_dir.mkdir()
+        backup_path = backup_dir / "backup.sqlite"
+        backup_bytes = b"SQLite format 3\x00" + b"\x00" * 99
+        backup_path.write_bytes(backup_bytes)
+        (backup_dir / "backup.sqlite-wal").write_text("BACKUP_WAL_CONTENT")
+        (backup_dir / "backup.sqlite-shm").write_text("BACKUP_SHM_CONTENT")
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+                (DbCondition.HEALTHY, None),  # post-activation re-check
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is True
+        assert result.action == "restored"
+        assert result.active_db_state == "restored"
+        # Real activation: the live DB holds the candidate bytes...
+        assert db_path.read_bytes() == backup_bytes
+        # ...and the sidecars end at their full-filename locations.
+        assert (db_dir / "test.sqlite-wal").read_text() == "BACKUP_WAL_CONTENT"
+        assert (db_dir / "test.sqlite-shm").read_text() == "BACKUP_SHM_CONTENT"
+        assert not list(db_dir.glob("*_sidecar_quarantine_*"))
 
 
 # --- Characterization tests for the recovery internals the suite left uncovered ---
@@ -1071,18 +1311,35 @@ class TestLogicalVerificationDetailCharacterization:
             None,
         )
 
-    def test_an_unopenable_database_is_treated_as_consistent(
+    def test_unknown_mandatory_target_fails_closed(self) -> None:
+        # A mandatory domain with no registered verifier is a hard failure (seq 03);
+        # a non-mandatory unknown target keeps the skip result.
+        with patch("db.recovery_verification._LOGICAL_VERIFIERS", {}):
+            assert _run_logical_verification(Path("/tmp/rag.db"), "rag") == (
+                False,
+                "verification_unavailable",
+            )
+            assert _run_logical_verification(Path("/tmp/session.db"), "session") == (
+                False,
+                "verification_unavailable",
+            )
+            assert _run_logical_verification(Path("/tmp/workflow.db"), "workflow") == (
+                True,
+                None,
+            )
+
+    def test_an_unopenable_database_fails_closed(
         self, mock_recovery_db, caplog
     ) -> None:
-        with caplog.at_level(logging.WARNING, logger="db.recovery_verification"):
+        with caplog.at_level(logging.ERROR, logger="db.recovery_verification"):
             with patch(
                 "db.recovery_verification.check_rag_consistency",
                 side_effect=_sqlite3.OperationalError("no such table: chunks"),
             ):
                 ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
 
-        assert (ok, detail) == (True, None)
-        # The tolerated gap is logged: silent tolerance would hide a verification gap.
+        # Fail-closed (seq 03): an unverifiable mandatory target is a failure, not a tolerated gap.
+        assert (ok, detail) == (False, "verification_unavailable")
         assert any("could not open DB" in msg for msg in caplog.messages)
 
 
@@ -1164,6 +1421,9 @@ class TestRestoreGuardCharacterization:
                 return_value=(DbCondition.HEALTHY, None),
             ),
             patch("db.recovery._verify_domain_identity", return_value=(True, None)),
+            # Stubbed so the flow reaches the swap: after seq 03 the unopenable
+            # fixture files would fail closed at candidate verification first.
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
             patch("os.replace", side_effect=OSError("rename failed")),
         ):
             result = _restore_from_backup(db_path, backup, target="rag")

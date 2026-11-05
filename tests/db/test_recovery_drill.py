@@ -360,6 +360,45 @@ def test_rag_unverified_dimension_fails_drill(
     assert art["verification"]["rag_consistency"] is False
 
 
+def test_rag_broken_fts_fixture_fails_drill(
+    _domain_dbs: dict[str, Path],
+    tmp_path: Path,
+) -> None:
+    """A real rag fixture with core tables present but a broken FTS relationship
+    must surface as rag_consistency False: the drill does not report a clean pass
+    for an unusable restored copy."""
+    paths = _domain_dbs
+    conn = _connect(paths["rag"])
+    try:
+        conn.execute("INSERT INTO documents (url) VALUES ('https://example.com/1')")
+        cur = conn.execute(
+            "INSERT INTO chunks (doc_id, content) VALUES (1, 'broken fts row')"
+        )
+        chunk_id = cur.lastrowid
+        conn.execute(
+            "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
+            (chunk_id, bytes(1024 * 4)),
+        )
+        # Simulate a broken trigger: remove the FTS entry without touching chunks.
+        conn.execute(
+            "INSERT INTO chunks_fts (chunks_fts, rowid, content) VALUES ('delete', ?, ?)",
+            (chunk_id, "broken fts row"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    cfg = _config(paths)
+    archive = tmp_path / "archive"
+    drill = tmp_path / "drills"
+    with patch("db.recovery_drill.build_db_config", return_value=cfg):
+        assert run_drill("rag", str(archive), str(drill)) is False
+    (art,) = _load_artifacts(drill)
+    assert art["verification"]["rag_consistency"] is False
+    # The core table is present: the failure is the consistency layer, not identity.
+    assert art["verification"]["required_table_rag"] is True
+
+
 # ── Audited failure ──────────────────────────────────────────────────────────
 
 
