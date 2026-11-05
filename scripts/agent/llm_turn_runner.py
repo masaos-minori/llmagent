@@ -236,7 +236,7 @@ class LLMTurnRunner:
                         ctx.session.session_id,
                         exc_info=True,
                     )
-            ctx.services_required.llm.stat_partial_completions += 1
+            ctx.stats.stat_partial_completions += 1
             logger.warning("Partial LLM completion saved: %s", e.kind)
         elif ctx.diagnostics is not None:
             try:

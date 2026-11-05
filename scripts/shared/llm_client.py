@@ -79,7 +79,6 @@ class LLMClient:
         self.stat_heartbeat_timeouts: int = 0
 
         self.stat_parse_errors: int = 0
-        self.stat_partial_completions: int = 0
 
     def apply_config(
         self,
