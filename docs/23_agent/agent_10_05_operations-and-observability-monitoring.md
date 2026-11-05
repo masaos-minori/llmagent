@@ -67,7 +67,7 @@ In addition to `session_summary` and `mid_turn_error`, the following `kind` valu
 
 | Kind | Source | Content |
 |---|---|---|
-| `partial_completion` | `handle_partial_completion` | Turn number, reason, and partial text length for turns where the LLM stream ended partially |
+| `partial_completion` | `scripts/agent/llm_turn_runner.py::_handle_llm_error` | Turn number, reason, and partial text length for turns where the LLM stream ended partially |
 | `llm_transport_error` | Session Management | The partial completion text itself, or generic transport error details |
 | `guard_hint` | Tool Loop Guard Function | Hints emitted when tool loop guards (cycle detection, duplicate threshold exceeded) trigger |
 | `transport_failure` | Tool Runner | Transport layer failure during tool execution (tool name, server_key, error details) |

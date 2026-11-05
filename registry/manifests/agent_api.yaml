@@ -332,21 +332,6 @@ entries:
   signature: class StartSuppressedError
   summary: Raised when a start is refused because the lifecycle router is shutting
     down.
-- file: scripts/agent/llm_transport_errors.py
-  kind: function
-  name: handle_llm_transport_error
-  signature: def handle_llm_transport_error(e, ctx, diagnostic_store) -> bool
-  summary: 'Handle LLM transport error: partial or non-partial.'
-- file: scripts/agent/llm_transport_errors.py
-  kind: function
-  name: handle_partial_completion
-  signature: def handle_partial_completion(e, ctx, diagnostic_store) -> None
-  summary: Save partial text to diagnostic channel only.
-- file: scripts/agent/llm_transport_errors.py
-  kind: function
-  name: handle_non_partial_error
-  signature: def handle_non_partial_error(e, ctx, diagnostic_store) -> None
-  summary: Save non-partial error to diagnostic channel and log.
 - file: scripts/agent/llm_turn_executor.py
   kind: class
   name: LlmTurnExecutor
