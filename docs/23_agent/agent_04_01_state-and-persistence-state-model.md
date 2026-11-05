@@ -31,7 +31,7 @@ Documents the relationship between session persistence and conversation history 
 
 ### Session Persistence Design Intent
 
-`AgentSession` manages the session and message tables in `session.sqlite`. A session row is created at REPL start, each turn's messages are appended, `/session load <id>` reconstructs `ctx.conv.history` from stored messages, and `/session delete <id>` removes the session together with its messages (cascade).
+`AgentSession` manages the session and message tables in `session.sqlite`. A session row is created at REPL start, each turn's messages are appended, `/session load <id>` reconstructs `ctx.conv.history` from stored messages, and `/session delete <id>` removes the session together with its messages (cascade). `/session load` keeps the conversation summary of a compressed session: one canonical summary row, recognized by a shared constant, is restored after the current prompt, while every other persisted system row is still dropped.
 
 `session_id` is mutable on restore: `/session load` (`restore_session()`) reassigns the live session's `session_id`, and the message repository rebuilds to the new id on next use, so post-restore turns are attributed to the restored session. Skipped-save counters belong to the live repository instance.
 
@@ -96,6 +96,25 @@ replace_history(paired)   # memory-only; DB row count unchanged
 - **Undo floor preserved.** The compression boundary index accounts for synthesized rows inserted before it, so `undo_last_turn()` still lands on the correct turn and messages at or before the boundary are never deleted.
 
 Load-time repair is a distinct, failure-triggered path; it does not change the semantics of `/undo` or of the save rules above.
+
+### Restored Rows on Load
+
+`/session load` rebuilds `ctx.conv.history` from stored messages as
+[current system prompt, canonical summary row?, ...non-system rows]:
+
+- **Current system prompt.** The live prompt replaces any persisted prompt row.
+- **Canonical summary row.** Exactly one persisted system row whose content starts
+  with the shared `CONVERSATION_SUMMARY_PREFIX` (`"[Conversation summary]"`) is
+  restored immediately after the current prompt, rebuilt with only `role` and
+  `content`. When several summary-shaped rows are persisted, only the most recent
+  is kept and a warning names the dropped count. Recognition: `is_conversation_summary()`.
+- **Non-system rows.** Every user, assistant, and tool row is restored.
+- **Other persisted system rows are dropped.** Only the owner-assigned current
+  prompt is trusted; any other persisted system row cannot become an instruction
+  (untrusted restore). This is the behavior the Plan preserves.
+
+Ephemeral system rows (`_ephemeral` / `_memory_injected`) are not persisted, so they
+are never restored; see [agent_04_02](agent_04_02_state-and-persistence-history-compression.md).
 
 ### Relationship Between Conversation History and Database
 

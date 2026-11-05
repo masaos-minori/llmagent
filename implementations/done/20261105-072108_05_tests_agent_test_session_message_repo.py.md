@@ -104,10 +104,10 @@ def test_replace_messages_all_ephemeral_persists_nothing(self) -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-135612 | 20261105-140654 | red demo on HEAD worktree (2 failed, 67 passed pre-change); added 2 tests to TestReplaceMessages |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-140654 | this row 69 targeted passed after change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-140654 | full suite 11549 passed; diff-cover 100% incl. unit members |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-140654 | N/A: no test-file docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

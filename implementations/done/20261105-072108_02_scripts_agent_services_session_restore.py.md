@@ -35,21 +35,29 @@ In `restore_session`, restore exactly one canonical conversation-summary row rig
 from agent.history import is_conversation_summary
 ```
 ```python
-# inside restore_session, system_prompt set branch:
-summary_rows = [m for m in repaired if is_conversation_summary(m)]
-restored_summary = summary_rows[-1] if summary_rows else None
-if len(summary_rows) > 1:
-    logger.warning(
-        "Session %s dropped %d extra summary row(s); kept the most recent",
-        session_id,
-        len(summary_rows) - 1,
+# module-level helper (keeps restore_session at radon grade B, Plan mitigation):
+def _restored_summary_msgs(
+    repaired: list[LLMMessage], session_id: int
+) -> list[LLMMessage]:
+    summary_rows = [m for m in repaired if is_conversation_summary(m)]
+    if len(summary_rows) > 1:
+        logger.warning(
+            "Session %s dropped %d extra summary row(s); kept the most recent",
+            session_id,
+            len(summary_rows) - 1,
+        )
+    return (
+        [{"role": "system", "content": summary_rows[-1]["content"]}]
+        if summary_rows
+        else []
     )
+```
+```python
+# inside restore_session, system_prompt set branch:
 non_system = [m for m in repaired if m["role"] != "system"]
-if restored_summary is not None:
-    rebuilt = {"role": "system", "content": restored_summary["content"]}
-    await ctx.conv.replace_history(system_msgs + [rebuilt] + non_system)
-else:
-    await ctx.conv.replace_history(system_msgs + non_system)
+await ctx.conv.replace_history(
+    system_msgs + _restored_summary_msgs(repaired, session_id) + non_system
+)
 ```
 ```python
 # _boundary_to_index:
@@ -82,7 +90,7 @@ system_count = sum(
 
 - `uv run pytest tests/agent/test_session_restore.py -v` — new summary-restored, forged-row, multi-summary, undo-boundary, and idempotency tests (Row 04) fail before and pass after; existing restore tests pass unchanged.
 - Static: `uv run ruff format`, `uv run ruff check`, `uv run mypy --no-namespace-packages scripts/`.
-- Baseline grade: `restore_session` must stay at grade B (`radon cc`); the summary selection lives in the inline block without introducing a new nested function that raises the grade.
+- Baseline grade: `restore_session` must stay at grade B (`radon cc`); the summary selection lives in the module-level helper `_restored_summary_msgs()` (Plan mitigation line: "selection goes into a helper and the grade stays B") — an inline block with the canonical-rebuild ternary pushed `restore_session` to C (11) in the cycle measurement, so the helper form is the one applied.
 
 ## Completion criteria
 
@@ -97,10 +105,10 @@ system_count = sum(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | release unit summary-persist-restore |
-| 2 | Add or update tests per Validation plan | Pending | — | — | covered by Row 04 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | load behavior in Row 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-132959 | 20261105-133108 | release unit summary-persist-restore helper _restored_summary_msgs; changed session_restore.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-133108 | covered by Row 04 N/A: no test change needed; covered by Row 04; existing tests/agent/test_session_restore.py 23 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-133108 | 20261105-140654 | unit end full-suite run pending (release unit) unit-end diff-cover 82%: missing lines 146 (session_restore) / 174,182 (session_message_repo) are new branches first tested by Row 04-06; gate re-evaluated at those cycles' full-suite runs before archival unit gate passed at Row 05 full-suite run (diff-cover 100%) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-133108 | load behavior in Row 08 N/A: load-behavior docs are Row 08 target |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

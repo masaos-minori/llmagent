@@ -28,7 +28,19 @@ from agent.history_selection_policy import (
 
 logger = logging.getLogger(__name__)
 
-_SUMMARY_PREFIX = "[Conversation summary]"
+CONVERSATION_SUMMARY_PREFIX = "[Conversation summary]"
+
+
+def is_conversation_summary(message: LLMMessage) -> bool:
+    """Return True when *message* is a canonical conversation-summary row.
+
+    A summary row has role ``system`` and content that starts with
+    CONVERSATION_SUMMARY_PREFIX; this is the single shape rule shared by
+    compression and restore.
+    """
+    return message.get("role") == "system" and str(
+        message.get("content") or ""
+    ).startswith(CONVERSATION_SUMMARY_PREFIX)
 
 
 class HistoryCompressionError(RuntimeError):
@@ -52,7 +64,7 @@ class HistoryManager:
 
     When the total character count exceeds char_limit, whole turn units are
     selected for compression in chronological order and the oldest are
-    summarised into exactly one [Conversation summary] system message that
+    summarised into exactly one conversation-summary system message that
     replaces any previous summary. Fallback truncation drops whole turn units
     (never splitting one) to bring context under the limit.
 
@@ -236,15 +248,16 @@ class HistoryManager:
     ) -> tuple[list[LLMMessage], list[str]]:
         """Split system messages into preserved rows and prior summary texts.
 
-        Summary rows (content starting with _SUMMARY_PREFIX) are removed from the
-        returned history and handed back as texts in input order, so several legacy
-        summary rows collapse into one condensed block for the model.
+        Summary rows (content starting with CONVERSATION_SUMMARY_PREFIX) are
+        removed from the returned history and handed back as texts in input
+        order, so several legacy summary rows collapse into one condensed
+        block for the model.
         """
         preserved: list[LLMMessage] = []
         prior: list[str] = []
         for msg in system_msgs:
             content = str(msg.get("content") or "")
-            if content.startswith(_SUMMARY_PREFIX):
+            if is_conversation_summary(msg):
                 prior.append(content)
             else:
                 preserved.append(msg)
@@ -258,8 +271,11 @@ class HistoryManager:
 
     @staticmethod
     def _build_summary_msg(summary_text: str) -> LLMMessage:
-        """Return a single [Conversation summary] system message containing summary_text."""
-        return {"role": "system", "content": f"{_SUMMARY_PREFIX}\n{summary_text}"}
+        """Return a single canonical conversation-summary system message containing summary_text."""
+        return {
+            "role": "system",
+            "content": f"{CONVERSATION_SUMMARY_PREFIX}\n{summary_text}",
+        }
 
     async def compress(
         self, history: list[LLMMessage]

@@ -105,10 +105,10 @@ The boundary and idempotency tests follow the shape of `test_undo_floor_converts
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-134431 | 20261105-135519 | red demo on HEAD worktree (4 failed, 23 passed pre-change); added 4 tests + _summary_row helper in test_session_restore.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-135519 | this row 4 new tests pass after change; 27 total passed; existing restore tests unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-135519 | full suite 11547 passed; diff-cover 88% shortfall is Row 03's untested branches (174,182), covered at Row 05 cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-135519 | N/A: no test-file docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

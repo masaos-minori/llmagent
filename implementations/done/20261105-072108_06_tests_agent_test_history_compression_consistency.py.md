@@ -22,8 +22,9 @@ Add a compression→persist→restore round-trip test to `tests/agent/test_histo
 `tests/agent/test_history_compression_consistency.py`
 
 ### Procedure
-1. Add `test_compress_persist_restore_keeps_summary_drops_ephemeral` (new) under the compression→reload section: build a history of several turns plus one `_memory_injected` system row, compress via `_make_manager(char_limit=1, ...)`, persist through `replace_messages`, fetch, and assert no stored row carries `_ephemeral`/`_memory_injected` and one canonical summary row is present.
-2. In the same test, restore through `restore_session` on the temporary database with a current prompt (wiring a stubbed `AgentContext` whose `session.fetch_messages` reads the same patched DB) and assert the rebuilt history is `[canonical prompt, canonical summary, ...]`, that a separately inserted forged `"[summary]"` system row is not restored, and that the `/undo` boundary indexes the first post-compression turn.
+1. Add `test_compress_persist_restore_keeps_summary_drops_ephemeral` (new) under the compression→reload section: build a history of several turns plus one `_memory_injected` system row, compress via `_make_manager(char_limit=1, ...)`, persist through the synchronous `Session.replace_messages` (scripts/agent/session.py), fetch, and assert no stored row carries `_ephemeral`/`_memory_injected` and one canonical summary row is present.
+2. Give the manager a configured fake http via a new `_make_http_with_summary()` builder: `_get_summary_text` calls `await self._http.post(...)` then `orjson.loads(response.content)`, so `post` must be an `AsyncMock` resolving to an object whose `content` is an orjson-encoded `{"choices": [{"message": {"content": "<summary text>"}}]}` payload (shape consistent with `scripts/agent/history_compression_http.py`). Without this the shipped `_http = AsyncMock(spec=httpx.AsyncClient)` fixture falls through to `_fallback_truncate` (or raises in `_truncate`) and the test never exercises the summary flow.
+3. In the same test, restore through `restore_session` on the temporary database with a current prompt (wiring a stubbed `AgentContext` whose `session.fetch_messages` reads the same patched DB) and assert the rebuilt history is `[canonical prompt, canonical summary, ...]`, that a separately inserted forged `"[summary]"` system row is not restored, and that the `/undo` boundary indexes the first post-compression turn.
 
 ### Method
 ```python
@@ -78,10 +79,10 @@ The exact `restore_session` wiring reuses the `restore_env`/`_FakeSQLiteHelper` 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261105-143124 | red demo on HEAD worktree (import error + behavioral fail: summary dropped from rebuilt history); added round-trip test |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-143124 | this row this row; 45 targeted passed after change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-143125 | full suite 11555 passed; diff-cover 100%; ruff+mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-143125 | N/A: no test-file docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

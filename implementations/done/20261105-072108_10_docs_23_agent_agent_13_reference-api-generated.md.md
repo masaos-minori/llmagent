@@ -26,9 +26,10 @@ Regenerate `docs/23_agent/agent_13_reference-api-generated.md` so it lists the n
 
 ### Procedure
 1. Confirm the source change is in place: `is_conversation_summary` (new) exists as a module-level function in `scripts/agent/history.py`.
-2. Re-render the guarded block: `uv run python tools/generate_reference_table.py --type agent`.
-3. Assert no drift: `uv run python tools/generate_reference_table.py --check` — it must exit 0.
-4. If `--check` reports drift, regenerate (step 2) and re-check until clean.
+2. Update the manifests from live source: `uv run python tools/generate_reference_table.py --manifests` (verification finding: `--check` performs a two-way drift check and reports `DRIFT ... Run --manifests` until `registry/manifests/agent_api.yaml` lists the new symbol; the generator itself instructs this step).
+3. Re-render the guarded block: `uv run python tools/generate_reference_table.py --type agent`.
+4. Assert no drift: `uv run python tools/generate_reference_table.py --check` — it must exit 0.
+5. If `--check` reports drift, regenerate (steps 2-3) and re-check until clean.
 
 ### Method
 ```bash
@@ -73,10 +74,10 @@ The `history.py` module block in the rendered document now includes `is_conversa
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | generator --check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261105-143430 | regenerated manifests (--manifests) then agent_13 (--type agent) after Row 01 source change |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-143430 | N/A: documentation N/A: generated documentation row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-143431 | generator --check --check reports no drift; quality/content_policy/consistency clean; pre-existing agent_13 size finding (26573>26145) remains, flagged to user |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-143431 | this row this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

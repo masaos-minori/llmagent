@@ -597,6 +597,60 @@ class TestReplaceMessages:
             ).fetchall()
             assert rows[0][0] == 2  # MAX(message_id) of the just-written snapshot
 
+    def test_replace_messages_skips_ephemeral_system_rows(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        """AC-5: rows marked _memory_injected or _ephemeral are not persisted."""
+        messages_in = [
+            {"role": "user", "content": "keep me"},
+            {
+                "role": "system",
+                "content": "[Conversation summary]\nm",
+                "_memory_injected": True,
+            },
+            {"role": "system", "content": "hint", "_ephemeral": {"memory": True}},
+        ]
+        repo.replace_messages(1, messages_in)
+        msgs = _msgs(repo.fetch_messages(1))
+        assert len(msgs) == 1
+        assert msgs[0]["content"] == "keep me"
+
+    def test_replace_messages_all_ephemeral_persists_nothing(self) -> None:
+        """REQ-004: an all-ephemeral input persists nothing and returns None."""
+        import sqlite3
+        from unittest.mock import patch
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+        conn.execute(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, 'user', 'old')"
+        )
+        conn.commit()
+
+        def _make(target: str = "session") -> _FakeSQLiteHelper:
+            return _FakeSQLiteHelper(conn)
+
+        with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+            r = SessionMessageRepository(session_id=1)
+            result = r.replace_messages(
+                1,
+                [
+                    {"role": "system", "content": "mem", "_memory_injected": True},
+                    {
+                        "role": "system",
+                        "content": "hint",
+                        "_ephemeral": {"memory": True},
+                    },
+                ],
+            )
+            assert result is None
+            # nothing persisted: the transaction never ran, existing rows intact
+            rows = conn.execute(
+                "SELECT content FROM messages WHERE session_id = 1"
+            ).fetchall()
+            assert [r0[0] for r0 in rows] == ["old"]
+
     def test_fetch_messages_returns_three_tuple_with_boundary(self) -> None:
         import sqlite3
         from unittest.mock import patch

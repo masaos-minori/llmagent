@@ -230,6 +230,11 @@ entries:
   signature: def build_agent_context(ctx, view, *, on_client_created) -> None
   summary: Inject all services into ctx.services.
 - file: scripts/agent/history.py
+  kind: function
+  name: is_conversation_summary
+  signature: def is_conversation_summary(message) -> bool
+  summary: Return True when *message* is a canonical conversation-summary row.
+- file: scripts/agent/history.py
   kind: class
   name: HistoryCompressionError
   signature: class HistoryCompressionError

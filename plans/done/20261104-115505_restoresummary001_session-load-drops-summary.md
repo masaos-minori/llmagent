@@ -183,11 +183,11 @@ Baseline (Step 5): `radon cc` reports `repair_orphan_tool_calls` at C (14) and `
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing restore, round-trip, and persistence tests | In Progress | — | — |  |
-| 2 | Phase 2: shared public summary constant and predicate | In Progress | — | — |  |
-| 3 | Phase 3: skip ephemeral system rows when persisting | In Progress | — | — |  |
-| 4 | Phase 4: restore the summary and update the boundary arithmetic | In Progress | — | — |  |
-| 5 | Phase 5: documentation and generated reference | In Progress | — | — |  |
+| 1 | Phase 1: failing restore, round-trip, and persistence tests | Completed | — | 20261105-143558 |  |
+| 2 | Phase 2: shared public summary constant and predicate | Completed | — | 20261105-143558 |  |
+| 3 | Phase 3: skip ephemeral system rows when persisting | Completed | — | 20261105-143558 |  |
+| 4 | Phase 4: restore the summary and update the boundary arithmetic | Completed | — | 20261105-143558 |  |
+| 5 | Phase 5: documentation and generated reference | Completed | — | 20261105-143558 |  |
 | 6 | Phase 6: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -198,16 +198,16 @@ Baseline (Step 5): `radon cc` reports `repair_orphan_tool_calls` at C (14) and `
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-072108_01_scripts_agent_history.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-072108_02_scripts_agent_services_session_restore.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261105-072108_03_scripts_agent_session_message_repo.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-072108_04_tests_agent_test_session_restore.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-072108_05_tests_agent_test_session_message_repo.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-072108_06_tests_agent_test_history_compression_consistency.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-072108_07_tests_agent_test_history_manager.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-072108_08_docs_23_agent_agent_04_01_state-and-persistence-state-model.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261105-072108_09_docs_23_agent_agent_04_02_state-and-persistence-history-compression.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261105-072108_10_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261105-072108_01_scripts_agent_history.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-072108_02_scripts_agent_services_session_restore.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261105-072108_03_scripts_agent_session_message_repo.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-072108_04_tests_agent_test_session_restore.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-072108_05_tests_agent_test_session_message_repo.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-072108_06_tests_agent_test_history_compression_consistency.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-072108_07_tests_agent_test_history_manager.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-072108_08_docs_23_agent_agent_04_01_state-and-persistence-state-model.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261105-072108_09_docs_23_agent_agent_04_02_state-and-persistence-history-compression.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261105-072108_10_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

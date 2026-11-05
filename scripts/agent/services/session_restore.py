@@ -12,6 +12,7 @@ import logging
 from typing import TYPE_CHECKING, cast
 
 from agent.commands.mixin_base import refresh_session_correlation, reset_session_stats
+from agent.history import is_conversation_summary
 from agent.services.exceptions import SessionNoMessagesError, SessionNotFoundError
 from agent.services.models import SessionRestoreResult
 
@@ -118,10 +119,40 @@ def _boundary_to_index(
     if not n_snapshot:
         return 0
     snapshot_msgs = messages[:n_snapshot]
-    system_count = sum(1 for m in snapshot_msgs if m.get("role") == "system")
+    # The restored canonical summary row is re-inserted by restore_session, so it
+    # counts as present in the rebuilt history instead of a dropped system row (REQ-003).
+    system_count = sum(
+        1
+        for m in snapshot_msgs
+        if m.get("role") == "system" and not is_conversation_summary(m)
+    )
     if system_prompt_set:
         return 1 + n_snapshot - system_count + insertions
     return n_snapshot + insertions
+
+
+def _restored_summary_msgs(
+    repaired: list[LLMMessage], session_id: int
+) -> list[LLMMessage]:
+    """Return the canonical summary row to re-insert after the prompt, or [].
+
+    Keeps the last summary-shaped row (the most recent compression) and warns
+    once when older extra summary rows are dropped (Plan: single-summary rule).
+    The row is rebuilt with only ``role``/``content`` so it carries no stored
+    markers (untrusted-restore).
+    """
+    summary_rows = [m for m in repaired if is_conversation_summary(m)]
+    if len(summary_rows) > 1:
+        logger.warning(
+            "Session %s dropped %d extra summary row(s); kept the most recent",
+            session_id,
+            len(summary_rows) - 1,
+        )
+    return (
+        [{"role": "system", "content": summary_rows[-1]["content"]}]
+        if summary_rows
+        else []
+    )
 
 
 async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreResult:
@@ -160,7 +191,9 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
             [{"role": "system", "content": ctx.conv.system_prompt_content}],
         )
         non_system = [m for m in repaired if m["role"] != "system"]
-        await ctx.conv.replace_history(system_msgs + non_system)
+        await ctx.conv.replace_history(
+            system_msgs + _restored_summary_msgs(repaired, session_id) + non_system
+        )
     else:
         await ctx.conv.replace_history(repaired)
     # convert the persisted boundary row ID into a rebuilt-history index

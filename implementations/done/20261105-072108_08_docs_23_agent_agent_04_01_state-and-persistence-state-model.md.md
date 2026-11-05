@@ -87,10 +87,10 @@ The added sentence for the design-intent paragraph: "`/session load` keeps the c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs checkers |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261105-143257 | added '### Restored Rows on Load' after '### Load-Time Orphan Repair'; added design-intent sentence |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-143257 | N/A: documentation N/A: documentation row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-143257 | docs checkers quality/content_policy/consistency clean; structure checker has 1 pre-existing agent_13 size finding at HEAD (26421>26145), not introduced here |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-143257 | this row this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

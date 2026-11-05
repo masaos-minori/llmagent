@@ -27,7 +27,7 @@ Promote the private `_SUMMARY_PREFIX` constant to a public `CONVERSATION_SUMMARY
 
 ### Procedure
 1. Rename the module constant on line 31 from `_SUMMARY_PREFIX` to `CONVERSATION_SUMMARY_PREFIX` (new), keeping the value `"[Conversation summary]"`.
-2. Update the two call sites to the new name: `_split_system_msgs` (line 247) and `_build_summary_msg` (line 262).
+2. Update the two call sites to the new name: `_split_system_msgs` (line 247) and `_build_summary_msg` (line 262). Also update the `_SUMMARY_PREFIX` mention in the `_split_system_msgs` docstring ("Summary rows (content starting with _SUMMARY_PREFIX)") so no reference to the old name remains in `scripts/`. Additionally replace the two bracketed-literal docstring mentions (class `HistoryManager` docstring line 55, `_build_summary_msg` docstring line 261) with "conversation-summary" prose, so the literal `"[Conversation summary]"` is held exactly once in `scripts/` (AC-1: no copy of the prefix string remains); the `rg _SUMMARY_PREFIX scripts/` check alone would miss these copies.
 3. Add the public predicate `is_conversation_summary` (new) at module level, immediately after the constant and before `HistoryCompressionError`.
 
 ### Method
@@ -49,7 +49,7 @@ def is_conversation_summary(message: dict) -> bool:
 ```
 
 ### Details
-- `_split_system_msgs` replaces `content.startswith(_SUMMARY_PREFIX)` with `content.startswith(CONVERSATION_SUMMARY_PREFIX)`; `_build_summary_msg` builds `f"{CONVERSATION_SUMMARY_PREFIX}\n{summary_text}"`.
+- `_split_system_msgs` recognizes summary rows through `is_conversation_summary(msg)` (the predicate wraps the same `content.startswith(CONVERSATION_SUMMARY_PREFIX)` test plus the role guard); `_build_summary_msg` builds `f"{CONVERSATION_SUMMARY_PREFIX}\n{summary_text}"`. Both compression helpers thus use both new symbols (completion criteria).
 - The predicate short-circuits on a non-`system` role, so a forged user/assistant row never counts as a summary (Security: untrusted-restore).
 - Stale-reference marks: `CONVERSATION_SUMMARY_PREFIX` (new) and `is_conversation_summary` (new) are created here; `_SUMMARY_PREFIX` is the pre-existing name being renamed.
 
@@ -86,10 +86,10 @@ def is_conversation_summary(message: dict) -> bool:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | predicate tests live in Row 07 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | predicate listed in Row 10 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-130232 | 20261105-130414 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-132815 | predicate tests live in Row 07 N/A: no test change needed; predicate tests live in Row 07 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-130414 | 20261105-132815 | full suite pass after drift fix (generate_reference_table --manifests + --type agent) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-132815 | predicate listed in Row 10 N/A: no docs/00_index.md task-scope mapping for scripts/agent/history.py; agent_13 regenerated here to clear the reference drift test; regeneration archived under Row 10 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

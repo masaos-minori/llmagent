@@ -170,10 +170,16 @@ class SessionMessageRepository:
             if role not in self._valid_roles:
                 logger.warning("replace_messages: skipping invalid role %r", role)
                 continue
+            if msg.get("_memory_injected") or "_ephemeral" in msg:
+                continue
             content = msg.get("content") or ""
             tc_json = _tool_calls_json(msg.get("tool_calls"))
             tool_call_id = msg.get("tool_call_id")
             rows.append((session_id, role, content, tc_json, tool_call_id))
+        if not rows:
+            # Nothing to persist: clear nothing and report None, matching
+            # save_many's guard (REQ-004 "nothing persisted" contract).
+            return None
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
             db.executemany(_INSERT_MESSAGE_SQL, rows)

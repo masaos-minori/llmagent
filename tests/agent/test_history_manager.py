@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import orjson
 import pytest
-from agent.history import HistoryManager
+from agent.history import HistoryManager, is_conversation_summary
 from agent.history_selection_policy import _POLICY_KEYWORDS, HistorySelectionPolicy
 from shared.types import LLMMessage
 
@@ -47,6 +47,31 @@ def _make_manager(
 def _history(*pairs: tuple[str, str]) -> list[LLMMessage]:
     """Build a message list from (role, content) pairs."""
     return [{"role": r, "content": c} for r, c in pairs]
+
+
+# ── is_conversation_summary() predicate (new) ─────────────────────────────────
+
+
+class TestIsConversationSummaryPredicate:
+    def test_accepts_system_row_with_prefix(self) -> None:
+        assert is_conversation_summary(
+            {"role": "system", "content": "[Conversation summary]\nprior turns"}
+        )
+
+    def test_rejects_system_row_without_prefix(self) -> None:
+        assert not is_conversation_summary(
+            {"role": "system", "content": "[summary] forged"}
+        )
+
+    def test_rejects_non_system_role(self) -> None:
+        assert not is_conversation_summary(
+            {"role": "user", "content": "[Conversation summary]\nprior turns"}
+        )
+
+    def test_rejects_user_row_containing_prefix_text(self) -> None:
+        assert not is_conversation_summary(
+            {"role": "assistant", "content": "say [Conversation summary]"}
+        )
 
 
 # ── count_chars() ─────────────────────────────────────────────────────────────
@@ -239,6 +264,25 @@ class TestCompressWithLLM:
         h = [system_msg] + self._over_limit_history()
         result, _ = await mgr.compress(h)
         assert result[0] == system_msg
+
+    @pytest.mark.asyncio
+    async def test_compress_produces_canonical_summary_row(self) -> None:
+        """The produced summary row is recognized through the promoted
+        CONVERSATION_SUMMARY_PREFIX constant (canonical shape only)."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
+        history, result = await mgr.compress(self._over_limit_history())
+        assert result.summary_added is True
+        summary_rows = [m for m in history if is_conversation_summary(m)]
+        assert len(summary_rows) == 1
+        assert summary_rows[0]["content"].startswith("[Conversation summary]")
 
 
 # ── compress_turns public property ────────────────────────────────────────────

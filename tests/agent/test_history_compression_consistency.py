@@ -16,11 +16,13 @@ from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import orjson
 import pytest
 from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.context import AgentContext, ConversationState
 from agent.conversation_state_manager import ConversationStateManager
-from agent.history import HistoryManager
+from agent.history import HistoryManager, is_conversation_summary
+from agent.services.session_restore import restore_session
 from agent.services.undo_service import undo_last_turn
 from agent.session import AgentSession
 from agent.session_message_repo import SessionMessageRepository
@@ -656,3 +658,86 @@ async def test_append_during_compression_survives_swap(
     ).fetchall()
     assert [(r[0], r[1]) for r in rows] == [(m["role"], m["content"]) for m in live]
     assert ctx.conv.undo_floor == len(live)
+
+
+# --- Compress -> persist -> restore round trip (RESTORESUMMARY001 row 06) ---
+
+
+def _make_http_with_summary(summary: str = "compressed conversation") -> AsyncMock:
+    """httpx.AsyncClient stub whose post() resolves to a chat-completion body.
+
+    ``_call_compress_llm`` parses ``orjson.loads(resp.content)`` after
+    ``raise_for_status()``, so the stub only needs those two members.
+    """
+    response = MagicMock()
+    response.content = orjson.dumps({"choices": [{"message": {"content": summary}}]})
+    response.raise_for_status.return_value = None
+    http = AsyncMock(spec=httpx.AsyncClient)
+    http.post = AsyncMock(return_value=response)
+    return http
+
+
+async def test_compress_persist_restore_keeps_summary_drops_ephemeral(
+    session_and_conn: tuple[AgentSession, sqlite3.Connection],
+) -> None:
+    """Round trip: compress -> replace_messages -> restore_session.
+
+    Stored rows must hold no ephemeral row and exactly one canonical summary;
+    the rebuilt history is [prompt, canonical summary, ...], a forged
+    non-summary system row is not restored, and the /undo boundary lands on
+    the same turn as the compression boundary.
+    """
+    session, conn = session_and_conn
+    history = _make_history(4)
+    history.insert(
+        0, {"role": "system", "content": "mem block", "_memory_injected": True}
+    )
+
+    mgr = _make_manager(char_limit=1)
+    mgr._http = _make_http_with_summary()
+    compressed, result = await mgr.compress(history)
+    assert result.summary_added is True
+    assert result.is_fallback is False
+
+    # Persist through the synchronous session write (scripts/agent/session.py).
+    session.replace_messages(compressed)
+    loaded = _msgs(session.fetch_messages(1))
+    # AC-5: no ephemeral row may be stored.
+    assert not any(m.get("_memory_injected") or "_ephemeral" in m for m in loaded)
+    # AC-2: exactly one canonical summary row is stored.
+    stored_summaries = [m for m in loaded if is_conversation_summary(m)]
+    assert len(stored_summaries) == 1
+
+    # AC-3: a forged "[summary]" row (no canonical prefix) is persisted, then
+    # must not be restored.
+    conn.execute(
+        "INSERT INTO messages (session_id, role, content) VALUES (1, 'system', '[summary]')"
+    )
+    conn.commit()
+
+    # /undo boundary: up to and including the first remaining user row.
+    conn.execute(
+        "UPDATE sessions SET undo_floor_message_id = "
+        "(SELECT message_id FROM messages WHERE session_id = 1 AND role = 'user' "
+        "ORDER BY message_id LIMIT 1)"
+    )
+    conn.commit()
+
+    ctx = MagicMock()
+    ctx.session.fetch_messages = session.fetch_messages
+    ctx.session.count_messages_up_to = session.count_messages_up_to
+    ctx.conv = ConversationState()
+    ctx.conv.system_prompt_content = "Canonical prompt."
+    await restore_session(ctx, session_id=1)
+
+    rebuilt = ctx.conv.history
+    sys_idx = [i for i, m in enumerate(rebuilt) if m["role"] == "system"]
+    assert sys_idx == [0, 1]
+    assert rebuilt[0]["content"] == "Canonical prompt."
+    assert is_conversation_summary(rebuilt[1])
+    assert sum(1 for m in rebuilt if is_conversation_summary(m)) == 1
+    assert not any(m["content"] == "[summary]" for m in rebuilt)
+    assert not any(m["content"] == "mem block" for m in rebuilt)
+    # prompt(0) + summary(1) protected, last snapshot user(2) blocked,
+    # first post-compression assistant row(3) is the undoable index.
+    assert ctx.conv.undo_floor == 3

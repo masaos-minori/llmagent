@@ -54,6 +54,11 @@ def _make_ctx(
     return ctx
 
 
+def _summary_row(content: str) -> dict:
+    """A persisted canonical summary row: role system + the shared prefix."""
+    return {"role": "system", "content": f"[Conversation summary]\n{content}"}
+
+
 class TestRestoreSession:
     async def test_successful_restore(self) -> None:
         msgs = [{"role": "user", "content": "hello"}]
@@ -198,6 +203,97 @@ class TestRestoreSession:
         assert ctx.conv.history[0]["content"] == "Canonical."
         # index 1 (q1, last snapshot user) is below the floor; index 2 (a1) above.
         assert ctx.conv.history[1]["content"] == "q1"
+
+    async def test_summary_restored_after_canonical_prompt(self) -> None:
+        # AC-2: the canonical summary row is restored once, right after the
+        # current system prompt; every other persisted system row is dropped.
+        ctx = _make_ctx(
+            messages=[
+                {"role": "system", "content": "old prompt from DB"},
+                _summary_row("prior turns"),
+                {"role": "user", "content": "q1"},
+            ],
+            system_prompt_content="Current canonical prompt.",
+        )
+        await restore_session(ctx, session_id=3)
+        assert [m["role"] for m in ctx.conv.history][:2] == ["system", "system"]
+        assert ctx.conv.history[0]["content"] == "Current canonical prompt."
+        assert ctx.conv.history[1]["content"].startswith("[Conversation summary]")
+        # exactly the prompt + the one canonical summary are the system rows
+        assert sum(1 for m in ctx.conv.history if m["role"] == "system") == 2
+        # the rebuilt row carries only role/content: no stored markers survive
+        assert ctx.conv.history[1] == {
+            "role": "system",
+            "content": "[Conversation summary]\nprior turns",
+        }
+
+    async def test_extra_summary_rows_drop_last_with_warning(self, caplog) -> None:
+        # Risk (multi-summary data loss): only the most recent summary survives,
+        # and the drop is logged with the count and session id.
+        ctx = _make_ctx(
+            messages=[
+                _summary_row("first"),
+                _summary_row("second"),
+                {"role": "user", "content": "q1"},
+            ],
+            system_prompt_content="Canonical.",
+        )
+        with caplog.at_level(logging.WARNING, logger="agent.services.session_restore"):
+            await restore_session(ctx, session_id=17)
+        summaries = [
+            m
+            for m in ctx.conv.history
+            if m["content"].startswith("[Conversation summary]")
+        ]
+        assert len(summaries) == 1
+        assert summaries[0]["content"].startswith("[Conversation summary]\nsecond")
+        assert any(
+            "extra summary" in r.getMessage()
+            for r in caplog.records
+            if r.levelno == logging.WARNING
+        )
+
+    async def test_undo_floor_counts_restored_summary(self) -> None:
+        # AC-4: with a canonical summary in the snapshot the floor lands on the
+        # same turn as test_undo_floor_converts_boundary_to_index (a1): the
+        # restored summary occupies a slot, so the index is one higher.
+        messages = [
+            _summary_row("prior turns"),
+            {"role": "user", "content": "q1"},
+            {"role": "assistant", "content": "a1"},
+            {"role": "user", "content": "q2"},
+        ]
+        ctx = _make_ctx(
+            messages=messages, system_prompt_content="Canonical.", undo_floor_id=2
+        )
+        ctx.session.count_messages_up_to.return_value = 2  # n_snapshot
+        await restore_session(ctx, session_id=42)
+        # 1 + n_snapshot - system_count(non-summary) = 1 + 2 - 0 = 3.
+        assert ctx.conv.undo_floor == 3
+        assert ctx.conv.history[0]["content"] == "Canonical."
+        assert ctx.conv.history[1]["content"].startswith("[Conversation summary]")
+        # index 2 (q1, last snapshot user) is below the floor; index 3 (a1) above.
+        assert ctx.conv.history[2]["content"] == "q1"
+        assert ctx.conv.history[3]["content"] == "a1"
+
+    async def test_restore_with_summary_is_idempotent(self) -> None:
+        """AC-6: two restores over the same summary-bearing rows give equal histories."""
+
+        def fixture() -> list[dict]:
+            return [
+                _summary_row("prior turns"),
+                {"role": "user", "content": "q1"},
+                {"role": "assistant", "content": "a1"},
+            ]
+
+        ctx_a = _make_ctx(messages=fixture(), system_prompt_content="Canonical.")
+        ctx_b = _make_ctx(messages=fixture(), system_prompt_content="Canonical.")
+        await restore_session(ctx_a, session_id=7)
+        await restore_session(ctx_b, session_id=7)
+        assert ctx_a.conv.history == ctx_b.conv.history
+        assert (
+            sum(1 for m in ctx_a.conv.history if m["role"] == "system") == 2
+        )  # prompt + exactly one summary
 
     async def test_count_failure_leaves_session_state_untouched(self) -> None:
         """A raised count_messages_up_to() must propagate before any state is mutated."""

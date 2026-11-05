@@ -98,6 +98,7 @@ After each history compression (automatic or via `/compact`), the compressed sna
 Key behaviors:
 
 - The summarized `[Conversation summary]` system message is persisted as a row with `role=system`.
+- A compression no longer persists ephemeral system rows: `replace_messages` stores only `role`, `content`, `tool_calls`, and `tool_call_id`, so `_ephemeral` / `_memory_injected` rows are dropped from the stored set. The single canonical summary row (`role=system`, content starting with the shared `CONVERSATION_SUMMARY_PREFIX`) is persisted and is restored by `/session load` after the current system prompt; every other persisted system row is still dropped. See [agent_04_01](agent_04_01_state-and-persistence-state-model.md).
 - Fallback truncation (discarding without summarization) also triggers persistence to maintain database consistency.
 - The in-memory `ctx.conv.history` remains the source of truth for the current session; database persistence serves as a backup for reloads.
 - `/history` and `/session export` operate against `ctx.conv.history`.

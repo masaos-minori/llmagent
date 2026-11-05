@@ -79,7 +79,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `HistoryManagerResult` | `class HistoryManagerResult` | Result of building HistoryManager. |
 |  | `init_tracer` | `def init_tracer(ctx) -> object` | Build and return an OTel tracer; returns a NoOp stub when otel_enabled=False. |
 |  | `build_agent_context` | `def build_agent_context(ctx, view, *, on_client_created) -> None` | Inject all services into ctx.services. |
-| `scripts/agent/history.py` | `HistoryCompressionError` | `class HistoryCompressionError` | Raised when LLM-based history compression fails. |
+| `scripts/agent/history.py` | `is_conversation_summary` | `def is_conversation_summary(message) -> bool` | Return True when *message* is a canonical conversation-summary row. |
+|  | `HistoryCompressionError` | `class HistoryCompressionError` | Raised when LLM-based history compression fails. |
 |  | `CompressResult` | `class CompressResult` | Metadata returned by compress() and force_compress(). |
 |  | `HistoryManager` | `class HistoryManager` | Manages conversation history size via LLM-based compression. |
 | `scripts/agent/history_selection_policy.py` | `SelectionResult` | `class SelectionResult` | Typed result of select_turns_to_compress(). |

@@ -100,10 +100,10 @@ async def test_compress_produces_canonical_summary_row(self) -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261105-143130 | added TestIsConversationSummaryPredicate (4 cases) + canonical-shape compression test |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-143130 | this row this row; 80 targeted passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-143130 | red demo (import error on HEAD worktree); full suite 11555 passed; diff-cover 100%; ruff clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-143130 | N/A: no test-file docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

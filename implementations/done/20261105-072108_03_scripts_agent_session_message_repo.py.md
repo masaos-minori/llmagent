@@ -88,10 +88,10 @@ def replace_messages(self, session_id, messages):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | release unit summary-persist-restore |
-| 2 | Add or update tests per Validation plan | Pending | — | — | covered by Row 05/06 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | persistence model in Row 09 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-133149 | 20261105-134252 | release unit summary-persist-restore ephemeral skip + no-rows guard; changed session_message_repo.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-134252 | covered by Row 05/06 N/A: no test change needed; covered by Row 05; targeted 107 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-140654 | unit-end diff-cover 82%: missing lines 146 (session_restore) / 174,182 (session_message_repo) are new branches first tested by Row 04-06; gate re-evaluated at those cycles' full-suite runs before archival unit gate passed at Row 05 full-suite run (diff-cover 100%) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-134252 | persistence model in Row 09 N/A: persistence-model docs are Row 09 target |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
