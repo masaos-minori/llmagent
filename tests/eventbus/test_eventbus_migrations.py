@@ -12,11 +12,13 @@ import hashlib
 import re
 import sqlite3
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from eventbus import migrate as _cli_module
 from eventbus.migrations import (
     REGISTRY,
-    _postcondition_ledger_baseline,
+    _precommit_ledger_baseline,
     _precondition_outbox_step,
     verify_backup,
 )
@@ -27,6 +29,7 @@ from shared.db_migrations import (
     MigrationRunner,
     MigrationSpec,
     read_ledger,
+    record_applied,
 )
 from shared.eventbus_schema_fingerprint import (
     apply_schema_in_memory,
@@ -120,6 +123,11 @@ class TestEventbusRegistry:
         assert outbox.from_version == 4
         assert outbox.to_version == 5
         assert outbox.mutation_sql
+        # dbmigsafe001 REQ-003: both specs verify inside the step transaction;
+        # neither keeps a post-commit postcondition callback.
+        for spec in REGISTRY.values():
+            assert spec.pre_commit_verification is not None, spec.id
+            assert spec.postcondition is None, spec.id
 
     def test_runner_resolves_the_unique_forward_path(self, tmp_path: Path) -> None:
         conn = _baseline_v3_db(tmp_path / "eventbus.sqlite")
@@ -157,10 +165,10 @@ class TestEventbusRegistry:
             ]
             # Ends at version 5 with a ledger row for each step.
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
-            assert_matches(conn)  # postcondition fingerprint passes
+            assert_matches(conn)  # pre-commit fingerprint check passes
             rows = read_ledger(conn)
-            # read_ledger orders by applied_at then id; same-second steps tie on
-            # id, so compare the recorded set, not the arrival order.
+            # read_ledger returns append (rowid) order; compare the recorded
+            # set here and pin the ordering separately in the seq test below.
             assert {(r.id, r.from_version, r.to_version) for r in rows} == {
                 ("eventbus_ledger_baseline", 3, 4),
                 ("eventbus_dlq_outbox", 4, 5),
@@ -330,26 +338,35 @@ class TestEventbusOutboxStep:
         finally:
             conn.close()
 
-    def test_ledger_baseline_postcondition_refuses_unstamped_result(self) -> None:
+    def test_ledger_baseline_precommit_refuses_unstamped_result(self) -> None:
         conn = sqlite3.connect(":memory:")
         try:
+            before = (
+                conn.execute("PRAGMA user_version").fetchone()[0],
+                {r[0] for r in conn.execute("SELECT name FROM sqlite_master")},
+            )
             with pytest.raises(
                 RuntimeError, match="not 4, after the ledger bootstrap step"
             ):
-                _postcondition_ledger_baseline(conn)
+                _precommit_ledger_baseline(conn)
+            # A refused verification leaves schema and version untouched (AC-003).
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == before[0]
+            assert {r[0] for r in conn.execute("SELECT name FROM sqlite_master")} == before[1]
         finally:
             conn.close()
 
-    def test_ledger_baseline_postcondition_refuses_missing_ledger(self) -> None:
+    def test_ledger_baseline_precommit_refuses_missing_ledger(self) -> None:
         conn = sqlite3.connect(":memory:")
         conn.execute("PRAGMA user_version = 4")  # nosec B608 — fixed test int
         try:
+            before = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
             with pytest.raises(RuntimeError, match="did not create schema_migrations"):
-                _postcondition_ledger_baseline(conn)
+                _precommit_ledger_baseline(conn)
+            assert {r[0] for r in conn.execute("SELECT name FROM sqlite_master")} == before
         finally:
             conn.close()
 
-    def test_ledger_baseline_postcondition_refuses_missing_core_tables(self) -> None:
+    def test_ledger_baseline_precommit_refuses_missing_core_tables(self) -> None:
         conn = sqlite3.connect(":memory:")
         conn.execute(
             "CREATE TABLE schema_migrations (id TEXT PRIMARY KEY,"
@@ -357,8 +374,10 @@ class TestEventbusOutboxStep:
         )
         conn.execute("PRAGMA user_version = 4")  # nosec B608 — fixed test int
         try:
+            before = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
             with pytest.raises(RuntimeError, match="left core tables missing"):
-                _postcondition_ledger_baseline(conn)
+                _precommit_ledger_baseline(conn)
+            assert {r[0] for r in conn.execute("SELECT name FROM sqlite_master")} == before
         finally:
             conn.close()
 
@@ -399,8 +418,9 @@ class TestEventbusRefusal:
     def test_missing_clean_checkpoint_refuses(self, tmp_path: Path) -> None:
         db = tmp_path / "eventbus.sqlite"
         conn = _baseline_v3_db(db)
-        # A second connection holds an uncommitted write; the WAL checkpoint cannot
-        # complete cleanly, so no verified recovery point exists (REQ-002).
+        # A second connection holds an uncommitted write; the WAL checkpoint
+        # cannot complete cleanly. The refusal reason is the distinct
+        # checkpoint-busy class, not a backup-integrity failure (REQ-004).
         holder = sqlite3.connect(str(db))
         holder.execute("BEGIN")
         holder.execute(
@@ -413,7 +433,7 @@ class TestEventbusRefusal:
             planned = runner.plan(3, read_ledger(conn), REGISTRY, target_version=4)
             with pytest.raises(MigrationRefusalError) as excinfo:
                 runner.apply(conn, planned, _ok_verifier)
-            assert excinfo.value.reason == MigrationRefusalReason.NO_VERIFIED_BACKUP
+            assert excinfo.value.reason == MigrationRefusalReason.CHECKPOINT_BUSY
         finally:
             holder.rollback()
             holder.close()
@@ -457,3 +477,48 @@ class TestEventbusDryRunAndGate:
         with pytest.raises(RuntimeError, match="missing required table"):
             verify_backup(conn, str(tmp_path / "wrong.sqlite"))
         conn.close()
+
+
+# ── Ledger append order + CLI archive requirement (dbmigsafe001) ────────────
+
+
+class TestEventbusLedgerOrder:
+    def test_same_second_rows_read_in_insertion_order(self, tmp_path: Path) -> None:
+        # AC-006 through the eventbus ledger: read_ledger orders by rowid, so
+        # same-second applied_at stamps cannot scramble application order.
+        conn = _baseline_v4_db(tmp_path / "eventbus.sqlite")
+        same = "2026-01-01T00:00:00Z"
+        try:
+            record_applied(
+                conn, MigrationSpec(id="zeta", from_version=4, to_version=5),
+                applied_at=same,
+            )
+            record_applied(
+                conn, MigrationSpec(id="alpha", from_version=4, to_version=5),
+                applied_at=same,
+            )
+            record_applied(
+                conn, MigrationSpec(id="mid", from_version=4, to_version=5),
+                applied_at=same,
+            )
+            conn.commit()
+            rows = read_ledger(conn)
+            assert [r.id for r in rows] == ["zeta", "alpha", "mid"]
+            assert [r.seq for r in rows] == [rows[0].seq, rows[0].seq + 1, rows[0].seq + 2]
+        finally:
+            conn.close()
+
+
+class TestEventbusCliArchive:
+    def test_apply_without_archive_dir_refuses(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # AC-001 CLI half (eventbus): --apply without an explicit archive
+        # target is a refusal (exit 2); no location is ever inferred, and the
+        # database stays byte-identical.
+        db = tmp_path / "eventbus.sqlite"
+        conn = _baseline_v3_db(db)
+        conn.close()
+        cfg = SimpleNamespace(db_path=str(db), port=1)  # port 1: nothing listens
+        monkeypatch.setattr(_cli_module, "load_config", lambda path=None: cfg)
+        before = _hash_file(db)
+        assert _cli_module.main(["--apply"]) == _cli_module.EXIT_REFUSAL
+        assert _hash_file(db) == before

@@ -6,6 +6,7 @@ No db/eventbus layer imports (keeps lint-imports clean for tests/shared).
 """
 
 import hashlib
+import json
 import re
 import sqlite3
 from collections.abc import Callable
@@ -18,6 +19,7 @@ from shared.db_migrations import (
     MigrationRunner,
     MigrationSpec,
     _split_statements,
+    archive_pre_migration,
     ensure_ledger,
     read_ledger,
     record_applied,
@@ -279,7 +281,8 @@ class TestMigrationFramework:
         reg = _toy_registry()
 
         # A second connection holds an uncommitted write; the WAL checkpoint cannot
-        # complete cleanly, so no verified recovery point exists (REQ-002).
+        # complete cleanly, so no clean checkpoint exists. The refusal reason is
+        # distinct from backup-integrity failures (REQ-004).
         holder = sqlite3.connect(str(db))
         holder.execute("BEGIN")
         holder.execute("INSERT INTO toy(t) VALUES ('blocked')")
@@ -288,7 +291,7 @@ class TestMigrationFramework:
         planned = runner.plan(1, read_ledger(conn), reg, target_version=2)
         with pytest.raises(MigrationRefusalError) as excinfo:
             runner.apply(conn, planned, _ok_verifier)
-        assert excinfo.value.reason == MigrationRefusalReason.NO_VERIFIED_BACKUP
+        assert excinfo.value.reason == MigrationRefusalReason.CHECKPOINT_BUSY
 
         holder.rollback()
         holder.close()
@@ -302,6 +305,179 @@ class TestMigrationFramework:
         applied = runner.apply(conn, [], _ok_verifier)
         assert applied == []
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        conn.close()
+
+
+# ── Distinct refusal reasons (dbmigsafe001 REQ-004) ──────────────────────────
+
+
+class TestDistinctRefusalReasons:
+    def test_in_memory_database_refused_with_distinct_reason(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.execute("CREATE TABLE toy(t)")
+        ensure_ledger(conn)
+        reg = _toy_registry()
+        runner = MigrationRunner()
+        planned = runner.plan(1, read_ledger(conn), reg, target_version=2)
+
+        with pytest.raises(MigrationRefusalError) as excinfo:
+            runner.apply(conn, planned, _ok_verifier)
+        assert excinfo.value.reason == MigrationRefusalReason.IN_MEMORY_DATABASE
+
+        with pytest.raises(MigrationRefusalError) as excinfo:
+            runner.apply(conn, planned, _ok_verifier, dry_run=True)
+        assert excinfo.value.reason == MigrationRefusalReason.IN_MEMORY_DATABASE
+
+        with pytest.raises(MigrationRefusalError) as excinfo:
+            archive_pre_migration(conn, Path("/unused"))
+        assert excinfo.value.reason == MigrationRefusalReason.IN_MEMORY_DATABASE
+        conn.close()
+
+    def test_dry_run_snapshot_sees_committed_wal_rows(self, tmp_path) -> None:
+        db = tmp_path / "toydb.sqlite"
+        conn = _init_db(db, version=1)
+        ensure_ledger(conn)
+        reg = _toy_registry()
+        runner = MigrationRunner()
+        planned = runner.plan(1, read_ledger(conn), reg, target_version=2)
+
+        # A second connection commits a row that stays in the -wal sidecar: the
+        # live main db file does not contain it until a checkpoint completes.
+        writer = sqlite3.connect(str(db))
+        writer.execute("PRAGMA journal_mode=WAL")
+        writer.execute("INSERT INTO toy(t) VALUES ('wal-only')")
+        writer.commit()
+
+        db_hash = _hash_file(db)
+        wal_hash = _hash_file(db.parent / "toydb.sqlite-wal")
+
+        seen: list[int] = []
+
+        def _spy_verifier(snapshot: sqlite3.Connection, _path: str) -> None:
+            seen.append(int(snapshot.execute("SELECT COUNT(*) FROM toy").fetchone()[0]))
+
+        applied = runner.apply(conn, planned, _spy_verifier, dry_run=True)
+
+        assert applied == []
+        # The live database and its sidecars are byte-identical (AC-5).
+        assert _hash_file(db) == db_hash
+        assert _hash_file(db.parent / "toydb.sqlite-wal") == wal_hash
+        # The gate saw the WAL-committed row through the backup-API snapshot; a
+        # plain copy of the main db file would have contained only the base row
+        # (REQ-002/REQ-004).
+        assert seen == [2]
+        writer.close()
+        conn.close()
+
+
+# ── Durable pre-migration archive (dbmigsafe001 REQ-001) ─────────────────────
+
+
+class TestPreMigrationArchive:
+    def test_archive_writes_audit_artifact(self, tmp_path) -> None:
+        db = tmp_path / "toydb.sqlite"
+        conn = _init_db(db, version=2)
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
+
+        archive = archive_pre_migration(conn, archive_dir)
+
+        assert archive.archive_path.name.startswith("toydb-v2-")
+        assert archive.audit_path == archive.archive_path.with_suffix(".audit.json")
+        audit = json.loads(archive.audit_path.read_text(encoding="utf-8"))
+        assert audit["archive_path"] == str(archive.archive_path)
+        assert audit["source_db"] == str(db)
+        assert audit["source_version"] == 2
+        assert audit["sha256"] == _hash_file(archive.archive_path)
+        assert _ISO8601_UTC_RE.match(audit["created_at"]), audit
+        assert audit["retention_status"] == "unset"
+
+        ach = sqlite3.connect(str(archive.archive_path))
+        try:
+            assert ach.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert ach.execute("PRAGMA user_version").fetchone()[0] == 2
+        finally:
+            ach.close()
+        conn.close()
+
+    def test_apply_archives_pre_run_state_before_mutation(self, tmp_path) -> None:
+        db = tmp_path / "toydb.sqlite"
+        conn = _init_db(db, version=1)
+        ensure_ledger(conn)
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
+        runner = MigrationRunner()
+        planned = runner.plan(1, read_ledger(conn), _toy_registry(), target_version=2)
+
+        applied = runner.apply(conn, planned, _ok_verifier, archive_dir=archive_dir)
+
+        assert [a.id for a in applied] == ["A"]
+        archives = sorted(archive_dir.glob("toydb-v1-*.sqlite"))
+        assert len(archives) == 1
+        assert len(list(archive_dir.glob("*.audit.json"))) == 1
+        ach = sqlite3.connect(str(archives[0]))
+        try:
+            # The archive captured the exact pre-run state: version 1, no step-A
+            # table, and a ledger with no step rows (the step ledger row is
+            # written after the archive).
+            assert ach.execute("PRAGMA user_version").fetchone()[0] == 1
+            names = {
+                r[0]
+                for r in ach.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            assert "toy_v2" not in names
+            ach_rows = ach.execute("SELECT id FROM schema_migrations").fetchall()
+            assert ach_rows == []
+        finally:
+            ach.close()
+        assert [r.id for r in read_ledger(conn)] == ["A"]
+        conn.close()
+
+    def test_missing_archive_directory_refuses(self, tmp_path) -> None:
+        db = tmp_path / "toydb.sqlite"
+        conn = _init_db(db, version=1)
+        with pytest.raises(MigrationRefusalError) as excinfo:
+            archive_pre_migration(conn, tmp_path / "nope")
+        assert excinfo.value.reason == MigrationRefusalReason.NO_ARCHIVE_TARGET
+        assert not (tmp_path / "nope").exists()
+        conn.close()
+
+    def test_unwritable_archive_directory_refuses(self, tmp_path) -> None:
+        db = tmp_path / "toydb.sqlite"
+        conn = _init_db(db, version=1)
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
+        archive_dir.chmod(0o500)
+        try:
+            with pytest.raises(MigrationRefusalError) as excinfo:
+                archive_pre_migration(conn, archive_dir)
+            assert excinfo.value.reason == MigrationRefusalReason.NO_ARCHIVE_TARGET
+            assert list(archive_dir.iterdir()) == []
+        finally:
+            archive_dir.chmod(0o700)
+        conn.close()
+
+
+# ── Ledger append order (dbmigsafe001 REQ-005) ───────────────────────────────
+
+
+class TestLedgerAppendOrder:
+    def test_same_second_steps_read_in_insertion_order(self, tmp_path) -> None:
+        conn = _init_db(tmp_path / "toydb.sqlite", version=1)
+        ensure_ledger(conn)
+        same = "2026-01-01T00:00:00Z"
+        record_applied(conn, _step("zeta", 1, 2), applied_at=same)
+        record_applied(conn, _step("alpha", 2, 3), applied_at=same)
+        conn.commit()
+
+        rows = read_ledger(conn)
+        # Insertion (rowid) order, not id order: the old applied_at,id ordering
+        # would have returned [alpha, zeta] for these same-second stamps.
+        assert [r.id for r in rows] == ["zeta", "alpha"]
+        assert [r.seq for r in rows] == [rows[0].seq, rows[0].seq + 1]
+        assert rows[0].applied_at == same
         conn.close()
 
 

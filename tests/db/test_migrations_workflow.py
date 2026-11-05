@@ -10,8 +10,10 @@ sandboxed agent.toml so no production DB path is ever touched.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -20,13 +22,13 @@ from typing import Any
 
 import pytest
 from db import schema_sql
-from db.migrate_db import EXIT_OK, EXIT_REFUSAL
+from db.migrate_db import EXIT_GATE_FAILURE, EXIT_OK, EXIT_REFUSAL
 from db.migrate_db import main as _cli_main
 from db.migrations_workflow import (
     REGISTRY,
     WORKFLOW_TARGET_VERSION,
     WORKFLOW_VERSION_CODES,
-    _postcondition_attempt_lease,
+    _precommit_attempt_lease,
     _precondition_attempt_lease,
     ensure_baseline,
     runner,
@@ -118,6 +120,33 @@ def _registry_with_steps(*specs: MigrationSpec) -> dict[str, MigrationSpec]:
     return {s.id: s for s in specs}
 
 
+def _boom_precommit(_conn: sqlite3.Connection) -> None:
+    """Pre-commit verifier that always fails (injected integrity violation)."""
+    raise RuntimeError("injected pre-commit failure")
+
+
+def _registry_with_failing_last_step() -> dict[str, MigrationSpec]:
+    """The real registry with the last step's verification replaced by a fault.
+
+    Mirrors the registered path exactly except that ``workflow_attempt_lease``
+    fails its pre-commit check, so a mid-chain refusal can be observed against
+    production-equivalent mutation SQL (AC-003).
+    """
+    reg: dict[str, MigrationSpec] = {}
+    for sid, spec in REGISTRY.items():
+        if sid == "workflow_attempt_lease":
+            spec = MigrationSpec(
+                id=spec.id,
+                from_version=spec.from_version,
+                to_version=spec.to_version,
+                preconditions=spec.preconditions,
+                mutation_sql=spec.mutation_sql,
+                pre_commit_verification=_boom_precommit,
+            )
+        reg[sid] = spec
+    return reg
+
+
 # ── Registry + path resolution ──────────────────────────────────────────────
 
 
@@ -153,8 +182,15 @@ class TestWorkflowRegistry:
         assert spec.from_version == 3
         assert spec.to_version == 4
         assert spec.preconditions
-        assert spec.postcondition is not None
+        assert spec.pre_commit_verification is not None
         assert spec.mutation_sql  # non-empty mutation SQL
+
+    def test_registry_verifies_precommit_not_postcommit(self) -> None:
+        # dbmigsafe001 REQ-003: every spec verifies inside the step
+        # transaction; no spec keeps a post-commit postcondition callback.
+        for spec in REGISTRY.values():
+            assert spec.pre_commit_verification is not None, spec.id
+            assert spec.postcondition is None, spec.id
 
     def test_version_codes_and_target_include_the_lease_code(self) -> None:
         assert WORKFLOW_VERSION_CODES == {
@@ -619,26 +655,64 @@ class TestWorkflowAttemptLeaseStep:
         finally:
             conn.close()
 
-    def test_postcondition_refuses_a_stale_version_stamp(self, tmp_path: Path) -> None:
-        # Postconditions run after the mutation: a mismatch is an integrity
-        # violation, raised as RuntimeError, not a refusal.
+    def test_precommit_refuses_a_stale_version_stamp(self, tmp_path: Path) -> None:
+        # The verifier runs pre-commit inside the step transaction: a mismatch
+        # is an integrity violation, raised as RuntimeError, not a refusal.
         _db, conn = self._at_code_3(tmp_path)
         try:
             with pytest.raises(RuntimeError, match="not 4"):
-                _postcondition_attempt_lease(conn)
+                _precommit_attempt_lease(conn)
         finally:
             conn.close()
 
-    def test_postcondition_refuses_a_forged_stamp_without_columns(
+    def test_precommit_refuses_a_forged_stamp_without_columns(
         self, tmp_path: Path
     ) -> None:
         # The stamp moved to 4 but the columns did not — a half-applied
-        # database the postcondition must surface instead of blessing.
+        # database the pre-commit verifier must surface instead of blessing.
         _db, conn = self._at_code_3(tmp_path)
         try:
             conn.execute("PRAGMA user_version = 4")  # nosec B608 — fixed int
             with pytest.raises(RuntimeError, match="did not add"):
-                _postcondition_attempt_lease(conn)
+                _precommit_attempt_lease(conn)
+        finally:
+            conn.close()
+
+
+# ── Pre-commit rollback (dbmigsafe001 REQ-003 / AC-003) ──────────────────────
+
+
+class TestPrecommitRollback:
+    def test_failed_precommit_rolls_back_schema_version_and_ledger(
+        self, tmp_path: Path
+    ) -> None:
+        db = tmp_path / "workflow.sqlite"
+        conn = _legacy_workflow_db(db)
+        _populate_tasks(conn)
+        try:
+            reg = _registry_with_failing_last_step()
+            planned = runner.plan(0, read_ledger(conn), reg)
+            assert [s.id for s in planned] == [
+                "workflow_ledger_baseline",
+                "workflow_tool_call_state",
+                "workflow_task_nonce",
+                "workflow_attempt_lease",
+            ]
+            with pytest.raises(RuntimeError, match="injected pre-commit failure"):
+                runner.apply(conn, planned, _ok_verifier)
+            # The failing step left no trace: its schema change, version stamp,
+            # and ledger row all rolled back with it; the earlier committed
+            # steps stand (AC-003/AC-2).
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+            columns = {r[1] for r in conn.execute("PRAGMA table_info(attempts)")}
+            assert "owner_id" not in columns
+            assert "lease_expires_at" not in columns
+            assert [r.id for r in read_ledger(conn)] == [
+                "workflow_ledger_baseline",
+                "workflow_tool_call_state",
+                "workflow_task_nonce",
+            ]
+            assert conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 2
         finally:
             conn.close()
 
@@ -696,7 +770,8 @@ class TestWorkflowRefusal:
         db = tmp_path / "workflow.sqlite"
         conn = _legacy_workflow_db(db)
         # A second connection holds an uncommitted write; the WAL checkpoint
-        # cannot complete cleanly, so no verified recovery point exists (REQ-002).
+        # cannot complete cleanly. The refusal reason is the distinct
+        # checkpoint-busy class, not a backup-integrity failure (REQ-004).
         holder = sqlite3.connect(str(db))
         holder.execute("BEGIN")
         holder.execute(
@@ -707,7 +782,7 @@ class TestWorkflowRefusal:
             planned = runner.plan(0, read_ledger(conn), REGISTRY)
             with pytest.raises(MigrationRefusalError) as excinfo:
                 runner.apply(conn, planned, _ok_verifier)
-            assert excinfo.value.reason == MigrationRefusalReason.NO_VERIFIED_BACKUP
+            assert excinfo.value.reason == MigrationRefusalReason.CHECKPOINT_BUSY
         finally:
             holder.rollback()
             holder.close()
@@ -942,12 +1017,17 @@ class TestWorkflowCli:
         db = tmp_path / "workflow.sqlite"
         conn = _legacy_workflow_db(db)
         conn.close()
-        apply = _run_cli(db, config_dir, "--apply")
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
+        apply = _run_cli(db, config_dir, "--apply", "--archive-dir", str(archive_dir))
         assert apply.returncode == 0
         assert "user_version now 4" in apply.stdout
         status = _run_cli(db, config_dir, "--status")
         assert status.returncode == 0
+        # AC-007: both --status fields pinned — user_version= integer code and
+        # marker= semantic string.
         assert "user_version=4" in status.stdout
+        assert "marker=1.4.0" in status.stdout
         assert "workflow_ledger_baseline" in status.stdout
         assert "0 -> 1" in status.stdout
         assert "workflow_tool_call_state" in status.stdout
@@ -956,6 +1036,16 @@ class TestWorkflowCli:
         assert "2 -> 3" in status.stdout
         assert "workflow_attempt_lease" in status.stdout
         assert "3 -> 4" in status.stdout
+        # Ledger append order (REQ-005): seq monotonic with the printed order.
+        conn = sqlite3.connect(str(db))
+        try:
+            seqs = [r.seq for r in read_ledger(conn)]
+            assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs) == 4
+        finally:
+            conn.close()
+        # CLI apply archived the pre-run state (AC-001 CLI half).
+        assert len(list(archive_dir.glob("*.sqlite"))) == 1
+        assert len(list(archive_dir.glob("*.audit.json"))) == 1
 
     def test_apply_is_idempotent_after_bootstrap(self, tmp_path: Path) -> None:
         config_dir = tmp_path / "config"
@@ -963,8 +1053,10 @@ class TestWorkflowCli:
         db = tmp_path / "workflow.sqlite"
         conn = _legacy_workflow_db(db)
         conn.close()
-        _run_cli(db, config_dir, "--apply")
-        again = _run_cli(db, config_dir, "--apply")
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
+        _run_cli(db, config_dir, "--apply", "--archive-dir", str(archive_dir))
+        again = _run_cli(db, config_dir, "--apply", "--archive-dir", str(archive_dir))
         assert again.returncode == 0
         assert "already at target version" in again.stdout
 
@@ -974,12 +1066,15 @@ class TestWorkflowCli:
         db = tmp_path / "workflow.sqlite"
         conn = _legacy_workflow_db(db, marker="2.0.0")
         conn.close()
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
         before = _hash_file(db)
-        result = _run_cli(db, config_dir, "--apply")
+        result = _run_cli(db, config_dir, "--apply", "--archive-dir", str(archive_dir))
         # REFUSAL exit class (2); the CLI pre-runs preconditions so nothing is
-        # mutated (AC-2).
+        # mutated (AC-2) and no archive is created for a refused run.
         assert result.returncode == 2
         assert _hash_file(db) == before
+        assert list(archive_dir.iterdir()) == []
 
     def test_busy_database_produces_gate_refusal(self, tmp_path: Path) -> None:
         config_dir = tmp_path / "config"
@@ -995,9 +1090,16 @@ class TestWorkflowCli:
         )
         conn.close()  # only the holder keeps a write transaction open
         try:
-            result = _run_cli(db, config_dir, "--apply")
-            # Gate failure maps to EXIT_GATE_FAILURE (1).
-            assert result.returncode == 1
+            archive_dir = tmp_path / "archive"
+            archive_dir.mkdir()
+            result = _run_cli(
+                db, config_dir, "--apply", "--archive-dir", str(archive_dir)
+            )
+            # CHECKPOINT_BUSY is a gate-family reason: EXIT_GATE_FAILURE (1).
+            assert result.returncode == EXIT_GATE_FAILURE
+            assert "checkpoint busy" in result.stderr
+            # A gate refusal archives nothing.
+            assert list(archive_dir.iterdir()) == []
         finally:
             holder.rollback()
             holder.close()
@@ -1042,16 +1144,26 @@ class TestWorkflowCliDbOption:
         self, tmp_path: Path
     ) -> None:
         config_dir, configured, target = self._sandbox(tmp_path)
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
         configured_before = _hash_file(configured)
-        result = _run_cli(configured, config_dir, "--apply", "--db", str(target))
+        result = _run_cli(
+            configured,
+            config_dir,
+            "--apply",
+            "--db",
+            str(target),
+            "--archive-dir",
+            str(archive_dir),
+        )
         assert result.returncode == 0
 
         conn = sqlite3.connect(str(target))
         try:
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
             rows = {(r.id, r.from_version, r.to_version) for r in read_ledger(conn)}
-            # read_ledger orders by applied_at then id; same-second steps tie on
-            # the timestamp, so compare the recorded set, not its order.
+            # read_ledger orders by append (rowid) order; same-second steps are
+            # distinguished by seq, so compare the recorded set, not raw order.
             assert rows == {
                 ("workflow_ledger_baseline", 0, 1),
                 ("workflow_tool_call_state", 1, 2),
@@ -1097,7 +1209,10 @@ class TestWorkflowCliDbOption:
 
     def test_main_apply_in_process_migrates_copy(self, tmp_path: Path) -> None:
         _config_dir, _configured, target = self._sandbox(tmp_path)
-        assert _cli_main(["--apply", "--db", str(target)]) == EXIT_OK
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
+        code = _cli_main(["--apply", "--db", str(target), "--archive-dir", str(archive_dir)])
+        assert code == EXIT_OK
         conn = sqlite3.connect(str(target))
         try:
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
@@ -1114,3 +1229,94 @@ class TestWorkflowCliDbOption:
         missing = tmp_path / "missing.sqlite"
         assert _cli_main(["--apply", "--db", str(missing)]) == EXIT_REFUSAL
         assert not missing.exists()
+
+    def test_main_apply_without_archive_dir_refuses_in_process(
+        self, tmp_path: Path
+    ) -> None:
+        # --apply without an explicit archive target is a refusal (exit 2);
+        # no default location is ever inferred, and the database is untouched.
+        _config_dir, _configured, target = self._sandbox(tmp_path)
+        before = _hash_file(target)
+        with pytest.raises(SystemExit) as excinfo:
+            _cli_main(["--apply", "--db", str(target)])
+        assert excinfo.value.code == EXIT_REFUSAL
+        assert _hash_file(target) == before
+
+    def test_main_apply_creates_archive_and_audit_in_process(self, tmp_path: Path) -> None:
+        # AC-001 CLI half: the durable archive + machine-readable audit exist
+        # under the operator-supplied dir and match the pre-run state.
+        _config_dir, _configured, target = self._sandbox(tmp_path)
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
+        code = _cli_main(
+            ["--apply", "--db", str(target), "--archive-dir", str(archive_dir)]
+        )
+        assert code == EXIT_OK
+        archives = sorted(archive_dir.glob("target-v0-*.sqlite"))
+        audits = sorted(archive_dir.glob("target-v0-*.audit.json"))
+        assert len(archives) == 1 and len(audits) == 1
+        audit = json.loads(audits[0].read_text(encoding="utf-8"))
+        assert audit["archive_path"] == str(archives[0])
+        assert audit["sha256"] == _hash_file(archives[0])
+        assert audit["source_version"] == 0
+        assert audit["retention_status"] == "unset"
+        ach = sqlite3.connect(str(archives[0]))
+        try:
+            assert ach.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert ach.execute("PRAGMA user_version").fetchone()[0] == 0
+        finally:
+            ach.close()
+
+
+# ── REQ-007: durable archive restore integration (AC-002) ───────────────────
+
+
+class TestArchiveRestoreIntegration:
+    def test_restore_archive_after_mid_run_failure(self, tmp_path: Path) -> None:
+        """A WAL-mode database is restorable from the durable archive after a
+        mid-chain failure that already committed the earlier steps."""
+        db = tmp_path / "workflow.sqlite"
+        conn = _legacy_workflow_db(db)
+        conn.execute("PRAGMA journal_mode=WAL")
+        _populate_tasks(conn)
+        pre_tasks = conn.execute(
+            "SELECT task_id, workflow_id, workflow_version, idempotency_key "
+            "FROM tasks ORDER BY task_id"
+        ).fetchall()
+
+        archive_dir = tmp_path / "archive"
+        archive_dir.mkdir()
+        reg = _registry_with_failing_last_step()
+        planned = runner.plan(0, read_ledger(conn), reg)
+        with pytest.raises(RuntimeError, match="injected pre-commit failure"):
+            runner.apply(conn, planned, _ok_verifier, archive_dir=archive_dir)
+
+        # The live database is partially migrated: the last step failed but the
+        # earlier steps committed — exactly the state recovery must undo.
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+        conn.close()
+
+        # The durable archive survived the failure and its audit verifies it.
+        archives = list(archive_dir.glob("*.sqlite"))
+        audits = list(archive_dir.glob("*.audit.json"))
+        assert len(archives) == 1 and len(audits) == 1
+        audit = json.loads(audits[0].read_text(encoding="utf-8"))
+        assert audit["sha256"] == _hash_file(archives[0])
+        assert audit["source_version"] == 0
+
+        # Restore: the archive replaces the live database (sidecars removed).
+        shutil.copyfile(archives[0], db)
+        for sidecar in (db.parent / "workflow.sqlite-wal", db.parent / "workflow.sqlite-shm"):
+            sidecar.unlink(missing_ok=True)
+
+        restored = sqlite3.connect(str(db))
+        try:
+            assert restored.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert restored.execute("PRAGMA user_version").fetchone()[0] == 0
+            assert restored.execute(
+                "SELECT task_id, workflow_id, workflow_version, idempotency_key "
+                "FROM tasks ORDER BY task_id"
+            ).fetchall() == pre_tasks
+            assert read_ledger(restored) == []
+        finally:
+            restored.close()
