@@ -55,8 +55,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the `TestFencingGateAC7` docstring references | Pending | — | — | |
-| 2 | Run the suppression checker, the two test files, and `ls` on each cited path | Pending | — | — | |
+| 1 | Rewrite the `TestFencingGateAC7` docstring references | Completed | 20261105-133737 | 20261105-133737 |  |
+| 2 | Run the suppression checker, the two test files, and `ls` on each cited path | Completed | 20261105-133737 | 20261105-133737 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

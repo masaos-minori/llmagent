@@ -58,8 +58,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the status table, the adapter-write sentence, and the preparation note | Pending | — | — | |
-| 2 | Run the documentation checkers and the two orchestrator tests named in the Validation plan | Pending | — | — | |
+| 1 | Edit the status table, the adapter-write sentence, and the preparation note | Completed | 20261105 | 20261105 | docs-only; no code or test changes |
+| 2 | Run the documentation checkers and the two orchestrator tests named in the Validation plan | Completed | 20261105 | 20261105 | all checkers pass; both orchestrator tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

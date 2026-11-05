@@ -62,9 +62,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run the caller search for `start_attempt` and `count_attempts` and record the result | Pending | — | — | |
-| 2 | Delete the two methods, delegate `finish_attempt`, and remove the unused imports | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Re-run the caller search for `start_attempt` and `count_attempts` and record the result | Completed | 20261105-134525 | 20261105-134525 |  |
+| 2 | Delete the two methods, delegate `finish_attempt`, and remove the unused imports | Completed | 20261105-134525 | 20261105-134525 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-135623 | 20261105-135623 | STEP:3: pytest targeted 284 pass, full suite 11556 pass/11 skip; mypy clean for state_store; bandit 0 high/med; ruff ok; module_size ok; reference_table no drift; diff-cover 100%; docs N/A: no docs/00_index.md task-scope mapping for scripts/agent/workflow/state_store.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

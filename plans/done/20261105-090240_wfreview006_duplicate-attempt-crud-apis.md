@@ -115,7 +115,7 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Consolidate attempt CRUD in `state_store.py` and comment `idempotency_ops.py` | In Progress | — | — |  |
+| 1 | Consolidate attempt CRUD in `state_store.py` and comment `idempotency_ops.py` | Completed | — | 20261105-142316 | STEP: both target files archived (state_store.py _01, idempotency_ops.py _02); comment-only REQ-003 change, no behavior change |
 | 2 | Deploy hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -126,8 +126,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-093002_01_scripts_agent_workflow_state_store.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-093002_02_scripts_agent_workflow_idempotency_ops.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-093002_01_scripts_agent_workflow_state_store.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-093002_02_scripts_agent_workflow_idempotency_ops.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -106,7 +106,7 @@ Validation quality baseline: `N/A: no Python target under scripts/ or tools/`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the docstring references | In Progress | — | — |  |
+| 1 | Rewrite the docstring references | Completed | — | 20261105-134051 |  |
 | 2 | Verify with checker and tests | Pending | — | — |  |
 
 ### Blocker Log
@@ -117,7 +117,7 @@ Validation quality baseline: `N/A: no Python target under scripts/ or tools/`.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-092940_01_tests_agent_workflow_test_stale_recovery_lease.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-092940_01_tests_agent_workflow_test_stale_recovery_lease.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

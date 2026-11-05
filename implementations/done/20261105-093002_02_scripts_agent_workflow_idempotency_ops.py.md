@@ -51,8 +51,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the comment above the `INSERT INTO attempts` | Pending | — | — | |
-| 2 | Run the validation commands and confirm a comment-only diff | Pending | — | — | |
+| 1 | Add the comment above the `INSERT INTO attempts` | Completed | 20261105-142144 | 20261105-142144 | STEP: comment added above INSERT INTO attempts; diff is comment-only (3 lines); ruff/format/mypy clean |
+| 2 | Run the validation commands and confirm a comment-only diff | Completed | 20261105-142149 | 20261105-142149 | STEP: 154 workflow tests + full suite 11556 passed; diff-cover 100%; rg counts match plan (2 INSERT INTO attempts, 2 UPDATE attempts) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
