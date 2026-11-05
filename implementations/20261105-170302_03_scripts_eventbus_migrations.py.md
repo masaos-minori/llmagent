@@ -71,10 +71,10 @@ Move both EventBus registered specs' integrity checks from post-commit `postcond
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename callbacks and swap spec fields (steps 1-3) | Pending | — | — | |
-| 2 | Tests carried by procedure 08 (no tests in this document) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_module_size.py` | Pending | — | — | |
-| 4 | No docs change in this document (docs are carried by doc 09) | Pending | — | — | |
+| 1 | Rename callbacks and swap spec fields (steps 1-3) | Completed | 20261105-211532 | 20261105-211618 |  |
+| 2 | Tests carried by procedure 08 (no tests in this document) | Completed | — | 20261105-211618 | test import/name renames applied with the source rename; CHECKPOINT_BUSY assertion and new pre-commit rollback tests land in procedure 08 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_module_size.py` | Completed | — | 20261105-211618 |  |
+| 4 | No docs change in this document (docs are carried by doc 09) | Completed | — | 20261105-211618 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
