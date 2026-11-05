@@ -70,10 +70,10 @@ Update the migration-contract passages of `docs/41_db/db_03_architecture_and_sch
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement steps 1-4 (sections 8a, 8b, guarantees, CLI semantics) | Pending | — | — | |
-| 2 | No tests in this document (docs row) | Pending | — | — | |
-| 3 | Run the doc checkers listed in Validation plan | Pending | — | — | |
-| 4 | Docs update is this document | Pending | — | — | |
+| 1 | Implement steps 1-4 (sections 8a, 8b, guarantees, CLI semantics) | Completed | 20261105-213434 | 20261105-213811 |  |
+| 2 | No tests in this document (docs row) | Completed | — | 20261105-213811 | docs row: no tests; docs quality/structure/content-policy/consistency-db/japanese checkers all green |
+| 3 | Run the doc checkers listed in Validation plan | Completed | — | 20261105-213811 |  |
+| 4 | Docs update is this document | Completed | — | 20261105-213811 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
