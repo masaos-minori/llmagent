@@ -99,7 +99,10 @@ exists, requires modification, has repository evidence, and is linked to a Plan
 requirement. Overlaps with `plans/20261104-230307_ragverify001_complete-fail-closed-rag-consistency.md`
 and `plans/20261104-230832_sessmoke001_atomic-session-smoke-test.md` on
 `scripts/db/models.py`, `scripts/db/recovery_verification.py`,
-`tests/db/test_db_recovery.py`, and `tests/db/test_recovery_drill.py` are
+`tests/db/test_db_recovery.py`, and `tests/db/test_recovery_drill.py`, and with
+`plans/20261104-232133_drillmetrics001_strengthen-recovery-drills-and-rpo-rto.md`
+on `tests/db/test_recovery_drill.py` and
+`docs/41_db/db_07_api_and_operations-recovery-and-reference.md`, are
 recorded in Assumptions as sequencing dependencies, not contradictions.)
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
@@ -109,7 +112,7 @@ recorded in Assumptions as sequencing dependencies, not contradictions.)
 | scripts/db/recovery_verification.py | Refactor: mandatory logical verification fails closed | returns `(True, None)` for unknown target and for `sqlite3.Error` (L122-L129) | REQ-005 / AC-005 | `scripts/db/recovery_verification.py` L111-L129 | tests/db/test_db_recovery.py | Verified |
 | scripts/db/models.py | Feature: `RecoveryResult` final active-state contract | `logical_ok: bool | None = None` (L163) with no field describing which database is active | REQ-006 / AC-006 | `scripts/db/models.py` L155-L163 | tests/db/test_db_recovery.py | Verified |
 | tests/db/test_db_recovery.py | Test: sidecar naming, fail-closed branches, WAL integration, rollback fault injection | existing sidecar tests use a `test.db` file with `test-wal` fixtures (L655-L674), which encodes the wrong naming and masks the defect | REQ-007 / AC-007 | `tests/db/test_db_recovery.py` L370-L503, L643-L674, L1041-L1074 | tests/db/test_db_recovery.py | Verified |
-| tests/db/test_recovery_drill.py | Test: drill covers the production-equivalent sidecar layout and the new failure actions | the drill runs `recover_corruption` end to end and currently asserts the old action set | REQ-007 / AC-007 | `tests/db/test_recovery_drill.py` | tests/db/test_recovery_drill.py | Verified |
+| tests/db/test_recovery_drill.py | Test: drill covers the production-equivalent sidecar layout and the new failure actions | the drill runs `run_drill` (`db.recovery_drill`) which verifies integrity + domain identity on isolated copies via `_verify_rag_session` (`scripts/db/recovery_drill.py` L91-L98); it does **not** run `recover_corruption` and therefore does not exercise the rollback / non-serviceable actions (those are covered by `tests/db/test_db_recovery.py`). Update fixtures to production-equivalent naming and add a test surfacing the fail-closed mandatory logical-verification behavior where the drill's rag/session path can express it | REQ-007 / AC-007 | `tests/db/test_recovery_drill.py` | tests/db/test_recovery_drill.py | Verified |
 | docs/41_db/db_07_api_and_operations-recovery-and-reference.md | Docs: restore protocol, result contract, and exclusive-access requirement | L34 documents the staging steps including "quarantine the stale `-wal`/`-shm` sidecars" as they are today | REQ-006, REQ-007 / AC-006 | `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` L34, L69 | N/A: docs | Verified |
 
 ## Reference Files
@@ -183,19 +186,25 @@ recorded in Assumptions as sequencing dependencies, not contradictions.)
   `scripts/db/__init__.py`, `scripts/db/rotation.py`, and the service layer stay
   import-compatible.
 - Dry-run behavior stays side-effect-free on live databases.
-- Overlap judgment: the four shared rows with `ragverify001` and `sessmoke001`
-  are sequenced (this Plan runs third). `models.py` edits touch different data
-  classes (`RecoveryResult` vs the two consistency reports);
-  `recovery_verification.py` edits touch `_run_logical_verification` while the
-  other Plans touch `_verify_rag_logic` and `_session_inconsistency_detail`;
-  test-file edits touch different test groups. Each row is re-verified against
+- Overlap judgment: the shared rows with `ragverify001`, `sessmoke001`, and
+  `drillmetrics001` are sequenced dependencies (this Plan runs before
+  `drillmetrics001`, which is sequenced last of the four recovery Plans).
+  `models.py` edits touch different data classes (`RecoveryResult` vs the two
+  consistency reports); `recovery_verification.py` edits touch
+  `_run_logical_verification` while the other Plans touch `_verify_rag_logic`
+  and `_session_inconsistency_detail`; `test_recovery_drill.py` is edited by
+  this Plan (production sidecar layout and new action values) and by
+  `drillmetrics001` (fixtures and metric definitions) in different test groups;
+  `db_07_api_and_operations-recovery-and-reference.md` is edited by this Plan
+  (recovery protocol and result contract) and by `sessmoke001`/`drillmetrics001`
+  (drill metric table) in different sections. Each row is re-verified against
   the post-predecessor file state before editing.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | What production service-stop or exclusive-lock mechanism guarantees exclusive file access before a restore? | no stop/lock helper found in `scripts/db/` or the service layer; `/session recover` runs while agent services may be live | operations decision; until resolved, the Plan documents the requirement and keeps ADR-008's operator-intervention posture | True |
-| UNK-02 | What is the recovery exit-code contract? The located entry point is the `/session recover` REPL subcommand, which has no exit-code mapping. | no standalone recovery script or exit-code plumbing exists (`cmd_session.py` L233, `db_session_ops.py` `recover()`) | decide with operations: either a new standalone entry script with documented exit codes, or a documented REPL-result contract; the issue's "non-zero CLI exit code" criterion cannot be met by the current path | True |
+| UNK-01 | What production service-stop or exclusive-lock mechanism guarantees exclusive file access before a restore? | no stop/lock helper found in `scripts/db/` or the service layer; `/session recover` runs while agent services may be live | operations decision; RESOLVED by this Plan's design — the exclusive-access mechanism is out of scope and this Plan documents the requirement and keeps ADR-008's operator-intervention posture instead of implementing a stop/lock helper. Repo scan confirms no stop/lock helper exists in `scripts/db/` or the service layer; the mechanism is not implemented by this Plan. | False |
+| UNK-02 | What is the recovery exit-code contract? The located entry point is the `/session recover` REPL subcommand, which has no exit-code mapping. | no standalone recovery script or exit-code plumbing exists (`cmd_session.py` L233, `db_session_ops.py` `recover()`) | decide with operations; RESOLVED by this Plan's design — no exit-code plumbing exists on the current `/session recover` path (confirmed), so this Plan documents the recovery-result contract and raises any new exit-code contract as an ADR amendment follow-up work item instead of editing the frozen ADR-008. The issue's "non-zero CLI exit code" criterion is not met by the current path and is carried forward. | False |
 | UNK-03 | What RTO/RPO objectives apply to recovery? | none recorded in `rules/env.md`, docs, or configs | operations decision; carried forward to `drillmetrics001` | False |
 | UNK-04 | Should rollback restore the archived corrupt original, or keep the candidate beside a preserved original? | no operational preference recorded | design decision at Phase 2 with the rollback test written first | False |
 | UNK-05 | Is WAL-mode fault injection (locked files, permission errors) reliable in the test environment? | no existing locked-file injection test found in `tests/db/` | prototype in Phase 4; fall back to injected `OSError` mocks if filesystem-level injection is unreliable | False |
@@ -336,11 +345,11 @@ Grounded in Step 3/5 analysis:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: sidecar unit fix | Pending | — | — | |
-| 2 | Phase 2: candidate verification and activation | Pending | — | — | |
-| 3 | Phase 3: rollback and result contract | Pending | — | — | |
-| 4 | Phase 4: fault-injection and drill coverage | Pending | — | — | |
-| 5 | Phase 5: documentation and full validation | Pending | — | — | |
+| 1 | Phase 1: sidecar unit fix | In Progress | — | — |  |
+| 2 | Phase 2: candidate verification and activation | In Progress | — | — |  |
+| 3 | Phase 3: rollback and result contract | In Progress | — | — |  |
+| 4 | Phase 4: fault-injection and drill coverage | In Progress | — | — |  |
+| 5 | Phase 5: documentation and full validation | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -350,7 +359,13 @@ Grounded in Step 3/5 analysis:
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-165334_01_scripts_db_recovery_restore.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-165334_02_scripts_db_recovery.py.md | 2, 3 | Procedure | Pending | — | — |
+| implementations/20261105-165334_03_scripts_db_recovery_verification.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-165334_04_scripts_db_models.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261105-165334_05_tests_db_test_db_recovery.py.md | 1, 4 | Procedure | Pending | — | — |
+| implementations/20261105-165334_06_tests_db_test_recovery_drill.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261105-165334_07_docs_41_db_db_07_api_and_operations-recovery-and-reference.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
