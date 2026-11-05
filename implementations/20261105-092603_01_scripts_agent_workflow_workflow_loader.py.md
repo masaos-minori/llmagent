@@ -70,9 +70,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the rejection tests to the companion file and confirm they fail on the current code | Pending | — | — | |
-| 2 | Add `_require_int` (new), the `timeout_sec` check, and remove the `int()` calls | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the validate CLI | Pending | — | — | |
+| 1 | Add the rejection tests to the companion file and confirm they fail on the current code | Completed | 2026-11-05 | 2026-11-05 | All 14 cases failed on current code (silent int() coercion or TypeError); they pass after the source change. |
+| 2 | Add `_require_int` (new), the `timeout_sec` check, and remove the `int()` calls | Completed | 2026-11-05 | 2026-11-05 | Helper rejects bool/float/str/None and below-minimum values; no bare int() call remains. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the validate CLI | Completed | 2026-11-05 | 2026-11-05 | ruff/mypy/bandit/lint-imports clean; 48 loader tests + 197 workflow tests pass; validate CLI OK; diff-cover 100%. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
