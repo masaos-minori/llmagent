@@ -28,7 +28,8 @@ class _FakeSQLiteHelper:
         self.conn.commit()
 
 
-# ── Schema (chunks_vec replaced with a plain table to avoid vec0 extension) ──
+# ── Schema (chunks_vec replaced with a plain table carrying a valid 1024-dim
+# embedding BLOB, to exercise the embedding probe without the vec0 extension) ──
 
 _RAG_SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
@@ -50,7 +51,8 @@ CREATE TABLE IF NOT EXISTS chunks (
     chunk_type         TEXT
 );
 CREATE TABLE IF NOT EXISTS chunks_vec (
-    chunk_id INTEGER PRIMARY KEY
+    chunk_id INTEGER PRIMARY KEY,
+    embedding BLOB
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     content,
@@ -106,6 +108,19 @@ def _insert_chunk(db: _FakeSQLiteHelper, doc_id: int, content: str) -> int:
     return cur.lastrowid
 
 
+def _insert_vec(db: _FakeSQLiteHelper, chunk_id: int) -> None:
+    """Insert a vec row with a valid 1024-dim (4096-byte) float32 embedding BLOB.
+
+    The embedding probe reads length(embedding) // 4; a valid blob keeps healthy
+    fixtures verified instead of raising on a missing column. Commits stay with
+    the callers, matching the raw INSERT calls this helper replaces.
+    """
+    db.execute(
+        "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
+        (chunk_id, bytes(1024 * 4)),
+    )
+
+
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 
@@ -144,7 +159,7 @@ class TestRagConsistency:
         db = _make_rag_db()
         doc_id = _insert_doc(db)
         chunk_id = _insert_chunk(db, doc_id, "hello world")
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (?)", (chunk_id,))
+        _insert_vec(db, chunk_id)
         db.commit()
 
         report = check_rag_consistency(db)  # type: ignore[arg-type]  # _FakeSQLiteHelper is structurally compatible: exposes execute() and commit()
@@ -175,7 +190,7 @@ class TestRagConsistency:
         assert not is_consistent(report)
 
         db = _make_rag_db()
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (99999)", ())
+        _insert_vec(db, 99999)
         db.commit()
 
         report = check_rag_consistency(db)  # type: ignore[arg-type]  # _FakeSQLiteHelper is structurally compatible: exposes execute() and commit()
@@ -188,7 +203,7 @@ class TestRagConsistency:
         db = _make_rag_db()
         doc_id = _insert_doc(db)
         chunk_id = _insert_chunk(db, doc_id, "text to delete")
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (?)", (chunk_id,))
+        _insert_vec(db, chunk_id)
         db.execute("DELETE FROM chunks WHERE chunk_id = ?", (chunk_id,))
         db.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (chunk_id,))
         db.commit()
@@ -223,7 +238,7 @@ class TestRagConsistency:
         db = _make_rag_db()
         doc_id = _insert_doc(db)
         chunk_id = _insert_chunk(db, doc_id, "reinsert content")
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (?)", (chunk_id,))
+        _insert_vec(db, chunk_id)
         db.commit()
 
         # Force-reinsert: delete order vec → chunks → documents
@@ -235,7 +250,7 @@ class TestRagConsistency:
         # Re-insert
         doc_id2 = _insert_doc(db)
         chunk_id2 = _insert_chunk(db, doc_id2, "reinsert content")
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (?)", (chunk_id2,))
+        _insert_vec(db, chunk_id2)
         db.commit()
 
         report = check_rag_consistency(db)  # type: ignore[arg-type]  # _FakeSQLiteHelper is structurally compatible: exposes execute() and commit()
@@ -286,7 +301,7 @@ class TestRagConsistencySeverity:
 
     def test_summarize_issues_orphan_vec_has_critical_prefix(self) -> None:
         db = _make_rag_db()
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (99999)", ())
+        _insert_vec(db, 99999)
         db.commit()
 
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
@@ -307,7 +322,7 @@ class TestRagConsistencySeverity:
 
     def test_summarize_issues_orphan_vec_includes_force_guidance(self) -> None:
         db = _make_rag_db()
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (88888)", ())
+        _insert_vec(db, 88888)
         db.commit()
 
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
@@ -433,7 +448,7 @@ class TestRagConsistencySeverity:
 
         # orphan_vec_count > 0
         db = _make_rag_db()
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (77777)", ())
+        _insert_vec(db, 77777)
         db.commit()
         all_issues += summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
 
@@ -524,7 +539,7 @@ class TestNewConsistencyChecks:
     def test_existing_checks_still_work(self) -> None:
         """Existing checks should still work after adding new ones."""
         db = _make_rag_db()
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (99999)", ())
+        _insert_vec(db, 99999)
         db.commit()
         report = check_rag_consistency(db)  # type: ignore[arg-type]
         assert report.orphan_vec_count == 1
@@ -554,7 +569,7 @@ class TestNewConsistencyChecks:
         db = _make_rag_db()
         doc_id = _insert_doc(db)
         chunk_id = _insert_chunk(db, doc_id, "consistent test")
-        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (?)", (chunk_id,))
+        _insert_vec(db, chunk_id)
         db.commit()
 
         report = check_rag_consistency(db)  # type: ignore[arg-type]
@@ -964,6 +979,7 @@ class TestCollectionFailureDiagnostics:
             "Basic counts collection failed",
             "Document checks collection failed",
             "Affected identifiers collection failed",
+            "FK consistency probe failed",
         }
         assert "URL mismatch collection failed" not in prefixes
         assert (report.chunks, report.fts, report.vec) == (0, 0, 0)
@@ -980,6 +996,7 @@ class TestCollectionFailureDiagnostics:
         assert prefixes == {
             "Document checks collection failed",
             "Affected identifiers collection failed",
+            "FK consistency probe failed",
         }
         assert report.url_level_mismatches is None
         assert report.read_smoke_test_ok is False
@@ -995,6 +1012,7 @@ class TestCollectionFailureDiagnostics:
             "Basic counts collection failed",
             "Document checks collection failed",
             "Affected identifiers collection failed",
+            "Embedding dimension probe failed",
         }
         assert report.read_smoke_test_ok is False
         assert is_consistent(report) is False
@@ -1005,3 +1023,128 @@ class TestCollectionFailureDiagnostics:
         assert report.diagnostic_errors is None
         assert report.read_smoke_test_ok is True
         assert is_consistent(report) is True
+
+
+# ── Fail-closed probe-error tests ─────────────────────────────────────────────
+
+
+class _RaisingSQLiteHelper(_FakeSQLiteHelper):
+    """Fake helper that raises sqlite3.Error for one targeted SQL fragment.
+
+    Lets each fatal-class probe's propagation be exercised in isolation while
+    every other query on the same connection stays real.
+    """
+
+    def __init__(self, conn: sqlite3.Connection, fragment: str) -> None:
+        super().__init__(conn)
+        self.fragment = fragment
+
+    def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
+        if self.fragment in sql:
+            raise sqlite3.OperationalError(f"injected probe failure: {self.fragment}")
+        return self.conn.execute(sql, params)
+
+
+class TestFailClosedProbeErrors:
+    """Each probe error surfaces as a diagnostic + unverified flag, never a silent zero."""
+
+    def test_fk_probe_error_marks_fk_unverified(self) -> None:
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "fk probe error")
+        _insert_vec(db, chunk_id)
+        db.commit()
+        helper = _RaisingSQLiteHelper(
+            db.conn, "FROM chunks WHERE doc_id NOT IN (SELECT doc_id FROM documents)"
+        )
+
+        report = check_rag_consistency(helper)  # type: ignore[arg-type]
+
+        assert report.fk_unverified is True
+        assert report.fk_inconsistency_count == 0  # unverified, not a healthy verdict
+        assert report.embedding_unverified is False
+        assert report.schema_unverified is False
+        assert any(
+            error.startswith("FK consistency probe failed")
+            for error in report.diagnostic_errors
+        )
+        assert is_consistent(report) is False
+
+    def test_embedding_probe_error_marks_embedding_unverified(self) -> None:
+        db = _make_rag_db()
+        helper = _RaisingSQLiteHelper(db.conn, "length(embedding) FROM chunks_vec")
+
+        report = check_rag_consistency(helper)  # type: ignore[arg-type]
+
+        assert report.embedding_unverified is True
+        assert report.dimension_mismatch == 0  # unverified, not a healthy verdict
+        assert report.fk_unverified is False
+        assert report.schema_unverified is False
+        assert any(
+            error.startswith("Embedding dimension probe failed")
+            for error in report.diagnostic_errors
+        )
+        assert is_consistent(report) is False
+
+    def test_schema_probe_error_marks_schema_unverified(self) -> None:
+        db = _make_rag_db()
+        helper = _RaisingSQLiteHelper(db.conn, "FROM sqlite_master")
+
+        report = check_rag_consistency(helper)  # type: ignore[arg-type]
+
+        assert report.schema_unverified is True
+        assert report.unknown_schema == 0  # unverified, not a healthy verdict
+        assert report.fk_unverified is False
+        assert report.embedding_unverified is False
+        assert any(
+            error.startswith("Schema recognition probe failed")
+            for error in report.diagnostic_errors
+        )
+        assert is_consistent(report) is False
+
+    def test_one_probe_failure_does_not_cancel_the_others(self) -> None:
+        """AC-003: with the embedding probe raising, FK and schema still report real values."""
+        db = _make_rag_db()
+        # A chunk referencing a missing document: the FK probe must still count it.
+        db.execute("INSERT INTO chunks (doc_id, content) VALUES (9999, 'orphan fk')")
+        db.commit()
+        helper = _RaisingSQLiteHelper(db.conn, "length(embedding) FROM chunks_vec")
+
+        report = check_rag_consistency(helper)  # type: ignore[arg-type]
+
+        assert report.embedding_unverified is True
+        assert report.fk_unverified is False
+        assert report.fk_inconsistency_count == 1  # real FK result despite the raise
+        assert report.schema_unverified is False
+        assert report.unknown_schema == 0  # real schema result despite the raise
+        assert report.fatal_count >= 1  # the FK violation is still classified FATAL
+
+
+class TestVerificationStatusContract:
+    """The unverified flags are explicit report-contract fields, orthogonal to severity."""
+
+    @staticmethod
+    def _clean_report(**flags: bool) -> RagConsistencyReport:
+        return RagConsistencyReport(
+            chunks=1,
+            fts=1,
+            vec=1,
+            orphan_vec_count=0,
+            fts_gap=0,
+            fts_orphan_count=0,
+            read_smoke_test_ok=True,
+            corpus_meta_verified=True,
+            **flags,
+        )
+
+    def test_flags_exist_and_default_false(self) -> None:
+        report = self._clean_report()
+        assert report.fk_unverified is False
+        assert report.embedding_unverified is False
+        assert report.schema_unverified is False
+        assert is_consistent(report) is True
+
+    def test_zero_counts_never_aggregate_an_unverified_dimension_as_healthy(self) -> None:
+        """AC-002: an unverified dimension makes the report inconsistent at all-zero counts."""
+        for flag in ("fk_unverified", "embedding_unverified", "schema_unverified"):
+            assert is_consistent(self._clean_report(**{flag: True})) is False

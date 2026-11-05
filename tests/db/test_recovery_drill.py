@@ -20,22 +20,65 @@ from unittest.mock import patch
 
 import pytest
 from db.config import DbConfig
+from db.models import RagConsistencyReport
 from db.recovery_drill import DOMAINS, MIGRATE_POLICY_DOMAINS, run_drill
 
 _EVENTBUS_SCHEMA = (
     Path(__file__).resolve().parents[2] / "scripts" / "eventbus" / "schema.sql"
 )
 
-# Minimal core-table DDL per domain. rag/session/workflow ship vec0/fts5 virtual
-# tables that require the external sqlite-vec extension; the drill only verifies
-# integrity + the required table, so the fixtures carry the core tables that the
-# verification actually checks (no external-extension dependency).
+# Minimal core-table DDL per domain. session/workflow ship vec0/fts5 virtual tables
+# that require the external sqlite-vec extension; the drill's checks for them cover
+# integrity + the required table, so their fixtures carry the core tables only (no
+# external-extension dependency). rag additionally runs the fail-closed logical
+# layer (`check_rag_consistency`), so its fixture mirrors the plain RAG core schema
+# used by tests/db/test_rag_consistency.py (chunks, a plain `chunks_vec` with a
+# valid 1024-dim embedding BLOB column, fts5 tables + triggers).
 _RAG_DDL = """CREATE TABLE documents (
-    doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT NOT NULL UNIQUE,
-    lang TEXT NOT NULL CHECK (lang IN ('ja', 'en')),
-    fetched_at TEXT NOT NULL
-)"""
+    doc_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    url       TEXT NOT NULL UNIQUE,
+    title     TEXT,
+    lang      TEXT,
+    fetched_at TEXT,
+    etag      TEXT,
+    last_modified TEXT,
+    chunking_strategy TEXT
+);
+CREATE TABLE chunks (
+    chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id             INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+    content            TEXT NOT NULL,
+    normalized_content TEXT,
+    chunk_index        INTEGER,
+    chunk_type         TEXT
+);
+CREATE TABLE chunks_vec (
+    chunk_id INTEGER PRIMARY KEY,
+    embedding BLOB
+);
+CREATE VIRTUAL TABLE chunks_fts USING fts5(
+    content,
+    content       = 'chunks',
+    content_rowid = 'chunk_id',
+    tokenize      = 'unicode61'
+);
+CREATE TRIGGER chunks_ai
+AFTER INSERT ON chunks BEGIN
+    INSERT INTO chunks_fts (rowid, content)
+    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+END;
+CREATE TRIGGER chunks_ad
+AFTER DELETE ON chunks BEGIN
+    INSERT INTO chunks_fts (chunks_fts, rowid, content)
+    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+END;
+CREATE TRIGGER chunks_au
+AFTER UPDATE ON chunks BEGIN
+    INSERT INTO chunks_fts (chunks_fts, rowid, content)
+    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+    INSERT INTO chunks_fts (rowid, content)
+    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+END"""
 
 _SESSION_DDL = """CREATE TABLE sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -250,6 +293,7 @@ def test_verify_per_domain_reports_expected_verdicts(
     assert artifacts["rag"]["verification"] == {
         "integrity": True,
         "required_table_rag": True,
+        "rag_consistency": True,
     }
     assert artifacts["session"]["verification"] == {
         "integrity": True,
@@ -263,6 +307,57 @@ def test_verify_per_domain_reports_expected_verdicts(
         "integrity": True,
         "fingerprint": True,
     }
+
+
+# ── Rag fail-closed logical layer (ragverify001 AC-004/AC-005) ──────────────
+
+
+def test_rag_verified_fixture_passes_drill(
+    _domain_dbs: dict[str, Path],
+    tmp_path: Path,
+) -> None:
+    """A fully verified rag database drills with rag_consistency True (healthy path)."""
+    paths = _domain_dbs
+    cfg = _config(paths)
+    archive = tmp_path / "archive"
+    drill = tmp_path / "drills"
+    with patch("db.recovery_drill.build_db_config", return_value=cfg):
+        assert run_drill("rag", str(archive), str(drill)) is True
+    (art,) = _load_artifacts(drill)
+    assert art["verification"]["rag_consistency"] is True
+
+
+def test_rag_unverified_dimension_fails_drill(
+    _domain_dbs: dict[str, Path],
+    tmp_path: Path,
+) -> None:
+    """An unverified dimension records rag_consistency False and fails the domain.
+
+    Report injection (not fixture breakage): the drill must fail on the report
+    contract alone, mirroring a probe error or unavailable sqlite-vec.
+    """
+    paths = _domain_dbs
+    cfg = _config(paths)
+    archive = tmp_path / "archive"
+    drill = tmp_path / "drills"
+    unverified = RagConsistencyReport(
+        chunks=1,
+        fts=1,
+        vec=1,
+        orphan_vec_count=0,
+        fts_gap=0,
+        fts_orphan_count=0,
+        read_smoke_test_ok=True,
+        corpus_meta_verified=True,
+        fk_unverified=True,
+    )
+    with (
+        patch("db.recovery_drill.build_db_config", return_value=cfg),
+        patch("db.recovery_drill.check_rag_consistency", return_value=unverified),
+    ):
+        assert run_drill("rag", str(archive), str(drill)) is False
+    (art,) = _load_artifacts(drill)
+    assert art["verification"]["rag_consistency"] is False
 
 
 # ── Audited failure ──────────────────────────────────────────────────────────

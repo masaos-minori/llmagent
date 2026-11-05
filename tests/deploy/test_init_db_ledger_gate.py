@@ -79,10 +79,41 @@ def _provision_workflow(path: pathlib.Path, *, with_ledger: bool) -> None:
         conn.close()
 
 
-def _provision_minimal_rag(path: pathlib.Path) -> None:
+def _provision_rag_core(path: pathlib.Path) -> None:
+    """Create the plain RAG core schema (no vec0/fts5-extension dependency).
+
+    The drill's rag domain runs the fail-closed logical layer (check_rag_consistency),
+    so the fixture mirrors the plain schema used by tests/db/test_recovery_drill.py:
+    a documents-only table would mark every probe dimension unverified and fail the drill.
+    """
     conn = sqlite3.connect(str(path))
     try:
-        conn.execute("CREATE TABLE documents (id INTEGER PRIMARY KEY)")
+        conn.executescript(
+            """CREATE TABLE documents (
+    doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL UNIQUE,
+    lang TEXT,
+    fetched_at TEXT
+);
+CREATE TABLE chunks (
+    chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    normalized_content TEXT,
+    chunk_index INTEGER,
+    chunk_type TEXT
+);
+CREATE TABLE chunks_vec (
+    chunk_id INTEGER PRIMARY KEY,
+    embedding BLOB
+);
+CREATE VIRTUAL TABLE chunks_fts USING fts5(
+    content,
+    content       = 'chunks',
+    content_rowid = 'chunk_id',
+    tokenize      = 'unicode61'
+)"""
+        )
         conn.commit()
     finally:
         conn.close()
@@ -218,7 +249,7 @@ def test_recovery_drill_runs_under_flag_and_leaves_fixtures_untouched(
     db_dir = tmp_path / "db"
     db_dir.mkdir(parents=True, exist_ok=True)
     scripts_dir = _write_stub_scripts(tmp_path)
-    _provision_minimal_rag(db_dir / "rag.sqlite")
+    _provision_rag_core(db_dir / "rag.sqlite")
     _provision_minimal_session(db_dir / "session.sqlite")
     _provision_workflow(db_dir / "workflow.sqlite", with_ledger=True)
     _provision_canonical_eventbus(db_dir / "eventbus.sqlite")
