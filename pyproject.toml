@@ -120,7 +120,7 @@ quote-style = "double"
 
 [tool.mypy]
 python_version = "3.13"
-files = ["scripts/", "tests/eventbus"]
+files = ["scripts/", "tests/eventbus", "tools"]
 mypy_path = "scripts"
 exclude = ["scripts/agent\\.py"]
 ignore_missing_imports = true
