@@ -14,8 +14,16 @@ report an explicit non-serviceable state on failure, and populate the
 
 - `_stage_restore` (`scripts/db/recovery_restore.py`) is refactored by seq 01 to
   stage the full candidate unit (database plus correctly-named `-wal`/`-shm`
-  sidecars) and to raise filesystem failures; this Plan reorders the caller so
-  verification runs on the staged candidate before the atomic swap.
+  sidecars) and to raise filesystem failures; seq 01 keeps `os.replace` (current
+  L102) and the step-4a final move (current L104-L114) inside the staging
+  function and its return type stays `None`. This row completes the
+  staging/activation split as a coordinated edit on `scripts/db/recovery_restore.py`
+  — the only place activation is removed, because Plan Phase 2 assigns the
+  ordering to `scripts/db/recovery.py` — stripping `os.replace` and the step-4a
+  move from `_stage_restore` and making it return the staged sidecar paths keyed
+  by suffix (`dict[str, Path]`); the caller then verifies the staged candidate
+  before performing the swap. (Verified 2026-11-05; see seq 01's Verification
+  note on the same gap.)
 - The corrupt original is archived (`shutil.copy2` to a timestamped
   `_corrupt_` path) inside staging, so a post-activation failure can restore from
   that archive.
@@ -81,31 +89,42 @@ report an explicit non-serviceable state on failure, and populate the
 
 `scripts/db/recovery.py`
 
+Coordinated edit owned by this row (per Verification 2026-11-05):
+`scripts/db/recovery_restore.py` — removal of `os.replace` and the step-4a move
+from `_stage_restore` and its return-type change to `dict[str, Path]` (see
+Procedure step 1). No other `recovery_restore.py` change belongs to this row;
+seq 01's naming/fail-closed changes land before it.
+
 ### Procedure
 
-1. In `_restore_from_backup` (current L252-L289): after staging the candidate,
+1. In `scripts/db/recovery_restore.py` (coordinated edit): remove `os.replace`
+   (current L102) and the step-4a move loop with its `try/except OSError`
+   (current L104-L114) from `_stage_restore`; copy the backup sidecars to
+   `temp_restore.parent / f"{temp_restore.name}{suffix}"` and return the staged
+   paths as `dict[str, Path]`; update the docstring to staging-only.
+2. In `_restore_from_backup` (current L252-L289): after staging the candidate,
    verify the **candidate** (`temp_restore`) before activation — run
    `_run_integrity_check(temp_restore, target)` and
    `_run_logical_verification(temp_restore, target)` — and branch on the result
    before any `os.replace`.
-2. Add activation: when both checks pass, perform the single atomic swap of
+3. Add activation: when both checks pass, perform the single atomic swap of
    `temp_restore` → `db_path` and move each staged sidecar to
    `db_path.parent / f"{db_path.name}{suffix}"`; clean up quarantine; return
    success with `logical_ok=True`, `active_db_state="restored"`.
-3. On candidate physical-verification failure: return a failure result with
+4. On candidate physical-verification failure: return a failure result with
    `active_db_state="preserved_original"`, `logical_ok=False`; do not activate.
-4. On candidate logical-verification failure: map
+5. On candidate logical-verification failure: map
    `logical_detail == "verification_unavailable"` to action
    `verification_unavailable` (new); otherwise `logical_verify_failed`; set
    `logical_ok=False`, `active_db_state="preserved_original"`.
-5. On a post-activation failure (`_post_restore_failure` returns non-None):
+6. On a post-activation failure (`_post_restore_failure` returns non-None):
    restore the archived original from `corrupt_archive`; if the restore raises,
    report a non-serviceable action and `active_db_state="non_serviceable"`,
    preserving artifacts.
-6. In the `OSError` handler (current L285-L289): restore the archived original
+7. In the `OSError` handler (current L285-L289): restore the archived original
    when available before reporting `error`; leave the live database untouched on
    pre-activation failure.
-7. Update the `recover_corruption` docstring action-value list (current L336-L349)
+8. Update the `recover_corruption` docstring action-value list (current L336-L349)
    to document `verification_unavailable` (new) and the rollback/non-serviceable action.
 
 ### Method
@@ -135,7 +154,8 @@ return RecoveryResult(success=True, ..., dry_run=dry_run)   # logical_ok absent 
 After (verify the candidate, then activate):
 
 ```python
-_stage_candidate(...)                 # stage unit, no os.replace (seq 01)
+```python
+staged = _stage_restore(db_path, backup, corrupt_archive, temp_restore, quarantine_dir)  # stage unit, no os.replace (split completed by this row, step 1)
 condition, logical_ok, logical_detail = _verify_candidate(temp_restore, target)
 if condition != DbCondition.HEALTHY:
     return _failure("restore_verify_failed", ..., dry_run,
@@ -191,10 +211,10 @@ Coordinate the `verification_unavailable` (new) action value with seq 03
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion test row seq 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs updated by seq 07 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-194403 | 20261105-195318 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-195318 | Companion test row seq 05 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-195318 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-195319 | N/A: docs updated by seq 07 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

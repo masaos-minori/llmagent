@@ -23,15 +23,22 @@ rag/session path.
   (`REQ-006`) are **not** exercised by this file — they are covered by
   `tests/db/test_db_recovery.py` (seq 05). This row does not claim otherwise.
 - The drill's rag/session path verifies integrity + domain identity but does not
-  call `_run_logical_verification` (seq 03). A logically inconsistent fixture is
-  still surfaced through `verify_domain_identity` as
-  `required_table_<domain>: False` in the artifact's `verification` dict.
-- Cross-plan: `drillmetrics001` (sequenced after this Plan) renames the artifact
-  duration field to `rpo_window_seconds` and adds RPO/RTO metric definitions;
-  this row's assertions use the current field names and are
-  expected to be re-verified against the post-drillmetrics001 state.
-- Cross-plan: `sessmoke001` (sequenced before this Plan) removes the
-  `write_smoke_fail` trigger; the drill does not construct
+  call `_run_logical_verification` (seq 03). Since `drillmetrics001`,
+  `_verify_rag_session` (`scripts/db/recovery_drill.py` L101-L111) also runs a
+  fail-closed `check_rag_consistency` check and records a `rag_consistency` bool
+  in the rag artifact's `verification` dict; a logically inconsistent fixture is
+  surfaced as `rag_consistency: False` (or `required_table_<domain>: False` via
+  `verify_domain_identity`). (Verified 2026-11-05.)
+- Cross-plan: `drillmetrics001` is already implemented (commit `de1a85a06`,
+  batch archived): the artifact fields are already `rto_seconds` /
+  `rpo_window_seconds`, and this test file already asserts them (current
+  L116-L117, L270-L271), already uses production-equivalent `{domain}.sqlite`
+  fixture names (current L175), and already covers the rag fail-closed pass/fail
+  paths (current L296, L319-L360). This row therefore narrows to confirming
+  alignment with the seq 02/03 contract; the remaining work is in the Procedure
+  steps. (Verified 2026-11-05.)
+- Cross-plan: `sessmoke001` (sequenced before this Plan) is already implemented:
+  it removed the write-smoke trigger; the drill does not construct
   `SessionConsistencyReport`, so no interaction.
 
 ## Design decisions
@@ -78,14 +85,17 @@ rag/session path.
 
 ### Procedure
 
-1. Rename drill fixture databases to production-equivalent `<domain>.sqlite`
-   (e.g. `rag.sqlite`, `session.sqlite`) wherever the fixtures create the live
-   database file under `tmp_path`, so sidecar computation matches production.
-2. Add a test that builds a logically inconsistent `rag` fixture (core table
-   present, FTS/index referential integrity broken) and asserts the drill's
-   `rag` artifact `verification` reports the inconsistency
-   (`required_table_rag` False or a consistency failure), i.e. the drill does
-   not report a clean pass for an unusable restored copy.
+1. Confirm the drill fixture databases already use production-equivalent
+   `<domain>.sqlite` names (e.g. `rag.sqlite`, `session.sqlite`; current L175,
+   L370, L415) — landed by `drillmetrics001`. Rename only any fixture that still
+   lacks it.
+2. Confirm the existing rag fail-closed tests (current L319-L360: healthy path
+   `rag_consistency` True; unverified-dimension path `rag_consistency` False)
+   cover a logically inconsistent rag copy. If they do not cover a real
+   broken-FTS/index fixture (core table present, consistency report
+   inconsistent), add a test that builds that fixture and asserts the drill's
+   `rag` artifact `verification` reports `rag_consistency: False`, i.e. the drill
+   does not report a clean pass for an unusable restored copy.
 3. Confirm the all-four sweep (L200-L236), per-domain artifact keys, and
    live-database immutability (L203) still hold after the rename.
 4. Confirm the audited-failure path (L285-L291) and CLI return-code assertions
@@ -104,11 +114,12 @@ rag/session path.
 ### Details
 
 The drill's `verification` dict for `rag` is
-`{"integrity": bool, "required_table_rag": bool}` (see
-`_verify_rag_session`). An inconsistent fixture drives
-`required_table_rag` to `False`; assert that. Do not add assertions referencing
-`verification_unavailable`, `logical_verify_failed`, or `active_db_state` —
-those belong to `test_db_recovery.py` (seq 05), not the drill.
+`{"integrity": bool, "required_table_rag": bool, "rag_consistency": bool}` (see
+`_verify_rag_session`, current L93-L112). A broken-FTS/index fixture drives
+`rag_consistency` to `False`; a missing core table drives
+`required_table_rag` to `False`. Assert accordingly. Do not add assertions
+referencing `verification_unavailable`, `logical_verify_failed`, or
+`active_db_state` — those belong to `test_db_recovery.py` (seq 05), not the drill.
 
 ## Validation plan
 
@@ -139,10 +150,10 @@ those belong to `test_db_recovery.py` (seq 05), not the drill.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion test row seq 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs updated by seq 07 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-203200 | 20261105-203800 | Fixture naming and sweep/immutability/CLI assertions confirmed already aligned (drillmetrics001); added real broken-FTS fixture test |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-203200 | 20261105-203800 | Companion test row seq 05 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-203200 | 20261105-203800 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-203200 | 20261105-203800 | N/A: docs updated by seq 07 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

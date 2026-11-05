@@ -19,15 +19,26 @@ placement failures of WAL/SHM files are fatal recovery errors, not warnings).
   `{stem}{suffix}` computation yields `rag-wal` / `rag-shm`, which never exist.
 - `_stage_restore` keeps its existing contract of raising filesystem failures to
   the caller's cleanup handler (`_restore_from_backup` in
-  `scripts/db/recovery.py`); this Plan only changes the internal naming and
-  removes the two `logger.warning(...; proceeding without it)` swallow points.
+  `scripts/db/recovery.py`); this row only changes the internal naming and
+  removes the two `logger.warning(...; proceeding without it)` swallow points. It
+  does NOT perform the staging/activation split (see Verification below).
 - Cross-plan: `tests/db/test_db_recovery.py` sidecar fixtures
   (`test.db` / `test-wal` / `test-shm`) are replaced with production-equivalent
-  names by this Plan's own test row (seq 05) and by the Phase 1 fixture step; the
-  production branch and the fixture fix land together so the suite does not break
-  in either direction.
-- Cross-plan: `drillmetrics001` (sequenced after this Plan) does not touch
-  `recovery_restore.py`; no interaction.
+  names by the Phase 1 fixture step (Plan Implementation steps, Phase 1 item 2)
+  that lands with this row; seq 05 owns the subsequent hardening of those
+  fixtures. The production branch and the fixture fix land together so the suite
+  does not break in either direction.
+- Cross-plan: `drillmetrics001` is implemented (commit `de1a85a06`) and does not
+  touch `recovery_restore.py`; no interaction. (Verified 2026-11-05.)
+- Verification (2026-11-05) — ownership gap resolved: seq 02's Design decisions
+  and Details assume `_stage_restore` no longer performs `os.replace` and returns
+  the staged sidecar paths, but neither seq 01 nor the Plan assigned removal of
+  `os.replace` (current L102) or of the step-4a final move (current L104-L114).
+  Resolution: this row keeps activation inside `_stage_restore` and fixes only
+  its naming and fail-closed posture, so Unit 1 stays green standalone; removal
+  of `os.replace` and the step-4a move, and the `_stage_restore` return-type
+  change to `dict[str, Path]`, are owned by seq 02 as a coordinated edit on
+  `scripts/db/recovery_restore.py` (see seq 02's Target file section).
 
 ## Design decisions
 
@@ -50,8 +61,11 @@ placement failures of WAL/SHM files are fatal recovery errors, not warnings).
 ## Compatibility considerations
 
 - `scripts/db/recovery.py` imports `_resolve_backup`, `_stage_restore` from
-  `db.recovery_restore`; the public signatures are unchanged, so the import
-  contract (`lint-imports`) is preserved. Only internal behavior changes.
+  `db.recovery_restore`; the signatures are unchanged in this row, so the import
+  contract (`lint-imports`) is preserved and only internal behavior changes. Seq
+  02 later changes `_stage_restore`'s return type from `None` to
+  `dict[str, Path]` (staged sidecar paths); its only caller is
+  `_restore_from_backup`, which seq 02 updates in the same unit.
 - `tests/agent/test_wal_backup_security.py` characterizes sidecar path-traversal
   safety; it does not assert the old `rag-wal` naming, so it stays green. Verify
   it during validation.
@@ -159,10 +173,10 @@ Apply the analogous change to `_stage_backup_sidecars` (use `backup.name`) and t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion test row seq 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs updated by seq 07 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-192550 | 20261105-193522 | tests green: test_db_recovery.py 67 passed, test_wal_backup_security.py 11 passed, full suite 11636 passed 9 skipped, ruff/mypy/lint-imports/diff-cover 100 pct clean |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-193522 | Companion test row seq 05 sidecar paths built from full filename: test.sqlite.wal/.shm, backup.sqlite.bak/.wal/.shm; quarantine name test.sqlite.wal |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-193522 | 7 mock-style tests gained shutil.move and pathlib.Path.unlink patches to match fail-closed behavior |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-193523 | N/A: docs updated by seq 07 activation moved into step-4a move block after quarantine of pre-existing sidecars; quarantine failure propagates without swallowing or unlink |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

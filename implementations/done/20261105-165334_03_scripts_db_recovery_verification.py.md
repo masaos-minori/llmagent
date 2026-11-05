@@ -12,18 +12,22 @@ failure (`verification_unavailable` (new)) instead of `(True, None)` success.
 
 ## Assumptions
 
-- `_run_logical_verification` (current L111-L128) is the sole consumer-facing entry
+- `_run_logical_verification` (current L121-L138) is the sole consumer-facing entry
   for mandatory post-restore logical verification; it is imported and called only
-  by `scripts/db/recovery.py` `_post_restore_failure` (L243). The recovery drill
-  uses `_verify_rag_logic` / `_verify_session_logic` directly and is unaffected.
+  by `scripts/db/recovery.py` `_post_restore_failure` (def L226, call L243). The
+  recovery drill does not import this module at all: `scripts/db/recovery_drill.py`
+  has its own `_verify_rag_session` (integrity + `verify_domain_identity` +
+  `check_rag_consistency`) and is unaffected. (Verified 2026-11-05.)
 - The current docstring rationale ("a verification gap must never block a
   completed physical restore") is the defect; it must be rewritten, not just
   patched.
-- Cross-plan: `_session_inconsistency_detail` (current L63-L84) still carries the
-  `write_smoke_fail` trigger (L81) left by `sessmoke001`. That trigger is removed
-  by `sessmoke001`, which is sequenced before this Plan. This Plan does **not**
-  touch `_session_inconsistency_detail` or `_verify_session_logic`; it changes
-  only `_run_logical_verification`.
+- Cross-plan: `sessmoke001` is already implemented (batch `20261105-161823`,
+  archived in `implementations/done/`): the write-smoke trigger and the
+  write-smoke report field no longer exist anywhere in the repo;
+  `_session_inconsistency_detail` (current L67-L88) now triggers on
+  `read_smoke_fail` (L85). This Plan does **not** touch `_session_inconsistency_detail`
+  or `_verify_session_logic`; it changes only `_run_logical_verification`.
+  (Verified 2026-11-05.)
 - Cross-plan: `scripts/db/recovery.py` (seq 02) maps the returned
   `"verification_unavailable"` detail string to the `verification_unavailable` (new)
   action value; keep the contract identical.
@@ -79,12 +83,12 @@ failure (`verification_unavailable` (new)) instead of `(True, None)` success.
 
 ### Procedure
 
-1. In `_run_logical_verification` (current L111-L129): replace the
+1. In `_run_logical_verification` (current L121-L138): replace the
    `if verify is None: return True, None` branch with a mandatory-target guard:
    return `(False, "verification_unavailable")` when `target` is a mandatory
    domain (`rag` or `session`) with no registered verifier, and keep
    `(True, None)` for non-mandatory unknown targets (`workflow`, `eventbus`).
-2. Replace the `except sqlite3.Error` handler (current L126-L128) with
+2. Replace the `except sqlite3.Error` handler (current L136-L138) with
    `return False, "verification_unavailable"` and change the log level from
    `warning` to `error`.
 3. Rewrite the docstring to reflect the fail-closed contract.
@@ -122,9 +126,10 @@ def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | N
 
 The returned detail `"verification_unavailable"` is matched by
 `scripts/db/recovery.py` `_restore_from_backup` (seq 02) to select the
-`verification_unavailable` (new) action value. Do not rename it. Leave
-`_session_inconsistency_detail`'s `write_smoke_fail` entry (L81) to
-`sessmoke001`; it is out of scope here.
+`verification_unavailable` (new) action value. Do not rename it.
+`_session_inconsistency_detail` was already cleared of the write-smoke entry by
+`sessmoke001` (current trigger: `read_smoke_fail`, L85); it remains out of scope
+here.
 
 ## Validation plan
 
@@ -156,10 +161,10 @@ The returned detail `"verification_unavailable"` is matched by
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion test row seq 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs updated by seq 07 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261105-201400 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261105-201400 | Companion test row seq 05 Companion test rewrite owned by seq 05 step 7 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261105-201400 | 1 expected red: test_an_unopenable_database_is_treated_as_consistent, owned by seq 05 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261105-201400 | N/A: docs updated by seq 07 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

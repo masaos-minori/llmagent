@@ -22,18 +22,20 @@ verification.
 - The current sidecar fixtures (`test.db` / `test-wal` / `test-shm`,
   `test_quarantine_sidecar_files` L655-L686, `test_stage_backup_sidecars`
   L689-L718) encode the wrong `.stem` naming and must be rewritten to
-  `test.sqlite` / `test.sqlite-wal` / `test.sqlite-shm`.
+  `test.sqlite` / `test.sqlite-wal` / `test.sqlite-shm`. Per Plan Phase 1 (item 2:
+  fixtures are replaced "before changing the production branch"), the pure
+  rename part lands with the seq 01 commit; this row then owns the
+  fail-closed hardening of those fixtures (Verification 2026-11-05).
 - The five `assert result.logical_ok is not True` assertions (L370, L403, L436,
   L469, L503) assert the failure path but are loose; they become strict
   `is False` plus an `active_db_state == "preserved_original"` assertion.
-- Cross-plan: `sessmoke001` (sequenced before this Plan) removes the
-  `write_smoke_fail` trigger from `_session_inconsistency_detail` and the
-  `write_smoke_test_ok` field from `SessionConsistencyReport`. Any test in this
-  file that constructs a `SessionConsistencyReport` with `write_smoke_test_ok`
-  (e.g. the session-detail tests around L1033-L1082) must drop that argument;
-  those tests are owned by `sessmoke001` and are expected to be gone by the time
-  this row runs. If any remain, remove the `write_smoke_test_ok=` keyword.
-- Cross-plan: `drillmetrics001` (sequenced after this Plan) edits
+- Cross-plan: `sessmoke001` is already implemented (batch `20261105-161823`,
+  archived in `implementations/done/`): the write-smoke trigger and the
+  write-smoke report field no longer exist anywhere in the repo, and a grep of
+  this test file confirms no write-smoke keyword remains in any
+  session-report construction call. The former "drop the keyword" step is
+  therefore verification-only. (Verified 2026-11-05.)
+- Cross-plan: `drillmetrics001` is implemented (commit `de1a85a06`) and edits
   `tests/db/test_recovery_drill.py`, not this file.
 
 ## Design decisions
@@ -59,7 +61,7 @@ verification.
 
 - The fixture helper names and signatures stay the same; only the filenames they
   create change. No new top-level imports beyond `time`/`tempfile` already used.
-- The `test_unknown_target_skips_verification` test (L1084-L1088) asserts
+- The `test_unknown_target_skips_verification` test (current L1068-L1072) asserts
   `(True, None)` for the non-mandatory `workflow` target; it stays valid because
   seq 03 fails closed only for the mandatory `rag`/`session` domains. Do not
   change it.
@@ -80,9 +82,10 @@ verification.
 
 ### Procedure
 
-1. Rewrite `test_quarantine_sidecar_files` (L655-L686) and
-   `test_stage_backup_sidecars` (L689-L718) to use `test.sqlite` with
-   `test.sqlite-wal` / `test.sqlite-shm` sidecars, and assert that a quarantine
+1. Confirm the `test_quarantine_sidecar_files` (L655-L686) and
+   `test_stage_backup_sidecars` (L689-L718) fixtures already use `test.sqlite`
+   with `test.sqlite-wal` / `test.sqlite-shm` sidecars (rename landed with the
+   seq 01 commit per Plan Phase 1), and harden them to assert that a quarantine
    or placement failure raises instead of being swallowed.
 2. Harden the five failure-path assertions (L370, L403, L436, L469, L503):
    `assert result.logical_ok is False` and
@@ -99,8 +102,13 @@ verification.
 6. Add a WAL-mode integration test: stage `test.sqlite-wal` / `test.sqlite-shm`
    alongside the candidate, run a successful restore, and assert the sidecars
    end at `test.sqlite-wal` / `test.sqlite-shm` (full-filename locations).
-7. Drop any `write_smoke_test_ok=` keyword from remaining session-report
-   construction calls (owned by `sessmoke001`).
+7. Rewrite `test_an_unopenable_database_is_treated_as_consistent`
+   (current L1074-L1086), which characterizes the pre-change tolerance
+   `(True, None)` + WARNING log: after seq 03 it must assert
+   `(False, "verification_unavailable")` and an error-level log.
+   (Verification finding 2026-11-05.)
+8. Confirm no write-smoke keyword remains in session-report construction calls
+   (`sessmoke001` already removed them; verification-only).
 
 ### Method
 
@@ -133,7 +141,7 @@ def test_quarantine_sidecar_files():
     ...
 ```
 
-Keep `test_unknown_target_skips_verification` (L1084-L1088) asserting
+Keep `test_unknown_target_skips_verification` (current L1068-L1072) asserting
 `(True, None)` for `workflow`; seq 03 preserves the non-mandatory skip.
 
 ## Validation plan
@@ -161,17 +169,17 @@ Keep `test_unknown_target_skips_verification` (L1084-L1088) asserting
   `scripts/db/recovery.py` seq 02, `scripts/db/recovery_verification.py` seq 03,
   `scripts/db/models.py` seq 04); this row only mirrors them in tests.
 - `tests/db/test_recovery_drill.py` (seq 06); `sessmoke001`'s removal of the
-  `write_smoke_fail` trigger.
+  write-smoke trigger.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion test row seq 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs updated by seq 07 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-201600 | 20261105-203000 | 6 new tests: never-activated, rollback, rollback-failed, post-activation OSError, WAL final-location, mandatory-unknown; unopenable tolerance rewritten to fail-closed; characterization swap test and test_db_maintenance verify-failed stubbed past 03 fail-close |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-201600 | 20261105-203000 | Companion test row seq 05 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-201600 | 20261105-203000 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-201600 | 20261105-203000 | N/A: docs updated by seq 07 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -345,11 +345,11 @@ Grounded in Step 3/5 analysis:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: sidecar unit fix | In Progress | — | — |  |
-| 2 | Phase 2: candidate verification and activation | In Progress | — | — |  |
-| 3 | Phase 3: rollback and result contract | In Progress | — | — |  |
-| 4 | Phase 4: fault-injection and drill coverage | In Progress | — | — |  |
-| 5 | Phase 5: documentation and full validation | In Progress | — | — |  |
+| 1 | Phase 1: sidecar unit fix | Completed | 2026-11-05 | 2026-11-05 | procedure 01 closed; full suite 11636 passed, diff-cover 100% on recovery_restore.py |
+| 2 | Phase 2: candidate verification and activation | Completed | 2026-11-05 | 2026-11-05 | procedures 02+03 closed; fail-closed verification_unavailable in recovery_verification.py |
+| 3 | Phase 3: rollback and result contract | Completed | 2026-11-05 | 2026-11-05 | procedures 02+04 closed; rollback + active_db_state verified |
+| 4 | Phase 4: fault-injection and drill coverage | Completed | 2026-11-05 | 2026-11-05 | procedures 05+06 closed; 6 new fail-closed/WAL/rollback tests + real broken-FTS drill test |
+| 5 | Phase 5: documentation and full validation | Completed | 2026-11-05 | 2026-11-05 | procedure 07 closed; full suite exit 0, diff-cover 100% on all four changed scripts |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -359,13 +359,13 @@ Grounded in Step 3/5 analysis:
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-165334_01_scripts_db_recovery_restore.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-165334_02_scripts_db_recovery.py.md | 2, 3 | Procedure | Pending | — | — |
-| implementations/20261105-165334_03_scripts_db_recovery_verification.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-165334_04_scripts_db_models.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-165334_05_tests_db_test_db_recovery.py.md | 1, 4 | Procedure | Pending | — | — |
-| implementations/20261105-165334_06_tests_db_test_recovery_drill.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261105-165334_07_docs_41_db_db_07_api_and_operations-recovery-and-reference.md | 5 | Procedure | Pending | — | — |
+| implementations/done/20261105-165334_01_scripts_db_recovery_restore.py.md | 1 | Procedure | Done | — | 2026-11-05 |
+| implementations/done/20261105-165334_02_scripts_db_recovery.py.md | 2, 3 | Procedure | Done | — | 2026-11-05 |
+| implementations/done/20261105-165334_03_scripts_db_recovery_verification.py.md | 2 | Procedure | Done | — | 2026-11-05 |
+| implementations/done/20261105-165334_04_scripts_db_models.py.md | 3 | Procedure | Done | — | 2026-11-05 |
+| implementations/done/20261105-165334_05_tests_db_test_db_recovery.py.md | 1, 4 | Procedure | Done | — | 2026-11-05 |
+| implementations/done/20261105-165334_06_tests_db_test_recovery_drill.py.md | 4 | Procedure | Done | — | 2026-11-05 |
+| implementations/done/20261105-165334_07_docs_41_db_db_07_api_and_operations-recovery-and-reference.md | 5 | Procedure | Done | — | 2026-11-05 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

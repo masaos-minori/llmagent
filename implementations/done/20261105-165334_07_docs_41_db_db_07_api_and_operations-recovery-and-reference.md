@@ -13,13 +13,17 @@ non-serviceable actions, and the `RecoveryResult.active_db_state` contract.
 
 ## Assumptions
 
-- This doc is edited by this Plan (recovery protocol + result contract) and by
+- This doc is edited by this Plan (recovery protocol + result contract); the
   `sessmoke001` (drill metric table) and `drillmetrics001` (RPO/RTO metric
-  definitions). This row edits the recovery protocol (§9.2, §9.5, §9.5a) and the
-  result-contract description; it does not touch the drill metric table.
-- The current §9.2 boundary text (L34-L35) documents `_stage_restore()` as
-  performing the swap and states "a verification gap never blocks a completed
-  physical restore" — both are the defective behavior being removed.
+  definitions) doc edits are already implemented and landed. This row edits the
+  recovery protocol (§9.2, §9.5, §9.5a) and the result-contract description; it
+  does not touch the drill metric table.
+- The current §9.2 boundary text (staging bullet L34, logical-verification bullet
+  L35) documents `_stage_restore()` as performing the swap and states "a
+  verification gap never blocks a completed physical restore" — both are the
+  defective behavior being removed. (Verified 2026-11-05: §9.2 heading L30, §9.5
+  heading L55 with "Current implementation status" bullets L59-L65 — "Restoration
+  IS atomic" at L63, §9.5a heading L67, §9.7 heading L76.)
 - Cross-plan: ADR-008 is frozen; this doc must not contradict it. Workflow has no
   corruption-recovery path and eventbus has no restoration path (ADR-008); keep
   those statements (§9.7).
@@ -159,10 +163,10 @@ After:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion test row seq 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs updated by seq 07 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261105-204200 | 20261105-204900 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261105-204200 | 20261105-204900 | Companion test row seq 05 N/A: docs procedure; validation ran docs checkers (quality/structure/content-policy/consistency/japanese) - all pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-204200 | 20261105-204900 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261105-204200 | 20261105-204900 | N/A: docs updated by seq 07 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
