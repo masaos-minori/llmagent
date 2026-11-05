@@ -2,8 +2,9 @@
 - Make `Orchestrator._execute_turn` pass the chat session id to the workflow adapter instead of an empty string, so `tasks.session_id` matches what session diagnostics query (`REQ-001`: wire the real session id).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: wfreview001-session-wiring
 - One call site in `scripts/agent/orchestrator.py` and one import. `WorkflowEngineAdapter.execute_turn` keeps its signature.
+- Member of unit `wfreview001-session-wiring` with procedure `_01_tests_agent_workflow_test_session_diagnostics_wiring.py.md`; the end-of-unit full-suite run happens after this member (corrected in Step 3b of `code-implementation`).
 
 ## Assumptions
 - `ctx.session.session_id` is an `int | None` set by `ctx.session.start()` before the first turn on the only entry path; `format_session_id(int | None) -> str` returns `""` for `None`.
@@ -60,9 +61,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import `format_session_id` and pass it to `execute_turn` | Pending | — | — | |
-| 2 | Run the regression test and the existing orchestrator tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`); deploy only as the user's decision per `skills/deploy/SKILL.md` | Pending | — | — | |
+| 1 | Import `format_session_id` and pass it to `execute_turn` | Completed | 20261105-094817 | 20261105-094911 | Changed: scripts/agent/orchestrator.py (import format_session_id; execute_turn gets format_session_id(ctx.session.session_id)). |
+| 2 | Run the regression test and the existing orchestrator tests | Completed | 20261105-094911 | 20261105-094911 | Regression tests of _01 pass (3); targeted 278 passed (test_orchestrator, test_session_persister, tests/agent/workflow). |
+| 3 | Run the validation sequence (`rules/toolchain.md`); deploy only as the user's decision per `skills/deploy/SKILL.md` | Completed | 20261105-094911 | 20261105-095915 | mypy, lint-imports, bandit -ll, module size, suppression check, gates pass; full suite and diff-cover at end of unit. End of unit: full suite 11512 passed, 7 skipped (-m 'not integration and not production_paths_allowed'); diff-cover 100% (orchestrator.py). Step 5/6: N/A, no docs/00_index.md task-scope mapping for the changed files. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

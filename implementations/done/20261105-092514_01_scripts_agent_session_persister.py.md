@@ -69,9 +69,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the close-spy tests to the companion file and confirm the first three fail on the current code | Pending | — | — | |
-| 2 | Add the `TYPE_CHECKING` import and the non-raising `finally` close | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the close-spy tests to the companion file and confirm the first three fail on the current code | Completed | 20261105-102416 | 20261105-102535 | Changed: tests/agent/test_session_persister.py (class TestPersistSessionDiagnosticsStoreClose). All 4 new tests failed on the pre-fix code (close called 0 times). |
+| 2 | Add the `TYPE_CHECKING` import and the non-raising `finally` close | Completed | 20261105-102535 | 20261105-102535 | Changed: scripts/agent/session_persister.py (TYPE_CHECKING import; store closed in finally, close failure logged). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-102535 | 20261105-103534 | mypy (CI scope), lint-imports, bandit -ll, size, suppression, mock-patch targets, gates, reference table pass. mypy on the test file reports one pre-existing no-any-return in _stored_content (also in HEAD; tests/ not in CI scope). Step 5/6: N/A, no docs/00_index.md mapping. Full suite 11516 passed, 7 skipped (-m 'not integration and not production_paths_allowed'); diff-cover 100% (orchestrator.py, session_persister.py). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

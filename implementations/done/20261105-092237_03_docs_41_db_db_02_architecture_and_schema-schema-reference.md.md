@@ -54,8 +54,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the `session_id` statement in section 7 | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Edit the `session_id` statement in section 7 | Completed | 20261105-095938 | 20261105-102405 | Changed: docs/41_db/db_02_architecture_and_schema-schema-reference.md (section 7, session_id contract). |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261105-102405 | 20261105-102405 | check_docs_quality, check_docs_structure, check_docs_content_policy --strict, check_docs_consistency --domain db, check_docs_japanese pass. Full suite: first run failed 3 (order-dependent, new test; fixed by pinning real objects in its fixture), second run seed 190226887: 11512 passed. Coverage N/A (docs only). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

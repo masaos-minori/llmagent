@@ -105,8 +105,8 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add close-spy tests, confirm they fail | In Progress | — | — |  |
-| 2 | Add non-raising finally close | In Progress | — | — |  |
+| 1 | Add close-spy tests, confirm they fail | Completed | — | 20261105-103534 |  |
+| 2 | Add non-raising finally close | Completed | — | 20261105-103534 |  |
 | 3 | Deploy hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -117,7 +117,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-092514_01_scripts_agent_session_persister.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261105-092514_01_scripts_agent_session_persister.py.md | 1, 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

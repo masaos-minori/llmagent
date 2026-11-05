@@ -114,9 +114,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add failing real-DB regression test | In Progress | — | — |  |
-| 2 | Wire the session id in the orchestrator | In Progress | — | — |  |
-| 3 | Update the schema reference | In Progress | — | — |  |
+| 1 | Add failing real-DB regression test | Completed | — | 20261105-095922 |  |
+| 2 | Wire the session id in the orchestrator | Completed | — | 20261105-095922 |  |
+| 3 | Update the schema reference | Completed | — | 20261105-102405 |  |
 | 4 | Deploy hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -127,9 +127,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-092237_01_tests_agent_workflow_test_session_diagnostics_wiring.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261105-092237_02_scripts_agent_orchestrator.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261105-092237_03_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261105-092237_01_tests_agent_workflow_test_session_diagnostics_wiring.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261105-092237_02_scripts_agent_orchestrator.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261105-092237_03_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -2,9 +2,10 @@
 - Add a real-database regression test that runs a turn through `Orchestrator._execute_turn` and then `SessionPersister.persist_session_diagnostics()`, and asserts the diagnostics see the turn's workflow rows (`REQ-002`: prove the write path and the read path agree on the session id).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: wfreview001-session-wiring
 - Creates one new test module. No production code, fixture file, or `conftest` is changed.
 - The test must fail on the current orchestrator (it passes `""` as the session id) and pass after procedure `_02_scripts_agent_orchestrator.py.md` lands.
+- Member of unit `wfreview001-session-wiring` with procedure `_02_scripts_agent_orchestrator.py.md`: the regression test is red by design until `_02` lands, so the full suite, diff-cover, and the move run once after the last member (corrected in Step 3b of `code-implementation`; the Plan's `### Release units` still reads `N/A: no release unit`).
 
 ## Assumptions
 - `tests/agent/test_orchestrator.py` defines `_make_ctx` and `_make_orchestrator`; importing them is an established pattern (`from tests.agent.test_tool_runner import _cfg, _make_ctx` exists in `tests/agent/test_tool_loop_guard_wiring.py`).
@@ -66,9 +67,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the module with the fixture and three tests | Pending | — | — | |
-| 2 | Run the module and confirm the first two tests fail on the pre-fix orchestrator | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create the module with the fixture and three tests | Completed | 20261105-094725 | 20261105-094817 | Changed: tests/agent/workflow/test_session_diagnostics_wiring.py (new). Step 2 stale check clean. |
+| 2 | Run the module and confirm the first two tests fail on the pre-fix orchestrator | Completed | 20261105-094817 | 20261105-094817 | Red by design before _02: test_task_row_carries_chat_session_id and test_persister_sees_turn_workflow_rows fail ('' != '7', task_count 0); empty-session test passes. Unit wfreview001-session-wiring. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261105-094817 | 20261105-095915 | ruff, ruff format, mypy (file), check_mock_patch_targets pass; full suite and diff-cover run at end of unit. End of unit: full suite 11512 passed, 7 skipped (-m 'not integration and not production_paths_allowed'); diff-cover 100% (orchestrator.py). Step 5/6: N/A, no docs/00_index.md task-scope mapping for the changed files. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
