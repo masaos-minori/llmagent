@@ -23,6 +23,7 @@ import orjson
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+    from agent.workflow.state_store import StateStore
 
 from agent.cli_view import CLIView
 from agent.diagnostic_store import DiagnosticStore
@@ -84,6 +85,7 @@ class SessionPersister:
             retry_count = 0
             artifacts: list[str] = []
             if session_id is not None:
+                store: StateStore | None = None
                 try:
                     from agent.workflow.state_store import StateStore
 
@@ -105,6 +107,16 @@ class SessionPersister:
                     artifacts = store.get_artifact_uris(sid)
                 except (RuntimeError, sqlite3.Error):
                     pass
+                finally:
+                    if store is not None:
+                        try:
+                            store.close()
+                        except (sqlite3.Error, OSError) as exc:
+                            logger.warning(
+                                "Failed to close workflow StateStore for session %s: %s",
+                                session_id,
+                                exc,
+                            )
 
             rag_query_count = 0
             rag_stage_outcomes: list[dict] = []

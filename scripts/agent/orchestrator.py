@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from shared.logger import Logger
 
-from agent.audit_event_emitter import AuditEventEmitter
+from agent.audit_event_emitter import AuditEventEmitter, format_session_id
 from agent.bg_task_monitor import BG_FAILURE_THRESHOLD, BgTaskMonitor
 from agent.context import AgentContext
 from agent.conversation_state_manager import ConversationStateManager
@@ -174,7 +174,9 @@ class Orchestrator:
             boundary = await self._ctx.session.turn_boundary(self._ctx.conv)
             self._ctx.turn.persistence_boundary = boundary
             answer, error_kind, is_partial = await self._workflow_adapter.execute_turn(
-                line, turn_started_at, ""
+                line,
+                turn_started_at,
+                format_session_id(self._ctx.session.session_id),
             )
         except ConversationPersistenceError:
             # boundary.fail_from_error() already compensated (deleted the turn's
