@@ -33,12 +33,16 @@ logger = logging.getLogger(__name__)
 def _rag_inconsistency_detail(report: RagConsistencyReport) -> str:
     """Summarize a rag report's inconsistencies as counts/identifiers only (REQ-010/AC-7).
 
-    Entries are listed in the order `check_rag_consistency` computes them. An empty
-    string means the inconsistency came from a check this summary does not name
-    (read smoke test, diagnostic errors).
+    Entries are listed in the order `check_rag_consistency` computes them: the
+    unverified-dimension names come first (probe-class failures), then the count-based
+    entries. An empty string means the inconsistency came from a check this summary does
+    not name (read smoke test, query-stage diagnostic errors).
     """
     mismatches = report.url_level_mismatches or {}
     entries: list[tuple[bool, str]] = [
+        (report.fk_unverified, "fk_unverified"),
+        (report.embedding_unverified, "embedding_unverified"),
+        (report.schema_unverified, "schema_unverified"),
         (report.fts_gap > 0, f"fts_gap={report.fts_gap}"),
         (report.fts_orphan_count > 0, f"fts_orphan={report.fts_orphan_count}"),
         (report.orphan_vec_count > 0, f"orphan_vec={report.orphan_vec_count}"),
@@ -85,8 +89,14 @@ def _session_inconsistency_detail(report: SessionConsistencyReport) -> str:
 
 
 def _verify_rag_logic(db: SQLiteHelper) -> tuple[bool, str | None]:
-    """Return (consistent, count-only detail) for the rag domain."""
+    """Return (consistent, count-only detail) for the rag domain.
+
+    An unverified dimension is a verification failure even when the surviving
+    numeric checks align (fail-closed contract, seq 03/05).
+    """
     report = check_rag_consistency(db)
+    if report.fk_unverified or report.embedding_unverified or report.schema_unverified:
+        return False, _rag_inconsistency_detail(report)
     if rag_is_consistent(report):
         return True, None
     return False, _rag_inconsistency_detail(report)

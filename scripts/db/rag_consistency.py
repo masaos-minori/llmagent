@@ -84,20 +84,30 @@ def check_rag_consistency(
     except sqlite3.Error as e:
         diagnostic_errors.append(f"Affected identifiers collection failed: {e}")
 
-    # Fatal-class counters (doc 04). Structural reads are guarded: a missing or
-    # broken table is already surfaced as a diagnostic error by the collection
-    # stages above, so these leave their clean defaults and never add diagnostics.
+    # Fatal-class counters (doc 04). Each probe runs under its own guard: a raise
+    # records a diagnostic and marks that dimension unverified, and never cancels the
+    # other probes. An unverified dimension is never reported as a healthy zero.
     fk_inconsistency_count = 0
     dimension_mismatch = 0
     unknown_schema = 0
+    fk_unverified = embedding_unverified = schema_unverified = False
     try:
         fk_inconsistency_count = _check_fk_consistency(db)
+    except sqlite3.Error as e:
+        fk_unverified = True
+        diagnostic_errors.append(f"FK consistency probe failed: {e}")
+    try:
         dimension_mismatch = (
             0 if _check_embedding_dimension(db, get_embedding_dims()) else 1
         )
+    except sqlite3.Error as e:
+        embedding_unverified = True
+        diagnostic_errors.append(f"Embedding dimension probe failed: {e}")
+    try:
         unknown_schema = 0 if _check_schema_recognition(db) else 1
-    except sqlite3.Error:
-        pass
+    except sqlite3.Error as e:
+        schema_unverified = True
+        diagnostic_errors.append(f"Schema recognition probe failed: {e}")
     corpus_meta_verified = _corpus_meta_verifiable(db)
 
     report = RagConsistencyReport(
@@ -125,6 +135,9 @@ def check_rag_consistency(
         dimension_mismatch=dimension_mismatch,
         unknown_schema=unknown_schema,
         corpus_meta_verified=corpus_meta_verified,
+        fk_unverified=fk_unverified,
+        embedding_unverified=embedding_unverified,
+        schema_unverified=schema_unverified,
         diagnostic_errors=tuple(diagnostic_errors) if diagnostic_errors else None,
     )
     findings = tuple(
@@ -340,7 +353,7 @@ def _embedding_dimension_issue(report: RagConsistencyReport) -> ConsistencyFindi
         severity=FindingSeverity.FATAL,
         message=(
             f"[CRITICAL] Embedding dimension mismatch detected"
-            f" (expected={report.dimension_mismatch})."
+            f" (expected={get_embedding_dims()})."
         ),
         repair_action="restore_from_backup",
     )
@@ -435,6 +448,11 @@ _CHECKS: tuple[_ConsistencyCheck, ...] = (
     ),
     _ConsistencyCheck(lambda report: not report.diagnostic_errors),
     _ConsistencyCheck(lambda report: report.read_smoke_test_ok),
+    # Fail closed: a probe that could not run marks its dimension unverified, and an
+    # unverified dimension is never aggregated as healthy even at all-zero counts.
+    _ConsistencyCheck(lambda report: not report.fk_unverified),
+    _ConsistencyCheck(lambda report: not report.embedding_unverified),
+    _ConsistencyCheck(lambda report: not report.schema_unverified),
 )
 
 

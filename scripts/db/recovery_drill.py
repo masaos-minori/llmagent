@@ -31,6 +31,8 @@ from shared.eventbus_schema_fingerprint import assert_matches
 
 from db.config import build_db_config, format_timestamp
 from db.helper import SQLiteHelper
+from db.rag_consistency import check_rag_consistency
+from db.rag_consistency import is_consistent as rag_is_consistent
 from db.recovery import DbCondition, run_integrity_check, verify_domain_identity
 from db.rotation import _archive_db_file, _resolve_archive_dir
 
@@ -92,10 +94,22 @@ def _verify_rag_session(domain: str, isolated: Path) -> dict:
     """Per-domain checks for the recreate-only rag/session domains."""
     condition, _ = run_integrity_check(isolated, domain)
     identity_ok, _ = verify_domain_identity(isolated, domain)
-    return {
+    verification = {
         "integrity": condition == DbCondition.HEALTHY,
         f"required_table_{domain}": identity_ok,
     }
+    if domain == "rag":
+        # Fail-closed logical layer (dbmig001 row 11 + ragverify001): an unverified
+        # dimension or an inconsistent report fails the domain in the artifact.
+        with SQLiteHelper("rag", db_path=str(isolated)).open() as db:
+            report = check_rag_consistency(db)
+        verification["rag_consistency"] = bool(
+            not report.fk_unverified
+            and not report.embedding_unverified
+            and not report.schema_unverified
+            and rag_is_consistent(report)
+        )
+    return verification
 
 
 def _verify_workflow(isolated: Path) -> tuple[dict, dict]:

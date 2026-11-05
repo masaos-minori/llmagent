@@ -116,6 +116,11 @@ class RagConsistencyReport:
     dimension_mismatch: int = 0
     unknown_schema: int = 0
     corpus_meta_verified: bool = False
+    # Verification-status flags: set by check_rag_consistency (db/rag_consistency.py) when the
+    # corresponding probe raises sqlite3.Error. An unverified dimension is never a healthy zero.
+    fk_unverified: bool = False  # FK probe raised sqlite3.Error
+    embedding_unverified: bool = False  # embedding-dimension probe raised sqlite3.Error
+    schema_unverified: bool = False  # schema-recognition probe raised sqlite3.Error
     # Document-level checks
     documents_without_chunks_count: int = 0  # documents with no chunks
     chunks_without_vec_count: int = 0  # chunks without vector rows
