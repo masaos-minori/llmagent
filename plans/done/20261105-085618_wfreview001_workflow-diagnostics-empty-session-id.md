@@ -36,8 +36,8 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/agent/orchestrator.py` | Turn entry point | Replace the hardcoded `""` argument of `execute_turn(...)` with the formatted chat session id | REQ-001 / AC-1 | `Orchestrator._execute_turn` passes `""` as third argument (checked in Step 2) | `tests/agent/workflow/test_session_diagnostics_wiring.py` | Verified |
 | `tests/agent/workflow/test_session_diagnostics_wiring.py` | Regression test | New file: real-DB test of orchestrator write path + persister read path | REQ-002 / AC-2 | New file; `tests/agent/workflow/` exists; existing getter tests hand-seed ids in `tests/agent/workflow/test_workflow_state_store.py` (checked in Step 2) | itself | Verified |
+| `scripts/agent/orchestrator.py` | Turn entry point | Replace the hardcoded `""` argument of `execute_turn(...)` with the formatted chat session id | REQ-001 / AC-1 | `Orchestrator._execute_turn` passes `""` as third argument (checked in Step 2) | `tests/agent/workflow/test_session_diagnostics_wiring.py` | Verified |
 | `docs/41_db/db_02_architecture_and_schema-schema-reference.md` | Schema reference | Section 7 says `session_id` is "recorded metadata only"; state its value and its use by diagnostics | REQ-003 / AC-3 | Section 7 paragraph on `task_nonce` (checked in Step 2) | `tools/check_docs_consistency.py --domain db` | Verified |
 
 ## Reference Files
@@ -114,10 +114,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add failing real-DB regression test | Pending | — | — | |
-| 2 | Wire the session id in the orchestrator | Pending | — | — | |
-| 3 | Update the schema reference | Pending | — | — | |
-| 4 | Deploy hand-off and verification | Pending | — | — | |
+| 1 | Add failing real-DB regression test | In Progress | — | — |  |
+| 2 | Wire the session id in the orchestrator | In Progress | — | — |  |
+| 3 | Update the schema reference | In Progress | — | — |  |
+| 4 | Deploy hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -127,7 +127,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-092237_01_tests_agent_workflow_test_session_diagnostics_wiring.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-092237_02_scripts_agent_orchestrator.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-092237_03_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -144,3 +146,5 @@ N/A: no release unit
 | REQ-001 | Issue Required Changes 2; `orchestrator.py` call site | `scripts/agent/orchestrator.py` | Phase 2 | AC-1 | `test_session_diagnostics_wiring.py` | Confirmed by repository evidence |
 | REQ-002 | Issue Required Changes 3, Testing Expectations | `tests/agent/workflow/test_session_diagnostics_wiring.py` | Phase 1 | AC-2 | pytest command in Validation plan | Confirmed by repository evidence |
 | REQ-003 | Issue Required Changes 4, Documentation Impact | `docs/41_db/db_02_architecture_and_schema-schema-reference.md` | Phase 3 | AC-3 | docs checkers | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-092237 -->

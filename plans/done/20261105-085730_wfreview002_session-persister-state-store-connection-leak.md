@@ -7,7 +7,7 @@ Medium
 ## Scope
 - **In-Scope**: ownership and `finally`-based close of the persister-created `StateStore`; a close-spy test for the success and DB-error paths.
 - **Out-of-Scope**: closing `Orchestrator`'s process-lifetime `self._state_store`; the session id semantics of the counts (wfreview001); `StateStore` ownership semantics on the engine/adapter path; adding a context-manager protocol to `StateStore`.
-- **Dependencies**: `N/A: none`. The related Issue wfreview001 (`plans/20261105-085618_wfreview001_workflow-diagnostics-empty-session-id.md`) edits the same function's inputs but not this file, so the two are independent.
+- **Dependencies**: `N/A: none`. The related Issue wfreview001 (`plans/done/20261105-085618_wfreview001_workflow-diagnostics-empty-session-id.md`) edits the same function's inputs but not this file, so the two are independent.
 
 ## Background
 Adversarial review (2026-11-03) found that the diagnostics block builds `StateStore()` and never calls `close()`. `StateStore.__init__` opens `workflow.sqlite` in write mode; `close()` is the teardown.
@@ -105,9 +105,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add close-spy tests, confirm they fail | Pending | — | — | |
-| 2 | Add non-raising finally close | Pending | — | — | |
-| 3 | Deploy hand-off and verification | Pending | — | — | |
+| 1 | Add close-spy tests, confirm they fail | In Progress | — | — |  |
+| 2 | Add non-raising finally close | In Progress | — | — |  |
+| 3 | Deploy hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -117,7 +117,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-092514_01_scripts_agent_session_persister.py.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -134,3 +134,5 @@ N/A: no release unit
 | REQ-001 | Issue Required Changes 1; `session_persister.py` diagnostics block | `scripts/agent/session_persister.py` | Phase 2 | AC-1 | close-spy tests | Confirmed by repository evidence |
 | REQ-002 | Issue Constraints (non-fatal), AI Implementation Instruction; `SQLiteHelper.close` catches only `OSError` | `scripts/agent/session_persister.py` | Phase 2 | AC-2 | close-raises test | Derived from confirmed evidence |
 | REQ-003 | Issue Required Changes 2, Testing Expectations | `tests/agent/test_session_persister.py` | Phase 1 | AC-3 | pytest command in Validation plan | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-092514 -->

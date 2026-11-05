@@ -115,8 +115,8 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Consolidate attempt CRUD in `state_store.py` and comment `idempotency_ops.py` | Pending | — | — | |
-| 2 | Deploy hand-off and verification | Pending | — | — | |
+| 1 | Consolidate attempt CRUD in `state_store.py` and comment `idempotency_ops.py` | In Progress | — | — |  |
+| 2 | Deploy hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -126,7 +126,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-093002_01_scripts_agent_workflow_state_store.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-093002_02_scripts_agent_workflow_idempotency_ops.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -144,3 +145,5 @@ N/A: no release unit
 | REQ-002 | Issue Required Changes 2 | `scripts/agent/workflow/state_store.py` | Phase 1 | AC-2 | engine tests; grep check | Confirmed by repository evidence |
 | REQ-003 | Issue Required Changes 3, Constraints 1 | `scripts/agent/workflow/idempotency_ops.py` | Phase 1 | AC-3 | grep check; engine tests | Explicit in issue |
 | REQ-004 | Derived from the deletions (unused imports) | `scripts/agent/workflow/state_store.py` | Phase 1 | AC-4 | `uv run ruff check` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-093002 -->

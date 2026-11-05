@@ -106,8 +106,8 @@ Validation quality baseline: `N/A: no Python target under scripts/ or tools/`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the docstring references | Pending | — | — | |
-| 2 | Verify with checker and tests | Pending | — | — | |
+| 1 | Rewrite the docstring references | In Progress | — | — |  |
+| 2 | Verify with checker and tests | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -117,7 +117,7 @@ Validation quality baseline: `N/A: no Python target under scripts/ or tools/`.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-092940_01_tests_agent_workflow_test_stale_recovery_lease.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -133,3 +133,5 @@ Validation quality baseline: `N/A: no Python target under scripts/ or tools/`.
 |---|---|---|---|---|---|---|
 | REQ-001 | Issue Required Changes 3; docstring citation checked with `ls` | `tests/agent/workflow/test_stale_recovery_lease.py` | Phase 1 | AC-1 | path-resolution check | Confirmed by repository evidence |
 | REQ-002 | Issue Required Changes 1, 2, 4 (already satisfied: checker reports `All checks passed`) | `tests/agent/workflow/test_stale_recovery_lease.py` | Phase 2 | AC-2, AC-3 | suppression checker; pytest | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-092940 -->

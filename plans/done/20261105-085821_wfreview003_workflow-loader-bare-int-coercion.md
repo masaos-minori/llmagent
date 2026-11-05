@@ -117,10 +117,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add failing rejection tests | Pending | — | — | |
-| 2 | Strict validation in the loader | Pending | — | — | |
-| 3 | Update loader validation rules doc | Pending | — | — | |
-| 4 | Deploy hand-off and verification | Pending | — | — | |
+| 1 | Add failing rejection tests | In Progress | — | — |  |
+| 2 | Strict validation in the loader | In Progress | — | — |  |
+| 3 | Update loader validation rules doc | In Progress | — | — |  |
+| 4 | Deploy hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -130,7 +130,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-092603_01_scripts_agent_workflow_workflow_loader.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261105-092603_03_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -149,3 +150,5 @@ N/A: no release unit
 | REQ-003 | Issue Required Changes 4, Acceptance Criteria 2 | `scripts/agent/workflow/workflow_loader.py` | Phase 2 | AC-3 | `rg "int\("` check | Explicit in issue |
 | REQ-004 | Issue Required Changes 5, Testing Expectations | `tests/agent/workflow/test_workflow_loader.py` | Phase 1 | AC-4 | pytest command in Validation plan | Explicit in issue |
 | REQ-005 | Issue Documentation Impact | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Phase 3 | AC-5 | docs checkers | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-092603 -->

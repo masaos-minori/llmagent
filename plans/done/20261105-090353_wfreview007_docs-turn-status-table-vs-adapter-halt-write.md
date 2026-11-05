@@ -111,8 +111,8 @@ Validation quality baseline: `N/A: no Python target`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the table, the adapter-write bullet, and the preparation note | Pending | — | — | |
-| 2 | Run docs checkers and orchestrator tests | Pending | — | — | |
+| 1 | Correct the table, the adapter-write bullet, and the preparation note | In Progress | — | — |  |
+| 2 | Run docs checkers and orchestrator tests | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -122,7 +122,7 @@ Validation quality baseline: `N/A: no Python target`.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-093123_01_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -140,3 +140,5 @@ Validation quality baseline: `N/A: no Python target`.
 | REQ-002 | Issue Required Changes 2; `_status_for_exit` | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Phase 1 | AC-2 | `rg` | Confirmed by repository evidence |
 | REQ-003 | Issue Required Changes 3, Documentation Impact (corrected: distinguish by turn result) | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Phase 1 | AC-3 | docs checkers | Derived from confirmed evidence |
 | REQ-004 | Issue Acceptance Criteria 2-3 | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Phase 2 | AC-4 | checker commands in Validation plan | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-093123 -->

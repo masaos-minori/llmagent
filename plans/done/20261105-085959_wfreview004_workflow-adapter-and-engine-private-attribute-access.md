@@ -131,9 +131,9 @@ The change is delivered in two release groups: the engine change and the propert
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Version accessor and engine seam | Pending | — | — | |
-| 2 | Adapter rewiring with test migration | Pending | — | — | |
-| 3 | Deploy hand-off and verification | Pending | — | — | |
+| 1 | Version accessor and engine seam | In Progress | — | — |  |
+| 2 | Adapter rewiring with test migration | In Progress | — | — |  |
+| 3 | Deploy hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -143,7 +143,10 @@ The change is delivered in two release groups: the engine change and the propert
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-092748_01_scripts_agent_workflow_workflow_engine.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-092748_02_scripts_agent_workflow_engine_adapter.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-092748_04_tests_agent_test_orchestrator.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-092748_05_tests_integration_test_orchestrator_integration.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -165,3 +168,5 @@ The change is delivered in two release groups: the engine change and the propert
 | REQ-004 | same | `tests/integration/test_orchestrator_integration.py` | Phase 2 | AC-6 | integration tests | Derived from confirmed evidence |
 | REQ-005 | Issue Testing Expectations (focused unit tests for new public members) | `tests/agent/workflow/test_workflow_engine.py` | Phase 1 | AC-4 | new property test | Derived from confirmed evidence |
 | REQ-006 | Issue Required Changes 4, Constraints 1 | `scripts/agent/workflow_engine_adapter.py` | Phase 2 | AC-5 | existing suites unchanged | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-092748 -->
