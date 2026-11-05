@@ -7,7 +7,6 @@ CRUD operations and idempotency enforcement for workflow.sqlite.
 from __future__ import annotations
 
 import logging
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -15,8 +14,8 @@ from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 from shared.json_utils import parse_iso_utc
 
-from agent.workflow import tool_call_state_ops
-from agent.workflow.models import AttemptRecord, TaskRecord
+from agent.workflow import attempt_ops, tool_call_state_ops
+from agent.workflow.models import TaskRecord
 from agent.workflow.task_ops import (
     create_task,
     get_task_by_id,
@@ -89,27 +88,6 @@ class StateStore:
 
     # ── Attempt ───────────────────────────────────────────────────────────────
 
-    def start_attempt(self, task_id: str, stage_id: str) -> AttemptRecord:
-        """Create a new attempt record with status 'running'."""
-        attempt_id = str(uuid.uuid4())
-        now = _now()
-        self._db.execute(
-            """
-
-            INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at)
-            VALUES (?, ?, ?, 'running', ?)
-            """,
-            (attempt_id, task_id, stage_id, now),
-        )
-        self._db.commit()
-        return AttemptRecord(
-            attempt_id=attempt_id,
-            task_id=task_id,
-            stage_id=stage_id,
-            status="running",
-            started_at=now,
-        )
-
     def finish_attempt(
         self,
         attempt_id: str,
@@ -119,19 +97,9 @@ class StateStore:
         error_detail: str | None = None,
     ) -> None:
         """Mark an attempt as completed with its final status and optional error details."""
-        self._db.execute(
-            "UPDATE attempts SET status=?, ended_at=?, error_msg=?, error_kind=?, error_detail=? WHERE attempt_id=?",
-            (status, _now(), error_msg, error_kind, error_detail, attempt_id),
+        attempt_ops.finish_attempt(
+            self._db, attempt_id, status, error_msg, error_kind, error_detail
         )
-        self._db.commit()
-
-    def count_attempts(self, task_id: str, stage_id: str) -> int:
-        """Return the number of attempts recorded for a task-stage pair."""
-        rows = self._db.fetchall(
-            "SELECT COUNT(*) FROM attempts WHERE task_id=? AND stage_id=?",
-            (task_id, stage_id),
-        )
-        return int(rows[0][0])
 
     # ── Tool-call state (workflow.sqlite tool_call_state table) ──────────────
 
