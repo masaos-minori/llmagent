@@ -888,7 +888,6 @@ def _session_report(**overrides: object) -> SessionConsistencyReport:
         "orphaned_memory_link_count": 0,
         "session_diagnostics_readable": True,
         "read_smoke_test_ok": True,
-        "write_smoke_test_ok": None,
     }
     fields.update(overrides)
     return SessionConsistencyReport(**fields)
@@ -1038,7 +1037,6 @@ class TestLogicalVerificationDetailCharacterization:
             orphaned_memory_link_count=3,
             session_diagnostics_readable=False,
             read_smoke_test_ok=False,
-            write_smoke_test_ok=False,
             diagnostic_errors=("boom", "bang"),
         )
 
@@ -1050,28 +1048,14 @@ class TestLogicalVerificationDetailCharacterization:
         assert ok is False
         assert detail == (
             "orphan_msgs=2; orphan_mem_links=3; diag_not_readable; "
-            "read_smoke_fail; write_smoke_fail; errors=2"
+            "read_smoke_fail; errors=2"
         )
 
-    def test_session_write_smoke_none_is_not_reported_as_a_failure(
+    def test_session_detail_with_only_an_orphan_lists_only_that_entry(
         self, mock_recovery_db
     ) -> None:
-        """`write_smoke_test_ok is False` is the trigger; None means "not run"."""
-        report = _session_report(orphaned_message_count=1, write_smoke_test_ok=None)
-
-        with patch(
-            "db.recovery_verification.check_session_consistency", return_value=report
-        ):
-            ok, detail = _run_logical_verification(Path("/tmp/session.db"), "session")
-
-        assert ok is False
-        assert detail == "orphan_msgs=1"
-
-    def test_session_write_smoke_pass_is_not_reported_as_a_failure(
-        self, mock_recovery_db
-    ) -> None:
-        """A passed write smoke test never contributes the `write_smoke_fail` entry."""
-        report = _session_report(orphaned_message_count=1, write_smoke_test_ok=True)
+        """Fields left at their healthy values add no entry beside the orphan count."""
+        report = _session_report(orphaned_message_count=1)
 
         with patch(
             "db.recovery_verification.check_session_consistency", return_value=report

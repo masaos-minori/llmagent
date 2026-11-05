@@ -121,7 +121,6 @@ class TestSessionConsistencyHealthy:
         assert report.orphaned_memory_link_count == 0
         assert report.session_diagnostics_readable is True
         assert report.read_smoke_test_ok is True
-        assert report.write_smoke_test_ok is True
         assert report.diagnostic_errors is None
 
     def test_no_content_leaked_in_healthy_report(self):
@@ -143,14 +142,40 @@ class TestSessionConsistencyHealthy:
         assert "message" not in all_text.lower()
         assert "memory" not in all_text.lower()
 
-    def test_write_smoke_test_cleans_up(self):
-        """Write smoke test must not leave the throwaway row behind."""
+    def test_check_consistency_leaves_database_unchanged(self):
+        """check_session_consistency() runs no INSERT/UPDATE/DELETE/COMMIT and leaves no residue."""
         db = _make_session_db()
-        before = db.execute("SELECT COUNT(*) FROM session_diagnostics").fetchone()[0]
-        report = check_session_consistency(db)
-        after = db.execute("SELECT COUNT(*) FROM session_diagnostics").fetchone()[0]
-        assert report.write_smoke_test_ok is True
-        assert before == after
+        before_rows = db.execute(
+            "SELECT * FROM session_diagnostics ORDER BY id"
+        ).fetchall()
+        before_count = db.execute(
+            "SELECT COUNT(*) FROM session_diagnostics"
+        ).fetchone()[0]
+
+        statements: list[str] = []
+        db.conn.set_trace_callback(statements.append)
+        try:
+            report = check_session_consistency(db)
+        finally:
+            db.conn.set_trace_callback(None)
+
+        after_rows = db.execute(
+            "SELECT * FROM session_diagnostics ORDER BY id"
+        ).fetchall()
+        after_count = db.execute("SELECT COUNT(*) FROM session_diagnostics").fetchone()[
+            0
+        ]
+        mutating = [
+            s
+            for s in statements
+            if s.split()[0].upper()
+            in {"INSERT", "UPDATE", "DELETE", "REPLACE", "BEGIN", "COMMIT"}
+        ]
+
+        assert report.sessions >= 0
+        assert before_count == after_count
+        assert before_rows == after_rows
+        assert mutating == []
 
     def test_missing_table_detected(self):
         """Dropping a required table should set diagnostic_errors."""
