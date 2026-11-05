@@ -52,10 +52,10 @@ Three explicit, mutually exclusive paths in `create_eventbus_schema`: fresh crea
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/db/create_schema.py | Rewrite `create_eventbus_schema` into the three paths; delete the existing-database `executescript` and the version-reset branch; validate (version + shape) before any stamp; refuse unchanged otherwise | L149-L150 runs DDL on every existing current/0-version database; L154-L158 resets the stamp without undoing added objects; L164 checks the fingerprint only after DDL | REQ-001, REQ-002, REQ-003 / AC-001, AC-003 | `scripts/db/create_schema.py` L137-L172 | tests/db/test_create_schema.py | Verified |
-| scripts/eventbus/schema.sql | Remove the duplicate table-level `FOREIGN KEY (event_id)` clause; keep the inline `PRIMARY KEY REFERENCES`; bump `PRAGMA user_version` to 6 | Duplicate FK at L57 and L65 makes `foreign_key_list` return two entries and pins them into the fingerprint | REQ-005, REQ-004 / AC-004, AC-005, AC-006 | `scripts/eventbus/schema.sql` L56-L75 | tests/eventbus/test_eventbus_schema_version.py, tests/db/test_eventbus_schema_equivalence.py | Verified |
-| scripts/eventbus/migrations.py | Register `eventbus_dlq_outbox_fk_dedup` (5 -> 6) rebuilding `dlq_outbox` with one FK, `disable_foreign_keys=True`, integrity checks as `pre_commit_verification`; do not edit the frozen 4 -> 5 `_DLQ_OUTBOX_SQL` text | FK-dedup is a shape change; rules item 2 requires a version-stamped registered step and rules item 5 forbids editing the 4 -> 5 SQL | REQ-005, REQ-006 / AC-003, AC-005, AC-006 | `scripts/eventbus/migrations.py` L55-L72 (frozen step SQL), L153-L172 (registry) | tests/eventbus/test_eventbus_migrations.py | Verified |
-| scripts/shared/eventbus_schema_fingerprint.py | Extend `build_fingerprint` with views and partial-index predicate text; add `validate_canonical(conn)` combining the `user_version` gate and `assert_matches` | Contract items the issue requires defining: current coverage is L70-L101/L111-L136 and excludes version and views | REQ-004, REQ-002 / AC-004 | `scripts/shared/eventbus_schema_fingerprint.py` L21-L30, L70-L101, L111-L136, L177-L183 | tests/db/test_eventbus_schema_equivalence.py, tests/eventbus/test_eventbus_migrations.py | Verified |
+| scripts/db/create_schema.py | Rewrite `create_eventbus_schema` into the three paths; delete the existing-database `executescript` and the version-reset branch; validate (version + shape) before any stamp; refuse unchanged otherwise | L149-L150 runs DDL on every existing current/0-version database; L154-L158 resets the stamp without undoing added objects; L164 checks the fingerprint only after DDL | REQ-001, REQ-002, REQ-003 / AC-001, AC-003 | `scripts/db/create_schema.py` L137-L172 | `tests/db/test_create_schema.py` | Verified |
+| scripts/eventbus/schema.sql | Remove the duplicate table-level `FOREIGN KEY (event_id)` clause; keep the inline `PRIMARY KEY REFERENCES`; bump `PRAGMA user_version` to 6 | Duplicate FK at L57 and L65 makes `foreign_key_list` return two entries and pins them into the fingerprint | REQ-005, REQ-004 / AC-004, AC-005, AC-006 | `scripts/eventbus/schema.sql` L56-L75 | `tests/eventbus/test_eventbus_schema_version.py`, `tests/db/test_eventbus_schema_equivalence.py` | Verified |
+| scripts/eventbus/migrations.py | Register `eventbus_dlq_outbox_fk_dedup` (5 -> 6) rebuilding `dlq_outbox` with one FK, `disable_foreign_keys=True`, integrity checks as `pre_commit_verification`; do not edit the frozen 4 -> 5 `_DLQ_OUTBOX_SQL` text | FK-dedup is a shape change; rules item 2 requires a version-stamped registered step and rules item 5 forbids editing the 4 -> 5 SQL | REQ-005, REQ-006 / AC-003, AC-005, AC-006 | `scripts/eventbus/migrations.py` L55-L72 (frozen step SQL), L153-L172 (registry) | `tests/eventbus/test_eventbus_migrations.py` | Verified |
+| scripts/shared/eventbus_schema_fingerprint.py | Extend `build_fingerprint` with views and partial-index predicate text; add `validate_canonical(conn)` combining the `user_version` gate and `assert_matches` | Contract items the issue requires defining: current coverage is L70-L101/L111-L136 and excludes version and views | REQ-004, REQ-002 / AC-004 | `scripts/shared/eventbus_schema_fingerprint.py` L21-L30, L70-L101, L111-L136, L177-L183 | `tests/db/test_eventbus_schema_equivalence.py` | Verified |
 | tests/db/test_create_schema.py | Negative tests snapshotting `sqlite_master` + `user_version` before/after each refusal (differing version, unstamped mismatching shape); fresh-creation tests at version 6; no-DDL-on-existing assertions | The changed branches of `create_eventbus_schema` need per-branch coverage | REQ-001, REQ-002, REQ-003 / AC-001, AC-003 | `tests/db/test_create_schema.py` L189-L193 (eventbus config hook), L761-L780 (eventbus ledger/baseline tests), L1046+ | — | Verified |
 | tests/db/test_eventbus_schema_equivalence.py | Fresh-versus-migrated convergence at version 6 (fingerprint equality, one FK entry in `foreign_key_list`); equivalence under the extended fingerprint | AC-006 convergence is acceptance for the shape change | REQ-005, REQ-006 / AC-006 | `tests/db/test_eventbus_schema_equivalence.py` L32 (bootstrap equivalence), L43 (unchanged-on-restart) | — | Verified |
 | tests/eventbus/test_eventbus_migrations.py | Update the registry pin to the three-step list; add 5 -> 6 step tests: rebuild preserves rows and index, pre-commit failure rolls back schema/version/ledger, `foreign_key_list` single entry after the step | rules item 6: registry-pinning tests must move with the registration | REQ-005, REQ-006 / AC-003, AC-005, AC-006 | `tests/eventbus/test_eventbus_migrations.py` L114 (registry pin `["eventbus_ledger_baseline", "eventbus_dlq_outbox"]`) | — | Verified |
@@ -190,12 +190,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Fingerprint contract extension | Pending | — | — | |
-| 2 | Phase 2: Canonical DDL move to version 6 | Pending | — | — | |
-| 3 | Phase 3: Registered 5 -> 6 rebuild step | Pending | — | — | |
-| 4 | Phase 4: Three-path create_eventbus_schema | Pending | — | — | |
-| 5 | Phase 5: Documentation | Pending | — | — | |
-| 6 | Phase 6: Full verification and operational checks | Pending | — | — | |
+| 1 | Phase 1: Fingerprint contract extension | In Progress | — | — |  |
+| 2 | Phase 2: Canonical DDL move to version 6 | In Progress | — | — |  |
+| 3 | Phase 3: Registered 5 -> 6 rebuild step | In Progress | — | — |  |
+| 4 | Phase 4: Three-path create_eventbus_schema | In Progress | — | — |  |
+| 5 | Phase 5: Documentation | In Progress | — | — |  |
+| 6 | Phase 6: Full verification and operational checks | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -205,7 +205,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-183956_01_scripts_db_create_schema.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261105-183956_02_scripts_eventbus_schema.sql.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-183956_03_scripts_eventbus_migrations.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261105-183956_04_scripts_shared_eventbus_schema_fingerprint.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-183956_06_tests_db_test_eventbus_schema_equivalence.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-183956_09_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261105-183956_10_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -228,3 +234,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Required Changes bullet 5 | AC-003, AC-005, AC-006 | scripts/eventbus/schema.sql, scripts/eventbus/migrations.py | tests/eventbus/test_eventbus_migrations.py, tests/eventbus/test_eventbus_schema_version.py | 2, 3 |
 | REQ-006 | Constraints / AC-006 | AC-006 | scripts/eventbus/migrations.py | tests/db/test_eventbus_schema_equivalence.py | 3 |
 | REQ-007 | Documentation Impact | AC-007 | docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md, docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md | docs/ADR checkers | 5 |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-183956 -->
