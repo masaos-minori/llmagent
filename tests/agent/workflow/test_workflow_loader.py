@@ -4,6 +4,7 @@ Unit tests for agent/workflow/workflow_loader.py — load, validate, error cases
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -227,6 +228,40 @@ class TestRequireApprovalKeyRejected:
         )
         wdef = WorkflowLoader(workflows_dir=workflows_dir).load()
         assert wdef.name
+
+
+class TestWorkflowLoaderNumericValidation:
+    """REQ-001/REQ-002/REQ-004: numeric fields reject non-int and out-of-range values."""
+
+    @pytest.mark.parametrize("bad", [True, "120", 2.5, None])
+    def test_non_int_timeout_sec_rejected(self, tmp_path: Path, bad: object) -> None:
+        data = copy.deepcopy(_VALID)
+        data["stages"][1]["timeout_sec"] = bad
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="timeout_sec"):
+            loader.load()
+
+    @pytest.mark.parametrize("bad", [0, -1])
+    def test_non_positive_timeout_sec_rejected(self, tmp_path: Path, bad: int) -> None:
+        data = copy.deepcopy(_VALID)
+        data["stages"][1]["timeout_sec"] = bad
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="timeout_sec must be >= 1"):
+            loader.load()
+
+    @pytest.mark.parametrize("field", ["max_attempts", "backoff_sec"])
+    @pytest.mark.parametrize("bad", [True, "3", 2.5, None])
+    def test_non_int_policy_number_rejected(
+        self, tmp_path: Path, field: str, bad: object
+    ) -> None:
+        data = copy.deepcopy(_VALID)
+        data["retry_policy"][field] = bad
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match=field):
+            loader.load()
 
 
 class TestRetryOn:

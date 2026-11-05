@@ -81,8 +81,24 @@ def _validate_retry_on(policy: _RetryPolicyJson) -> tuple[str, ...]:
     return tuple(raw)
 
 
+def _require_int(value: object, label: str, minimum: int) -> int:
+    """Validate that value is a strict int (rejecting bool/float/str/None) and >= minimum.
+
+    Raises WorkflowLoadError naming the field for a wrong type or a value below
+    the minimum. ``type(value) is not int`` rejects ``bool`` even though it is a
+    subclass of ``int``.
+    """
+    if type(value) is not int:
+        raise WorkflowLoadError(
+            f"{label} must be an integer, got {type(value).__name__}: {value!r}"
+        )
+    if value < minimum:
+        raise WorkflowLoadError(f"{label} must be >= {minimum}")
+    return value
+
+
 def _validate(data: _WorkflowJson) -> None:
-    """Raise WorkflowLoadError if required keys are missing or have wrong types."""
+    """Raise WorkflowLoadError for missing keys, wrong numeric types, or out-of-range values."""
     for key in ("name", "version", "stages", "retry_policy"):
         if key not in data:
             raise WorkflowLoadError(f"missing required key: {key!r}")
@@ -106,17 +122,14 @@ def _validate(data: _WorkflowJson) -> None:
         missing = _REQUIRED_STAGE_KEYS - stage.keys()
         if missing:
             raise WorkflowLoadError(f"stage[{i}] missing keys: {missing}")
+        _require_int(stage["timeout_sec"], f"stages[{i}].timeout_sec", 1)
     retry_policy_data = data.get("retry_policy", {})
     missing_p = _REQUIRED_POLICY_KEYS - retry_policy_data.keys()
     if missing_p:
         raise WorkflowLoadError(f"retry_policy missing keys: {missing_p}")
     policy = retry_policy_data
-    max_attempts = int(policy["max_attempts"])
-    if max_attempts < 1:
-        raise WorkflowLoadError("retry_policy.max_attempts must be >= 1")
-    backoff_sec = int(policy["backoff_sec"])
-    if backoff_sec < 0:
-        raise WorkflowLoadError("retry_policy.backoff_sec must be >= 0")
+    _require_int(policy["max_attempts"], "retry_policy.max_attempts", 1)
+    _require_int(policy["backoff_sec"], "retry_policy.backoff_sec", 0)
     _validate_retry_on(policy)
     if "require_approval" in data:
         raise WorkflowLoadError(
@@ -148,15 +161,15 @@ class WorkflowLoader:
         stages = [
             StageDefinition(
                 id=s["id"],
-                timeout_sec=int(s["timeout_sec"]),
+                timeout_sec=s["timeout_sec"],
                 retryable=bool(s["retryable"]),
             )
             for s in data.get("stages", [])
         ]
         policy_data = data.get("retry_policy", {})
         policy = RetryPolicy(
-            max_attempts=int(policy_data["max_attempts"]),
-            backoff_sec=int(policy_data["backoff_sec"]),
+            max_attempts=policy_data["max_attempts"],
+            backoff_sec=policy_data["backoff_sec"],
             retry_on=_validate_retry_on(policy_data),
         )
         wdef = WorkflowDef(

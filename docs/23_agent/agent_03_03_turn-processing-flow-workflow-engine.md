@@ -146,8 +146,9 @@ All `plan`/`execute`/`verify` stages go through the same retry loop function. St
 
 When loading workflow definitions from `config/workflows/*.json`:
 
-- A definition must have a non-empty list of uniquely identified stages, which must include `plan`, `execute`, and `verify`; each stage declares `timeout_sec` and `retryable`
-- `retry_policy.max_attempts` must be ≥ 1 and `retry_policy.backoff_sec` must be ≥ 0
+- A definition must have a non-empty list of uniquely identified stages, which must include `plan`, `execute`, and `verify`; each stage declares `timeout_sec` and `retryable`, with `timeout_sec` an integer of at least 1
+- `retry_policy.max_attempts` and `retry_policy.backoff_sec` must both be integers, not booleans, floats, or strings, with `max_attempts` at least 1 and `backoff_sec` at least 0
+- A value that fails this validation stops loading with a workflow load error that names the field and the offending value, so every caller observes the same error type
 - `retry_policy.retry_on`, when present, must be a list of strings drawn from `exception`, `timeout`,
   and `llm_failure`; an absent key loads the default `["exception"]`
 - The `require_approval` key must not be present: the workflow has no approval stage
