@@ -18,7 +18,7 @@ Extend the shared migration runner (`scripts/shared/db_migrations.py`) with the 
 
 - The transient gate copy and the durable archive stay two separate concepts: the archive runs between the gate and the step loop only when `archive_dir` (new) is supplied (Plan Design 1).
 - `MigrationRefusalReason` gains `CHECKPOINT_BUSY` (new), `IN_MEMORY_DATABASE` (new), `NO_ARCHIVE_TARGET` (new), `ARCHIVE_FAILURE` (new); `NO_VERIFIED_BACKUP` is kept exclusively for backup-integrity and verifier failures (Plan Design 2).
-- Ledger ordering keys on `rowid`, exposed as `LedgerRow.seq` (new), with no DDL change (Plan Design 5). Append-only assumption verified 20261105: the only `INSERT INTO schema_migrations` writer in `scripts/` is `record_applied`, invoked at `scripts/db/migrations_workflow.py` L498.
+- Ledger ordering keys on `rowid`, exposed as `LedgerRow.seq` (new), with no DDL change (Plan Design 5). Append-only assumption verified 20261105 (adversarial recheck): ledger writers in `scripts/` are `record_applied` (shared runner, invoked in `_apply_step` at `scripts/shared/db_migrations.py` L466), the direct baseline insert in `ensure_baseline` at `scripts/db/migrations_workflow.py` L498, and the `INSERT OR IGNORE` baseline insert at `scripts/db/create_schema.py` L99 — all INSERT-only, no UPDATE/DELETE writer exists, so `rowid` order equals application order.
 
 ## Alternatives considered
 
@@ -38,7 +38,7 @@ Extend the shared migration runner (`scripts/shared/db_migrations.py`) with the 
 
 ### Method
 
-- `archive_pre_migration(live_conn, archive_dir)`: write `live_conn.backup()` to `<db-stem>-v<user_version>-<utc-stamp>.sqlite` under `archive_dir`; run `PRAGMA integrity_check` on the archive; hash SHA-256 over the archive file; write a sidecar JSON audit artifact `{archive_path, sha256, source_db, source_version, created_at, retention_status}` with `retention_status` the literal `"unset"` (UNK-01 open); a missing or unwritable directory raises `NO_ARCHIVE_TARGET` (new), any other failure raises `ARCHIVE_FAILURE` (new) — both refuse the run (fail closed). Nothing ever prunes archives.
+- `archive_pre_migration` (new) `(live_conn, archive_dir)`: write `live_conn.backup()` to `<db-stem>-v<user_version>-<utc-stamp>.sqlite` under `archive_dir`; run `PRAGMA integrity_check` on the archive; hash SHA-256 over the archive file; write a sidecar JSON audit artifact named `<archive-stem>.audit.json` (new) carrying the keys `archive_path`, `sha256`, `source_db`, `source_version` (new), `created_at`, `retention_status` (new) with `retention_status` the literal `"unset"` (UNK-01 open); a missing or unwritable directory raises `NO_ARCHIVE_TARGET` (new), any other failure raises `ARCHIVE_FAILURE` (new) — both refuse the run (fail closed). Nothing ever prunes archives. The function is public (tests call it directly) and returns a frozen `MigrationArchive` (new) dataclass `{archive_path, audit_path, sha256, source_version, created_at}`. The archive runs after `_run_pre_migration_gate` and before `ensure_ledger`, so it captures the exact pre-run database state.
 
 ### Details
 
@@ -47,7 +47,7 @@ Extend the shared migration runner (`scripts/shared/db_migrations.py`) with the 
 
 ### Companion test files
 - `tests/shared/test_db_migrations.py`
-  - Procedure: convert `test_missing_clean_checkpoint_refuses` (L275) and `test_backup_gate_refuses_on_bad_backup` (L260) to assert their own distinct reason values; add an in-memory-branch test; add a WAL-mode dry-run test (committed-but-uncheckpointed rows visible to the gate, live file and sidecars byte-identical); add archive tests (artifact fields, SHA-256 and source version correct, `NO_ARCHIVE_TARGET` on unwritable dir); add a same-second ordering test pinning identical `applied_at` values and asserting insertion order via `seq`.
+  - Procedure: convert `test_missing_clean_checkpoint_refuses` (L275) and `test_backup_gate_refuses_on_bad_backup` (L260) to assert their own distinct reason values; add an in-memory-branch test; add a WAL-mode dry-run test (committed-but-uncheckpointed rows visible to the gate, live file and sidecars byte-identical); add archive tests (artifact fields, SHA-256 and source version correct, `NO_ARCHIVE_TARGET` (new) on unwritable dir); add a same-second ordering test pinning identical `applied_at` values and asserting insertion order via `seq`.
   - Validation: `uv run pytest tests/shared/test_db_migrations.py` passes with the distinct reasons observable on exception objects.
 
 ## Compatibility considerations
@@ -83,10 +83,10 @@ Extend the shared migration runner (`scripts/shared/db_migrations.py`) with the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement steps 1-6 of Procedure in `scripts/shared/db_migrations.py` | Pending | — | — | |
-| 2 | Add companion tests in `tests/shared/test_db_migrations.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_module_size.py` | Pending | — | — | |
-| 4 | No docs change in this document (docs are carried by doc 09) | Pending | — | — | |
+| 1 | Implement steps 1-6 of Procedure in `scripts/shared/db_migrations.py` | Completed | 20261105-205550 | 20261105-211013 |  |
+| 2 | Add companion tests in `tests/shared/test_db_migrations.py` | Completed | — | 20261105-211013 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_module_size.py` | Completed | — | 20261105-211024 | targeted validation green (ruff/mypy/bandit/lint-imports/module-size/pytest tests-shared); full pytest runs after procedures 07-08 update the 3 downstream checkpoint-busy assertions |
+| 4 | No docs change in this document (docs are carried by doc 09) | Completed | — | 20261105-211024 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
