@@ -53,18 +53,21 @@ No other file is modified except the companion test file.
   resolved path for both explicit and default targets, so the guard covers both cases with
   the same message format — the explicit-path test stays green (REQ-002, AC-2).
 - The guard move must not add a branch beyond the moved one: `check_workflow_schema` is
-  radon grade C (12) at baseline and must stay there.
+  radon complexity 12 (grade C) at baseline; dropping the `db_path and` operand from the
+  guard condition lowers it to 11, still grade C.
 - `write_mode=False` is already `SQLiteHelper.open`'s default value; pass it explicitly per
   REQ-003 so no constant name contradicts its use.
 
 ### Companion test files
 - `tests/agent/test_repl_health.py`
   - Procedure: in `TestCheckWorkflowSchema`, add a default-path missing-database test that
-    patches `db.helper.build_db_config` to return a `DbConfig` whose `workflow_db_path` is a
-    file absent inside `tmp_path`, calls `check_workflow_schema()` with no argument, and
-    asserts `valid is False`, the error contains `Workflow DB not found`, and `tmp_path`
-    contains no files afterwards; land this test before the target-file change and record
-    that it fails on the pre-change code (REQ-004, AC-5).
+    patches `db.helper.build_db_config` (via `monkeypatch.setattr`; the name is imported
+    into `db.helper` from `db.config` and looked up there by `SQLiteHelper.__init__`) to
+    return a `DbConfig` (new import `from db.config import DbConfig`) whose
+    `workflow_db_path` is a file absent inside `tmp_path`, calls `check_workflow_schema()`
+    with no argument, and asserts `valid is False`, the error contains `Workflow DB not
+    found`, and `tmp_path` contains no files afterwards; land this test before the
+    target-file change and record that it fails on the pre-change code (REQ-004, AC-5).
   - Validation: `uv run pytest tests/agent/test_repl_health.py -v` — the new test fails
     before the target-file change and passes after it; every existing
     `TestCheckWorkflowSchema` test stays green; `uv run python tools/check_mock_patch_targets.py`
@@ -110,14 +113,40 @@ N/A: revert the commit.
 - `SQLiteHelper` behavior (including the WAL pragma on an already-existing database), the
   deploy scripts, other databases' startup checks, and `check_workflow_definition`.
 
+## Adversarial Verification Results (20261105-111500)
+- Confirmed against current source: the guard is still `if db_path and not
+  os.path.exists(db_path)` (workflow_schema.py L85) and only covers explicit paths;
+  `ComponentInitializer._check_workflow_schema` (startup_component_init.py L142) calls
+  `check_workflow_schema()` with no argument — the default-path creation bug is live.
+  `_WORKFLOW_SCHEMA_READ_ONLY` (L61) is defined and used once (L89). `SQLiteHelper.DB_PATH`
+  property exists (helper.py L127) and `open` already defaults `write_mode=False`
+  (helper.py L186).
+- Confirmed test baseline: `TestCheckWorkflowSchema` has no default-path test;
+  `test_missing_db_file_returns_error` pins the explicit-path message and stays green. On
+  the pre-change code the new test fails twice (error text is the missing-table message;
+  `tmp_path` gains the created db file).
+- Confirmed baselines: radon `check_workflow_schema` C (12); `check_plan_target_overlaps`
+  reports no open-plan overlap on either target file; no other unprocessed procedure
+  targets `workflow_schema.py` or `test_repl_health.py`; adjacent wfreview issues touch
+  neither region changed here. `DbConfig` exists in `db.config` (L22); `build_db_config` is
+  imported into `db.helper` (L19) and looked up there, so the patch target is correct for
+  `check_mock_patch_targets`.
+- Corrections applied: Details bullet reworded — removing the `db_path and` operand lowers
+  radon complexity 12 to 11, still grade C (the doc's "must stay C (12)" implied a frozen
+  number); companion-test procedure now names the `monkeypatch.setattr` mechanism and the
+  new `from db.config import DbConfig` import.
+- Plan status note: the source plan is archived at
+  `plans/done/20261104-103600_wfschema001_schema-preflight-creates-database.md` with plan
+  steps 1-2 still In Progress; this procedure completes them.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the default-path missing-database test in the companion test file and record it failing on the pre-change code (REQ-004) | Pending | — | — | |
-| 2 | Implement the `db.DB_PATH` existence guard and remove `_WORKFLOW_SCHEMA_READ_ONLY` (REQ-001, REQ-002, REQ-003) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan gates | Pending | — | — | |
+| 1 | Add the default-path missing-database test in the companion test file and record it failing on the pre-change code (REQ-004) | Completed | 20261105-112000 | 20261105-112400 | `test_missing_db_default_path_returns_error_without_creating_file` added in `TestCheckWorkflowSchema`; recorded failing on the pre-change code (error text was the missing-table message and the db file was created in tmp_path); 12 existing class tests stayed green |
+| 2 | Implement the `db.DB_PATH` existence guard and remove `_WORKFLOW_SCHEMA_READ_ONLY` (REQ-001, REQ-002, REQ-003) | Completed | 20261105-112500 | 20261105-112700 | guard now `if not os.path.exists(db.DB_PATH)` before `open`, message on `db.DB_PATH`; constant deleted; `db.open(write_mode=False, row_factory=False)`; ruff format wrapped the long return line only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the Validation plan gates | Completed | 20261105-112800 | 20261105-114500 | targeted 50 passed; full suite 11534 passed / 9 skipped; ruff + mypy clean; lint-imports 6 kept; bandit baseline unchanged (Low 50 / Medium 0 / High 0); check_db_separation, check_mock_patch_targets, check_module_size, check_workitem_structure, generate_reference_table --check all clean; radon `check_workflow_schema` C (11) as predicted in the verification note; diff-cover 100 percent (gate >= 90); no docs/00_index.md task row maps these files to a docs section - no doc update required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

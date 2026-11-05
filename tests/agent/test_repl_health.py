@@ -23,6 +23,7 @@ from agent.services.workflow_schema import (
     check_workflow_definition,
     check_workflow_schema,
 )
+from db.config import DbConfig
 from db.schema_sql import WORKFLOW_SCHEMA_VERSION
 
 
@@ -638,6 +639,25 @@ class TestCheckWorkflowSchema:
         result = check_workflow_schema(db_path=nonexistent)
         assert result.valid is False
         assert result.error is not None and "Workflow DB not found" in result.error
+
+    def test_missing_db_default_path_returns_error_without_creating_file(
+        self, tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # AC-1/AC-5: with no path argument the guard must run on the resolved
+        # default path and create no file (wfschema001 preflight bug).
+        missing = str(tmp_path / "workflow.sqlite")
+        monkeypatch.setattr(
+            "db.helper.build_db_config",
+            lambda: DbConfig(
+                rag_db_path=str(tmp_path / "rag.sqlite"),
+                session_db_path=str(tmp_path / "session.sqlite"),
+                workflow_db_path=missing,
+            ),
+        )
+        result = check_workflow_schema()
+        assert result.valid is False
+        assert result.error is not None and "Workflow DB not found" in result.error
+        assert not list(tmp_path.iterdir())
 
 
 class TestProbeMcpHealthDetailHeaders:

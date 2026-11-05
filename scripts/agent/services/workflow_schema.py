@@ -58,8 +58,6 @@ REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
     "workflow_schema_version": ["version", "applied_at"],
 }
 
-_WORKFLOW_SCHEMA_READ_ONLY = True
-
 # ── SchemaCheckResult ─────────────────────────────────────────────────────────
 
 
@@ -81,12 +79,16 @@ def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
 
     db = SQLiteHelper(target="workflow", db_path=db_path)
 
-    # Check DB existence first — sqlite3.connect() creates files automatically
-    if db_path and not os.path.exists(db_path):
-        return SchemaCheckResult(valid=False, error=f"Workflow DB not found: {db_path}")
+    # Check DB existence first — sqlite3.connect() creates files automatically.
+    # The guard runs on the resolved path (db.DB_PATH) so the default-path case
+    # is covered too: it previously checked only the explicit db_path argument.
+    if not os.path.exists(db.DB_PATH):
+        return SchemaCheckResult(
+            valid=False, error=f"Workflow DB not found: {db.DB_PATH}"
+        )
 
     try:
-        db.open(write_mode=_WORKFLOW_SCHEMA_READ_ONLY, row_factory=False)
+        db.open(write_mode=False, row_factory=False)
     except Exception as e:  # noqa: BLE001 — workflow DB open failure must be reported as a schema-check failure, not raised
         return SchemaCheckResult(valid=False, error=f"Failed to open workflow DB: {e}")
 

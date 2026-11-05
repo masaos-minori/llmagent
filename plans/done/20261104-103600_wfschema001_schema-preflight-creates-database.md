@@ -135,8 +135,8 @@ Baseline (Step 5): `radon cc` reports `check_workflow_schema` at C (12), and the
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing default-path missing-database test | In Progress | — | — |  |
-| 2 | Phase 2: existence guard on the resolved path and constant removal | In Progress | — | — |  |
+| 1 | Phase 1: failing default-path missing-database test | Completed | — | 20261105-114500 | procedure 20261104-205210_01 implemented, validated, archived 20261105 |
+| 2 | Phase 2: existence guard on the resolved path and constant removal | Completed | — | 20261105-114500 | procedure 20261104-205210_01 implemented, validated, archived 20261105 |
 | 3 | Phase 3: deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -147,7 +147,7 @@ Baseline (Step 5): `radon cc` reports `check_workflow_schema` at C (12), and the
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261104-205210_01_scripts_agent_services_workflow_schema.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261104-205210_01_scripts_agent_services_workflow_schema.py.md | 1, 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
