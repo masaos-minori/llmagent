@@ -74,10 +74,10 @@ Mirror the workflow CLI changes in the EventBus CLI (`scripts/eventbus/migrate.p
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement steps 1-4 (flag, validation, forwarding, exit mapping, status semantics) | Pending | — | — | |
-| 2 | CLI tests carried by procedure 08 (no tests in this document) | Pending | — | — | |
-| 3 | Operational dependency check (deploy.sh/init_db.sh grep, Plan Phase 8) + `rules/toolchain.md` sequence | Pending | — | — | |
-| 4 | No docs change in this document (docs are carried by doc 09) | Pending | — | — | |
+| 1 | Implement steps 1-4 (flag, validation, forwarding, exit mapping, status semantics) | Completed | 20261105-211937 | 20261105-212215 | deploy/init_db.sh eventbus hint string updated to name --archive-dir (echo-only) |
+| 2 | CLI tests carried by procedure 08 (no tests in this document) | Completed | — | 20261105-212215 | CLI coverage added by procedure 08; existing eventbus suite green except the CHECKPOINT_BUSY assertion anchor |
+| 3 | Operational dependency check (deploy.sh/init_db.sh grep, Plan Phase 8) + `rules/toolchain.md` sequence | Completed | — | 20261105-212215 | Plan Phase 8 check: no live migrate.py --apply invocation in deploy scripts (only echo hint at deploy/init_db.sh L118); ruff/mypy/module-size green; 512 eventbus tests pass |
+| 4 | No docs change in this document (docs are carried by doc 09) | Completed | — | 20261105-212215 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
