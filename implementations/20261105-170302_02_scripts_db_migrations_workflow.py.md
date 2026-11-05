@@ -27,7 +27,7 @@ Move the mutation-integrity assertions of all four registered workflow migration
 `scripts/db/migrations_workflow.py`
 ### Procedure
 
-1. Rename `_postcondition_fingerprint` (L204-L218), `_postcondition_tool_state` (L268-L281), `_postcondition_task_nonce` (L331-L347), `_postcondition_attempt_lease` (L392-L409) to `_precommit_fingerprint`, `_precommit_tool_state`, `_precommit_task_nonce`, `_precommit_attempt_lease`; keep the assertion bodies byte-equivalent.
+1. Rename `_postcondition_fingerprint` (L204-L218), `_postcondition_tool_state` (L268-L281), `_postcondition_task_nonce` (L331-L347), `_postcondition_attempt_lease` (L392-L409) to `_precommit_fingerprint` (new), `_precommit_tool_state` (new), `_precommit_task_nonce` (new), `_precommit_attempt_lease` (new); keep the assertion bodies byte-equivalent and update the function docstrings from "Re-verify ... after" wording to pre-commit wording.
 2. In `REGISTRY` (L411-L448), replace `postcondition=_postcondition_*` with `pre_commit_verification=_precommit_*` on all four specs (`workflow_ledger_baseline`, `workflow_tool_call_state`, `workflow_task_nonce`, `workflow_attempt_lease`); keep `name=`, `from_version`/`to_version`, `mutation_sql`, `disable_foreign_keys` unchanged.
 3. Update any comment above `REGISTRY` that describes postconditions to describe pre-commit verification.
 4. Do not touch `verify_backup` (L450-L472) or the ledger insert path (L498).
@@ -73,10 +73,10 @@ Move the mutation-integrity assertions of all four registered workflow migration
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename postcondition functions and swap spec fields (steps 1-4) | Pending | — | — | |
-| 2 | Tests carried by procedure 07 (no tests in this document) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_module_size.py` | Pending | — | — | |
-| 4 | No docs change in this document (docs are carried by doc 09) | Pending | — | — | |
+| 1 | Rename postcondition functions and swap spec fields (steps 1-4) | Completed | 20261105-211220 | 20261105-211507 |  |
+| 2 | Tests carried by procedure 07 (no tests in this document) | Completed | — | 20261105-211507 | test import/name renames applied with the source rename; CHECKPOINT_BUSY assertion updates and new pre-commit rollback tests land in procedure 07 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_module_size.py` | Completed | — | 20261105-211507 |  |
+| 4 | No docs change in this document (docs are carried by doc 09) | Completed | — | 20261105-211507 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
