@@ -145,11 +145,18 @@ in Assumptions as a sequencing dependency, not a contradiction)
 - The issue's claim that `scripts/db/session_schema.py` provides a `session_id`
   helper is disconfirmed: no such file or function exists in the repository; the
   requirement is dropped as not applicable.
+- UNK-01 (external consumers of `write_smoke_test_ok`) resolved non-blocking during
+  adversarial verification: a repo-wide scan and
+  `tools/scan_change_consumers.py --seed write_smoke_test_ok` show every consumer is
+  in-repo and is a target row in this plan's atomic release unit (Phases 1-3 land
+  together); the field is never serialized to a JSON artifact or rendered externally.
+  Residual risk is only an unverified external ops dashboard/script, so ops confirm is
+  recommended as a guardrail rather than a gate.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Do production monitoring or operational scripts read `write_smoke_test_ok` outside this repository? | consumer scan covers repo code and tests only; external dashboards/scripts unknown | confirm with operations before the field removal lands | True |
+| UNK-01 | Do production monitoring or operational scripts read `write_smoke_test_ok` outside this repository? | repo-wide scan + `scan_change_consumers.py --seed write_smoke_test_ok` show every consumer is in-repo (`scripts/db/models.py`, `scripts/db/recovery_verification.py`, `scripts/db/session_consistency.py`, `tests/db/test_session_consistency.py`, `tests/db/test_db_recovery.py`); the field is never serialized to a JSON artifact or rendered externally; all in-repo consumers are target rows in this plan's atomic release unit (Phases 1-3) | In-repo surface fully covered by the atomic release unit and the field is never exposed externally, so removal cannot break an in-repo consumer. Resolved non-blocking; recommend ops confirm no external dashboard/script reads this private field as a guardrail. | False |
 | UNK-02 | Is any write-capability signal required from consistency checks after the removal (e.g., a separate explicit write-check command)? | the issue mandates removal but does not state whether ops need a replacement signal | default is removal without replacement; add a separate explicit check only if operations confirm the need | False |
 | UNK-03 | Do drill audit artifacts or stored reports serialize `write_smoke_test_ok` in a way readers depend on? | drill audit artifact schema for this field not yet confirmed | inspect the drill audit artifact writer during Phase 2 | False |
 
@@ -257,11 +264,11 @@ Grounded in Step 3/5 analysis:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: read-only probe | Pending | — | — | |
-| 2 | Phase 2: report contract | Pending | — | — | |
-| 3 | Phase 3: consumer propagation | Pending | — | — | |
-| 4 | Phase 4: tests | Pending | — | — | |
-| 5 | Phase 5: documentation and full validation | Pending | — | — | |
+| 1 | Phase 1: read-only probe | In Progress | — | — |  |
+| 2 | Phase 2: report contract | In Progress | — | — |  |
+| 3 | Phase 3: consumer propagation | In Progress | — | — |  |
+| 4 | Phase 4: tests | In Progress | — | — |  |
+| 5 | Phase 5: documentation and full validation | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -271,7 +278,12 @@ Grounded in Step 3/5 analysis:
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261105-161823_01_scripts_db_session_consistency.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261105-161823_02_scripts_db_models.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261105-161823_03_scripts_db_recovery_verification.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261105-161823_04_tests_db_test_session_consistency.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261105-161823_05_tests_db_test_db_recovery.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261105-161823_06_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -284,3 +296,5 @@ Grounded in Step 3/5 analysis:
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261105-161823 -->
