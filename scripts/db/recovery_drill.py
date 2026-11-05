@@ -35,6 +35,12 @@ from db.rag_consistency import check_rag_consistency
 from db.rag_consistency import is_consistent as rag_is_consistent
 from db.recovery import DbCondition, run_integrity_check, verify_domain_identity
 from db.rotation import _archive_db_file, _resolve_archive_dir
+from db.session_consistency import (
+    check_session_consistency,
+)
+from db.session_consistency import (
+    is_consistent as session_is_consistent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +115,13 @@ def _verify_rag_session(domain: str, isolated: Path) -> dict:
             and not report.schema_unverified
             and rag_is_consistent(report)
         )
+    elif domain == "session":
+        # Fail-closed logical layer (drillmetrics001): an inconsistent report fails
+        # the domain in the artifact. Read-only; no write path is added to the live
+        # database.
+        with SQLiteHelper("session", db_path=str(isolated)).open() as db:
+            sess_report = check_session_consistency(db)
+        verification["session_consistent"] = session_is_consistent(sess_report)
     return verification
 
 
@@ -167,14 +180,20 @@ def _drill_one_domain(
     }
     live_path = Path(live_paths[domain])
     drill_start = time.time()
+    drill_start_epoch = drill_start
 
     artifact: dict[str, Any] = {
         "domain": domain,
         "archive_path": None,
         "archive_ts": None,
         "drill_ts": format_timestamp(),
+        "drill_start_ts": drill_start_epoch,
+        "archive_ts_epoch": None,
+        "restore_start_ts": None,
+        "restore_end_ts": None,
         "rto_seconds": None,
-        "rpo_window_seconds": None,
+        "backup_duration_seconds": None,
+        "rpo_seconds": None,
         "integrity": None,
         "verification": {},
         "policy": "migrate" if domain in MIGRATE_POLICY_DOMAINS else "recreate",
@@ -196,7 +215,9 @@ def _drill_one_domain(
 
     artifact["archive_path"] = str(recovery_point)
     artifact["archive_ts"] = format_timestamp()
-    rpo_window = time.time() - drill_start
+    archive_ts_epoch = time.time()
+    artifact["archive_ts_epoch"] = archive_ts_epoch
+    backup_duration_seconds = archive_ts_epoch - drill_start_epoch
 
     # Restore into an isolated copy and verify against that copy only.
     drill_dir_path = Path(drill_dir)
@@ -222,10 +243,18 @@ def _drill_one_domain(
             "ledger_present": False,
         }
     finally:
-        rto = time.time() - started
+        restore_end_epoch = time.time()
 
-    artifact["rto_seconds"] = round(rto, 6)
-    artifact["rpo_window_seconds"] = round(rpo_window, 6)
+    artifact["restore_start_ts"] = started
+    artifact["restore_end_ts"] = restore_end_epoch
+    artifact["rto_seconds"] = round(restore_end_epoch - started, 6)
+    artifact["backup_duration_seconds"] = round(backup_duration_seconds, 6)
+    # RPO = recovery-point age at the assumed failure time. The assumed-failure
+    # event defaults to the moment the restored copy became ready (a documented
+    # operational decision, REQ-005): a measurement, not an objective RPO.
+    # Non-negative by construction (archive precedes restore completion).
+    assumed_failure_ts = restore_end_epoch
+    artifact["rpo_seconds"] = round(assumed_failure_ts - archive_ts_epoch, 6)
     artifact["verification"] = verification
     if ledger is not None:
         artifact["ledger"] = {
@@ -294,7 +323,9 @@ def run_drill(
             raise ValueError(f"unknown domain {target!r}; choose from {DOMAINS}")
         artifact = _drill_one_domain(target, resolved_archive, resolved_drill)
         ok = bool(artifact.get("integrity")) and all(
-            verdict for verdict in artifact["verification"].values()
+            verdict
+            for verdict in artifact["verification"].values()
+            if verdict is not None
         )
         status = "PASS" if ok else "FAIL"
         print(f"[drill] {target}: {status} {artifact['verification']}")
