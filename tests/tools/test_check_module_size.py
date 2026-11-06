@@ -327,3 +327,89 @@ def test_committed_baseline_is_honest_against_the_real_scripts_tree() -> None:
     fail here before CI does.
     """
     assert main([]) == 0
+
+
+def _tools_dir(tmp_path: Path, files: dict[str, int]) -> Path:
+    """A directory named `tools`, as the second invocation of the gate scans."""
+    directory = tmp_path / "tools"
+    for name, size in files.items():
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / name).write_text("x" * size, encoding="utf-8")
+    return directory
+
+
+def _tools_gate(directory: Path, baseline: Path) -> int:
+    return main(
+        [
+            "--scripts-dir",
+            str(directory),
+            "--limit",
+            str(LIMIT),
+            "--baseline",
+            str(baseline),
+        ]
+    )
+
+
+class TestToolsDirectoryWithItsOwnBaseline:
+    """The second invocation: a directory named `tools` and a separate baseline."""
+
+    def test_new_over_limit_tool_fails_when_not_baselined(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        directory = _tools_dir(tmp_path, {"big_tool.py": 150, "small.py": 20})
+        baseline = tmp_path / "tools_baseline.txt"
+        write_baseline(baseline, {})
+
+        assert _tools_gate(directory, baseline) == 1
+        assert "big_tool.py: 150 B exceeds the 100 B limit" in capsys.readouterr().out
+
+    def test_baselined_tool_at_its_recorded_size_passes(self, tmp_path: Path) -> None:
+        directory = _tools_dir(tmp_path, {"big_tool.py": 150})
+        baseline = tmp_path / "tools_baseline.txt"
+        write_baseline(baseline, {"big_tool.py": 150})
+
+        assert _tools_gate(directory, baseline) == 0
+
+    def test_growth_of_a_baselined_tool_fails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        directory = _tools_dir(tmp_path, {"big_tool.py": 180})
+        baseline = tmp_path / "tools_baseline.txt"
+        write_baseline(baseline, {"big_tool.py": 150})
+
+        assert _tools_gate(directory, baseline) == 1
+        assert "grew from 150 B to 180 B" in capsys.readouterr().out
+
+    def test_shrinkage_is_reported_without_failing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        directory = _tools_dir(tmp_path, {"big_tool.py": 120})
+        baseline = tmp_path / "tools_baseline.txt"
+        write_baseline(baseline, {"big_tool.py": 150})
+
+        assert _tools_gate(directory, baseline) == 0
+        assert "big_tool.py: 150 B -> 120 B" in capsys.readouterr().out
+
+    def test_stale_entry_fails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        directory = _tools_dir(tmp_path, {"fixed.py": 80})
+        baseline = tmp_path / "tools_baseline.txt"
+        write_baseline(baseline, {"fixed.py": 150})
+
+        assert _tools_gate(directory, baseline) == 1
+        assert "STALE BASELINE ENTRIES (1)" in capsys.readouterr().out
+
+    def test_the_two_baselines_do_not_affect_each_other(self, tmp_path: Path) -> None:
+        scripts = _scripts(tmp_path, {"big.py": 150})
+        tools = _tools_dir(tmp_path, {"big_tool.py": 150})
+        scripts_baseline = tmp_path / "scripts_baseline.txt"
+        tools_baseline = tmp_path / "tools_baseline.txt"
+        write_baseline(scripts_baseline, {"big.py": 150})
+        write_baseline(tools_baseline, {"big_tool.py": 150})
+
+        assert _tools_gate(scripts, scripts_baseline) == 0
+        assert _tools_gate(tools, tools_baseline) == 0
+        assert _tools_gate(tools, scripts_baseline) == 1
+        assert _tools_gate(scripts, tools_baseline) == 1

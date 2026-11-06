@@ -122,7 +122,7 @@ repos:
         entry: uv run python -m tools.run_validation_gates drift
         language: system
         pass_filenames: false
-        files: ^(\.pre-commit-config\.yaml|routing\.md|tools/run_validation_gates\.py)$
+        files: ^(\.pre-commit-config\.yaml|routing\.md|tools/run_validation_gates\.py|tools/_validation_gate_defs\.py)$
       - id: mock-patch-targets
         name: Check mock.patch targets reach the code under test
         entry: uv run python -m tools.check_mock_patch_targets
@@ -141,3 +141,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^(scripts/.*\.py|tools/check_module_size(_baseline\.txt|\.py))$
+      - id: check-module-size-tools
+        name: Check tools/ module size (baseline-gated)
+        entry: uv run python -m tools.check_module_size --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt
+        language: system
+        pass_filenames: false
+        files: ^(tools/.*\.py|tools/check_module_size_tools_baseline\.txt)$

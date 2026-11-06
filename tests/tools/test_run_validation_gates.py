@@ -496,3 +496,29 @@ def test_requires_context_ignores_plain_dots_but_flags_ellipsis() -> None:
     )
     assert concrete.requires_context is False
     assert ellipsis.requires_context is True
+
+
+def test_tools_size_gate_is_mapped_with_its_own_checker_id() -> None:
+    gate = next(g for g in ROUTING_GATES if g.name == "check_module_size_tools")
+
+    assert gate.checker_id == "check_module_size:tools"
+    assert "tools/*.py" in gate.patterns
+    assert gate.source == SOURCE_ROUTING
+    assert gate.mode == MODE_FAST
+
+
+def test_tools_size_gate_is_selected_by_a_tool_change() -> None:
+    selected = {g.name for g in select_gates(["tools/classify_changes.py"], MODE_FAST)}
+
+    assert "check_module_size_tools" in selected
+    assert "check_module_size" not in selected
+
+
+def test_reexported_gate_definitions_are_the_same_objects() -> None:
+    import tools._validation_gate_defs as defs
+    import tools.run_validation_gates as entry
+
+    assert entry.Gate is defs.Gate
+    assert entry.ROUTING_GATES is defs.ROUTING_GATES
+    assert entry.TOOLCHAIN_GATES is defs.TOOLCHAIN_GATES
+    assert entry._checker_id_from_command is defs._checker_id_from_command

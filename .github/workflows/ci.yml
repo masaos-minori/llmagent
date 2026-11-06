@@ -45,6 +45,8 @@ jobs:
         run: uv run python tools/check_docstrings.py
       - name: Module size check
         run: uv run python tools/check_module_size.py
+      - name: Module size check (tools)
+        run: uv run python tools/check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt
       - name: Pre-commit
         run: uv run pre-commit run --all-files
       - name: Run cited ADR invariant tests
