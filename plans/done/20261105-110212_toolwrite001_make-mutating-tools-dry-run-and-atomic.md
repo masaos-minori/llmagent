@@ -14,7 +14,7 @@ Medium
   - Coordinate with `plans/20261105-110046_toolreport001_share-report-model-and-renderers.md` (shared `--format` and option helpers; no common file).
 
 ## Background
-Verified on 2026-11-05 (checked in Steps 2 and 3): of the 14 listed writers six have no `--dry-run` (`set_execution_status.py`, `fix_docs_section_marks.py`, `fix_procedure_new_markers.py`, `module_nodes.py`, `migrate_runtime_tool_calls.py`, `generate_workitem.py`); `amend_plan.py` is the only one of the 14 that writes through a temporary file and `os.replace`, the others call `write_text` directly (`manage_binaries.py` also uses `os.replace` but is not in the list). `module_nodes.py` `_cmd_extract` writes the destination and then the source with two `write_text` calls, so a failure of the second leaves moved code in both files. `set_execution_status.py` and `migrate_runtime_tool_calls.py` write without an explicit encoding. Six further tools outside the Issue's list also write repository files. Tests exist for `set_execution_status`, `generate_workitem`, `manage_workitem_stage`, `manage_frontmatter`, `rename_doc`, `close_procedures_batch`, `fix_docstring_paths`, and `mark_procedure_new_symbols`; none exists for `fix_docs_section_marks`, `fix_procedure_new_markers`, `migrate_runtime_tool_calls`, `fix_docstring_blank_line`, and (until the tests Plan lands) `module_nodes`.
+Verified on 2026-11-05 (checked in Steps 2 and 3): of the 14 listed writers six have no `--dry-run` (`set_execution_status.py`, `fix_docs_section_marks.py`, `fix_procedure_new_markers.py`, `module_nodes.py`, `migrate_runtime_tool_calls.py`, `generate_workitem.py`); `amend_plan.py` is the only one of the 14 that writes through a temporary file and `os.replace`, the others call `write_text` directly (`manage_binaries.py` also uses `os.replace` but is not in the list). `module_nodes.py` `_cmd_extract` writes the destination and then the source with two `write_text` calls, so a failure of the second leaves moved code in both files. `set_execution_status.py` and `migrate_runtime_tool_calls.py` write without an explicit encoding. Six further tools outside the Issue's list also write repository files. Tests exist for `set_execution_status`, `generate_workitem`, `manage_workitem_stage`, `manage_frontmatter`, `rename_doc`, `close_procedures_batch`, `fix_docstring_paths`, and `mark_procedure_new_symbols`; none exists for `fix_docs_section_marks`, `fix_procedure_new_markers`, `migrate_runtime_tool_calls`, `fix_docstring_blank_line`, and (until the tests Plan lands) `module_nodes`. Corrected on 2026-11-06 (Step 3a of the procedure pass): `fix_docs_section_marks.py` already previews by default and writes only with `--apply` (it prints `[DRY-RUN]` lines), so its new `--dry-run` is an explicit flag for that no-write mode, mutually exclusive with `--apply`; `close_procedures_batch.py` also appends a final newline with `plan_path.open("a")` after its `write_text`; `generate_workitem.py` writes a plan timestamp marker (read, then rewrite) besides two skeleton writes; `migrate_runtime_tool_calls.py` has `main()` without an `argv` parameter and `_migrate(path)` does the write; only `manage_frontmatter.py` and `close_procedures_batch.py` carry the guarded `sys.path` bootstrap, so the other tools need it to import `tools._atomic_write` when run by path (the `toolcommon001` procedures add it to `module_nodes.py` and `rename_doc.py` first); no test patches `write_text` or `os.replace`.
 
 ## Problem
 Tools that modify source and work-item documents cannot preview their effect (six of them), and a failure during a write can leave truncated or duplicated content. Recovery depends on git, which these tools do not require to be clean first.
@@ -41,27 +41,27 @@ Add one small module with an atomic text write (same-directory temporary file, U
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `tools/_atomic_write.py` | Atomic write and dry-run helper | New file; `tools/` exists and holds `_`-prefixed private modules; only `amend_plan.py` has an in-file atomic write today | `REQ-001`, `REQ-002`; AC-1 | `amend_plan.py` uses a temporary file and `os.replace`; others `write_text` (checked in Step 3) | `tests/tools/test_atomic_write.py` | Verified |
+| `tests/tools/test_atomic_write.py` | Helper tests | New file; `tests/tools/` exists | `REQ-001`, `REQ-002`, `REQ-007`; AC-1 | No existing tests for an atomic writer (checked in Step 3) | itself | Verified |
 | `tools/module_nodes.py` | Prepare-then-replace extract and `--dry-run` | Rewrite the two `write_text` calls of `_cmd_extract`; add `--dry-run` to `extract` | `REQ-003`, `REQ-004`; AC-2, AC-3 | `args.dest.write_text(dest_code)` then `args.src.write_text("".join(kept_lines))` in `_cmd_extract` (checked in Step 3) | `tests/tools/test_module_nodes_extract_atomic.py` | Verified |
+| `tests/tools/test_module_nodes_extract_atomic.py` | Fault-injection and dry-run tests for `extract` | New file, separate from the tests Plan's `test_module_nodes.py` so the two Plans share no file | `REQ-003`, `REQ-007`; AC-2 | `_cmd_extract` two-step write (checked in Step 3) | itself | Verified |
 | `tools/set_execution_status.py` | Add `--dry-run`; atomic UTF-8 write | The `write_text` without encoding in the rewrite function | `REQ-004`, `REQ-006`; AC-3, AC-5 | `path.write_text("\n".join(rebuilt) + "\n")` without encoding (checked in Step 3) | `tests/tools/test_set_execution_status.py` | Verified |
+| `tests/tools/test_set_execution_status.py` | Add a dry-run test | Existing file; add a checksum test | `REQ-004`, `REQ-007`; AC-3 | File exists (checked in Step 3) | itself | Verified |
 | `tools/fix_docs_section_marks.py` | Add `--dry-run`; atomic write | One-shot formatter writes with `write_text` and has no `--dry-run` | `REQ-004`, `REQ-005`; AC-3, AC-5 | `--dry-run` count 0; one `write_text` (checked in Step 3) | `tests/tools/test_fix_docs_section_marks.py` | Verified |
+| `tests/tools/test_fix_docs_section_marks.py` | Dry-run and write tests | New file; no tests exist | `REQ-004`, `REQ-007`; AC-3 | No test references `fix_docs_section_marks` (checked in Step 2) | itself | Verified |
 | `tools/fix_procedure_new_markers.py` | Add `--dry-run`; atomic write | Same pattern | `REQ-004`, `REQ-005`; AC-3, AC-5 | `--dry-run` count 0; one `write_text` (checked in Step 3) | `tests/tools/test_fix_procedure_new_markers.py` | Verified |
+| `tests/tools/test_fix_procedure_new_markers.py` | Dry-run and write tests | New file; no tests exist | `REQ-004`, `REQ-007`; AC-3 | No test references `fix_procedure_new_markers` (checked in Step 2) | itself | Verified |
 | `tools/migrate_runtime_tool_calls.py` | Add `--dry-run`; atomic UTF-8 write | `path.write_text(new_src)` without encoding after the syntax check | `REQ-004`, `REQ-006`; AC-3, AC-5 | `write_text(new_src)` without encoding (checked in Step 3) | `tests/tools/test_migrate_runtime_tool_calls.py` | Verified |
+| `tests/tools/test_migrate_runtime_tool_calls.py` | Dry-run and write tests | New file; no tests exist | `REQ-004`, `REQ-006`, `REQ-007`; AC-3 | No test references `migrate_runtime_tool_calls` (checked in Step 2) | itself | Verified |
 | `tools/generate_workitem.py` | Add `--dry-run`; atomic write of skeletons and the plan marker | Three `write_text` calls (skeletons and a plan marker append) | `REQ-004`, `REQ-005`; AC-3, AC-5 | Three `write_text` calls; no `--dry-run`; collision refusal exists (checked in Step 3) | `tests/tools/test_generate_workitem.py` | Verified |
+| `tests/tools/test_generate_workitem.py` | Add a dry-run test | Existing file; add a checksum test | `REQ-004`, `REQ-007`; AC-3 | File exists (checked in Step 3) | itself | Verified |
 | `tools/manage_workitem_stage.py` | Atomic write | Replace the `write_text` of the status rewrite; keep `git mv` as is | `REQ-005`; AC-5 | One `write_text`; `--dry-run` exists (checked in Step 3) | `tests/tools/test_manage_workitem_stage.py` | Verified |
 | `tools/manage_frontmatter.py` | Atomic write | Replace four `write_text` calls | `REQ-005`; AC-5 | Four `write_text` calls; `--dry-run` exists (checked in Step 3) | `tests/tools/test_manage_frontmatter.py` | Verified |
 | `tools/rename_doc.py` | Atomic write | Replace the `write_text` of the link rewrite; keep `git mv` as is | `REQ-005`; AC-5 | One `write_text`; `--dry-run` exists (checked in Step 3) | `tests/tools/test_rename_doc.py` | Verified |
 | `tools/close_procedures_batch.py` | Atomic write | Replace the `write_text` | `REQ-005`; AC-5 | One `write_text`; `--dry-run` exists (checked in Step 3) | `tests/tools/test_close_procedures_batch.py` | Verified |
 | `tools/fix_docstring_paths.py` | Atomic write | Replace the `write_text` | `REQ-005`; AC-5 | One `write_text`; `--dry-run` exists (checked in Step 3) | `tests/tools/test_fix_docstring_paths.py` | Verified |
 | `tools/fix_docstring_blank_line.py` | Atomic write | Replace the `write_text` | `REQ-005`; AC-5 | One `write_text`; `--dry-run` exists; no test file (checked in Step 3) | `tests/tools/test_fix_docstring_blank_line.py` | Verified |
-| `tools/mark_procedure_new_symbols.py` | Atomic write | Replace the `write_text` | `REQ-005`; AC-5 | One `write_text`; `--dry-run` exists (checked in Step 3) | `tests/tools/test_mark_procedure_new_symbols.py` | Verified |
-| `tests/tools/test_atomic_write.py` | Helper tests | New file; `tests/tools/` exists | `REQ-001`, `REQ-002`, `REQ-007`; AC-1 | No existing tests for an atomic writer (checked in Step 3) | itself | Verified |
-| `tests/tools/test_module_nodes_extract_atomic.py` | Fault-injection and dry-run tests for `extract` | New file, separate from the tests Plan's `test_module_nodes.py` so the two Plans share no file | `REQ-003`, `REQ-007`; AC-2 | `_cmd_extract` two-step write (checked in Step 3) | itself | Verified |
-| `tests/tools/test_set_execution_status.py` | Add a dry-run test | Existing file; add a checksum test | `REQ-004`, `REQ-007`; AC-3 | File exists (checked in Step 3) | itself | Verified |
-| `tests/tools/test_generate_workitem.py` | Add a dry-run test | Existing file; add a checksum test | `REQ-004`, `REQ-007`; AC-3 | File exists (checked in Step 3) | itself | Verified |
-| `tests/tools/test_fix_docs_section_marks.py` | Dry-run and write tests | New file; no tests exist | `REQ-004`, `REQ-007`; AC-3 | No test references `fix_docs_section_marks` (checked in Step 2) | itself | Verified |
-| `tests/tools/test_fix_procedure_new_markers.py` | Dry-run and write tests | New file; no tests exist | `REQ-004`, `REQ-007`; AC-3 | No test references `fix_procedure_new_markers` (checked in Step 2) | itself | Verified |
-| `tests/tools/test_migrate_runtime_tool_calls.py` | Dry-run and write tests | New file; no tests exist | `REQ-004`, `REQ-006`, `REQ-007`; AC-3 | No test references `migrate_runtime_tool_calls` (checked in Step 2) | itself | Verified |
 | `tests/tools/test_fix_docstring_blank_line.py` | Regression test for the atomic switch | New file; no tests exist | `REQ-005`, `REQ-007`; AC-5 | No test references `fix_docstring_blank_line` (checked in Step 2) | itself | Verified |
+| `tools/mark_procedure_new_symbols.py` | Atomic write | Replace the `write_text` | `REQ-005`; AC-5 | One `write_text`; `--dry-run` exists (checked in Step 3) | `tests/tools/test_mark_procedure_new_symbols.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Document `--dry-run` and the helper | Add the helper row and the convention note | `REQ-008`; AC-6 | Index lists private modules (checked in Step 3) | `uv run python tools/check_tool_descriptions_sync.py` | Verified |
 
 ## Reference Files
@@ -94,6 +94,8 @@ Yes: `tools/TOOL_DESCRIPTIONS.md` (the `--dry-run` convention and the helper ent
 ## Assumptions
 - The helper is a separate module, `tools/_atomic_write.py`, not part of the helper Plan's module, so the two Plans share no new file and can land in either order after their dependencies (judgment; the Issue allows either location).
 - Dry-run output form is a unified diff of the intended change (judgment for the Issue's open question "diff versus summary"); a tool whose change is a new file prints the content path and a diff against empty.
+- Each tool that imports the helper and lacks the repository's guarded bootstrap (`if __package__ in (None, ""): sys.path.insert(0, ...)`) gains it, so by-path runs from skills keep working; the follow-up Plans of `toolcommon001` remove all bootstraps after the invocation decision (Step 3a).
+- Needs confirmation (non-blocking, Step 3a): the open-append of one newline in `close_procedures_batch.py` is a second, non-atomic write; it is left as is because it is one byte and the Plan names `write_text` calls, and the owner may extend the row.
 - The one-shot formatters (`fix_docs_section_marks.py`, `migrate_runtime_tool_calls.py`) are still in the repository and listed by the Issue, so they are included; if the owner retires them first, their rows are dropped through a Plan amendment (UNK-03).
 - Overlap judgments (`check_plan_target_overlaps.py`): `tools/module_nodes.py` and `tools/rename_doc.py` are also targeted by the `toolcommon001` Plan (git calls versus write calls), `tools/generate_workitem.py` and others by no other Plan, and `tools/TOOL_DESCRIPTIONS.md` by four other Plans (different sections); the changes are compatible, with the sequencing recorded in Scope.
 
@@ -179,11 +181,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the atomic write helper and its tests | Pending | — | — | |
-| 2 | Make `module_nodes.py extract` prepare-then-replace with `--dry-run` | Pending | — | — | |
-| 3 | Add `--dry-run` to the five other tools | Pending | — | — | |
-| 4 | Switch the seven atomic-only writers to the helper | Pending | — | — | |
-| 5 | Document and verify | Pending | — | — | |
+| 1 | Add the atomic write helper and its tests | In Progress | — | — |  |
+| 2 | Make `module_nodes.py extract` prepare-then-replace with `--dry-run` | In Progress | — | — |  |
+| 3 | Add `--dry-run` to the five other tools | In Progress | — | — |  |
+| 4 | Switch the seven atomic-only writers to the helper | In Progress | — | — |  |
+| 5 | Document and verify | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -193,7 +195,21 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261106-092109_01_tools__atomic_write.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261106-092109_03_tools_module_nodes.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261106-092109_05_tools_set_execution_status.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261106-092109_07_tools_fix_docs_section_marks.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261106-092109_09_tools_fix_procedure_new_markers.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261106-092109_11_tools_migrate_runtime_tool_calls.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261106-092109_13_tools_generate_workitem.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261106-092109_15_tools_manage_workitem_stage.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261106-092109_16_tools_manage_frontmatter.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261106-092109_17_tools_rename_doc.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261106-092109_18_tools_close_procedures_batch.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261106-092109_19_tools_fix_docstring_paths.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261106-092109_20_tools_fix_docstring_blank_line.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261106-092109_22_tools_mark_procedure_new_symbols.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261106-092109_23_tools_TOOL_DESCRIPTIONS.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

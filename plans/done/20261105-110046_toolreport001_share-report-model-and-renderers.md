@@ -14,7 +14,7 @@ Medium
   - Coordinate with `issues/20261104-152906_toolwrite001_make-mutating-tools-dry-run-and-atomic.md`, which may reuse the shared `--format` and option helpers.
 
 ## Background
-Verified on 2026-11-05 (checked in Steps 2 and 3): `def render_json(` is defined in 14 files, `render_text` in 7, `render_csv` in 5, `collect_issues` in 7, `make_finding` in 4, and `build_arg_parser` in 9. Finding types differ: `tools/_docs_consistency_lib.py` defines a frozen `Issue` (`file`, `line_no`, `severity`, `message`); `check_adr_authority.py` uses `Finding` from `tools/_adr_authority_core.py` (`code`, `location`, `message`); `check_workitem_traceability.py` uses `dict[str, str]` findings built by `make_finding`. JSON key sets and sort orders therefore differ (`check_adr_reference.py` and `check_adr_invariant_matrix.py` sort by file and line; `check_adr_authority.py` sorts by code, location, and message). Only four tools accept a `--json` flag, but many accept `--format` with `choices=["json"]` or `["json", "csv"]`. A search of CI workflows, `.pre-commit-config.yaml`, `tools/run_validation_gates.py`, `skills/`, `rules/`, and `routing.md` found no caller that requests JSON or CSV output from the four batch-1 tools; the only match is the `generate_mcp_inventory` gate token in `run_validation_gates.py`. `tools/generate_reference_table.py` imports from `tools.check_adr_invariant_matrix` lazily, so that module's public symbols must remain.
+Verified on 2026-11-05 (checked in Steps 2 and 3): `def render_json(` is defined in 14 files, `render_text` in 7, `render_csv` in 5, `collect_issues` in 7, `make_finding` in 4, and `build_arg_parser` in 9. Finding types differ: `tools/_docs_consistency_lib.py` defines a frozen `Issue` (`file`, `line_no`, `severity`, `message`); `check_adr_authority.py` uses `Finding` from `tools/_adr_authority_core.py` (`code`, `location`, `message`); `check_workitem_traceability.py` uses `dict[str, str]` findings built by `make_finding`. JSON key sets and sort orders therefore differ (`check_adr_reference.py` and `check_adr_invariant_matrix.py` sort by file and line; `check_adr_authority.py` sorts by code, location, and message). Only four tools accept a `--json` flag, but many accept `--format` with `choices=["json"]` or `["json", "csv"]`. A search of CI workflows, `.pre-commit-config.yaml`, `tools/run_validation_gates.py`, `skills/`, `rules/`, and `routing.md` found no caller that requests JSON or CSV output from the four batch-1 tools; the only match is the `generate_mcp_inventory` gate token in `run_validation_gates.py`. `tools/generate_reference_table.py` imports from `tools.check_adr_invariant_matrix` lazily, so that module's public symbols must remain. Corrected on 2026-11-06 (Step 3a of the procedure pass): `generate_reference_table.py` imports `ADR_INDEX`, `_matrix_rows`, `_read_lines`, and `_split_row` from that module (and its test patches `ADR_INDEX`), so those four names and `collect_issues` MUST stay. Only `check_workitem_traceability.py` has local `render_text`, `render_csv`, and `make_finding`; the two ADR matrix and reference checkers have only a local `render_json` (their default text comes from `report_and_exit` in `tools/_docs_consistency_lib.py`, which stays), and `check_adr_authority.py` has a local `render_json` plus an inline text loop (`[code] location: message` on stdout, `Found N finding(s).` on stderr, which stays). `tests/tools/test_check_workitem_traceability.py` subscripts the dict findings of the `find_*` functions in 19 lines, so the finding model change reaches that test file (added as a target row by amendment). `.github/workflows/ci.yml` runs `tools/check_adr_authority.py` by path; pre-commit runs the other three by `-m` form.
 
 ## Problem
 Each tool re-implements output formatting, so a formatting fix must be repeated, output contracts diverge, and consumers cannot parse results uniformly.
@@ -36,16 +36,18 @@ Introduce `tools/_report.py` with one record able to carry both the `file/line_n
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-06 (fallout): added tests/tools/test_check_workitem_traceability.py — The existing tests subscript the dict findings of the find_* functions (findings[0]['category'], ['file'], ['detail'] in many assertions); once make_finding returns the shared record those assertions must read record attributes instead, or the file fails
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
+| `tests/tools/test_tool_report_output.py` | Golden-output and determinism tests for the migrated tools | New file; fixtures recorded before migration | `REQ-006`; AC-5 | The four tools' output functions and `main` (checked in Step 3) | itself | Verified |
 | `tools/_report.py` | Shared reporting layer | New file; `tools/` exists and holds `_`-prefixed private modules | `REQ-002`, `REQ-003`; AC-2 | Private-module convention; `render_json` copies in 14 files (checked in Step 3) | `tests/tools/test_report.py` | Verified |
 | `tests/tools/test_report.py` | Unit tests for the shared module | New file; `tests/tools/` exists | `REQ-004`; AC-3 | No existing tests for a shared reporter (checked in Step 3) | itself | Verified |
-| `tests/tools/test_tool_report_output.py` | Golden-output and determinism tests for the migrated tools | New file; fixtures recorded before migration | `REQ-006`; AC-5 | The four tools' output functions and `main` (checked in Step 3) | itself | Verified |
-| `tools/check_adr_authority.py` | Migrate renderer and finding record | Replace `render_json` over `Finding` with the shared renderer and key profile `code/location/message` | `REQ-005`; AC-4 | `render_json` sorts by code, location, message; `choices=["json"]` (checked in Step 3) | `tests/tools/test_adr_authority.py` | Verified |
 | `tools/check_adr_reference.py` | Migrate renderer | Replace `render_json` over `Issue` with the shared renderer and key profile `file/line_no/severity/message` | `REQ-005`; AC-4 | `collect_issues` and `render_json` sorted by file and line; `choices=["json"]` (checked in Step 3) | `tests/tools/test_check_adr_reference.py` | Verified |
 | `tools/check_adr_invariant_matrix.py` | Migrate renderer | Replace `render_json` over `Issue` with the shared renderer; keep the symbols that `generate_reference_table.py` imports | `REQ-005`; AC-4 | `collect_issues`, `render_json`; lazy import from `generate_reference_table.py` (checked in Step 3) | `tests/tools/test_check_adr_invariant_matrix.py` | Verified |
+| `tools/check_adr_authority.py` | Migrate renderer and finding record | Replace `render_json` over `Finding` with the shared renderer and key profile `code/location/message` | `REQ-005`; AC-4 | `render_json` sorts by code, location, message; `choices=["json"]` (checked in Step 3) | `tests/tools/test_adr_authority.py` | Verified |
 | `tools/check_workitem_traceability.py` | Migrate renderers and finding model | Replace `make_finding`, `render_text`, `render_json`, `render_csv` and the `--format` argument with the shared layer | `REQ-005`; AC-4 | `make_finding` returns `dict[str, str]`; text, JSON, and CSV renderers; `choices=["json", "csv"]` (checked in Step 3) | `tests/tools/test_check_workitem_traceability.py` | Verified |
+| `tests/tools/test_check_workitem_traceability.py` | Adapt finding assertions to the shared record | The existing tests subscript the dict findings of the find_* functions (findings[0]['category'], ['file'], ['detail'] in many assertions); once make_finding returns the shared record those assertions must read record attributes instead, or the file fails | REQ-005 / AC-4 | tests/tools/test_check_workitem_traceability.py has 19 lines subscripting finding dicts by category, file, or detail (checked in Step 3a) | itself | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Audit record, module entry, convention, schema | Add the consumer audit, the module row, the `--format` convention, and the JSON schema | `REQ-001`, `REQ-007`; AC-1, AC-6 | Index lists private modules; no schema text exists (checked in Step 3) | `uv run python tools/check_tool_descriptions_sync.py` | Verified |
 
 ## Reference Files
@@ -100,11 +102,12 @@ Yes: `tools/TOOL_DESCRIPTIONS.md` (audit record, shared module, `--format` conve
 | `tools/check_adr_invariant_matrix.py` | Modify | Medium (pre-commit hook; imported lazily by `generate_reference_table.py`) | 6 | High | not applicable (rsynced) |
 | `tools/check_workitem_traceability.py` | Modify | Medium (pre-commit hook) | 7 | High | not applicable (rsynced) |
 | `tools/TOOL_DESCRIPTIONS.md` | Modify | Low | 82 | High | not applicable (rsynced) |
+| `tests/tools/test_check_workitem_traceability.py` | Modify | Not assessed (amendment 2026-11-06) | N/A | N/A | Not assessed (amendment 2026-11-06) |
 
 ## Design
 - Path B (more than 3 files, new module). Architecture analysis: `tools/` is outside the `.importlinter` contracts; `tools/_report.py` imports only the standard library and `orjson` (already a project dependency used by `render_json`), so no cycle arises. Dependency graphing: the four tools' importers are `tests/tools/*` and the lazy import in `generate_reference_table.py`; no CI or hook invokes `--format` on them. Historical analysis: churn figures are in the Affected areas table and all history is by one author. Operational dependency inspection: not applicable (no MCP server, database, or dependency change).
 - Validation quality baseline: `radon cc` grades `check_adr_preservation.py` `compare` D (22) elsewhere and none of the four target tools' render functions in the C-or-worse list; migration MUST NOT introduce a C-or-worse function. `vulture` and `bandit` baselines on `scripts/` are unrelated and unchanged. diff-cover baseline: `N/A: no diff exists before implementation`; at least 90 percent on changed lines is required (`rules/toolchain.md`).
-- Design decisions: (1) a record with optional `file`, `line_no`, `severity`, `code`, `location`, and required `message`, plus a key profile naming the output keys and sort key; (2) renderers `render_text`, `render_json` (orjson, indent 2, sorted by the profile's sort key), and `render_csv` (header from the profile); (3) `add_format_argument(parser, choices, default)`. Alternatives rejected: changing `Issue` in place (affects every docs checker); a plugin registry (more surface than the Issue asks). Compatibility impact: none in batch 1 because key profiles reproduce each current output.
+- Design decisions: (1) a record with optional `file`, `line_no`, `severity`, `code`, `location`, and required `message`, plus a key profile naming the output keys and sort key; (2) renderers `render_text`, `render_json` (orjson, indent 2, sorted by the profile's sort key), and `render_csv` (header from the profile); (2a, Step 3a) the record is a frozen dataclass with `file`, `line_no`, `severity`, `code`, `location`, `message`; a key profile is an ordered tuple of `(output_key, record_field)` pairs plus a sort key, so `check_workitem_traceability.py` uses the profile `category->code, file->file, detail->message` and keeps its keys `category`, `file`, `detail` (the JSON keeps `OPT_SORT_KEYS` and the original finding order, the CSV keeps its header), the ADR checkers use `file, line_no, severity, message` and `code, location, message`; the text renderer serves only the traceability grouped layout, the other tools keep their existing text path; (3) `add_format_argument(parser, choices, default)`. Alternatives rejected: changing `Issue` in place (affects every docs checker); a plugin registry (more surface than the Issue asks). Compatibility impact: none in batch 1 because key profiles reproduce each current output.
 - Consumer scan: the output keys are a public contract of the tools; consumers were enumerated by the audit above (importers: tests and one lazy import; callers: none requesting JSON or CSV). Persisted schemas are not involved.
 
 ## Implementation steps
@@ -116,6 +119,7 @@ Yes: `tools/TOOL_DESCRIPTIONS.md` (audit record, shared module, `--format` conve
    - [ ] Migrate `check_adr_reference.py` and `check_adr_invariant_matrix.py`; run `tests/tools` (`REQ-005`, `REQ-006`; `tools/check_adr_reference.py`, `tools/check_adr_invariant_matrix.py`)
 4. **Phase 4: Batch 2 (the authority and traceability checkers)**
    - [ ] Migrate `check_adr_authority.py` and `check_workitem_traceability.py`; run `tests/tools` and the gates (`REQ-005`, `REQ-006`; `tools/check_adr_authority.py`, `tools/check_workitem_traceability.py`)
+   - [ ] Adapt finding assertions to the shared record (REQ-005; `tests/tools/test_check_workitem_traceability.py`) — amendment 2026-11-06
 5. **Phase 5: Documentation and verification**
    - [ ] Document the module, the `--format` convention, and the JSON schema; run `check_tool_descriptions_sync.py`, the per-file checks of `routing.md` "Adding a new tool", and the live-data comparison (`REQ-005`, `REQ-007`; `tools/TOOL_DESCRIPTIONS.md` and all tool rows). No deploy step: only `tools/` and `tests/` change.
 
@@ -145,11 +149,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the consumer audit | Pending | — | — | |
-| 2 | Record golden outputs; add the shared module and its tests | Pending | — | — | |
-| 3 | Migrate batch 1 (two ADR checkers) | Pending | — | — | |
-| 4 | Migrate batch 2 (authority and traceability checkers) | Pending | — | — | |
-| 5 | Document and verify | Pending | — | — | |
+| 1 | Record the consumer audit | In Progress | — | — |  |
+| 2 | Record golden outputs; add the shared module and its tests | In Progress | — | — |  |
+| 3 | Migrate batch 1 (two ADR checkers) | In Progress | — | — |  |
+| 4 | Migrate batch 2 (authority and traceability checkers) | In Progress | — | — |  |
+| 5 | Document and verify | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -159,7 +163,13 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261106-091630_01_tests_tools_test_tool_report_output.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261106-091630_02_tools__report.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261106-091630_04_tools_check_adr_reference.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261106-091630_05_tools_check_adr_invariant_matrix.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261106-091630_06_tools_check_adr_authority.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261106-091630_07_tools_check_workitem_traceability.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261106-091630_09_tools_TOOL_DESCRIPTIONS.md.md | 1, 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -168,7 +178,7 @@ N/A: no release unit
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261105-110046
-- **Related target files**: tools/_report.py, tests/tools/test_report.py, tests/tools/test_tool_report_output.py, tools/check_adr_authority.py, tools/check_adr_reference.py, tools/check_adr_invariant_matrix.py, tools/check_workitem_traceability.py, tools/TOOL_DESCRIPTIONS.md
+- **Related target files**: tools/_report.py, tests/tools/test_report.py, tests/tools/test_tool_report_output.py, tools/check_adr_authority.py, tools/check_adr_reference.py, tools/check_adr_invariant_matrix.py, tools/check_workitem_traceability.py, tools/TOOL_DESCRIPTIONS.md, tests/tools/test_check_workitem_traceability.py
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -183,3 +193,4 @@ N/A: no release unit
 | REQ-005 | Same | `tools/check_workitem_traceability.py` | 4 | AC-4 | Golden tests; `test_check_workitem_traceability.py` | Confirmed by repository evidence |
 | REQ-006 | Testing Expectations (pre- and post-migration comparison; determinism) | `tests/tools/test_tool_report_output.py` | 2, 3, 4 | AC-5, AC-7 | Golden tests; `uv run pytest tests/tools -q` | Explicit in issue |
 | REQ-007 | Required Changes 4; Documentation Impact | `tools/TOOL_DESCRIPTIONS.md` | 5 | AC-6 | `check_tool_descriptions_sync.py` | Explicit in issue |
+| REQ-005 | Amendment 2026-11-06: The existing tests subscript the dict findings of the find_* functions (findings[0]['category'], ['file'], ['detail'] in many assertions); once make_finding returns the shared record those assertions must read record attributes instead, or the file fails | tests/tools/test_check_workitem_traceability.py | Phase 4 | AC-4 | itself | Confirmed by repository evidence |

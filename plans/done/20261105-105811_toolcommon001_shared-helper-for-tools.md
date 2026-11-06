@@ -14,7 +14,7 @@ Medium
   - **Depends on**: plans/20261105-105230_tracecompanion001_scope-companion-candidates-to-target-plan.md | phase all | both Plans modify `tools/check_workitem_traceability.py`; the smaller defect fix lands first
 
 ## Background
-Verified on 2026-11-05 (checked in Steps 2 and 3): the guarded `sys.path` bootstrap appears in 24 files (27 contain a `sys.path.insert`); `REPO_ROOT = Path(__file__).resolve().parent.parent` is defined in 23 files; eight files call `git` through `subprocess` with their own wrappers, each with its own error and encoding handling (`check_adr_preservation.py` `_git` with `text=True`; `classify_changes.py` bytes output with `errors="replace"` on stderr; `check_workitem_traceability.py` `_git_or_mtime`; `rename_doc.py` `check=True` calls and `git_mv`; `scan_change_consumers.py` `git ls-files` bytes; `module_nodes.py` `git show` with `check=True`; `run_validation_gates.py` `_git_diff_name_only`; `manage_binaries.py` `_git`). Invocation is mixed: `.pre-commit-config.yaml` uses `uv run python -m tools.*` (19 hooks) and the CI workflows use `python tools/<name>.py`: 7 steps in `ci.yml`, 8 in `governance-docs-consistency.yml`, one each in seven other workflow files, plus three `python3 "${REPO_ROOT}/tools/manage_binaries.py"` calls in `deploy/deploy.sh`. Tests import `tools.<name>` and the tests of five of the eight tools exercise git through real temporary repositories or an injected runner, not by patching the tool's own wrapper.
+Verified on 2026-11-05 (checked in Steps 2 and 3): the guarded `sys.path` bootstrap appears in 24 files (27 contain a `sys.path.insert`); `REPO_ROOT = Path(__file__).resolve().parent.parent` is defined in 23 files; eight files call `git` through `subprocess` with their own wrappers, each with its own error and encoding handling (`check_adr_preservation.py` `_git` with `text=True`; `classify_changes.py` bytes output with `errors="replace"` on stderr; `check_workitem_traceability.py` `_git_or_mtime`; `rename_doc.py` `check=True` calls and `git_mv`; `scan_change_consumers.py` `git ls-files` bytes; `module_nodes.py` `git show` with `check=True`; `run_validation_gates.py` `_git_diff_name_only`; `manage_binaries.py` `_git`). Invocation is mixed: `.pre-commit-config.yaml` uses `uv run python -m tools.*` (19 hooks) and the CI workflows use `python tools/<name>.py`: 7 steps in `ci.yml`, 8 in `governance-docs-consistency.yml`, one each in seven other workflow files, plus three `python3 "${REPO_ROOT}/tools/manage_binaries.py"` calls in `deploy/deploy.sh`. Corrected on 2026-11-06 (Step 3a): `manage_binaries.py` is also called by path with `python3` from `deploy/build_binaries.sh` (`rollback`, `write-info`, `swap`) and `deploy/start_agent.sh` (`check`, twice, on the service start path), so the by-path smoke in `REQ-005` covers those five calls as well; none of the other seven tools is called from pre-commit, CI, or deploy scripts by a `tools` path except `check_workitem_traceability.py` and `run_validation_gates.py` (pre-commit `-m` form). Tests import `tools.<name>`. Corrected on 2026-11-06 (Step 3a of the procedure pass): the tests of `check_adr_preservation.py`, `classify_changes.py`, `rename_doc.py`, `scan_change_consumers.py`, and `manage_binaries.py` exercise git through real temporary repositories; `tests/tools/test_module_nodes.py` replaces the `module_nodes.subprocess` attribute with a `SimpleNamespace` fake in an autouse fixture, so that test file changes with `_cmd_compare` (added as a target row by amendment); `tests/tools/test_check_workitem_traceability.py` patches `ROOT_DIR` on the module, so that module-level name must stay. Local repository-root copies outside the `REPO_ROOT =` pattern: `ROOT_DIR` in `check_workitem_traceability.py` and `scan_change_consumers.py`, and `repo_root = Path(__file__)...` in `run_validation_gates.py` `_run_drift`; `rename_doc.py` `find_repo_root(start)` walks up to `.git` from a caller-supplied path, is a different function, and stays. `manage_binaries.py` has no root constant and no bootstrap, resolves git with `shutil.which`, and already defines its own `EXIT_OK`, `EXIT_FAIL`, `EXIT_USAGE`.
 
 ## Problem
 The same code is repeated and has already diverged in error and encoding handling, so any fix must be applied in many places.
@@ -35,18 +35,20 @@ Introduce `tools/_tool_common.py` (private, `_`-prefixed) with `REPO_ROOT`, `run
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-06 (fallout): added tests/tools/test_module_nodes.py — The autouse fixture and _fake_git replace module_nodes.subprocess with a SimpleNamespace; once _cmd_compare calls the helper, that attribute no longer intercepts the git call, so the fixture must patch the helper's run_git seam instead
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `tools/_tool_common.py` | Shared helper | New file; `tools/` exists and holds the other `_`-prefixed private modules | `REQ-001`; AC-1 | Private-module convention (`_docs_consistency_lib.py`, `_front_matter_schema.py`) (checked in Step 3) | `tests/tools/test_tool_common.py` | Verified |
 | `tests/tools/test_tool_common.py` | Helper tests | New file; `tests/tools/` exists | `REQ-002`; AC-1 | No existing helper tests; `tests/tools/test_classify_changes.py` shows the temporary-repository style (checked in Step 3) | itself | Verified |
-| `tools/check_adr_preservation.py` | Migrate git runner and `REPO_ROOT` | Replace `_git` and the local `REPO_ROOT` with the helper | `REQ-003`, `REQ-004`; AC-2, AC-3 | `_git(*args)` with `subprocess.run(["git", *args], cwd=REPO_ROOT, ...)`; local `REPO_ROOT` and bootstrap (checked in Step 3) | `tests/tools/test_check_adr_preservation.py` | Verified |
-| `tools/classify_changes.py` | Migrate git runner | Replace the bytes-mode `subprocess.run` call with the helper's bytes mode | `REQ-003`, `REQ-004`; AC-2, AC-3 | `subprocess.run` with `errors="replace"` stderr handling (checked in Step 3) | `tests/tools/test_classify_changes.py` | Verified |
 | `tools/check_workitem_traceability.py` | Migrate git call | Replace the `subprocess.run` in `_git_or_mtime` with the helper | `REQ-003`, `REQ-004`; AC-2, AC-3 | `_git_or_mtime` calls `subprocess.run` with `text=True, check=False` (checked in Step 3) | `tests/tools/test_check_workitem_traceability.py` | Verified |
-| `tools/rename_doc.py` | Migrate git calls | Replace the `git ls-files` call and `git_mv` subprocess calls with the helper | `REQ-003`, `REQ-004`; AC-2, AC-3 | `subprocess.run(..., check=True)` calls and `git_mv` (checked in Step 3) | `tests/tools/test_rename_doc.py` | Verified |
+| `tools/classify_changes.py` | Migrate git runner | Replace the bytes-mode `subprocess.run` call with the helper's bytes mode | `REQ-003`, `REQ-004`; AC-2, AC-3 | `subprocess.run` with `errors="replace"` stderr handling (checked in Step 3) | `tests/tools/test_classify_changes.py` | Verified |
 | `tools/scan_change_consumers.py` | Migrate git call | Replace the `git ls-files` call with the helper's bytes mode | `REQ-003`, `REQ-004`; AC-2, AC-3 | `subprocess.run` with `stderr.decode(errors="replace")` error message (checked in Step 3) | `tests/tools/test_scan_change_consumers.py` | Verified |
 | `tools/module_nodes.py` | Migrate git call | Replace the `git show` call in `_cmd_compare` with the helper | `REQ-003`, `REQ-004`; AC-2, AC-3 | `subprocess.run(..., check=True)` in `_cmd_compare` (checked in Step 3) | `tests/tools/test_module_nodes.py` (from the tests Plan) | Verified |
+| `tests/tools/test_module_nodes.py` | Adapt the git fake to the helper | The autouse fixture and _fake_git replace module_nodes.subprocess with a SimpleNamespace; once _cmd_compare calls the helper, that attribute no longer intercepts the git call, so the fixture must patch the helper's run_git seam instead | REQ-003 / AC-2, AC-3 | tests/tools/test_module_nodes.py _no_real_git and _fake_git use monkeypatch.setattr(module_nodes, 'subprocess', types.SimpleNamespace(run=...)) (checked in Step 3a) | itself | Verified |
+| `tools/rename_doc.py` | Migrate git calls | Replace the `git ls-files` call and `git_mv` subprocess calls with the helper | `REQ-003`, `REQ-004`; AC-2, AC-3 | `subprocess.run(..., check=True)` calls and `git_mv` (checked in Step 3) | `tests/tools/test_rename_doc.py` | Verified |
 | `tools/run_validation_gates.py` | Migrate git call | Replace the `_git_diff_name_only` subprocess call with the helper; the gate runner stays | `REQ-003`, `REQ-004`; AC-2, AC-3 | `_git_diff_name_only` and a separate `_subprocess_runner` for gates (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
+| `tools/check_adr_preservation.py` | Migrate git runner and `REPO_ROOT` | Replace `_git` and the local `REPO_ROOT` with the helper | `REQ-003`, `REQ-004`; AC-2, AC-3 | `_git(*args)` with `subprocess.run(["git", *args], cwd=REPO_ROOT, ...)`; local `REPO_ROOT` and bootstrap (checked in Step 3) | `tests/tools/test_check_adr_preservation.py` | Verified |
 | `tools/manage_binaries.py` | Migrate git helper | Replace `_git(repo, *args)` with the helper; keep working when `deploy/deploy.sh` runs it by path | `REQ-003`, `REQ-004`, `REQ-005`; AC-2, AC-3, AC-4 | `_git` at module level; `deploy/deploy.sh` calls it three times with `python3` by path (checked in Step 3) | `tests/tools/test_manage_binaries.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Document helper and invocation forms | Add the helper row and an invocation-forms note | `REQ-006`; AC-5 | Index lists private modules with a `(private)` category (checked in Step 3) | `uv run python tools/check_tool_descriptions_sync.py` | Verified |
 
@@ -57,6 +59,8 @@ Introduce `tools/_tool_common.py` (private, `_`-prefixed) with `REPO_ROOT`, `run
 | `.github/workflows/ci.yml` | Steps call tools by path | `REQ-005` |
 | `.github/workflows/governance-docs-consistency.yml` | Eight steps call tools by path | `REQ-005` |
 | `deploy/deploy.sh` | Runs `tools/manage_binaries.py` by path on the deploy path | `REQ-005` |
+| `deploy/build_binaries.sh` | Runs `tools/manage_binaries.py` by path (`rollback`, `write-info`, `swap`) | `REQ-005` |
+| `deploy/start_agent.sh` | Runs `tools/manage_binaries.py check` by path at service start | `REQ-005` |
 | `tools/_docs_consistency_lib.py` | Existing private helper whose import style the new helper follows | `REQ-001` |
 | `tools/check_adr_structure.py` | Example of the guarded bootstrap plus `from tools._docs_consistency_lib import` idiom | `REQ-005` |
 | `tests/conftest.py` | Puts `tools/` on `sys.path` for all tests | `REQ-002` |
@@ -64,7 +68,7 @@ Introduce `tools/_tool_common.py` (private, `_`-prefixed) with `REPO_ROOT`, `run
 
 ## Acceptance Criteria
 - AC-1: One implementation of repository-root resolution and the git runner exists in `tools/_tool_common.py` with passing tests for success, git failure, and non-UTF-8 output (`REQ-001`, `REQ-002`).
-- AC-2: None of the eight migrated tools keeps a local git runner or local `REPO_ROOT` (`rg` finds no `subprocess.run` of `git` and no `REPO_ROOT =` definition in them) (`REQ-003`).
+- AC-2: None of the eight migrated tools keeps a local git runner or local `REPO_ROOT` (`rg` finds no `subprocess.run` of `git`, no `REPO_ROOT =` definition, no `ROOT_DIR = Path(__file__)`, and no `Path(__file__).resolve().parent.parent` root resolution in them; `ROOT_DIR` may remain only as an alias of the helper's `REPO_ROOT` because `tests/tools/test_check_workitem_traceability.py` patches it) (`REQ-003`).
 - AC-3: After each batch `uv run pytest tests/tools -q` and `uv run python tools/run_validation_gates.py` pass, and each tool's exit code and output match a before-and-after run on live data (`REQ-003`, `REQ-004`).
 - AC-4: One migrated tool is run in both `python -m tools.<name>` and `python tools/<name>.py` forms, and `python3 tools/manage_binaries.py` works by path (`REQ-005`).
 - AC-5: `tools/TOOL_DESCRIPTIONS.md` lists the helper and states the supported invocation forms, and `check_tool_descriptions_sync.py` passes (`REQ-006`).
@@ -81,6 +85,7 @@ Yes: `tools/TOOL_DESCRIPTIONS.md` (helper entry, invocation forms, migration sta
 - The helper is imported as `tools._tool_common`, matching `tools._docs_consistency_lib` (judgment from the existing style); a migrated file that lacks the guarded bootstrap and runs by path gains the existing idiom until the follow-up Plans remove it.
 - Where the eight wrappers differ in error handling (raise on failure, return empty, return an exit code), the helper offers `check` and a result object so each call site preserves its current behavior; no tool's behavior is unified in this Plan (Issue Constraints: behavior stays identical).
 - The three exit-code constants only define the convention's names; adopting them in other tools is not part of this Plan.
+- Needs confirmation (Step 3a, 2026-11-06): the archived `toolcli001` Plan is a declared dependency (phase 2), but its procedure documents sit in `implementations/done/` with every execution step still `Pending`, `tools/TOOL_DESCRIPTIONS.md` has no CLI and exit-code convention section, `tests/tools/test_tool_cli_convention.py` does not exist, and `check_docs_japanese.py` `main()` still takes no `argv`. So the convention (`0` pass, `1` findings, `2` usage or environment error) is known only from the archived Plan text. Non-blocking: the constants only name those three values; the executor confirms the `toolcli001` state with the owner before the documentation step, and the invocation-forms note must not link to a convention section that may not exist.
 - Overlap judgments (`check_plan_target_overlaps.py`): `tools/TOOL_DESCRIPTIONS.md` is also targeted by the `toolsdocsync001` and `toolcli001` Plans, `tools/check_workitem_traceability.py` by the `tracecompanion001` Plan, and `tools/run_validation_gates.py` by the `toolmypy001` Plan (a gate-command tuple versus the `_git_diff_name_only` call); the changes are in different sections or functions, so they are compatible, with the sequencing recorded in Scope. The later `toolreport001`, `toolwrite001`, and `toolsizegate001` Plans touch the same tools and follow this one.
 
 ## Unknowns
@@ -104,11 +109,12 @@ Yes: `tools/TOOL_DESCRIPTIONS.md` (helper entry, invocation forms, migration sta
 | `tools/run_validation_gates.py` | Modify | Medium (gate entry point) | 9 | High | not applicable (rsynced) |
 | `tools/manage_binaries.py` | Modify | High (run by `deploy/deploy.sh` on the deploy path) | N/A | High | not applicable (rsynced) |
 | `tools/TOOL_DESCRIPTIONS.md` | Modify | Low | 82 | High | not applicable (rsynced) |
+| `tests/tools/test_module_nodes.py` | Modify | Not assessed (amendment 2026-11-06) | N/A | N/A | Not assessed (amendment 2026-11-06) |
 
 ## Design
 - Path B (more than 3 files, new module). Architecture analysis: `tools/` is outside the `.importlinter` contracts; the helper imports only the standard library, so it creates no cycle. Dependency graphing: the eight tools were found by `rg 'subprocess'` plus `"git"` over `tools/*.py`; their callers are pre-commit (`-m` form), CI (path form), `deploy/deploy.sh` (path form, `manage_binaries.py` only), and tests (`tools.<name>` import). Historical analysis: churn figures are in the Affected areas table and all history is by one author. Operational dependency inspection: `deploy/deploy.sh` runs `manage_binaries.py swap`, `check`, and `record-revision` on the deploy path, so `manage_binaries.py` migrates last and is smoke-tested by path; no MCP server or database is touched.
 - Validation quality baseline: `radon cc` grades `manage_binaries.py` `_run` C (17), `_check_binary` C (11), `swap` C (11), and `check_adr_preservation.py` `compare` D (22); migration MUST NOT raise any grade. `vulture` and `bandit` baselines on `scripts/` are unrelated and unchanged. diff-cover baseline: `N/A: no diff exists before implementation`; at least 90 percent on changed lines is required (`rules/toolchain.md`).
-- Helper design (decisions): module `tools/_tool_common.py`; `REPO_ROOT: Path`; `run_git(*args, cwd: Path | None = None, check: bool = False, binary: bool = False)` returning `subprocess.CompletedProcess` with `encoding="utf-8", errors="replace"` in text mode; `EXIT_OK`, `EXIT_FINDINGS`, `EXIT_ERROR`. Alternatives rejected: a class wrapping git state (more surface than the Issue asks); a helper per concern (the Issue asks for one small module). Compatibility impact: none for callers, because only the eight migrating tools import it.
+- Helper design (decisions): module `tools/_tool_common.py`; `REPO_ROOT: Path`; `run_git(*args, cwd: Path | None = None, check: bool = False, binary: bool = False, timeout: float | None = None)` returning `subprocess.CompletedProcess` with `encoding="utf-8", errors="replace"` in text mode (`cwd=None` keeps the process working directory, as `classify_changes.py`, `module_nodes.py`, and `run_validation_gates.py` rely on; `timeout` is needed because `_git_or_mtime` passes `timeout=10`; `OSError`, `TimeoutExpired`, and `CalledProcessError` propagate unchanged so each call site keeps its own handling; corrected in Step 3a); `EXIT_OK`, `EXIT_FINDINGS`, `EXIT_ERROR`. Alternatives rejected: a class wrapping git state (more surface than the Issue asks); a helper per concern (the Issue asks for one small module). Compatibility impact: none for callers, because only the eight migrating tools import it.
 - Persisted-schema, public-API, and shared-constant consumer scan: the exit-code constants are new names (no existing consumers); `REPO_ROOT` in the helper is new and the 23 existing definitions are untouched except in migrated files.
 
 ## Implementation steps
@@ -118,6 +124,7 @@ Yes: `tools/TOOL_DESCRIPTIONS.md` (helper entry, invocation forms, migration sta
    - [ ] Migrate `check_workitem_traceability.py`, `classify_changes.py`, and `scan_change_consumers.py`; run `tests/tools` (`REQ-003`, `REQ-004`; `tools/check_workitem_traceability.py`, `tools/classify_changes.py`, `tools/scan_change_consumers.py`)
 3. **Phase 3: Batch 2 (tools that move or gate source)**
    - [ ] Migrate `module_nodes.py`, `rename_doc.py`, and `run_validation_gates.py`; run `tests/tools` and the gates (`REQ-003`, `REQ-004`; `tools/module_nodes.py`, `tools/rename_doc.py`, `tools/run_validation_gates.py`)
+   - [ ] Adapt the git fake to the helper (REQ-003; `tests/tools/test_module_nodes.py`) — amendment 2026-11-06
 4. **Phase 4: Batch 3 (deploy-path tools)**
    - [ ] Migrate `check_adr_preservation.py` and `manage_binaries.py`; run `tests/tools` and the path-form smoke (`REQ-003`, `REQ-004`, `REQ-005`; `tools/check_adr_preservation.py`, `tools/manage_binaries.py`)
 5. **Phase 5: Documentation and verification**
@@ -139,7 +146,7 @@ N/A: no release unit
 | patched symbols | Mock-patch check | `uv run python tools/check_mock_patch_targets.py` | No finding |
 
 ## Risks
-- **Risk**: A migrated file breaks under an invocation form it used before (especially `manage_binaries.py` on the deploy path) → **Mitigation**: `REQ-005` smoke in every form, `manage_binaries.py` last, and a path-form run before any deploy.
+- **Risk**: A migrated file breaks under an invocation form it used before (especially `manage_binaries.py` on the deploy path) → **Mitigation**: `REQ-005` smoke in every form (including the `check`, `swap`, `write-info`, `rollback`, and `record-revision` subcommands run against a temporary repository), `manage_binaries.py` last, the helper kept stdlib-only and importable by the same `python3` that runs `deploy/start_agent.sh`, and a path-form run before any deploy.
 - **Risk**: A uniform helper policy silently changes a tool's error handling or output → **Mitigation**: preserve each call site's handling, compare before and after on live data, and migrate three files per batch.
 - **Risk**: Adding the guarded bootstrap to files that lack it adds temporary duplication → **Mitigation**: recorded as an accepted trade-off; the follow-up Plans remove all bootstrap copies after UNK-01.
 - **Risk**: The helper becomes a dumping ground → **Mitigation**: scope is limited to `REPO_ROOT`, `run_git`, and the exit-code constants (Issue Out of Scope).
@@ -150,11 +157,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the helper and its tests | Pending | — | — | |
-| 2 | Migrate batch 1 (three read-mostly tools) | Pending | — | — | |
-| 3 | Migrate batch 2 (three source-moving or gating tools) | Pending | — | — | |
-| 4 | Migrate batch 3 (two deploy-path tools) | Pending | — | — | |
-| 5 | Document the helper and invocation forms; verify | Pending | — | — | |
+| 1 | Add the helper and its tests | Completed | — | 20261106-100329 |  |
+| 2 | Migrate batch 1 (three read-mostly tools) | Completed | — | 20261106-100329 |  |
+| 3 | Migrate batch 2 (three source-moving or gating tools) | Completed | — | 20261106-100329 |  |
+| 4 | Migrate batch 3 (two deploy-path tools) | Completed | — | 20261106-100329 |  |
+| 5 | Document the helper and invocation forms; verify | Completed | — | 20261106-100329 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -164,7 +171,16 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261106-090444_01_tools__tool_common.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261106-090444_03_tools_check_workitem_traceability.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261106-090444_04_tools_classify_changes.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261106-090444_05_tools_scan_change_consumers.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261106-090444_06_tools_module_nodes.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-090444_08_tools_rename_doc.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-090444_09_tools_run_validation_gates.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-090444_10_tools_check_adr_preservation.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-090444_11_tools_manage_binaries.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-090444_12_tools_TOOL_DESCRIPTIONS.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -173,7 +189,7 @@ N/A: no release unit
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261105-105811
-- **Related target files**: tools/_tool_common.py, tests/tools/test_tool_common.py, tools/check_adr_preservation.py, tools/classify_changes.py, tools/check_workitem_traceability.py, tools/rename_doc.py, tools/scan_change_consumers.py, tools/module_nodes.py, tools/run_validation_gates.py, tools/manage_binaries.py, tools/TOOL_DESCRIPTIONS.md
+- **Related target files**: tools/_tool_common.py, tests/tools/test_tool_common.py, tools/check_adr_preservation.py, tools/classify_changes.py, tools/check_workitem_traceability.py, tools/rename_doc.py, tools/scan_change_consumers.py, tools/module_nodes.py, tools/run_validation_gates.py, tools/manage_binaries.py, tools/TOOL_DESCRIPTIONS.md, tests/tools/test_module_nodes.py
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -191,3 +207,6 @@ N/A: no release unit
 | REQ-004 | Constraints (do not migrate in one large change); Acceptance Criteria 4 | `tools/check_workitem_traceability.py` | 2, 3, 4 | AC-3 | `uv run pytest tests/tools -q` after each batch | Explicit in issue |
 | REQ-005 | Testing Expectations (both invocation forms); `deploy/deploy.sh` (Step 3) | `tools/manage_binaries.py` | 4, 5 | AC-4 | Path-form smoke | Confirmed by repository evidence |
 | REQ-006 | Required Changes 1; Documentation Impact | `tools/TOOL_DESCRIPTIONS.md` | 5 | AC-5 | `check_tool_descriptions_sync.py` | Explicit in issue |
+| REQ-003 | Amendment 2026-11-06: The autouse fixture and _fake_git replace module_nodes.subprocess with a SimpleNamespace; once _cmd_compare calls the helper, that attribute no longer intercepts the git call, so the fixture must patch the helper's run_git seam instead | tests/tools/test_module_nodes.py | Phase 3 | AC-2, AC-3 | itself | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-090444 -->
