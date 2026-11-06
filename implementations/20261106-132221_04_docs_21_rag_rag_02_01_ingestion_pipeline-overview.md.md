@@ -61,9 +61,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the lifecycle row | Pending | — | — | |
-| 2 | Run the documentation checkers (`routing.md` Tools "When to run which tool") | Pending | — | — | |
-| 3 | N/A: no tests | Pending | — | — | |
+| 1 | Update the lifecycle row | Completed | 20261106-163353 | 20261106-163353 |  |
+| 2 | Run the documentation checkers (`routing.md` Tools "When to run which tool") | Completed | 20261106-163353 | 20261106-163353 |  |
+| 3 | N/A: no tests | Completed | 20261106-163353 | 20261106-163353 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
