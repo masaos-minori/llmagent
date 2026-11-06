@@ -60,3 +60,21 @@ Keep the detector read-only and report-only; do not move or edit work items. Fol
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261106-123521
 - **Related target files**: `skills/plan-to-implementation-procedure/workflow.md`, `skills/code-implementation/workflow.md`, `routing.md`, `tools/manage_workitem_stage.py`, `tools/check_workitem_traceability.py`
+
+## Adversarial Validation
+
+Validated against current source and git history on 2026-11-07.
+
+- Commit `f0dff11a8` ("Adversarially verify & archive 9 toolcli001/tracecompanion001 procedure docs") exists; its body states nothing was executed, every step stayed `Pending`, and all 9 docs were archived to `implementations/done/`. — Evidence: `Operationally observed` (git) — Confidence: High
+- `plan_dependency_order.py` loads an archived Plan (`plans/done/`) as a node; `manage_workitem_stage.py close-implementation` refuses when any Execution Status row is `Pending`. — Evidence: `Explicit in code` — Confidence: High
+- No factual conflict found. The Unresolved Questions (window length N, detector ownership) remain appropriately open.
+
+Verdict: accepted as filed.
+
+## Content Analysis
+
+- Type: tooling/policy fix (read-only detector plus a workflow and `routing.md` rule).
+- Pipeline path: issue -> plan -> implementation procedure -> code. Owner: engineer.
+- Scope: `tools/manage_workitem_stage.py`, `tools/plan_dependency_order.py`, `tools/check_workitem_traceability.py`, two workflow files, `routing.md`.
+- Dependency: none declared. Independent of the other three batch issues.
+- Open item before planning: window length N and which tool owns the detector (both under Unresolved Questions).

@@ -59,3 +59,21 @@ Reproduce first; do not change tool behavior.
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261106-123523
 - **Related target files**: `pyproject.toml`, `rules/toolchain.md`, `tools/TOOL_DESCRIPTIONS.md`
+
+## Adversarial Validation
+
+Validated against current source and by reproduction on 2026-11-07.
+
+- `uv run check-needs-confirmation` fails with `ModuleNotFoundError: No module named 'tools'`; `python tools/check_needs_confirmation_inventory.py` and `python -m tools.check_needs_confirmation_inventory` both report `No issues found.`. — Evidence: `Operationally observed` — Confidence: High
+- Root cause: `[tool.setuptools.packages.find]` uses `where = ["scripts"]`, so the root-level `tools/` directory is not packaged and the entry points cannot import it. — Evidence: `Explicit in code` (`pyproject.toml`) — Confidence: High
+- Priority `Low` may be too low: a failing documented command is a non-critical documentation/code mismatch, which `issue-creator` Phase 7 rates `Medium`. Recommend a priority re-check. The owner decision on whether `tools` should be installable is correctly left as an Unresolved Question.
+
+Verdict: accepted with a priority re-check recommended.
+
+## Content Analysis
+
+- Type: investigation with a branch to either a packaging fix or documentation cleanup.
+- Pipeline path: issue -> plan -> implementation procedure -> code if the packaging is fixed, or documentation update only if the console scripts are removed.
+- Owner: engineer, plus an owner decision on whether `tools` is meant to be an installable package.
+- Scope: `pyproject.toml` (`[tool.setuptools.packages.find]`, `[project.scripts]`), `rules/toolchain.md`, `tools/TOOL_DESCRIPTIONS.md`.
+- Dependency: none. Independent of the other three batch issues.

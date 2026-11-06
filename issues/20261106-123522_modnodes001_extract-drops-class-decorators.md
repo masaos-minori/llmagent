@@ -60,3 +60,21 @@ Change only `tools/module_nodes.py` and its tests; keep the existing public symb
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261106-123522
 - **Related target files**: `tools/module_nodes.py`, `tests/tools/test_module_nodes.py`
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-07.
+
+- The decorator-drop bug is real: `_node_index` spans a node from `node.lineno` (the `class`/`def` keyword, excluding decorator lines), `_extract_lines` copies the span from that keyword line, and `_normalize` sets `node.decorator_list = []`. — Evidence: `Explicit in code` (`tools/module_nodes.py`) — Confidence: High
+- `class Gate` is defined in `tools/_validation_gate_defs.py` and imported by `run_validation_gates.py`; it does not live in `run_validation_gates.py`. — Evidence: `Explicit in code` — Confidence: High
+- Correction: the `Background` frames the incident as splitting `run_validation_gates.py`; name the moved symbol's home as `tools/_validation_gate_defs.py` for precision. The fix location (`tools/module_nodes.py`) and the Required Changes are correct.
+
+Verdict: accepted with one wording correction.
+
+## Content Analysis
+
+- Type: bug fix in a sanctioned module-splitting tool.
+- Pipeline path: issue -> plan -> implementation procedure -> code. Owner: engineer.
+- Scope: `tools/module_nodes.py` (`_node_index`, `_extract_lines`, `_normalize`) and its tests.
+- Dependency: none. Incidentally shares `tests/tools/test_module_nodes.py` with `ownerdec001`'s background, but there is no hard dependency.
+- Risk note: Constraints pin output format, option names, and exit codes; verify those hold after the fix.

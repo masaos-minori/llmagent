@@ -59,3 +59,19 @@ Write the decided text; do not decide the policy yourself.
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261106-123524
 - **Related target files**: `rules/workflow-lifecycle.md`, `skills/code-implementation/workflow.md`
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-07.
+
+- `rules/workflow-lifecycle.md` carries `### Plan Amendment Approval Classes (proposed)` with `Status: proposed, pending the owner's decision (Plan UNK-01); it has no effect until the owner accepts it`. — Evidence: `Explicit in code` — Confidence: High
+- Both unsettled policies (amendment approval classes, full-suite batch runs) are correctly framed as owner decisions, and the AI Implementation Instruction ("do not decide the policy yourself") is appropriate.
+
+Verdict: accepted as filed.
+
+## Content Analysis
+
+- Type: owner decision (policy), not a code change; does not go through code-implementation.
+- Outcome: owner rules on (a) fallout versus scope amendment classes, and (b) the full-suite batch-run exception, then update `rules/workflow-lifecycle.md` and `skills/code-implementation/workflow.md`.
+- Scope: policy documents only; `tools/amend_plan.py` stays unchanged beyond what the accepted text needs.
+- Dependency: none. Independent of the other three batch issues.
