@@ -237,9 +237,9 @@ REQ-004: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` line 33 gai
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add force-prune regression tests in `tests/rag/ingestion/test_chunk_splitter.py` | In Progress | — | — | REQ-003 |
-| 2 | Force-prune in `scripts/rag/ingestion/chunk_splitter.py` | In Progress | — | — | REQ-001, REQ-002 |
-| 3 | Docs update + gate sequence + deploy hand-off | In Progress | — | — | REQ-004 |
+| 1 | Add force-prune regression tests in `tests/rag/ingestion/test_chunk_splitter.py` | Completed | — | 2026-11-06 | REQ-003 |
+| 2 | Force-prune in `scripts/rag/ingestion/chunk_splitter.py` | Completed | — | 2026-11-06 | REQ-001, REQ-002 |
+| 3 | Docs update + gate sequence + deploy hand-off | Completed | — | 2026-11-06 | REQ-004 Docs paragraph updated by procedure 131606_03; gate sequence run; deploy of changed scripts/ files is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

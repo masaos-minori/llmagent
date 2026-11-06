@@ -13,7 +13,7 @@ Make a `force=True` run of `ChunkSplitter.process_file` authoritative for its so
 - Companion test file `tests/rag/ingestion/test_chunk_splitter.py`: a valid companion because it is a row of the Plan under `tests/`, only the code row names it in `Related Tests`, and the Plan prescribes its test list. Existing helpers `_CRAWL_CONFIG`, `_make_io_splitter`, and `_make_crawl_json` are reused; existing tests assert written counts only, and none pins the presence or absence of stale files.
 - The Plan's release unit `force-prune-fix` (phases 1 and 2) is covered entirely by this document, because the failing tests and the fix are executed in one cycle (red, then green).
 - Importers of `ChunkSplitter` are two test files (`tests/rag/ingestion/test_chunk_splitter.py` and `tests/rag/ingestion/test_rag_ingestion_pipeline.py`); it has no production importer apart from its own `main` entry.
-- Sequencing: the `raging001` procedure (`implementations/20261106-114129_01_scripts_rag_ingestion_chunk_japanese.py.md`, Plan archived, not yet executed) edits `_make_ja_mixin` and the Japanese end-to-end test of the same test file; this procedure adds a separate test class, so the edits are compatible and `raging001` goes first (Plan Design). `issues/20261106-110845_ragfix001_chunk-payload-code-blocks.md` will change `_build_chunk_payload` of the same module, a different function, so there is no ordering requirement. The `raging007` Plan is gated on this one.
+- Sequencing: the `raging001` procedure (`implementations/done/20261106-114129_01_scripts_rag_ingestion_chunk_japanese.py.md`) edits `_make_ja_mixin` and the Japanese end-to-end test of the same test file; this procedure adds a separate test class, so the edits are compatible and `raging001` goes first (Plan Design). Re-verified 2026-11-06: `raging001` has been executed and archived (commit `d1afb6a28`); `TestJapaneseMergeRegression` and the Japanese end-to-end test now exist in the companion file, so this prerequisite is satisfied. `issues/20261106-110845_ragfix001_chunk-payload-code-blocks.md` will change `_build_chunk_payload` of the same module, a different function, so there is no ordering requirement. The `raging007` Plan is gated on this one.
 
 ## Design decisions
 - Prune only on `force=True`, after the chunk list is built, before writing; non-forced behavior (the sentinel skip) is unchanged.
@@ -29,7 +29,7 @@ Make a `force=True` run of `ChunkSplitter.process_file` authoritative for its so
 `scripts/rag/ingestion/chunk_splitter.py`
 
 ### Procedure
-1. Add the new test class to the companion test file first and run it: the shrink, zero-chunk, and chunking-error cases must fail against the current code; the grow, stem-isolation, broken-source, and non-forced cases pass (characterization).
+1. Add the new test class to the companion test file first and run it: the shrink and zero-chunk cases must fail against the current code; the grow, stem-isolation, broken-source, chunking-error, and non-forced cases pass (characterization). Correction recorded here (re-verification 2026-11-06): the chunking-error case is a characterization test, not a red test — without the prune there is nothing to destroy the series, so the exception propagates and the series is preserved both before and after the fix.
 2. Add the private method `_prune_stale_chunk_files(stem)` (new) to `ChunkSplitter` after `process_file`; it returns the number of removed files.
 3. In `process_file`, after `chunks = self._build_chunk_list(chunk_doc)` and before the call to `_write_chunk_files`, add `if force:` followed by the call of `_prune_stale_chunk_files(src_path.stem)`.
 4. Re-run the new class and the whole companion file; then `uv run pytest tests/rag/ingestion`.
@@ -46,7 +46,7 @@ Make a `force=True` run of `ChunkSplitter.process_file` authoritative for its so
 ### Companion test files
 - `tests/rag/ingestion/test_chunk_splitter.py`
   - Procedure: add a class `TestForceRechunkPrune` (new) built on `ChunkSplitter(config=...)` with `rag_src_dir` set to `tmp_path` and the existing `_make_crawl_json` helper: (a) shrink: chunk one source with `max_chunk=200`, force-rerun with `max_chunk=600`, assert the files on disk are exactly the new series and the `chunk_index` values equal `range(new_count)`; (b) grow: the reverse order, assert no gaps and the on-disk set equals the new series; (c) zero-chunk: force-rerun with `min_chunk` raised above the content size, assert no file of the stem remains; (d) stem isolation: chunk stems `page` and `page-1234`, force-rerun `page`, assert the other stem's files are byte-identical; (e) broken source: replace the source with invalid JSON, run with `force=True`, assert the existing series is preserved; (f) chunking error: patch `_build_chunk_list` to raise, run with `force=True`, assert the exception propagates and the existing series is preserved; (g) non-forced rerun still skips and leaves the files untouched (characterization).
-  - Validation: `uv run pytest tests/rag/ingestion/test_chunk_splitter.py -v`: (a), (c), and (f) fail before step 3 and pass after it; every other test of the file, and `uv run pytest tests/rag/ingestion`, pass.
+  - Validation: `uv run pytest tests/rag/ingestion/test_chunk_splitter.py -v`: (a) and (c) fail before step 3 and pass after it; (b), (d), (e), (f), and (g) pass throughout (characterization); every other test of the file, and `uv run pytest tests/rag/ingestion`, pass.
 
 ## Compatibility considerations
 - Non-forced runs are unchanged. A forced run now deletes the previous chunk files of that source before writing, which is the intended contract; no caller outside the CLI `--force` option and the tests passes `force=True`.
@@ -75,10 +75,10 @@ Make a `force=True` run of `ChunkSplitter.process_file` authoritative for its so
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the new test class and confirm the failing cases | Pending | — | — | |
-| 2 | Add `_prune_stale_chunk_files` (new) and call it from the forced path | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`), the live copy check, and the single full-suite run with coverage | Pending | — | — | |
-| 4 | N/A: documentation is the second procedure of this Plan | Pending | — | — | |
+| 1 | Add the new test class and confirm the failing cases | Completed | 2026-11-06 | 2026-11-06 | Red as corrected: shrink and zero-chunk fail; grow, stem-isolation, broken-source, chunking-error, non-forced pass as characterization |
+| 2 | Add `_prune_stale_chunk_files` (new) and call it from the forced path | Completed | 2026-11-06 | 2026-11-06 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`), the live copy check, and the single full-suite run with coverage | Completed | — | 2026-11-06 | All static gates pass; bandit findings unchanged vs baseline (0 on changed file); diff-cover reports no coverable lines because chunk_splitter.py is in the pyproject coverage omit list (project policy: ingestion scripts integration-tested separately); live copy check 39->26 chunks, exact new series |
+| 4 | N/A: documentation is the second procedure of this Plan | Completed | — | 2026-11-06 | N/A row: documentation is procedure 131606_03 of the same Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

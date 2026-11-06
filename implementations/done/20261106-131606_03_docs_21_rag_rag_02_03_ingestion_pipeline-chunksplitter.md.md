@@ -58,9 +58,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the idempotency paragraph | Pending | — | — | |
-| 2 | Run the documentation checkers (`routing.md` Tools "When to run which tool") | Pending | — | — | |
-| 3 | N/A: no tests | Pending | — | — | |
+| 1 | Update the idempotency paragraph | Completed | 2026-11-06 | 2026-11-06 |  |
+| 2 | Run the documentation checkers (`routing.md` Tools "When to run which tool") | Completed | — | 2026-11-06 | All five docs checkers and the Needs-confirmation inventory pass |
+| 3 | N/A: no tests | Completed | — | 2026-11-06 | N/A row: no tests |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -200,9 +200,9 @@ findings, not the bump guard). No doc change is made.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add all-failed + skipped-only tests in `tests/rag/ingestion/test_ingester_index_generation.py` | In Progress | — | — | REQ-002 |
-| 2 | Guard swap in `scripts/rag/ingestion/ingester.py` | In Progress | — | — | REQ-001, REQ-003 |
-| 3 | Gate sequence + deploy hand-off | Pending | — | — | REQ-001..003 |
+| 1 | Add all-failed + skipped-only tests in `tests/rag/ingestion/test_ingester_index_generation.py` | Completed | — | 2026-11-06 | REQ-002 |
+| 2 | Guard swap in `scripts/rag/ingestion/ingester.py` | Completed | — | 2026-11-06 | REQ-001, REQ-003 |
+| 3 | Gate sequence + deploy hand-off | Completed | — | 2026-11-06 | REQ-001..003 Gate sequence run; deploy of changed scripts/ files is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
