@@ -135,4 +135,4 @@
 - **Source plan**: plans/20261107-050704_ragfix001_chunk-payload-code-blocks.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-054235
-- **Related target files**: scripts/rag/ingestion/chunk_splitter.py, `tests/rag/ingestion/test_chunk_splitter.py`
+- **Related target files**: `scripts/rag/ingestion/chunk_splitter.py`, `tests/rag/ingestion/test_chunk_splitter.py`

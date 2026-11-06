@@ -123,4 +123,4 @@
 - **Source plan**: plans/20261107-052809_ragfix002_orchestrator-max-pages-default.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-055553
-- **Related target files**: scripts/rag/ingestion/orchestrator.py, `tests/rag/ingestion/test_crawler_integration.py`
+- **Related target files**: `scripts/rag/ingestion/orchestrator.py`, `tests/rag/ingestion/test_crawler_integration.py`
