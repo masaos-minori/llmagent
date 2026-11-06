@@ -78,6 +78,19 @@ breaking `RagIngester.ingest_all` after all ingestion already succeeded.
 `check_consistency` and the ingestion path are untouched. The only observable change is
 that previously-escaping callback exceptions are now logged and swallowed (AC-1).
 
+### Verification results (20261106)
+- Verified against current code: `except (TypeError, ValueError):` is at
+  `document_manager.py:149` with the `logger.exception` body at `:150` (single caller
+  `check_consistency` at `:130`); `ingest_all` calls `check_consistency` unguarded
+  (`ingester.py:178-181`).
+- The plan's Implementation steps cite `document_manager.py:159` — stale line number;
+  `:149` in this document is correct.
+- BLE001 is selected at `pyproject.toml:106`; the binding-free `except Exception:` form is
+  the BLE001-permitted form, as claimed.
+- Execution order per Plan phases (frozen): this change runs AFTER the companion RED test
+  document `20261106-155620_02` (Phase 1 RED → Phase 2 GREEN), overriding the memo3 list
+  order.
+
 ## Security considerations
 N/A: no input-handling, network, or credential change. The `logger.exception` line records
 a full traceback at ERROR level, so masked callback failures remain observable (AC-1).
@@ -114,8 +127,8 @@ edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Widen except clause in `scripts/rag/ingestion/document_manager.py` | Pending | — | — | REQ-001, REQ-003 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Widen except clause in `scripts/rag/ingestion/document_manager.py` | Completed | 2026-11-06 | 2026-11-06 | REQ-001, REQ-003; ran after companion RED test per Plan phases |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-06 | 2026-11-06 | ruff/mypy/lint-imports/bandit green; no BLE001 finding |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

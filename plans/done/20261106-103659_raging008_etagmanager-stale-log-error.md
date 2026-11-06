@@ -177,9 +177,9 @@ N/A: no documentation describes this log line (issue statement confirmed by Step
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `caplog` regression test | In Progress | — | — | REQ-003 |
-| 2 | Fix log format and helper return shape in `scripts/rag/ingestion/etag_manager.py` | In Progress | — | — | REQ-001, REQ-002 |
-| 3 | Gate sequence + deploy hand-off | In Progress | — | — | REQ-001..003 |
+| 1 | Add `caplog` regression test | Completed | — | 20261106-192234 | REQ-003 |
+| 2 | Fix log format and helper return shape in `scripts/rag/ingestion/etag_manager.py` | Completed | — | 20261106-192234 | REQ-001, REQ-002 |
+| 3 | Gate sequence + deploy hand-off | Completed | — | 20261106-192234 | REQ-001..003 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -36,9 +36,12 @@ from the private `_is_stale_update` helper so the skip branch can log it.
   return (no DB read — pinned by `test_both_none_returns_early_no_db_query`) and the
   empty-`new_fetched_at` `ValueError` (pinned by `test_empty_fetched_at_raises_value_error`)
   live in `_incoming_decision` today. Because `update()` now calls `_is_stale_update`
-  directly, move these two guards into `update()` BEFORE the `_is_stale_update` call so
-  behavior is identical: `if etag is None and last_modified is None: return` then
-  `if not new_fetched_at: raise ValueError(...)`. Do NOT let `_is_stale_update` own
+  directly, move these two guards into `update()` BEFORE the `_is_stale_update` call
+  in the same order as `_incoming_decision` (verified 20261106: it raises on empty
+  `new_fetched_at` at `:91-92` BEFORE the both-None return at `:93-94`, so
+  `update(None, None, "")` raises today): empty-string `raise` first, then both-None
+  return. The procedure's original reverse order would have silently returned on
+  `update(None, None, "")` instead of raising. Do NOT let `_is_stale_update` own
   the empty-string `ValueError` (its existing `if not new_fetched_at: return None`
   guard stays; the raise is an `update()`-level contract).
 - **Keep `_incoming_decision`'s bool contract intact for `resolve_incoming`.** Its
@@ -83,10 +86,10 @@ from the private `_is_stale_update` helper so the skip branch can log it.
   nothing to log) — semantics unchanged (both mean "not skipped").
 - In `update()`, replace lines :42-52 with:
   ```python
-  if etag is None and last_modified is None:
-      return
   if not new_fetched_at:
       raise ValueError("new_fetched_at must be a non-empty string")
+  if etag is None and last_modified is None:
+      return
   stored = self._is_stale_update(new_fetched_at)
   if stored is not None:
       logger.info(
@@ -163,9 +166,9 @@ and `update()`'s skip branch; `resolve_incoming`'s adaptation is a one-line expr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix log format and helper return shape in `scripts/rag/ingestion/etag_manager.py` | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Add `caplog` regression test | Pending | — | — | REQ-003 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Fix log format and helper return shape in `scripts/rag/ingestion/etag_manager.py` | Completed | — | 20261106-192106 | REQ-001, REQ-002 guard order corrected during verification (raise-first); _is_stale_update returns str|None; 3-arg log line |
+| 2 | Add `caplog` regression test | Completed | — | 20261106-192106 | REQ-003 caplog test added via companion procedure 02 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261106-192106 | full suite 11876 passed; gates Pass; diff-cover 92%; mypy/ruff/bandit/lint-imports clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

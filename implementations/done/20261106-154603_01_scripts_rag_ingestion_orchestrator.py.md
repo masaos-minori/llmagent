@@ -34,6 +34,11 @@ page budget nor make the loop unbounded. Log scheduled-vs-persisted at loop stop
 - **Fixed multiplier constant.** `SCHEDULED_BUDGET_MULTIPLIER = 2` at module level;
   `max_scheduled = self._max_pages * SCHEDULED_BUDGET_MULTIPLIER`. Matches the
   issue's chosen resolution (fixed multiplier over a config key).
+- **Preserve crawl004's session-DB threading (verified 20261106).** `crawl_site` now
+  opens a `session_db: SQLiteHelper | None` in a `try`/`finally` block and both
+  private helpers already take a trailing `session_db` parameter
+  (`orchestrator.py:95-179`). Thread `budget` as an additional trailing parameter
+  alongside `session_db` in both helpers; snippets below show both parameters.
 - **Two top-of-loop guards, persisted first.** (a) `budget.persisted >= budget.max_persist`
   → WARNING `"persisted budget reached"` + break; (b) `len(visited) >= budget.max_scheduled`
   → WARNING `"scheduling budget reached"` + break. The old
@@ -111,7 +116,7 @@ page budget nor make the loop unbounded. Log scheduled-vs-persisted at loop stop
           )
           break
       pending |= self._drain_queue_to_tasks(
-          queue, visited, start_url, hint_lang, client, sem, budget,
+          queue, visited, start_url, hint_lang, client, sem, session_db, budget,
       )
       if not pending:
           break
@@ -126,7 +131,7 @@ page budget nor make the loop unbounded. Log scheduled-vs-persisted at loop stop
 - `_drain_queue_to_tasks`:
   ```python
   def _drain_queue_to_tasks(
-      self, queue, visited, start_url, hint_lang, client, sem, budget,
+      self, queue, visited, start_url, hint_lang, client, sem, session_db, budget,
   ) -> set[asyncio.Task]:
       tasks: set[asyncio.Task] = set()
       while not queue.empty():
@@ -139,7 +144,7 @@ page budget nor make the loop unbounded. Log scheduled-vs-persisted at loop stop
           tasks.add(
               asyncio.create_task(
                   self._process_crawl_url_async(
-                      url, depth, start_url, hint_lang, queue, client, sem, budget,
+                      url, depth, start_url, hint_lang, queue, client, sem, session_db, budget,
                   ),
               ),
           )
@@ -205,8 +210,8 @@ private helpers, and two module-level additions.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_CrawlBudget` + `SCHEDULED_BUDGET_MULTIPLIER`; swap guards; drain cap; persisted increment; stop-summary log | Pending | — | — | REQ-001..REQ-004 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `_CrawlBudget` + `SCHEDULED_BUDGET_MULTIPLIER`; swap guards; drain cap; persisted increment; stop-summary log | Completed | 2026-11-06 | 2026-11-06 | REQ-001..REQ-004; also 1-line prerequisite fix in `link_discovery.py` (runtime `BeautifulSoup` import, user-approved) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-06 | 2026-11-06 | targeted 34 passed, ingestion 256 passed, ruff/mypy/lint-imports/bandit green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

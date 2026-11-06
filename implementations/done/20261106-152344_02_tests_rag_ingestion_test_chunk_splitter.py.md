@@ -11,9 +11,10 @@ and to pin the language-aware behavior after it.
 - Sudachi is available in the test environment (existing ja tests already exercise
   `_chunk_japanese` end-to-end).
 - The ja text path is crash-free (`raging001` Plan landed the fix first).
-- `_make_io_splitter(tmp_path)` builds a real `ChunkSplitter` from a temp config, and
-  `_make_chunk_doc(url, content, lang=...)` builds a `ChunkDocument` whose `lang`
-  drives dispatch.
+- `_make_io_splitter(tmp_path)` builds a real `ChunkSplitter` from a temp config.
+  `_make_chunk_doc` currently hardcodes `lang="en"` (`test_chunk_splitter.py:26-41`,
+  verified 20261106); this procedure adds a `lang: str = "en"` keyword argument to
+  that helper so a ja `ChunkDocument` can drive dispatch, existing callers unchanged.
 
 ## Design decisions
 - **Characterization first (behavior lock).** English Markdown baselines are added in
@@ -112,10 +113,10 @@ Revert the commit to this test file. The new test classes are additive and isola
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add en Markdown characterization baselines (pass against current code) | Pending | — | — | REQ-003 |
-| 2 | Add ja Markdown failing tests (RED) | Pending | — | — | REQ-004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add en Markdown characterization baselines (pass against current code) | Completed | — | 20261106-182607 | REQ-003 REQ-003: en characterization class added, 4/4 green vs current code; helper _make_chunk_doc gained lang kwarg (procedure corrected Step 3b) |
+| 2 | Add ja Markdown failing tests (RED) | Completed | — | 20261106-182607 | REQ-004 REQ-004: 3 ja tests RED vs current code (allowed unit RED), strategy pin green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261106-182620 | 20261106-185350 | unit mode: ruff Pass; full suite+diff-cover at end of unit unit validated: 44 passed, ruff Pass, gates Pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261106-182620 | N/A: test-only change, no docs/00_index.md task-scope row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -252,10 +252,10 @@ language-aware behavior. No other doc references the bypass (Step 3 scan).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | English Markdown characterization tests | In Progress | — | — | REQ-003 |
-| 2 | ja Markdown failing tests (RED) | In Progress | — | — | REQ-004 |
-| 3 | Language-aware Markdown chunking (GREEN) | In Progress | — | — | REQ-001, REQ-002 |
-| 4 | Docs update + gate sequence + deploy hand-off | In Progress | — | — | REQ-005 |
+| 1 | English Markdown characterization tests | Completed | — | 20261106-185427 | REQ-003 |
+| 2 | ja Markdown failing tests (RED) | Completed | — | 20261106-185427 | REQ-004 |
+| 3 | Language-aware Markdown chunking (GREEN) | Completed | — | 20261106-185427 | REQ-001, REQ-002 |
+| 4 | Docs update + gate sequence + deploy hand-off | Completed | — | 20261106-185427 | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

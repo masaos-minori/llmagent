@@ -126,8 +126,8 @@ Revert the commit to this test file. The new method is additive and isolated.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `caplog` regression test | Pending | — | — | REQ-003 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `caplog` regression test | Completed | — | 20261106-192106 | REQ-003 RED confirmed on HEAD code (TypeError not enough arguments), GREEN after fix; pytest-style class for caplog fixture |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261106-192106 | 9 guard tests + TestResolveIncomingGuard + ingestion dir all green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

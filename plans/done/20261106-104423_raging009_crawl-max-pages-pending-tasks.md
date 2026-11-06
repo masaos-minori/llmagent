@@ -202,22 +202,22 @@ other doc references found in the Step 3 scan.
 
 ## Implementation steps
 1. **Phase 1: Characterization (behavior lock, no production change)**
-   - [ ] Confirm `test_max_pages_boundary` (`test_crawler_retry_boundary.py:62-76`) and the
+   - [x] Confirm `test_max_pages_boundary` (`test_crawler_retry_boundary.py:62-76`) and the
      max_depth/external-link tests pass as-is; add the dedup-pin test (passes against current
      code) (REQ-005)
 2. **Phase 2: Failing budget tests (RED)**
-   - [ ] Add 304-heavy, failure-only, and allowance-path tests to
+   - [x] Add 304-heavy, failure-only, and allowance-path tests to
      `tests/rag/ingestion/test_crawler_retry_boundary.py`; rewrite the two vacuous tests in
      `tests/rag/ingestion/test_crawler_integration.py` as real assertions (REQ-005; the new
      semantics tests must fail against current code before Phase 3)
 3. **Phase 3: Two-counter budget (GREEN)**
-   - [ ] Add `_CrawlBudget` + `SCHEDULED_BUDGET_MULTIPLIER`; swap loop guards; per-URL drain
+   - [x] Add `_CrawlBudget` + `SCHEDULED_BUDGET_MULTIPLIER`; swap loop guards; per-URL drain
      cap; persisted increment after `save_http`; stop-summary log
      (`scripts/rag/ingestion/orchestrator.py`) (REQ-001..REQ-004)
 4. **Phase 4: Documentation & verification & deploy hand-off**
-   - [ ] Update `docs/21_rag/rag_05_01-configuration-reference.md` (`max_pages` bullet) and
+   - [x] Update `docs/21_rag/rag_05_01-configuration-reference.md` (`max_pages` bullet) and
      `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` §2.1.1 (REQ-001, REQ-002, REQ-004)
-   - [ ] Run the `rules/toolchain.md` gate sequence on the touched files (pytest targeted +
+   - [x] Run the `rules/toolchain.md` gate sequence on the touched files (pytest targeted +
      `tests/rag/ingestion`, ruff, mypy, lint-imports, bandit, diff-cover ≥ 90%)
    - [ ] Deploy hand-off: after the change is committed and pushed, `scripts/` sync via
      `skills/deploy/SKILL.md` is the user's decision (approval gate); schedule sync to avoid
@@ -255,10 +255,10 @@ other doc references found in the Step 3 scan.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Characterization + dedup pin | In Progress | — | — | REQ-005 |
-| 2 | New budget tests (RED) + replace vacuous tests | In Progress | — | — | REQ-005 |
-| 3 | Two-counter budget in `orchestrator.py` | In Progress | — | — | REQ-001..REQ-004 |
-| 4 | Docs update + gate sequence + deploy hand-off | In Progress | — | — | REQ-001..REQ-004 |
+| 1 | Characterization + dedup pin | Completed | 2026-11-06 | 2026-11-06 | REQ-005 |
+| 2 | New budget tests (RED) + replace vacuous tests | Completed | 2026-11-06 | 2026-11-06 | REQ-005 |
+| 3 | Two-counter budget in `orchestrator.py` | Completed | 2026-11-06 | 2026-11-06 | REQ-001..REQ-004 |
+| 4 | Docs update + gate sequence + deploy hand-off | Completed | 2026-11-06 | 2026-11-06 | REQ-001..REQ-004; deploy hand-off pending push |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -268,11 +268,11 @@ other doc references found in the Step 3 scan.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261106-154603_01_scripts_rag_ingestion_orchestrator.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261106-154603_02_tests_rag_ingestion_test_crawler_retry_boundary.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261106-154603_03_tests_rag_ingestion_test_crawler_integration.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261106-154603_04_docs_21_rag_rag_05_01-configuration-reference.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261106-154603_05_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261106-154603_01_scripts_rag_ingestion_orchestrator.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261106-154603_02_tests_rag_ingestion_test_crawler_retry_boundary.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261106-154603_03_tests_rag_ingestion_test_crawler_integration.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261106-154603_04_docs_21_rag_rag_05_01-configuration-reference.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261106-154603_05_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md` | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

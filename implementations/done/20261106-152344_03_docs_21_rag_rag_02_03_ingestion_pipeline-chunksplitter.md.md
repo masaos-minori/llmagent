@@ -75,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run the documentation checkers in `routing.md` Tools "When to run which tool" | Pending | — | — | REQ-005 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Run the documentation checkers in `routing.md` Tools "When to run which tool" | Completed | — | 20261106-183054 | REQ-005 check_docs_quality/structure/content_policy/consistency --domain rag all exit 0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261106-183054 | REQ-005: oversized bullet and Japanese-content paragraph rewritten; bypass statement removed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

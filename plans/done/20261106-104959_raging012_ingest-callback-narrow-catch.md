@@ -144,14 +144,14 @@ N/A: behavior is already documented in the method docstring, which the change ma
 
 ## Implementation steps
 1. **Phase 1: Failing regression test (RED)**
-   - [ ] Add the `sqlite3.Error`-callback test to
+   - [x] Add the `sqlite3.Error`-callback test to
      `tests/rag/ingestion/test_rag_ingester_callback.py` (REQ-002; must fail against current
      code before Phase 2)
 2. **Phase 2: Catch widening (GREEN)**
-   - [ ] Change `except (TypeError, ValueError)` to `except Exception` in
+   - [x] Change `except (TypeError, ValueError)` to `except Exception` in
      `scripts/rag/ingestion/document_manager.py` (`:159`) (REQ-001, REQ-003)
 3. **Phase 3: Verification & deploy hand-off**
-   - [ ] Run the `rules/toolchain.md` gate sequence on the touched files (pytest targeted +
+   - [x] Run the `rules/toolchain.md` gate sequence on the touched files (pytest targeted +
      `tests/rag/ingestion`, ruff — incl. BLE001, mypy, lint-imports, bandit, diff-cover ≥ 90%)
    - [ ] Deploy hand-off: after the change is committed and pushed, `scripts/` sync via
      `skills/deploy/SKILL.md` is the user's decision (approval gate) (REQ-001)
@@ -182,9 +182,9 @@ N/A: behavior is already documented in the method docstring, which the change ma
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `sqlite3.Error`-callback regression test | In Progress | — | — | REQ-002 |
-| 2 | Widen except clause in `scripts/rag/ingestion/document_manager.py` | In Progress | — | — | REQ-001, REQ-003 |
-| 3 | Gate sequence + deploy hand-off | In Progress | — | — | REQ-001..003 |
+| 1 | Add `sqlite3.Error`-callback regression test | Completed | 2026-11-06 | 2026-11-06 | REQ-002 |
+| 2 | Widen except clause in `scripts/rag/ingestion/document_manager.py` | Completed | 2026-11-06 | 2026-11-06 | REQ-001, REQ-003 |
+| 3 | Gate sequence + deploy hand-off | Completed | 2026-11-06 | 2026-11-06 | REQ-001..003; deploy hand-off pending push |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -194,8 +194,8 @@ N/A: behavior is already documented in the method docstring, which the change ma
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261106-155620_01_scripts_rag_ingestion_document_manager.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261106-155620_02_tests_rag_ingestion_test_rag_ingester_callback.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261106-155620_01_scripts_rag_ingestion_document_manager.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261106-155620_02_tests_rag_ingestion_test_rag_ingester_callback.py.md` | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

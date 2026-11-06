@@ -23,11 +23,26 @@ scheduled) via `caplog`. Keep `test_max_pages_fallback_default` unchanged.
   `caplog` and on persisted artifacts. This pins the new behavior instead of the
   old "verify the guard exists by checking the source logic" `pass`.
 - **Assert the warning wording.** The new guards emit `"persisted budget reached"`
-  and `"scheduling budget reached"`; assert these substrings appear in the captured
-  records (AC-3, REQ-004 wording).
+  and `"scheduling budget reached"`. Verified 20261106: both guards sit at the top of
+  the loop and the first one to fire `break`s, so a single crawl can emit only one of
+  them — assert `"persisted budget reached"` in `test_stops_at_max_pages` and
+  `"scheduling budget reached"` in `test_max_pages_warning_logged` (AC-3, REQ-004
+  wording).
 - **Under-delivery scenario.** A 304-heavy run at a small `max_pages` must now
-  persist pages the old code would have dropped — assert persisted count > 0 where
-  the old code produced 0.
+  persist pages the old code would have dropped — asserted in the companion
+  `test_crawler_retry_boundary.py` document (`test_persisted_budget_survives_304_pages`:
+  2 files today vs 3 after). Here the two rewritten tests pin the stop wording and the
+  scheduling bound.
+
+### Verification results (20261106, before Phase 3)
+- `test_stops_at_max_pages` RED: 2 files and 2 calls match, but the captured WARNING is
+  `Reached max_pages=2; stopping BFS at ...` → `"persisted budget reached"` absent.
+- `test_max_pages_warning_logged` RED: `len(respx.calls) == 5 > 2 * 2` and no
+  `"scheduling budget reached"` record. Note the measured 5 of 7 scheduled URLs: the old
+  `break` abandons already-created pending tasks, so the fetch count is not deterministic
+  on the old code — the assertion is therefore a bound (`<= 2 * max_pages`), not an exact
+  count.
+- `test_max_pages_fallback_default` and the rest of the file stayed green (22 passed).
 
 ## Alternatives considered
 - Keeping the patched-internation approach: rejected — it asserted nothing.
@@ -55,20 +70,25 @@ scheduled) via `caplog`. Keep `test_max_pages_fallback_default` unchanged.
   number of chunk JSON files under `mock_config["rag_src_dir"]` equals `max_pages`
   (persisted budget), and that a `"persisted budget reached"` warning was logged.
 - For `test_max_pages_warning_logged`: run a crawl that hits the scheduling cap
-  (many non-persisted URLs) and assert both `"persisted budget reached"` and
-  `"scheduling budget reached"` appear in `caplog.text`.
+  (many non-persisted URLs) and assert `"scheduling budget reached"` appears in
+  `caplog.text` (the `"persisted budget reached"` wording is asserted in
+  `test_stops_at_max_pages` — only one guard can fire per crawl).
 - Use `caplog.at_level(logging.WARNING, logger="rag.ingestion.orchestrator")` for
   the warning capture; attach `caplog.handler` to
   `logging.getLogger("rag.ingestion.orchestrator")` directly if capture is empty.
 
 ### Details
-- Import `logging` at the top of the file (add to the existing imports) for
-  `caplog.at_level`.
-- Persisted-file assertion: `glob` the `rag_src_dir` for the persister's
-  `{ts}-{slug}-{hash}.json` shape; count matches.
-- The dedup assertion (AC-3): a crawl where two pages link to the same URL must
-  fetch it once — assert `len(respx.calls)` for that URL equals 1 (can fold into one
-  of the rewritten tests).
+- Import `logging`, `respx`, `from httpx import Response`, and `from pathlib import Path`
+  at the top of the file for `caplog.at_level` and the respx harness.
+- Override `mock_config["rag_src_dir"] = str(tmp_path)` per test: the shared
+  `mock_config` fixture points at `/tmp/crawl-test-output`, which is not per-test isolated.
+- Register the start-page route as `"http://example.com/start"` (explicit path). Verified
+  20261106: a route registered as bare `"http://example.com"` also matches subpaths and
+  silently returns the start page's HTML for every subpage.
+- Persisted-file assertion: `tmp_path.glob("*-*.json")` for the persister's
+  `{ts}-{slug}-{hash8}.json` shape; count matches.
+- The dedup assertion (AC-3) lives in the companion `test_crawler_retry_boundary.py`
+  document (`test_shared_link_is_fetched_once`) rather than being duplicated here.
 - Do not touch `test_max_pages_fallback_default` or any test outside
   `TestMaxPagesBoundaryCondition`.
 
@@ -109,8 +129,8 @@ Revert the commit to this test file. Only the two methods in
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace vacuous max_pages tests with real assertions (RED) | Pending | — | — | REQ-005 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace vacuous max_pages tests with real assertions (RED) | Completed | 2026-11-06 | 2026-11-06 | REQ-005; RED wording/count diffs recorded under Method |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-06 | 2026-11-06 | 24/24 passed in file after Phase 3 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

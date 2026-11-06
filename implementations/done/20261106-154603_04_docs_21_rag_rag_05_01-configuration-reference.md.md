@@ -73,8 +73,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run the documentation checkers in `routing.md` Tools "When to run which tool" | Pending | — | — | REQ-001 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Run the documentation checkers in `routing.md` Tools "When to run which tool" | Completed | 2026-11-06 | 2026-11-06 | check_docs_quality + check_docs_structure exit 0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-06 | 2026-11-06 | `max_pages` bullet rewritten per Method |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

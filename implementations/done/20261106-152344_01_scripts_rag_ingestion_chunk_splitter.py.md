@@ -128,10 +128,10 @@ private methods with a single call site.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement language-aware Markdown dispatch in `_chunk_markdown_by_heading` and remap triples in `_build_text_triples` | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-003, REQ-004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement language-aware Markdown dispatch in `_chunk_markdown_by_heading` and remap triples in `_build_text_triples` | Completed | — | 20261106-182942 | REQ-001, REQ-002 lang-aware dispatch implemented; _build_text_triples remapped |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261106-182942 | REQ-003, REQ-004 tests added via companion procedure 02 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261106-182942 | 20261106-185350 | unit mode: targeted tests 44 passed, ruff Pass, canonical mypy Pass; full suite at end of unit full suite 11875 passed/9 skipped; gates Pass; diff-cover N/A (chunk_splitter.py in documented coverage omit list) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261106-185350 | docs updated via companion procedure 03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

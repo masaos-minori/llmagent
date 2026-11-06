@@ -44,20 +44,47 @@ unchanged characterization test.
 3. Re-run after the `orchestrator.py` change (Phase 3) to confirm GREEN.
 
 ### Method
-- **304-heavy (fails today):** five routes; three return `Response(304)`, two return
-  200 with `min_chunk`-satisfying text. `cfg["max_pages"] = 2`. After
-  `await crawler.crawl_site("http://example.com", "en")`, assert exactly 2 chunk
-  JSON files exist under `tmp_path` and that scheduled fetches ≤ `2 * max_pages`.
-  Today the first 3 × 304 exhaust the `visited` counter, so 0 persist → assertion fails.
-- **failure-only (fails today):** every route returns `Response(500)` (or raises).
-  `cfg["max_pages"] = 2`. Assert the crawl terminates, `len(respx.calls) <= 2 * max_pages`,
-  0 persisted files, and the `BFS stop:` summary log was emitted (via `caplog`).
-- **allowance paths:** a route whose content is empty and one whose resolved lang is
-  unsupported (e.g. a page whose text resolves outside `{en, ja}`) consume scheduling
-  but not the persisted budget; a following valid page still reaches `max_pages`
-  persisted. Assert persisted count reaches `max_pages`.
-- **dedup pin (passes today):** two source pages both link to the same third URL;
-  assert `len(respx.calls)` for that URL equals 1.
+- **Prerequisite fix applied in this unit (user-approved 20261106).** `scripts/rag/
+  ingestion/link_discovery.py` imported `bs4.BeautifulSoup` only under `if
+  TYPE_CHECKING:`, so `enqueue_links` raised `NameError: name 'BeautifulSoup' is not
+  defined` on every call; the exception surfaced as `Crawl task error` and BFS never
+  followed a link beyond the start URL (present since the module split `f85ca756a`,
+  2026-09-02; no test covered `enqueue_links`). Fixed by importing `BeautifulSoup` at
+  runtime; two regression tests added to this file
+  (`test_enqueue_links_enqueues_same_origin_link`, `test_enqueue_links_respects_max_depth`).
+  Without this fix no budget test can exercise multi-page BFS.
+- **respx route shadowing (measured 20261106):** `respx.get("http://example.com")` also
+  matches subpaths, which silently served the start page's HTML for `/b` and `/c`. New
+  tests register the start route as `"http://example.com/"`; the four existing tests are
+  left byte-identical.
+- **Layout constraint discovered (verified 20261106):** a page that is not persisted can
+  never enqueue links — `_process_crawl_url_async` returns on 304 / empty content /
+  unsupported lang *before* `save_http` and `enqueue_links` (`orchestrator.py:190-204`).
+  Therefore only persisted pages grow the frontier, and the frontier can only be cut
+  after at least one persisted page; the original "start not persisted" style layouts are
+  infeasible.
+- **304-heavy / under-delivery (RED measured: 2 files, 3 calls).** Layout: start (200
+  valid) → `/a` (304) and `/b` (200 valid); `/b` → `/c` (200 valid);
+  `cfg["max_pages"] = 3`, `cfg["max_depth"] = 2`. Today `/a` + `/b` inflate `visited` to
+  3, so the old guard breaks before `/c` drains → 2 files. After the change:
+  persisted=2 < 3 and scheduled=3 < 6, so `/c` drains and persists → 3 files,
+  `len(respx.calls) == 4`.
+- **failure-only (RED measured: 5 calls > 4).** Layout: start (200 valid, persists)
+  links to four pages that all return `Response(500)`; `cfg["max_pages"] = 2`,
+  `cfg["max_depth"] = 1`, `cfg["fetch_retry"] = 1` (verified: `fetch_retry=0` makes
+  `fetch_html` issue zero requests, `fetch_retry=2` doubles every `respx.calls` count).
+  Assert the crawl terminates, `len(respx.calls) <= 2 * max_pages`, exactly 1 persisted
+  file (the start page — it must persist to enqueue its links, so "0 persisted" is not
+  reachable in this layout), and the `BFS stop:` summary log (`caplog`).
+- **allowance paths (RED measured: 2 files).** Layout: `cfg["max_pages"] = 3`,
+  `cfg["max_depth"] = 2`; start (200 valid) links to `/empty` (empty body), `/other`
+  (stubbed `resolve_lang` returns `"ru"`), and `/f` (valid); `/f` → `/v1` (valid).
+  `detect_lang` only ever returns `"ja"`, `"en"`, or `None` (`crawler_utils.py:130-141`),
+  so the unsupported lang is forced through a `patch.object(crawler.language_resolver,
+  "resolve_lang", ...)` wrapper. Today the old guard breaks at `visited >= 3` → 2 files;
+  after the change `/v1` drains → 3 files, `len(respx.calls) == 5`.
+- **dedup pin (green measured):** two source pages both link to the same third URL;
+  assert `respx.get(...).call_count == 1` (`max_pages=10`, `max_depth=2`).
 
 ### Details
 - For the empty-content and unsupported-lang allowance cases, drive them through the
@@ -111,9 +138,9 @@ Revert the commit to this test file. The new test functions are additive.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Characterization + dedup pin (Phase 1) | Pending | — | — | REQ-005 |
-| 2 | New budget tests (RED) | Pending | — | — | REQ-005 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Characterization + dedup pin (Phase 1) | Completed | 2026-11-06 | 2026-11-06 | REQ-005; existing tests green as-is before additions |
+| 2 | New budget tests (RED) | Completed | 2026-11-06 | 2026-11-06 | REQ-005; RED measured (2 files/3 calls, 5 calls, 2 files), GREEN after Phase 3 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-06 | 2026-11-06 | 10/10 passed in file after Phase 3 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

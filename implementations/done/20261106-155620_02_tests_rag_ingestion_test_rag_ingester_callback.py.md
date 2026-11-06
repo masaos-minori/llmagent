@@ -102,6 +102,22 @@ This document adds a test only; it does not change production behavior. The new 
 depends on the `document_manager.py` change (companion document) landing first, so it fails
 RED against current code (the exception escapes) and goes GREEN after.
 
+### Verification results (20261106)
+- Verified against current code: the `ingester` fixture exists at
+  `test_rag_ingester_callback.py:54-79` (patches `rag.ingestion.ingester.SQLiteHelper` to
+  `_FakeSQLiteHelper` and `rag.ingestion.document_manager.check_rag_consistency` to a
+  `MagicMock` report) and the happy-path test `test_ingest_all_calls_on_ingest_complete`
+  exists unchanged.
+- Verified: `except (TypeError, ValueError):` at `document_manager.py:149` does not catch
+  `sqlite3.Error`, so the RED expectation holds.
+- Execution order: this document runs FIRST (Plan Phase 1 RED), then the companion
+  `20261106-155620_01` catch widening (Phase 2 GREEN).
+- Executed 20261106: the plain `caplog.at_level` capture returned 0 records because
+  `document_manager.logger` is a `shared.logger.Logger` with `propagate=False`
+  (`scripts/shared/logger.py:140`); the documented fallback (attach `caplog.handler`
+  directly to `document_manager.logger._logger`, remove after) captured the record and
+  the test passes.
+
 ## Security considerations
 N/A: test-only addition, no input handling or credential change.
 
@@ -133,8 +149,8 @@ Revert the commit to this test file. The new test function is additive.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `sqlite3.Error`-callback regression test | Pending | — | — | REQ-002 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `sqlite3.Error`-callback regression test | Completed | 2026-11-06 | 2026-11-06 | REQ-002; RED confirmed (sqlite3.Error escaped ingest_all), GREEN after widening |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-06 | 2026-11-06 | 2/2 passed incl. unchanged happy-path test |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
