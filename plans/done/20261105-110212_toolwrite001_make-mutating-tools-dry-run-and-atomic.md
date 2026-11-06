@@ -181,11 +181,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the atomic write helper and its tests | In Progress | — | — |  |
-| 2 | Make `module_nodes.py extract` prepare-then-replace with `--dry-run` | In Progress | — | — |  |
-| 3 | Add `--dry-run` to the five other tools | In Progress | — | — |  |
-| 4 | Switch the seven atomic-only writers to the helper | In Progress | — | — |  |
-| 5 | Document and verify | In Progress | — | — |  |
+| 1 | Add the atomic write helper and its tests | Completed | — | 20261106-121355 |  |
+| 2 | Make `module_nodes.py extract` prepare-then-replace with `--dry-run` | Completed | — | 20261106-121355 |  |
+| 3 | Add `--dry-run` to the five other tools | Completed | — | 20261106-121355 |  |
+| 4 | Switch the seven atomic-only writers to the helper | Completed | — | 20261106-121355 |  |
+| 5 | Document and verify | Completed | — | 20261106-121355 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -195,21 +195,21 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261106-092109_01_tools__atomic_write.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261106-092109_03_tools_module_nodes.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261106-092109_05_tools_set_execution_status.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261106-092109_07_tools_fix_docs_section_marks.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261106-092109_09_tools_fix_procedure_new_markers.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261106-092109_11_tools_migrate_runtime_tool_calls.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261106-092109_13_tools_generate_workitem.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261106-092109_15_tools_manage_workitem_stage.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261106-092109_16_tools_manage_frontmatter.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261106-092109_17_tools_rename_doc.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261106-092109_18_tools_close_procedures_batch.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261106-092109_19_tools_fix_docstring_paths.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261106-092109_20_tools_fix_docstring_blank_line.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261106-092109_22_tools_mark_procedure_new_symbols.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261106-092109_23_tools_TOOL_DESCRIPTIONS.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261106-092109_01_tools__atomic_write.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261106-092109_03_tools_module_nodes.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261106-092109_05_tools_set_execution_status.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-092109_07_tools_fix_docs_section_marks.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-092109_09_tools_fix_procedure_new_markers.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-092109_11_tools_migrate_runtime_tool_calls.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-092109_13_tools_generate_workitem.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-092109_15_tools_manage_workitem_stage.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-092109_16_tools_manage_frontmatter.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-092109_17_tools_rename_doc.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-092109_18_tools_close_procedures_batch.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-092109_19_tools_fix_docstring_paths.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-092109_20_tools_fix_docstring_blank_line.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-092109_22_tools_mark_procedure_new_symbols.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-092109_23_tools_TOOL_DESCRIPTIONS.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

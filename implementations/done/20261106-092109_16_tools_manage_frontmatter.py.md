@@ -1,15 +1,15 @@
 ## Goal
-Make `tools/rename_doc.py` write its repository file through the shared atomic helper instead of `Path.write_text`, with identical output and exit codes (`REQ-005`; Plan batch 4a).
+Make `tools/manage_frontmatter.py` write its repository file through the shared atomic helper instead of `Path.write_text`, with identical output and exit codes (`REQ-005`; Plan batch 4a).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- In scope: the write call in `main` and the import block.
+- In scope: the write call in `cmd_add_missing, cmd_rename_category_to_area, cmd_dedupe_lists, and cmd_merge_related` and the import block.
 - Out of scope: rewrite rules, options, `git mv` moves, and every other function.
 
 ## Assumptions
-- Verified on 2026-11-06 (Step 3a): `main` writes `actual_file.write_text(new_content, encoding="utf-8")` inside the link-rewrite loop of the `--apply` path (after `git_mv`); the tool already has `--dry-run`, so no option is added. Sequencing: the `toolcommon001` procedure for this file (its two git calls, bootstrap, shared git helper import) lands first and adds the bootstrap and the `tools._tool_common` import; this procedure only touches the write call. `git mv` stays untouched (Plan Out of Scope). Overlap judgment: sequencing dependency, compatible.
-- Existing tests: `tests/tools/test_rename_doc.py` exist and none patches `write_text` or `os.replace` (checked with `rg`), so no test edit is needed.
+- Verified on 2026-11-06 (Step 3a): `cmd_add_missing, cmd_rename_category_to_area, cmd_dedupe_lists, and cmd_merge_related` writes four `write_text(..., encoding="utf-8")` calls (the first, second, and fourth under `args.fix`, the third unconditionally for changed files); the tool already has `--dry-run`, so no option is added. The file already has the guarded bootstrap; replace all four calls and leave `--fix` and `--dry-run` semantics unchanged.
+- Existing tests: `tests/tools/test_manage_frontmatter.py` exist and none patches `write_text` or `os.replace` (checked with `rg`), so no test edit is needed.
 - The helper is `tools/_atomic_write.py` (created by the earlier-`seq` sibling procedure of this Plan); this procedure follows it in `seq` order. No other open Plan targets this file.
 
 ## Design decisions
@@ -21,11 +21,11 @@ N/A: single call site, no realistic alternative.
 
 ## Implementation
 ### Target file
-`tools/rename_doc.py`
+`tools/manage_frontmatter.py`
 
 ### Procedure
 1. The file already has the guarded bootstrap; add `from tools._atomic_write import atomic_write_text` to the import block (ruff `I` decides placement).
-2. In `main` replace the `write_text(...)` call with `atomic_write_text(<path>, <text>)` using the same path and text arguments.
+2. In `cmd_add_missing, cmd_rename_category_to_area, cmd_dedupe_lists, and cmd_merge_related` replace the `write_text(...)` call with `atomic_write_text(<path>, <text>)` using the same path and text arguments.
 3. Remove any import that the change leaves unused.
 
 ### Method
@@ -44,12 +44,12 @@ N/A: no new input; the helper writes next to the target and never outside its di
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/tools/test_rename_doc.py -q`, then `uv run pytest tests/tools -q`.
-- Before and after on live data: run a dry run `uv run python tools/rename_doc.py docs/<doc>.md docs/<new>.md` (no `--apply`) before and after; the git state must stay unchanged.
+- `uv run pytest tests/tools/test_manage_frontmatter.py -q`, then `uv run pytest tests/tools -q`.
+- Before and after on live data: run `uv run python tools/manage_frontmatter.py add-missing` (report only) before and after on `docs/`.
 - `routing.md` "Adding a new tool" steps 1-3 for the changed files, then `uv run python tools/run_validation_gates.py`.
 
 ## Completion criteria
-- No `Path.write_text` call on a repository file remains in `tools/rename_doc.py`; existing tests pass unchanged; live-data output and exit code are identical before and after.
+- No `Path.write_text` call on a repository file remains in `tools/manage_frontmatter.py`; existing tests pass unchanged; live-data output and exit code are identical before and after.
 
 ## Out of Scope
 - Rewrite logic, the other writers.
@@ -59,10 +59,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Capture the before-run on live data, then apply Implementation > Procedure | Pending | — | — | |
-| 2 | Run the existing tests (no test edit expected) per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Capture the before-run on live data, then apply Implementation > Procedure | Completed | 20261106-120053 | 20261106-120204 | Changed: tools/manage_frontmatter.py (four writes via atomic_write_text) |
+| 2 | Run the existing tests (no test edit expected) per Validation plan | Completed | 20261106-120204 | 20261106-120204 | 54 tests pass; no test edit needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Completed | 20261106-120204 | 20261106-120204 | ruff, mypy clean; existing tests pass; live read-only output identical before/after where captured; by-path --help OK from another cwd; radon grades unchanged |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-120204 | 20261106-120204 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -82,4 +82,4 @@ N/A: revert the commit.
 - **Source plan**: plans/20261105-110212_toolwrite001_make-mutating-tools-dry-run-and-atomic.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261106-092109
-- **Related target files**: `tools/rename_doc.py`
+- **Related target files**: `tools/manage_frontmatter.py`

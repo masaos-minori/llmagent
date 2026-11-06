@@ -64,10 +64,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the dry-run test first (fails until step 2) per Companion test files | Pending | — | — | |
-| 2 | Add `--dry-run` and the helper write per Implementation > Procedure | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the live-data comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Add the dry-run test first (fails until step 2) per Companion test files | Completed | 20261106-115822 | 20261106-115851 | Changed: tools/fix_docs_section_marks.py (bootstrap, explicit --dry-run, main(argv), atomic write); tests/tools/test_fix_docs_section_marks.py (new, 5 tests) |
+| 2 | Add `--dry-run` and the helper write per Implementation > Procedure | Completed | 20261106-115851 | 20261106-115851 | 5 tests pass (default preview, --dry-run diff, --apply UTF-8, mutual exclusion, clean tree) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the live-data comparison | Completed | 20261106-115851 | 20261106-115851 | ruff, mypy, bandit clean; live default run output unchanged and wrote nothing |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-115851 | 20261106-115851 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

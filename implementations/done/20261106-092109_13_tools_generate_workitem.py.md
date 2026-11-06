@@ -64,10 +64,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the dry-run test first (fails until step 2) per Companion test files | Pending | — | — | |
-| 2 | Add `--dry-run` and the helper write per Implementation > Procedure | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the live-data comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Add the dry-run test first (fails until step 2) per Companion test files | Completed | 20261106-115948 | 20261106-120043 | Changed: tools/generate_workitem.py (bootstrap, --dry-run, _emit_skeleton, atomic plan-marker and skeleton writes); tests/tools/test_generate_workitem.py (3 dry-run tests) |
+| 2 | Add `--dry-run` and the helper write per Implementation > Procedure | Completed | 20261106-120043 | 20261106-120043 | 46 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the live-data comparison | Completed | 20261106-120043 | 20261106-120043 | ruff, mypy, bandit clean; live copy dry-run printed the skeleton diff, created no file, left the plan unmarked |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-120043 | 20261106-120043 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

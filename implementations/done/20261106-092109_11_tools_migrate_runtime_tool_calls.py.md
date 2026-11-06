@@ -64,10 +64,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the dry-run test first (fails until step 2) per Companion test files | Pending | — | — | |
-| 2 | Add `--dry-run` and the helper write per Implementation > Procedure | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the live-data comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Add the dry-run test first (fails until step 2) per Companion test files | Completed | 20261106-115913 | 20261106-115947 | Changed: tools/migrate_runtime_tool_calls.py (bootstrap, main(argv), --dry-run, _emit helper, atomic UTF-8 write); tests/tools/test_migrate_runtime_tool_calls.py (new, 3 tests) |
+| 2 | Add `--dry-run` and the helper write per Implementation > Procedure | Completed | 20261106-115947 | 20261106-115947 | 3 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the live-data comparison | Completed | 20261106-115947 | 20261106-115947 | ruff, mypy, bandit clean; radon _migrate stays D (23) (the branch moved into _emit); live copy dry-run prints the diff and writes nothing |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-115947 | 20261106-115947 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

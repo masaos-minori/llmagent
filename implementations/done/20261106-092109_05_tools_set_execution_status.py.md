@@ -65,10 +65,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the dry-run test first (fails until step 2) per Companion test files | Pending | — | — | |
-| 2 | Add `--dry-run` and the helper write per Implementation > Procedure | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the live-data comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Add the dry-run test first (fails until step 2) per Companion test files | Completed | 20261106-115753 | 20261106-115821 | Changed: tools/set_execution_status.py (bootstrap, --dry-run, atomic UTF-8 write); tests/tools/test_set_execution_status.py (3 dry-run and UTF-8 tests) |
+| 2 | Add `--dry-run` and the helper write per Implementation > Procedure | Completed | 20261106-115821 | 20261106-115821 | 16 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the live-data comparison | Completed | 20261106-115821 | 20261106-115821 | ruff, mypy, bandit clean; radon unchanged (find_table, apply_updates C 12); live copy dry-run leaves the file and the real run updates it; by-path --help OK from another cwd |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-115821 | 20261106-115821 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -59,9 +59,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the Index row, the detail row, and the convention note | Pending | — | — | |
-| 2 | Run `check_tool_descriptions_sync.py` | Pending | — | — | |
-| 3 | Run the Plan's final verification list (Validation plan) | Pending | — | — | |
+| 1 | Add the Index row, the detail row, and the convention note | Completed | 20261106-120221 | 20261106-121353 | Changed: tools/TOOL_DESCRIPTIONS.md (_atomic_write.py Index and detail rows, --dry-run Convention section) |
+| 2 | Run `check_tool_descriptions_sync.py` | Completed | 20261106-121353 | 20261106-121353 | check_tool_descriptions_sync passes |
+| 3 | Run the Plan's final verification list (Validation plan) | Completed | 20261106-121353 | 20261106-121353 | full suite 11788 passed; gates no Fail; suppression, mock-patch, compat-shim checks clean; remaining write_text calls are only the writers the Plan lists as out of scope; diff-cover N/A (tools/ outside coverage source) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

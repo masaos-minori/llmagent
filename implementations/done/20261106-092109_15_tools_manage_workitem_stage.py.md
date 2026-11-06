@@ -59,10 +59,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Capture the before-run on live data, then apply Implementation > Procedure | Pending | — | — | |
-| 2 | Run the existing tests (no test edit expected) per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Capture the before-run on live data, then apply Implementation > Procedure | Completed | 20261106-120053 | 20261106-120203 | Changed: tools/manage_workitem_stage.py (bootstrap, atomic write in update_execution_status; git mv untouched) |
+| 2 | Run the existing tests (no test edit expected) per Validation plan | Completed | 20261106-120203 | 20261106-120203 | 99 tests pass (test_manage_workitem_stage and _new); no test edit needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Completed | 20261106-120203 | 20261106-120203 | ruff, mypy clean; existing tests pass; live read-only output identical before/after where captured; by-path --help OK from another cwd; radon grades unchanged (update_execution_status stays D 30) |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-120203 | 20261106-120203 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
