@@ -1,97 +1,101 @@
-# Route Markdown documents through language-aware chunking
+# Route Markdown documents through language-aware chunking for text regions
 
 ## Priority
 Medium
 
 ## Summary
-`ChunkSplitter._split_text` bypasses the language-specific chunkers when the source file
-has a `.md` suffix: `_split_markdown` splits only on code fences and paragraph boundaries,
-with no Japanese sentence segmentation and no `chunk_overlap` support. A Japanese `.md`
-document is chunked by a different, weaker algorithm than the same text arriving as HTML,
-and can contain chunks below `min_chunk` that the Japanese path would never emit.
+`ChunkSplitter` selects heading-based Markdown chunking from the source URL alone
+(`_is_markdown_source`), and its oversized-section fallback is always `_chunk_english`.
+A Japanese document whose URL ends in `.md` / `.markdown` / `.mdx` is therefore never
+processed by the Japanese chunker: no Sudachi sentence segmentation, no
+`normalized_content`, and English sentence heuristics applied to Japanese text.
 
 ## Problem
-- In `scripts/rag/ingestion/chunk_splitter.py`, `_split_text` calls `_split_markdown`
-  whenever `ext == ".md"`, regardless of `lang`.
-- `_split_markdown` only merges paragraphs up to `max_chunk` and has no overlap handling
-  at all, so `chunk_overlap = 50` (`config/chunk_splitter.toml`) silently does not apply
-  to Markdown sources.
-- `lang == "ja"` is only consulted in the non-Markdown branch; the Japanese morphological
-  path (Sudachi sentence splitting, stop-word normalization, overlap) never runs for `.md`.
-- The Markdown path emits any non-empty leftover buffer, including segments shorter than
-  `min_chunk`, violating the min/max contract the other paths enforce.
-- Crawler-produced `.json` sources and `--input` files go through the language-aware
-  paths; the divergence applies specifically to `.md` inputs (`md_index_enable` workflow).
+- `scripts/rag/ingestion/chunk_splitter.py` `_split_text`: `if self._is_markdown_source(
+  data): return [("text", c, "") for c in self._chunk_markdown_by_heading(content)]` —
+  chosen before any `lang` check; the `lang == "ja"` branch (which calls
+  `_chunk_japanese`) is only reached for non-Markdown sources.
+- `_is_markdown_source` keys on the URL suffix (`.md`, `.markdown`, `.mdx`), plus a
+  heading-density heuristic when `md_index_enable` is set — never on `lang`.
+- `_chunk_markdown_by_heading` splits at heading boundaries; sections exceeding
+  `md_snippet_max_chars` fall back to `_chunk_english`, so Japanese sections get English
+  paragraph/sentence rules; sections below `min_chunk` are dropped.
+- Markdown chunks are emitted with an empty `normalized_content` (`("text", c, "")`),
+  unlike the Japanese path which produces `(orig, norm)` pairs consumed downstream.
 
 ## Background
-The three chunking paths grew separately: `_chunk_english` (paragraph/sentence),
-`_chunk_japanese` (Sudachi), `_split_markdown` (fence/paragraph). The `.md` branch was a
-format-first decision made before language handling existed for chunkers; no test asserts
-Japanese behavior for Markdown inputs, so the divergence is untested.
+The chunking paths grew per format: `_chunk_english` and `_chunk_japanese` (language
+paths) and heading-based Markdown snippet chunking (format path). The format decision
+short-circuits the language decision. No test asserts Japanese behavior for Markdown
+sources, so the divergence is untested. Related crash fix: the Japanese path itself is
+tracked by `20261106-073538_raging001_japanese-chunk-merge-crash.md`.
 
 ## Reason for Change
-Inconsistent indexing quality for Markdown sources in a bilingual (en/ja) corpus: the same
-document content yields different chunk boundaries, overlap guarantees, and minimum-length
-behavior depending only on file suffix.
+Inconsistent indexing quality for Markdown sources in a bilingual (en/ja) corpus: the
+same document content yields different chunk boundaries and normalization behavior
+depending only on the URL suffix.
 
 ## Implementation Intent
-Make language selection primary and format a secondary concern: for `.md` sources, extract
-code fences, then send each text region through `_chunk_japanese` or `_chunk_english`
-according to `lang` (reusing `merge_text_items`/`start_next_buf` so overlap and
-min/max rules apply uniformly).
+Make language selection primary and format secondary: for Markdown sources, extract
+heading sections, then segment oversized or in-section text with `_chunk_japanese` when
+`lang == "ja"` (and `_chunk_english` otherwise), reusing the shared buffer helpers so
+overlap and min/max rules apply uniformly, and emit proper `normalized_content` pairs for
+Japanese sections.
 
 ## Target Files or Areas
 - `scripts/rag/ingestion/chunk_splitter.py`
 - `tests/rag/ingestion/test_chunk_splitter.py`
 
 ## Required Changes
-- Rework `_split_text`/`_split_markdown` so Markdown text regions go through the
-  language-aware chunkers.
-- Enforce `min_chunk` filtering on Markdown-derived chunks consistent with the other
-  paths.
-- Add tests: a Japanese `.md` document is chunked with the Japanese path (overlap applied,
-  no sub-`min_chunk` text chunks); an English `.md` document keeps its current fence/code
-  behavior.
+- Make `_split_text` consult `lang` for Markdown sources, delegating oversized sections
+  to the language-appropriate chunker.
+- Produce normalized pairs for Japanese Markdown chunks consistent with the Japanese text
+  path.
+- Add tests: a Japanese `.md` URL chunks via the Japanese path (segmentation and
+  normalization applied); English Markdown heading behavior is characterized before any
+  change.
 
 ## Constraints
-- Code chunks from fences keep their current special handling (including empty
-  `chunk_type == "code"` placeholders for missing blocks).
-- Existing English Markdown chunking results should not regress; characterize current
-  output before changing it.
-- Do not change `.json` (crawler) or non-Markdown paths.
+- Heading-boundary splitting itself stays (it is the Markdown feature); only the
+  intra-section language handling changes.
+- Characterize current English Markdown chunk output with tests before changing shared
+  code.
+- Sections below `min_chunk` keep their current drop behavior unless a test shows a
+  regression.
 
 ## Acceptance Criteria
-- For a Japanese `.md` input longer than `max_chunk`, produced chunks follow the Japanese
-  chunking semantics (sentence boundaries, overlap, min/max) — verified by test.
-- Markdown code-block chunk behavior is unchanged.
+- For a Japanese `.md` input with oversized sections, produced chunks follow Japanese
+  chunking semantics (verified by test) and carry non-empty `normalized_content` where
+  the Japanese text path would.
+- English Markdown chunking output is unchanged (characterization test).
 - `uv run pytest tests/rag/ingestion` passes.
 
 ## Testing Expectations
-- Characterization test capturing current English `.md` chunking before the change.
-- New tests for Japanese `.md` chunking with `chunk_overlap > 0` and a sub-`min_chunk`
-  tail.
+- Characterization test for current English `.md` heading chunking.
+- New tests for Japanese `.md` chunking (oversized section fallback and normalization).
 - Full ingestion test suite.
 
 ## Documentation Impact
-If the RAG docs describe Markdown indexing, note that Markdown text now follows
+If RAG docs describe Markdown indexing, note that Markdown text now follows
 language-aware chunking.
 
 ## Out of Scope
-- Markdown structure-aware splitting (headers, tables).
+- Markdown structure-aware splitting beyond headings (tables, code fences).
 - Language detection for chunking (chunkers still use the payload `lang` field).
 
 ## Dependencies
-- Consider sequencing after `20261106-073538_raging001_japanese-chunk-merge-crash.md`:
-  routing Markdown into the Japanese path depends on that path being fixed.
+- Sequence after `20261106-073538_raging001_japanese-chunk-merge-crash.md`: routing
+  Markdown into the Japanese path depends on that path being fixed.
 
 ## Unresolved Questions
-- Whether any production `.md` sources are already indexed with sub-`min_chunk` chunks
-  that would need a rebuild after this change.
+- Whether empty `normalized_content` for Markdown chunks currently degrades FTS/query
+  behavior in storage — Needs confirmation against the persistence layer before choosing
+  the normalization output shape.
 
 ## AI Implementation Instruction
-Fix the Japanese chunker crash first if working in sequence; keep `_split_markdown`
-responsible only for fence/region extraction and delegate text segmentation to the
-language chunkers.
+Fix the Japanese chunker crash first if working in sequence; keep
+`_chunk_markdown_by_heading` responsible for heading-section extraction and delegate
+intra-section segmentation to the language chunkers.
 
 ## Traceability
 - **Workflow phase**: python-code-review

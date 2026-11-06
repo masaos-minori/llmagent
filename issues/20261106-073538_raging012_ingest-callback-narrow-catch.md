@@ -1,80 +1,77 @@
-# Match the consistency-check callback's exception scope to the ingestion loop
+# Match _invoke_callback's exception scope to its never-re-raise contract
 
 ## Priority
 Low
 
 ## Summary
-`RagIngester._run_ingest_callback` logs the post-ingestion consistency-check result and
-swallows failures, but its `except (OSError, RuntimeError, ValueError)` does not cover
-`sqlite3.Error`, while the main ingestion loop it follows catches `Exception`. A DB error
-raised inside the consistency check therefore escapes `ingest_all` after a fully
-successful ingestion, contradicting the log message "consistency check failed (logged;
-does not affect ingestion)".
+`DocumentManager._invoke_callback` documents "Invoke the callback, logging any exception
+without re-raising" but catches only `(TypeError, ValueError)`. An `on_ingest_complete`
+callback that raises anything else (e.g. `sqlite3.Error` from a DB-reporting callback)
+propagates through `check_consistency` out of `ingest_all`, turning a fully successful
+ingestion into a crashed run.
 
 ## Problem
-- `scripts/rag/ingestion/ingester.py` `_process_url_groups` documents and implements
-  "log exceptions without stopping" using a broad `Exception` handler (a prior fix, see
-  `issues/done/20261027-074526_rag004_ingester-sqlite3-error-aborts-batch.md`).
-- `_run_ingest_callback` logs `report['consistent']` (including when the check *ran but
-  reported inconsistency*) but only catches `(OSError, RuntimeError, ValueError)`;
-  `sqlite3.Error` subclasses (e.g. `OperationalError` from a locked DB during the check)
-  propagate out of `ingest_all` and out of `main()` as an unhandled exception.
-- The failure appears *after* all ingestion work succeeded, so the run's exit status and
-  traceback misreport a successful ingestion as a crash.
+- `scripts/rag/ingestion/document_manager.py` `_invoke_callback`:
+  `except (TypeError, ValueError)` — narrower than its own docstring.
+- `check_consistency` calls `_invoke_callback` after its own try/except around
+  `check_rag_consistency`, so a propagating callback error is not caught there either;
+  it escapes `check_consistency` and `RagIngester.ingest_all`.
+- The failure appears after all ingestion work succeeded, so the run's exit status and
+  traceback misreport a successful ingestion.
+- `tests/rag/ingestion/test_rag_ingester_callback.py` covers the happy path (callback
+  called once) but not failure classes.
 
 ## Background
-The callback was added to satisfy the ingestion-consistency reporting requirement
-(REQ-007 area); the exception tuple was written before the main loop was broadened to
-`Exception`, and the two scopes have since diverged.
+The callback exists so callers receive a post-ingestion completion notification without
+a caller-side try/except; the same never-raises principle governs `check_consistency`'s
+own DB-error handling and `bump_index_generation` (REQ-007). The callback's catch tuple
+was written narrower than the surrounding pattern.
 
 ## Reason for Change
 Consistency with the established "ingestion completion must not be broken by reporting
-failures" contract (same principle `bump_index_generation` follows with its never-raises
-docstring).
+failures" contract, and with the method's own docstring.
 
 ## Implementation Intent
-Broaden `_run_ingest_callback`'s handler to the same scope the ingestion loop uses
-(`Exception`, or at minimum add `sqlite3.Error`), with a log line that names the failure
-class, keeping the callback's never-raises contract.
+Broaden the caught set in `_invoke_callback` to `Exception` (matching the documented
+"any exception" behavior), logging with `logger.exception` as today.
 
 ## Target Files or Areas
-- `scripts/rag/ingestion/ingester.py`
+- `scripts/rag/ingestion/document_manager.py`
 - `tests/rag/ingestion/test_rag_ingester_callback.py`
 
 ## Required Changes
-- Extend the caught exception set in `_run_ingest_callback`.
-- Add a regression test: a consistency check that raises `sqlite3.Error` is logged, and
-  `ingest_all` returns normally with correct totals.
+- Change `except (TypeError, ValueError)` to `except Exception` in `_invoke_callback`.
+- Add a regression test: a callback raising `sqlite3.Error` (or a generic error) is
+  logged and `ingest_all` returns its consistency report normally.
 
 ## Constraints
-- Do not hide genuine ingestion failures: the callback wraps only the consistency-check
-  invocation, not the ingestion path.
-- Keep the existing log-key style of the surrounding code.
+- The broadened catch wraps only the callback invocation, never the consistency check or
+  ingestion path.
+- Keep the `logger.exception` call and its message.
 
 ## Acceptance Criteria
-- A `sqlite3.Error` from the consistency-check callback does not propagate out of
-  `ingest_all` (covered by test).
+- A raising `on_ingest_complete` callback does not propagate out of `ingest_all`
+  (covered by test).
 - Existing callback tests pass.
 
 ## Testing Expectations
-- New regression test in `tests/rag/ingestion/test_rag_ingester_callback.py`.
+- New failure-class regression test in `test_rag_ingester_callback.py`.
 - `uv run pytest tests/rag/ingestion`.
 
 ## Documentation Impact
-N/A: behavior already documented as "logged; does not affect ingestion".
+N/A: behavior already documented as "logging any exception without re-raising".
 
 ## Out of Scope
 - Redesigning the consistency report contents.
 
 ## Dependencies
-- N/A: none (the earlier `_process_url_groups` fix is already deployed).
+- N/A: none
 
 ## Unresolved Questions
 - None.
 
 ## AI Implementation Instruction
-Single handler-scope change plus one test; do not alter DocumentManager or the ingestion
-loop.
+Single handler-scope change plus one test; do not alter ingestion flow.
 
 ## Traceability
 - **Workflow phase**: python-code-review
@@ -83,4 +80,4 @@ loop.
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261106-073538
-- **Related target files**: `scripts/rag/ingestion/ingester.py`, `tests/rag/ingestion/test_rag_ingester_callback.py`
+- **Related target files**: `scripts/rag/ingestion/document_manager.py`, `tests/rag/ingestion/test_rag_ingester_callback.py`

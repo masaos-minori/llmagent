@@ -1,83 +1,87 @@
-# Count crawl max_pages only for actual page fetches
+# max_pages budget is consumed by URLs that are never persisted
 
 ## Priority
 Medium
 
 ## Summary
-`CrawlOrchestrator.crawl` decrements its page budget for every dequeued task, including
-tasks that end in HTTP 304, 404/403, network failure, or re-queue — none of which fetch
-and persist a page. A crawl capped at `max_pages` can therefore stop before crawling
-that many pages, and a re-queued task consumes the budget twice.
+`CrawlOrchestrator.crawl_site` caps the crawl with `len(visited) >= max_pages`, and
+`visited` is populated for every URL scheduled for a fetch task — including URLs that
+then return HTTP 304, produce no content, are rejected by the language check, or fail
+during fetch. A crawl capped at `max_pages` can therefore stop before persisting that
+many pages, with the remaining queued URLs dropped.
 
 ## Problem
-In `scripts/rag/ingestion/orchestrator.py`:
-- The guard is `if pages_fetched >= max_pages: break` at dequeue time, and the code
-  comments state this "correctly counts only actually-fetched pages" — the implementation
-  does not match the comment: `pages_fetched += 1` runs before any fetch decision.
-- The 304 skip path (`fetch_html` returns None), the 404/403 path, the fetch-exception
-  path, and the re-queue path all `continue` after the increment, so skipped and failed
-  pages consume budget slots.
-- Re-queued tasks (added back to the queue) will increment the counter a second time on
-  their later dequeue.
-- Consequence: with many cached (304) URLs mixed into the queue, the crawl reports
-  `pages_crawled` well below `max_pages` and never visits the remaining queued URLs.
+- `scripts/rag/ingestion/orchestrator.py` `crawl_site`: the guard is
+  `if len(visited) >= self._max_pages: break` at the top of the BFS loop.
+- `_drain_queue_to_tasks` adds every dequeued, unvisited URL to `visited` before any
+  fetch happens, then creates the fetch task.
+- `_process_crawl_url_async` can consume that budget slot without persisting anything:
+  304 / conditional-GET skip (`fetch_html` returns `None` → early return), empty
+  extraction (`no content` → return), unsupported resolved language (→ return), or a
+  task exception (logged only).
+- Consequence: with many cached (304) or non-persistable URLs, the run reaches
+  `max_pages` and breaks out while the queue still holds uncrawled URLs; the operator's
+  page budget counts visited URLs, not persisted pages.
 
 ## Background
-The orchestrator was extracted from WebCrawler to separate BFS queue/semaphore
-orchestration; the dequeue-time counter was carried over from the earlier implementation.
-Tests cover semaphore behavior (`tests/rag/ingestion/test_crawler_retry_boundary.py` area)
-but do not pin the budget semantics against skip paths.
+The orchestrator was extracted from WebCrawler to own BFS queue/semaphore orchestration;
+`visited` serves both loop termination (no re-fetch) and the page budget, conflating
+"scheduled" with "crawled". Tests cover retry/semaphore behavior
+(`tests/rag/ingestion/test_crawler_retry_boundary.py`) but do not pin budget semantics
+against skip paths.
 
 ## Reason for Change
 The crawl budget is the operator's control over how many pages a run processes; counting
-no-op dequeues makes runs terminate unpredictably and hides reachable pages.
+no-op visits makes runs terminate unpredictably and hides reachable pages.
 
 ## Implementation Intent
-Decouple loop iterations from page accounting: keep a separate guard against unbounded
-loops (e.g., a processed-task cap), and increment `pages_fetched` only when a fetch
-produces content that proceeds to persistence (the current `persist_page` path).
+Keep `visited` for loop termination and separate a persisted-page counter incremented
+only where `save_http` succeeds (or at least only after a fetch returned content); apply
+`max_pages` to that counter. The loop still needs a bound so failure-heavy crawls
+terminate — e.g. cap total scheduled URLs at `max_pages` plus a non-persist allowance.
 
 ## Target Files or Areas
 - `scripts/rag/ingestion/orchestrator.py`
 - `tests/rag/ingestion/` crawler tests
 
 ## Required Changes
-- Move the `pages_fetched` increment to the point where a page is actually fetched and
-  processed (or at least fetched with content).
-- Keep a separate termination guard so 304/404/exception tasks cannot make the loop run
-  forever (e.g., cap total dequeued tasks at a multiple of `max_pages`).
-- Ensure re-queued tasks do not double-count against the fetch budget.
+- Introduce a distinct persisted-page counter and gate the loop on it.
+- Keep a separate scheduling bound so 304/failure/empty-content tasks cannot make the
+  loop run unbounded.
+- Log the distinction at loop end (scheduled vs persisted) so operators see why a crawl
+  stopped.
 
 ## Constraints
-- Preserve the existing `max_depth` and `visited` semantics.
-- Preserve the conditional-GET (304) skip behavior itself — only the accounting changes.
-- Keep the `CrawlStats.pages_crawled` meaning consistent with the new counting rule.
+- Preserve `max_depth` and `visited` dedup semantics.
+- Preserve the conditional-GET (304) skip behavior itself — only accounting changes.
+- Do not fetch any URL more than once per run.
 
 ## Acceptance Criteria
-- A run with N cached (304) URLs and M uncached URLs and `max_pages = M` crawls all M
-  uncached URLs (test).
-- A run where all fetches fail terminates without exceeding a bounded number of
-  iterations (test).
-- Re-queued tasks do not consume extra fetch budget.
+- A run with N cached (304) URLs and M persistable URLs with `max_pages = M` persists all
+  M URLs (test with a stubbed fetch).
+- A failure-only queue terminates with a bounded number of scheduled tasks (test).
+- `uv run pytest tests/rag/ingestion`.
 
 ## Testing Expectations
-- Unit tests with a stubbed `fetch_html` covering: 304-heavy queue reaches `max_pages`
-  real fetches; failure-only queue terminates; re-queue counts once.
+- Unit tests with a stubbed `HttpFetcher.fetch_html`: 304-heavy queue reaches `max_pages`
+  persisted pages; empty-content and language-reject paths consume the non-persist
+  allowance, not the page budget.
 - `uv run pytest tests/rag/ingestion`.
 
 ## Documentation Impact
-If crawl docs describe `max_pages`, state that it counts fetched pages, not queue
-iterations.
+If crawl docs describe `max_pages`, state that it counts persisted pages under the new
+rule.
 
 ## Out of Scope
 - Crawl scheduling and target-list generation.
+- `CrawlOrchestrator.crawl` removal (tracked by
+  `issues/20261106-073205_crawl002_remove-dead-orchestrator-crawl-method.md`).
 
 ## Dependencies
 - N/A: none
 
 ## Unresolved Questions
-- Preferred bound for total dequeued tasks when fetches keep failing (fixed multiplier vs.
-  config key).
+- Preferred bound for scheduled non-persisted URLs (fixed multiplier vs. config key).
 
 ## AI Implementation Instruction
 Keep the change inside the orchestrator loop; do not move budget logic into HttpFetcher
