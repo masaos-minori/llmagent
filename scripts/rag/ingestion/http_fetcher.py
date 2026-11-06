@@ -35,6 +35,9 @@ class HttpFetcher:
             config.get("sqlite_busy_timeout_ms", 30000)
         )
         self._rag_db_path: str = str(config.get("rag_db_path", ""))
+        # Guards against logging the empty-path warning on every fetch when
+        # rag_db_path is misconfigured (see get_conditional_headers).
+        self._logged_empty_path: bool = False
 
     async def fetch_html(
         self,
@@ -72,6 +75,15 @@ class HttpFetcher:
         """Return If-None-Match/If-Modified-Since headers from the cached document."""
         from db.helper import SQLiteHelper
 
+        if not self._rag_db_path:
+            if not self._logged_empty_path:
+                logger.warning(
+                    "rag_db_path is not configured; skipping conditional-header "
+                    "cache lookup for %s",
+                    url,
+                )
+                self._logged_empty_path = True
+            return {}
         try:
             with SQLiteHelper(
                 db_path=self._rag_db_path,
@@ -82,7 +94,11 @@ class HttpFetcher:
                     "SELECT etag, last_modified FROM documents WHERE url = ?",
                     (url,),
                 )
-        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+        except (
+            sqlite3.OperationalError,
+            sqlite3.DatabaseError,
+            ValueError,
+        ) as e:
             logger.debug("DB lookup for conditional headers failed (%s): %s", url, e)
             return {}
         if not rows:

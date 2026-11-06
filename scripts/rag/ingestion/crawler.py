@@ -107,6 +107,7 @@ class WebCrawler:
 
     async def crawl(self, targets: list[tuple[str, str]] | None = None) -> None:
         """Crawl all given targets, or config target_urls when targets is None."""
+        self._ensure_rag_db_for_http(targets)
         for url, lang in targets or self._target_urls:
             logger.info("=== start: %s (lang=%s) ===", url, lang)
             try:
@@ -117,6 +118,25 @@ class WebCrawler:
             except (httpx.RequestError, httpx.HTTPStatusError, OSError) as _crawl_err:
                 logger.exception("crawl failed: %s: %s", url, _crawl_err)
             logger.info("=== done:  %s ===", url)
+
+    def _ensure_rag_db_for_http(
+        self,
+        targets: list[tuple[str, str]] | None,
+    ) -> None:
+        """Raise if any target is an HTTP URL but rag_db_path is unconfigured.
+
+        HTTP crawls consult the conditional-header cache, which requires a
+        configured rag_db_path. file:// targets never reach that cache, so they
+        are exempt. This converts a silent per-URL collapse into one loud startup
+        error (see crawl003).
+        """
+        urls = [url for url, _ in (targets or self._target_urls)]
+        if any(url.startswith(("http://", "https://")) for url in urls):
+            if not self._rag_db_path:
+                raise RuntimeError(
+                    "rag_db_path is not configured in crawler.toml; "
+                    "set rag_db_path before crawling HTTP URLs"
+                )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

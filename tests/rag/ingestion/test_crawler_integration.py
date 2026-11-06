@@ -335,3 +335,57 @@ class TestLinkFiltering:
             a_tag, "http://same-origin.com/page", "http://same-origin.com/"
         )
         assert result is True
+
+
+class TestConditionalHeadersMisconfiguration:
+    """Verify empty rag_db_path handling (crawl003, REQ-001/002/003)."""
+
+    def test_get_conditional_headers_empty_path_returns_empty(self, mock_config):
+        """Empty rag_db_path returns {} without raising ValueError (REQ-002)."""
+        from rag.ingestion.http_fetcher import HttpFetcher
+
+        fetcher = HttpFetcher(config=mock_config)
+        result = fetcher.get_conditional_headers("http://example.com/page")
+
+        assert result == {}
+
+    def test_get_conditional_headers_valid_path_no_raise(self, mock_config):
+        """A configured path does not raise; missing table yields {} (REQ-003)."""
+        from rag.ingestion.http_fetcher import HttpFetcher
+
+        config = dict(mock_config)
+        config["rag_db_path"] = ":memory:"
+        fetcher = HttpFetcher(config=config)
+
+        # No documents table in a fresh :memory: DB -> caught OperationalError.
+        result = fetcher.get_conditional_headers("http://example.com/page")
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_crawl_raises_on_empty_rag_db_for_http(
+        self,
+        mock_config,
+    ):
+        """crawl() raises when an HTTP target exists but rag_db_path is empty (REQ-001)."""
+        mock_config["target_urls"] = [("http://example.com/start", "en")]
+
+        crawler = WebCrawler(config=mock_config)
+
+        with pytest.raises(RuntimeError, match="rag_db_path"):
+            await crawler.crawl()
+
+    @pytest.mark.asyncio
+    async def test_crawl_empty_path_ok_for_file_targets_only(
+        self,
+        mock_config,
+        tmp_path,
+    ):
+        """crawl() with only file:// targets passes the rag_db_path preflight (REQ-004)."""
+        mock_config["target_urls"] = []
+        crawler = WebCrawler(config=mock_config)
+        target = tmp_path / "doc.txt"
+        target.write_text("short")
+
+        # No RuntimeError: file:// targets never reach the conditional-header cache.
+        await crawler.crawl([(f"file://{target.resolve()}", "auto")])
