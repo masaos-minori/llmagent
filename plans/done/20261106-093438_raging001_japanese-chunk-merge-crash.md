@@ -108,8 +108,8 @@ N/A: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` already describ
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add failing regression + end-to-end tests in `tests/rag/ingestion/test_chunk_splitter.py` | Pending | — | — | REQ-003 |
-| 2 | Single-accumulator fix in `scripts/rag/ingestion/chunk_japanese.py`; remove test compensation | Pending | — | — | REQ-001, REQ-002 |
+| 1 | Add failing regression + end-to-end tests in `tests/rag/ingestion/test_chunk_splitter.py` | In Progress | — | — | REQ-003 |
+| 2 | Single-accumulator fix in `scripts/rag/ingestion/chunk_japanese.py`; remove test compensation | In Progress | — | — | REQ-001, REQ-002 |
 | 3 | Gate sequence + deploy hand-off | Pending | — | — | REQ-001..003 |
 
 ### Blocker Log
@@ -120,7 +120,7 @@ N/A: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` already describ
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-114129_01_scripts_rag_ingestion_chunk_japanese.py.md` | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -137,3 +137,5 @@ N/A: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` already describ
 | REQ-001 | Issue Problem/Implementation Intent; `AttributeError` reproduction and `self._result` usage (checked in Step 2) | `scripts/rag/ingestion/chunk_japanese.py` | Phase 2 | AC-1, AC-2 | Phase 1 regression + end-to-end tests | Confirmed by repository evidence |
 | REQ-002 | Issue Required Changes; `_make_ja_mixin` and e2e compensation found and reproduction showed masked chunk loss (checked in Step 2) | `tests/rag/ingestion/test_chunk_splitter.py` | Phase 2 | AC-3 | `uv run pytest tests/rag/ingestion` | Confirmed by repository evidence |
 | REQ-003 | Issue Testing Expectations | `tests/rag/ingestion/test_chunk_splitter.py` | Phase 1 | AC-2, AC-4 | New regression + end-to-end tests | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-114129 -->

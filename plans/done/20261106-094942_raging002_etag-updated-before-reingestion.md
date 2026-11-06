@@ -38,7 +38,7 @@ Remove the freshness write from `handle_existing_document`'s replace branch enti
 | `scripts/rag/ingestion/document_manager.py` | Modify | Delete the pre-commit `_update_etag` call, the `_update_etag` method, and the unused `ETagManager` import from the HTTP replace branch | REQ-001; AC-1, AC-2 | `handle_existing_document` calls `self._update_etag(...)` at `:101` before returning `replace=True`; `ETagManager` import at `:13`; sole production call site of `ETagManager.update` (checked in Step 3) | `tests/rag/ingestion/test_ingestion_freshness.py` | Verified |
 | `scripts/rag/ingestion/etag_manager.py` | Modify | Add `resolve_incoming` guarded value selection sharing the existing staleness/parse/exception semantics; `update()` delegates to the shared core with unchanged behavior | REQ-002; AC-4 | `update()` guard rules at `:31-55` (`ValueError` on empty `new_fetched_at` `:42-43`, both-`None` early return `:44-45`, `_is_stale_update` `:57-90` with `InvalidIncomingTimestampError`/`InvalidStoredTimestampError`) (checked in Step 3) | `tests/rag/ingestion/test_ingester_etag_guard.py` | Verified |
 | `scripts/rag/ingestion/transaction_commit.py` | Modify | Resolve incoming vs. stored freshness inside `begin_immediate()` before the delete+insert on the replace branch; `insert` carries the resolved values | REQ-003; AC-2, AC-3 | Replace branch deletes then inserts with payload freshness unconditionally at `:59-78`; insert SQL carries `etag`, `last_modified`, `fetched_at` in `document_persistence.py:77-95` (checked in Step 3) | `tests/rag/ingestion/test_ingestion_freshness.py` | Verified |
-| `tests/rag/ingestion/test_ingestion_freshness.py` | Modify | Add the failed-re-ingestion regression, transaction-abort atomicity, fresh/stale insert-semantics, and `resolve_incoming` unit tests | REQ-004; AC-1, AC-2, AC-3, AC-4 | File exists with `TestGetOrCreateDocumentFreshness` real-`DocumentManager` tests (`:149-254`); no test pins the pre-commit `_update_etag` call — `rg '_update_etag'` matches only `document_manager.py` (checked in Step 3) | itself | Verified |
+| `tests/rag/ingestion/test_ingestion_freshness.py` | Modify | Add the failed-re-ingestion regression, transaction-abort atomicity, fresh/stale insert-semantics, and `resolve_incoming` unit tests | REQ-004; AC-1, AC-2, AC-3, AC-4 | File exists with `TestGetOrCreateDocumentFreshness` tests (`:149-254`) mixing real-`DocumentManager` and mock-based cases (re-verified this cycle); no test pins the pre-commit `_update_etag` call — `rg '_update_etag'` matches only `document_manager.py` (checked in Step 3) | itself | Verified |
 | `docs/21_rag/rag_02_05_ingestion_pipeline-document-manager.md` | Modify | Update the existing-document-handling description of ETag refresh ordering to the commit-boundary design | REQ-005; AC-5 | Doc states "otherwise the ETag fields are refreshed and the chunks are replaced" at line 36 — describes the current pre-commit behavior (checked in Step 3) | N/A: documentation file, validated by review | Verified |
 
 ## Reference Files
@@ -133,9 +133,9 @@ Remove the freshness write from `handle_existing_document`'s replace branch enti
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add failing regression tests in `tests/rag/ingestion/test_ingestion_freshness.py` | Pending | — | — | REQ-004 |
-| 2 | Commit-boundary fix in `scripts/rag/ingestion/etag_manager.py`, `scripts/rag/ingestion/transaction_commit.py`, `scripts/rag/ingestion/document_manager.py` | Pending | — | — | REQ-001, REQ-002, REQ-003 |
-| 3 | Docs update + gate sequence + deploy hand-off | Pending | — | — | REQ-005, REQ-001..004 |
+| 1 | Add failing regression tests in `tests/rag/ingestion/test_ingestion_freshness.py` | In Progress | — | — | REQ-004 |
+| 2 | Commit-boundary fix in `scripts/rag/ingestion/etag_manager.py`, `scripts/rag/ingestion/transaction_commit.py`, `scripts/rag/ingestion/document_manager.py` | In Progress | — | — | REQ-001, REQ-002, REQ-003 |
+| 3 | Docs update + gate sequence + deploy hand-off | In Progress | — | — | REQ-005, REQ-001..004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -145,7 +145,11 @@ Remove the freshness write from `handle_existing_document`'s replace branch enti
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-114554_01_scripts_rag_ingestion_document_manager.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261106-114554_02_scripts_rag_ingestion_etag_manager.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261106-114554_03_scripts_rag_ingestion_transaction_commit.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261106-114554_04_tests_rag_ingestion_test_ingestion_freshness.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261106-114554_05_docs_21_rag_rag_02_05_ingestion_pipeline-document-manager.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -164,3 +168,5 @@ Remove the freshness write from `handle_existing_document`'s replace branch enti
 | REQ-003 | Issue Implementation Intent "defer the write to the same BEGIN IMMEDIATE transaction"; delete+insert verified at `transaction_commit.py:57-78` (checked in Step 2) | `scripts/rag/ingestion/transaction_commit.py` | Phase 2 | AC-2, AC-3 | Phase 1 integration tests | Confirmed by repository evidence |
 | REQ-004 | Issue Testing Expectations | `tests/rag/ingestion/test_ingestion_freshness.py` | Phase 1 | AC-1, AC-2, AC-3, AC-4, AC-6 | New regression + unit tests | Explicit in issue |
 | REQ-005 | Issue Documentation Impact; current wording verified at `rag_02_05_...md:36` (checked in Step 3) | `docs/21_rag/rag_02_05_ingestion_pipeline-document-manager.md` | Phase 3 | AC-5 | Review of the updated doc section | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-114554 -->

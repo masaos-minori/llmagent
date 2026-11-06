@@ -13,7 +13,7 @@ High
   - **Depends on**: `issues/20261106-073538_raging005_retry-dir-no-consumer.md` | phase all | sequencing note only: this Plan's routing uses `FileRouter.route` as it exists today and lands before or together with the retry/ decision; it does not require 005 to be implemented first.
 
 ## Background
-`ChunkGroupingStrategy.group` keys groups by the payload `url` only (`chunk_grouping.py:24-50`) and silently `continue`s on files whose payload fails `read_chunk_json` (no log) or whose url is empty/invalid (log + no routing). The crawler writes a new timestamped source file per crawl (`crawl_persister.py:95-98`: `yyyymmddhhmmss-{slug}.json`), so two crawl runs before one ingester run leave chunk files of two generations with the same `url` but different `fetched_at`/`etag`/`source_file` in `chunk/`. `ingest_url_group` then compares a 9-field signature across the group and returns `GROUP_VALIDATION_FAILED` (`ingester.py:225-275`); `_process_url_groups` (`ingester.py:370-387`) never calls `FileRouter` for those results, so the files stay in `chunk/` and re-fail every run. `TestURLGroupValidation` in `tests/rag/ingestion/test_ingester.py:892-996` pins this with "Files stay at original location" assertions. All claims verified line-by-line against HEAD `bdb9bed66` in Step 2 of this cycle.
+`ChunkGroupingStrategy.group` keys groups by the payload `url` only (`chunk_grouping.py:24-50`) and silently `continue`s on files whose payload fails `read_chunk_json` (no log) or whose url is empty/invalid (log + no routing). The crawler writes a new timestamped source file per crawl (`crawl_persister.py:95-98`: `yyyymmddhhmmss-{slug}.json`), so two crawl runs before one ingester run leave chunk files of two generations with the same `url` but different `fetched_at`/`etag`/`source_file` in `chunk/`. `ingest_url_group` then compares a 9-field signature across the group and returns `GROUP_VALIDATION_FAILED` (`ingester.py:225-275`); `_process_url_groups` (`ingester.py:370-387`) never calls `FileRouter` for those results, so the files stay in `chunk/` and re-fail every run. `TestGroupValidation` in `tests/rag/ingestion/test_ingester.py:891-1001` pins this with "Files stay at original location" assertions. All claims verified line-by-line against HEAD `bdb9bed66` in Step 2 of this cycle.
 
 ## Problem
 A single malformed or multi-generation group is a permanent poison entry: every ingester run re-processes it, logs the failure, counts it, and never moves the files out of `chunk/`. No operator-visible quarantine and no recovery path exist.
@@ -40,7 +40,7 @@ Group chunk files by (url, generation signature) instead of url alone, so each c
 |---|---|---|---|---|---|---|
 | `scripts/rag/ingestion/chunk_grouping.py` | Modify | Key groups by (url, 9-field generation signature); return rejected files with failure reasons; add per-file `WARNING` for `ChunkFormatError` skips | REQ-001, REQ-002; AC-1, AC-3 | `group()` keys `url_groups[url]` only (`:24-50`); `except ChunkFormatError: continue` logs nothing (`:30-31`); empty/invalid url log+skip with no routing (`:33-48`) (checked in Step 2) | `tests/rag/ingestion/test_chunk_grouping.py` | Verified |
 | `scripts/rag/ingestion/ingester.py` | Modify | Route validation-failed group files and grouping-rejected files via `FileRouter.route`; iterate groups in (url, fetched_at) order; set `failure_reason` on `validation_failure` results | REQ-003, REQ-004, REQ-005; AC-1, AC-2, AC-4 | `validation_failure`/`GROUP_VALIDATION_FAILED` returns at `:225-275` with no `FileRouter` call; `_process_url_groups` (`:370-387`) only appends results; `validation_failure()` leaves `failure_reason=None` (`:54-59`) (checked in Step 2) | `tests/rag/ingestion/test_ingester.py` | Verified |
-| `tests/rag/ingestion/test_ingester.py` | Modify | Replace the "files stay at original location" assertions in `TestURLGroupValidation` with routed-to-`failed/` + `.error.json` assertions; add the two-generation end-to-end and re-run idempotency tests | REQ-006; AC-1, AC-2, AC-4 | `TestURLGroupValidation` pins the poison behavior at `:892-996` (`assert path0.exists()` comments "validation rejects before any move") (checked in Step 2) | itself | Verified |
+| `tests/rag/ingestion/test_ingester.py` | Modify | Replace the "files stay at original location" assertions in `TestGroupValidation` with routed-to-`failed/` + `.error.json` assertions; add the two-generation end-to-end and re-run idempotency tests | REQ-006; AC-1, AC-2, AC-4 | `TestGroupValidation` pins the poison behavior at `:891-1001` (`assert path0.exists()` comments "validation rejects before any move") (name corrected in this cycle — actual class name is `TestGroupValidation`, not `TestURLGroupValidation`) | itself | Verified |
 | `tests/rag/ingestion/test_chunk_grouping.py` | Create | Unit tests for generation-safe grouping (two `fetched_at` generations → distinct groups), rejected-file reporting with reasons, and the per-file `WARNING` log lines | REQ-001, REQ-002, REQ-006; AC-1, AC-3 | No test file imports `ChunkGroupingStrategy` today (`rg -l ChunkGroupingStrategy tests/` → no matches) (checked in Step 3) | itself | Verified |
 | `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` | Modify | Update the chunk-file lifecycle table: validation-failed groups now drain to `failed/` with `.error.json`; describe the per-generation grouping | REQ-007; AC-5 | Lifecycle table at lines 35-38 describes routing only for success/embedding/other failures; no `group_validation_failed` entry (checked in Step 3) | N/A: documentation file, validated by review | Verified |
 | `docs/21_rag/rag_02_04_ingestion_pipeline-ingester.md` | Modify | Update §4.6: `IngestUrlResult.validation_failure()` now routes the group to `failed/` instead of leaving it in `chunk/` | REQ-007; AC-5 | §4.6 at `:105-108` describes validation failure with no routing ("no `WARNING` is logged at this layer") (checked in Step 3) | N/A: documentation file, validated by review | Verified |
@@ -66,7 +66,7 @@ Group chunk files by (url, generation signature) instead of url alone, so each c
 
 ## Tests
 - REQ-006: `tests/rag/ingestion/test_chunk_grouping.py` (new): two-generation grouping (distinct `fetched_at` → distinct groups), rejected-list content (`parse_failed` for malformed payload, `validation_failed` for empty/invalid url), per-file `WARNING` log assertions (caplog).
-- REQ-006: `tests/rag/ingestion/test_ingester.py` `TestURLGroupValidation` updates: validation-failed groups → files in `failed/` with `.error.json` (`failure_reason` = `group_validation_failed` / `parse_failed`), not in `chunk/`.
+- REQ-006: `tests/rag/ingestion/test_ingester.py` `TestGroupValidation` updates: validation-failed groups → files in `failed/` with `.error.json` (`failure_reason` = `group_validation_failed` / `parse_failed`), not in `chunk/`.
 - REQ-006: two-generation end-to-end test via `ingest_all` on a real in-memory DB: both groups processed oldest-first, final `documents.fetched_at` equals the newest generation, all files routed out of `chunk/`.
 - REQ-006: re-run idempotency test: second `ingest_all` after a drained group logs/processes zero failed files.
 - Characterization: successful single-group tests in `test_ingester.py` and `tests/integration/test_ingestion_e2e.py` keep their assertions unchanged.
@@ -109,7 +109,7 @@ REQ-007: `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` lifecycle table 
 ## Implementation steps
 1. **Phase 1: Failing regression tests (RED)**
    - [ ] Create `tests/rag/ingestion/test_chunk_grouping.py` with generation-splitting, rejected-list, and log assertions (REQ-006; must fail against current grouping)
-   - [ ] Flip `TestURLGroupValidation` assertions in `tests/rag/ingestion/test_ingester.py` from "files stay" to routed-to-`failed/` with `.error.json`; add the two-generation `ingest_all` test and the re-run idempotency test (REQ-006)
+   - [ ] Flip `TestGroupValidation` assertions in `tests/rag/ingestion/test_ingester.py` from "files stay" to routed-to-`failed/` with `.error.json`; add the two-generation `ingest_all` test and the re-run idempotency test (REQ-006)
 2. **Phase 2: Generation-safe grouping and drain routing (GREEN)**
    - [ ] Change `ChunkGroupingStrategy.group` to key by (url, generation signature), return the rejected `(path, reason)` list, and log per-file `WARNING` for all skip cases (REQ-001, REQ-002; `scripts/rag/ingestion/chunk_grouping.py`)
    - [ ] In `RagIngester`: route validation-failed groups and grouping-rejected files through one `_route_group_failed` helper using `FileRouter.route`; iterate groups sorted by (url, fetched_at); set `failure_reason` on `validation_failure` (REQ-003, REQ-004, REQ-005; `scripts/rag/ingestion/ingester.py`)
@@ -131,7 +131,7 @@ REQ-007: `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` lifecycle table 
 | changed lines | Coverage | `uv run coverage run -m pytest tests/` then `uv run coverage xml` and `uv run diff-cover coverage.xml --compare-branch=master` | ≥ 90% on changed lines |
 
 ## Risks
-- **Risk**: flipping `TestURLGroupValidation` assertions could mask a regression if routing silently fails for only some return sites → **Mitigation**: each failure return site (first-file `ChunkFormatError`, mid-group `ChunkFormatError`, signature mismatch, index non-contiguity) gets its own routed-out assertion in Phase 1.
+- **Risk**: flipping `TestGroupValidation` assertions could mask a regression if routing silently fails for only some return sites → **Mitigation**: each failure return site (first-file `ChunkFormatError`, mid-group `ChunkFormatError`, signature mismatch, index non-contiguity) gets its own routed-out assertion in Phase 1.
 - **Risk**: signature-keyed grouping hides genuine cross-generation data loss (e.g., generation A has 3 chunks, generation B has 2, residue mixes) → **Mitigation**: residue subgroups fail index contiguity and are routed to `failed/` visibly (AC-1), and the upstream producer is fixed by the 004 Plan.
 - **Risk**: oldest-first ingestion embeds stale generations (wasted embedding work) before the newest wins → **Mitigation**: accepted trade-off at plan level (embedding runs after generation-split already deduplicate DB state; 004 Plan removes most residue sources); recorded here for operator awareness.
 - **Risk**: large existing poison backlog floods `failed/` on the first production run → **Mitigation**: UNK-01 operator check after deploy; `failed/` is already the documented terminal directory.
@@ -141,9 +141,9 @@ REQ-007: `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` lifecycle table 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add/flip regression tests in `tests/rag/ingestion/test_chunk_grouping.py` (new) and `tests/rag/ingestion/test_ingester.py` | Pending | — | — | REQ-006 |
-| 2 | Generation-safe grouping in `scripts/rag/ingestion/chunk_grouping.py` and drain routing in `scripts/rag/ingestion/ingester.py` | Pending | — | — | REQ-001..005 |
-| 3 | Docs updates + gate sequence + deploy hand-off | Pending | — | — | REQ-007, REQ-001..005 |
+| 1 | Add/flip regression tests in `tests/rag/ingestion/test_chunk_grouping.py` (new) and `tests/rag/ingestion/test_ingester.py` | In Progress | — | — | REQ-006 |
+| 2 | Generation-safe grouping in `scripts/rag/ingestion/chunk_grouping.py` and drain routing in `scripts/rag/ingestion/ingester.py` | In Progress | — | — | REQ-001..005 |
+| 3 | Docs updates + gate sequence + deploy hand-off | In Progress | — | — | REQ-007, REQ-001..005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -153,7 +153,10 @@ REQ-007: `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` lifecycle table 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-115721_01_scripts_rag_ingestion_chunk_grouping.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261106-115721_02_scripts_rag_ingestion_ingester.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261106-115721_05_docs_21_rag_rag_02_01_ingestion_pipeline-overview.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261106-115721_06_docs_21_rag_rag_02_04_ingestion_pipeline-ingester.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -169,10 +172,12 @@ REQ-007: `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` lifecycle table 
 |---|---|---|---|---|---|---|
 | REQ-001 | Issue Implementation Intent "make grouping generation-safe"; url-only key verified at `chunk_grouping.py:24-50`; crawler timestamped naming at `crawl_persister.py:95-98` (checked in Step 2) | `scripts/rag/ingestion/chunk_grouping.py` | Phase 2 | AC-1, AC-2 | `test_chunk_grouping.py` generation tests | Confirmed by repository evidence |
 | REQ-002 | Issue Background "silently drops files"; `except ChunkFormatError: continue` verified at `chunk_grouping.py:30-31` (checked in Step 2) | `scripts/rag/ingestion/chunk_grouping.py` | Phase 2 | AC-3 | `test_chunk_grouping.py` rejected-list + caplog tests | Confirmed by repository evidence |
-| REQ-003 | Issue Required Changes bullets 1-2; no-`FileRouter` returns verified at `ingester.py:225-275` and `_process_url_groups` `:370-387` (checked in Step 2) | `scripts/rag/ingestion/ingester.py` | Phase 2 | AC-1, AC-3, AC-4 | `test_ingester.py` flipped `TestURLGroupValidation` assertions | Confirmed by repository evidence |
+| REQ-003 | Issue Required Changes bullets 1-2; no-`FileRouter` returns verified at `ingester.py:225-275` and `_process_url_groups` `:370-387` (checked in Step 2) | `scripts/rag/ingestion/ingester.py` | Phase 2 | AC-1, AC-3, AC-4 | `test_ingester.py` flipped `TestGroupValidation` assertions | Confirmed by repository evidence |
 | REQ-004 | Issue Unresolved Questions (mixed-generation policy); generation coexistence verified via crawler filename scheme (checked in Step 2) | `scripts/rag/ingestion/ingester.py` | Phase 2 | AC-2 | two-generation end-to-end `ingest_all` test | Confirmed by repository evidence |
 | REQ-005 | Step 2 verification finding: `validation_failure()` leaves `failure_reason=None` (`ingester.py:54-59`) | `scripts/rag/ingestion/ingester.py` | Phase 2 | AC-1 | `.error.json` reason assertions in `test_ingester.py` | Confirmed by repository evidence |
 | REQ-006 | Issue Testing Expectations | `tests/rag/ingestion/test_ingester.py` | Phase 1 | AC-1, AC-2, AC-4, AC-6 | flipped assertions + idempotency test | Explicit in issue |
 | REQ-006 | Issue Testing Expectations | `tests/rag/ingestion/test_chunk_grouping.py` | Phase 1 | AC-1, AC-3, AC-6 | new grouping unit tests | Explicit in issue |
 | REQ-007 | Issue Documentation Impact; current doc wordings verified at `rag_02_01_...md:35-38` and `rag_02_04_...md:105-108` (checked in Step 3) | `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` | Phase 3 | AC-5 | review of updated table | Explicit in issue |
 | REQ-007 | Issue Documentation Impact | `docs/21_rag/rag_02_04_ingestion_pipeline-ingester.md` | Phase 3 | AC-5 | review of updated §4.6 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-115721 -->
