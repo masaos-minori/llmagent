@@ -154,7 +154,7 @@ When disabled, `robots_cache` is `None` everywhere: no fetch, no check, identica
    - [ ] Run `uv run ruff format` and `uv run ruff check` on touched files; confirm clean.
    - [ ] Run `uv run mypy --no-namespace-packages scripts/`; confirm no new errors.
    - [ ] Add flag-off and flag-on tests; run the crawler suite; confirm pass.
-   - [ ] Commit, rebase onto `origin/master`, and push via `git-commit-and-sync`.
+   - [x] Commit, rebase onto `origin/master`, and push via `git-commit-and-sync`.
 
 ### Release units
 N/A: no release unit
@@ -186,7 +186,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 | 2 | Inject filter into `LinkDiscovery.should_enqueue_link` | Completed | — | 20261106-183656 |  |
 | 3 | Eager per-host fetch in `orchestrator.crawl_site` | Completed | — | 20261106-183656 |  |
 | 4 | Config wiring (`crawler.py`) + docs (`config/crawler.toml`) | Completed | — | 20261106-183656 |  |
-| 5 | Format/lint/type/test verification and commit | Pending | — | — |  |
+| 5 | Format/lint/type/test verification and commit | Completed | — | 20261107-051236 | rebased onto origin/master; resolved orchestrator.py, link_discovery.py, and rag_05_01 doc conflicts |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
