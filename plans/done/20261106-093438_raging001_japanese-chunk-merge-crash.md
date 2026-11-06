@@ -108,9 +108,9 @@ N/A: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` already describ
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add failing regression + end-to-end tests in `tests/rag/ingestion/test_chunk_splitter.py` | In Progress | — | — | REQ-003 |
-| 2 | Single-accumulator fix in `scripts/rag/ingestion/chunk_japanese.py`; remove test compensation | In Progress | — | — | REQ-001, REQ-002 |
-| 3 | Gate sequence + deploy hand-off | Pending | — | — | REQ-001..003 |
+| 1 | Add failing regression + end-to-end tests in `tests/rag/ingestion/test_chunk_splitter.py` | Completed | 2026-11-06 | 2026-11-06 | REQ-003 3 regression tests added (RED confirmed pre-fix) + e2e assertions strengthened |
+| 2 | Single-accumulator fix in `scripts/rag/ingestion/chunk_japanese.py`; remove test compensation | Completed | 2026-11-06 | 2026-11-06 | REQ-001, REQ-002 single-accumulator fix applied; test compensation removed |
+| 3 | Gate sequence + deploy hand-off | Completed | 2026-11-06 | 2026-11-06 | REQ-001..003 gate sequence passed 2026-11-06; deploy hand-off (UNK-01 re-chunk) remains an operational decision for the owner |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -120,7 +120,7 @@ N/A: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` already describ
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261106-114129_01_scripts_rag_ingestion_chunk_japanese.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261106-114129_01_scripts_rag_ingestion_chunk_japanese.py.md` | 1, 2 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

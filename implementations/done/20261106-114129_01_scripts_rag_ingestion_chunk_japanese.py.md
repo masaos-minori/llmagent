@@ -83,9 +83,9 @@ N/A: revert the single commit. Post-fix re-chunk of production Japanese sources 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after step 2 tests exist (RED first, Plan Phase 1 → 2) |
-| 2 | Add or update tests per Validation plan (companion `tests/rag/ingestion/test_chunk_splitter.py`) | Pending | — | — | Plan Phase 1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes diff-cover ≥ 90% |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-06 | 2026-11-06 | Execute after step 2 tests exist (RED first, Plan Phase 1 → 2) GREEN after fix: 29/29 test_chunk_splitter, 187/187 tests/rag/ingestion |
+| 2 | Add or update tests per Validation plan (companion `tests/rag/ingestion/test_chunk_splitter.py`) | Completed | 2026-11-06 | 2026-11-06 | Plan Phase 1 RED confirmed: 3 regression tests fail pre-fix (chunk loss: 1 of 3 returned) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-06 | 2026-11-06 | Includes diff-cover ≥ 90% ruff/mypy/lint-imports/bandit clean; full suite 11759 passed 9 skipped; chunk_japanese.py is in coverage omit list (standard run: diff-cover 'No lines with coverage information'); targeted rcfile run: diff-cover 100% on changed lines Docs: N/A - no docs/00_index.md task-scope row for chunk_japanese.py; rag_02_03 describes behavior-level contract, unchanged by this fix (procedure Out of Scope) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -86,7 +86,6 @@ def _make_ja_mixin(**kwargs: Any) -> ChunkJapaneseMixin:
     mixin._split_c = None
     mixin._orig_buf = ""
     mixin._norm_buf = ""
-    mixin._result: list[tuple[str, str]] = []
     return mixin
 
 
@@ -103,8 +102,9 @@ class TestJapaneseChunkOverlap:
         mixin = _make_ja_mixin(_chunk_overlap=10, _min_chunk=10)
         mixin._orig_buf = "abcdefghij1234567890"  # 20 chars
         mixin._norm_buf = "abcdefghij1234567890"
-        mixin._emit_and_start_new("xyz", "xyz")
-        assert len(mixin._result) == 1
+        result: list[tuple[str, str | None]] = []
+        mixin._emit_and_start_new(result, "xyz", "xyz")
+        assert len(result) == 1
         assert mixin._orig_buf == "1234567890 xyz"
         assert mixin._norm_buf == "1234567890 xyz"
 
@@ -112,8 +112,9 @@ class TestJapaneseChunkOverlap:
         mixin = _make_ja_mixin(_chunk_overlap=0, _min_chunk=10)
         mixin._orig_buf = "abcdefghij1234567890"
         mixin._norm_buf = "abcdefghij1234567890"
-        mixin._emit_and_start_new("xyz", "xyz")
-        assert len(mixin._result) == 1
+        result: list[tuple[str, str | None]] = []
+        mixin._emit_and_start_new(result, "xyz", "xyz")
+        assert len(result) == 1
         assert mixin._orig_buf == "xyz"
         assert mixin._norm_buf == "xyz"
 
@@ -123,33 +124,37 @@ class TestJapaneseChunkOverlap:
         mixin._norm_buf = "ab"
         # _merge_ja_sentence_pairs would call _reset_buffer here, not _emit_and_start_new
         # But we test _emit_and_start_new directly: it still emits the short buffer
-        mixin._emit_and_start_new("xyz", "xyz")
-        assert len(mixin._result) == 1
+        result: list[tuple[str, str | None]] = []
+        mixin._emit_and_start_new(result, "xyz", "xyz")
+        assert len(result) == 1
         # "ab"[-10:] = "ab" (full string since shorter than overlap size)
         assert mixin._orig_buf == "ab xyz"
         assert mixin._norm_buf == "ab xyz"
 
     def test_multiple_emits_preserve_consecutive_overlaps(self) -> None:
         mixin = _make_ja_mixin(_chunk_overlap=5, _min_chunk=10)
+        result: list[tuple[str, str | None]] = []
         # First emit
         mixin._orig_buf = "aaaaabbbbbccccc"  # 15 chars
         mixin._norm_buf = "AAAAABBBBBCCCCC"
-        mixin._emit_and_start_new("11111", "11111")
+        mixin._emit_and_start_new(result, "11111", "11111")
         assert mixin._orig_buf == "ccccc 11111"
         assert mixin._norm_buf == "CCCCC 11111"
         # Second emit
         mixin._orig_buf = "11111dddddeeeee"  # 15 chars
         mixin._norm_buf = "11111DDDDDEEEEE"
-        mixin._emit_and_start_new("22222", "22222")
+        mixin._emit_and_start_new(result, "22222", "22222")
         assert mixin._orig_buf == "eeeee 22222"
         assert mixin._norm_buf == "EEEEE 22222"
+        assert len(result) == 2
 
     def test_empty_buffer_at_emit_start_is_harmless(self) -> None:
         mixin = _make_ja_mixin(_chunk_overlap=10, _min_chunk=10)
         mixin._orig_buf = ""
         mixin._norm_buf = ""
-        mixin._emit_and_start_new("xyz", "xyz")
-        assert len(mixin._result) == 1
+        result: list[tuple[str, str | None]] = []
+        mixin._emit_and_start_new(result, "xyz", "xyz")
+        assert len(result) == 1
         assert mixin._orig_buf == "xyz"
         assert mixin._norm_buf == "xyz"
 
@@ -157,7 +162,8 @@ class TestJapaneseChunkOverlap:
         mixin = _make_ja_mixin(_chunk_overlap=15, _min_chunk=10)
         mixin._orig_buf = "aaaaabbbbbccccc"  # exactly 15 chars
         mixin._norm_buf = "AAAAABBBBBCCCCC"
-        mixin._emit_and_start_new("xyz", "xyz")
+        result: list[tuple[str, str | None]] = []
+        mixin._emit_and_start_new(result, "xyz", "xyz")
         assert mixin._orig_buf == "aaaaabbbbbccccc xyz"
         assert mixin._norm_buf == "AAAAABBBBBCCCCC xyz"
 
@@ -165,7 +171,8 @@ class TestJapaneseChunkOverlap:
         mixin = _make_ja_mixin(_chunk_overlap=100, _min_chunk=10)
         mixin._orig_buf = "abc"  # shorter than overlap
         mixin._norm_buf = "ABC"
-        mixin._emit_and_start_new("xyz", "xyz")
+        result: list[tuple[str, str | None]] = []
+        mixin._emit_and_start_new(result, "xyz", "xyz")
         # prev[-100:] = "abc" (full buffer since shorter than overlap)
         assert mixin._orig_buf == "abc xyz"
         assert mixin._norm_buf == "ABC xyz"
@@ -174,7 +181,8 @@ class TestJapaneseChunkOverlap:
         mixin = _make_ja_mixin(_chunk_overlap=5, _min_chunk=10)
         mixin._orig_buf = "aaaaabbbbbccccc"  # ends with 'c'
         mixin._norm_buf = "AAAAABBBBBCCCCC"
-        mixin._emit_and_start_new("xyz", "xyz")
+        result: list[tuple[str, str | None]] = []
+        mixin._emit_and_start_new(result, "xyz", "xyz")
         # overlap = "ccccc", sep = " ", next = "xyz" => "ccccc xyz"
         # strip removes leading space if overlap is empty — but overlap is not empty here
         assert mixin._orig_buf == "ccccc xyz"
@@ -207,6 +215,59 @@ class TestEmptyNormalization:
         original, normalized = chunks[0]
         assert original.count("。") == 11
         assert normalized is None
+
+
+# ── TestJapaneseMergeRegression (raging001 REQ-003) ────────────────────────────
+
+
+class TestJapaneseMergeRegression:
+    """Regression: every chunk emitted by _merge_ja_sentence_pairs is returned.
+
+    Pre-fix the helpers appended to a never-initialized self._result, raising
+    AttributeError as soon as a boundary emit happened.
+    """
+
+    def test_multi_emit_overlap_returns_all_chunks_in_order(self) -> None:
+        mixin = _make_ja_mixin(_max_chunk=20, _min_chunk=10, _chunk_overlap=5)
+        pairs = [
+            ("あ" * 12, "あ" * 12),
+            ("い" * 12, "い" * 12),
+            ("う" * 12, "う" * 12),
+        ]
+        chunks = mixin._merge_ja_sentence_pairs(pairs)
+        assert len(chunks) == 3
+        original = [o for o, _ in chunks]
+        normalized = [n for _, n in chunks]
+        assert all(n is not None for n in normalized)
+        assert all(len(chunk) >= 10 for chunk in original)
+        assert original[0] == "あ" * 12
+        assert "う" * 12 in original[2]
+
+    def test_multi_emit_zero_overlap_returns_all_chunks(self) -> None:
+        mixin = _make_ja_mixin(_max_chunk=20, _min_chunk=10, _chunk_overlap=0)
+        pairs = [
+            ("あ" * 12, "あ" * 12),
+            ("い" * 12, "い" * 12),
+            ("う" * 12, "う" * 12),
+        ]
+        chunks = mixin._merge_ja_sentence_pairs(pairs)
+        assert chunks == [
+            ("あ" * 12, "あ" * 12),
+            ("い" * 12, "い" * 12),
+            ("う" * 12, "う" * 12),
+        ]
+
+    def test_short_tail_merge_returns_all_chunks(self) -> None:
+        mixin = _make_ja_mixin(_max_chunk=14, _min_chunk=10, _chunk_overlap=0)
+        pairs = [
+            ("あ" * 12, "あ" * 12),
+            ("い" * 12, "い" * 12),
+            ("うう", "うう"),
+        ]
+        chunks = mixin._merge_ja_sentence_pairs(pairs)
+        assert len(chunks) == 2
+        assert chunks[1][0] == "い" * 12 + " うう"
+        assert chunks[1][1] == "い" * 12 + " うう"
 
 
 # ── Helpers for fetched_at propagation tests ───────────────────────────────────
@@ -648,10 +709,6 @@ class TestProcessFileEndToEnd:
                 "ja_stop_pos": [],
             }
         )
-        chunker._result = []
-        chunker._orig_buf = ""
-        chunker._norm_buf = ""
-
         result = chunker.process_file(src, force=True)
         assert result >= 1
 
@@ -665,7 +722,12 @@ class TestProcessFileEndToEnd:
             assert payload["chunk_index"] == i
             assert payload["content"]
             reassembled += payload["content"]
-        assert "日本語" in reassembled
+        # Coverage: content lost to a swallowed chunk would break any of these.
+        assert result >= 2
+        stripped = reassembled.replace(" ", "")
+        assert stripped.startswith("日本語のテストページです。")
+        assert stripped.endswith("これはテスト用の文章です。")
+        assert stripped.count("。") >= content.count("。")
 
 
 # ── ChunkSplitter dictionary resolver wiring (REQ-003) ───────────────────────

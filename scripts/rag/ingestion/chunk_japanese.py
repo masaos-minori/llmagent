@@ -34,7 +34,6 @@ class ChunkJapaneseMixin:
     _split_c: Any  # sudachipy Tokenizer.SplitMode.C — enum value, not a class
     _orig_buf: str
     _norm_buf: str
-    _result: list[tuple[str, str]]
 
     def _chunk_japanese(self, text: str) -> list[tuple[str, str | None]]:
         """Split Japanese text into (original, normalized) chunk pairs via NFKC normalization, sentence splitting, and Sudachi morphological analysis."""
@@ -90,7 +89,7 @@ class ChunkJapaneseMixin:
             if len(self._orig_buf) + len(orig) + 1 <= self._max_chunk:
                 self._append_to_buffer(orig, norm_str)
             elif len(self._orig_buf) >= self._min_chunk:
-                self._emit_and_start_new(orig, norm_str)
+                self._emit_and_start_new(result, orig, norm_str)
             else:
                 self._reset_buffer(orig, norm_str)
         if not self._orig_buf:
@@ -99,7 +98,7 @@ class ChunkJapaneseMixin:
             norm_out = self._norm_buf or None
             result.append((self._orig_buf, norm_out))
         elif result:
-            self._merge_tail_into_last()
+            self._merge_tail_into_last(result)
         return result
 
     def _append_to_buffer(self, orig: str, norm: str) -> None:
@@ -107,9 +106,14 @@ class ChunkJapaneseMixin:
         self._orig_buf = (self._orig_buf + " " + orig).strip()
         self._norm_buf = (self._norm_buf + " " + norm).strip()
 
-    def _emit_and_start_new(self, orig: str, norm: str) -> None:
-        """Emit buffer as chunk and start new buffer with overlap."""
-        self._result.append((self._orig_buf, self._norm_buf))
+    def _emit_and_start_new(
+        self,
+        result: list[tuple[str, str | None]],
+        orig: str,
+        norm: str,
+    ) -> None:
+        """Emit buffer as chunk into *result* and start new buffer with overlap."""
+        result.append((self._orig_buf, self._norm_buf))
         if self._chunk_overlap:
             self._orig_buf = start_next_buf(
                 self._orig_buf, orig, " ", self._chunk_overlap
@@ -126,10 +130,10 @@ class ChunkJapaneseMixin:
         self._orig_buf = orig
         self._norm_buf = norm
 
-    def _merge_tail_into_last(self) -> None:
-        """Merge short tail into the last chunk to avoid losing content."""
-        last_o, last_n = self._result[-1]
-        self._result[-1] = (
+    def _merge_tail_into_last(self, result: list[tuple[str, str | None]]) -> None:
+        """Merge short tail into the last chunk of *result* to avoid losing content."""
+        last_o, last_n = result[-1]
+        result[-1] = (
             (last_o + " " + self._orig_buf).strip(),
-            (last_n + " " + self._norm_buf).strip(),
+            (last_n + " " + self._norm_buf).strip() if last_n is not None else None,
         )
