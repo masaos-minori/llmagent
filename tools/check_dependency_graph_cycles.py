@@ -21,6 +21,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -104,7 +105,15 @@ def find_cycle(nodes: frozenset[str], edges: list[tuple[str, str]]) -> list[str]
     return None
 
 
-def main() -> int:
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(__doc__ or "").strip().splitlines()[0]
+    )
+    return parser.parse_args([] if argv is None else argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    _parse_args(argv)
     # Post-reorg: search subfolders for the target document.
     candidates: list[DocFile] = []
     for subdir in DOCS_DIR.iterdir():
@@ -173,4 +182,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

@@ -703,6 +703,21 @@ def _resolve_plan_file(plan_path: Path) -> Path:
     return plan_path if plan_path.is_absolute() else ROOT_DIR / plan_path
 
 
+def _procedures_of_plan(
+    plan_path: Path, documents: list[WorkItemDocument]
+) -> list[WorkItemDocument]:
+    """Implementation documents whose `Source plan` is the checked Plan."""
+    procedures: list[WorkItemDocument] = []
+    for doc in documents:
+        if doc.kind != "implementation":
+            continue
+        source_plan = doc.fields.get("Source plan")
+        if source_plan is None or Path(source_plan).name != plan_path.name:
+            continue
+        procedures.append(doc)
+    return procedures
+
+
 def find_plan_coverage_findings(
     plan_path: Path, documents: list[WorkItemDocument]
 ) -> list[dict[str, str]]:
@@ -723,12 +738,8 @@ def find_plan_coverage_findings(
 
     covered_by: dict[str, list[str]] = {}
     findings: list[dict[str, str]] = []
-    for doc in documents:
-        if doc.kind != "implementation":
-            continue
-        source_plan = doc.fields.get("Source plan")
-        if source_plan is None or Path(source_plan).name != plan_path.name:
-            continue
+    procedures = _procedures_of_plan(plan_path, documents)
+    for doc in procedures:
         target = extract_target_file_value(doc.text)
         companions = extract_companion_files(doc.text)
         covered = ([target] if target else []) + companions
@@ -774,8 +785,7 @@ def find_plan_coverage_findings(
 
     companion_candidates = {
         companion
-        for doc in documents
-        if doc.kind == "implementation"
+        for doc in procedures
         for companion in extract_companion_files(doc.text)
     }
     for companion in sorted(companion_candidates):

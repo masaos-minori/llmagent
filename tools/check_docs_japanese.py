@@ -10,6 +10,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -37,7 +38,15 @@ def find_japanese_files(docs_dir: Path = DOCS_DIR) -> list[Path]:
     return found
 
 
-def main() -> int:
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(__doc__ or "").strip().splitlines()[0]
+    )
+    return parser.parse_args([] if argv is None else argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    _parse_args(argv)
     if not DOCS_DIR.is_dir():
         print(f"Directory {DOCS_DIR} does not exist.", file=sys.stderr)
         return 1
@@ -54,4 +63,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

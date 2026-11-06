@@ -971,7 +971,7 @@ def check_drift(domains: list[str]) -> list[str]:
     return drifted
 
 
-if __name__ == "__main__":
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate reference tables from live code."
     )
@@ -991,54 +991,56 @@ if __name__ == "__main__":
         "sources or a generated doc block drifted from its committed manifest "
         "(all doc-backed domains unless --type is given)",
     )
-    args = parser.parse_args()
+    return parser
 
-    if args.check:
-        domains = [args.type] if args.type else list(DOMAIN_DOCS)
-        drifted = check_drift(domains)
-        if not args.type:
-            drifted += check_manifest_drift(list(UNBOUND_MANIFESTS))
-        for entry in drifted:
-            print(f"DRIFT: {entry}")
-        if drifted:
-            print(
-                "Run `uv run python tools/generate_reference_table.py --manifests` "
-                "and commit the result."
-            )
-            raise SystemExit(1)
-        print("No drift found")
-        raise SystemExit(0)
 
-    if args.manifests:
-        if args.type:
-            names = list(MANIFESTS_BY_DOMAIN.get(args.type, ()))
-            if not names:
-                parser.error(f"--type {args.type} has no contract manifests")
-        else:
-            names = list(_MANIFEST_BUILDERS)
-        for name in names:
-            path = write_manifest(
-                build_manifest(name), MANIFEST_DIR, dry_run=args.dry_run
-            )
-            print(
-                f"{'Would write' if args.dry_run else 'Wrote'} {path.relative_to(REPO_ROOT)}"
-            )
-        for domain in DOMAIN_DOCS:
-            if args.type and args.type != domain:
-                continue
-            doc_path = DOMAIN_DOCS[domain]
-            doc_content = doc_path.read_text(encoding="utf-8")
-            table = _table_from_entries(
-                domain, _manifest_entries(domain, from_committed=not args.dry_run)
-            )
-            updated = render_updated_doc(domain, doc_content)
-            if args.dry_run:
-                print(f"<!-- DRY-RUN ONLY: {domain} block -->\n{table}\n")
-            elif updated != doc_content:
-                doc_path.write_text(updated, encoding="utf-8")
-                print(f"Updated {doc_path.relative_to(REPO_ROOT)}")
-        raise SystemExit(0)
+def _run_check(args: argparse.Namespace) -> int:
+    domains = [args.type] if args.type else list(DOMAIN_DOCS)
+    drifted = check_drift(domains)
+    if not args.type:
+        drifted += check_manifest_drift(list(UNBOUND_MANIFESTS))
+    for entry in drifted:
+        print(f"DRIFT: {entry}")
+    if drifted:
+        print(
+            "Run `uv run python tools/generate_reference_table.py --manifests` "
+            "and commit the result."
+        )
+        return 1
+    print("No drift found")
+    return 0
 
+
+def _run_manifests(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    if args.type:
+        names = list(MANIFESTS_BY_DOMAIN.get(args.type, ()))
+        if not names:
+            parser.error(f"--type {args.type} has no contract manifests")
+    else:
+        names = list(_MANIFEST_BUILDERS)
+    for name in names:
+        path = write_manifest(build_manifest(name), MANIFEST_DIR, dry_run=args.dry_run)
+        print(
+            f"{'Would write' if args.dry_run else 'Wrote'} {path.relative_to(REPO_ROOT)}"
+        )
+    for domain in DOMAIN_DOCS:
+        if args.type and args.type != domain:
+            continue
+        doc_path = DOMAIN_DOCS[domain]
+        doc_content = doc_path.read_text(encoding="utf-8")
+        table = _table_from_entries(
+            domain, _manifest_entries(domain, from_committed=not args.dry_run)
+        )
+        updated = render_updated_doc(domain, doc_content)
+        if args.dry_run:
+            print(f"<!-- DRY-RUN ONLY: {domain} block -->\n{table}\n")
+        elif updated != doc_content:
+            doc_path.write_text(updated, encoding="utf-8")
+            print(f"Updated {doc_path.relative_to(REPO_ROOT)}")
+    return 0
+
+
+def _run_domain(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if args.type is None:
         parser.error("--type is required unless --check or --manifests is given")
 
@@ -1058,3 +1060,18 @@ if __name__ == "__main__":
                 render_updated_doc(args.type, doc_content), encoding="utf-8"
             )
             print(f"Updated {target_doc.relative_to(REPO_ROOT)}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if args.check:
+        return _run_check(args)
+    if args.manifests:
+        return _run_manifests(args, parser)
+    return _run_domain(args, parser)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

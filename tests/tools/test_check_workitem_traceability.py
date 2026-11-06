@@ -607,6 +607,27 @@ class TestPlanCoverage:
         multi = next(f for f in findings if f["category"] == "companion-multi-row")
         assert TEST_A in multi["detail"]
 
+    def test_companion_declared_by_another_plan_is_not_multi_row(self) -> None:
+        self.plan = _write_plan(
+            self.root,
+            [
+                (CODE, f"`{TEST_A}`"),
+                ("scripts/agent/bar.py", f"`{TEST_A}`"),
+                (TEST_A, "itself"),
+            ],
+        )
+        _write_procedure(
+            self.root,
+            "20261101-100001_01_foo.md",
+            CODE,
+            [TEST_A],
+            plan="20261101-999999_other.md",
+        )
+
+        findings = self._findings()
+
+        assert "companion-multi-row" not in _categories(findings)
+
     def test_companion_not_a_plan_row_is_not_eligible(self) -> None:
         _write_procedure(
             self.root, "20261101-100001_01_foo.md", CODE, [TEST_A, TEST_B, "tests/x.py"]

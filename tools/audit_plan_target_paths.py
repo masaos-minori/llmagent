@@ -7,6 +7,7 @@ Flags target paths that do not exist unless the row's change type is a creation
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -52,8 +53,16 @@ def audit(path: Path) -> list[str]:
     return findings
 
 
-def main() -> int:
-    args = sys.argv[1:]
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(__doc__ or "").strip().splitlines()[0]
+    )
+    parser.add_argument("plans", nargs="*", help="plan files (default: plans/*.md)")
+    return parser.parse_args(sys.argv[1:] if argv is None else argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv).plans
     plans = [Path(a) for a in args] if args else sorted(Path("plans").glob("*.md"))
     total = 0
     for p in plans:

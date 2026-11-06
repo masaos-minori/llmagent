@@ -12,6 +12,19 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
+## CLI and Exit-Code Convention
+
+Exit codes: `0` pass, `1` findings, `2` usage or environment error. An entry point is `main(argv: list[str] | None = None) -> int`, and the `__main__` block calls `sys.exit(main(...))`. `main(None)` must not depend on the caller's `sys.argv` unless the tool documents it. Option names that already exist and are kept: `--check`, `--json`, `--format`, `--dry-run`; unifying them is out of scope here. Explicit `return 2` exists today in `check_ci_results.py` (`gh` read failures), `manage_workitem_stage.py`, `mark_procedure_new_symbols.py`, and `classify_changes.py`; argparse-based tools already exit `2` on a usage error.
+
+Callers do not distinguish `1` from `2`: `run_validation_gates.py` maps exit `0` to `Pass` and any other code to `Fail`, and every pre-commit hook and CI step treats any non-zero code as failure. A deviation below is recorded, not changed; changing an exit code needs a review of every caller first.
+
+| Tool | Observed behavior | Reason | Callers reviewed |
+|---|---|---|---|
+| `check_docs_japanese.py` | Exits `1` when `docs/` is missing | Missing input reported as a finding; convention says `2` | `docs-japanese` pre-commit hook, `check_docs_japanese` gate: any non-zero is failure |
+| `check_dependency_graph_cycles.py` | Exits `1` when the graph document or section is missing | Same | `governance-docs-consistency.yml` step: any non-zero is failure |
+| `check_tool_descriptions_sync.py` | Exits `1` when `TOOL_DESCRIPTIONS.md` is missing | Same | pre-commit hook, console script `check-tool-descriptions`: any non-zero is failure |
+| `check_needs_confirmation_inventory.py` | Exits `1` when the inventory document is missing; warnings never produce a non-zero exit, only ERROR findings do | Same; the warning rule is a deliberate detection mode | `governance-docs-consistency.yml` step, console script `check-needs-confirmation`: any non-zero is failure |
+
 ## Index
 
 | File | Category | Purpose |

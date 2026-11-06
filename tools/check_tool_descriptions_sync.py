@@ -19,6 +19,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -64,7 +65,15 @@ def find_dangling_config_references(
     return dangling
 
 
-def main() -> int:
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(__doc__ or "").strip().splitlines()[0]
+    )
+    return parser.parse_args([] if argv is None else argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    _parse_args(argv)
     if not DESCRIPTIONS_DOC.is_file():
         print(f"ERROR: {DESCRIPTIONS_DOC} not found.", file=sys.stderr)
         return 1
@@ -103,4 +112,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))
