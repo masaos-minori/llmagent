@@ -1,9 +1,13 @@
 """Integration tests for WebCrawler with respx-based HTTP mocking."""
 
 import asyncio
+import logging
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import respx
+from httpx import Response
 from rag.ingestion.crawler import WebCrawler
 
 
@@ -157,53 +161,76 @@ class TestResponseSkippingContentFetch:
 
 
 class TestMaxPagesBoundaryCondition:
-    """Verify max_pages boundary condition."""
+    """Verify the persisted-vs-scheduled page budget (raging009)."""
+
+    @staticmethod
+    def _page(text: str, links: tuple[str, ...] = ()) -> str:
+        """Return a minimal HTML page whose body text is long enough to persist."""
+        anchors = "".join(f'<a href="{href}">{href.strip("/")}</a>' for href in links)
+        return (
+            f"<html><body><h1>{text}</h1>"
+            f"<p>{text} body content long enough to be persisted by the crawler.</p>"
+            f"{anchors}</body></html>"
+        )
 
     @pytest.mark.asyncio
-    async def test_stops_at_max_pages(self, mock_config):
-        """Crawling stops when visited count reaches max_pages."""
-        mock_config["max_pages"] = 3
-        mock_config["max_depth"] = 10
-        mock_config["target_urls"] = [("http://example.com/start", "en")]
+    async def test_stops_at_max_pages(
+        self,
+        mock_config: dict,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """AC-1: the crawl stops when max_pages pages are persisted, not when URLs are scheduled."""
+        mock_config["max_pages"] = 2
+        mock_config["max_depth"] = 3
+        mock_config["rag_src_dir"] = str(tmp_path)
 
-        crawler = WebCrawler(config=mock_config)
+        with respx.mock:
+            respx.get("http://example.com/start").mock(
+                return_value=Response(200, text=self._page("Alpha", ("/b",)))
+            )
+            respx.get("http://example.com/b").mock(
+                return_value=Response(200, text=self._page("Bravo", ("/c", "/d")))
+            )
+            crawler = WebCrawler(config=mock_config)
+            with caplog.at_level(logging.WARNING, logger="rag.ingestion.orchestrator"):
+                await crawler.crawl_site("http://example.com/start", "en")
 
-        with patch.object(crawler, "crawl_site") as mock_crawl:
-            # Simulate that crawl_site would visit more than max_pages
-            async def side_effect(url, lang):
-                pass
+            assert len(list(tmp_path.glob("*-*.json"))) == 2
+            assert len(respx.calls) == 2
 
-            mock_crawl.side_effect = side_effect
-
-            # We can't easily simulate BFS traversal without real HTTP,
-            # so we verify the guard exists by checking the source logic
-            # The actual guard is at line 206 of crawler.py
+        assert "persisted budget reached" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_max_pages_warning_logged(self, mock_config):
-        """Warning is logged when max_pages limit is reached."""
-        mock_config["max_pages"] = 1
-        mock_config["max_depth"] = 10
-        mock_config["target_urls"] = []
+    async def test_max_pages_warning_logged(
+        self,
+        mock_config: dict,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """AC-2: non-persisted fetches are capped at 2 * max_pages and the stop is logged."""
+        mock_config["max_pages"] = 2
+        mock_config["max_depth"] = 1
+        mock_config["rag_src_dir"] = str(tmp_path)
 
-        crawler = WebCrawler(config=mock_config)
+        with respx.mock:
+            respx.get("http://example.com/start").mock(
+                return_value=Response(
+                    200,
+                    text=self._page("Alpha", tuple(f"/n{i}" for i in range(1, 7))),
+                )
+            )
+            for i in range(1, 7):
+                respx.get(f"http://example.com/n{i}").mock(
+                    return_value=Response(status_code=304)
+                )
+            crawler = WebCrawler(config=mock_config)
+            with caplog.at_level(logging.WARNING, logger="rag.ingestion.orchestrator"):
+                await crawler.crawl_site("http://example.com/start", "en")
 
-        with (
-            patch.object(crawler, "crawl_site") as mock_crawl,
-            patch.object(crawler.orchestrator, "_drain_queue_to_tasks") as mock_drain,
-        ):
-            mock_crawl.side_effect = lambda url, lang: None
-            mock_drain.return_value = set()
+            assert len(respx.calls) <= 2 * mock_config["max_pages"]
 
-            # Start queue with one URL
-            import asyncio
-
-            queue = asyncio.Queue()
-            queue.put_nowait(("http://example.com/page", 0))
-
-            with patch.object(crawler, "crawl_site"):
-                # Verify the guard check exists in the code
-                pass
+        assert "scheduling budget reached" in caplog.text
 
     def test_max_pages_fallback_default(self, mock_config):
         """max_pages fallback default is 200 (matching deployed config) when absent."""

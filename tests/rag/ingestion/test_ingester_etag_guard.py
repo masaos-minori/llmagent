@@ -4,6 +4,7 @@ Unit tests for ETagManager.update() stale-guard logic.
 
 from __future__ import annotations
 
+import logging
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -119,3 +120,29 @@ class TestUpdateEtagGuard(unittest.TestCase):
 
         with self.assertRaises(InvalidStoredTimestampError):
             etag_mgr.update("etag-x", "Mon, 01 Jun 2026", "2026-06-01T10:00:00")
+
+
+class TestStaleSkipLogLine:
+    """REQ-003: the stale-skip branch must emit exactly one clean INFO line
+    naming both timestamps and the doc_id (caplog, no mock)."""
+
+    def test_stale_skip_emits_clean_log_line(self, caplog) -> None:
+        etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00")
+        stdlib_logger = logging.getLogger("rag.ingestion.etag_manager")
+        old_propagate = stdlib_logger.propagate
+        stdlib_logger.propagate = True
+        try:
+            with caplog.at_level(logging.INFO, logger="rag.ingestion.etag_manager"):
+                etag_mgr.update("etag-old", "Mon, 01 Jun 2026", "2026-06-01T10:00:00")
+        finally:
+            stdlib_logger.propagate = old_propagate
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.levelno == logging.INFO
+        text = record.getMessage()  # must render without raising TypeError
+        assert "2026-06-01T10:00:00" in text  # incoming timestamp
+        assert "2026-06-10T10:00:00" in text  # stored timestamp
+        assert "doc_id=42" in text
+        db.execute.assert_not_called()
+        db.commit.assert_not_called()

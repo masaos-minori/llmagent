@@ -7,11 +7,13 @@ Resolves: OPEN-01 (a per-area known-issues document since consolidated and remov
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from collections.abc import Generator
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from rag.ingestion import document_manager
 from rag.ingestion.ingester import RagIngester
 
 
@@ -92,3 +94,37 @@ def test_ingest_all_calls_on_ingest_complete(ingester: RagIngester) -> None:
         ingester.ingest_all(force=False, on_ingest_complete=callback)
 
     callback.assert_called_once()
+
+
+def test_callback_failure_does_not_break_ingest_all(
+    ingester: RagIngester, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A callback raising sqlite3.Error is logged and swallowed, not propagated."""
+
+    def raising_callback() -> None:
+        raise sqlite3.Error("boom")
+
+    mock_chunk_dir = MagicMock()
+    mock_chunk_dir.glob.return_value = [MagicMock()]
+
+    # The module logger is a shared.Logger with propagate=False; at_level alone does
+    # not capture it, so attach caplog.handler directly (same pattern as
+    # tests/integration/test_production_security_regression.py).
+    document_manager.logger._logger.addHandler(caplog.handler)
+    try:
+        with caplog.at_level(logging.ERROR, logger="rag.ingestion.document_manager"):
+            with (
+                patch.object(ingester, "_chunk_dir", mock_chunk_dir),
+                patch.object(type(ingester), "_process_url_groups", return_value=[]),
+            ):
+                report = ingester.ingest_all(
+                    force=False, on_ingest_complete=raising_callback
+                )
+    finally:
+        document_manager.logger._logger.removeHandler(caplog.handler)
+
+    # Nothing escaped: ingest_all returned its consistency report normally.
+    assert report is not None
+    error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert len(error_records) == 1
+    assert error_records[0].getMessage() == "on_ingest_complete callback failed"

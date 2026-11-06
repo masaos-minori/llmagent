@@ -15,6 +15,7 @@ import pytest
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_splitter import ChunkSplitter
 from rag.models_data import ChunkDocument
+from rag.utils import normalize_unicode
 
 
 def _make_splitter(md_index_enable: bool = False) -> ChunkSplitter:
@@ -23,11 +24,11 @@ def _make_splitter(md_index_enable: bool = False) -> ChunkSplitter:
     return splitter
 
 
-def _make_chunk_doc(url: str, content: str = "") -> ChunkDocument:
+def _make_chunk_doc(url: str, content: str = "", lang: str = "en") -> ChunkDocument:
     return ChunkDocument(
         url=url,
         title="",
-        lang="en",
+        lang=lang,
         content=content,
         code_blocks=[],
         etag=None,
@@ -942,3 +943,154 @@ class TestForceRechunkPrune:
         before = [p.name for p in _chunk_series(tmp_path / "chunk", "page")]
         assert splitter.process_file(src, force=False) == 0
         assert [p.name for p in _chunk_series(tmp_path / "chunk", "page")] == before
+
+
+# ── TestEnglishMarkdownCharacterization ────────────────────────────────────────
+
+_EN_MD_CHAR_CONTENT = (
+    "# Alpha Section\n"
+    "This fitting section is comfortably longer than the minimum chunk size.\n\n"
+    "## Beta Oversized Section\n"
+    + "The oversized section contains many sentences so that it exceeds the snippet maximum. "
+    * 8
+    + "\n\n### Tiny\n"
+    "Too small to keep.\n\n"
+    "## Gamma Fit\n"
+    "Another fitting section that stays comfortably within the snippet maximum limit.\n"
+)
+
+_EN_MD_CHAR_BASELINE: list[tuple[str, str, str | None]] = [
+    (
+        "text",
+        "# Alpha Section\n"
+        "This fitting section is comfortably longer than the minimum chunk size.",
+        "",
+    ),
+    (
+        "text",
+        "## Beta Oversized Section oversized section contains sentences exceeds snippet maximum. "
+        "oversized section contains sentences exceeds snippet maximum. "
+        "oversized section contains sentences exceeds snippet maximum. "
+        "oversized section contains sentences exceeds snippet maximum. "
+        "oversized section contains sentences exceeds snippet maximum.",
+        "",
+    ),
+    (
+        "text",
+        "oversized section contains sentences exceeds snippet maximum. "
+        "oversized section contains sentences exceeds snippet maximum. "
+        "oversized section contains sentences exceeds snippet maximum.",
+        "",
+    ),
+    (
+        "text",
+        "## Gamma Fit\n"
+        "Another fitting section that stays comfortably within the snippet maximum limit.",
+        "",
+    ),
+]
+
+
+class TestEnglishMarkdownCharacterization:
+    """REQ-003: pin today's English .md heading chunk output byte-identical (behavior lock)."""
+
+    def _write_md_crawl(self, tmp_path: Path, lang: str, content: str) -> None:
+        payload = dict(_CRAWL_PAYLOAD_BASE)
+        payload["url"] = "http://example.com/docs/README.md"
+        payload["lang"] = lang
+        payload["content"] = content
+        payload["code_blocks"] = []
+        (tmp_path / "rag-src" / "readme.json").write_bytes(orjson.dumps(payload))
+
+    def _split(self, tmp_path: Path) -> list[tuple[str, str, str | None]]:
+        splitter = _make_io_splitter(tmp_path)
+        return splitter._build_chunk_list(
+            _make_chunk_doc("http://example.com/README.md", _EN_MD_CHAR_CONTENT)
+        )
+
+    def test_english_markdown_snapshot_is_byte_identical(self, tmp_path: Path) -> None:
+        assert self._split(tmp_path) == _EN_MD_CHAR_BASELINE
+
+    def test_english_markdown_normalized_content_is_empty(self, tmp_path: Path) -> None:
+        assert all(norm == "" for _, _, norm in self._split(tmp_path))
+
+    def test_english_markdown_sub_min_chunk_section_is_dropped(
+        self, tmp_path: Path
+    ) -> None:
+        assert all("Tiny" not in content for _, content, _ in self._split(tmp_path))
+
+    def test_english_markdown_strategy_pin_is_heading(self, tmp_path: Path) -> None:
+        splitter = _make_io_splitter(tmp_path)
+        self._write_md_crawl(tmp_path, "en", _EN_MD_CHAR_CONTENT)
+        assert splitter.process_all(force=True) >= 1
+        chunk_files = sorted((tmp_path / "rag-src" / "chunk").glob("*.json"))
+        assert chunk_files
+        for cf in chunk_files:
+            data = orjson.loads(cf.read_bytes())
+            assert data["chunking_strategy"] == "heading"
+
+
+# ── TestJapaneseMarkdownChunking ───────────────────────────────────────────────
+
+_JA_MD_FIT_SECTION = (
+    "# First Section\n"
+    "これは日本語の見出し内セクションです。固定長で、四十字を超える十分な本文を含みます。"
+)
+_JA_MD_OVERSIZED_BODY = (
+    "これは日本語の過大セクションです。文を繰り返して六百字を超えます。" * 25
+)
+_JA_MD_OVERSIZED_SECTION = "## Second Section\n" + _JA_MD_OVERSIZED_BODY
+_JA_MD_CONTENT = _JA_MD_FIT_SECTION + "\n\n" + _JA_MD_OVERSIZED_SECTION
+
+
+class TestJapaneseMarkdownChunking:
+    """REQ-004: ja .md sources must follow Japanese chunking semantics with normalized pairs."""
+
+    def _split(
+        self, tmp_path: Path
+    ) -> tuple[ChunkSplitter, list[tuple[str, str, str | None]]]:
+        splitter = _make_io_splitter(tmp_path)
+        triples = splitter._build_chunk_list(
+            _make_chunk_doc("http://example.com/README.md", _JA_MD_CONTENT, lang="ja")
+        )
+        return splitter, triples
+
+    def test_ja_oversized_section_is_segmented_by_japanese_rules(
+        self, tmp_path: Path
+    ) -> None:
+        splitter, triples = self._split(tmp_path)
+        expected = splitter._chunk_japanese(_JA_MD_OVERSIZED_SECTION)
+        assert len(expected) > 1
+        assert triples[1:] == [("text", orig, norm) for orig, norm in expected]
+
+    def test_ja_oversized_chunks_carry_non_empty_normalized(
+        self, tmp_path: Path
+    ) -> None:
+        _, triples = self._split(tmp_path)
+        assert triples[1:]
+        assert all(norm for _, _, norm in triples[1:])
+
+    def test_ja_in_section_stays_whole_but_carries_normalized(
+        self, tmp_path: Path
+    ) -> None:
+        splitter, triples = self._split(tmp_path)
+        expected_norm = splitter._normalize_ja_sentence(
+            re.sub(r"\n{3,}", "\n\n", normalize_unicode(_JA_MD_FIT_SECTION)).strip()
+        )
+        assert expected_norm
+        assert triples[0] == ("text", _JA_MD_FIT_SECTION, expected_norm)
+
+    def test_ja_markdown_strategy_pin_is_heading(self, tmp_path: Path) -> None:
+        splitter = _make_io_splitter(tmp_path)
+        payload = dict(_CRAWL_PAYLOAD_BASE)
+        payload["url"] = "http://example.com/docs/README.md"
+        payload["lang"] = "ja"
+        payload["content"] = _JA_MD_CONTENT
+        payload["code_blocks"] = []
+        (tmp_path / "rag-src" / "readme.json").write_bytes(orjson.dumps(payload))
+        assert splitter.process_all(force=True) >= 1
+        chunk_files = sorted((tmp_path / "rag-src" / "chunk").glob("*.json"))
+        assert chunk_files
+        for cf in chunk_files:
+            data = orjson.loads(cf.read_bytes())
+            assert data["chunking_strategy"] == "heading"
