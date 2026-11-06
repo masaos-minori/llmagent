@@ -103,3 +103,22 @@ Follow the Implementation Intent; do not add a conversion path. Run the persiste
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261106-125142
 - **Related target files**: `scripts/shared/db_migrations.py`, `scripts/db/migrations_workflow.py`, `scripts/eventbus/migrations.py`, `scripts/eventbus/migrate.py`, `scripts/db/schema_sql.py`, `scripts/eventbus/schema.sql`, `tests/eventbus/test_eventbus_migrations.py`, `tests/db/test_create_schema.py`
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-07.
+
+- The four migration modules (`db_migrations.py`, `migrations_workflow.py`, `eventbus/migrations.py`, `eventbus/migrate.py`) plus `tests/eventbus/test_eventbus_migrations.py` and `tests/db/test_create_schema.py` all exist. — Evidence: `Explicit in code` — Confidence: High
+- `schema_migrations` appears in 20 files and `dbmig001` in 16 files under `scripts/`, `tests/`, `tools/`, `docs/` (excl. `done/`); `verify_backup_by_path` is referenced in one file (`scripts/db/migrations_workflow.py`). — Evidence: `Operationally observed` (rg) — Confidence: High
+- Scope as a single issue is justified: every listed change touches the database lifecycle (migration framework, ledger, schema, startup). Dependencies (`004` after this; parallel with `002`) are consistent with the other three issues.
+- No factual conflict found. The Unresolved Questions (Workflow schema-version metadata meaning, `verify_backup_by_path` caller search) remain appropriately open.
+
+Verdict: accepted as filed.
+
+## Content Analysis
+
+- Type: implementation (removes migration framework, ledger, CLIs, and upgrade paths; enforces current-schema-only startup).
+- Pipeline path: issue -> plan -> implementation procedure -> code. Owner: engineer.
+- Scope: `scripts/shared/db_migrations.py`, `scripts/db/migrations_workflow.py`, `scripts/eventbus/migrations.py`, `scripts/eventbus/migrate.py`, `scripts/db/schema_sql.py`, `scripts/eventbus/schema.sql`, `tests/eventbus/test_eventbus_migrations.py`, `tests/db/test_create_schema.py`.
+- Dependency: first of the four (initiative H-1); must complete before `004`, runs parallel with `002`.
+- Open item before planning: meaning of Workflow schema-version metadata; whether a non-migration caller of `verify_backup_by_path()` exists.

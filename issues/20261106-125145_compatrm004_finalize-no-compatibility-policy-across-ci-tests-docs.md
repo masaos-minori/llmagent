@@ -86,3 +86,22 @@ Wait for the three implementation issues to land; then change the checker config
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261106-125145
 - **Related target files**: `tools/check_compat_shims.py`, `tools/compat_exceptions.toml`, `tests/tools/test_check_compat_shims.py`, `.pre-commit-config.yaml`, `.github/workflows/backward-compat-check.yml`
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-07.
+
+- The checker `tools/check_compat_shims.py` exposes `--check-removed-names`, `--check-doc-symbols`, and `--allowlist`; exceptions live in `tools/compat_exceptions.toml` naming `mcp-00-document-guide`, `mcp-07-tool-schema-export-policy`, `db-03-migration-and-scaling`, `check-compat-shims-source`, and `symbol_stage_allowance`. — Evidence: `Explicit in code` — Confidence: High
+- Pre-commit (`.pre-commit-config.yaml`) and CI (`.github/workflows/backward-compat-check.yml`) invoke the checker; `docs/22_mcp/mcp_00_document-guide.md` and `mcp_07_tool_schema_export_policy.md` exist; `scripts/db/workflow_schema.py` is absent. — Evidence: `Explicit in code` / `Operationally observed` — Confidence: High
+- Correctly positioned as the final, dependent issue: it must run after `001`/`002`/`003` establish the deleted-symbol set so the blocking checks target the final state.
+- No factual conflict found. Unresolved Questions (`symbol_stage_allowance` necessity, possible task-runner config) remain appropriately open.
+
+Verdict: accepted as filed.
+
+## Content Analysis
+
+- Type: implementation + docs + CI (finalizes the no-compatibility policy: adds blocking checks for deleted symbols, rewrites active docs, restructures regression tests around rejection).
+- Pipeline path: issue -> plan -> implementation procedure -> code. Owner: engineer.
+- Scope: `tools/check_compat_shims.py`, `tools/compat_exceptions.toml`, `tests/tools/test_check_compat_shims.py`, `.pre-commit-config.yaml`, `.github/workflows/backward-compat-check.yml`, active docs, runbooks.
+- Dependency: last of the four (initiative M-2); depends on `001`/`002`/`003` establishing the deleted-symbol set so the blocking checks target the final state.
+- Open item before planning: whether `symbol_stage_allowance` is still needed; possible task-runner config.

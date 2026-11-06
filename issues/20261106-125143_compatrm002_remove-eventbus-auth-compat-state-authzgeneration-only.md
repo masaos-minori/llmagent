@@ -82,3 +82,22 @@ Make the production and test changes in one change so no intermediate state has 
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261106-125143
 - **Related target files**: `scripts/eventbus/auth.py`, `scripts/eventbus/app.py`, `scripts/eventbus/config.py`, `tests/eventbus/eventbus_helpers.py`
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-07.
+
+- `_TOKEN_PRINCIPAL_MAP` is referenced in 11 files and `_populate_token_maps` in 12 files under `scripts/`, `tests/`, `tools/`, `docs/` (excl. `done/`). — Evidence: `Operationally observed` (rg) — Confidence: High
+- `principal_map()` is defined in `tests/eventbus/eventbus_helpers.py`; `AuthzGeneration` and `current_generation()` live in `scripts/eventbus/auth.py`. — Evidence: `Explicit in code` — Confidence: High
+- Framed correctly as one atomic change: production alias removal, test-helper redesign, authentication-test updates, function rename, documentation correction, and removed-name protection must land together or an intermediate state has two sources of truth.
+- No factual conflict found. The only Unresolved Question (final name of the renamed generation-building function) is appropriately left open.
+
+Verdict: accepted as filed.
+
+## Content Analysis
+
+- Type: implementation (removes production compat alias `_TOKEN_PRINCIPAL_MAP`, redesigns the test helper, renames the generation-building function).
+- Pipeline path: issue -> plan -> implementation procedure -> code. Owner: engineer.
+- Scope: `scripts/eventbus/auth.py`, `scripts/eventbus/app.py`, `scripts/eventbus/config.py`, `tests/eventbus/eventbus_helpers.py`.
+- Dependency: second of the four (initiative H-2); parallel with `001`/`003`; must land atomically with `004`'s removed-name protection.
+- Open item before planning: final name of the renamed generation-building function.

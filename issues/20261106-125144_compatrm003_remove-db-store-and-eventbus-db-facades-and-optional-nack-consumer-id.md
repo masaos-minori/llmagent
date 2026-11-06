@@ -79,3 +79,22 @@ Migrate all callers in the same change that deletes the facades; do not add re-e
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261106-125144
 - **Related target files**: `scripts/db/store.py`, `scripts/eventbus/db.py`, `scripts/eventbus/delivery_repo.py`
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-07.
+
+- `scripts/db/store.py` and `scripts/eventbus/db.py` exist as re-export facades. — Evidence: `Explicit in code` — Confidence: High
+- Combined facade importers total ~20 files: `eventbus.db` is imported by 18 files (7 production modules in `scripts/eventbus/` plus 11 tests); `db.store` is imported only by `scripts/db/store.py` itself and one test that imports it via `exec(...)`. — Evidence: `Operationally observed` (rg) — Confidence: High
+- Nuance for the implementer: `db.store` has no live production caller (its only references are its own docstring examples and a test `exec`), so removing it is near-zero risk; `eventbus.db` removal touches 7 production route/app modules and must be migrated carefully before deleting the facade.
+- `nack_event()` takes `consumer_id: str | None = None` with the internal-only comment, matching the claim. — Evidence: `Explicit in code` — Confidence: High
+
+Verdict: accepted, with the importer split noted above for risk ordering.
+
+## Content Analysis
+
+- Type: implementation (removes `db.store`/`eventbus.db` re-export facades and the optional `consumer_id` NACK form; tightens call contracts).
+- Pipeline path: issue -> plan -> implementation procedure -> code. Owner: engineer.
+- Scope: `scripts/db/store.py`, `scripts/eventbus/db.py`, `scripts/eventbus/delivery_repo.py`; plus ~18 `eventbus.db` importers and the `db.store` docstring/test references.
+- Dependency: third of the four (initiative M-1); parallel with `001`/`002`; feeds the deleted-symbol set consumed by `004`.
+- Open item before planning: `eventbus.db` removal order — migrate the 7 production route/app modules before deleting the facade.
