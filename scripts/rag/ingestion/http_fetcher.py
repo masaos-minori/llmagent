@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 if TYPE_CHECKING:
-    pass
+    from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +71,17 @@ class HttpFetcher:
                     await asyncio.sleep(min(2**i, 10))
         return None
 
-    def get_conditional_headers(self, url: str) -> dict[str, str]:
-        """Return If-None-Match/If-Modified-Since headers from the cached document."""
+    def get_conditional_headers(
+        self,
+        url: str,
+        db: SQLiteHelper | None = None,
+    ) -> dict[str, str]:
+        """Return If-None-Match/If-Modified-Since headers from the cached document.
+
+        db: optional session-scoped SQLiteHelper (already opened with
+        row_factory=True) to reuse instead of opening a per-call connection
+        (crawl004). When None, the per-call open path runs unchanged.
+        """
         from db.helper import SQLiteHelper
 
         if not self._rag_db_path:
@@ -84,16 +93,17 @@ class HttpFetcher:
                 )
                 self._logged_empty_path = True
             return {}
+        query = "SELECT etag, last_modified FROM documents WHERE url = ?"
         try:
-            with SQLiteHelper(
-                db_path=self._rag_db_path,
-                sqlite_timeout=self._sqlite_timeout,
-                sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
-            ).open(row_factory=True) as db:
-                rows = db.fetchall(
-                    "SELECT etag, last_modified FROM documents WHERE url = ?",
-                    (url,),
-                )
+            if db is not None:
+                rows = db.fetchall(query, (url,))
+            else:
+                with SQLiteHelper(
+                    db_path=self._rag_db_path,
+                    sqlite_timeout=self._sqlite_timeout,
+                    sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
+                ).open(row_factory=True) as local_db:
+                    rows = local_db.fetchall(query, (url,))
         except (
             sqlite3.OperationalError,
             sqlite3.DatabaseError,

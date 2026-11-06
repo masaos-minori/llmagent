@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 if TYPE_CHECKING:
-    pass
+    from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,12 @@ class CrawlOrchestrator:
         self._max_depth: int = int(config.get("max_depth", 0))
         self._concurrency: int = int(config.get("crawl_concurrency", 3))
         self._max_pages: int = int(config.get("max_pages", 500))
+        # Session-scoped SQLite connection settings (crawl004); parsed like HttpFetcher.
+        self._rag_db_path: str = str(config.get("rag_db_path", ""))
+        self._sqlite_timeout: int = int(config.get("sqlite_timeout", 30))
+        self._sqlite_busy_timeout_ms: int = int(
+            config.get("sqlite_busy_timeout_ms", 30000)
+        )
 
     async def crawl_site(self, start_url: str, hint_lang: str) -> None:
         """Async BFS crawl within the same origin up to max_depth levels via asyncio.Semaphore concurrency and FIRST_COMPLETED loop."""
@@ -86,31 +92,47 @@ class CrawlOrchestrator:
             timeout=self._fetch_timeout,
             follow_redirects=True,
         ) as client:
-            while not queue.empty() or pending:
-                if len(visited) >= self._max_pages:
-                    logger.warning(
-                        "Reached max_pages=%s; stopping BFS at %s",
-                        self._max_pages,
+            # One SQLite connection per crawl_site session (crawl004): opened here,
+            # reused by every conditional-header lookup, closed on any exit path.
+            session_db: SQLiteHelper | None = None
+            if self._rag_db_path:
+                from db.helper import SQLiteHelper
+
+                session_db = SQLiteHelper(
+                    db_path=self._rag_db_path,
+                    sqlite_timeout=self._sqlite_timeout,
+                    sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
+                ).open(reuse_connection=True, row_factory=True)
+            try:
+                while not queue.empty() or pending:
+                    if len(visited) >= self._max_pages:
+                        logger.warning(
+                            "Reached max_pages=%s; stopping BFS at %s",
+                            self._max_pages,
+                            start_url,
+                        )
+                        break
+                    pending |= self._drain_queue_to_tasks(
+                        queue,
+                        visited,
                         start_url,
+                        hint_lang,
+                        client,
+                        sem,
+                        session_db,
                     )
-                    break
-                pending |= self._drain_queue_to_tasks(
-                    queue,
-                    visited,
-                    start_url,
-                    hint_lang,
-                    client,
-                    sem,
-                )
-                if not pending:
-                    break
-                done, pending = await asyncio.wait(
-                    pending,
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-                for t in done:
-                    if exc := t.exception():
-                        logger.error("Crawl task error: %s", exc)
+                    if not pending:
+                        break
+                    done, pending = await asyncio.wait(
+                        pending,
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    for t in done:
+                        if exc := t.exception():
+                            logger.error("Crawl task error: %s", exc)
+            finally:
+                if session_db is not None:
+                    session_db.close()
 
     def _drain_queue_to_tasks(
         self,
@@ -120,6 +142,7 @@ class CrawlOrchestrator:
         hint_lang: str,
         client: httpx.AsyncClient,
         sem: asyncio.Semaphore,
+        session_db: SQLiteHelper | None,
     ) -> set[asyncio.Task]:
         """Dequeue all pending URLs and create fetch tasks for unvisited ones."""
         tasks: set[asyncio.Task] = set()
@@ -138,6 +161,7 @@ class CrawlOrchestrator:
                         queue,
                         client,
                         sem,
+                        session_db,
                     ),
                 ),
             )
@@ -152,13 +176,16 @@ class CrawlOrchestrator:
         queue: asyncio.Queue,
         client: httpx.AsyncClient,
         sem: asyncio.Semaphore,
+        session_db: SQLiteHelper | None,
     ) -> None:
         """Fetch, extract, save one URL and enqueue its outbound links."""
         async with sem:
             logger.info("[depth=%s] %s", depth, url)
             await asyncio.sleep(self._crawl_delay)
 
-            extra_headers = self._http_fetcher.get_conditional_headers(url)
+            extra_headers = self._http_fetcher.get_conditional_headers(
+                url, db=session_db
+            )
             result = await self._http_fetcher.fetch_html(url, client, extra_headers)
             if result is None:
                 return
