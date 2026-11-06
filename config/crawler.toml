@@ -19,7 +19,7 @@ min_chunk = 40
 fetch_retry = 3
 fetch_timeout = 15
 crawl_concurrency = 3
-# NOTE: max_pages default (500 in code, 200 in TOML) also lacks measured justification
+# NOTE: max_pages default (200 in both code and TOML) also lacks measured justification
 max_pages = 200
 
 skip_nofollow = true

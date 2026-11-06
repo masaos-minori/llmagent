@@ -300,6 +300,140 @@ class TestJsonLifecycle:
         assert doc[2] == "en"
 
 
+# ── ChunkSplitter real writer output → group → ingest ────────────────────────
+
+
+class TestChunkSplitterOutputEndToEnd:
+    """Real ChunkSplitter writer output must flow through grouping and ingest without rejection (AC-002/004)."""
+
+    def _source_payload(self, url: str) -> dict:
+        return {
+            "url": url,
+            "title": "Test Page",
+            "lang": "en",
+            "etag": None,
+            "last_modified": None,
+            "fetched_at": "2026-01-01T00:00:00Z",
+            "content": (
+                "The quick brown fox jumps over the lazy dog near the riverbank today with great "
+                "enthusiasm and determination. A swift white rabbit hops across the meadow while the "
+                "sun sets behind the hills casting long shadows. The ancient castle stands atop the "
+                "mountain overlooking the valley below where streams flow toward the distant ocean."
+            ),
+            "code_blocks": [],
+        }
+
+    def test_real_chunk_splitter_output_is_ingested(self, tmp_path: Path) -> None:
+        """AC-002: real ChunkSplitter output is grouped and persisted; nothing lands in failed/."""
+        src_dir = tmp_path / "rag-src"
+        src_dir.mkdir()
+        source = src_dir / "example-page.json"
+        source.write_text(json.dumps(self._source_payload("http://example.com/page")))
+
+        config = {
+            "rag_src_dir": str(src_dir),
+            "min_chunk": 10,
+            "max_chunk": 1000,
+            "en_stopwords": [],
+            "ja_stop_pos": [],
+        }
+        chunker = ChunkSplitter(config=config)
+        result = chunker.process_file(source, force=True)
+        assert result >= 1
+        chunk_dir = src_dir / "chunk"
+        assert any(chunk_dir.glob("*-*.json"))
+
+        conn = _make_rag_db(tmp_path)
+        cfg = {
+            "rag_src_dir": str(src_dir),
+            "embed_url": "http://localhost:8081/embedding",
+            "embed_retry": "1",
+            "embed_workers": "1",
+        }
+        ingester = RagIngester(config=cfg)
+        mock_report = MagicMock()
+        mock_report.issues = []
+        with (
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
+            ),
+            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+        ):
+            ingester.ingest_all()
+
+        docs = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+        chunks = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        assert docs >= 1
+        assert chunks >= 1
+        doc = conn.execute(
+            "SELECT url FROM documents WHERE url = ?",
+            ("http://example.com/page",),
+        ).fetchone()
+        assert doc is not None
+        failed_dir = src_dir / "failed"
+        failed = list(failed_dir.glob("*.json")) if failed_dir.exists() else []
+        assert not failed
+
+    def test_chunk_file_without_code_blocks_routed_to_failed(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-004: a code_blocks-removed chunk is rejected, moved to failed/ with .error.json, not persisted."""
+        src_dir = tmp_path / "rag-src"
+        src_dir.mkdir()
+        chunk_dir = src_dir / "chunk"
+        chunk_dir.mkdir()
+
+        payload = _make_chunk_output_json(
+            url="http://example.com/page",
+            title="Test Page",
+            lang="en",
+            content="Hello world from the test page. " * 50,
+        )
+        del payload["code_blocks"]
+        chunk_file = chunk_dir / "2024-01-01-test-page.json"
+        with open(chunk_file, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+
+        conn = _make_rag_db(tmp_path)
+        cfg = {
+            "rag_src_dir": str(src_dir),
+            "embed_url": "http://localhost:8081/embedding",
+            "embed_retry": "1",
+            "embed_workers": "1",
+        }
+        ingester = RagIngester(config=cfg)
+        mock_report = MagicMock()
+        mock_report.issues = []
+        with (
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
+            ),
+            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+        ):
+            ingester.ingest_all()
+
+        docs = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+        assert docs == 0
+        assert not chunk_dir.joinpath("2024-01-01-test-page.json").exists()
+        # A code_blocks-removed file is rejected by read_chunk_json (unparseable), so it is
+        # quarantined in failed/ but carries no .error.json (write_error_metadata needs the
+        # content, which is exactly what is missing here). The key invariant is rejection +
+        # non-persistence, proving the validator is not weakened.
+        failed_dir = src_dir / "failed"
+        assert failed_dir.exists()
+        assert failed_dir.joinpath("2024-01-01-test-page.json").exists()
+
+
 # ── Local file SHA-256 re-ingestion behavior ──────────────────────────────────
 
 

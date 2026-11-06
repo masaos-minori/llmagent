@@ -233,7 +233,7 @@ class TestMaxPagesBoundaryCondition:
         assert "scheduling budget reached" in caplog.text
 
     def test_max_pages_fallback_default(self, mock_config):
-        """max_pages fallback default is 200 (matching deployed config) when absent."""
+        """Both consumers default max_pages to 200 (matching deployed config) when absent."""
         config_without_max_pages = {
             k: v for k, v in mock_config.items() if k != "max_pages"
         }
@@ -241,6 +241,7 @@ class TestMaxPagesBoundaryCondition:
         crawler = WebCrawler(config=config_without_max_pages)
 
         assert crawler._max_pages == 200
+        assert crawler.orchestrator._max_pages == 200
 
 
 class TestBfsQueueOrdering:

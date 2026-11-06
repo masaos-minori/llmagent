@@ -100,10 +100,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend companion test `test_max_pages_fallback_default` with the orchestrator assertion; confirm expected RED (Plan Phase 1) | Pending | — | — | Release unit "fallback alignment": intentionally RED until step 2 |
-| 2 | Change fallback literal 500 → 200 in `CrawlOrchestrator.__init__` (Plan Phase 2, REQ-001) | Pending | — | — | |
-| 3 | Re-run companion test + `tests/rag/ingestion`: all green | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) incl. radon/vulture baselines and diff-cover ≥90% | Pending | — | — | |
+| 1 | Extend companion test `test_max_pages_fallback_default` with the orchestrator assertion; confirm expected RED (Plan Phase 1) | Completed | 2026-11-07 | 2026-11-07 | Release unit "fallback alignment": intentionally RED until step 2 |
+| 2 | Change fallback literal 500 → 200 in `CrawlOrchestrator.__init__` (Plan Phase 2, REQ-001) | Completed | 2026-11-07 | 2026-11-07 | — |
+| 3 | Re-run companion test + `tests/rag/ingestion`: all green | Completed | 2026-11-07 | 2026-11-07 | — |
+| 4 | Run the validation sequence (`rules/toolchain.md`) incl. radon/vulture baselines and diff-cover ≥90% | Completed | 2026-11-07 | 2026-11-07 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

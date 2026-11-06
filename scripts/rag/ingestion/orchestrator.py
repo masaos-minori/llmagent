@@ -86,7 +86,7 @@ class CrawlOrchestrator:
         self._crawl_delay: float = float(config.get("crawl_delay", 0))
         self._max_depth: int = int(config.get("max_depth", 0))
         self._concurrency: int = int(config.get("crawl_concurrency", 3))
-        self._max_pages: int = int(config.get("max_pages", 500))
+        self._max_pages: int = int(config.get("max_pages", 200))
         # Session-scoped SQLite connection settings (crawl004); parsed like HttpFetcher.
         self._rag_db_path: str = str(config.get("rag_db_path", ""))
         self._sqlite_timeout: int = int(config.get("sqlite_timeout", 30))

@@ -293,8 +293,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: RED tests (REQ-002, REQ-003) | In Progress | — | — |  |
-| 2 | Phase 2: Producer fix (REQ-001) | In Progress | — | — |  |
+| 1 | Phase 1: RED tests (REQ-002, REQ-003) | Completed | — | 20261107-081023 |  |
+| 2 | Phase 2: Producer fix (REQ-001) | Completed | — | 20261107-081023 |  |
 | 3 | Phase 3: Gates + deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
@@ -305,8 +305,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261107-054235_01_scripts_rag_ingestion_chunk_splitter_py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261107-054235_03_tests_rag_ingestion_test_rag_ingestion_pipeline_py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-054235_01_scripts_rag_ingestion_chunk_splitter_py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261107-054235_03_tests_rag_ingestion_test_rag_ingestion_pipeline_py.md | 1 | Procedure | Completed | — | — |
 
 Quality self-assessment (Step 9): all section claims trace to the Traceability table; assumptions separated
 (A-001..A-003); UNK-01 resolved with source evidence (flat top-level key set); remaining operational

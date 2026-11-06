@@ -333,6 +333,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             "chunk_type": chunk_type,
             "content": chunk_content,
             "normalized_content": norm_content or None,
+            "code_blocks": [],
         }
 
     def _collect_targets(self, target: Path | None) -> list[Path]:

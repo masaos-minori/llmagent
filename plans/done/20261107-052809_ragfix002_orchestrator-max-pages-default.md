@@ -261,8 +261,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: RED fallback test extension (REQ-002) | In Progress | — | — |  |
-| 2 | Phase 2: Fallback literal + TOML comment (REQ-001, REQ-003) | In Progress | — | — |  |
+| 1 | Phase 1: RED fallback test extension (REQ-002) | Completed | — | 20261107-081023 |  |
+| 2 | Phase 2: Fallback literal + TOML comment (REQ-001, REQ-003) | Completed | — | 20261107-081023 |  |
 | 3 | Phase 3: Gates + deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
@@ -273,8 +273,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261107-055553_01_scripts_rag_ingestion_orchestrator_py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261107-055553_03_config_crawler_toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-055553_01_scripts_rag_ingestion_orchestrator_py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261107-055553_03_config_crawler_toml.md | 2 | Procedure | Completed | — | — |
 
 Quality self-assessment (Step 9): claims trace to the source reads, scans, and gate runs recorded above;
 assumptions separated (A-001..A-003); no open blocking unknown (UNK-01 resolved to "no evidence of a

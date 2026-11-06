@@ -69,8 +69,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the NOTE comment line in config/crawler.toml per Method (Plan Phase 2, REQ-003) | Pending | — | — | Release unit "fallback alignment": land with the seq01 literal change |
-| 2 | Verify per Validation plan: grep shows value line unchanged and no "500 in code" claim | Pending | — | — | |
+| 1 | Rewrite the NOTE comment line in config/crawler.toml per Method (Plan Phase 2, REQ-003) | Completed | 2026-11-07 | 2026-11-07 | Release unit "fallback alignment": land with the seq01 literal change |
+| 2 | Verify per Validation plan: grep shows value line unchanged and no "500 in code" claim | Completed | 2026-11-07 | 2026-11-07 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

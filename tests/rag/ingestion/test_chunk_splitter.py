@@ -14,6 +14,7 @@ import orjson
 import pytest
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_splitter import ChunkSplitter
+from rag.ingestion.pipeline_utils import read_chunk_json
 from rag.models_data import ChunkDocument
 from rag.utils import normalize_unicode
 
@@ -634,6 +635,52 @@ class TestFetchedAtPropagation:
         for cf in page_b_files:
             data = orjson.loads(cf.read_bytes())
             assert data["fetched_at"] == "2026-03-01T00:00:00Z"
+
+
+# ── TestChunkPayloadKeyContract ───────────────────────────────────────────────
+
+
+class TestChunkPayloadKeyContract:
+    """The real ChunkSplitter writer output must satisfy read_chunk_json's key contract."""
+
+    _EXPECTED_KEYS = {
+        "schema_version",
+        "artifact_type",
+        "created_by",
+        "url",
+        "content",
+        "title",
+        "lang",
+        "code_blocks",
+        "etag",
+        "last_modified",
+        "normalized_content",
+        "chunk_index",
+        "source_file",
+        "chunk_type",
+        "chunking_strategy",
+        "fetched_at",
+    }
+
+    def _write_crawl_json(self, tmp_path: Path, payload: dict) -> Path:
+        stem = Path(payload["url"]).name.replace("/", "_").replace(".", "_")
+        path = tmp_path / "rag-src" / f"{stem}.json"
+        path.write_bytes(orjson.dumps(payload))
+        return path
+
+    def test_written_chunk_payload_satisfies_key_contract(self, tmp_path: Path) -> None:
+        """Every chunk file written by the real writer must pass read_chunk_json (AC-001/003)."""
+        splitter = _make_io_splitter(tmp_path)
+        self._write_crawl_json(tmp_path, _CRAWL_WITH_TEXT_AND_CODE)
+        splitter.process_all(force=True)
+        chunk_dir = tmp_path / "rag-src" / "chunk"
+        chunk_files = sorted(chunk_dir.glob("*.json"))
+        assert chunk_files
+        for cf in chunk_files:
+            data = orjson.loads(cf.read_bytes())
+            assert set(data.keys()) == self._EXPECTED_KEYS
+            parsed = read_chunk_json(cf)
+            assert parsed.code_blocks == []
 
 
 def _make_crawl_json(

@@ -112,10 +112,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add companion pin test `TestChunkPayloadKeyContract` (new) in tests/rag/ingestion/test_chunk_splitter.py; confirm expected RED (Plan Phase 1) | Pending | — | — | Release unit "chunk-payload contract closure": intentionally RED until step 2 |
-| 2 | Add `"code_blocks": []` to `_build_chunk_payload` payload dict (Plan Phase 2, REQ-001) | Pending | — | — | |
-| 3 | Re-run companion + `tests/rag/ingestion` suite: all green | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) incl. radon/vulture baselines and diff-cover ≥90% | Pending | — | — | |
+| 1 | Add companion pin test `TestChunkPayloadKeyContract` (new) in tests/rag/ingestion/test_chunk_splitter.py; confirm expected RED (Plan Phase 1) | Completed | 2026-11-07 | 2026-11-07 | Release unit "chunk-payload contract closure": intentionally RED until step 2 |
+| 2 | Add `"code_blocks": []` to `_build_chunk_payload` payload dict (Plan Phase 2, REQ-001) | Completed | 2026-11-07 | 2026-11-07 | — |
+| 3 | Re-run companion + `tests/rag/ingestion` suite: all green | Completed | 2026-11-07 | 2026-11-07 | — |
+| 4 | Run the validation sequence (`rules/toolchain.md`) incl. radon/vulture baselines and diff-cover ≥90% | Completed | 2026-11-07 | 2026-11-07 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

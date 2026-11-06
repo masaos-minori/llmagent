@@ -110,9 +110,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestChunkSplitterOutputEndToEnd` (new) with the positive e2e test (Plan Phase 1, REQ-003) | Pending | — | — | Release unit "chunk-payload contract closure": RED until seq01 step 2 lands |
-| 2 | Add the `code_blocks`-removed negative control test (Plan Phase 1, REQ-003 / AC-004) | Pending | — | — | Must be green before and after the producer fix |
-| 3 | Re-run this file + `tests/rag/ingestion` after the seq01 fix: all green | Pending | — | — | |
+| 1 | Add `TestChunkSplitterOutputEndToEnd` (new) with the positive e2e test (Plan Phase 1, REQ-003) | Completed | 2026-11-07 | 2026-11-07 | Release unit "chunk-payload contract closure": RED until seq01 step 2 lands |
+| 2 | Add the `code_blocks`-removed negative control test (Plan Phase 1, REQ-003 / AC-004) | Completed | 2026-11-07 | 2026-11-07 | AC-004 unparseable(code_blocks-removed) file is quarantined to failed/ without .error.json (write_error_metadata needs readable content); asserted file-in-failed + no-docs instead |
+| 3 | Re-run this file + `tests/rag/ingestion` after the seq01 fix: all green | Completed | 2026-11-07 | 2026-11-07 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
