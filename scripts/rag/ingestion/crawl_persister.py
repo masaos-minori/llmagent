@@ -92,10 +92,16 @@ class CrawlPersister:
         return 1
 
     def make_crawl_filepath(self, url: str) -> Path:
-        """Generate an output path in yyyymmddhhmmss-{slug}.json format."""
+        """Generate a unique output path in yyyymmddhhmmss-{slug}-{hash8}.json format.
+
+        The trailing 8-hex-char SHA-256 of the full canonical URL keeps the path
+        unique per URL even when two URLs share an 80-character-or-longer common
+        prefix and are saved within the same wall-clock second.
+        """
         ts = datetime.now().strftime("%Y%m%d%H%M%S")
         slug = url_to_slug(url)
-        return self._rag_src_dir / f"{ts}-{slug}.json"
+        hash8 = hashlib.sha256(url.encode("utf-8")).hexdigest()[:8]
+        return self._rag_src_dir / f"{ts}-{slug}-{hash8}.json"
 
     def save_http(
         self,

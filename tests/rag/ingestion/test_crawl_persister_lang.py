@@ -11,6 +11,7 @@ from pathlib import Path
 
 import orjson
 import pytest
+from rag.ingestion.crawl_persister import CrawlPersister
 from rag.ingestion.crawler import WebCrawler
 
 # Japanese fixture >= 100 chars so detect_lang() is deterministic (CJK ratio >= threshold).
@@ -27,6 +28,14 @@ _ENGLISH_FIXTURE = (
     "result from the CJK-ratio heuristic used by the crawler."
 )
 _SHORT_FIXTURE = "too short"
+
+# Two distinct URLs sharing an 80-character-or-longer common prefix. Their
+# url_to_slug() outputs collapse to the same 80-char label, so without a
+# per-URL uniqueness component they would collide within the same wall-clock
+# second. The trailing /page-a vs /page-b suffix sits past the truncation point.
+_LONG_PREFIX = "https://example.com/" + "x" * 100
+_COLLIDING_URL_A = _LONG_PREFIX + "/page-a"
+_COLLIDING_URL_B = _LONG_PREFIX + "/page-b"
 
 
 def _config(tmp_path: Path) -> dict:
@@ -111,3 +120,34 @@ class TestCrawlFilePlusAutoDispatch:
         assert len(files) == 1
         payload = orjson.loads(files[0].read_bytes())
         assert payload["lang"] in {"en", "ja"}
+
+
+class TestMakeCrawlFilePathUniqueness:
+    def _persister(self, tmp_path: Path) -> CrawlPersister:
+        return CrawlPersister({"rag_src_dir": str(tmp_path / "rag-src")})
+
+    def test_long_prefix_urls_produce_distinct_paths(self, tmp_path: Path) -> None:
+        persister = self._persister(tmp_path)
+
+        path_a = persister.make_crawl_filepath(_COLLIDING_URL_A)
+        path_b = persister.make_crawl_filepath(_COLLIDING_URL_B)
+
+        assert path_a != path_b
+        assert path_a.suffix == ".json"
+        assert path_b.suffix == ".json"
+
+    def test_simulated_save_writes_one_file_per_url(self, tmp_path: Path) -> None:
+        rag_src = tmp_path / "rag-src"
+        persister = self._persister(tmp_path)
+
+        persister.save_http(
+            _COLLIDING_URL_A, title="A", lang="en", content="content-a", code_blocks=[]
+        )
+        persister.save_http(
+            _COLLIDING_URL_B, title="B", lang="en", content="content-b", code_blocks=[]
+        )
+
+        files = sorted(rag_src.glob("*.json"))
+        assert len(files) == 2
+        contents = {orjson.loads(f.read_bytes())["content"] for f in files}
+        assert contents == {"content-a", "content-b"}
