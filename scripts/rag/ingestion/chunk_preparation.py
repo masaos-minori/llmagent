@@ -55,7 +55,7 @@ class ChunkFactory:
                         reason_str = (
                             result.value if hasattr(result, "value") else str(result)
                         )
-                        if "embedding" in reason_str.lower():
+                        if result is IngestionFailureReason.EMBEDDING_FAILED:
                             embed_failed += 1
                         failed_paths.append((path, reason_str))
                     else:

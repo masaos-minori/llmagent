@@ -5,7 +5,7 @@ Isolate chunk destination routing from ingester.py into FileRouter class.
 
 Chunk files are routed based on success/failure:
 - Successful chunks → rag-src/registered/
-- Failed chunks → rag-src/retry/ or rag-src/failed/ based on failure reason
+- Failed chunks → rag-src/failed/ next to their .error.json
 - Error metadata (.error.json) written for failed chunks
 """
 
@@ -13,11 +13,24 @@ import datetime
 from pathlib import Path
 
 import orjson
-from rag.exceptions import ChunkFormatError
+from rag.exceptions import ChunkFormatError, IngestionFailureReason
 from rag.ingestion.pipeline_utils import read_chunk_json
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
+
+# Non-enum production reasons accepted without a WARNING. Populated by
+# scripts/rag/ingestion/ingester.py (see ingest_url_group's partial-failure drain).
+_KNOWN_NON_ENUM_REASONS = frozenset({"embedding_partial_failure"})
+
+
+def _is_known_reason(reason: str) -> bool:
+    """Return True when reason is a known IngestionFailureReason or known non-enum reason."""
+    try:
+        IngestionFailureReason(reason)
+        return True
+    except ValueError:
+        return reason in _KNOWN_NON_ENUM_REASONS
 
 
 class FileRouter:
@@ -31,10 +44,8 @@ class FileRouter:
     def route(
         self, successful_paths: list[Path], failed_paths: list[tuple[Path, str]]
     ) -> None:
-        """Route chunk files based on success/failure: successful→registered/, failed→retry/ or failed/."""
+        """Route chunk files based on success/failure: successful→registered/, failed→failed/ with .error.json."""
         self._registered_dir.mkdir(parents=True, exist_ok=True)
-        retry_dir = self._chunk_dir.parent / "retry"
-        retry_dir.mkdir(parents=True, exist_ok=True)
         failed_dir = self._chunk_dir.parent / "failed"
         failed_dir.mkdir(parents=True, exist_ok=True)
 
@@ -77,10 +88,9 @@ class FileRouter:
                         extra={"stage_name": "ingester"},
                     )
 
-            if "embedding" in reason.lower():
-                dest = retry_dir / path.name
-            else:
-                dest = failed_dir / path.name
+            if not _is_known_reason(reason):
+                logger.warning("Unknown ingest failure reason %s for %s", reason, path)
+            dest = failed_dir / path.name
             try:
                 import shutil
 
