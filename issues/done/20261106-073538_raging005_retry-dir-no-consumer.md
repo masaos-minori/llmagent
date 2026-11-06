@@ -35,6 +35,31 @@ three-stage flow (`rag.ingestion.crawler` → `rag.ingestion.chunk_splitter` →
 `rag.ingestion.ingester` per `deploy/setup_services.sh`), so nothing re-feeds `retry/`
 back into `chunk/`.
 
+### Verification (issue-to-plan cycle 20261106-101742)
+- Confirmed at HEAD `bdb9bed66`: substring test at `file_routing.py:80`; `retry/` is
+  created unconditionally on every `route()` call (`file_routing.py:36-37`), even with zero
+  failures; the only writer of `retry/` is `FileRouter`; a repository-wide scan of
+  `scripts/`, `deploy/`, `tools/` finds no reader.
+- Correction: `deploy/setup_services.sh` contains no `registered/` cleanup — the claim is
+  wrong. `deploy/deploy.sh:59` only creates `registered/`; `docs/21_rag/
+  rag_02_01_ingestion_pipeline-overview.md:36-38` correctly states no automated retention.
+- Correction: `EmbeddingService`'s HTTP retry key is `embed_retry`
+  (`config/ingester.toml:18`, `embedding.py:44-67`), not `retry_count`.
+- New finding: a second copy of the same substring test exists in
+  `chunk_preparation.py:56-60` (the `embed_failed` metric counter), and exception-path
+  reasons are raw `str(e)` (`chunk_preparation.py:73`) — httpx error strings include the
+  embed endpoint URL (`/v1/embeddings`), so network errors already land in `retry/` today
+  via a non-enum reason, concretely demonstrating the classification hazard.
+- New finding: split state today — `.error.json` metadata for embedding-failed chunks is
+  written to `failed/` (`file_routing.py:67-71`) while the chunk body moves to `retry/`
+  (`:80-81`).
+- Tests pinning the `retry/` destination (must flip under design 2): `tests/rag/ingestion/
+  test_ingester.py` `test_embedding_failure_moves_to_retry_not_registered` (`:736-767`),
+  `test_mixed_success_and_failure_routes_correctly` (`:769-819`),
+  `test_retry_directory_created_for_embedding_failures` (`:857+`).
+- Production observation: `/opt/llm/rag-src/` contains only `chunk/` and `registered/` — no
+  `retry/` exists, so no stranded files need migration.
+
 ## Reason for Change
 Broken workflow: an operator following the routing design expects automatic retry; today
 the only recovery is undocumented manual file movement back to `chunk/`.
@@ -95,6 +120,12 @@ Update the RAG ingestion pipeline docs to describe the chosen file lifecycle (`c
 
 ## Unresolved Questions
 - Which design (consumer vs. removal) the project prefers — needs an operator decision.
+  Resolved in `plans/20261106-101742_raging005_retry-dir-no-consumer.md` as a plan-level
+  recommendation: design 2 (remove the retry tier), because embedding HTTP retry already
+  lives in `EmbeddingService` (`embed_retry`) and design 1 would require an attempt-budget
+  mechanism that does not exist. The Plan's Implementation Target Files are frozen for
+  design 2 only; choosing design 1 instead unfreezes the table and requires a revised Plan.
+  Implementation must not start until the operator approves the recommended design.
 
 ## AI Implementation Instruction
 Present both designs in the plan with a recommendation (design 2 unless a retry consumer

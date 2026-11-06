@@ -10,6 +10,31 @@ A Japanese document whose URL ends in `.md` / `.markdown` / `.mdx` is therefore 
 processed by the Japanese chunker: no Sudachi sentence segmentation, no
 `normalized_content`, and English sentence heuristics applied to Japanese text.
 
+### Verification (issue-to-plan cycle 20261106-103229)
+- Confirmed line-by-line at HEAD `bdb9bed66`: the markdown check precedes the `lang` check in
+  `_build_text_triples` (`chunk_splitter.py:224-229` — correction: the issue names the method
+  `_split_text`; the actual method is `_build_text_triples`); `_is_markdown_source` keys on URL
+  suffix plus the `md_index_enable` heading-density heuristic (`:139-158`); oversized sections
+  fall back to `_chunk_english` (`:174-176`); sections below `min_chunk` are dropped
+  (`:171-173`); Markdown triples carry empty `normalized_content` (`("text", c, "")`, `:225`).
+- New finding: Markdown sources also record `chunking_strategy="heading"` in every chunk
+  payload (`:121`), which is part of the ingester's 9-field group signature and the
+  `documents` row — the fix must keep this value unchanged so group validation is unaffected.
+- Unresolved question resolved: empty `normalized_content` does **not** corrupt storage —
+  `transaction_commit.py:104` stores `normalized_content or None` (NULL), and the FTS5 triggers
+  index `COALESCE(normalized_content, content)` (`scripts/db/schema_sql.py:78-90`), so Japanese
+  Markdown chunks are indexed by raw text. What degrades is **Japanese query recall**: the
+  query path tokenizes Japanese queries into Sudachi `normalized_form` tokens designed to match
+  normalized-content index text (`scripts/rag/repository.py:76-90`); against raw-text Markdown
+  chunks only surface-form matches hit, so inflected-form queries miss. Chosen output shape:
+  non-empty normalized pairs, same as the Japanese text path.
+- Test status confirmed: `TestIsMarkdownSource` (`tests/rag/ingestion/test_chunk_splitter.py:42-70`)
+  pins URL-suffix detection; Markdown chunking coverage exists only for the English payload
+  (`_CRAWL_WITH_MD_HEADINGS`, `:441-452`, used at `:533`); Japanese tests (`:636-663`) use a
+  non-`.md` URL — no Japanese-Markdown behavior is tested today.
+- Dependency confirmed: the Japanese path crash fix is planned in
+  `plans/20261106-093438_raging001_japanese-chunk-merge-crash.md` (created in this batch).
+
 ## Problem
 - `scripts/rag/ingestion/chunk_splitter.py` `_split_text`: `if self._is_markdown_source(
   data): return [("text", c, "") for c in self._chunk_markdown_by_heading(content)]` —
@@ -91,6 +116,10 @@ language-aware chunking.
 - Whether empty `normalized_content` for Markdown chunks currently degrades FTS/query
   behavior in storage — Needs confirmation against the persistence layer before choosing
   the normalization output shape.
+  Resolved in `plans/20261106-103229_raging007_markdown-japanese-chunk-bypass.md`: storage is
+  safe (FTS5 triggers COALESCE NULL normalized_content to raw content), but Japanese query
+  recall degrades because query tokens are Sudachi normalized forms; chosen output shape =
+  non-empty normalized pairs consistent with the Japanese text path.
 
 ## AI Implementation Instruction
 Fix the Japanese chunker crash first if working in sequence; keep

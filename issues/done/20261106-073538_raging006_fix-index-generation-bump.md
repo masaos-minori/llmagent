@@ -10,6 +10,31 @@ chunk (embed-failed, storage-failed, group-validation-failed) have `skipped=Fals
 whose URL groups all failed, writing nothing, still advances the generation, signaling
 consumers that the corpus changed when it did not.
 
+### Verification (issue-to-plan cycle 20261106-102707)
+- Confirmed at HEAD `bdb9bed66`: guard at `ingester.py:181`
+  (`if results and any(not r.skipped for r in results): bump_index_generation(db)`);
+  `validation_failure` (`:58-62`), `unexpected_failure` (`:65-73`),
+  `GROUP_VALIDATION_FAILED` (`:257-273`), and all-embed-failed groups (`:336-342`) all carry
+  `skipped=False` with `n_success=0` → bump with zero writes. Intent comment at `:177-180`.
+  Best-effort never-raises contract confirmed at `corpus_identity.py:235-253`.
+- Guard-equivalence verified: `TransactionManager.commit` runs only when
+  `len(prepared_chunks) > 0 and len(failed_paths) == 0` (`ingester.py:304`), and on that path
+  `n_success = len(prepared_chunks) > 0` (`:327`); mixed-failure groups commit nothing and
+  report `n_success=0`. So `sum(r.n_success for r in results) > 0` is exactly "at least one
+  group wrote content" — no hidden case where content is written with `n_success=0`.
+- Correction: `tests/rag/ingestion/test_ingester_index_generation.py` has only three tests —
+  success-path bump (`:188`), no-chunk-files early return (`:222`), missing-meta-table
+  no-raise (`:241`). There is **no** skipped-only-run test; the skipped-only no-bump
+  behavior is untested today and must be added as characterization coverage by the fix.
+- New finding: `unexpected_failure` from `_process_url_groups`'s exception catch
+  (`:381-384`) is another instance of the same defect — a run whose only result is an
+  unexpected exception also bumps with zero writes.
+- Documentation check: no doc under `docs/` states when `index_generation` advances
+  (`docs/21_rag/rag_05_07-rag-index-consistency-checks.md` covers fatal-generation findings,
+  not the bump guard) → the issue's Documentation Impact is N/A.
+- Baseline: `radon cc` — `ingest_all` C(16), `ingest_url_group` C(14) (pre-existing; a
+  one-condition guard swap does not add complexity).
+
 ## Problem
 - `scripts/rag/ingestion/ingester.py` `ingest_all` (post-`_process_url_groups`): the
   bump condition tests "at least one group was not skipped", not "at least one chunk was

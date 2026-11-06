@@ -23,6 +23,23 @@ Evidence path, all in `scripts/rag/ingestion`:
 The file:// sibling path shows the intended ordering: it does not touch stored etag
 before replace; the fresh values land only via the transaction insert.
 
+### Verification (issue-to-plan cycle 20261106-094942)
+- Confirmed line-by-line at HEAD `bdb9bed66`: pre-commit write at `document_manager.py:101`
+  (`_update_etag` → `ETagManager.update`), unconditional payload-freshness insert at
+  `transaction_commit.py:59-78` + `document_persistence.py:77-95`, 304 skip path at
+  `http_fetcher.py:39-77`.
+- Correction: the HTTP skip branch (`document_manager.py:98-99`, stored etag and
+  last_modified equal) does **not** call `ETagManager.update` — the sole production call site
+  is the replace branch. The "skip-path" wording in `ETagManager`'s log strings and in this
+  issue's Implementation Intent names a code path that does not currently exist.
+- New finding: on a successful replace, the transaction's delete+insert writes the payload's
+  freshness values unconditionally, so the `ETagManager` stale guard never affects the final
+  stored row on the replace path; it only prevented freshness advancement on runs whose
+  commit never executed. The plan must apply the guard to the insert values, not inherit it
+  (see Plan Design).
+- No existing test pins the pre-commit `_update_etag` call (`rg '_update_etag'` matches only
+  `document_manager.py`; mock-based ingestion tests stub `handle_existing_document`).
+
 ## Problem
 A failed re-ingestion (embedding service down, transaction error) leaves old chunks in
 place while the `documents` row carries the new etag. The next crawl gets 304, the URL is
@@ -86,6 +103,10 @@ description of the update ordering (intent level only).
 ## Unresolved Questions
 - Whether `ETagManager.update` should remain on the replace path at all, or be removed
   entirely once the insert carries the values — decide during planning.
+  Resolved in `plans/20261106-094942_raging002_etag-updated-before-reingestion.md`: `update`
+  is no longer called on the replace path; the guard moves to `ETagManager.resolve_incoming`
+  applied at the transaction insert; `update` itself is kept unchanged (characterization
+  tests) with removal deferred to the `rules/coding.md` deprecation policy.
 
 ## AI Implementation Instruction
 Keep the change inside the document-management/transaction boundary; do not touch the

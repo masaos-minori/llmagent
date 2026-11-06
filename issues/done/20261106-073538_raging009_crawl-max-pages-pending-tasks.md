@@ -10,6 +10,37 @@ then return HTTP 304, produce no content, are rejected by the language check, or
 during fetch. A crawl capped at `max_pages` can therefore stop before persisting that
 many pages, with the remaining queued URLs dropped.
 
+### Verification (issue-to-plan cycle 20261106-104043)
+- Confirmed line-by-line at HEAD `bdb9bed66`: guard `if len(visited) >= self._max_pages:
+  break` at `orchestrator.py:104-110`; `visited.add(url)` before any fetch at `:144`;
+  non-persist budget consumers — 304/None early return `:177-178`, empty extraction
+  `:184-186`, unsupported resolved lang `:189-191`, task exceptions logged only `:126-127`;
+  remaining queue dropped on break (queue is function-local).
+- New finding (budget already overshoots): the guard runs once per loop iteration before
+  `_drain_queue_to_tasks` schedules every queued URL without a per-URL cap check — with
+  `visited=199`, a 50-URL queue, and `max_pages=200`, 50 more URLs are scheduled and fetched,
+  exceeding the budget even on the all-success path.
+- New finding: `enqueue_links` runs only after `save_http` succeeds (`:204`), so a failed URL
+  both consumes budget and adds no frontier — failure-heavy crawls shrink coverage doubly.
+- New finding (test vacuity): `TestMaxPagesBoundaryCondition.test_stops_at_max_pages` and
+  `test_max_pages_warning_logged` (`tests/rag/ingestion/test_crawler_integration.py:160-206`)
+  patch `crawl_site` and assert nothing ("verify the guard exists by checking the source
+  logic", `pass`). The only real max_pages coverage is `test_max_pages_boundary`
+  (`test_crawler_retry_boundary.py:62-76`), which pins `len(respx.calls) <= 1` — i.e.
+  scheduled-fetch semantics — and must be characterized before redefining the budget.
+- New finding (default drift): `crawler.py:66` defaults `max_pages` to 200, but
+  `orchestrator.py:74` defaults to 500 on the same raw config dict — with the key absent,
+  the guard uses 500 while `WebCrawler._max_pages` says 200. Out of scope for this fix;
+  recorded as a new issue candidate in the plan.
+- Docs status: `docs/21_rag/rag_05_01-configuration-reference.md:34` states "reaching it
+  stops BFS for the site" (no persisted/scheduled distinction);
+  `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` §2.1.1 describes `max_pages` as a BFS
+  bound only — both need the semantics update.
+- Coordination: `issues/20261106-073205_crawl002_remove-dead-orchestrator-crawl-method.md`
+  is still open with no plan; its target (`CrawlOrchestrator.crawl`, `orchestrator.py:76-88`)
+  is disjoint from this fix's region (`crawl_site` / `_drain_queue_to_tasks` /
+  `_process_crawl_url_async`).
+
 ## Problem
 - `scripts/rag/ingestion/orchestrator.py` `crawl_site`: the guard is
   `if len(visited) >= self._max_pages: break` at the top of the BFS loop.
@@ -82,6 +113,10 @@ rule.
 
 ## Unresolved Questions
 - Preferred bound for scheduled non-persisted URLs (fixed multiplier vs. config key).
+  Resolved in `plans/20261106-104423_raging009_crawl-max-pages-pending-tasks.md`: fixed
+  internal multiplier (`max_scheduled = 2 * max_pages`, no new config key) — config surface
+  growth rejected because `config/crawler.toml` already documents its limit values as
+  unvalidated heuristics, and the bound is a safety valve, not an operator tuning knob.
 
 ## AI Implementation Instruction
 Keep the change inside the orchestrator loop; do not move budget logic into HttpFetcher

@@ -22,10 +22,14 @@ Verified by reproduction: calling `_merge_ja_sentence_pairs` with pairs that tri
 Japanese document with the production config (`max_chunk = 500` in
 `config/chunk_splitter.toml`). `ChunkSplitter.process_all` does not catch
 `AttributeError`, so the whole chunk stage aborts.
-The existing tests mask the defect: `_make_ja_mixin` in
-`tests/rag/ingestion/test_chunk_splitter.py` manually initializes `mixin._result` (line
-89) and the tests call `_emit_and_start_new` directly, never through
-`_merge_ja_sentence_pairs`.
+The existing tests mask the defect in two places: `_make_ja_mixin` in
+`tests/rag/ingestion/test_chunk_splitter.py` manually initializes `mixin._result` and
+its tests call `_emit_and_start_new` directly, never through `_merge_ja_sentence_pairs`;
+and `test_process_file_end_to_end_japanese` pre-initializes `chunker._result = []` before
+calling `process_file`, with assertions (`result >= 1`, `len(outputs) == result`) weak
+enough to pass while content is lost — re-verified: with that compensation a 1400-char
+Japanese document under `max_chunk = 1000` writes 1 chunk (456 chars); without it the
+same call raises `AttributeError`.
 
 ## Problem
 Any Japanese document longer than `max_chunk` (500 chars by default) crashes
@@ -55,8 +59,10 @@ constraints, same `normalized_content` handling (empty normalized maps to None).
 - Eliminate the split between the local `result` and `self._result` in
   `_merge_ja_sentence_pairs` and its helpers (`_emit_and_start_new`,
   `_merge_tail_into_last`).
-- Remove the test-fixture compensation (`mixin._result = []` in `_make_ja_mixin`) so the
-  production class is exercised as-is.
+- Remove the test-fixture compensation (`mixin._result = []` in `_make_ja_mixin` and the
+  `chunker._result = []` pre-initialization in `test_process_file_end_to_end_japanese`) so
+  the production class is exercised as-is, and strengthen that test's assertions so
+  emitted chunks cannot be silently lost.
 - Add a regression test that drives `_merge_ja_sentence_pairs` (not just
   `_emit_and_start_new`) with enough sentences to trigger at least two emits plus a
   short-tail merge, asserting all emitted chunks are returned in order.

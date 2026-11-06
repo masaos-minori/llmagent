@@ -10,6 +10,27 @@ for ISO-8601 timestamps. Every invocation of the stored-timestamp guard produces
 `--- Logging error ---` traceback (`TypeError: not enough arguments for format string`)
 instead of a clean log line.
 
+### Verification (issue-to-plan cycle 20261106-103659)
+- Confirmed at HEAD `bdb9bed66`: format string at `etag_manager.py:47-52` has 3 placeholders
+  (`%s < %s` plus `%d`) but passes only 2 args (`new_fetched_at`, `self._doc_id`); the stored
+  timestamp is never passed. Reproduction emits
+  `TypeError: not enough arguments for format string` inside logging (`/tmp/opencode/raging008/repro.py`).
+- Correction: the guard comparison is NOT lexicographic — `_is_stale_update` parses both
+  sides with `datetime.fromisoformat` and compares datetimes (`:57-90`, `<` at `:90`). The
+  issue's "lexicographic (`>=` on ISO strings)" description is wrong, and the Out-of-Scope
+  "lexicographic-vs-parsed comparison" item is moot: the comparison is already parsed.
+- New finding: the stored timestamp is only accessible inside `_is_stale_update` (fetched at
+  `:73-76`); `update()` cannot name it without a change. Required fix shape: the private
+  helper (single caller: `update()`; no test calls it directly) returns the stored timestamp
+  when stale (or `None`), so the log can pass both values without a second DB query. Guard
+  decision logic and exception behavior stay identical.
+- Test status confirmed: `tests/rag/ingestion/test_ingester_etag_guard.py` has 9 tests, all
+  asserting DB behavior; no `caplog` usage anywhere — the log line is unvalidated.
+- Coordination: `plans/20261106-094942_raging002_etag-updated-before-reingestion.md` also
+  targets `etag_manager.py` (new `resolve_incoming` method) and deliberately leaves
+  `update()` unchanged; this log-line fix is compatible — sequence after 002 to avoid
+  same-file rebase friction.
+
 ## Problem
 In `scripts/rag/ingestion/etag_manager.py`:
 

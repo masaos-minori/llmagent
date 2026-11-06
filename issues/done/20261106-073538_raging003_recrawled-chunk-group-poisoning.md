@@ -25,6 +25,26 @@ pipeline stages (`rag.ingestion.crawler` → `rag.ingestion.chunk_splitter` →
 `rag.ingestion.ingester` per `deploy/setup_services.sh`) are separate manual invocations,
 so the interleaving is operationally possible.
 
+### Verification (issue-to-plan cycle 20261106-095808)
+- Confirmed line-by-line at HEAD `bdb9bed66`: url-only grouping at `chunk_grouping.py:24-50`
+  (`except ChunkFormatError: continue` logs nothing at `:30-31`; empty/invalid url logs a
+  warning but routes nothing); `validation_failure`/`GROUP_VALIDATION_FAILED` returns at
+  `ingester.py:225-275` with no `FileRouter` call; `_process_url_groups` (`:370-387`) only
+  appends results.
+- Test masking confirmed: `TestURLGroupValidation` in `tests/rag/ingestion/test_ingester.py`
+  (`:892-996`) pins the poison behavior with "Files stay at original location" assertions
+  (`assert path0.exists()`, comments "validation rejects before any move") — these assertions
+  must be flipped by the fix, not left as characterization coverage.
+- Correction: the candidate key `(url, source_file)` is insufficient. The stale-residue
+  scenario (issue `20261106-073538_raging004_force-rechunk-stale-chunks.md`) mixes
+  generations that share the same `source_file` but differ in `fetched_at`/`etag`; only a key
+  covering the same 9-field signature `ingest_url_group` validates separates both scenarios
+  (crawler generations differ via timestamped `source_file` names per `crawl_persister.py:95-98`).
+- New finding: `IngestUrlResult.validation_failure` leaves `failure_reason=None`
+  (`ingester.py:54-59`), so routed `.error.json` metadata would carry no reason without a fix.
+- No test imports `ChunkGroupingStrategy` today (`rg -l ChunkGroupingStrategy tests/` → no
+  matches), so grouping semantics are untested at the unit level.
+
 ## Problem
 A single malformed or multi-generation group becomes a permanent poison entry: every
 ingester run re-processes it, logs the failure, counts it in totals, and never moves the
@@ -93,8 +113,13 @@ operationally.
 ## Unresolved Questions
 - Preferred grouping key (url-only with generation detection, or url+source_file) —
   confirm during planning against existing `registered/` expectations.
+  Resolved in `plans/20261106-095808_raging003_recrawled-chunk-group-poisoning.md`: key by
+  (url, the 9-field generation signature `ingest_url_group` already validates);
+  url+source_file rejected because stale-residue generations share `source_file`.
 - Whether a group with mixed generations should ever ingest the newest generation
   automatically, or always require explicit operator action.
+  Resolved in the same plan: ingest every valid generation oldest→newest automatically;
+  the newest generation becomes the final `documents` row via the existing replace path.
 
 ## AI Implementation Instruction
 Keep routing changes inside `FileRouter` usage; do not move files ad hoc in the
