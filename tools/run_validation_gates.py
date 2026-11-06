@@ -53,6 +53,11 @@ from typing import TYPE_CHECKING
 
 import yaml
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._tool_common import REPO_ROOT, run_git
+
 if TYPE_CHECKING:
     from subprocess import CompletedProcess
 
@@ -178,12 +183,7 @@ def _validate_ref(base: str) -> None:
 
 def _git_diff_name_only(extra_args: list[str]) -> list[str]:
     """Return repo-relative paths from `git diff --name-only <extra_args>`."""
-    proc = subprocess.run(
-        ["git", "diff", "--name-only", *extra_args],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    proc = run_git("diff", "--name-only", *extra_args)
     if proc.returncode != 0:
         raise RuntimeError(
             f"git diff failed (exit {proc.returncode}): {proc.stderr.strip()}"
@@ -592,11 +592,10 @@ def _run_gates(base: str, mode: str) -> int:
 
 
 def _run_drift() -> int:
-    repo_root = Path(__file__).resolve().parent.parent
     texts: dict[str, str] = {}
     for name in ("routing.md", _PRECOMMIT_CONFIG):
         try:
-            texts[name] = (repo_root / name).read_text(encoding="utf-8")
+            texts[name] = (REPO_ROOT / name).read_text(encoding="utf-8")
         except OSError as exc:
             print(f"ERROR: cannot read {name}: {exc}", file=sys.stderr)
             return 1

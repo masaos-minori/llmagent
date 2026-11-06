@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import types
 from pathlib import Path
 from typing import Any
 
@@ -44,9 +43,7 @@ def _forbidden_run(*args: object, **kwargs: object) -> None:
 
 @pytest.fixture(autouse=True)
 def _no_real_git(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        module_nodes, "subprocess", types.SimpleNamespace(run=_forbidden_run)
-    )
+    monkeypatch.setattr(module_nodes, "run_git", _forbidden_run)
 
 
 def _write(tmp_path: Path, name: str, text: str) -> Path:
@@ -57,14 +54,16 @@ def _write(tmp_path: Path, name: str, text: str) -> Path:
 
 def _fake_git(
     monkeypatch: pytest.MonkeyPatch, old_source: str
-) -> list[tuple[list[str], dict[str, Any]]]:
-    calls: list[tuple[list[str], dict[str, Any]]] = []
+) -> list[tuple[tuple[str, ...], dict[str, Any]]]:
+    calls: list[tuple[tuple[str, ...], dict[str, Any]]] = []
 
-    def fake_run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        calls.append((cmd, kwargs))
-        return subprocess.CompletedProcess(cmd, 0, stdout=old_source, stderr="")
+    def fake_run(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((args, kwargs))
+        return subprocess.CompletedProcess(
+            ["git", *args], 0, stdout=old_source, stderr=""
+        )
 
-    monkeypatch.setattr(module_nodes, "subprocess", types.SimpleNamespace(run=fake_run))
+    monkeypatch.setattr(module_nodes, "run_git", fake_run)
     return calls
 
 
@@ -272,7 +271,7 @@ def test_compare_identical_move_returns_0(
     assert rc == 0
     assert "identical" in out
     assert "moved functions compared: 1, differing: 0" in out
-    assert calls[0][0] == ["git", "show", "HEAD:svc.py"]
+    assert calls[0][0] == ("show", "HEAD:svc.py")
     assert calls[0][1]["check"] is True
 
 
@@ -281,7 +280,7 @@ def test_compare_uses_the_given_old_revision(
 ) -> None:
     calls = _fake_git(monkeypatch, OLD_METHOD)
     _compare(tmp_path, "def helper(x):\n    return x + 1\n", "--old-rev", "abc123")
-    assert calls[0][0] == ["git", "show", "abc123:svc.py"]
+    assert calls[0][0] == ("show", "abc123:svc.py")
 
 
 def test_compare_changed_body_returns_1(

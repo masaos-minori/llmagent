@@ -47,7 +47,6 @@ from __future__ import annotations
 import argparse
 import re
 import sqlite3
-import subprocess  # nosec B404 — git is a trusted local CLI, argv is a fixed list
 import sys
 import time
 from collections import Counter
@@ -57,7 +56,12 @@ from pathlib import Path
 
 import orjson
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._tool_common import REPO_ROOT, run_git
+
+ROOT_DIR = REPO_ROOT
 
 NOTICE = "candidates only; a missing consumer is not evidence of absence"
 DIRECT_DIRS = ("scripts", "tests", "tools", "deploy", "docs")
@@ -116,12 +120,7 @@ class Report:
 def list_tracked_files(root: Path) -> list[str]:
     """Return the repository-relative paths git tracks under `root`."""
     try:
-        proc = subprocess.run(  # nosec B603 B607 — fixed git argv, no shell
-            ["git", "ls-files", "-z"],
-            cwd=root,
-            capture_output=True,
-            check=False,
-        )
+        proc = run_git("ls-files", "-z", cwd=root, binary=True)
     except OSError as exc:
         raise SystemExit(f"cannot run git ls-files: {exc}") from exc
     if proc.returncode != 0:

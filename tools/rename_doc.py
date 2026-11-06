@@ -28,10 +28,15 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 — only the CalledProcessError type is used; git runs in tools/_tool_common.py
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._tool_common import run_git
 
 # Inline `[text](path)` Markdown link form only -- reference-style
 # `[text][ref]` / `[ref]: path` links are not in scope (see the implementation
@@ -314,16 +319,7 @@ def scan_outside_docs(
 ) -> list[ProseFinding]:
     """Report tracked text files outside `docs/` that mention the old basename."""
     try:
-        # bandit: B603/B607 (Low) -- fixed argument list, shell=False, same
-        # rationale as `git_mv` below.
-        listed = subprocess.run(
-            ["git", "ls-files", "-z"],
-            cwd=repo_root,
-            shell=False,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout
+        listed = run_git("ls-files", "-z", cwd=repo_root, check=True).stdout
     except (subprocess.CalledProcessError, OSError) as exc:
         raise RenameDocError(f"git ls-files failed: {exc}") from exc
 
@@ -365,22 +361,7 @@ def apply_rewrites_to_content(content: str, rewrites: list[PlannedRewrite]) -> s
 def git_mv(old_path: Path, new_path: Path, repo_root: Path) -> None:
     """Move `old_path` to `new_path` via `git mv`, run from `repo_root`."""
     try:
-        # bandit: B404/B603/B607 (Low) are expected here per
-        # rules/coding.md Bandit priority findings ("B603 ... Preferred;
-        # document if shell=True needed") -- shell=False with this fixed
-        # argument list never interpolates caller input into a shell string,
-        # and PATH-based `git` resolution (not a hardcoded absolute path) is
-        # the portable, intended behavior across this repository's dev/CI
-        # environments, matching the existing accepted pattern in
-        # tools/check_workitem_traceability.py's `_git_or_mtime`.
-        subprocess.run(
-            ["git", "mv", str(old_path), str(new_path)],
-            cwd=repo_root,
-            shell=False,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        run_git("mv", str(old_path), str(new_path), cwd=repo_root, check=True)
     except subprocess.CalledProcessError as exc:
         raise RenameDocError(f"git mv failed: {exc.stderr.strip()}") from exc
     except OSError as exc:

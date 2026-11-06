@@ -32,10 +32,14 @@ from __future__ import annotations
 
 import argparse
 import shlex
-import subprocess  # nosec B404 — static git status call only, see _read_status
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._tool_common import run_git
 
 GROUP_ORDER: tuple[str, ...] = (
     "artifacts",
@@ -228,11 +232,7 @@ def _read_status(status_file: str | None) -> bytes:
         return sys.stdin.buffer.read()
     if status_file is not None:
         return Path(status_file).read_bytes()
-    proc = subprocess.run(  # nosec B603 B607 — static argument list, no user input
-        ["git", "status", "--porcelain=v1", "-z"],
-        capture_output=True,
-        check=False,
-    )
+    proc = run_git("status", "--porcelain=v1", "-z", binary=True)
     if proc.returncode != 0:
         raise RuntimeError(
             f"git status failed (exit {proc.returncode}): "

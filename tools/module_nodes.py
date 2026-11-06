@@ -37,8 +37,12 @@ import argparse
 import ast
 import json
 import pathlib
-import subprocess  # nosec B404 — git is a trusted local CLI, argv is a fixed list
 import sys
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+from tools._tool_common import run_git
 
 _MOVED_NODE = ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
 
@@ -276,12 +280,7 @@ def _functions(src: str, class_name: str | None) -> dict[str, ast.FunctionDef]:
 
 
 def _cmd_compare(args: argparse.Namespace) -> int:
-    old_src = subprocess.run(  # nosec B603 B607 — fixed argv, git is a trusted local CLI
-        ["git", "show", f"{args.old_rev}:{args.old_src}"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
+    old_src = run_git("show", f"{args.old_rev}:{args.old_src}", check=True).stdout
     with open(args.new_src, encoding="utf-8") as f:
         new_src = f.read()
 

@@ -66,7 +66,6 @@ from __future__ import annotations
 import argparse
 import csv
 import re
-import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -74,7 +73,12 @@ from pathlib import Path
 
 import orjson
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._tool_common import REPO_ROOT, run_git
+
+ROOT_DIR = REPO_ROOT
 
 # No repository precedent ties a specific number to this exact use case
 # (UNK-01, see implementations/20260901-114312_01_tools_check_workitem_traceability_py.md
@@ -387,20 +391,8 @@ def _effective_filed_time(path: Path) -> datetime:
 def _git_or_mtime(path: Path) -> datetime:
     """Last-modified time via `git log`, falling back to file mtime."""
     try:
-        # bandit: B404/B603/B607 (Low) are expected here per
-        # rules/coding.md Bandit priority findings ("B603 ... Preferred;
-        # document if shell=True needed") — shell=False with this fixed
-        # argument list never interpolates `path` into a shell string, and
-        # PATH-based `git` resolution (not a hardcoded absolute path) is the
-        # portable, intended behavior across this repository's dev/CI
-        # environments.
-        result = subprocess.run(
-            ["git", "log", "-1", "--format=%ct", "--", str(path)],
-            cwd=ROOT_DIR,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=10,
+        result = run_git(
+            "log", "-1", "--format=%ct", "--", str(path), cwd=ROOT_DIR, timeout=10
         )
     except OSError:
         return datetime.fromtimestamp(path.stat().st_mtime)

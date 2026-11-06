@@ -44,7 +44,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import subprocess  # nosec B404 — git is a trusted local CLI, argv is a fixed list
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,8 +52,8 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools._docs_consistency_lib import Issue, report_and_exit
+from tools._tool_common import REPO_ROOT, run_git
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 ADR_DIR = REPO_ROOT / "docs" / "10_adr"
 
 _H2_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
@@ -238,9 +237,7 @@ def compare_generic(name: str, old: str, new: str) -> list[Issue]:
 
 
 def _git(*args: str) -> str:
-    result = subprocess.run(  # nosec B603 B607 — fixed git argv, no shell, no user-built command
-        ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=False
-    )
+    result = run_git(*args, cwd=REPO_ROOT)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or f"git {' '.join(args)} failed")
     return result.stdout

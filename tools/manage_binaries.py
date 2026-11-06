@@ -38,12 +38,16 @@ import json
 import os
 import shutil
 import stat
-import subprocess  # nosec B404 — only used to run git with list arguments and no shell
 import sys
 import tempfile
 from datetime import UTC, datetime
 from fnmatch import fnmatch
 from pathlib import Path, PurePosixPath
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._tool_common import run_git
 
 EXIT_OK = 0
 EXIT_FAIL = 1
@@ -101,15 +105,10 @@ def _utc_now() -> str:
 
 def _git(repo: Path, *args: str) -> str:
     """Run git in ``repo`` and return stdout; raise RuntimeError on failure."""
-    git = shutil.which("git")
-    if git is None:
-        raise RuntimeError("git executable not found")
-    proc = subprocess.run(  # nosec B603 — fixed git executable, list arguments, no shell
-        [git, "-C", str(repo), *args],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        proc = run_git("-C", str(repo), *args)
+    except FileNotFoundError as exc:
+        raise RuntimeError("git executable not found") from exc
     if proc.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
     return proc.stdout
