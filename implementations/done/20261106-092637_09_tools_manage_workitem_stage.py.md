@@ -13,6 +13,7 @@ Split `manage_workitem_stage.py` by responsibility: move the Execution Status ta
 - Sequencing: this Plan lands last among the `tools/` Plans; the procedures of `toolcommon001` and `toolwrite001` (archived with their procedures generated) are expected to have executed first, because they edit `run_validation_gates.py` and `manage_workitem_stage.py` before this Plan moves code from them.
 - The `toolwrite001` procedure for this file (atomic write inside the status update function, bootstrap) is expected to have landed, so the moved code already calls the shared atomic write helper.
 - Exact cluster boundaries are decided at execution with `module_nodes.py measure` (Plan UNK-02); a helper needed by both clusters moves with the status table module. radon grades of the moved functions (`update_execution_status` D 30, `cmd_close_batch` D 21) MUST NOT rise: the move is verbatim.
+- Correction (code-implementation Step 3b, 2026-11-06): `build_parser` does not reference any `cmd_*` handler (the entry module's `main` dispatches on `args.subcommand`), so the parser module keeps a zero-argument `build_parser()` and the entry module imports and re-exports it directly; no handler argument and no wrapper are needed. `_valid_status_type` moved with `build_parser`, and `_normalize_status` lives in the status-table module that the parser imports.
 
 ## Design decisions
 - Dependency direction: the entry module imports `_workitem_status_table` (new) and `_workitem_stage_parser` (new); neither imports the entry module (the parser receives handlers as an argument).
@@ -64,10 +65,10 @@ N/A: verbatim move; no new input.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Measure and fix the two move sets | Pending | — | — | |
-| 2 | Extract the status-table and parser clusters and add the re-exports and wrapper | Pending | — | — | |
-| 3 | Prove with `compare`, run the tests and the live-data comparison | Pending | — | — | |
-| 4 | Lower the baseline entry and review the diff | Pending | — | — | |
+| 1 | Measure and fix the two move sets | Completed | 20261106-121750 | 20261106-121940 | Changed: tools/manage_workitem_stage.py (57287 B -> 39694 B; imports and re-exports the moved names); baseline entry lowered |
+| 2 | Extract the status-table and parser clusters and add the re-exports and wrapper | Completed | 20261106-121940 | 20261106-121940 | 99 tests of manage_workitem_stage, close_procedures_batch, plan_dependency_order pass; no test edit needed |
+| 3 | Prove with `compare`, run the tests and the live-data comparison | Completed | 20261106-121940 | 20261106-121940 | ruff, mypy, bandit clean; module_nodes compare identical for all moved functions; radon grades unchanged; every subcommand's help and list/show/detect-stale output identical to the pre-split module; by-path --help OK from another cwd; close_procedure.sh syntax OK |
+| 4 | Lower the baseline entry and review the diff | Completed | 20261106-121940 | 20261106-121940 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

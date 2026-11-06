@@ -65,10 +65,10 @@ N/A: local files only.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the second-invocation tests per Companion test files | Pending | — | — | |
-| 2 | Create the baseline with `--update-baseline` and verify it against `wc -c` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` and `routing.md` procedures of this Plan | Pending | — | — | |
+| 1 | Add the second-invocation tests per Companion test files | Completed | 20261106-121634 | 20261106-121704 | Changed: tools/check_module_size_tools_baseline.txt (new, 15 entries); tests/tools/test_check_module_size.py (6 second-invocation tests). The initial baseline is regenerated once after procedure 05 Part A adds the gate entry to run_validation_gates.py, so the first recorded size includes it; entries only shrink afterwards |
+| 2 | Create the baseline with `--update-baseline` and verify it against `wc -c` | Completed | 20261106-121704 | 20261106-121704 | 22 tests pass; baseline equals the over-limit files by wc -c; scripts baseline checksum unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261106-121704 | 20261106-121704 | ruff clean; both invocations exit 0 |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` and `routing.md` procedures of this Plan | Completed | 20261106-121704 | 20261106-121704 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

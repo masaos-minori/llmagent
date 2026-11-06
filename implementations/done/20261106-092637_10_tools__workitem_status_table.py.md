@@ -59,9 +59,9 @@ N/A: verbatim move.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Complete the docstring and import block after the extract | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) and the existing tests | Pending | — | — | |
-| 3 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Complete the docstring and import block after the extract | Completed | 20261106-121750 | 20261106-121941 | Changed: tools/_workitem_status_table.py (new, created by extract; docstring and imports completed) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) and the existing tests | Completed | 20261106-121941 | 20261106-121941 | existing tests pass |
+| 3 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-121941 | 20261106-121941 | ruff, mypy, bandit clean; imports no entry or parser module |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

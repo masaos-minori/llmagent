@@ -60,10 +60,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: update the gate scope text | Pending | — | — | |
-| 2 | Phase 2: add the two manage_workitem_stage module rows | Pending | — | — | |
-| 3 | Phase 3: add the gate definitions row | Pending | — | — | |
-| 4 | Run `check_tool_descriptions_sync.py` and the final verification list | Pending | — | — | |
+| 1 | Phase 1: update the gate scope text | Completed | 20261106-122122 | 20261106-123218 | Changed: tools/TOOL_DESCRIPTIONS.md (check_module_size.py rows cover both invocations and baselines; Index rows for _validation_gate_defs.py, _workitem_stage_parser.py, _workitem_status_table.py) |
+| 2 | Phase 2: add the two manage_workitem_stage module rows | Completed | 20261106-123218 | 20261106-123218 | check_tool_descriptions_sync passes |
+| 3 | Phase 3: add the gate definitions row | Completed | 20261106-123218 | 20261106-123218 | full suite 11797 passed; gates no Fail; both module-size invocations exit 0; drift parity OK; check_skills_references passes |
+| 4 | Run `check_tool_descriptions_sync.py` and the final verification list | Completed | 20261106-123218 | 20261106-123218 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

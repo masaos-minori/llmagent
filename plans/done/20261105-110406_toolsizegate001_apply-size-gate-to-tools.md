@@ -157,10 +157,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the gate for `tools/` with a full baseline, wiring, and scope text | In Progress | — | — |  |
-| 2 | Split `manage_workitem_stage.py` and lower its baseline | In Progress | — | — |  |
-| 3 | Split `run_validation_gates.py` and lower its baseline | In Progress | — | — |  |
-| 4 | Verify the checks and gates | Pending | — | — |  |
+| 1 | Add the gate for `tools/` with a full baseline, wiring, and scope text | Completed | — | 20261106-123220 | Part B of procedures 03 (drift hook regex) and 06 (re-export identity test) was applied after the split, in the same change; the initial baseline was recorded after the gate entry was added |
+| 2 | Split `manage_workitem_stage.py` and lower its baseline | Completed | — | 20261106-123220 |  |
+| 3 | Split `run_validation_gates.py` and lower its baseline | Completed | — | 20261106-123220 |  |
+| 4 | Verify the checks and gates | Completed | — | 20261106-123220 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -170,18 +170,18 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261106-092637_01_tools_check_module_size_tools_baseline.txt.md | 1 | Procedure | Pending | — | — |
-| implementations/20261106-092637_03_.pre-commit-config.yaml.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261106-092637_04_.github_workflows_ci.yml.md | 1 | Procedure | Pending | — | — |
-| implementations/20261106-092637_05_tools_run_validation_gates.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261106-092637_06_tests_tools_test_run_validation_gates.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261106-092637_07_routing.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261106-092637_08_rules_toolchain.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261106-092637_09_tools_manage_workitem_stage.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261106-092637_10_tools__workitem_status_table.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261106-092637_11_tools__workitem_stage_parser.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261106-092637_12_tools__validation_gate_defs.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261106-092637_13_tools_TOOL_DESCRIPTIONS.md.md | 1, 2, 3 | Procedure | Pending | — | — |
+| implementations/20261106-092637_01_tools_check_module_size_tools_baseline.txt.md | 1 | Procedure | Completed | — | — |
+| implementations/20261106-092637_03_.pre-commit-config.yaml.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261106-092637_04_.github_workflows_ci.yml.md | 1 | Procedure | Completed | — | — |
+| implementations/20261106-092637_05_tools_run_validation_gates.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261106-092637_06_tests_tools_test_run_validation_gates.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261106-092637_07_routing.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261106-092637_08_rules_toolchain.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261106-092637_09_tools_manage_workitem_stage.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261106-092637_10_tools__workitem_status_table.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261106-092637_11_tools__workitem_stage_parser.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261106-092637_12_tools__validation_gate_defs.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-092637_13_tools_TOOL_DESCRIPTIONS.md.md | 1, 2, 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

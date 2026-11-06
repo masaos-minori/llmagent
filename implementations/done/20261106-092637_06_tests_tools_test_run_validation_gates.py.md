@@ -57,9 +57,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the gate-mapping test | Pending | — | — | |
-| 2 | Add the identity test with the split and run the file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the gate-mapping test | Completed | 20261106-121717 | 20261106-121740 | Changed: tests/tools/test_run_validation_gates.py (gate-mapping and selection tests; the re-export identity test is added with the split) |
+| 2 | Add the identity test with the split and run the file | Completed | 20261106-121740 | 20261106-121740 | 58 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261106-121740 | 20261106-121740 | ruff, mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

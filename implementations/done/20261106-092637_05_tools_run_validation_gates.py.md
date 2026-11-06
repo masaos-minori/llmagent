@@ -63,10 +63,10 @@ N/A: no new input; the gate commands are fixed argument tuples.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Part A: add the gate entry and run `drift` with the `routing.md` row and hook | Pending | — | — | |
-| 2 | Part B: measure and extract the definitions, add the re-export imports, prove with `compare` | Pending | — | — | |
-| 3 | Part B: lower the baseline entry, run the tests, `drift`, and the gates | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Part A: add the gate entry and run `drift` with the `routing.md` row and hook | Completed | 20261106-121717 | 20261106-122117 | Changed: tools/run_validation_gates.py (Part A: gate check_module_size_tools; Part B: Gate, helpers, constants, and both tables moved to _validation_gate_defs.py and re-exported; 42611 B -> 21202 B); baseline entry removed. Found: module_nodes.py extract does not carry a class decorator, so Gate lost @dataclass(frozen=True) and the orphan decorator stacked on GateResult; fixed by hand |
+| 2 | Part B: measure and extract the definitions, add the re-export imports, prove with `compare` | Completed | 20261106-121950 | 20261106-122117 | 59 tests pass (gate mapping, selection, re-export identity) |
+| 3 | Part B: lower the baseline entry, run the tests, `drift`, and the gates | Completed | 20261106-122117 | 20261106-122117 | ruff, mypy, bandit (pre-existing findings only), suppression check clean; drift OK in -m, by-path, and other-cwd forms; ROUTING_GATES, TOOLCHAIN_GATES, Gate, and checker ids identical to the pre-split module by object comparison |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-122117 | 20261106-122117 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

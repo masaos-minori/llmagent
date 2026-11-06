@@ -59,9 +59,9 @@ N/A: verbatim move.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Complete the docstring and import block after the extract | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`), the tests, and `drift` | Pending | — | — | |
-| 3 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Complete the docstring and import block after the extract | Completed | 20261106-121951 | 20261106-122118 | Changed: tools/_validation_gate_defs.py (new, created by extract; docstring, imports, and the Gate decorator completed) |
+| 2 | Run the validation sequence (`rules/toolchain.md`), the tests, and `drift` | Completed | 20261106-121951 | 20261106-122118 | 59 tests pass |
+| 3 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-122118 | 20261106-122118 | ruff, mypy, bandit clean; imports no entry module; drift OK |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
