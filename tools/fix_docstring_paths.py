@@ -33,6 +33,11 @@ import re
 import sys
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._atomic_write import atomic_write_text
+
 EM_DASH = "\u2014"
 
 # Two dotted-module headers (mcp_servers.rag_pipeline.{models,server}) are the
@@ -206,7 +211,7 @@ def process_file(path: Path, scripts_root: Path, apply: bool) -> str | None:
     summary_new = new_body.strip().split("\n", 1)[0][:100]
     summary = f"{relpath}:\n  - {header.strip()[:100]!r}\n  + {summary_new!r}"
     if apply:
-        path.write_text(new_source, encoding="utf-8")
+        atomic_write_text(path, new_source)
     return summary
 
 

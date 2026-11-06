@@ -24,6 +24,11 @@ import re
 import sys
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._atomic_write import add_dry_run_argument, atomic_write_text, print_dry_run
+
 
 def add_markers(text: str, symbols: list[str]) -> tuple[str, int]:
     """Return `text` with ` (new)` appended after each unmarked `` `symbol` ``.
@@ -56,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Comma-separated symbol names the procedures create.",
     )
     parser.add_argument("files", nargs="+", help="Procedure Markdown files to edit.")
+    add_dry_run_argument(parser)
     args = parser.parse_args(argv)
 
     symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
@@ -67,8 +73,10 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         text = file_path.read_text(encoding="utf-8")
         new_text, count = add_markers(text, symbols)
-        if count:
-            file_path.write_text(new_text, encoding="utf-8")
+        if count and args.dry_run:
+            print_dry_run(file_path, text, new_text)
+        elif count:
+            atomic_write_text(file_path, new_text)
         print(f"{file_path}: {count} marker(s) added")
         total += count
     print(f"total: {total}")

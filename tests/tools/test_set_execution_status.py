@@ -4,6 +4,7 @@ Tests for tools/set_execution_status.py.
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -154,3 +155,34 @@ class TestRefusals:
         code = ses.main([str(tmp_path / "absent.md"), "--all"])
 
         assert code == 1
+
+
+class TestDryRun:
+    def test_dry_run_leaves_the_file_unchanged_and_prints_the_diff(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        doc = _doc(tmp_path)
+        before = hashlib.sha256(doc.read_bytes()).hexdigest()
+
+        code = ses.main([str(doc), "--all", "--date", "2026-10-17", "--dry-run"])
+
+        assert code == 0
+        assert hashlib.sha256(doc.read_bytes()).hexdigest() == before
+        assert "+| 1 |" in capsys.readouterr().out
+
+    def test_dry_run_returns_the_exit_code_of_the_real_run(
+        self, tmp_path: Path
+    ) -> None:
+        doc = _doc(tmp_path)
+
+        dry = ses.main([str(doc), "--step", "99", "--date", "2026-10-17", "--dry-run"])
+        real = ses.main([str(doc), "--step", "99", "--date", "2026-10-17"])
+
+        assert dry == real
+
+    def test_real_run_writes_utf8_bytes(self, tmp_path: Path) -> None:
+        doc = _doc(tmp_path)
+
+        ses.main([str(doc), "--all", "--date", "2026-10-17", "--note", "1:ünï 日本"])
+
+        assert "ünï 日本".encode() in doc.read_bytes()

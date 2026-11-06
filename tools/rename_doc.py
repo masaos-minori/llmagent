@@ -36,6 +36,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tools._atomic_write import atomic_write_text
 from tools._tool_common import run_git
 
 # Inline `[text](path)` Markdown link form only -- reference-style
@@ -509,7 +510,7 @@ def main(argv: list[str] | None = None) -> int:
         actual_file = new_path if target_file == old_path else target_file
         content = actual_file.read_text(encoding="utf-8")
         new_content = apply_rewrites_to_content(content, rewrites)
-        actual_file.write_text(new_content, encoding="utf-8")
+        atomic_write_text(actual_file, new_content)
 
     print(
         f"\nApplied: moved {old_path.relative_to(repo_root)} -> "

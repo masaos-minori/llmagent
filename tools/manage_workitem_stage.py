@@ -77,7 +77,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from typing import TYPE_CHECKING
+
+from tools._atomic_write import atomic_write_text
 
 if TYPE_CHECKING:
     import git
@@ -526,7 +532,7 @@ def update_execution_status(
 
     # Write back
     new_content = "\n".join(new_lines)
-    source.write_text(new_content, encoding="utf-8")
+    atomic_write_text(source, new_content)
     return True
 
 

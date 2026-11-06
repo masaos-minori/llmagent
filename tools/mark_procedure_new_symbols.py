@@ -37,6 +37,11 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._atomic_write import atomic_write_text
+
 ROOT_DIR = Path(__file__).resolve().parent.parent
 STALE_DETECTOR = ROOT_DIR / "tools" / "stale_detector.py"
 
@@ -139,7 +144,7 @@ def _print_mark(proc: Path, names: Iterable[str], dry_run: bool) -> int:
     if total == 0:
         print(f"No unmarked occurrences found; {proc} unchanged")
         return 0
-    proc.write_text(rewritten, encoding="utf-8")
+    atomic_write_text(proc, rewritten)
     print(f"OK: inserted {total} marker(s) for {len(requested)} name(s) in {proc}")
     return 0
 

@@ -33,6 +33,11 @@ import datetime
 import sys
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._atomic_write import add_dry_run_argument, atomic_write_text, print_dry_run
+
 HEADING = "### Execution Status"
 DONE_STATUS = "Completed"
 EMPTY_CELL = "\u2014"
@@ -150,15 +155,24 @@ def render_rows(rows: list[dict[str, str]]) -> list[str]:
 
 
 def update_document(
-    path: Path, steps: set[str] | None, notes: dict[str, str], date: str
+    path: Path,
+    steps: set[str] | None,
+    notes: dict[str, str],
+    date: str,
+    dry_run: bool = False,
 ) -> list[str]:
     """Rewrite one procedure document's Execution Status table and return the report lines."""
-    lines = path.read_text().splitlines()
+    original = path.read_text()
+    lines = original.splitlines()
     start, end = find_table(lines)
     rows = parse_rows(lines, start, end)
     reports = apply_updates(rows, steps, notes, date)
     rebuilt = lines[:start] + render_rows(rows) + lines[end:]
-    path.write_text("\n".join(rebuilt) + "\n")
+    new_text = "\n".join(rebuilt) + "\n"
+    if dry_run:
+        print_dry_run(path, original, new_text)
+    else:
+        atomic_write_text(path, new_text)
     return reports
 
 
@@ -198,6 +212,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="STEP:TEXT note assignment, repeatable",
     )
+    add_dry_run_argument(parser)
     return parser
 
 
@@ -209,7 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         notes.update(note)
     steps = None if args.all else args.step
     try:
-        reports = update_document(args.doc, steps, notes, args.date)
+        reports = update_document(args.doc, steps, notes, args.date, args.dry_run)
     except (ExecutionStatusError, FileNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

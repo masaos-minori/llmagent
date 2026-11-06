@@ -27,6 +27,11 @@ import ast
 import sys
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._atomic_write import add_dry_run_argument, atomic_write_text, print_dry_run
+
 FIELDS = {"is_write", "requires_serial", "resource_scope_kind", "resource_scope_keys"}
 POS = {
     7: "is_write",
@@ -52,7 +57,14 @@ def _find_default_reliant_calls(tree: ast.AST) -> tuple[int, list[int]]:
     return total, omit_lines
 
 
-def _migrate(path: Path) -> int:
+def _emit(path: Path, old: str, new: str, dry_run: bool) -> None:
+    if dry_run:
+        print_dry_run(path, old, new)
+    else:
+        atomic_write_text(path, new)
+
+
+def _migrate(path: Path, dry_run: bool = False) -> int:
     src = path.read_text()
     total, omit_lines = _find_default_reliant_calls(ast.parse(src))
     lines = src.splitlines(keepends=True)
@@ -121,17 +133,18 @@ def _migrate(path: Path) -> int:
         print(f"{path}: refusing to write (syntax error: {exc})", file=sys.stderr)
         return 1
 
-    path.write_text(new_src)
+    _emit(path, src, new_src, dry_run)
     print(f"{path}: calls={total} renamed={renamed} kept_strict={remaining}")
     return 0
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("paths", nargs="+", help="Test files to migrate")
-    args = parser.parse_args()
+    add_dry_run_argument(parser)
+    args = parser.parse_args(argv)
     for raw in args.paths:
-        if _migrate(Path(raw)) != 0:
+        if _migrate(Path(raw), args.dry_run) != 0:
             return 1
     return 0
 

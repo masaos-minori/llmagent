@@ -58,6 +58,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tools._atomic_write import atomic_write_text
 from tools.manage_workitem_stage import (
     MoveResult,
     move_to_done,
@@ -553,7 +554,7 @@ def _update_plan(
     for path in unmatched:
         report.lines.append(f"work item {path}: no row in {plan_path} (not failed)")
     if new_text != text and not args.dry_run:
-        plan_path.write_text(new_text, encoding="utf-8")
+        atomic_write_text(plan_path, new_text)
     covered = archived_targets(plan_path)
     for check in archived:
         covered.update(check.related)

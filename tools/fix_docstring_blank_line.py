@@ -12,7 +12,13 @@ Options:
     --dry-run      Print changes without modifying files
 """
 
+import sys
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._atomic_write import atomic_write_text
 
 
 def fix_d205(content: str) -> tuple[str, list[int]]:
@@ -134,7 +140,7 @@ def main():
             if args.dry_run:
                 print(f"[DRY-RUN] {py_file}: {len(changed)} fixes")
             else:
-                py_file.write_text(new_content, encoding="utf-8")
+                atomic_write_text(py_file, new_content)
                 print(f"{py_file}: {len(changed)} fixes")
             total_fixed += len(changed)
 

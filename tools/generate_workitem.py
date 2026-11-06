@@ -79,6 +79,11 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._atomic_write import add_dry_run_argument, atomic_write_text, print_dry_run
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 TEMPLATE_ISSUE = REPO_ROOT / "templates" / "issue.md"
@@ -275,7 +280,9 @@ def _resolve_repo_path(path_str: str) -> Path:
     return path if path.is_absolute() else REPO_ROOT / path
 
 
-def find_or_record_pass_timestamp(plan_path: Path, generated_timestamp: str) -> str:
+def find_or_record_pass_timestamp(
+    plan_path: Path, generated_timestamp: str, dry_run: bool = False
+) -> str:
     """Return the timestamp this Plan's implementation-procedure generation
     pass shares across every `Implementation Target Files` row.
 
@@ -297,7 +304,8 @@ def find_or_record_pass_timestamp(plan_path: Path, generated_timestamp: str) -> 
         if match:
             return match.group(1)
     marker = _PASS_TIMESTAMP_MARKER_TEMPLATE.format(timestamp=generated_timestamp)
-    plan_path.write_text(content.rstrip("\n") + "\n\n" + marker, encoding="utf-8")
+    if not dry_run:
+        atomic_write_text(plan_path, content.rstrip("\n") + "\n\n" + marker)
     return generated_timestamp
 
 
@@ -386,6 +394,17 @@ def _validate_companions(target: str, companions: list[str]) -> None:
         )
 
 
+def _emit_skeleton(output_path: Path, skeleton: str, dry_run: bool) -> None:
+    """Write a new skeleton atomically, or preview it as a diff against empty."""
+    relative = output_path.relative_to(REPO_ROOT)
+    if dry_run:
+        print(f"Would create {relative}")
+        print_dry_run(output_path, "", skeleton)
+        return
+    atomic_write_text(output_path, skeleton)
+    print(f"Created {relative}")
+
+
 def generate_all_rows(args: argparse.Namespace, timestamp: str) -> int:
     """Batch mode for `--kind implementation-procedure --all-rows`: generate
     one skeleton per row of the source Plan's `Implementation Target Files`
@@ -409,7 +428,9 @@ def generate_all_rows(args: argparse.Namespace, timestamp: str) -> int:
         )
         return 1
 
-    pass_timestamp = find_or_record_pass_timestamp(source_plan_path, timestamp)
+    pass_timestamp = find_or_record_pass_timestamp(
+        source_plan_path, timestamp, args.dry_run
+    )
     created = 0
     skipped = 0
     for index, target_file_path in enumerate(rows, start=1):
@@ -427,8 +448,7 @@ def generate_all_rows(args: argparse.Namespace, timestamp: str) -> int:
             print(f"SKIP (exists): {collision.relative_to(REPO_ROOT)}")
             skipped += 1
             continue
-        output_path.write_text(skeleton, encoding="utf-8")
-        print(f"Created {output_path.relative_to(REPO_ROOT)}")
+        _emit_skeleton(output_path, skeleton, args.dry_run)
         created += 1
 
     print(f"Total created: {created}, skipped (already exist): {skipped}")
@@ -470,7 +490,9 @@ def render_implementation_procedure(
     )
     companions: list[str] = args.companion or []
     _validate_companions(args.target_file_path, companions)
-    pass_timestamp = find_or_record_pass_timestamp(source_plan_path, timestamp)
+    pass_timestamp = find_or_record_pass_timestamp(
+        source_plan_path, timestamp, args.dry_run
+    )
     skeleton = extract_fenced_skeleton(TEMPLATE_IMPLEMENTATION_PROCEDURE)
     if companions:
         skeleton = apply_companions(skeleton, args.target_file_path, companions)
@@ -590,6 +612,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "single response; a single oversized call truncates or aborts."
         ),
     )
+    add_dry_run_argument(parser)
     return parser
 
 
@@ -669,8 +692,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.estimate_tokens:
         return _report_estimate(skeleton, args.kind, args.limit)
 
-    output_path.write_text(skeleton, encoding="utf-8")
-    print(f"Created {output_path.relative_to(REPO_ROOT)}")
+    _emit_skeleton(output_path, skeleton, args.dry_run)
     return 0
 
 

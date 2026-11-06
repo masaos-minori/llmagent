@@ -49,6 +49,7 @@ from pathlib import Path, PurePosixPath
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tools._atomic_write import atomic_write_text
 from tools._front_matter_schema import load_front_matter_schema
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -260,7 +261,7 @@ def cmd_add_missing(argv: list[str] | argparse.Namespace | None = None) -> int:
             fm = build_frontmatter(filename, title=title, area=area)
             if args.fix:
                 new_content = fm + content
-                md_file.write_text(new_content, encoding="utf-8")
+                atomic_write_text(md_file, new_content)
                 print(f"Added front matter to {md_file.name}")
                 modified = True
             else:
@@ -381,7 +382,7 @@ def cmd_rename_category_to_area(
         new_content = content[:3] + "\n".join(new_fm_lines) + content[end:]
 
         if args.fix:
-            md_file.write_text(new_content, encoding="utf-8")
+            atomic_write_text(md_file, new_content)
             print(f"Renamed 'category:' to 'area:' in {md_file.name}")
         else:
             print(
@@ -446,7 +447,7 @@ def cmd_dedupe_lists() -> None:
         content = path.read_text(encoding="utf-8")
         new_content, changed = dedupe_front_matter(content)
         if changed:
-            path.write_text(new_content, encoding="utf-8")
+            atomic_write_text(path, new_content)
             changed_files += 1
             print(f"deduped {path.name}")
     print(f"total files changed: {changed_files}")
@@ -688,7 +689,7 @@ def cmd_merge_related(argv: list[str] | argparse.Namespace | None = None) -> int
         if plan.new_content is not None:
             changed += 1
             if args.fix:
-                md_file.write_text(plan.new_content, encoding="utf-8")
+                atomic_write_text(md_file, plan.new_content)
 
     verb = "modified" if args.fix else "would change"
     print(f"\n{changed} file(s) {verb}; {blocked} with unresolved or unsupported input")

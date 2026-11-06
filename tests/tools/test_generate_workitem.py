@@ -695,3 +695,58 @@ class TestCompanionOption:
     def test_apply_companions_fails_when_an_anchor_is_missing(self) -> None:
         with pytest.raises(gw.GenerationError):
             gw.apply_companions("## Implementation\n", self.TARGET, [self.TEST_A])
+
+
+class TestDryRun:
+    """`--dry-run` previews the skeleton and writes nothing, including the plan marker."""
+
+    @pytest.fixture(autouse=True)
+    def _setup(
+        self,
+        workitem_dirs: dict[str, Path],
+        fixed_timestamp: str,
+        tmp_path: Path,
+    ) -> None:
+        self.implementations = workitem_dirs["implementations"]
+        self.plan = tmp_path / "source_plan.md"
+        self.plan.write_text("dummy plan content\n", encoding="utf-8")
+
+    def _files(self) -> list[Path]:
+        return [p for p in self.implementations.iterdir() if p.is_file()]
+
+    def _argv(self, *extra: str) -> list[str]:
+        return [
+            "--kind",
+            "implementation-procedure",
+            "--source-plan",
+            str(self.plan),
+            "--target-file-path",
+            "scripts/agent/foo.py",
+            "--seq",
+            "01",
+            *extra,
+        ]
+
+    def test_dry_run_creates_no_file_and_leaves_the_plan_unmarked(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        plan_before = self.plan.read_bytes()
+
+        assert gw.main(self._argv("--dry-run")) == 0
+
+        out = capsys.readouterr().out
+        assert "Would create" in out
+        assert self._files() == []
+        assert self.plan.read_bytes() == plan_before
+
+    def test_dry_run_and_real_run_return_the_same_code(self) -> None:
+        dry = gw.main(self._argv("--dry-run"))
+        real = gw.main(self._argv())
+
+        assert dry == real == 0
+        assert len(self._files()) == 1
+
+    def test_dry_run_still_reports_an_existing_output_as_an_error(self) -> None:
+        assert gw.main(self._argv()) == 0
+
+        assert gw.main(self._argv("--dry-run")) == 1

@@ -20,18 +20,25 @@ Substitution rules, applied in order:
                                                             preceding word character)
 
 Usage:
-    python tools/fix_docs_section_marks.py [--dir docs skills] [--apply]
+    python tools/fix_docs_section_marks.py [--dir docs skills] [--apply | --dry-run]
 
 Options:
     --dir <path> [<path> ...]   Directories to scan (default: docs skills)
     --apply                     Write changes to disk (default: dry-run, prints a diff-like summary)
+    --dry-run                   Explicit no-write mode; also prints the unified diff (not with --apply)
 """
 
 from __future__ import annotations
 
 import argparse
 import re
+import sys
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._atomic_write import add_dry_run_argument, atomic_write_text, print_dry_run
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -69,7 +76,7 @@ def fix_section_marks(content: str) -> tuple[str, int]:
     return content, count
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--dir",
@@ -80,7 +87,10 @@ def main() -> int:
     parser.add_argument(
         "--apply", action="store_true", help="Write changes to disk (default: dry-run)"
     )
-    args = parser.parse_args()
+    add_dry_run_argument(parser)
+    args = parser.parse_args(argv)
+    if args.apply and args.dry_run:
+        parser.error("--apply and --dry-run are mutually exclusive")
 
     total_files = 0
     total_marks = 0
@@ -105,10 +115,12 @@ def main() -> int:
             rel_path = md_file.relative_to(REPO_ROOT)
 
             if args.apply:
-                md_file.write_text(new_content, encoding="utf-8")
+                atomic_write_text(md_file, new_content)
                 print(f"{rel_path}: {count} occurrence(s) replaced")
             else:
                 print(f"[DRY-RUN] {rel_path}: {count} occurrence(s) would be replaced")
+                if args.dry_run:
+                    print_dry_run(md_file, original, new_content)
 
             total_files += 1
             total_marks += count

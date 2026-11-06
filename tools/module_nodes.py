@@ -42,6 +42,13 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
+from tools._atomic_write import (
+    StagedWrite,
+    add_dry_run_argument,
+    atomic_write_text,
+    print_dry_run,
+    stage_write,
+)
 from tools._tool_common import run_git
 
 _MOVED_NODE = ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
@@ -161,6 +168,59 @@ def _extract_lines(
     return kept_lines, moved_segments
 
 
+def _replace_both(
+    args: argparse.Namespace,
+    dest_code: str,
+    src_code: str,
+    dest_existed: bool,
+    dest_existing: str,
+) -> int | None:
+    """Stage both files, then replace destination first; return 1 on a failure.
+
+    The destination goes first so a failure never loses moved code: if the source
+    replace fails, the destination is restored (or removed when this run created it).
+    """
+    staged: list[StagedWrite] = []
+    try:
+        staged.append(stage_write(args.dest, dest_code))
+        staged.append(stage_write(args.src, src_code))
+        staged[0].commit()
+    except OSError as exc:
+        for pending in staged:
+            pending.discard()
+        print(f"ERROR: nothing changed ({exc})", file=sys.stderr)
+        return 1
+    try:
+        staged[1].commit()
+    except OSError as exc:
+        staged[1].discard()
+        return _restore_destination(args, dest_existed, dest_existing, exc)
+    return None
+
+
+def _restore_destination(
+    args: argparse.Namespace, dest_existed: bool, dest_existing: str, cause: OSError
+) -> int:
+    try:
+        if dest_existed:
+            atomic_write_text(args.dest, dest_existing)
+        else:
+            args.dest.unlink()
+    except OSError as restore_exc:
+        print(
+            f"ERROR: replacing {args.src} failed ({cause}) and restoring "
+            f"{args.dest} failed ({restore_exc}); the moved code is now in both "
+            f"{args.src} and {args.dest}",
+            file=sys.stderr,
+        )
+        return 1
+    print(
+        f"ERROR: replacing {args.src} failed ({cause}); {args.dest} was restored",
+        file=sys.stderr,
+    )
+    return 1
+
+
 def _cmd_extract(args: argparse.Namespace) -> int:
     if not args.names and not args.range_args:
         raise SystemExit("ERROR: pass at least one --name or --range")
@@ -170,12 +230,20 @@ def _cmd_extract(args: argparse.Namespace) -> int:
         args.src, args.names, ranges, args.dedent
     )
 
-    dest_existing = args.dest.read_text() if args.dest.exists() else ""
+    dest_existed = args.dest.exists()
+    dest_existing = args.dest.read_text() if dest_existed else ""
     joined = dest_existing.rstrip("\n")
     body = "\n\n\n".join(segment.rstrip("\n") for segment in moved_segments)
     dest_code = f"{joined}\n\n\n{body}\n" if joined else f"{body}\n"
-    args.dest.write_text(dest_code)
-    args.src.write_text("".join(kept_lines))
+    src_code = "".join(kept_lines)
+
+    if args.dry_run:
+        print_dry_run(args.dest, dest_existing, dest_code)
+        print_dry_run(args.src, args.src.read_text(), src_code)
+        return 0
+    failure = _replace_both(args, dest_code, src_code, dest_existed, dest_existing)
+    if failure is not None:
+        return failure
 
     moved = args.names + [f"lines {start}-{end}" for start, end in ranges]
     print(f"moved {len(moved)} nodes -> {args.dest}")
@@ -334,6 +402,7 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="remove one 4-space indent level from the moved lines",
     )
+    add_dry_run_argument(p_extract)
     p_extract.set_defaults(func=_cmd_extract)
 
     p_compare = sub.add_parser("compare", help="verify moved functions are unchanged")
