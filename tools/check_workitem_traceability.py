@@ -64,18 +64,23 @@ no-plan-yet/no-procedure-yet/stale-target-heuristic are informational);
 from __future__ import annotations
 
 import argparse
-import csv
 import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-import orjson
-
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tools._report import (
+    PROFILE_WORKITEM,
+    ReportFinding,
+    add_format_argument,
+    render_csv,
+    render_json,
+    render_text,
+)
 from tools._tool_common import REPO_ROOT, run_git
 
 ROOT_DIR = REPO_ROOT
@@ -451,11 +456,7 @@ def _source_path_exists(value: str) -> bool:
     return False
 
 
-def make_finding(category: str, file_path: str, detail: str) -> dict[str, str]:
-    return {"category": category, "file": file_path, "detail": detail}
-
-
-def find_parse_errors(documents: list[WorkItemDocument]) -> list[dict[str, str]]:
+def find_parse_errors(documents: list[WorkItemDocument]) -> list[ReportFinding]:
     """Files without a `## Traceability` heading at all.
 
     Informational only — most `issues/*.md` files are raw, manually-filed
@@ -467,10 +468,10 @@ def find_parse_errors(documents: list[WorkItemDocument]) -> list[dict[str, str]]
     silently skipped or crashed on.
     """
     return [
-        make_finding(
-            "parse-error",
-            doc.rel_path,
-            "no '## Traceability' heading found",
+        ReportFinding(
+            code="parse-error",
+            file=doc.rel_path,
+            message="no '## Traceability' heading found",
         )
         for doc in documents
         if not doc.traceability_found
@@ -479,16 +480,16 @@ def find_parse_errors(documents: list[WorkItemDocument]) -> list[dict[str, str]]
 
 def find_missing_source_files(
     documents: list[WorkItemDocument],
-) -> list[dict[str, str]]:
-    findings: list[dict[str, str]] = []
+) -> list[ReportFinding]:
+    findings: list[ReportFinding] = []
     for doc in documents:
         for field_name, value in doc.fields.items():
             if not _source_path_exists(value):
                 findings.append(
-                    make_finding(
-                        "missing-source-file",
-                        doc.rel_path,
-                        f"{field_name} target does not exist: {value}",
+                    ReportFinding(
+                        code="missing-source-file",
+                        file=doc.rel_path,
+                        message=f"{field_name} target does not exist: {value}",
                     )
                 )
     return findings
@@ -496,14 +497,14 @@ def find_missing_source_files(
 
 def find_no_plan_yet(
     documents: list[WorkItemDocument], age_threshold_days: int
-) -> list[dict[str, str]]:
+) -> list[ReportFinding]:
     referenced_issues = {
         doc.fields["Source issue"]
         for doc in documents
         if doc.kind == "plan" and "Source issue" in doc.fields
     }
 
-    findings: list[dict[str, str]] = []
+    findings: list[ReportFinding] = []
     now = datetime.now()
     for doc in documents:
         if doc.kind != "issue" or doc.is_done:
@@ -514,10 +515,10 @@ def find_no_plan_yet(
         age_days = (now - filed).days
         if age_days >= age_threshold_days:
             findings.append(
-                make_finding(
-                    "no-plan-yet",
-                    doc.rel_path,
-                    f"no plan references this issue as Source issue "
+                ReportFinding(
+                    code="no-plan-yet",
+                    file=doc.rel_path,
+                    message=f"no plan references this issue as Source issue "
                     f"(filed {age_days} day(s) ago)",
                 )
             )
@@ -526,14 +527,14 @@ def find_no_plan_yet(
 
 def find_no_procedure_yet(
     documents: list[WorkItemDocument], age_threshold_days: int
-) -> list[dict[str, str]]:
+) -> list[ReportFinding]:
     referenced_plans = {
         doc.fields["Source plan"]
         for doc in documents
         if doc.kind == "implementation" and "Source plan" in doc.fields
     }
 
-    findings: list[dict[str, str]] = []
+    findings: list[ReportFinding] = []
     now = datetime.now()
     for doc in documents:
         if doc.kind != "plan" or doc.is_done:
@@ -544,18 +545,18 @@ def find_no_procedure_yet(
         age_days = (now - filed).days
         if age_days >= age_threshold_days:
             findings.append(
-                make_finding(
-                    "no-procedure-yet",
-                    doc.rel_path,
-                    f"no implementation procedure references this plan as "
+                ReportFinding(
+                    code="no-procedure-yet",
+                    file=doc.rel_path,
+                    message=f"no implementation procedure references this plan as "
                     f"Source plan (filed {age_days} day(s) ago)",
                 )
             )
     return findings
 
 
-def find_stale_targets(documents: list[WorkItemDocument]) -> list[dict[str, str]]:
-    findings: list[dict[str, str]] = []
+def find_stale_targets(documents: list[WorkItemDocument]) -> list[ReportFinding]:
+    findings: list[ReportFinding] = []
     for doc in documents:
         if doc.kind != "issue":
             continue
@@ -578,10 +579,10 @@ def find_stale_targets(documents: list[WorkItemDocument]) -> list[dict[str, str]
             if modified > filed:
                 reported_targets.add(resolved)
                 findings.append(
-                    make_finding(
-                        "stale-target-heuristic",
-                        doc.rel_path,
-                        f"references {mention} "
+                    ReportFinding(
+                        code="stale-target-heuristic",
+                        file=doc.rel_path,
+                        message=f"references {mention} "
                         f"({resolved.relative_to(ROOT_DIR).as_posix()}), "
                         f"modified after this issue was filed",
                     )
@@ -591,7 +592,7 @@ def find_stale_targets(documents: list[WorkItemDocument]) -> list[dict[str, str]
 
 def find_target_file_mismatches(
     documents: list[WorkItemDocument],
-) -> list[dict[str, str]]:
+) -> list[ReportFinding]:
     """`implementation`-kind documents only: the Traceability
     `Related target files` value must equal the body's `### Target file`
     value — the template's one-file-per-document contract guarantees these
@@ -604,7 +605,7 @@ def find_target_file_mismatches(
     documents legitimately use a multi-path list or prose value for the
     same field name, so the same equality check would misfire there.
     """
-    findings: list[dict[str, str]] = []
+    findings: list[ReportFinding] = []
     for doc in documents:
         if doc.kind != "implementation":
             continue
@@ -617,10 +618,10 @@ def find_target_file_mismatches(
             declared = extract_related_target_files_list(doc.text)
             if declared[:1] != [target] or set(declared[1:]) != set(companions):
                 findings.append(
-                    make_finding(
-                        "target-file-mismatch",
-                        doc.rel_path,
-                        f"Traceability 'Related target files' "
+                    ReportFinding(
+                        code="target-file-mismatch",
+                        file=doc.rel_path,
+                        message=f"Traceability 'Related target files' "
                         f"({', '.join(declared)}) does not match body "
                         f"'### Target file' ({target}) followed by "
                         f"'### Companion test files' "
@@ -631,10 +632,10 @@ def find_target_file_mismatches(
             continue
         if related != target:
             findings.append(
-                make_finding(
-                    "target-file-mismatch",
-                    doc.rel_path,
-                    f"Traceability 'Related target files' ({related}) does "
+                ReportFinding(
+                    code="target-file-mismatch",
+                    file=doc.rel_path,
+                    message=f"Traceability 'Related target files' ({related}) does "
                     f"not match body '### Target file' ({target}) -- check "
                     f"for a copy-paste error or interleaved/corrupted "
                     f"content",
@@ -720,7 +721,7 @@ def _procedures_of_plan(
 
 def find_plan_coverage_findings(
     plan_path: Path, documents: list[WorkItemDocument]
-) -> list[dict[str, str]]:
+) -> list[ReportFinding]:
     """Check one Plan's rows against its implementation procedure documents.
 
     A document covers its target and each companion. Reports a row covered by
@@ -737,7 +738,7 @@ def find_plan_coverage_findings(
     row_paths = [path for path, _ in rows]
 
     covered_by: dict[str, list[str]] = {}
-    findings: list[dict[str, str]] = []
+    findings: list[ReportFinding] = []
     procedures = _procedures_of_plan(plan_path, documents)
     for doc in procedures:
         target = extract_target_file_value(doc.text)
@@ -757,29 +758,29 @@ def find_plan_coverage_findings(
             else:
                 continue
             findings.append(
-                make_finding(
-                    "companion-not-eligible",
-                    doc.rel_path,
-                    f"companion {companion} {reason} ({target})",
+                ReportFinding(
+                    code="companion-not-eligible",
+                    file=doc.rel_path,
+                    message=f"companion {companion} {reason} ({target})",
                 )
             )
 
     for path in row_paths:
         if path not in covered_by:
             findings.append(
-                make_finding(
-                    "row-uncovered",
-                    plan_rel,
-                    f"no procedure document covers row {path}",
+                ReportFinding(
+                    code="row-uncovered",
+                    file=plan_rel,
+                    message=f"no procedure document covers row {path}",
                 )
             )
     for path, doc_paths in covered_by.items():
         if len(doc_paths) > 1:
             findings.append(
-                make_finding(
-                    "path-covered-twice",
-                    doc_paths[0],
-                    f"{path} is covered more than once: {', '.join(doc_paths)}",
+                ReportFinding(
+                    code="path-covered-twice",
+                    file=doc_paths[0],
+                    message=f"{path} is covered more than once: {', '.join(doc_paths)}",
                 )
             )
 
@@ -801,10 +802,10 @@ def find_plan_coverage_findings(
         ]
         if len(named_in) > 1:
             findings.append(
-                make_finding(
-                    "companion-multi-row",
-                    plan_rel,
-                    f"companion {companion} is named in Related Tests of "
+                ReportFinding(
+                    code="companion-multi-row",
+                    file=plan_rel,
+                    message=f"companion {companion} is named in Related Tests of "
                     f"{len(named_in)} rows: {', '.join(named_in)}",
                 )
             )
@@ -813,9 +814,9 @@ def find_plan_coverage_findings(
 
 def collect_findings(
     documents: list[WorkItemDocument], age_threshold_days: int
-) -> list[dict[str, str]]:
+) -> list[ReportFinding]:
     """Run all report categories over one shared parsed graph."""
-    findings: list[dict[str, str]] = []
+    findings: list[ReportFinding] = []
     findings.extend(find_parse_errors(documents))
     findings.extend(find_missing_source_files(documents))
     findings.extend(find_no_plan_yet(documents, age_threshold_days))
@@ -823,37 +824,6 @@ def collect_findings(
     findings.extend(find_stale_targets(documents))
     findings.extend(find_target_file_mismatches(documents))
     return findings
-
-
-def render_text(findings: list[dict[str, str]]) -> str:
-    if not findings:
-        return "No findings.\n"
-
-    lines: list[str] = []
-    categories = dict.fromkeys(f["category"] for f in findings)
-    for category in categories:
-        category_findings = [f for f in findings if f["category"] == category]
-        lines.append(f"[{category}] ({len(category_findings)})")
-        for finding in category_findings:
-            lines.append(f"  {finding['file']}: {finding['detail']}")
-    lines.append(f"\n{len(findings)} finding(s) total.")
-    return "\n".join(lines) + "\n"
-
-
-def render_json(findings: list[dict[str, str]]) -> str:
-    return orjson.dumps(
-        findings, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS
-    ).decode()
-
-
-def render_csv(findings: list[dict[str, str]]) -> str:
-    import io
-
-    buffer = io.StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=["category", "file", "detail"])
-    writer.writeheader()
-    writer.writerows(findings)
-    return buffer.getvalue()
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -875,12 +845,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
             f"no-procedure-yet (default: {DEFAULT_AGE_THRESHOLD_DAYS})"
         ),
     )
-    parser.add_argument(
-        "--format",
-        choices=["json", "csv"],
-        default=None,
-        help="Machine-readable output format (default: human-readable text)",
-    )
+    add_format_argument(parser, choices=("json", "csv"), default=None)
     parser.add_argument(
         "--active-only",
         action="store_true",
@@ -905,16 +870,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def is_archived_finding(finding: dict[str, str]) -> bool:
+def is_archived_finding(finding: ReportFinding) -> bool:
     """True when the finding's file lives under a `done/` directory."""
-    return "done" in Path(finding["file"]).parts[:-1]
+    return "done" in Path(finding.file).parts[:-1]
 
 
-def _print_findings(findings: list[dict[str, str]], output_format: str | None) -> None:
+def _print_findings(findings: list[ReportFinding], output_format: str | None) -> None:
     if output_format == "json":
-        print(render_json(findings))
+        print(render_json(findings, PROFILE_WORKITEM))
     elif output_format == "csv":
-        print(render_csv(findings), end="")
+        print(render_csv(findings, PROFILE_WORKITEM), end="")
     else:
         print(render_text(findings), end="")
 
@@ -939,7 +904,7 @@ def main(argv: list[str] | None = None) -> int:
     _print_findings(findings, args.format)
 
     gating_categories = {"missing-source-file", "target-file-mismatch"}
-    has_gating_finding = any(f["category"] in gating_categories for f in findings)
+    has_gating_finding = any(f.code in gating_categories for f in findings)
     return 1 if has_gating_finding else 0
 
 

@@ -25,6 +25,32 @@ Callers do not distinguish `1` from `2`: `run_validation_gates.py` maps exit `0`
 | `check_tool_descriptions_sync.py` | Exits `1` when `TOOL_DESCRIPTIONS.md` is missing | Same | pre-commit hook, console script `check-tool-descriptions`: any non-zero is failure |
 | `check_needs_confirmation_inventory.py` | Exits `1` when the inventory document is missing; warnings never produce a non-zero exit, only ERROR findings do | Same; the warning rule is a deliberate detection mode | `governance-docs-consistency.yml` step, console script `check-needs-confirmation`: any non-zero is failure |
 
+## Output Format Audit
+
+Readers of the output formats of `check_adr_authority.py`, `check_adr_reference.py`, `check_adr_invariant_matrix.py`, and `check_workitem_traceability.py`, recorded before the shared reporting module is introduced:
+
+- Callers: pre-commit runs `check_adr_invariant_matrix.py`, `check_adr_reference.py`, and `check_workitem_traceability.py --active-only` in text mode through the module form; `.github/workflows/ci.yml` runs `check_adr_authority.py` by path in text mode. No pre-commit hook, CI workflow, `run_validation_gates.py`, skill, rule, prompt, `routing.md`, or document requests `--format json` or `--format csv` from these tools.
+- Importers: tests, and for `check_adr_invariant_matrix.py` a lazy import in `generate_reference_table.py` of `ADR_INDEX`, `_matrix_rows`, `_read_lines`, and `_split_row`.
+- Readers outside the repository cannot be searched from here; none is known.
+
+| Tool | JSON keys | JSON order | Other formats |
+|---|---|---|---|
+| `check_adr_authority.py` | `code`, `location`, `message` | sorted by code, location, message | text only otherwise |
+| `check_adr_reference.py`, `check_adr_invariant_matrix.py` | `file`, `line_no`, `severity`, `message` | sorted by file, line | text only otherwise |
+| `check_workitem_traceability.py` | `category`, `file`, `detail` (keys sorted alphabetically) | finding order | CSV with header `category,file,detail` |
+## --format Convention and JSON Schema
+
+A tool offers only the formats it already supports through `add_format_argument` in `_report.py`, and its default stays human-readable text; JSON and CSV are on request with `--format`. Rendering is deterministic: the same findings give the same bytes. The JSON output is a list of objects; the keys are per tool and are a contract, so a change to them is listed here first.
+
+| Tool | Formats | JSON keys (in order) | Ordering |
+|---|---|---|---|
+| `check_adr_authority.py` | text, `json` | `code`, `location`, `message` | code, location, message |
+| `check_adr_reference.py`, `check_adr_invariant_matrix.py` | text, `json` | `file`, `line_no`, `severity`, `message` | file, line |
+| `check_workitem_traceability.py` | text, `json`, `csv` | `category`, `detail`, `file` (sorted); CSV header `category,file,detail` | finding order |
+
+The other tools that define their own `render_json`, `render_text`, or `render_csv` are not migrated yet; each follow-up batch is a separate change.
+
+
 ## Index
 
 | File | Category | Purpose |
@@ -32,6 +58,7 @@ Callers do not distinguish `1` from `2`: `run_validation_gates.py` maps exit `0`
 | `_adr_authority_core.py` | Shared base | ADR authority model (ADR-016): TOML loader, finding codes, validators (single source shared by `check_adr_authority.py` and `check_adr_reference.py`) |
 | `_docs_consistency_lib.py` | Shared base | DocFile/Issue data types, file discovery, generic checks |
 | `_front_matter_schema.py` | Shared base | Single source of truth for the Front Matter schema |
+| `_report.py` | Shared base | Finding record, key profiles, deterministic text, JSON, and CSV renderers, and the `--format` option helper |
 | `_tool_common.py` | Shared base | Repository root, one `git` runner (UTF-8 text mode with replacement or bytes mode, optional `check` and `timeout`), and the exit-code constants |
 | `check_adr_authority.py` | ADR | Validate `config/adr_authority.toml`: duplicate primaries, dangling ADR IDs, authority-graph cycles, unknown edge types, `config-check` assumption drift (ADR-016; runs in CI) |
 | `check_adr_invariant_matrix.py` | ADR | Verify that test files and nodes cited in the ADR Invariant Verification Matrix and in ADR bodies exist (nodes by AST), and fail on empty ADR body evidence cells and body-cited test files not covered by the index (containment; extra index citations are allowed) |
@@ -116,6 +143,7 @@ All of these share DocFile/Issue/`discover_md_files` and related helpers from `_
 | `_adr_authority_core.py` | (shared base; cannot run standalone) | ADR authority model (ADR-016): loads `config/adr_authority.toml` into typed dataclasses, defines the finding codes (`DUP_PRIMARY`, `DANGLING_ADR`, `AUTHORITY_CYCLE`, `ASSUMPTION_DRIFT`, `EDGE_UNKNOWN_TYPE`, `FRONTMATTER_DIVERGENCE`), and implements the validators (single primary per decision target, resolvable ADR IDs, closed edge-type taxonomy, acyclic authority graph with intentional bidirectional pairs, `config-check` assumptions asserted against `config/agent.toml`, front matter/model cross-check). Shared by `check_adr_authority.py` and `check_adr_reference.py`; a broken model file raises `AuthorityModelError` (fail-closed) |
 | `_docs_consistency_lib.py` | (shared base; cannot run standalone) | DocFile/Issue data types and file discovery. Generic checks: broken internal links (an `#anchor` that matches no heading of the target document, same-page links included, is reported as a Warning using GitHub-style heading slugs), references to deleted files, slash-command drift, completeness of directory listings, existence of `scripts/` path references and function references |
 | `_front_matter_schema.py` | (shared base; cannot run standalone) | Single source of truth for the Front Matter schema shared by `check_docs_structure.py` and `manage_frontmatter.py`. If `schemas/doc_front_matter.json` exists, it is the canonical source (loaded as a draft-07 JSON Schema: `required`, `properties.area.enum`, `properties.status.enum`). If it does not exist, falls back to the built-in default (`title`/`area`/`tags`/`related`, no enum constraints). Prevents the schema values and required-field list from being defined twice across tools |
+| `_report.py` | (shared base; cannot run standalone) | `ReportFinding` (a frozen record with `message` and optional `file`, `line_no`, `severity`, `code`, `location`), `ReportProfile` (ordered `(output_key, record_field)` pairs, an optional sort key, and whether output keys are sorted) with `PROFILE_ISSUE`, `PROFILE_AUTHORITY`, and `PROFILE_WORKITEM` reproducing each tool's current output, `render_json`, `render_csv`, `render_text` (grouped by `code`), `add_format_argument`, and the converters `from_issue` and `from_authority_finding`. Renderers return strings and never print; used by `check_adr_authority.py`, `check_adr_reference.py`, `check_adr_invariant_matrix.py`, and `check_workitem_traceability.py` |
 | `_tool_common.py` | (shared base; cannot run standalone) | Exports `REPO_ROOT`, `run_git`, and `EXIT_OK`, `EXIT_FINDINGS`, `EXIT_ERROR` (0 pass, 1 findings, 2 usage or environment error). `run_git` returns the `subprocess.CompletedProcess`; `cwd=None` keeps the process working directory, and `OSError`, `subprocess.TimeoutExpired`, and (with `check=True`) `subprocess.CalledProcessError` propagate so each tool keeps its own error handling. Standard library only: `tools/manage_binaries.py` imports it and runs under the system `python3` from `deploy/*.sh` |
 | `check_docs_consistency.py` | `--domain agent\|mcp\|rag\|deployment\|overview\|eventbus\|shared\|db` | Integrates the checks for the domains listed. The `eventbus`, `shared`, and `db` domains run only the generic checks. `--skip <check>` skips a specific check. The agent domain also runs `commandcoverage` (rule `GV-023`): every `_COMMANDS` command must be in the `agent_07_03` Built-in Command Index and named in a per-command chapter, and every index row must be registered or REPL-reserved. It also runs `commandcontract` (GV-023): usage lines rendered from the registry (`SubcommandSpec`/`ArgSpec`) must match the per-command chapters in both directions, including stated defaults |
 | `check_needs_confirmation_inventory.py` | All of `docs/*.md` | Checks that every "Needs confirmation" mention is registered in the central inventory in `governance_03` (`docs/00_governance/governance_03_issue-and-uncertainty-management.md`); that no marker remains at the location of a resolved NC item; and that the declared field count equals the actual number of list items. `_GOVERNANCE_META_DOCS` (the list of excluded governance documents) was corrected on 2026-09-03 to the four current `docs/00_governance_*.md` files (none of the seven old filenames still existed) |

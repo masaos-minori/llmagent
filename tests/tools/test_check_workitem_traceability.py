@@ -11,6 +11,7 @@ import pytest
 from freezegun import freeze_time
 
 import tools.check_workitem_traceability as cwt
+from tools._report import ReportFinding
 
 # Fixed reference "now" for the age-threshold boundary tests — see this
 # implementation procedure's Assumptions/Details for why freezegun is used
@@ -84,9 +85,9 @@ class TestMissingSourceFile:
         findings = cwt.find_missing_source_files(documents)
 
         assert len(findings) == 1
-        assert findings[0]["category"] == "missing-source-file"
-        assert findings[0]["file"] == "plans/20260801-110000_plan.md"
-        assert missing_value in findings[0]["detail"]
+        assert findings[0].code == "missing-source-file"
+        assert findings[0].file == "plans/20260801-110000_plan.md"
+        assert missing_value in findings[0].message
 
     def test_missing_source_file_not_reported_once_moved_to_done(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -139,7 +140,7 @@ class TestNoPlanYet:
             documents = cwt.discover_documents()
             findings = cwt.find_no_plan_yet(documents, age_threshold_days)
 
-        assert any(f["file"] == f"issues/{old_ts}_i_old.md" for f in findings)
+        assert any(f.file == f"issues/{old_ts}_i_old.md" for f in findings)
 
     def test_young_unreferenced_issue_is_not_reported(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -186,7 +187,7 @@ class TestNoProcedureYet:
             documents = cwt.discover_documents()
             findings = cwt.find_no_procedure_yet(documents, age_threshold_days)
 
-        assert any(f["file"] == f"plans/{old_ts}_plan.md" for f in findings)
+        assert any(f.file == f"plans/{old_ts}_plan.md" for f in findings)
 
     def test_young_unreferenced_plan_is_not_reported(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -283,10 +284,10 @@ class TestTargetFileMismatch:
         findings = cwt.find_target_file_mismatches(documents)
 
         assert len(findings) == 1
-        assert findings[0]["category"] == "target-file-mismatch"
-        assert findings[0]["file"] == "implementations/20260801-120000_01_sample.md"
-        assert "scripts/eventbus/config.py" in findings[0]["detail"]
-        assert "scripts/eventbus/broker.py" in findings[0]["detail"]
+        assert findings[0].code == "target-file-mismatch"
+        assert findings[0].file == "implementations/20260801-120000_01_sample.md"
+        assert "scripts/eventbus/config.py" in findings[0].message
+        assert "scripts/eventbus/broker.py" in findings[0].message
 
     def test_plan_kind_multi_path_value_is_not_reported(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -330,9 +331,15 @@ class TestActiveOnly:
     """`--active-only` drops findings located under `done/` directories."""
 
     def test_is_archived_finding_matches_done_directory_only(self) -> None:
-        assert cwt.is_archived_finding({"file": "plans/done/20260101_plan.md"})
-        assert not cwt.is_archived_finding({"file": "plans/20260101_plan.md"})
-        assert not cwt.is_archived_finding({"file": "plans/done.md"})
+        assert cwt.is_archived_finding(
+            ReportFinding(message="", file="plans/done/20260101_plan.md")
+        )
+        assert not cwt.is_archived_finding(
+            ReportFinding(message="", file="plans/20260101_plan.md")
+        )
+        assert not cwt.is_archived_finding(
+            ReportFinding(message="", file="plans/done.md")
+        )
 
     def test_main_ignores_archived_gating_findings(
         self,
@@ -438,8 +445,8 @@ def _write_procedure(
     return path
 
 
-def _categories(findings: list[dict[str, str]]) -> list[str]:
-    return [finding["category"] for finding in findings]
+def _categories(findings: list[ReportFinding]) -> list[str]:
+    return [finding.code for finding in findings]
 
 
 class TestCompanionEquality:
@@ -450,7 +457,7 @@ class TestCompanionEquality:
         monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
         self.root = tmp_path
 
-    def _mismatches(self) -> list[dict[str, str]]:
+    def _mismatches(self) -> list[ReportFinding]:
         return cwt.find_target_file_mismatches(cwt.discover_documents())
 
     def test_extract_related_target_files_list_reads_backticked_paths(self) -> None:
@@ -501,7 +508,7 @@ class TestCompanionEquality:
         findings = self._mismatches()
 
         assert _categories(findings) == ["target-file-mismatch"]
-        assert TEST_B in findings[0]["detail"]
+        assert TEST_B in findings[0].message
 
     def test_list_with_an_extra_path_is_reported(self) -> None:
         _write_procedure(
@@ -534,7 +541,7 @@ class TestCompanionEquality:
         findings = self._mismatches()
 
         assert _categories(findings) == ["target-file-mismatch"]
-        assert findings[0]["file"].endswith("_02_bar.md")
+        assert findings[0].file.endswith("_02_bar.md")
 
 
 class TestPlanCoverage:
@@ -553,7 +560,7 @@ class TestPlanCoverage:
             ],
         )
 
-    def _findings(self) -> list[dict[str, str]]:
+    def _findings(self) -> list[ReportFinding]:
         return cwt.find_plan_coverage_findings(self.plan, cwt.discover_documents())
 
     def test_plan_table_rows_are_read_by_header(self) -> None:
@@ -576,7 +583,7 @@ class TestPlanCoverage:
         findings = self._findings()
 
         assert _categories(findings) == ["row-uncovered"]
-        assert TEST_B in findings[0]["detail"]
+        assert TEST_B in findings[0].message
 
     def test_test_file_listed_by_two_documents_is_covered_twice(self) -> None:
         _write_procedure(self.root, "20261101-100001_01_foo.md", CODE, [TEST_A, TEST_B])
@@ -585,7 +592,7 @@ class TestPlanCoverage:
         findings = self._findings()
 
         assert _categories(findings) == ["path-covered-twice"]
-        assert TEST_A in findings[0]["detail"]
+        assert TEST_A in findings[0].message
 
     def test_companion_named_in_two_rows_is_multi_row(self) -> None:
         self.plan = _write_plan(
@@ -604,8 +611,8 @@ class TestPlanCoverage:
         findings = self._findings()
 
         assert "companion-multi-row" in _categories(findings)
-        multi = next(f for f in findings if f["category"] == "companion-multi-row")
-        assert TEST_A in multi["detail"]
+        multi = next(f for f in findings if f.code == "companion-multi-row")
+        assert TEST_A in multi.message
 
     def test_companion_declared_by_another_plan_is_not_multi_row(self) -> None:
         self.plan = _write_plan(
@@ -636,7 +643,7 @@ class TestPlanCoverage:
         findings = self._findings()
 
         assert _categories(findings) == ["companion-not-eligible"]
-        assert "tests/x.py" in findings[0]["detail"]
+        assert "tests/x.py" in findings[0].message
 
     def test_companion_outside_tests_is_not_eligible(self) -> None:
         self.plan = _write_plan(
@@ -649,7 +656,7 @@ class TestPlanCoverage:
         findings = self._findings()
 
         assert _categories(findings) == ["companion-not-eligible"]
-        assert "not under tests/" in findings[0]["detail"]
+        assert "not under tests/" in findings[0].message
 
     def test_companion_not_named_in_its_target_row_is_not_eligible(self) -> None:
         self.plan = _write_plan(self.root, [(CODE, "itself"), (TEST_A, "itself")])
@@ -658,7 +665,7 @@ class TestPlanCoverage:
         findings = self._findings()
 
         assert _categories(findings) == ["companion-not-eligible"]
-        assert "Related Tests" in findings[0]["detail"]
+        assert "Related Tests" in findings[0].message
 
     def test_document_of_another_plan_is_ignored(self) -> None:
         _write_procedure(

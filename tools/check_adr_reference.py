@@ -49,8 +49,6 @@ import tokenize
 from dataclasses import dataclass
 from pathlib import Path
 
-import orjson
-
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -62,6 +60,7 @@ from tools._adr_authority_core import (
     load_model,
 )
 from tools._docs_consistency_lib import Issue, report_and_exit
+from tools._report import PROFILE_ISSUE, add_format_argument, from_issue, render_json
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
@@ -267,19 +266,6 @@ def collect_issues() -> list[Issue]:
     return check_adr_reference(refs) + check_frontmatter_vs_model()
 
 
-def render_json(issues: list[Issue]) -> str:
-    payload = [
-        {
-            "file": issue.file,
-            "line_no": issue.line_no,
-            "severity": issue.severity,
-            "message": issue.message,
-        }
-        for issue in sorted(issues, key=lambda i: (i.file, i.line_no))
-    ]
-    return orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode()
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -288,18 +274,13 @@ def main(argv: list[str] | None = None) -> int:
             "for that row's ADR id."
         )
     )
-    parser.add_argument(
-        "--format",
-        choices=["json"],
-        default=None,
-        help="Machine-readable output format (default: human-readable text)",
-    )
+    add_format_argument(parser, choices=("json",), default=None)
     args = parser.parse_args(argv)
 
     issues = collect_issues()
 
     if args.format == "json":
-        print(render_json(issues))
+        print(render_json([from_issue(i) for i in issues], PROFILE_ISSUE))
         return 1 if any(issue.severity == "ERROR" for issue in issues) else 0
 
     return report_and_exit(issues)

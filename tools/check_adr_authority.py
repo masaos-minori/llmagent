@@ -26,8 +26,6 @@ import argparse
 import sys
 from pathlib import Path
 
-import orjson
-
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -40,6 +38,12 @@ from tools._adr_authority_core import (
     load_model,
     validate_model,
 )
+from tools._report import (
+    PROFILE_AUTHORITY,
+    add_format_argument,
+    from_authority_finding,
+    render_json,
+)
 
 
 def collect_findings(
@@ -51,14 +55,6 @@ def collect_findings(
     return validate_model(model, adr_dir=adr_dir, config_path=config_path)
 
 
-def render_json(findings: list[Finding]) -> str:
-    payload = [
-        {"code": f.code, "location": f.location, "message": f.message}
-        for f in sorted(findings, key=lambda f: (f.code, f.location, f.message))
-    ]
-    return orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode()
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -67,12 +63,7 @@ def main(argv: list[str] | None = None) -> int:
             "resolvable ADR ids, config-check assumption drift)."
         )
     )
-    parser.add_argument(
-        "--format",
-        choices=["json"],
-        default=None,
-        help="Machine-readable output format (default: human-readable text)",
-    )
+    add_format_argument(parser, choices=("json",), default=None)
     parser.add_argument(
         "--model", type=Path, default=MODEL_PATH, help=argparse.SUPPRESS
     )
@@ -87,23 +78,20 @@ def main(argv: list[str] | None = None) -> int:
     except AuthorityModelError as exc:
         message = f"authority model is invalid: {exc}"
         if args.format == "json":
-            print(
-                render_json(
-                    [
-                        Finding(
-                            code="MODEL_INVALID",
-                            location=str(args.model),
-                            message=message,
-                        )
-                    ]
-                )
+            invalid = Finding(
+                code="MODEL_INVALID", location=str(args.model), message=message
             )
+            print(render_json([from_authority_finding(invalid)], PROFILE_AUTHORITY))
         else:
             print(f"[ERROR] {message}", file=sys.stderr)
         return 1
 
     if args.format == "json":
-        print(render_json(findings))
+        print(
+            render_json(
+                [from_authority_finding(f) for f in findings], PROFILE_AUTHORITY
+            )
+        )
         return 1 if findings else 0
 
     if findings:
