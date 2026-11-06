@@ -13,6 +13,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 import httpx
 
@@ -121,6 +122,13 @@ class CrawlOrchestrator:
                     sqlite_timeout=self._sqlite_timeout,
                     sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
                 ).open(reuse_connection=True, row_factory=True)
+            # crawl005: eagerly load robots.txt for the start host so the policy
+            # is enforced before the first page request. No-op when disabled.
+            robots_cache = getattr(self._link_discovery, "_robots_cache", None)
+            if robots_cache is not None:
+                parsed_start = urlparse(normalize_url(start_url))
+                origin = f"{parsed_start.scheme}://{parsed_start.netloc}"
+                await robots_cache.fetch_host(origin, client)
             try:
                 while not queue.empty() or pending:
                     if budget.persisted >= budget.max_persist:

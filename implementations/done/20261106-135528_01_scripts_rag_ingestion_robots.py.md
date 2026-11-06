@@ -34,6 +34,8 @@ Add the module docstring, the two stdlib imports, and the class:
 from urllib.parse import urlparse (new)
 from urllib.robotparser import RobotFileParser (new)
 
+import httpx (new)
+
 
 class RobotsCache:
     """Fetches and parses robots.txt per host; answers can_fetch queries."""
@@ -56,8 +58,10 @@ class RobotsCache:
             else:
                 parser.parse([])
             self._parsers[host] = parser
-        except Exception:
-            self._parsers.setdefault(host, RobotFileParser())
+        except (httpx.RequestError, ValueError):
+            fallback = RobotFileParser()
+            fallback.parse([])
+            self._parsers.setdefault(host, fallback)
             logger.warning("Failed to fetch %s; allowing all", robots_url)
 
     def is_allowed(self, url: str) -> bool:
@@ -72,6 +76,7 @@ class RobotsCache:
 - `fetch_host` (new) takes the origin (`scheme://netloc`) of the start URL; the caller (`orchestrator.py` row 3) supplies it. The cache key is the netloc, so `is_allowed` (new) (which keys by `urlparse(url).netloc`) hits the same entry.
 - `RobotFileParser()` with no arguments defaults the user-agent to `*`; `can_fetch(user_agent, url)` is called explicitly with the crawler UA, so the default is irrelevant.
 - On 404/non-2xx store an empty `RobotFileParser()` (allow-all) and on transport error fall back to allow-all and log once per host (`UNK-03`).
+- The except clause is narrowed to `httpx.RequestError, ValueError` (not a bare `Exception`) so ruff `BLE001` passes; the fallback constructs a fresh `RobotFileParser()` and calls `.parse([])` explicitly so it is a true allow-all on Python 3.14, where a bare `RobotFileParser()` defaults to deny-all (`last_checked == 0`).
 - Idempotency (`if host in self._parsers: return`) sits before the request so a second fetch is a true no-op (REQ-003).
 
 ## Compatibility considerations
@@ -100,10 +105,10 @@ Per-host concurrency or crawl-rate parsing beyond `robots.txt`; cross-run (persi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `scripts/rag/ingestion/robots.py` with `RobotsCache.__init__`, `fetch_host` (new), `is_allowed` (new) | Pending | — | — | New module (row 1) |
-| 2 | Add `tests/rag/ingestion/test_robots.py` per Validation plan | Pending | — | — | can_fetch allow/deny, once-per-host, unknown-host allow |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Create `scripts/rag/ingestion/robots.py` with `RobotsCache.__init__`, `fetch_host` (new), `is_allowed` (new) | Completed | 20261106-183622 | 20261106-183622 | New module (row 1) |
+| 2 | Add `tests/rag/ingestion/test_robots.py` per Validation plan | Completed | 20261106-183622 | 20261106-183622 | can_fetch allow/deny, once-per-host, unknown-host allow |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261106-183622 | 20261106-183622 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261106-183622 | 20261106-183622 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

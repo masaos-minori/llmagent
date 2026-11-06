@@ -30,6 +30,7 @@ from rag.ingestion.http_fetcher import HttpFetcher
 from rag.ingestion.language_resolver import LanguageResolver
 from rag.ingestion.link_discovery import LinkDiscovery
 from rag.ingestion.orchestrator import CrawlOrchestrator
+from rag.ingestion.robots import RobotsCache
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
@@ -69,6 +70,7 @@ class WebCrawler:
         self._skip_nofollow: bool = bool(cfg.get("skip_nofollow", False))
         # Skip cross-origin links when True (default: True = same-origin only)
         self._skip_external: bool = bool(cfg.get("skip_external", True))
+        self._respect_robots: bool = bool(cfg.get("respect_robots", False))
         # DB settings for conditional-header cache lookups (bypasses build_db_config)
         self._rag_db_path: str = str(cfg.get("rag_db_path", ""))
         self._sqlite_timeout: int = int(cfg.get("sqlite_timeout", 30))
@@ -79,10 +81,12 @@ class WebCrawler:
         # Wire components via constructor injection
         self.http_fetcher = HttpFetcher(self.config)
         self.content_extractor = ContentExtractor(self._min_chunk)
+        robots_cache = RobotsCache(self._USER_AGENT) if self._respect_robots else None
         self.link_discovery = LinkDiscovery(
             skip_nofollow=self._skip_nofollow,
             skip_external=self._skip_external,
             max_depth=self._max_depth,
+            robots_cache=robots_cache,
         )
         self.language_resolver = LanguageResolver()
         self.crawl_persister = CrawlPersister(self.config)

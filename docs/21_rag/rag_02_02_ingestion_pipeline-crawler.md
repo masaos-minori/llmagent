@@ -51,6 +51,13 @@ own inline comment states these are unvalidated heuristics.
 `skip_nofollow` controls whether nofollow-marked links are excluded from
 the BFS queue.
 
+`respect_robots` opts into a per-host robots.txt policy. When enabled, the
+start host's `robots.txt` is fetched and parsed once before the crawl begins,
+and `LinkDiscovery` skips any URL whose path is `Disallow`ned for the crawler
+user agent before it is enqueued. It defaults to disabled, so no `robots.txt`
+request is issued and crawling behavior is unchanged when the flag is off. See
+[Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md).
+
 ### 2.1.2 `crawl_file` Behavior
 
 `crawl_file(path, lang)` reads a local file and writes the crawl JSON to `rag-src/`. Unlike web URLs, no HTTP round-trips occur. Python files (.py) are stored as code blocks and subject to code-specific chunking. Other file types store their content directly in the `content` field.
@@ -63,6 +70,7 @@ the BFS queue.
 - **Language Detection:** If the CJK ratio (Hiragana + Katakana + CJK Unified Ideographs) is at or above the threshold → `ja`; otherwise `en`. Pages shorter than the minimum detection length use the hint language. `--lang auto` always performs automatic detection, with `en` as fallback.
 - **Idempotency:** A `visited` set prevents duplicate fetching of the same URL within a single execution.
 - **Conditional GET:** Reads `documents.etag` / `documents.last_modified` from SQLite and sends `If-None-Match` / `If-Modified-Since`. If a 304 response is received, saving the file is skipped.
+- **Robots.txt Policy:** Opt-in via `respect_robots`. When enabled, the start host's `robots.txt` is fetched once before the crawl and disallowed paths are filtered at enqueue time, so external crawls respect the target site's robots policy.
 
 #### Local File Injection
 

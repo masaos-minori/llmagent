@@ -96,10 +96,10 @@ Changing nofollow or cross-origin filtering semantics; fetching `robots.txt` (ha
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add optional `robots_cache` (new) to `LinkDiscovery.__init__` and the `is_allowed` check in `should_enqueue_link` | Pending | — | — | Row 2; coexists with crawl004's orchestrator change |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Disallow-skip, None-preserves-behavior |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add optional `robots_cache` (new) to `LinkDiscovery.__init__` and the `is_allowed` check in `should_enqueue_link` | Completed | 20261106-183622 | 20261106-183622 | Row 2; coexists with crawl004's orchestrator change |
+| 2 | Add or update tests per Validation plan | Completed | 20261106-183622 | 20261106-183622 | Disallow-skip, None-preserves-behavior |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261106-183622 | 20261106-183622 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261106-183622 | 20261106-183622 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

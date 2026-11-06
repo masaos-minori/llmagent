@@ -225,6 +225,7 @@ rag/ingestion/language_resolver.py	missing separator
 rag/ingestion/link_discovery.py	missing separator
 rag/ingestion/orchestrator.py	missing separator
 rag/ingestion/pipeline_utils.py	missing separator
+rag/ingestion/robots.py	missing separator
 rag/llm_client.py	empty description
 rag/llm_prompts.py	empty description
 rag/mcp/__init__.py	missing separator

@@ -182,10 +182,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `RobotsCache` module (`scripts/rag/ingestion/robots.py`) | In Progress | — | — |  |
-| 2 | Inject filter into `LinkDiscovery.should_enqueue_link` | In Progress | — | — |  |
-| 3 | Eager per-host fetch in `orchestrator.crawl_site` | In Progress | — | — |  |
-| 4 | Config wiring (`crawler.py`) + docs (`config/crawler.toml`) | In Progress | — | — |  |
+| 1 | Create `RobotsCache` module (`scripts/rag/ingestion/robots.py`) | Completed | — | 20261106-183656 |  |
+| 2 | Inject filter into `LinkDiscovery.should_enqueue_link` | Completed | — | 20261106-183656 |  |
+| 3 | Eager per-host fetch in `orchestrator.crawl_site` | Completed | — | 20261106-183656 |  |
+| 4 | Config wiring (`crawler.py`) + docs (`config/crawler.toml`) | Completed | — | 20261106-183656 |  |
 | 5 | Format/lint/type/test verification and commit | Pending | — | — |  |
 
 ### Blocker Log
@@ -196,11 +196,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261106-135528_01_scripts_rag_ingestion_robots.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261106-135528_02_scripts_rag_ingestion_link_discovery.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261106-135528_03_scripts_rag_ingestion_orchestrator.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261106-135528_04_scripts_rag_ingestion_crawler.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261106-135528_05_config_crawler.toml.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261106-135528_01_scripts_rag_ingestion_robots.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261106-135528_02_scripts_rag_ingestion_link_discovery.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261106-135528_03_scripts_rag_ingestion_orchestrator.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261106-135528_04_scripts_rag_ingestion_crawler.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261106-135528_05_config_crawler.toml.md` | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

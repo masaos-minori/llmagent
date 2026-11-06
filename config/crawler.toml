@@ -25,6 +25,10 @@ max_pages = 200
 skip_nofollow = true
 skip_external = true
 
+# Respect robots.txt Disallow rules per host during external crawls.
+# Default off: when false, no robots.txt request is issued and crawl behavior is unchanged.
+respect_robots = false
+
 # target_urls: list of [url, lang] pairs to crawl; lang is "ja" / "en" / "auto"
 target_urls = [
     ["https://ziglang.org/documentation/master/",               "en"],

@@ -75,10 +75,10 @@ Adding the config key to `config/crawler.toml` (documented in row 5); changing t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read respect_robots and inject `RobotsCache` into `LinkDiscovery` when enabled | Pending | — | — | Row 4; `cfg.get("respect_robots", False)` |
-| 2 | Add or update tests per Validation plan | Pending | — | — | None-when-off, instance-when-on |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | See row 5 for the doc change |
+| 1 | Read respect_robots and inject `RobotsCache` into `LinkDiscovery` when enabled | Completed | 20261106-183622 | 20261106-183622 | Row 4; `cfg.get("respect_robots", False)` |
+| 2 | Add or update tests per Validation plan | Completed | 20261106-183622 | 20261106-183622 | None-when-off, instance-when-on |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261106-183622 | 20261106-183622 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261106-183622 | 20261106-183622 | See row 5 for the doc change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -17,6 +17,8 @@ from bs4 import BeautifulSoup, Tag
 if TYPE_CHECKING:
     from asyncio import Queue
 
+    from rag.ingestion.robots import RobotsCache
+
 logger = logging.getLogger(__name__)
 
 # Import here to avoid circular imports
@@ -34,10 +36,12 @@ class LinkDiscovery:
         skip_nofollow: bool = False,
         skip_external: bool = True,
         max_depth: int = 0,
+        robots_cache: RobotsCache | None = None,
     ) -> None:
         self._skip_nofollow = skip_nofollow
         self._skip_external = skip_external
         self._max_depth = max_depth
+        self._robots_cache = robots_cache
 
     def enqueue_links(
         self,
@@ -63,6 +67,7 @@ class LinkDiscovery:
         href = a_tag.get("href")
         if not isinstance(href, str):
             return False
+        next_url = normalize_url(urljoin(current_url, str(href)))
         if self._skip_nofollow:
             rel = a_tag.get("rel")
             if isinstance(rel, str):
@@ -70,7 +75,10 @@ class LinkDiscovery:
             if rel and "nofollow" in rel:
                 return False
         if self._skip_external:
-            next_url = normalize_url(urljoin(current_url, str(href)))
             if not same_origin(next_url, start_url):
                 return False
+        if self._robots_cache is not None and not self._robots_cache.is_allowed(
+            next_url
+        ):
+            return False
         return True

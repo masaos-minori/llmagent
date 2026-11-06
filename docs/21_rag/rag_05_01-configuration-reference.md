@@ -32,6 +32,7 @@ Used by: `crawler.py` only.
 
 - Keys cover the crawl output directory (`rag_src_dir`), the SQLite path used only to read ETag/Last-Modified for Conditional GET (`rag_db_path`), SQLite timeouts, request delay/retry/timeout/concurrency, and the BFS bounds (`max_depth`, `max_pages`).
 - `max_pages`: maximum number of pages **persisted** by the crawl for the site. The BFS persists until `max_pages` pages are written and schedules up to `2 * max_pages` URLs per `crawl_site` call (a fixed internal scheduling headroom) so that non-persisted fetches (304, empty content, unsupported language, task failures) cannot consume the operator's page budget or make the loop unbounded. A `BFS stop: scheduled=%d persisted=%d max_pages=%d` summary line is logged when the crawl stops. `skip_nofollow` / `skip_external` exclude `rel="nofollow"` links and cross-origin links from the BFS queue.
+- `respect_robots`: opts into a per-host robots.txt policy. When enabled, the start host's `robots.txt` is fetched and parsed once before the crawl and URLs whose paths are `Disallow`ned for the crawler user agent are skipped at enqueue time; it defaults to disabled, in which case no `robots.txt` request is issued and crawling behavior is unchanged.
 - `target_urls` is a list of `[url, lang]` pairs, used when `--url` is not specified.
 - `min_chunk` is present here as well as in `chunk_splitter.toml`; chunks smaller than it are discarded as noise.
 
