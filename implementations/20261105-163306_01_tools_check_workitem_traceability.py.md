@@ -99,9 +99,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the cross-plan regression test (companion) and confirm it fails | Pending | — | — | |
-| 2 | Add the helper and scope the candidate set | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the before-and-after `--plan-coverage` comparison | Pending | — | — | |
+| 1 | Add the cross-plan regression test (companion) and confirm it fails | Completed | 20261106-112315 | 20261106-112401 | Changed: tests/tools/test_check_workitem_traceability.py (new cross-plan test, failed before the change) |
+| 2 | Add the helper and scope the candidate set | Completed | 20261106-112401 | 20261106-112401 | Changed: tools/check_workitem_traceability.py (_procedures_of_plan, candidate set scoped to the Plan) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the before-and-after `--plan-coverage` comparison | Completed | 20261106-112401 | 20261106-112401 | ruff, mypy, bandit clean; 88 tests pass; radon D(25)->D(21); --plan-coverage output identical on two archived plans; diff-cover N/A (tools/ outside coverage source) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

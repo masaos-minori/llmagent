@@ -70,9 +70,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_parse_args` and the `main(argv)` signature | Pending | — | — | |
-| 2 | Update the existing tests only if one breaks; otherwise record `N/A: no test change needed` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and a before-and-after run on live plans | Pending | — | — | |
+| 1 | Add `_parse_args` and the `main(argv)` signature | Completed | 20261106-112509 | 20261106-112839 | Changed: tools/audit_plan_target_paths.py (_parse_args, main(argv), __main__ passes argv) |
+| 2 | Update the existing tests only if one breaks; otherwise record `N/A: no test change needed` | Completed | 20261106-112839 | 20261106-112839 | N/A: no test change needed; existing tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and a before-and-after run on live plans | Completed | 20261106-112839 | 20261106-112839 | ruff, mypy, bandit clean; --help exit 0, unknown flag exit 2; behavior and exit codes unchanged on live data |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -88,9 +88,9 @@ N/A: revert the commit; the checks above write nothing.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the before-run output and exit codes | Pending | — | — | |
-| 2 | Extract the helpers and add `main` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`), the `radon` check, and the after-run comparison | Pending | — | — | |
+| 1 | Record the before-run output and exit codes | Completed | 20261106-112547 | 20261106-112839 | Changed: tools/generate_reference_table.py (_build_parser, _run_check, _run_manifests, _run_domain, main(argv)) |
+| 2 | Extract the helpers and add `main` | Completed | 20261106-112839 | 20261106-112839 | N/A: no test change needed; 16 related tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`), the `radon` check, and the after-run comparison | Completed | 20261106-112839 | 20261106-112839 | ruff, mypy, bandit clean; --check, --type mcp --dry-run, no-arg output and exit codes identical before/after; main radon grade not above C |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

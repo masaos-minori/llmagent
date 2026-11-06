@@ -141,12 +141,12 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Audit exit codes and callers; record deviations | In Progress | — | — |  |
-| 2 | Document the convention and deviations | In Progress | — | — |  |
-| 3 | Add `argparse` to the five tools | In Progress | — | — |  |
-| 4 | Add `main()` to `generate_reference_table.py` | In Progress | — | — |  |
-| 5 | Add the `--help` and unknown-flag tests | In Progress | — | — |  |
-| 6 | Verify tests, checks, gates, and live-data behavior | Pending | — | — |  |
+| 1 | Audit exit codes and callers; record deviations | Completed | — | 20261106-112849 |  |
+| 2 | Document the convention and deviations | Completed | — | 20261106-112849 |  |
+| 3 | Add `argparse` to the five tools | Completed | — | 20261106-112849 |  |
+| 4 | Add `main()` to `generate_reference_table.py` | Completed | — | 20261106-112849 |  |
+| 5 | Add the `--help` and unknown-flag tests | Completed | — | 20261106-112849 |  |
+| 6 | Verify tests, checks, gates, and live-data behavior | Completed | — | 20261106-112849 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -156,14 +156,14 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261105-162554_01_tools_TOOL_DESCRIPTIONS.md.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261105-162554_02_tools_check_docs_japanese.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-162554_03_tools_check_dependency_graph_cycles.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-162554_04_tools_check_needs_confirmation_inventory.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-162554_05_tools_check_tool_descriptions_sync.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-162554_06_tools_audit_plan_target_paths.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261105-162554_07_tools_generate_reference_table.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261105-162554_08_tests_tools_test_tool_cli_convention.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261105-162554_01_tools_TOOL_DESCRIPTIONS.md.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261105-162554_02_tools_check_docs_japanese.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-162554_03_tools_check_dependency_graph_cycles.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-162554_04_tools_check_needs_confirmation_inventory.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-162554_05_tools_check_tool_descriptions_sync.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-162554_06_tools_audit_plan_target_paths.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261105-162554_07_tools_generate_reference_table.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261105-162554_08_tests_tools_test_tool_cli_convention.py.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

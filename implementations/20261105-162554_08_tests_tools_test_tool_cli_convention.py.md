@@ -1,7 +1,7 @@
 ## Goal
 - Add `tests/tools/test_tool_cli_convention.py` covering the six tools changed by the Plan. NOTE (20261106 adversarial verification): the six tools do **not** share an `argparse` CLI — five define `main() -> int` with no argument and no argparse, `audit_plan_target_paths` reads `sys.argv[1:]` directly, and `generate_reference_table` parses `--type/--dry-run/--manifests/--check` only inside its `__main__` block (it has no `main()`). A parametrized `--help`/unknown-flag test against a uniform `main(argv)`/`_parse_args()` API therefore cannot be written. See the Adversarial Verification section. (`REQ-005`: tests call `--help` and the main exit paths of the six tools).
 
-## Adversarial Verification (20261106)
+## Adversarial Verification (20261106; superseded by the correction below)
 
 **Result: the document's core premise is false; the described tests cannot be written or
 run against the current code.** Verified by reading the six target modules directly
@@ -39,6 +39,10 @@ There is no uniform `--help`/unknown-flag convention to regress, so the parametr
 Implementation steps were left `Pending`; nothing was executed. The inline claims below
 were corrected to match the code.
 
+## Correction (code-implementation Step 3b, 2026-11-06)
+
+The Adversarial Verification above held against the code as it was when it was written, before the procedures `02` to `07` of this Plan were executed. They are now executed: the five tools expose `_parse_args(argv)` and `main(argv)`, and `generate_reference_table.py` exposes `_build_parser()` and `main(argv)`. So the calls this document prescribes exist, and the Method, Details, and Completion criteria are restored to what the Plan asks (see below). Two facts differ from the original wording and are used here: the four fixed-input tools' `_parse_args(None)` parses `[]` (it never reads `sys.argv`), while `audit_plan_target_paths._parse_args(None)` reads `sys.argv[1:]` and returns the `plans` list; and `generate_reference_table.main([])` ends in `parser.error` (exit `2`) before any work.
+
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
@@ -68,12 +72,15 @@ were corrected to match the code.
 3. Add the parametrized tests below.
 
 ### Method
-- These calls cannot be written as described: none of the six tools expose `main(argv)` or `_parse_args()`, so `main(["--help"])`, `_parse_args(None)`, and `audit_plan_target_paths._parse_args([...]).plans` all raise `TypeError`/`AttributeError` against the current code (see Adversarial Verification). A uniform `--help`/unknown-flag parametrized test is not applicable.
+- `--help` raises `SystemExit(0)` and prints usage; an unknown flag raises `SystemExit(2)`: parametrize `main(["--help"])` and `main(["--bogus"])` over all six tools with `pytest.raises(SystemExit)` and `capsys`. Neither path does any work (argparse exits first), so no live data is read.
+- `sys.argv` independence: for the four fixed-input tools, patch `sys.argv` to `["prog", "--bogus"]` and assert `_parse_args(None)` returns a namespace without exiting.
+- `audit_plan_target_paths._parse_args(["a.md", "b.md"]).plans == ["a.md", "b.md"]`, and `_parse_args(None)` reads the patched `sys.argv[1:]`.
+- `generate_reference_table.main([])` raises `SystemExit(2)` (`--type` required) and its `_build_parser()` still lists `--type`, `--dry-run`, `--manifests`, and `--check`.
 
 ### Details
 - Use `capsys` for output and `monkeypatch.setattr(sys, "argv", [...])` for the argv case.
 - Keep the file free of subprocess calls and of live-data runs; each test is a few lines.
-- Mutation check: N/A as described — there is no `_parse_args` to mutate, and the prescribed `main([...])`/`_parse_args(...)` calls do not exist on these modules.
+- Mutation check: temporarily change one tool's `_parse_args` to ignore its `argv` argument, confirm a test fails, then restore it.
 
 ## Compatibility considerations
 N/A: new test file.
@@ -90,7 +97,7 @@ N/A: revert the commit.
 - `uv run pytest tests/tools -q` shows no new failure.
 
 ## Completion criteria
-- Not achievable as written: the six tools do not expose a uniform `main(argv)`/`_parse_args()`/`argparse` CLI, so the `--help`, unknown-flag, `sys.argv`-independence, and mutation-check criteria cannot be met against the current code (see Adversarial Verification). Left `Pending`; nothing was executed.
+- Each of the six tools answers `--help` with exit `0` and rejects an unknown flag with exit `2` in tests; the four fixed-input tools' `_parse_args(None)` ignores `sys.argv`; the `audit_plan_target_paths` and `generate_reference_table` cases above pass; the mutation check fails as expected; and the validation checks pass.
 
 ## Out of Scope
 - Tests of the tools' main logic, which their own test files cover.
@@ -100,9 +107,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the file with the `--help` and unknown-flag tests | Pending | — | — | |
-| 2 | Add the `sys.argv`-independence and per-tool parser tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Pending | — | — | |
+| 1 | Create the file with the `--help` and unknown-flag tests | Completed | 20261106-112640 | 20261106-112839 | Changed: tests/tools/test_tool_cli_convention.py (new, 20 tests); procedure corrected at Step 3b to the code after 02-07 |
+| 2 | Add the `sys.argv`-independence and per-tool parser tests | Completed | 20261106-112839 | 20261106-112839 | 20 tests pass; mutation check (argv ignored in check_docs_japanese) failed as expected |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Completed | 20261106-112839 | 20261106-112839 | ruff, mypy, mock-patch checker clean; tests/tools 1704 passed; gates no Fail |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -75,9 +75,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Audit exit codes and callers; collect the deviations | Pending | — | — | |
-| 2 | Write the convention section and the deviation list | Pending | — | — | |
-| 3 | Run the sync checker and its tests (`routing.md` "When to run which tool") | Pending | — | — | |
+| 1 | Audit exit codes and callers; collect the deviations | Completed | 20261106-112430 | 20261106-112839 | Changed: tools/TOOL_DESCRIPTIONS.md (CLI and Exit-Code Convention section, audit-backed deviation list) |
+| 2 | Write the convention section and the deviation list | Completed | 20261106-112839 | 20261106-112839 | N/A: documentation only |
+| 3 | Run the sync checker and its tests (`routing.md` "When to run which tool") | Completed | 20261106-112839 | 20261106-112839 | check_tool_descriptions_sync passes; callers read: pre-commit, CI, gates, console scripts |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
