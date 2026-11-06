@@ -252,10 +252,10 @@ language-aware behavior. No other doc references the bypass (Step 3 scan).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | English Markdown characterization tests | Pending | — | — | REQ-003 |
-| 2 | ja Markdown failing tests (RED) | Pending | — | — | REQ-004 |
-| 3 | Language-aware Markdown chunking (GREEN) | Pending | — | — | REQ-001, REQ-002 |
-| 4 | Docs update + gate sequence + deploy hand-off | Pending | — | — | REQ-005 |
+| 1 | English Markdown characterization tests | In Progress | — | — | REQ-003 |
+| 2 | ja Markdown failing tests (RED) | In Progress | — | — | REQ-004 |
+| 3 | Language-aware Markdown chunking (GREEN) | In Progress | — | — | REQ-001, REQ-002 |
+| 4 | Docs update + gate sequence + deploy hand-off | In Progress | — | — | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -265,7 +265,9 @@ language-aware behavior. No other doc references the bypass (Step 3 scan).
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-152344_01_scripts_rag_ingestion_chunk_splitter.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261106-152344_02_tests_rag_ingestion_test_chunk_splitter.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261106-152344_03_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -286,3 +288,5 @@ language-aware behavior. No other doc references the bypass (Step 3 scan).
 | REQ-003 | Issue Constraints bullet 2 + Testing Expectations; en-only Markdown coverage verified in Step 2 | `tests/rag/ingestion/test_chunk_splitter.py` | Phase 1 | AC-3 | Characterization baselines | Explicit in issue |
 | REQ-004 | Issue Testing Expectations bullets 2-3 | `tests/rag/ingestion/test_chunk_splitter.py` | Phase 2 | AC-1, AC-2, AC-3, AC-5 | New ja Markdown test class | Explicit in issue |
 | REQ-005 | Issue Documentation Impact; bypass documented at `rag_02_03...md:57` and fallback at `:52` (checked in Step 3) | `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` | Phase 4 | AC-4 | Review of updated paragraphs | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-152344 -->
