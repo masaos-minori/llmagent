@@ -113,7 +113,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/rag/ingestion/orchestrator.py | Change the `max_pages` key-absent fallback literal 500 → 200 in `CrawlOrchestrator.__init__`; nothing else in the file changes | The enforced budget default disagrees with the reporting default (200) and the deployed value on the key-absent path | REQ-001 / AC-001, AC-002 | `CrawlOrchestrator.__init__` contains `int(config.get("max_pages", 500))`; `crawler.py` constructor contains `int(cfg.get("max_pages", 200))` and passes the same dict via `CrawlOrchestrator(..., config=self.config)` | tests/rag/ingestion/test_crawler_integration.py | Verified |
+| scripts/rag/ingestion/orchestrator.py | Change the `max_pages` key-absent fallback literal 500 → 200 in `CrawlOrchestrator.__init__`; nothing else in the file changes | The enforced budget default disagrees with the reporting default (200) and the deployed value on the key-absent path | REQ-001 / AC-001, AC-002 | `CrawlOrchestrator.__init__` contains `int(config.get("max_pages", 500))`; `crawler.py` constructor contains `int(cfg.get("max_pages", 200))` and passes the same dict via `CrawlOrchestrator(..., config=self.config)` | `tests/rag/ingestion/test_crawler_integration.py` | Verified |
 | tests/rag/ingestion/test_crawler_integration.py | Extend `test_max_pages_fallback_default` (or add a sibling test in the same class) to assert both consumers default to 200 when `max_pages` is absent | Current test pins only `WebCrawler._max_pages`; the orchestrator side is untested, which let the divergence survive nc035 | REQ-002 / AC-003 | `test_max_pages_fallback_default` exists and already builds a `mock_config` without `max_pages`; `WebCrawler.orchestrator` attribute is created in its constructor | itself | Verified |
 | config/crawler.toml | Comment-only edit: the NOTE comment stating "max_pages default (500 in code, 200 in TOML)" becomes false once the code fallback is 200; restate it as 200 in both places with the rationale caveat kept | Keeping the comment would leave a documented claim contradicted by this Plan's own change | REQ-003 / AC-004 | `config/crawler.toml` NOTE line: "# NOTE: max_pages default (500 in code, 200 in TOML) also lacks measured justification"; value line `max_pages = 200` | n/a (no test reads the comment; AC-004 checked by inspection in Phase 3) | Verified |
 
@@ -261,9 +261,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| Phase 1 | RED fallback test extension (REQ-002) | Pending | — | — | |
-| Phase 2 | Fallback literal + TOML comment (REQ-001, REQ-003) | Pending | — | — | |
-| Phase 3 | Gates + deploy hand-off | Pending | — | — | |
+| 1 | Phase 1: RED fallback test extension (REQ-002) | In Progress | — | — |  |
+| 2 | Phase 2: Fallback literal + TOML comment (REQ-001, REQ-003) | In Progress | — | — |  |
+| 3 | Phase 3: Gates + deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -273,7 +273,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261107-055553_01_scripts_rag_ingestion_orchestrator_py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261107-055553_03_config_crawler_toml.md | 2 | Procedure | Pending | — | — |
 
 Quality self-assessment (Step 9): claims trace to the source reads, scans, and gate runs recorded above;
 assumptions separated (A-001..A-003); no open blocking unknown (UNK-01 resolved to "no evidence of a
@@ -322,3 +323,9 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | tests/rag/ingestion/test_crawler_integration.py | REQ-002 | `## Implementation Target Files` |
 | config/crawler.toml | REQ-003 | `## Implementation Target Files` |
 | docs impact (N/A) | issue Documentation Impact | re-verified against current docs 2026-11-07 (the newer max_pages docs commit documents persisted semantics only, no fallback defaults) |
+
+## Freeze Decision Log
+
+| Timestamp | Freeze status | Validation evidence |
+|---|---|---|
+| 2026-11-07 07:40 | Frozen | All `Implementation Target Files` rows `Verified` and the table marked `Frozen`. No blocking Unknown: UNK-01 `Blocking? = False` (resolved by config-path search). No open dependency. Frozen inventory re-verified against rebased HEAD `c2e8b68ed`: orchestrator fallback 500 (orchestrator.py:89), crawler fallback 200 (crawler.py:67), stale NOTE comment (config/crawler.toml:22), `test_max_pages_fallback_default` exists (test_crawler_integration.py:235). `tools/check_plan_target_overlaps.py` returned "No findings" for this plan's rows at freeze time; overlap judgment against the other current Frozen plan (ragfix001) at 2026-11-07 07:40: no shared target files or same-kind behavior on shared paths. |

@@ -95,9 +95,11 @@ High
     `_build_code_triples` (the issue's "no code-chunk writer exists today" claim is outdated), and grouping
     already handles code chunks through `ChunkGeneration.chunk_type`. An empty list satisfies the contract
     without inventing content semantics.
-  - Injecting `code_blocks` per path in `_split_markdown_file`/`_split_text_file` instead of the shared
-    builder: rejected — `_build_chunk_payload` is the single construction point for all chunk paths, so the
-    builder-level change covers every path at once.
+  - Injecting `code_blocks` per path in `_build_text_triples`/`_build_code_triples` instead of the shared
+    builder: rejected — `_build_chunk_payload` (called from `_write_chunk_files`) is the single construction
+    point for all chunk paths, so the builder-level change covers every path at once. (Symbol names corrected
+    2026-11-07 during procedure generation: `_generate_chunks`/`_split_markdown_file`/`_split_text_file` from
+    the first draft do not exist in current source.)
 
 ## Implementation Intent
 - Emit the canonical chunk shape from the producer (uniform empty `code_blocks`), pin the exact payload key
@@ -127,7 +129,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/rag/ingestion/chunk_splitter.py | Add `code_blocks` (empty list) to the chunk payload dict built by `ChunkSplitter._build_chunk_payload`; no other behavior change | Producer omits a key the canonical validator requires, so every real chunk file is rejected at ingestion | REQ-001 / AC-001, AC-002 | `scripts/rag/ingestion/chunk_splitter.py` `_build_chunk_payload` payload dict has no `code_blocks`; `scripts/rag/ingestion/pipeline_utils.py` `read_chunk_json` exact top-level key set includes it | tests/rag/ingestion/test_chunk_splitter.py; tests/rag/ingestion/test_rag_ingestion_pipeline.py | Verified |
+| scripts/rag/ingestion/chunk_splitter.py | Add `code_blocks` (empty list) to the chunk payload dict built by `ChunkSplitter._build_chunk_payload`; no other behavior change | Producer omits a key the canonical validator requires, so every real chunk file is rejected at ingestion | REQ-001 / AC-001, AC-002 | `scripts/rag/ingestion/chunk_splitter.py` `_build_chunk_payload` payload dict has no `code_blocks`; `scripts/rag/ingestion/pipeline_utils.py` `read_chunk_json` exact top-level key set includes it | `tests/rag/ingestion/test_chunk_splitter.py`; `tests/rag/ingestion/test_rag_ingestion_pipeline.py` | Verified |
 | tests/rag/ingestion/test_chunk_splitter.py | Add a writer-output pin test: run the real ChunkSplitter path, assert the written payload's exact top-level key set, and read it back through `read_chunk_json` | Locks the payload shape so future key additions/removals fail deterministically | REQ-002 / AC-003 | File already exercises ChunkSplitter writer paths; existing fixtures hand-write payloads (which is why the defect is invisible today) | itself | Verified |
 | tests/rag/ingestion/test_rag_ingestion_pipeline.py | Add a ChunkSplitter-output → group → ingest end-to-end regression test using real writer output; add a negative control with `code_blocks` removed asserting rejection and routing to `failed/` | Current pipeline test hand-writes chunk payloads (`_make_chunk_output_json`); no test currently feeds real ChunkSplitter output through the validator boundary | REQ-003 / AC-002, AC-004 | File holds crawler→splitter scaffolding and `_make_rag_db`/`_make_chunk_output_json` helpers already | itself | Verified |
 
@@ -160,8 +162,12 @@ glob patterns, components, file groups, or vague phrases.
   file is read through `read_chunk_json`, Then validation succeeds and `code_blocks` equals `[]`. (REQ-001,
   REQ-002)
 - **AC-002**: Given a crawler-format source file processed by `ChunkSplitter.process_file`, When its chunk
-  output is ingested through `RagIngester`, Then `processed_docs` ≥ 1, `failed_docs` = 0, no file lands in
-  `failed/`, and the `rag_web` table contains the document. (REQ-003)
+  output is ingested through `RagIngester`, Then at least one chunk is processed and none fails (asserted as
+  ≥1 row in the `documents` table and ≥1 row in `chunks`), no file lands in `failed/`, and the `documents`
+  table contains the document. (REQ-003) — corrected 2026-11-07 during procedure generation: the original
+  "`processed_docs`/`failed_docs`/`rag_web` table" wording was stale; current persistence uses the
+  `documents`/`chunks` tables (`scripts/db/models.py` schema; test fixture `_make_rag_db`), and
+  `RagIngester.ingest_all` returns a `RagConsistencyReport`, not per-run counters.
 - **AC-003**: Given a payload key-set change (addition or removal) against the pinned key list, When the pin
   test runs, Then it fails with a clear assertion. (REQ-002)
 - **AC-004**: Given a chunk file with `code_blocks` removed, When `RagIngester` ingests it, Then the batch is
@@ -216,9 +222,10 @@ separate scope-of-record.
 
 ## Design
 - Single-writer boundary fix: `_build_chunk_payload` is the only construction point for chunk payload dicts
-  (all split paths — markdown heading, snippet, table, paragraph, CJK, code — flow through
-  `_generate_chunks` → `_build_chunk_payload`), so one key addition covers every path and keeps the key set
-  uniform. Validation stays strict and unchanged. No new module, interface, or config.
+  (all split paths — markdown heading, English, Japanese, code — flow through `_build_chunk_list` →
+  `_build_text_triples`/`_build_code_triples` → `_write_chunk_files` → `_build_chunk_payload`; verified
+  2026-11-07), so one key addition covers every path and keeps the key set uniform. Validation stays strict
+  and unchanged. No new module, interface, or config.
 - Consumer scan result: `tools/scan_change_consumers.py --seed scripts/rag/ingestion/chunk_splitter.py`
   returned `deploy/setup_services.sh` (process launch only; payload-shape independent), docs/ADR mentions
   (no code coupling), and the two test files (in scope). Judgment: no additional affected consumers.
@@ -286,9 +293,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| Phase 1 | RED tests (REQ-002, REQ-003) | Pending | — | — | |
-| Phase 2 | Producer fix (REQ-001) | Pending | — | — | |
-| Phase 3 | Gates + deploy hand-off | Pending | — | — | |
+| 1 | Phase 1: RED tests (REQ-002, REQ-003) | In Progress | — | — |  |
+| 2 | Phase 2: Producer fix (REQ-001) | In Progress | — | — |  |
+| 3 | Phase 3: Gates + deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -298,7 +305,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261107-054235_01_scripts_rag_ingestion_chunk_splitter_py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261107-054235_03_tests_rag_ingestion_test_rag_ingestion_pipeline_py.md | 1 | Procedure | Pending | — | — |
 
 Quality self-assessment (Step 9): all section claims trace to the Traceability table; assumptions separated
 (A-001..A-003); UNK-01 resolved with source evidence (flat top-level key set); remaining operational
@@ -330,3 +338,9 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | tests/rag/ingestion/test_chunk_splitter.py | REQ-002 | `## Implementation Target Files` |
 | tests/rag/ingestion/test_rag_ingestion_pipeline.py | REQ-003 | `## Implementation Target Files` |
 | docs impact (N/A) | verified against `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` 3.4a | Documentation Impact above |
+
+## Freeze Decision Log
+
+| Timestamp | Freeze status | Validation evidence |
+|---|---|---|
+| 2026-11-07 07:40 | Frozen | All `Implementation Target Files` rows `Verified` and the table marked `Frozen`. No blocking Unknown: UNK-01 `Blocking? = False` (resolved), UNK-02 `Blocking? = False` (deploy-time item). No open dependency. Frozen inventory re-verified against rebased HEAD `c2e8b68ed`: `_build_chunk_payload` omits `code_blocks` (chunk_splitter.py:318-336); `read_chunk_json` required key set includes `"code_blocks"` (pipeline_utils.py:169,193); `_make_chunk_output_json` fixture exists (test_rag_ingestion_pipeline.py:117). `tools/check_plan_target_overlaps.py` returned "No findings" for this plan's rows at freeze time; overlap judgment against the other current Frozen plan (ragfix002) at 2026-11-07 07:40: no shared target files or same-kind behavior on shared paths (chunk payload vs crawler fallback defaults; zero overlap). |
