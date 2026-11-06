@@ -1211,7 +1211,9 @@ class TestWorkflowCliDbOption:
         _config_dir, _configured, target = self._sandbox(tmp_path)
         archive_dir = tmp_path / "archive"
         archive_dir.mkdir()
-        code = _cli_main(["--apply", "--db", str(target), "--archive-dir", str(archive_dir)])
+        code = _cli_main(
+            ["--apply", "--db", str(target), "--archive-dir", str(archive_dir)]
+        )
         assert code == EXIT_OK
         conn = sqlite3.connect(str(target))
         try:
@@ -1242,7 +1244,9 @@ class TestWorkflowCliDbOption:
         assert excinfo.value.code == EXIT_REFUSAL
         assert _hash_file(target) == before
 
-    def test_main_apply_creates_archive_and_audit_in_process(self, tmp_path: Path) -> None:
+    def test_main_apply_creates_archive_and_audit_in_process(
+        self, tmp_path: Path
+    ) -> None:
         # AC-001 CLI half: the durable archive + machine-readable audit exist
         # under the operator-supplied dir and match the pre-run state.
         _config_dir, _configured, target = self._sandbox(tmp_path)
@@ -1306,17 +1310,23 @@ class TestArchiveRestoreIntegration:
 
         # Restore: the archive replaces the live database (sidecars removed).
         shutil.copyfile(archives[0], db)
-        for sidecar in (db.parent / "workflow.sqlite-wal", db.parent / "workflow.sqlite-shm"):
+        for sidecar in (
+            db.parent / "workflow.sqlite-wal",
+            db.parent / "workflow.sqlite-shm",
+        ):
             sidecar.unlink(missing_ok=True)
 
         restored = sqlite3.connect(str(db))
         try:
             assert restored.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
             assert restored.execute("PRAGMA user_version").fetchone()[0] == 0
-            assert restored.execute(
-                "SELECT task_id, workflow_id, workflow_version, idempotency_key "
-                "FROM tasks ORDER BY task_id"
-            ).fetchall() == pre_tasks
+            assert (
+                restored.execute(
+                    "SELECT task_id, workflow_id, workflow_version, idempotency_key "
+                    "FROM tasks ORDER BY task_id"
+                ).fetchall()
+                == pre_tasks
+            )
             assert read_ledger(restored) == []
         finally:
             restored.close()
