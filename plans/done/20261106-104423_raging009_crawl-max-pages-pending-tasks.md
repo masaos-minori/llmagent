@@ -255,10 +255,10 @@ other doc references found in the Step 3 scan.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Characterization + dedup pin | Pending | — | — | REQ-005 |
-| 2 | New budget tests (RED) + replace vacuous tests | Pending | — | — | REQ-005 |
-| 3 | Two-counter budget in `orchestrator.py` | Pending | — | — | REQ-001..REQ-004 |
-| 4 | Docs update + gate sequence + deploy hand-off | Pending | — | — | REQ-001..REQ-004 |
+| 1 | Characterization + dedup pin | In Progress | — | — | REQ-005 |
+| 2 | New budget tests (RED) + replace vacuous tests | In Progress | — | — | REQ-005 |
+| 3 | Two-counter budget in `orchestrator.py` | In Progress | — | — | REQ-001..REQ-004 |
+| 4 | Docs update + gate sequence + deploy hand-off | In Progress | — | — | REQ-001..REQ-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -268,7 +268,11 @@ other doc references found in the Step 3 scan.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-154603_01_scripts_rag_ingestion_orchestrator.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261106-154603_02_tests_rag_ingestion_test_crawler_retry_boundary.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261106-154603_03_tests_rag_ingestion_test_crawler_integration.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261106-154603_04_docs_21_rag_rag_05_01-configuration-reference.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261106-154603_05_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -291,3 +295,5 @@ other doc references found in the Step 3 scan.
 | REQ-003 | Issue Summary non-persist list; early returns verified at `:177-191`, save order at `:204-215` (checked in Step 2) | `scripts/rag/ingestion/orchestrator.py` | Phase 3 | AC-1 | 304-heavy + allowance tests | Confirmed by repository evidence |
 | REQ-004 | Issue Required Changes bullet 3 | `scripts/rag/ingestion/orchestrator.py` | Phase 3 | AC-4 | replaced warning-wording tests (caplog) | Explicit in issue |
 | REQ-005 | Issue Testing Expectations + Acceptance Criteria; vacuous tests and boundary test verified at `test_crawler_integration.py:160-206`, `test_crawler_retry_boundary.py:62-76` (checked in Step 2) | `tests/rag/ingestion/test_crawler_retry_boundary.py`, `tests/rag/ingestion/test_crawler_integration.py` | Phase 1, 2 | AC-1..AC-3, AC-5 | New + replaced + characterization tests | Explicit in issue (corrected: claimed max_pages coverage was partly vacuous) |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-154603 -->
