@@ -182,9 +182,9 @@ N/A: behavior is already documented in the method docstring, which the change ma
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `sqlite3.Error`-callback regression test | Pending | — | — | REQ-002 |
-| 2 | Widen except clause in `scripts/rag/ingestion/document_manager.py` | Pending | — | — | REQ-001, REQ-003 |
-| 3 | Gate sequence + deploy hand-off | Pending | — | — | REQ-001..003 |
+| 1 | Add `sqlite3.Error`-callback regression test | In Progress | — | — | REQ-002 |
+| 2 | Widen except clause in `scripts/rag/ingestion/document_manager.py` | In Progress | — | — | REQ-001, REQ-003 |
+| 3 | Gate sequence + deploy hand-off | In Progress | — | — | REQ-001..003 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -194,7 +194,8 @@ N/A: behavior is already documented in the method docstring, which the change ma
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-155620_01_scripts_rag_ingestion_document_manager.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261106-155620_02_tests_rag_ingestion_test_rag_ingester_callback.py.md` | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -212,3 +213,5 @@ N/A: behavior is already documented in the method docstring, which the change ma
 | REQ-001 | Issue Required Changes bullet 1 + Constraints bullets 1-2; narrow catch verified at `document_manager.py:159`, escape path at `:140` / `ingester.py:171-175` (checked in Step 2) | `scripts/rag/ingestion/document_manager.py` | Phase 2 | AC-1, AC-2 | New regression test | Confirmed by repository evidence |
 | REQ-002 | Issue Required Changes bullet 2 + Testing Expectations; single-test coverage verified at `test_rag_ingester_callback.py:81` (checked in Step 2) | `tests/rag/ingestion/test_rag_ingester_callback.py` | Phase 1 | AC-1, AC-3 | New failure-class test | Explicit in issue |
 | REQ-003 | Issue Constraints bullet 2; BLE001 feasibility verified via probe and `orchestrator.py:86` precedent (checked in Step 2) | `scripts/rag/ingestion/document_manager.py` | Phase 2 | AC-2 | ruff gate run unchanged-message review | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-155620 -->
