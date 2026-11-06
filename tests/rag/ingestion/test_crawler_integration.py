@@ -362,6 +362,26 @@ class TestConditionalHeadersMisconfiguration:
 
         assert result == {}
 
+    def test_get_conditional_headers_empty_path_warning_deduped(
+        self, mock_config, caplog
+    ):
+        """The empty-path warning is logged once across repeated calls (REQ-002 dedupe)."""
+        import logging
+
+        from rag.ingestion.http_fetcher import HttpFetcher
+
+        fetcher = HttpFetcher(config=mock_config)
+        with caplog.at_level(logging.WARNING, logger="rag.ingestion.http_fetcher"):
+            fetcher.get_conditional_headers("http://example.com/a")
+            fetcher.get_conditional_headers("http://example.com/b")
+
+        warnings = [
+            r
+            for r in caplog.records
+            if "rag_db_path is not configured" in r.getMessage()
+        ]
+        assert len(warnings) == 1
+
     @pytest.mark.asyncio
     async def test_crawl_raises_on_empty_rag_db_for_http(
         self,
@@ -389,3 +409,193 @@ class TestConditionalHeadersMisconfiguration:
 
         # No RuntimeError: file:// targets never reach the conditional-header cache.
         await crawler.crawl([(f"file://{target.resolve()}", "auto")])
+
+
+class TestSessionDbParameter:
+    """Verify get_conditional_headers db parameter (crawl004, REQ-001/003/004)."""
+
+    @staticmethod
+    def _seeded_helper(tmp_path):
+        """Open a helper on a rag db file seeded with one documents row."""
+        from db.helper import SQLiteHelper
+
+        helper = SQLiteHelper(
+            db_path=str(tmp_path / "rag.db"),
+            sqlite_timeout=30,
+            sqlite_busy_timeout_ms=30000,
+        )
+        helper.open(write_mode=True, row_factory=True)
+        helper.execute(
+            "CREATE TABLE documents "
+            "(url TEXT PRIMARY KEY, etag TEXT, last_modified TEXT)"
+        )
+        helper.execute(
+            "INSERT INTO documents (url, etag, last_modified) VALUES (?, ?, ?)",
+            ("http://example.com/page", "etag-1", "Mon, 01 Jan 2024 00:00:00 GMT"),
+        )
+        helper.commit()
+        return helper
+
+    def test_db_parameter_returns_same_headers_as_per_call(self, mock_config, tmp_path):
+        """Session-helper headers are identical to the per-call lookup (REQ-003)."""
+        from rag.ingestion.http_fetcher import HttpFetcher
+
+        config = dict(mock_config)
+        config["rag_db_path"] = str(tmp_path / "rag.db")
+        fetcher = HttpFetcher(config=config)
+        helper = self._seeded_helper(tmp_path)
+
+        with_db = fetcher.get_conditional_headers("http://example.com/page", db=helper)
+        without_db = fetcher.get_conditional_headers("http://example.com/page")
+
+        assert with_db == {
+            "If-None-Match": "etag-1",
+            "If-Modified-Since": "Mon, 01 Jan 2024 00:00:00 GMT",
+        }
+        assert with_db == without_db
+        helper.close()
+
+    def test_db_parameter_not_closed_by_lookup(self, mock_config, tmp_path):
+        """Passing a session helper must leave the connection open for reuse (REQ-001)."""
+        from rag.ingestion.http_fetcher import HttpFetcher
+
+        config = dict(mock_config)
+        config["rag_db_path"] = str(tmp_path / "rag.db")
+        fetcher = HttpFetcher(config=config)
+        helper = self._seeded_helper(tmp_path)
+
+        fetcher.get_conditional_headers("http://example.com/page", db=helper)
+
+        assert helper.conn is not None
+        helper.close()
+
+    def test_db_parameter_query_error_absorbed(self, mock_config, tmp_path):
+        """Query errors on the session helper are absorbed into {} (REQ-004 parity)."""
+        from db.helper import SQLiteHelper
+        from rag.ingestion.http_fetcher import HttpFetcher
+
+        helper = SQLiteHelper(
+            db_path=":memory:",
+            sqlite_timeout=30,
+            sqlite_busy_timeout_ms=30000,
+        )
+        helper.open(row_factory=True)  # No documents table in a fresh DB
+        config = dict(mock_config)
+        config["rag_db_path"] = str(tmp_path / "rag.db")
+        fetcher = HttpFetcher(config=config)
+
+        assert (
+            fetcher.get_conditional_headers("http://example.com/page", db=helper) == {}
+        )
+        helper.close()
+
+
+class TestSessionConnectionLifecycle:
+    """Verify one SQLiteHelper per crawl_site session (crawl004, REQ-001/002/003)."""
+
+    @staticmethod
+    def _spy_connections(monkeypatch):
+        """Record every SQLiteHelper open/close instance for the test body."""
+        import db.helper as db_helper
+
+        opens: list = []
+        closes: list = []
+        orig_open = db_helper.SQLiteHelper.open
+        orig_close = db_helper.SQLiteHelper.close
+
+        def spy_open(self, *args, **kwargs):
+            result = orig_open(self, *args, **kwargs)
+            opens.append(self)
+            return result
+
+        def spy_close(self):
+            closes.append(self)
+            orig_close(self)
+
+        monkeypatch.setattr(db_helper.SQLiteHelper, "open", spy_open)
+        monkeypatch.setattr(db_helper.SQLiteHelper, "close", spy_close)
+        return opens, closes
+
+    @staticmethod
+    def _seed_documents(db_path):
+        """Create the documents table with one row before the crawl opens its session."""
+        from db.helper import SQLiteHelper
+
+        helper = SQLiteHelper(
+            db_path=db_path,
+            sqlite_timeout=30,
+            sqlite_busy_timeout_ms=30000,
+        )
+        helper.open(write_mode=True)
+        helper.execute(
+            "CREATE TABLE documents "
+            "(url TEXT PRIMARY KEY, etag TEXT, last_modified TEXT)"
+        )
+        helper.execute(
+            "INSERT INTO documents (url, etag, last_modified) VALUES (?, ?, ?)",
+            ("http://example.com/page", "etag-1", "Mon, 01 Jan 2024 00:00:00 GMT"),
+        )
+        helper.commit()
+        helper.close()
+
+    def _rag_config(self, mock_config, tmp_path):
+        config = dict(mock_config)
+        config["rag_db_path"] = str(tmp_path / "rag.db")
+        config["rag_src_dir"] = str(tmp_path / "rag-src")
+        return config
+
+    @pytest.mark.asyncio
+    async def test_one_open_one_close_per_session(
+        self, mock_config, tmp_path, monkeypatch
+    ):
+        """A crawl_site session opens and closes exactly one shared connection (REQ-001)."""
+        opens, closes = self._spy_connections(monkeypatch)
+        crawler = WebCrawler(config=self._rag_config(mock_config, tmp_path))
+        crawler.orchestrator._drain_queue_to_tasks = MagicMock(return_value=set())
+
+        await crawler.crawl_site("http://example.com/", "en")
+
+        assert len(opens) == 1
+        assert len(closes) == 1
+        assert opens[0] is closes[0]
+
+    @pytest.mark.asyncio
+    async def test_session_db_closed_on_exception(
+        self, mock_config, tmp_path, monkeypatch
+    ):
+        """The session connection is closed when the BFS loop raises (REQ-002)."""
+        opens, closes = self._spy_connections(monkeypatch)
+        crawler = WebCrawler(config=self._rag_config(mock_config, tmp_path))
+        crawler.orchestrator._drain_queue_to_tasks = MagicMock(
+            side_effect=RuntimeError("boom")
+        )
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await crawler.crawl_site("http://example.com/", "en")
+
+        assert len(closes) == 1
+
+    @pytest.mark.asyncio
+    async def test_headers_lookup_uses_session_connection(
+        self, mock_config, tmp_path, monkeypatch
+    ):
+        """Conditional headers come from the session connection, with no per-call open (REQ-003)."""
+        self._seed_documents(str(tmp_path / "rag.db"))
+        opens, closes = self._spy_connections(monkeypatch)
+        crawler = WebCrawler(config=self._rag_config(mock_config, tmp_path))
+        fetcher = crawler.orchestrator._http_fetcher
+        fetcher.fetch_html = AsyncMock(return_value=None)
+
+        await crawler.crawl_site("http://example.com/page", "en")
+
+        fetcher.fetch_html.assert_awaited_once()
+        call = fetcher.fetch_html.await_args
+        extra_headers = (
+            call.args[2] if len(call.args) > 2 else call.kwargs.get("extra_headers")
+        )
+        assert extra_headers == {
+            "If-None-Match": "etag-1",
+            "If-Modified-Since": "Mon, 01 Jan 2024 00:00:00 GMT",
+        }
+        assert len(opens) == 1
+        assert len(closes) == 1
