@@ -73,20 +73,6 @@ class CrawlOrchestrator:
         self._concurrency: int = int(config.get("crawl_concurrency", 3))
         self._max_pages: int = int(config.get("max_pages", 500))
 
-    async def crawl(self, targets: list[tuple[str, str]]) -> None:
-        """Crawl all given targets."""
-        for url, lang in targets:
-            logger.info("=== start: %s (lang=%s) ===", url, lang)
-            try:
-                if url.startswith("file://"):
-                    # Local file handling delegated to persister
-                    pass
-                else:
-                    await self.crawl_site(url, lang)
-            except Exception as _crawl_err:
-                logger.exception("crawl failed: %s: %s", url, _crawl_err)
-            logger.info("=== done:  %s ===", url)
-
     async def crawl_site(self, start_url: str, hint_lang: str) -> None:
         """Async BFS crawl within the same origin up to max_depth levels via asyncio.Semaphore concurrency and FIRST_COMPLETED loop."""
         sem = asyncio.Semaphore(self._concurrency)
