@@ -161,9 +161,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `ValueError` safety net + deduped startup warning in `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | Pending | — | — | |
+| 1 | Add `ValueError` safety net + deduped startup warning in `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | In Progress | — | — |  |
 | 2 | Add pre-BFS startup validation for empty `rag_db_path` (`scripts/rag/ingestion/crawler.py`) | Pending | — | — | Depends on UNK-01 resolution |
-| 3 | Format/lint/type/test verification and commit | Pending | — | — | |
+| 3 | Format/lint/type/test verification and commit | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -173,7 +173,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-134321_01_scripts_rag_ingestion_http_fetcher.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261106-134321_02_scripts_rag_ingestion_crawler.py.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -193,3 +194,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-002 | Problem / Background | `scripts/rag/ingestion/http_fetcher.py` | Step 1 | REQ-002 acceptance criteria | empty-path unit test | Confirmed by repository evidence |
 | REQ-003 | Background / Required Changes | `scripts/rag/ingestion/http_fetcher.py` | Step 1 | REQ-003 acceptance criteria | valid-path regression test | Confirmed by repository evidence |
 | REQ-004 | Implementation Intent | `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/http_fetcher.py` | Step 3 | REQ-004 acceptance criteria | full crawler/fetcher suite | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-134321 -->
