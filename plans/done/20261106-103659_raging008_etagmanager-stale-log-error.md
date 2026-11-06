@@ -177,9 +177,9 @@ N/A: no documentation describes this log line (issue statement confirmed by Step
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `caplog` regression test | Pending | — | — | REQ-003 |
-| 2 | Fix log format and helper return shape in `scripts/rag/ingestion/etag_manager.py` | Pending | — | — | REQ-001, REQ-002 |
-| 3 | Gate sequence + deploy hand-off | Pending | — | — | REQ-001..003 |
+| 1 | Add `caplog` regression test | In Progress | — | — | REQ-003 |
+| 2 | Fix log format and helper return shape in `scripts/rag/ingestion/etag_manager.py` | In Progress | — | — | REQ-001, REQ-002 |
+| 3 | Gate sequence + deploy hand-off | In Progress | — | — | REQ-001..003 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -189,7 +189,8 @@ N/A: no documentation describes this log line (issue statement confirmed by Step
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-153919_01_scripts_rag_ingestion_etag_manager.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261106-153919_02_tests_rag_ingestion_test_ingester_etag_guard.py.md` | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -207,3 +208,5 @@ N/A: no documentation describes this log line (issue statement confirmed by Step
 | REQ-001 | Issue Constraints "No behavior change to the guard logic"; stored-value locality verified at `etag_manager.py:73-76` (checked in Step 2) | `scripts/rag/ingestion/etag_manager.py` | Phase 2 | AC-2 | 9 unchanged characterization tests | Confirmed by repository evidence |
 | REQ-002 | Issue Required Changes bullet 1; broken call verified at `:47-52` and reproduced in Step 2 | `scripts/rag/ingestion/etag_manager.py` | Phase 2 | AC-1 | New `caplog` test | Confirmed by repository evidence |
 | REQ-003 | Issue Testing Expectations; absence of log-line validation verified in Step 2 | `tests/rag/ingestion/test_ingester_etag_guard.py` | Phase 1 | AC-1, AC-3 | New `caplog` test | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-153919 -->
