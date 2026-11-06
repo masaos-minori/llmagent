@@ -182,11 +182,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `RobotsCache` module (`scripts/rag/ingestion/robots.py`) | Pending | — | — | |
-| 2 | Inject filter into `LinkDiscovery.should_enqueue_link` | Pending | — | — | |
-| 3 | Eager per-host fetch in `orchestrator.crawl_site` | Pending | — | — | |
-| 4 | Config wiring (`crawler.py`) + docs (`config/crawler.toml`) | Pending | — | — | |
-| 5 | Format/lint/type/test verification and commit | Pending | — | — | |
+| 1 | Create `RobotsCache` module (`scripts/rag/ingestion/robots.py`) | In Progress | — | — |  |
+| 2 | Inject filter into `LinkDiscovery.should_enqueue_link` | In Progress | — | — |  |
+| 3 | Eager per-host fetch in `orchestrator.crawl_site` | In Progress | — | — |  |
+| 4 | Config wiring (`crawler.py`) + docs (`config/crawler.toml`) | In Progress | — | — |  |
+| 5 | Format/lint/type/test verification and commit | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -196,7 +196,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-135528_01_scripts_rag_ingestion_robots.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261106-135528_02_scripts_rag_ingestion_link_discovery.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261106-135528_03_scripts_rag_ingestion_orchestrator.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261106-135528_04_scripts_rag_ingestion_crawler.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261106-135528_05_config_crawler.toml.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -217,3 +221,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Required Changes / Acceptance Criteria | `scripts/rag/ingestion/robots.py` | Steps 1-3 | REQ-003 acceptance criteria | flag-on + once-per-host tests | Confirmed by repository evidence |
 | REQ-004 | Constraints / Out of Scope | `scripts/rag/ingestion/link_discovery.py` | Step 2 | REQ-004 acceptance criteria | nofollow/external regression test | Confirmed by repository evidence |
 | REQ-005 | Documentation Impact | `config/crawler.toml` | Step 4 | REQ-005 acceptance criteria | doc check | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-135528 -->
