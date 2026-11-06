@@ -60,10 +60,10 @@ Make `tools/check_adr_invariant_matrix.py` render its JSON output and declare it
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Capture the before-run (text, JSON, help) on live data, then apply Implementation > Procedure | Pending | — | — | |
-| 2 | Run the golden, existing, and `generate_reference_table` tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Capture the before-run (text, JSON, help) on live data, then apply Implementation > Procedure | Completed | 20261106-113907 | 20261106-113907 | Changed: tools/check_adr_invariant_matrix.py (shared render_json, add_format_argument) |
+| 2 | Run the golden, existing, and `generate_reference_table` tests per Validation plan | Completed | 20261106-113907 | 20261106-113907 | golden, existing, and generate_reference_table tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Completed | 20261106-113907 | 20261106-113907 | ruff, mypy, bandit clean; live output identical; generate_reference_table --check OK |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-113907 | 20261106-113907 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

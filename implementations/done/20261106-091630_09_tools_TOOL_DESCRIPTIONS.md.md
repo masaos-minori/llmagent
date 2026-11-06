@@ -60,9 +60,9 @@ Record the consumer audit of the four tools' output formats, then document the s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the audit record (before any tool migration of this Plan) | Pending | — | — | |
-| 2 | Write the module row, `--format` convention, and JSON schema (after the migrations land) | Pending | — | — | |
-| 3 | Run `check_tool_descriptions_sync.py` and the final verification list | Pending | — | — | |
+| 1 | Write the audit record (before any tool migration of this Plan) | Completed | 20261106-113551 | 20261106-115259 | Changed: tools/TOOL_DESCRIPTIONS.md (Output Format Audit written before the migrations; _report.py Index and detail rows; --format Convention and JSON Schema section) |
+| 2 | Write the module row, `--format` convention, and JSON schema (after the migrations land) | Completed | 20261106-115259 | 20261106-115259 | check_tool_descriptions_sync passes |
+| 3 | Run `check_tool_descriptions_sync.py` and the final verification list | Completed | 20261106-115259 | 20261106-115259 | full suite 11741 passed; gates no Fail; suppression, mock-patch, compat-shim checks clean; diff-cover N/A (tools/ outside coverage source) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

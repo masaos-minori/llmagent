@@ -64,10 +64,10 @@ Record golden outputs of the four tools to be migrated, as tests that pass again
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Build the fixtures and record the expected outputs from the unmigrated tools | Pending | — | — | |
-| 2 | Add the empty-findings and determinism cases | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Build the fixtures and record the expected outputs from the unmigrated tools | Completed | 20261106-113556 | 20261106-113725 | Changed: tests/tools/test_tool_report_output.py (new; goldens recorded from the unmigrated tools, 26 tests) |
+| 2 | Add the empty-findings and determinism cases | Completed | 20261106-113725 | 20261106-113725 | 26 tests pass on the unmigrated tools; mutation check (one output character) fails as expected |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the mutation check | Completed | 20261106-113725 | 20261106-113725 | ruff, mypy, mock-patch checker clean |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-113725 | 20261106-113725 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

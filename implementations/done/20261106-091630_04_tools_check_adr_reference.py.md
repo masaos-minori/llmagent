@@ -62,10 +62,10 @@ Make `tools/check_adr_reference.py` render its JSON output and declare its `--fo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Capture the before-run (text, JSON, help) on live data, then apply Implementation > Procedure | Pending | — | — | |
-| 2 | Run the golden and existing tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Capture the before-run (text, JSON, help) on live data, then apply Implementation > Procedure | Completed | 20261106-113821 | 20261106-113906 | Changed: tools/check_adr_reference.py (shared render_json, add_format_argument; local render_json removed) |
+| 2 | Run the golden and existing tests per Validation plan | Completed | 20261106-113906 | 20261106-113906 | golden and existing tests pass; no test edit needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Completed | 20261106-113906 | 20261106-113906 | ruff, mypy, bandit clean; live text, JSON, help byte-identical before/after |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-113906 | 20261106-113906 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

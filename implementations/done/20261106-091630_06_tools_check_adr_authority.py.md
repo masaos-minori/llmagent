@@ -61,10 +61,10 @@ Make `tools/check_adr_authority.py` render its JSON output and declare its `--fo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Capture the before-run (text, JSON, invalid-model JSON, help) on live data, then apply Implementation > Procedure | Pending | — | — | |
-| 2 | Run the golden and existing tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Capture the before-run (text, JSON, invalid-model JSON, help) on live data, then apply Implementation > Procedure | Completed | 20261106-113908 | 20261106-113908 | Changed: tools/check_adr_authority.py (shared render_json over Finding via from_authority_finding; text loop kept) |
+| 2 | Run the golden and existing tests per Validation plan | Completed | 20261106-113908 | 20261106-113908 | golden and existing tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Completed | 20261106-113908 | 20261106-113908 | ruff, mypy, bandit clean; live text, JSON, help identical; MODEL_INVALID JSON checked |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-113908 | 20261106-113908 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

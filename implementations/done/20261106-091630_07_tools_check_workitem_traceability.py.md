@@ -69,10 +69,10 @@ Make `tools/check_workitem_traceability.py` use the shared finding record, rende
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Capture the before-run (text, JSON, CSV, `--plan-coverage`) on live data, then apply Implementation > Procedure | Pending | — | — | |
-| 2 | Update the companion test assertions per Companion test files and run them with the golden tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Pending | — | — | |
-| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Pending | — | — | |
+| 1 | Capture the before-run (text, JSON, CSV, `--plan-coverage`) on live data, then apply Implementation > Procedure | Completed | 20261106-113919 | 20261106-114225 | Changed: tools/check_workitem_traceability.py (ReportFinding, shared renderers and --format helper; make_finding, render_* removed); tests/tools/test_check_workitem_traceability.py (attribute reads) |
+| 2 | Update the companion test assertions per Companion test files and run them with the golden tests | Completed | 20261106-114225 | 20261106-114225 | tests/tools 1744 passed, golden tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the after-run comparison | Completed | 20261106-114225 | 20261106-114225 | ruff, mypy, bandit clean; live text, JSON, CSV, --plan-coverage output byte-identical; radon unchanged |
+| 4 | N/A: documentation is the `tools/TOOL_DESCRIPTIONS.md` procedure of this Plan | Completed | 20261106-114225 | 20261106-114225 | N/A: documentation is another procedure of this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -149,11 +149,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the consumer audit | In Progress | — | — |  |
-| 2 | Record golden outputs; add the shared module and its tests | In Progress | — | — |  |
-| 3 | Migrate batch 1 (two ADR checkers) | In Progress | — | — |  |
-| 4 | Migrate batch 2 (authority and traceability checkers) | In Progress | — | — |  |
-| 5 | Document and verify | In Progress | — | — |  |
+| 1 | Record the consumer audit | Completed | — | 20261106-115301 |  |
+| 2 | Record golden outputs; add the shared module and its tests | Completed | — | 20261106-115301 |  |
+| 3 | Migrate batch 1 (two ADR checkers) | Completed | — | 20261106-115301 |  |
+| 4 | Migrate batch 2 (authority and traceability checkers) | Completed | — | 20261106-115301 |  |
+| 5 | Document and verify | Completed | — | 20261106-115301 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -163,13 +163,13 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261106-091630_01_tests_tools_test_tool_report_output.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261106-091630_02_tools__report.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261106-091630_04_tools_check_adr_reference.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261106-091630_05_tools_check_adr_invariant_matrix.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261106-091630_06_tools_check_adr_authority.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261106-091630_07_tools_check_workitem_traceability.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261106-091630_09_tools_TOOL_DESCRIPTIONS.md.md | 1, 5 | Procedure | Pending | — | — |
+| implementations/20261106-091630_01_tests_tools_test_tool_report_output.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261106-091630_02_tools__report.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261106-091630_04_tools_check_adr_reference.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-091630_05_tools_check_adr_invariant_matrix.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261106-091630_06_tools_check_adr_authority.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-091630_07_tools_check_workitem_traceability.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261106-091630_09_tools_TOOL_DESCRIPTIONS.md.md | 1, 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
