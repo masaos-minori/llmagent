@@ -170,9 +170,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add optional `db` parameter to `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | Pending | — | — | |
-| 2 | Own one session connection in `crawl_site`, pass through, close on exit (`scripts/rag/ingestion/orchestrator.py`) | Pending | — | — | Depends on UNK-01/UNK-03 |
-| 3 | Connection-open-count test + format/lint/type/test verification and commit | Pending | — | — | |
+| 1 | Add optional `db` parameter to `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | In Progress | — | — |  |
+| 2 | Own one session connection in `crawl_site`, pass through, close on exit (`scripts/rag/ingestion/orchestrator.py`) | In Progress | — | — | Depends on UNK-01/UNK-03 |
+| 3 | Connection-open-count test + format/lint/type/test verification and commit | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -182,7 +182,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261106-134925_01_scripts_rag_ingestion_http_fetcher.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261106-134925_02_scripts_rag_ingestion_orchestrator.py.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -202,3 +203,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-002 | Required Changes / Constraints | `scripts/rag/ingestion/orchestrator.py` | Step 2 | REQ-002 acceptance criteria | exception-path close test | Confirmed by repository evidence |
 | REQ-003 | Constraints / Acceptance Criteria | `scripts/rag/ingestion/http_fetcher.py` | Step 1 | REQ-003 acceptance criteria | header-equality test | Confirmed by repository evidence |
 | REQ-004 | AI Implementation Instruction | `scripts/rag/ingestion/http_fetcher.py` | Step 1 | REQ-004 acceptance criteria | backward-compat test | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261106-134925 -->
