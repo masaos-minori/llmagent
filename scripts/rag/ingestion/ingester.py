@@ -10,6 +10,7 @@ Pipeline position: Crawler.py -> ChunkSplitter.py -> RagIngester.py
 
 import argparse
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
 from rag.corpus_identity import bump_index_generation
 from rag.exceptions import ChunkFormatError, IngestionFailureReason
-from rag.ingestion.chunk_grouping import ChunkGroupingStrategy
+from rag.ingestion.chunk_grouping import ChunkGeneration, ChunkGroupingStrategy
 from rag.ingestion.chunk_preparation import ChunkFactory
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.document_persistence import DocumentStore
@@ -58,7 +59,11 @@ class IngestUrlResult:
     def validation_failure(url: str, chunk_files: list[Path]) -> "IngestUrlResult":
         """Return a failure result when artifact validation fails."""
         return IngestUrlResult(
-            url=url, n_success=0, n_failed=len(chunk_files), skipped=False
+            url=url,
+            n_success=0,
+            n_failed=len(chunk_files),
+            skipped=False,
+            failure_reason=IngestionFailureReason.PARSE_FAILED,
         )
 
     @staticmethod
@@ -154,7 +159,8 @@ class RagIngester:
         if not chunk_files:
             logger.info("No chunk files to process")
             return None
-        url_groups = self._chunk_grouping_strategy.group(chunk_files)
+        url_groups, rejected_files = self._chunk_grouping_strategy.group(chunk_files)
+        self._route_group_failed(rejected_files)
 
         consistency_report: RagConsistencyReport | None = None
         with SQLiteHelper(
@@ -223,6 +229,9 @@ class RagIngester:
         try:
             first_data = self._read_chunk_json(chunk_files[0])
         except ChunkFormatError:
+            self._route_group_failed(
+                [(p, IngestionFailureReason.PARSE_FAILED) for p in chunk_files]
+            )
             return IngestUrlResult.validation_failure(url, chunk_files)
 
         first_fields = (
@@ -241,6 +250,9 @@ class RagIngester:
             try:
                 cd = self._read_chunk_json(cp)
             except ChunkFormatError:
+                self._route_group_failed(
+                    [(p, IngestionFailureReason.PARSE_FAILED) for p in chunk_files]
+                )
                 return IngestUrlResult.validation_failure(url, chunk_files)
             cf = (
                 cd.url,
@@ -254,6 +266,12 @@ class RagIngester:
                 cd.chunk_type,
             )
             if cf != first_fields:
+                self._route_group_failed(
+                    [
+                        (p, IngestionFailureReason.GROUP_VALIDATION_FAILED)
+                        for p in chunk_files
+                    ]
+                )
                 return IngestUrlResult(
                     url=url,
                     n_success=0,
@@ -264,6 +282,12 @@ class RagIngester:
             chunk_indices.add(cd.chunk_index)
         expected = set(range(len(chunk_files)))
         if chunk_indices != expected:
+            self._route_group_failed(
+                [
+                    (p, IngestionFailureReason.GROUP_VALIDATION_FAILED)
+                    for p in chunk_files
+                ]
+            )
             return IngestUrlResult(
                 url=url,
                 n_success=0,
@@ -367,17 +391,26 @@ class RagIngester:
             },
         )
 
+    def _route_group_failed(self, failed_paths: Sequence[tuple[Path, str]]) -> None:
+        """Move every file of a rejected group to failed/ with .error.json metadata."""
+        if not failed_paths:
+            return
+        self._file_router.route([], [(path, reason) for path, reason in failed_paths])
+
     def _process_url_groups(
         self,
         doc_mgr: DocumentManager,
         db: SQLiteHelper,
         doc_store: DocumentStore,
-        url_groups: dict[str, list[Path]],
+        url_groups: dict[ChunkGeneration, list[Path]],
         force: bool,
     ) -> list[IngestUrlResult]:
-        """Iterate over URL groups and ingest each; log exceptions without stopping."""
+        """Iterate over URL groups oldest-generation-first and ingest each; log exceptions without stopping."""
         results: list[IngestUrlResult] = []
-        for url, paths in url_groups.items():
+        for key, paths in sorted(
+            url_groups.items(), key=lambda item: (item[0].url, item[0].fetched_at)
+        ):
+            url = key.url
             try:
                 results.append(
                     self.ingest_url_group(doc_mgr, db, doc_store, url, paths, force)

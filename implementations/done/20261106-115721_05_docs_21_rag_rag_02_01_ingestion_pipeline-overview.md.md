@@ -68,8 +68,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the lifecycle table and grouping note per Procedure | Pending | — | — | Execute after sibling procedures 01-02 land |
-| 2 | Run the docs checkers in the Validation plan | Pending | — | — | `routing.md` Tools "When to run which tool" |
+| 1 | Update the lifecycle table and grouping note per Procedure | Completed | 20261106-143204 | 20261106-143204 | Execute after sibling procedures 01-02 land |
+| 2 | Run the docs checkers in the Validation plan | Completed | 20261106-143204 | 20261106-143204 | `routing.md` Tools "When to run which tool" |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

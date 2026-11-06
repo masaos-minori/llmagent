@@ -66,8 +66,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the ETag refresh-ordering description per Procedure | Pending | — | — | Execute after sibling procedures 01-03 land so the doc describes shipped behavior |
-| 2 | Run the docs checkers in the Validation plan | Pending | — | — | `routing.md` Tools "When to run which tool" |
+| 1 | Update the ETag refresh-ordering description per Procedure | Completed | 2026-11-06 | 2026-11-06 | Execute after sibling procedures 01-03 land so the doc describes shipped behavior Line 36 replaced per Procedure; correction: line 30 intro also updated (DocumentManager no longer performs ETag refresh after sibling 01); rag_02_06 4.9 gained Resolution Mode bullet because resolve_incoming changed the documented API surface (Details conditional satisfied) |
+| 2 | Run the docs checkers in the Validation plan | Completed | 2026-11-06 | 2026-11-06 | `routing.md` Tools "When to run which tool" check_docs_quality / check_docs_structure (both files) / check_docs_content_policy / check_docs_consistency --domain rag all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

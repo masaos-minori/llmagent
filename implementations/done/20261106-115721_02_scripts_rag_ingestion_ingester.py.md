@@ -84,9 +84,9 @@ N/A: revert the single commit (revert together with sibling procedures 01, 05, 0
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Requires sibling procedure 01 (new `group()` shape) to land in the same change set |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion `tests/rag/ingestion/test_ingester.py` flips land in Plan Phase 1 (RED) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes diff-cover ≥ 90% |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261106-143204 | 20261106-143204 | Requires sibling procedure 01 (new `group()` shape) to land in the same change set |
+| 2 | Add or update tests per Validation plan | Completed | 20261106-143204 | 20261106-143204 | Companion `tests/rag/ingestion/test_ingester.py` flips land in Plan Phase 1 (RED) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261106-143204 | 20261106-143204 | Includes diff-cover ≥ 90% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

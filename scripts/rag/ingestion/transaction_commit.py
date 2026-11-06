@@ -14,6 +14,7 @@ from pathlib import Path
 from db.helper import SQLiteHelper
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.document_persistence import DocumentStore
+from rag.ingestion.etag_manager import ETagManager
 from rag.models_data import PreparedChunk
 from shared.logger import Logger
 
@@ -58,6 +59,12 @@ class TransactionManager:
             new_doc_id: int | None = None
             if doc_id is None or replace:
                 if replace and doc_id is not None:
+                    # Guard freshness against the stored row BEFORE deleting it,
+                    # so a stale payload can never regress stored values and the
+                    # resolved freshness lands in the same transaction.
+                    etag, last_modified, fetched_at = ETagManager(
+                        self._db, doc_id
+                    ).resolve_incoming(etag, last_modified, fetched_at)
                     self._doc_mgr.delete_existing_document(doc_id)
                 cursor = self._doc_store.insert(
                     self._db,

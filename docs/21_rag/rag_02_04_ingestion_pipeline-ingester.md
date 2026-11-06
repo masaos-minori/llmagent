@@ -104,8 +104,10 @@ See `scripts/rag/ingestion/ingester.py` for the exact raise/catch sites covering
 embedding API retry, per-chunk embedding retry-limit handling, invalid `lang` value,
 `chunks_vec` deletion-order and embedding-dimension checks,
 `IngestUrlResult.validation_failure()` (artifact validation failure — the whole URL's
-chunk group fails, not counted toward `n_embed_failed`, and no `WARNING` is logged at
-this layer), and file-move failure logging.
+chunk group fails and is routed to `failed/`, with a `.error.json` file naming the failure
+reason — group signature mismatch or parse failure — written for each parseable payload in
+the group, and is not counted toward `n_embed_failed`), chunk files rejected during
+grouping reach `failed/` the same way, and file-move failure logging.
 
 ### 4.7 Logging
 

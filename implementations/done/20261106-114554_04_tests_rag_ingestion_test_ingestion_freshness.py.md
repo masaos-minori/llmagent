@@ -72,8 +72,8 @@ N/A: revert the single commit (revert together with sibling procedures 01-03).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the (a)-(e) tests per Procedure (RED first, Plan Phase 1) | Pending | — | — | Must fail before sibling procedures 01-03 land |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes diff-cover ≥ 90% |
+| 1 | Add the (a)-(e) tests per Procedure (RED first, Plan Phase 1) | Completed | 2026-11-06 | 2026-11-06 | Must fail before sibling procedures 01-03 land 13 new tests (5 atomicity + 8 resolve_incoming guard); RED confirmed pre-fix; mock_db fixture in test_rag_ingester.py gained fetchall.return_value=[] to keep 2 existing mock atomicity tests green |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-06 | 2026-11-06 | Includes diff-cover ≥ 90% 13 new tests green post-fix; ingestion suite 200/200 End-of-unit gate: full suite 11772 passed 9 skipped (deterministic order); diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

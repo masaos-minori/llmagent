@@ -141,9 +141,9 @@ REQ-007: `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` lifecycle table 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add/flip regression tests in `tests/rag/ingestion/test_chunk_grouping.py` (new) and `tests/rag/ingestion/test_ingester.py` | In Progress | — | — | REQ-006 |
-| 2 | Generation-safe grouping in `scripts/rag/ingestion/chunk_grouping.py` and drain routing in `scripts/rag/ingestion/ingester.py` | In Progress | — | — | REQ-001..005 |
-| 3 | Docs updates + gate sequence + deploy hand-off | In Progress | — | — | REQ-007, REQ-001..005 |
+| 1 | Add/flip regression tests in `tests/rag/ingestion/test_chunk_grouping.py` (new) and `tests/rag/ingestion/test_ingester.py` | Completed | 2026-11-06 | 2026-11-06 | REQ-006: 13 grouping unit tests + flipped TestGroupValidation drain assertions + 2 parse-failure site tests + 2 generation-drain e2e tests + oldest-first ordering test (RED confirmed pre-fix) |
+| 2 | Generation-safe grouping in `scripts/rag/ingestion/chunk_grouping.py` and drain routing in `scripts/rag/ingestion/ingester.py` | Completed | 2026-11-06 | 2026-11-06 | REQ-001..005: ChunkGeneration 9-field key + rejected list, `_route_group_failed` at all four failure sites, oldest-first `_process_url_groups`, `validation_failure` carries PARSE_FAILED |
+| 3 | Docs updates + gate sequence + deploy hand-off | Completed | 2026-11-06 | 2026-11-06 | REQ-007: rag_02_01 lifecycle row + grouping sentence, rag_02_04 §4.6 rewritten; gates passed 2026-11-06 (full suite 11790 passed, diff-cover 98% / ingester.py 100%); deploy hand-off (UNK-01 `failed/` check) remains an operational decision for the owner |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -153,10 +153,10 @@ REQ-007: `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` lifecycle table 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261106-115721_01_scripts_rag_ingestion_chunk_grouping.py.md` | 1, 2 | Procedure | Pending | — | — |
-| `implementations/20261106-115721_02_scripts_rag_ingestion_ingester.py.md` | 1, 2 | Procedure | Pending | — | — |
-| `implementations/20261106-115721_05_docs_21_rag_rag_02_01_ingestion_pipeline-overview.md.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261106-115721_06_docs_21_rag_rag_02_04_ingestion_pipeline-ingester.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261106-115721_01_scripts_rag_ingestion_chunk_grouping.py.md` | 1, 2 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
+| `implementations/20261106-115721_02_scripts_rag_ingestion_ingester.py.md` | 1, 2 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
+| `implementations/20261106-115721_05_docs_21_rag_rag_02_01_ingestion_pipeline-overview.md.md` | 3 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
+| `implementations/20261106-115721_06_docs_21_rag_rag_02_04_ingestion_pipeline-ingester.md.md` | 3 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

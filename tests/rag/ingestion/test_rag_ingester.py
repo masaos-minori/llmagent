@@ -10,6 +10,7 @@ import pytest
 from db.helper import SQLiteHelper
 from rag.exceptions import IngestionFailureReason
 from rag.ingestion import ingester as ingester_module
+from rag.ingestion.chunk_grouping import ChunkGeneration
 from rag.ingestion.chunk_preparation import ChunkFactory
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.document_persistence import DocumentStore
@@ -79,6 +80,21 @@ def _make_ingester(
     return RagIngester(config=cfg)
 
 
+def _group_key(url: str, fetched_at: str = "2024-01-01T00:00:00Z") -> ChunkGeneration:
+    """Build a ChunkGroupingStrategy group key for tests that call _process_url_groups."""
+    return ChunkGeneration(
+        url=url,
+        title="Test Page",
+        lang="en",
+        fetched_at=fetched_at,
+        etag=None,
+        last_modified=None,
+        source_file="page.json",
+        chunking_strategy="heading",
+        chunk_type="",
+    )
+
+
 class _ListHandler(logging.Handler):
     """Capture LogRecords on a logger that propagates=False, without caplog."""
 
@@ -110,6 +126,9 @@ def mock_db():
         return MagicMock()
 
     db.execute.side_effect = side_effect
+    # TransactionManager.commit resolves freshness via ETagManager.fetchall on the
+    # replace branch; no stored row means the incoming payload values are used.
+    db.fetchall.return_value = []
     yield db
 
 
@@ -395,7 +414,10 @@ class TestBatchContinuation:
         # self.ingest_url_group(...) unbound, so no implicit self is passed.
         ingester.ingest_url_group = fake_ingest_url_group
 
-        url_groups = {"http://a.com": [], "http://b.com": []}
+        url_groups = {
+            _group_key("http://a.com"): [],
+            _group_key("http://b.com"): [],
+        }
 
         captured = _ListHandler()
         ingester_module.logger.addHandler(captured)
@@ -416,6 +438,37 @@ class TestBatchContinuation:
         error_records = [r for r in captured.records if r.levelno == logging.ERROR]
         assert error_records
         assert error_records[0].exc_info
+
+
+class TestGroupProcessingOrder:
+    """REQ-004: same-URL groups are processed oldest-generation-first."""
+
+    def test_same_url_groups_ordered_by_fetched_at(
+        self, tmp_path, mock_db, mock_doc_mgr
+    ):
+        """Two generations of one URL are visited oldest-first regardless of dict order."""
+        ingester = _make_ingester(tmp_path)
+        doc_store = DocumentStore(mock_db, mock_doc_mgr)
+
+        visited: list[str] = []
+
+        def fake_ingest_url_group(doc_mgr, db, doc_store, url, chunk_files, force):
+            visited.append(url)
+            return IngestUrlResult(url=url, n_success=1, n_failed=0, skipped=False)
+
+        ingester.ingest_url_group = fake_ingest_url_group
+
+        url_groups = {
+            _group_key("http://a.com", fetched_at="2025-06-01T00:00:00Z"): [],
+            _group_key("http://b.com"): [],
+            _group_key("http://a.com", fetched_at="2024-01-01T00:00:00Z"): [],
+        }
+
+        ingester._process_url_groups(
+            mock_doc_mgr, mock_db, doc_store, url_groups, force=False
+        )
+
+        assert visited == ["http://a.com", "http://a.com", "http://b.com"]
 
 
 def test_sqlite_error_hierarchy_boundary():

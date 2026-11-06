@@ -32,8 +32,10 @@ The ingestion pipeline runs as three separate scripts (crawl, chunk split, embed
 | Path | Created By | Content | Deletion Policy |
 |---|---|---|---|
 | `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks | Not deleted by the pipeline code; no automated retention or cleanup |
-| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy | Moved out of `chunk/` after ingestion: to `registered/` on success, to `retry/` (embedding failures) or `failed/` (other failures, with a `.error.json` file) on failure |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy | Moved out of `chunk/` after ingestion: to `registered/` on success, to `retry/` (embedding failures) or `failed/` (parse failures, URL-group signature mismatches, invalid or empty urls — a `.error.json` file naming the failure reason is written for parseable payloads) on failure |
 | `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered | No automated retention or cleanup; files accumulate until removed manually |
+
+Chunk files are grouped per URL and per crawl generation (payload `fetched_at`), processed oldest first, so files from distinct generations of one URL never compete in one group.
 
 > **Retention:** No retention or cleanup setting exists for `rag-src/registered/`. See "Retention of `registered/`" in [rag_01_system_overview.md](rag_01_system_overview.md).
 >

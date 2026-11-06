@@ -39,11 +39,10 @@ class ETagManager:
         Guards against stale overwrites: if new_fetched_at < stored fetched_at,
         the incoming data is older and the existing DB values are kept.
         """
-        if not new_fetched_at:
-            raise ValueError("new_fetched_at must be a non-empty string")
-        if etag is None and last_modified is None:
+        incoming_wins = self._incoming_decision(etag, last_modified, new_fetched_at)
+        if incoming_wins is None:
             return
-        if self._is_stale_update(new_fetched_at):
+        if not incoming_wins:
             logger.info(
                 "skip-path etag update skipped: incoming stale (%s < %s) for doc_id=%d",
                 new_fetched_at,
@@ -53,6 +52,47 @@ class ETagManager:
             return
         self._update_with_freshness(etag, last_modified, new_fetched_at)
         self._log_updated()
+
+    def resolve_incoming(
+        self,
+        etag: str | None,
+        last_modified: str | None,
+        new_fetched_at: str,
+    ) -> tuple[str | None, str | None, str]:
+        """Decide incoming-vs-stored freshness values without writing.
+
+        Same guard contract as update(): raises ValueError on empty
+        new_fetched_at and InvalidIncomingTimestampError /
+        InvalidStoredTimestampError on unparseable timestamps, before any write.
+        Returns the (etag, last_modified, fetched_at) the caller should persist:
+        incoming values when they win, stored row values when incoming is stale
+        or both-None with a stored row; both-None without a stored row keeps the
+        incoming values.
+        """
+        incoming_wins = self._incoming_decision(etag, last_modified, new_fetched_at)
+        if incoming_wins:
+            return (etag, last_modified, new_fetched_at)
+        stored = self._stored_freshness()
+        if stored is not None:
+            return stored
+        return (etag, last_modified, new_fetched_at)
+
+    def _incoming_decision(
+        self,
+        etag: str | None,
+        last_modified: str | None,
+        new_fetched_at: str,
+    ) -> bool | None:
+        """Shared guard core: True = incoming wins, False = stale, None = both-None.
+
+        Validation order is preserved: empty new_fetched_at raises ValueError
+        before any DB access so the caller's transaction aborts cleanly.
+        """
+        if not new_fetched_at:
+            raise ValueError("new_fetched_at must be a non-empty string")
+        if etag is None and last_modified is None:
+            return None
+        return not self._is_stale_update(new_fetched_at)
 
     def _is_stale_update(self, new_fetched_at: str) -> bool:
         """Return True when the incoming data is older than stored fetched_at."""
@@ -88,6 +128,17 @@ class ETagManager:
             )
 
         return new_dt < stored_dt
+
+    def _stored_freshness(self) -> tuple[str | None, str | None, str] | None:
+        """Read the stored freshness row; None when the document does not exist."""
+        rows = self._db.fetchall(
+            "SELECT etag, last_modified, fetched_at FROM documents WHERE doc_id = ?",
+            (self._doc_id,),
+        )
+        if not rows:
+            return None
+        etag, last_modified, fetched_at = rows[0]
+        return (etag, last_modified, str(fetched_at or ""))
 
     def _update_with_freshness(
         self,

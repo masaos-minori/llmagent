@@ -10,7 +10,6 @@ from collections.abc import Callable
 from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
 from db.rag_consistency import check_rag_consistency, is_consistent
-from rag.ingestion.etag_manager import ETagManager
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
@@ -98,18 +97,9 @@ class DocumentManager:
         if stored["etag"] == etag and stored["last_modified"] == last_modified:
             return existing_doc_id, True, False
 
-        self._update_etag(existing_doc_id, etag, last_modified, fetched_at)
+        # No freshness write here: freshness lands atomically in
+        # TransactionManager.commit's replace branch (raging002 REQ-001/003).
         return existing_doc_id, False, True
-
-    def _update_etag(
-        self,
-        doc_id: int,
-        etag: str | None,
-        last_modified: str | None,
-        new_fetched_at: str,
-    ) -> None:
-        """Refresh ETag/Last-Modified for an existing document (skip-case)."""
-        ETagManager(self._db, doc_id).update(etag, last_modified, new_fetched_at)
 
     @staticmethod
     def _is_file_unchanged(

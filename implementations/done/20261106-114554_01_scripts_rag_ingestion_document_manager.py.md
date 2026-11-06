@@ -74,9 +74,9 @@ N/A: revert the single commit (the full fix spans sibling procedures 02-04; reve
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after sibling procedure 02/03 land and Phase 1 tests exist (RED first) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests live in sibling procedure `implementations/20261106-114554_04_tests_rag_ingestion_test_ingestion_freshness.py.md` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes diff-cover ≥ 90% |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-06 | 2026-11-06 | Execute after sibling procedure 02/03 land and Phase 1 tests exist (RED first) |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-06 | 2026-11-06 | Tests live in sibling procedure `implementations/20261106-114554_04_tests_rag_ingestion_test_ingestion_freshness.py.md` Tests in sibling procedure 04: TestFreshnessAtomicity pins no-write-on-replace-branch; rg '_update_etag' confirmed no test asserted the removed method |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-06 | 2026-11-06 | Includes diff-cover ≥ 90% End-of-unit gate: ingestion suite 200/200; ruff/mypy/lint-imports/bandit/mock-patch/docstrings/module-size clean; full suite 11772 passed 9 skipped (deterministic order); diff-cover 100% (etag_manager.py, transaction_commit.py) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

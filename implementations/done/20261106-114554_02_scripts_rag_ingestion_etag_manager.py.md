@@ -73,9 +73,9 @@ N/A: revert the single commit (revert together with sibling procedures 01/03/04)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Sibling procedures 03/04 depend on this landing first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | `resolve_incoming` (new) unit tests live in sibling procedure `implementations/20261106-114554_04_tests_rag_ingestion_test_ingestion_freshness.py.md` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes diff-cover ≥ 90% |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-06 | 2026-11-06 | Sibling procedures 03/04 depend on this landing first |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-06 | 2026-11-06 | `resolve_incoming` (new) unit tests live in sibling procedure `implementations/20261106-114554_04_tests_rag_ingestion_test_ingestion_freshness.py.md` TestResolveIncomingGuard (8 cases) in sibling 04; characterization suite test_ingester_etag_guard.py unchanged and green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-06 | 2026-11-06 | Includes diff-cover ≥ 90% End-of-unit gate: ingestion suite 200/200; ruff/mypy/lint-imports/bandit/mock-patch/docstrings/module-size clean; full suite 11772 passed 9 skipped (deterministic order); diff-cover 100% (etag_manager.py, transaction_commit.py) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

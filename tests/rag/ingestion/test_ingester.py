@@ -147,6 +147,18 @@ def _write_chunk(
     return path
 
 
+def _error_reasons(failed_dir: Path, stems: list[str]) -> list[str]:
+    """Read the failure_reason of each routed chunk file's .error.json sidecar."""
+    return [
+        str(
+            orjson.loads((failed_dir / f"{stem}.error.json").read_bytes())[
+                "failure_reason"
+            ]
+        )
+        for stem in stems
+    ]
+
+
 def _make_ingester(tmp_path: Path) -> RagIngester:
     (tmp_path / "chunk").mkdir(parents=True, exist_ok=True)
     (tmp_path / "registered").mkdir(parents=True, exist_ok=True)
@@ -939,9 +951,15 @@ class TestGroupValidation:
         assert result.n_failed == 2
         assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
-        # Files stay at original location (validation rejects before any move)
-        assert path0.exists()
-        assert path1.exists()
+        assert result.failure_reason == IngestionFailureReason.GROUP_VALIDATION_FAILED
+        # REQ-003: a rejected group is drained to failed/ with .error.json metadata
+        assert not path0.exists() and not path1.exists()
+        failed_dir = tmp_path / "failed"
+        assert (failed_dir / "c0.json").exists() and (failed_dir / "c1.json").exists()
+        assert _error_reasons(failed_dir, ["c0", "c1"]) == [
+            "group_validation_failed",
+            "group_validation_failed",
+        ]
         mock_post.assert_not_called()
 
     def test_duplicate_chunk_index_rejects_group(self, tmp_path: Path) -> None:
@@ -967,8 +985,14 @@ class TestGroupValidation:
         assert result.n_failed == 2
         assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
-        assert path0.exists()
-        assert path1.exists()
+        # REQ-003: a rejected group is drained to failed/ with .error.json metadata
+        assert not path0.exists() and not path1.exists()
+        failed_dir = tmp_path / "failed"
+        assert (failed_dir / "c0.json").exists() and (failed_dir / "c1.json").exists()
+        assert _error_reasons(failed_dir, ["c0", "c1"]) == [
+            "group_validation_failed",
+            "group_validation_failed",
+        ]
         mock_post.assert_not_called()
 
     def test_non_contiguous_chunk_index_rejects_group(self, tmp_path: Path) -> None:
@@ -994,9 +1018,177 @@ class TestGroupValidation:
         assert result.n_failed == 2
         assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
-        assert path0.exists()
-        assert path1.exists()
+        # REQ-003: a rejected group is drained to failed/ with .error.json metadata
+        assert not path0.exists() and not path1.exists()
+        failed_dir = tmp_path / "failed"
+        assert (failed_dir / "c0.json").exists() and (failed_dir / "c1.json").exists()
+        assert _error_reasons(failed_dir, ["c0", "c1"]) == [
+            "group_validation_failed",
+            "group_validation_failed",
+        ]
         mock_post.assert_not_called()
+
+    def test_malformed_first_file_routes_group_as_parse_failed(
+        self, tmp_path: Path
+    ) -> None:
+        """ChunkFormatError on the first file drains the whole group (REQ-003 site 1)."""
+        conn, fake_db, ingester = self._setup(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+        path0 = chunk_dir / "c0.json"
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        path0.write_bytes(orjson.dumps({"url": "https://example.com/doc"}))
+        path1 = _write_chunk(
+            chunk_dir, "c1.json", dataclasses.replace(_DEFAULT_CHUNK, chunk_index=1)
+        )
+        with patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
+                "https://example.com/doc",
+                [path0, path1],
+                force=False,
+            )
+        assert result.failure_reason == IngestionFailureReason.PARSE_FAILED
+        assert not path0.exists() and not path1.exists()
+        failed_dir = tmp_path / "failed"
+        # FileRouter cannot build metadata for an unparseable payload (no sidecar for c0);
+        # the parseable sibling gets the sidecar naming the group reason.
+        assert not (failed_dir / "c0.error.json").exists()
+        assert _error_reasons(failed_dir, ["c1"]) == ["parse_failed"]
+
+    def test_malformed_later_file_routes_group_as_parse_failed(
+        self, tmp_path: Path
+    ) -> None:
+        """ChunkFormatError on a later file drains the whole group (REQ-003 site 2)."""
+        conn, fake_db, ingester = self._setup(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+        path0 = _write_chunk(chunk_dir, "c0.json")
+        path1 = chunk_dir / "c1.json"
+        path1.write_bytes(
+            orjson.dumps({"url": "https://example.com/doc", "chunk_index": 1})
+        )
+        with patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
+                "https://example.com/doc",
+                [path0, path1],
+                force=False,
+            )
+        assert result.failure_reason == IngestionFailureReason.PARSE_FAILED
+        assert not path0.exists() and not path1.exists()
+        failed_dir = tmp_path / "failed"
+        assert _error_reasons(failed_dir, ["c0"]) == ["parse_failed"]
+        assert not (failed_dir / "c1.error.json").exists()
+
+
+class TestGenerationDrain:
+    """REQ-003/REQ-004/AC-2/AC-4: rejected files drain out and generations resolve oldest-first."""
+
+    @staticmethod
+    def _add_fts_table(conn: sqlite3.Connection) -> None:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS chunks_fts_docsize(
+                rowid INTEGER PRIMARY KEY,
+                fts_size INTEGER
+            );
+            """
+        )
+        conn.commit()
+
+    def test_two_generations_ingest_oldest_first_newest_final(
+        self, tmp_path: Path
+    ) -> None:
+        """Two generations of one URL are ingested independently; the newest writes last."""
+        conn, fake_db = _make_db()
+        self._add_fts_table(conn)
+        chunk_dir = tmp_path / "chunk"
+        _write_chunk(
+            chunk_dir,
+            "old-0.json",
+            dataclasses.replace(
+                _DEFAULT_CHUNK,
+                content="old",
+                etag='"gen-2024"',
+                last_modified="2024-01-01T00:00:00Z",
+                fetched_at="2024-01-01T00:00:00Z",
+            ),
+        )
+        _write_chunk(
+            chunk_dir,
+            "new-0.json",
+            dataclasses.replace(
+                _DEFAULT_CHUNK,
+                content="new",
+                etag='"gen-2025"',
+                last_modified="2025-06-01T00:00:00Z",
+                fetched_at="2025-06-01T00:00:00Z",
+            ),
+        )
+        ingester = _make_ingester(tmp_path)
+
+        with (
+            patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            ingester.ingest_all(force=True)
+
+        row = conn.execute(
+            "SELECT fetched_at FROM documents WHERE url = ?",
+            ("https://example.com/doc",),
+        ).fetchone()
+        assert row is not None
+        assert row["fetched_at"] == "2025-06-01T00:00:00Z"
+        contents = [
+            r["content"]
+            for r in conn.execute("SELECT content FROM chunks ORDER BY chunk_id")
+        ]
+        assert contents == ["new"]
+        registered = sorted(p.name for p in (tmp_path / "registered").iterdir())
+        assert registered == ["new-0.json", "old-0.json"]
+        assert list((tmp_path / "chunk").glob("*.json")) == []
+
+    def test_second_ingest_all_reprocesses_no_drained_files(
+        self, tmp_path: Path
+    ) -> None:
+        """After a group is drained to failed/, a second run re-processes nothing."""
+        conn, fake_db = _make_db()
+        self._add_fts_table(conn)
+        chunk_dir = tmp_path / "chunk"
+        _write_chunk(chunk_dir, "good-0.json")
+        _write_chunk(
+            chunk_dir,
+            "bad-0.json",
+            dataclasses.replace(_DEFAULT_CHUNK, url="not-a-url"),
+        )
+        ingester = _make_ingester(tmp_path)
+
+        with (
+            patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            ingester.ingest_all(force=False)
+
+        failed_dir = tmp_path / "failed"
+        assert (failed_dir / "bad-0.json").exists()
+        assert _error_reasons(failed_dir, ["bad-0"]) == ["validation_failed"]
+        assert not (chunk_dir / "bad-0.json").exists()
+        assert (tmp_path / "registered" / "good-0.json").exists()
+
+        with (
+            patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_all(force=False)
+
+        assert result is None
+        assert sorted(p.name for p in failed_dir.iterdir()) == [
+            "bad-0.error.json",
+            "bad-0.json",
+        ]
 
 
 class TestIntegrityErrorPropagation:

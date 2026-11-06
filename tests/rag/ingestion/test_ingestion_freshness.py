@@ -1,16 +1,28 @@
 """tests/test_ingestion_freshness.py
-Unit tests for file:// freshness detection in crawler.py and ingester.py.
+Unit tests for file:// freshness detection in crawler.py and ingester.py, plus
+real-schema freshness-atomicity regression tests (raging002 REQ-004).
 """
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import sqlite3
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
+import pytest
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.document_persistence import DocumentStore
+from rag.ingestion.etag_manager import (
+    ETagManager,
+    InvalidIncomingTimestampError,
+    InvalidStoredTimestampError,
+)
+from rag.ingestion.transaction_commit import TransactionManager
+from rag.models_data import PreparedChunk
 
 # ── _is_file_unchanged() ─────────────────────────────────────────────────────
 
@@ -252,3 +264,353 @@ class TestGetOrCreateDocumentFreshness:
         )
         assert result == (None, True, False)
         mock_doc_mgr.handle_existing_document.assert_called_once()
+
+
+# ── Freshness atomicity (raging002 REQ-004) ───────────────────────────────────
+#
+# Real in-memory SQLite harness (documents has fetched_at; FK ON DELETE CASCADE)
+# so transaction rollback is genuinely exercised — the pattern is the
+# _FakeSQLiteHelper harness from tests/rag/ingestion/test_ingester.py.
+
+_FRESHNESS_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS documents (
+    doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    url                TEXT    NOT NULL UNIQUE,
+    title              TEXT,
+    lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
+    fetched_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+    etag               TEXT,
+    last_modified      TEXT,
+    chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
+);
+CREATE TABLE IF NOT EXISTS chunks (
+    chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id             INTEGER NOT NULL
+                           REFERENCES documents(doc_id) ON DELETE CASCADE,
+    chunk_index        INTEGER NOT NULL,
+    content            TEXT    NOT NULL,
+    normalized_content TEXT,
+    chunk_type         TEXT,
+    source_file        TEXT
+);
+CREATE TABLE IF NOT EXISTS chunks_vec (
+    chunk_id  INTEGER PRIMARY KEY,
+    embedding BLOB NOT NULL
+);
+"""
+
+
+class _FreshnessSQLiteHelper:
+    """In-memory SQLite wrapper satisfying the SQLiteHelper interface."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+        conn.row_factory = sqlite3.Row
+
+    def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        return self._conn.execute(sql, params)
+
+    def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
+        return self._conn.execute(sql, params).fetchall()
+
+    @contextlib.contextmanager
+    def begin_immediate(self) -> Generator[None]:
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            self._conn.commit()
+        except Exception:
+            with contextlib.suppress(sqlite3.OperationalError):
+                self._conn.rollback()
+            raise
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+
+def _make_freshness_db() -> tuple[sqlite3.Connection, _FreshnessSQLiteHelper]:
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
+    conn.executescript(_FRESHNESS_SCHEMA_SQL)
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.commit()
+    return conn, _FreshnessSQLiteHelper(conn)
+
+
+def _seed_document(
+    conn: sqlite3.Connection,
+    url: str = "https://example.com/doc",
+    etag: str | None = "old_etag",
+    last_modified: str | None = "lm-old",
+    fetched_at: str = "2024-06-10T00:00:00Z",
+    content: str = "old chunk",
+) -> int:
+    """Insert one document with one chunk/chunks_vec row; return its doc_id."""
+    cur = conn.execute(
+        "INSERT INTO documents (url, title, lang, fetched_at, etag, last_modified,"
+        " chunking_strategy) VALUES (?, 'Doc', 'en', ?, ?, ?, 'text')",
+        (url, fetched_at, etag, last_modified),
+    )
+    doc_id = cur.lastrowid
+    assert doc_id is not None
+    cur = conn.execute(
+        "INSERT INTO chunks (doc_id, chunk_index, content, chunk_type, source_file)"
+        " VALUES (?, 0, ?, 'chunk', 'old.json')",
+        (doc_id, content),
+    )
+    assert cur.lastrowid is not None
+    conn.execute(
+        "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
+        (cur.lastrowid, b"\x00\x01"),
+    )
+    conn.commit()
+    return doc_id
+
+
+def _freshness_row(conn: sqlite3.Connection) -> tuple[Any, ...]:
+    row = conn.execute(
+        "SELECT etag, last_modified, fetched_at FROM documents ORDER BY doc_id"
+    ).fetchall()
+    return tuple(tuple(r) for r in row)
+
+
+def _prepared(content: str = "new chunk") -> list[PreparedChunk]:
+    return [
+        PreparedChunk(
+            doc_id=0,
+            chunk_index=0,
+            content=content,
+            normalized_content=None,
+            chunk_type="chunk",
+            source_file="new.json",
+            embedding_blob=b"\x00\x01",
+        )
+    ]
+
+
+class TestFreshnessAtomicity:
+    """Failed re-ingestion must not advance stored freshness before commit."""
+
+    def test_failed_reingestion_leaves_stored_freshness_intact(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+
+        _id, skip, replace = doc_mgr.handle_existing_document(
+            "https://example.com/doc",
+            doc_id,
+            False,
+            "new_etag",
+            "lm-new",
+            "2024-06-20T00:00:00Z",
+            lambda u: False,
+        )
+        assert (skip, replace) == (False, True)
+        # No freshness write may happen before the commit transaction.
+        assert _freshness_row(conn) == (("old_etag", "lm-old", "2024-06-10T00:00:00Z"),)
+
+    def test_failed_reingestion_allows_next_run_to_reprocess(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+
+        doc_mgr.handle_existing_document(
+            "https://example.com/doc",
+            doc_id,
+            False,
+            "new_etag",
+            "lm-new",
+            "2024-06-20T00:00:00Z",
+            lambda u: False,
+        )
+        # Second run with the same payload must reach the replace path again.
+        _id, skip, replace = doc_mgr.handle_existing_document(
+            "https://example.com/doc",
+            doc_id,
+            False,
+            "new_etag",
+            "lm-new",
+            "2024-06-20T00:00:00Z",
+            lambda u: False,
+        )
+        assert (skip, replace) == (False, True)
+
+    def test_abort_leaves_documents_and_chunks_at_pre_run_values(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+        store = DocumentStore(db, doc_mgr)  # type: ignore[arg-type]
+        tx_mgr = TransactionManager(db, doc_mgr, store)
+
+        doc_mgr.handle_existing_document(
+            "https://example.com/doc",
+            doc_id,
+            False,
+            "new_etag",
+            "lm-new",
+            "2024-06-20T00:00:00Z",
+            lambda u: False,
+        )
+        before = _freshness_row(conn)
+        chunks_before = conn.execute(
+            "SELECT content FROM chunks WHERE doc_id = ?", (doc_id,)
+        ).fetchall()
+
+        with (
+            patch.object(
+                TransactionManager,
+                "_insert_chunks_batch",
+                side_effect=RuntimeError("forced abort"),
+            ),
+            pytest.raises(RuntimeError, match="forced abort"),
+        ):
+            tx_mgr.commit(
+                "https://example.com/doc",
+                doc_id,
+                _prepared(),
+                [],
+                force=False,
+                replace=True,
+                title="Doc",
+                lang="en",
+                etag="new_etag",
+                last_modified="lm-new",
+                chunking_strategy="text",
+                fetched_at="2024-06-20T00:00:00Z",
+            )
+
+        assert _freshness_row(conn) == before
+        assert (
+            conn.execute(
+                "SELECT content FROM chunks WHERE doc_id = ?", (doc_id,)
+            ).fetchall()
+            == chunks_before
+        )
+
+    def test_fresh_payload_insert_carries_payload_freshness(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+        store = DocumentStore(db, doc_mgr)  # type: ignore[arg-type]
+        tx_mgr = TransactionManager(db, doc_mgr, store)
+
+        tx_mgr.commit(
+            "https://example.com/doc",
+            doc_id,
+            _prepared(),
+            [],
+            force=False,
+            replace=True,
+            title="Doc",
+            lang="en",
+            etag="new_etag",
+            last_modified="lm-new",
+            chunking_strategy="text",
+            fetched_at="2024-06-20T00:00:00Z",
+        )
+        assert _freshness_row(conn) == (("new_etag", "lm-new", "2024-06-20T00:00:00Z"),)
+        assert conn.execute("SELECT content FROM chunks").fetchone()[0] == "new chunk"
+
+    def test_stale_payload_cannot_regress_stored_freshness(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+        store = DocumentStore(db, doc_mgr)  # type: ignore[arg-type]
+        tx_mgr = TransactionManager(db, doc_mgr, store)
+
+        tx_mgr.commit(
+            "https://example.com/doc",
+            doc_id,
+            _prepared(),
+            [],
+            force=False,
+            replace=True,
+            title="Doc",
+            lang="en",
+            etag="stale_etag",
+            last_modified="lm-stale",
+            chunking_strategy="text",
+            fetched_at="2024-01-01T00:00:00Z",
+        )
+        # Stale incoming must not overwrite stored freshness on the replace path.
+        assert _freshness_row(conn) == (("old_etag", "lm-old", "2024-06-10T00:00:00Z"),)
+
+
+class TestResolveIncomingGuard:
+    """resolve_incoming unit tests mirroring test_ingester_etag_guard.py guard cases."""
+
+    def _mgr(
+        self, conn: sqlite3.Connection, db: _FreshnessSQLiteHelper, doc_id: int
+    ) -> ETagManager:
+        return ETagManager(db, doc_id)  # type: ignore[arg-type]
+
+    def test_stale_incoming_keeps_stored_values(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        mgr = self._mgr(conn, db, doc_id)
+        assert mgr.resolve_incoming(
+            "stale_etag", "lm-stale", "2024-01-01T00:00:00Z"
+        ) == (
+            "old_etag",
+            "lm-old",
+            "2024-06-10T00:00:00Z",
+        )
+        assert conn.execute("SELECT COUNT(*) FROM chunks_vec").fetchone()[0] == 1
+
+    def test_fresh_incoming_wins(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        mgr = self._mgr(conn, db, doc_id)
+        assert mgr.resolve_incoming("new_etag", "lm-new", "2024-06-20T00:00:00Z") == (
+            "new_etag",
+            "lm-new",
+            "2024-06-20T00:00:00Z",
+        )
+
+    def test_both_none_keeps_stored_row(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        mgr = self._mgr(conn, db, doc_id)
+        assert mgr.resolve_incoming(None, None, "2024-06-20T00:00:00Z") == (
+            "old_etag",
+            "lm-old",
+            "2024-06-10T00:00:00Z",
+        )
+
+    def test_both_none_without_stored_row_keeps_incoming(self) -> None:
+        conn, db = _make_freshness_db()
+        mgr = ETagManager(db, 999)  # type: ignore[arg-type]
+        assert mgr.resolve_incoming(None, None, "2024-06-20T00:00:00Z") == (
+            None,
+            None,
+            "2024-06-20T00:00:00Z",
+        )
+
+    def test_no_stored_row_keeps_incoming(self) -> None:
+        conn, db = _make_freshness_db()
+        mgr = ETagManager(db, 999)  # type: ignore[arg-type]
+        assert mgr.resolve_incoming("new_etag", "lm-new", "2024-06-20T00:00:00Z") == (
+            "new_etag",
+            "lm-new",
+            "2024-06-20T00:00:00Z",
+        )
+
+    def test_empty_new_fetched_at_raises_value_error(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        mgr = self._mgr(conn, db, doc_id)
+        with pytest.raises(ValueError):
+            mgr.resolve_incoming("etag", "lm", "")
+
+    def test_invalid_incoming_raises_incoming_error(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn)
+        mgr = self._mgr(conn, db, doc_id)
+        with pytest.raises(InvalidIncomingTimestampError):
+            mgr.resolve_incoming("etag", "lm", "not-a-date")
+
+    def test_invalid_stored_raises_stored_error(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn, fetched_at="not-a-date")
+        mgr = self._mgr(conn, db, doc_id)
+        with pytest.raises(InvalidStoredTimestampError):
+            mgr.resolve_incoming("etag", "lm", "2024-06-20T00:00:00Z")

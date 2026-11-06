@@ -133,9 +133,9 @@ Remove the freshness write from `handle_existing_document`'s replace branch enti
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add failing regression tests in `tests/rag/ingestion/test_ingestion_freshness.py` | In Progress | — | — | REQ-004 |
-| 2 | Commit-boundary fix in `scripts/rag/ingestion/etag_manager.py`, `scripts/rag/ingestion/transaction_commit.py`, `scripts/rag/ingestion/document_manager.py` | In Progress | — | — | REQ-001, REQ-002, REQ-003 |
-| 3 | Docs update + gate sequence + deploy hand-off | In Progress | — | — | REQ-005, REQ-001..004 |
+| 1 | Add failing regression tests in `tests/rag/ingestion/test_ingestion_freshness.py` | Completed | 2026-11-06 | 2026-11-06 | REQ-004 13 regression/unit tests added (RED confirmed pre-fix) |
+| 2 | Commit-boundary fix in `scripts/rag/ingestion/etag_manager.py`, `scripts/rag/ingestion/transaction_commit.py`, `scripts/rag/ingestion/document_manager.py` | Completed | 2026-11-06 | 2026-11-06 | REQ-001, REQ-002, REQ-003 commit-boundary fix landed (resolve_incoming + commit-branch resolution + pre-commit write removal) |
+| 3 | Docs update + gate sequence + deploy hand-off | Completed | 2026-11-06 | 2026-11-06 | REQ-005, REQ-001..004 docs updated (rag_02_05 line 30/36, rag_02_06 4.9 Resolution Mode); gate sequence passed 2026-11-06; deploy hand-off (UNK-01 audit) remains an operational decision for the owner |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -145,11 +145,11 @@ Remove the freshness write from `handle_existing_document`'s replace branch enti
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261106-114554_01_scripts_rag_ingestion_document_manager.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261106-114554_02_scripts_rag_ingestion_etag_manager.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261106-114554_03_scripts_rag_ingestion_transaction_commit.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261106-114554_04_tests_rag_ingestion_test_ingestion_freshness.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261106-114554_05_docs_21_rag_rag_02_05_ingestion_pipeline-document-manager.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261106-114554_01_scripts_rag_ingestion_document_manager.py.md` | 2 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
+| `implementations/20261106-114554_02_scripts_rag_ingestion_etag_manager.py.md` | 2 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
+| `implementations/20261106-114554_03_scripts_rag_ingestion_transaction_commit.py.md` | 2 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
+| `implementations/20261106-114554_04_tests_rag_ingestion_test_ingestion_freshness.py.md` | 1 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
+| `implementations/20261106-114554_05_docs_21_rag_rag_02_05_ingestion_pipeline-document-manager.md.md` | 3 | Procedure | Completed | 2026-11-06 | 2026-11-06 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

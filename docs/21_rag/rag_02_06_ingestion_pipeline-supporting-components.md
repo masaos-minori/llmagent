@@ -28,8 +28,9 @@ related:
 
 ## 4.9 ETagManager (`scripts/rag/ingestion/etag_manager.py`)
 
-`ETagManager` manages updates for existing document ETags and Last-Modified timestamps. It provides freshness guards: if `new_fetched_at` is older than the stored `fetched_at`, the input data is considered stale and the existing DB values are preserved. There is one update mode:
+`ETagManager` manages updates for existing document ETags and Last-Modified timestamps. It provides freshness guards: if `new_fetched_at` is older than the stored `fetched_at`, the input data is considered stale and the existing DB values are preserved. There are two modes:
 - **Freshness Mode:** Overwrites ETag/Last-Modified when freshness is confirmed.
+- **Resolution Mode:** `resolve_incoming()` applies the same guard and returns the winning `etag`/`last_modified`/`fetched_at` values without writing; the caller persists them inside its own transaction.
 
 
 ### 4.9.1 Freshness Comparison: Edge Cases and Error Handling
