@@ -64,10 +64,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Flip the three tests and add the unknown-reason test | Pending | — | — | |
-| 2 | Run the file and record the expected red state (release unit) | Pending | — | — | |
-| 3 | Run the validation sequence at the end of the unit (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | N/A: documentation is another procedure of this Plan | Pending | — | — | |
+| 1 | Flip the three tests and add the unknown-reason test | Completed | 20261106-163353 | 20261106-163353 |  |
+| 2 | Run the file and record the expected red state (release unit) | Completed | 20261106-163353 | 20261106-163353 |  |
+| 3 | Run the validation sequence at the end of the unit (`rules/toolchain.md`) | Completed | 20261106-163353 | 20261106-163353 |  |
+| 4 | N/A: documentation is another procedure of this Plan | Completed | 20261106-163353 | 20261106-163353 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
