@@ -161,9 +161,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `ValueError` safety net + deduped startup warning in `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | In Progress | — | — |  |
-| 2 | Add pre-BFS startup validation for empty `rag_db_path` (`scripts/rag/ingestion/crawler.py`) | Pending | — | — | Depends on UNK-01 resolution |
-| 3 | Format/lint/type/test verification and commit | Pending | — | — |  |
+| 1 | Add `ValueError` safety net + deduped startup warning in `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | Completed | — | 20261106 |  |
+| 2 | Add pre-BFS startup validation for empty `rag_db_path` (`scripts/rag/ingestion/crawler.py`) | Completed | — | 20261106 | Depends on UNK-01 resolution |
+| 3 | Format/lint/type/test verification and commit | Completed | — | 20261106 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

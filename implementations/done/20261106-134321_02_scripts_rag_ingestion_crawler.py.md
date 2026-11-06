@@ -8,6 +8,12 @@ the top of `WebCrawler.crawl()` (`REQ-001`, `REQ-004`).
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
+- Verification (20261106): stale detection passed. `crawl()` calls
+  `_ensure_rag_db_for_http(targets)` at line 110; the guard (lines 122-139) raises the
+  exact `RuntimeError` message documented in Details; `file://` exemption present.
+  Existing tests: `test_crawl_raises_on_empty_rag_db_for_http` (REQ-001),
+  `test_crawl_empty_path_ok_for_file_targets_only` (REQ-004) in
+  `TestConditionalHeadersMisconfiguration`. No code or test changes needed.
 - The change described here is **already present in the current source**
   (`scripts/rag/ingestion/crawler.py`): `_ensure_rag_db_for_http(targets)` is called at
   the top of `crawl()` (line 110) and raises `RuntimeError` for HTTP targets with an
@@ -78,10 +84,10 @@ Changing where `rag_db_path` is read from config, or the SQLite schema.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add pre-BFS startup validation for empty `rag_db_path` (`scripts/rag/ingestion/crawler.py`) | Pending | — | — | Code already present in HEAD 03a307158; verify against tests |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Startup-error test in `test_crawler_integration.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add pre-BFS startup validation for empty `rag_db_path` (`scripts/rag/ingestion/crawler.py`) | Completed | — | 20261106 | Code already present in HEAD 03a307158; verify against tests Verification pass: source and tests already match (03a307158); no edits needed |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261106 | Startup-error test in `test_crawler_integration.py` Verification pass: source and tests already match (03a307158); no edits needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261106 | Verification pass: source and tests already match (03a307158); no edits needed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261106 | N/A N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -170,9 +170,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add optional `db` parameter to `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | In Progress | — | — |  |
-| 2 | Own one session connection in `crawl_site`, pass through, close on exit (`scripts/rag/ingestion/orchestrator.py`) | In Progress | — | — | Depends on UNK-01/UNK-03 |
-| 3 | Connection-open-count test + format/lint/type/test verification and commit | Pending | — | — |  |
+| 1 | Add optional `db` parameter to `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | Completed | — | 20261106 |  |
+| 2 | Own one session connection in `crawl_site`, pass through, close on exit (`scripts/rag/ingestion/orchestrator.py`) | Completed | — | 20261106 | Depends on UNK-01/UNK-03 UNK-01/UNK-03 resolved: close() exists helper.py:232; empty-path guard skips session helper |
+| 3 | Connection-open-count test + format/lint/type/test verification and commit | Completed | — | 20261106 | Connection-open-count tests: TestSessionConnectionLifecycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

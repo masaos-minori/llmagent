@@ -8,6 +8,12 @@ eliminating the per-page connect/disconnect cycle (`REQ-001`, `REQ-003`, `REQ-00
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
+- Verification (20261106): stale detection passed. Adapted form: in the current source
+  `get_conditional_headers` is a method `HttpFetcher.get_conditional_headers(self, url)`
+  (lines 74-112) with the crawl003 empty-path guard and `self._logged_empty_path` dedupe
+  flag already present; the production caller is
+  `self._http_fetcher.get_conditional_headers(url)` (`orchestrator.py` line 161). The
+  `db` parameter is therefore added to the method; the crawl003 guard is not disturbed.
 - `get_conditional_headers` currently always opens its own
   `SQLiteHelper(...).open(row_factory=True)` and has exactly one production caller:
   `CrawlOrchestrator._process_crawl_url_async` (`scripts/rag/ingestion/orchestrator.py`,
@@ -42,7 +48,10 @@ eliminating the per-page connect/disconnect cycle (`REQ-001`, `REQ-003`, `REQ-00
 Change `get_conditional_headers` to accept an optional `db` and prefer it when present.
 
 ### Method
-Edit `get_conditional_headers` (lines 74-112):
+Edit `HttpFetcher.get_conditional_headers` (lines 74-112):
+- Signature: add `db: SQLiteHelper | None = None` to the method; annotate via the
+  module's `if TYPE_CHECKING:` block (`from db.helper import SQLiteHelper`), keeping the
+  function-local runtime import pattern unchanged.
 - Signature: add `db: "SQLiteHelper | None = None"`.
 - After the empty-path guard, branch on `db`:
   - `if db is not None:` execute the `documents` query via `db.fetchall(...)` inside a
@@ -92,10 +101,10 @@ Changing the `documents` query/columns/schema, or the `httpx.AsyncClient` lifecy
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add optional `db` parameter to `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Session-vs-per-call header equality |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add optional `db` parameter to `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | Completed | — | 20261106 | Adapted to HttpFetcher method form: db kwarg added to get_conditional_headers |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261106 | Session-vs-per-call header equality TestSessionDbParameter (3 tests) in test_crawler_integration.py; ruff/mypy clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261106 | TestSessionDbParameter (3 tests) in test_crawler_integration.py; ruff/mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261106 | N/A N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -8,6 +8,14 @@ exit (`REQ-001`, `REQ-002`).
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
+- Verification (20261106): stale detection passed. Adapted points:
+  - `CrawlOrchestrator` does not yet hold `rag_db_path`/`sqlite_timeout`/
+    `sqlite_busy_timeout_ms`; they are read from `config` in `__init__` (mirroring the
+    `HttpFetcher` parsing) before `crawl_site` uses them.
+  - UNK-01 resolved: `SQLiteHelper.close()` exists (`scripts/db/helper.py` line 232)
+    and is safe to call once per session.
+  - UNK-03 guard adopted: `session_db` is `None` when `rag_db_path` is empty and the
+    fetcher's per-call/empty-path path handles the lookup.
 - `CrawlOrchestrator.crawl_site` owns the `httpx.AsyncClient` lifecycle (line 84) and the
   BFS loop (lines 76-113); `_process_crawl_url_async` calls
   `get_conditional_headers(url)` at line 161. These are the only touch points.
@@ -47,16 +55,21 @@ Edit three methods:
 - `crawl_site` (lines 76-113): after entering the `httpx.AsyncClient` context and before
   the `while` loop, create and open the helper:
   ```python
-  helper = SQLiteHelper(
-      db_path=self._rag_db_path,
-      sqlite_timeout=self._sqlite_timeout,
-      sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
-  ).open(reuse_connection=True, row_factory=True)
+  session_db: SQLiteHelper | None = None
+  if self._rag_db_path:
+      from db.helper import SQLiteHelper
+
+      session_db = SQLiteHelper(
+          db_path=self._rag_db_path,
+          sqlite_timeout=self._sqlite_timeout,
+          sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
+      ).open(reuse_connection=True, row_factory=True)
   try:
       while not queue.empty() or pending:
           ...
   finally:
-      helper.close()
+      if session_db is not None:
+          session_db.close()
   ```
 - `_drain_queue_to_tasks`: add a `helper` parameter and forward it to
   `_process_crawl_url_async`.
@@ -111,10 +124,10 @@ the BFS loop, or connection pooling beyond one per-session connection.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Own one SQLiteHelper per crawl_site session, thread through, close on exit | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | One-open-one-close per session |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Own one SQLiteHelper per crawl_site session, thread through, close on exit | Completed | — | 20261106 | Session SQLiteHelper in crawl_site with try/finally close; threaded through drain/process; adapted: sqlite config attrs added to __init__ |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261106 | One-open-one-close per session TestSessionConnectionLifecycle (3 tests); full suite 11866 passed / 0 failed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261106 | TestSessionConnectionLifecycle (3 tests); full suite 11866 passed / 0 failed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261106 | N/A N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

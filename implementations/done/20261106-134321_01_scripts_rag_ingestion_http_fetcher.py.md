@@ -8,6 +8,12 @@ warning, then return `{}` (`REQ-002`, `REQ-003`).
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
+- Verification (20261106): stale detection passed. The deduped empty-path warning
+  (REQ-002 completion criterion) has no test asserting the once-per-process behavior;
+  this pass adds one (`test_get_conditional_headers_empty_path_warning_deduped` in
+  `TestConditionalHeadersMisconfiguration`, `tests/rag/ingestion/test_crawler_integration.py`).
+  Existing coverage mapping: `test_get_conditional_headers_empty_path_returns_empty`
+  (REQ-002), `test_get_conditional_headers_valid_path_no_raise` (REQ-003).
 - The change described here is **already present in the current source**
   (`scripts/rag/ingestion/http_fetcher.py`): the empty-path guard with the
   `_logged_empty_path` dedupe flag (returns `{}`) and `ValueError` added to the
@@ -86,10 +92,10 @@ Changing the `documents` query/schema, or where `rag_db_path` is read from confi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the `ValueError` safety net + deduped empty-path warning in `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | Pending | — | — | Code already present in HEAD 03a307158; verify against tests |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Empty-path + valid-path rows in `test_crawler_integration.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Apply the `ValueError` safety net + deduped empty-path warning in `get_conditional_headers` (`scripts/rag/ingestion/http_fetcher.py`) | Completed | — | 20261106 | Code already present in HEAD 03a307158; verify against tests |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261106 | Empty-path + valid-path rows in `test_crawler_integration.py` Existing tests cover REQ-002/003; added deduped-warning test (18 passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261106 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261106 | N/A N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
