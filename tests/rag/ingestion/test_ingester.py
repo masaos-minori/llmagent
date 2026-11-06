@@ -25,6 +25,7 @@ from rag.exceptions import IngestionFailureReason
 from rag.ingestion.chunk_preparation import ChunkFactory
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.document_persistence import DocumentStore
+from rag.ingestion.file_routing import FileRouter
 from rag.ingestion.ingester import RagIngester
 from rag.ingestion.transaction_commit import TransactionManager
 from rag.models_data import PreparedChunk
@@ -745,10 +746,10 @@ class TestPartialFailureHandling:
 
         assert result is not None
 
-    def test_embedding_failure_moves_to_retry_not_registered(
+    def test_embedding_failure_moves_to_failed_not_registered(
         self, tmp_path: Path
     ) -> None:
-        """Chunks that fail embedding should be moved to retry/, not registered/."""
+        """Chunks that fail embedding should be moved to failed/, not registered/."""
         conn, fake_db = _make_db()
         url = "https://example.com/doc"
         chunk_dir = tmp_path / "chunk"
@@ -775,11 +776,13 @@ class TestPartialFailureHandling:
 
         assert result.n_embed_failed == 1
         assert not path.exists(), "Failed chunk should be moved from chunk/"
-        assert (chunk_dir.parent / "retry" / "c.json").exists()
+        assert (chunk_dir.parent / "failed" / "c.json").exists()
+        assert (chunk_dir.parent / "failed" / "c.error.json").exists()
+        assert not (chunk_dir.parent / "retry").exists()
         assert not (tmp_path / "registered" / "c.json").exists()
 
     def test_mixed_success_and_failure_routes_correctly(self, tmp_path: Path) -> None:
-        """Only successfully ingested chunks should be moved to registered/; failed→retry/."""
+        """A group with any failure drains every chunk to failed/; nothing reaches registered/ or retry/."""
         conn, fake_db = _make_db()
 
         chunk_dir = tmp_path / "chunk"
@@ -812,6 +815,7 @@ class TestPartialFailureHandling:
         with (
             patch.object(ingester._client, "post", side_effect=_side_effect),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+            patch("rag.ingestion.file_routing.logger") as mocked_logger,
         ):
             result = ingester.ingest_url_group(
                 DocumentManager(fake_db),
@@ -827,8 +831,12 @@ class TestPartialFailureHandling:
         assert not path_ok.exists()
         assert not path_fail.exists()
         assert not (tmp_path / "registered" / "c_ok.json").exists()
-        assert (chunk_dir.parent / "retry" / "c_ok.json").exists()
-        assert (chunk_dir.parent / "retry" / "c_fail.json").exists()
+        assert (chunk_dir.parent / "failed" / "c_ok.json").exists()
+        assert (chunk_dir.parent / "failed" / "c_ok.error.json").exists()
+        assert (chunk_dir.parent / "failed" / "c_fail.json").exists()
+        assert (chunk_dir.parent / "failed" / "c_fail.error.json").exists()
+        assert not (chunk_dir.parent / "retry").exists()
+        mocked_logger.warning.assert_not_called()
 
     def test_embed_failed_count_reported_in_summary(self, tmp_path: Path) -> None:
         """Ingestion summary should prominently display embed_failed count."""
@@ -866,22 +874,17 @@ class TestPartialFailureHandling:
 
         assert result.n_embed_failed == 2
 
-    def test_retry_directory_created_for_embedding_failures(
-        self, tmp_path: Path
-    ) -> None:
-        """Embedding-failed chunks should be moved to retry/ directory."""
+    def test_retry_directory_is_never_created(self, tmp_path: Path) -> None:
+        """The retry/ tier is never created: not after an embedding failure, not after a clean run."""
         conn, fake_db = _make_db()
-        url = "https://example.com/doc"
         chunk_dir = tmp_path / "chunk"
 
+        # A run with an embedding failure.
         path = _write_chunk(chunk_dir, "c.json")
-
         bad_resp = MagicMock()
         bad_resp.raise_for_status.return_value = None
         bad_resp.content = orjson.dumps({"embedding": []})
-
         ingester = _make_ingester(tmp_path)
-
         with (
             patch.object(ingester._client, "post", return_value=bad_resp),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
@@ -890,14 +893,67 @@ class TestPartialFailureHandling:
                 DocumentManager(fake_db),
                 fake_db,
                 DocumentStore(fake_db, DocumentManager(fake_db)),
-                url,
+                "https://example.com/doc",
                 [path],
                 force=False,
             )
-
         assert result.n_embed_failed == 1
         assert not path.exists()
-        assert (chunk_dir.parent / "retry" / "c.json").exists()
+        assert not (chunk_dir.parent / "retry").exists()
+        assert (chunk_dir.parent / "failed" / "c.json").exists()
+
+        # A clean run with no failures.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS chunks_fts_docsize(
+                rowid INTEGER PRIMARY KEY,
+                fts_size INTEGER
+            );
+        """)
+        conn.commit()
+        path_ok = _write_chunk(chunk_dir, "ok.json")
+        ingester2 = _make_ingester(tmp_path)
+        with (
+            patch.object(ingester2._client, "post", return_value=_fake_embed_resp()),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            ingester2.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
+                "https://example.com/clean",
+                [path_ok],
+                force=False,
+            )
+        assert not (chunk_dir.parent / "retry").exists()
+        assert (tmp_path / "registered" / "ok.json").exists()
+
+    def test_route_unknown_reason_warns_and_goes_to_failed(
+        self, tmp_path: Path
+    ) -> None:
+        """An unknown failure reason logs a WARNING naming the reason and file, then routes to failed/."""
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        path = _write_chunk(chunk_dir, "c.json")
+        router = FileRouter(tmp_path / "registered", chunk_dir)
+        reason = "some httpx error text"
+
+        with patch("rag.ingestion.file_routing.logger") as mocked_logger:
+            router.route([], [(path, reason)])
+            assert mocked_logger.warning.called
+            matched = False
+            for call in mocked_logger.warning.call_args_list:
+                if (
+                    len(call.args) >= 3
+                    and str(call.args[1]) == reason
+                    and str(call.args[2]) == str(path)
+                ):
+                    matched = True
+            assert matched
+
+        assert not path.exists()
+        assert (chunk_dir.parent / "failed" / "c.json").exists()
+        assert (chunk_dir.parent / "failed" / "c.error.json").exists()
+        assert not (chunk_dir.parent / "retry").exists()
 
 
 class TestGroupValidation:
