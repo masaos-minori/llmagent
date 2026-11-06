@@ -59,10 +59,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the substring condition by enum identity | Pending | — | — | |
-| 2 | Run the ingestion tests | Pending | — | — | |
-| 3 | At the end of the release unit run the validation sequence (`rules/toolchain.md`), the single full-suite run, and diff-cover | Pending | — | — | |
-| 4 | N/A: documentation is another procedure of this Plan | Pending | — | — | |
+| 1 | Replace the substring condition by enum identity | Completed | 20261106-163353 | 20261106-163353 |  |
+| 2 | Run the ingestion tests | Completed | 20261106-163353 | 20261106-163353 |  |
+| 3 | At the end of the release unit run the validation sequence (`rules/toolchain.md`), the single full-suite run, and diff-cover | Completed | 20261106-163353 | 20261106-163353 |  |
+| 4 | N/A: documentation is another procedure of this Plan | Completed | 20261106-163353 | 20261106-163353 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
