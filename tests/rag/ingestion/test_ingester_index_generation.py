@@ -144,6 +144,35 @@ def _write_chunk(chunk_dir: Path) -> None:
     (chunk_dir / "2024-01-01-test-page.json").write_text(json.dumps(data))
 
 
+def _write_chunk_pair(chunk_dir: Path) -> None:
+    """Write two chunk files with an identical generation signature and a duplicated chunk_index.
+
+    ChunkGroupingStrategy puts them in one group (same signature); the group then
+    has chunk_indices {0} instead of {0, 1}, triggering GROUP_VALIDATION_FAILED.
+    """
+    chunk_dir.mkdir(parents=True, exist_ok=True)
+    data = {
+        "schema_version": "1",
+        "artifact_type": "chunk",
+        "created_by": "chunk_splitter",
+        "url": "http://example.com/page",
+        "title": "Test Page",
+        "lang": "en",
+        "content": "Hello world from the test page. " * 50,
+        "chunking_strategy": "heading",
+        "normalized_content": None,
+        "chunk_index": 0,
+        "etag": "etag-test-page",
+        "last_modified": "2024-01-01T00:00:00",
+        "fetched_at": "2024-01-01T00:00:00",
+        "chunk_type": "",
+        "source_file": "",
+        "code_blocks": [],
+    }
+    for name in ("2024-01-01-test-page.json", "2024-01-01-test-page-dup.json"):
+        (chunk_dir / name).write_text(json.dumps(data))
+
+
 def _make_ingester(tmp_path: Path, db_path: Path) -> RagIngester:
     cfg = {
         "rag_src_dir": str(tmp_path),
@@ -264,3 +293,133 @@ class TestIngestAllIndexGenerationBump:
             ingester.ingest_all()
 
         assert _read_generation(conn) is None
+
+    def test_all_embed_failed_run_leaves_generation_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        """Embedding failure for every chunk writes no content and must not bump."""
+        conn = _make_rag_db(tmp_path)
+        _seed_generation(conn)
+        _write_chunk(tmp_path / "chunk")
+        ingester = _make_ingester(tmp_path, tmp_path / "test_rag.sqlite")
+
+        mock_report = MagicMock()
+        mock_report.issues = []
+
+        with (
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
+            ),
+            patch.object(EmbeddingService, "get_embedding", return_value=None),
+        ):
+            ingester.ingest_all()
+
+        assert _read_generation(conn) == 0
+
+    def test_group_validation_failure_leaves_generation_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        """A rejected group (duplicated chunk_index) writes no content and must not bump."""
+        conn = _make_rag_db(tmp_path)
+        _seed_generation(conn)
+        _write_chunk_pair(tmp_path / "chunk")
+        ingester = _make_ingester(tmp_path, tmp_path / "test_rag.sqlite")
+
+        mock_report = MagicMock()
+        mock_report.issues = []
+
+        with (
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
+            ),
+        ):
+            ingester.ingest_all()
+
+        assert _read_generation(conn) == 0
+
+    def test_unexpected_failure_leaves_generation_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        """An unexpected per-group error writes no content and must not bump."""
+        conn = _make_rag_db(tmp_path)
+        _seed_generation(conn)
+        _write_chunk(tmp_path / "chunk")
+        ingester = _make_ingester(tmp_path, tmp_path / "test_rag.sqlite")
+
+        mock_report = MagicMock()
+        mock_report.issues = []
+
+        with (
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
+            ),
+            patch.object(
+                RagIngester,
+                "ingest_url_group",
+                side_effect=sqlite3.Error("db write failed"),
+            ),
+        ):
+            ingester.ingest_all()
+
+        assert _read_generation(conn) == 0
+
+    def test_skipped_only_run_leaves_generation_unchanged(self, tmp_path: Path) -> None:
+        """Characterization: a rerun where every group is skipped does not bump.
+
+        The bump from the first run stays at its value; the second run changes no
+        content (same url/etag), so the generation must not advance again.
+        """
+        conn = _make_rag_db(tmp_path)
+        _seed_generation(conn)
+        _write_chunk(tmp_path / "chunk")
+        ingester = _make_ingester(tmp_path, tmp_path / "test_rag.sqlite")
+
+        mock_report = MagicMock()
+        mock_report.issues = []
+
+        with (
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
+            ),
+            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+        ):
+            ingester.ingest_all()
+        assert _read_generation(conn) == 1
+
+        # Re-create the chunk file the first run moved to registered/.
+        _write_chunk(tmp_path / "chunk")
+
+        with (
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
+            ),
+            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+        ):
+            ingester.ingest_all()
+
+        assert _read_generation(conn) == 1

@@ -5,11 +5,13 @@ and fetched_at propagation across all written chunk files.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import orjson
+import pytest
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_splitter import ChunkSplitter
 from rag.models_data import ChunkDocument
@@ -786,3 +788,157 @@ class TestSudachiResolverWiring:
         )
 
         mock_dictionary.assert_called_once_with(dict="core")
+
+
+# ── Helpers for forced re-chunk prune tests (raging004) ────────────────────────
+
+
+def _make_prune_splitter(
+    tmp_path: Path, min_chunk: int = 40, max_chunk: int = 500
+) -> ChunkSplitter:
+    """ChunkSplitter rooted at tmp_path for forced re-chunk prune tests."""
+    return ChunkSplitter(
+        config={
+            "rag_src_dir": str(tmp_path),
+            "min_chunk": min_chunk,
+            "max_chunk": max_chunk,
+            "en_stopwords": [],
+            "ja_stop_pos": [],
+        }
+    )
+
+
+def _write_prune_src(tmp_path: Path, stem: str, content: str) -> Path:
+    """Write a crawler JSON source named {stem}.json under the splitter's rag_src_dir."""
+    src = tmp_path / f"{stem}.json"
+    src.write_bytes(
+        orjson.dumps(
+            _make_crawl_json(
+                lang="en", content=content, url=f"http://example.com/{stem}"
+            )
+        )
+    )
+    return src
+
+
+def _chunk_series(chunk_dir: Path, stem: str) -> list[Path]:
+    """Files of chunk_dir whose full name belongs to the stem's chunk series."""
+    if not chunk_dir.exists():
+        return []
+    pattern = re.compile(rf"^{re.escape(stem)}-\d{{4,}}\.json$")
+    return sorted(p for p in chunk_dir.glob("*.json") if pattern.fullmatch(p.name))
+
+
+def _series_indices(files: list[Path]) -> list[str]:
+    """Chunk suffix (zero-padded index part) of each series file."""
+    return [p.name[len(p.name) - 9 : -5] for p in files]
+
+
+# ── TestForceRechunkPrune (raging004 REQ-001 / REQ-003) ────────────────────────
+
+
+class TestForceRechunkPrune:
+    """A force=True run is authoritative for its source's chunk series.
+
+    Red before the fix: shrink (a) and zero-chunk (c). Characterization:
+    grow (b), stem isolation (d), broken source (e), chunking error (f),
+    non-forced rerun (g).
+    """
+
+    def test_shrink_forced_run_replaces_full_series(self, tmp_path: Path) -> None:
+        src = _write_prune_src(tmp_path, "page", _LONG_SINGLE)
+        old_count = _make_prune_splitter(tmp_path, max_chunk=200).process_file(
+            src, force=True
+        )
+        new_count = _make_prune_splitter(tmp_path, max_chunk=600).process_file(
+            src, force=True
+        )
+        assert new_count < old_count  # shrink precondition
+        files = _chunk_series(tmp_path / "chunk", "page")
+        assert len(files) == new_count
+        assert _series_indices(files) == [f"{i:04d}" for i in range(new_count)]
+        for i, path in enumerate(files):
+            assert orjson.loads(path.read_bytes())["chunk_index"] == i
+
+    def test_grow_forced_run_leaves_no_gaps(self, tmp_path: Path) -> None:
+        src = _write_prune_src(tmp_path, "page", _LONG_SINGLE)
+        old_count = _make_prune_splitter(tmp_path, max_chunk=600).process_file(
+            src, force=True
+        )
+        new_count = _make_prune_splitter(tmp_path, max_chunk=200).process_file(
+            src, force=True
+        )
+        assert new_count > old_count  # grow precondition
+        files = _chunk_series(tmp_path / "chunk", "page")
+        assert len(files) == new_count
+        assert _series_indices(files) == [f"{i:04d}" for i in range(new_count)]
+
+    def test_zero_chunk_forced_run_removes_old_series(self, tmp_path: Path) -> None:
+        src = _write_prune_src(tmp_path, "page", _LONG_SINGLE)
+        old_count = _make_prune_splitter(tmp_path, max_chunk=200).process_file(
+            src, force=True
+        )
+        assert old_count >= 1
+        new_count = _make_prune_splitter(
+            tmp_path, min_chunk=100000, max_chunk=600
+        ).process_file(src, force=True)
+        assert new_count == 0
+        assert _chunk_series(tmp_path / "chunk", "page") == []
+
+    def test_forced_run_does_not_touch_numeric_suffix_stem(
+        self, tmp_path: Path
+    ) -> None:
+        src_page = _write_prune_src(tmp_path, "page", _LONG_SINGLE)
+        src_other = _write_prune_src(tmp_path, "page-1234", _LONG_SINGLE)
+        splitter = _make_prune_splitter(tmp_path, max_chunk=200)
+        assert splitter.process_file(src_page, force=True) >= 1
+        assert splitter.process_file(src_other, force=True) >= 1
+        before = {
+            p.name: p.read_bytes()
+            for p in _chunk_series(tmp_path / "chunk", "page-1234")
+        }
+        assert before
+        _make_prune_splitter(tmp_path, max_chunk=600).process_file(src_page, force=True)
+        after = {
+            p.name: p.read_bytes()
+            for p in _chunk_series(tmp_path / "chunk", "page-1234")
+        }
+        assert after == before
+
+    def test_broken_source_preserves_existing_series(self, tmp_path: Path) -> None:
+        src = _write_prune_src(tmp_path, "page", _LONG_SINGLE)
+        old_count = _make_prune_splitter(tmp_path, max_chunk=200).process_file(
+            src, force=True
+        )
+        assert old_count >= 1
+        before = [p.name for p in _chunk_series(tmp_path / "chunk", "page")]
+        src.write_text("{ not json", encoding="utf-8")
+        assert (
+            _make_prune_splitter(tmp_path, max_chunk=600).process_file(src, force=True)
+            == 0
+        )
+        assert [p.name for p in _chunk_series(tmp_path / "chunk", "page")] == before
+
+    def test_chunking_error_preserves_existing_series(self, tmp_path: Path) -> None:
+        src = _write_prune_src(tmp_path, "page", _LONG_SINGLE)
+        old_count = _make_prune_splitter(tmp_path, max_chunk=200).process_file(
+            src, force=True
+        )
+        assert old_count >= 1
+        before = [p.name for p in _chunk_series(tmp_path / "chunk", "page")]
+        splitter = _make_prune_splitter(tmp_path, max_chunk=600)
+        with patch.object(
+            splitter, "_build_chunk_list", side_effect=RuntimeError("chunking boom")
+        ):
+            with pytest.raises(RuntimeError, match="chunking boom"):
+                splitter.process_file(src, force=True)
+        assert [p.name for p in _chunk_series(tmp_path / "chunk", "page")] == before
+
+    def test_non_forced_rerun_skips_and_keeps_files(self, tmp_path: Path) -> None:
+        src = _write_prune_src(tmp_path, "page", _LONG_SINGLE)
+        splitter = _make_prune_splitter(tmp_path, max_chunk=200)
+        old_count = splitter.process_file(src, force=True)
+        assert old_count >= 1
+        before = [p.name for p in _chunk_series(tmp_path / "chunk", "page")]
+        assert splitter.process_file(src, force=False) == 0
+        assert [p.name for p in _chunk_series(tmp_path / "chunk", "page")] == before
