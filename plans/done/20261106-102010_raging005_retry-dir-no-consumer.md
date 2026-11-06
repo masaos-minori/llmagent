@@ -56,15 +56,23 @@ directory, no consumer.
   `route()` docstrings drop the `retry/` description; `route()`'s public signature is
   unchanged (consumers `ingester.py` and `transaction_commit.py` untouched).
 - `REQ-002`: `FileRouter.route` logs a `WARNING` for any failed-path reason that is not a
-  value of `IngestionFailureReason` (e.g. exception-derived `str(e)` reasons), then routes
-  it to `failed/` like every other failure; no substring test remains anywhere in
+  value of `IngestionFailureReason` and is not a known production reason (e.g.
+  exception-derived `str(e)` reasons), then routes it to `failed/` like every other failure.
+  Step 3a correction 2026-11-06: `RagIngester.ingest_url_group` passes the fixed string
+  `"embedding_partial_failure"` for every prepared chunk of a group that also had a failed
+  chunk; it is not an `IngestionFailureReason` member, so without an exception the new
+  `WARNING` would fire for each such chunk on every partial failure. `file_routing.py`
+  therefore keeps a small module-level collection of known non-enum production reasons
+  containing that string, which routes to `failed/` without a warning; no substring test remains anywhere in
   `file_routing.py`.
 - `REQ-003`: `ChunkFactory.prepare` counts `embed_failed` with
   `result is IngestionFailureReason.EMBEDDING_FAILED` instead of
   `"embedding" in reason_str.lower()` (`chunk_preparation.py:56-60`); the metric's
   observable semantics are unchanged (the enum branch's `reason_str` is always the enum
   `value`, so only `EMBEDDING_FAILED` ever matched — verified in Step 2).
-- `REQ-004`: Tests: `test_embedding_failure_moves_to_retry_not_registered` and
+- `REQ-004`: Tests (Step 3a addition: the flipped `test_mixed_success_and_failure_routes_correctly`,
+  whose group has a prepared and a failed chunk, also asserts that no `WARNING` is logged for
+  the `embedding_partial_failure` reason): `test_embedding_failure_moves_to_retry_not_registered` and
   `test_mixed_success_and_failure_routes_correctly` flip to asserting `failed/`
   destination plus `.error.json`; `test_retry_directory_created_for_embedding_failures`
   is replaced by an assertion that `retry/` is never created; a new test asserts the
@@ -81,9 +89,9 @@ table and requires a revised Plan (see Design and UNK-01).
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
+| `tests/rag/ingestion/test_ingester.py` | Modify | Flip the three retry-destination tests to `failed/` + `.error.json`; add never-`retry/`-created and unknown-reason `WARNING` assertions | REQ-004; AC-1, AC-2, AC-3, AC-4 | Pinned tests at `:736-767`, `:769-819`, `:857+`; metric test at `:665` (checked in Step 2) | itself | Verified |
 | `scripts/rag/ingestion/file_routing.py` | Modify | Delete `retry_dir` mkdir/branch and the substring test; uniform `failed/` destination; unknown-reason `WARNING`; docstring updates | REQ-001, REQ-002; AC-1, AC-2, AC-3 | `retry_dir` at `:36-37`; substring test at `:80`; split state (`.error.json` to `failed/`, body to `retry/`) at `:67-71` vs `:80-81`; docstring `retry/` mentions at `:8`, `:34` (checked in Step 2) | `tests/rag/ingestion/test_ingester.py` | Verified |
 | `scripts/rag/ingestion/chunk_preparation.py` | Modify | Replace the substring `embed_failed` counter with enum identity | REQ-003; AC-4 | Substring copy at `:56-60`; enum branch values confirmed to be `IngestionFailureReason` members from `embedding.py:78,103` (checked in Step 2) | `tests/rag/ingestion/test_ingester.py` | Verified |
-| `tests/rag/ingestion/test_ingester.py` | Modify | Flip the three retry-destination tests to `failed/` + `.error.json`; add never-`retry/`-created and unknown-reason `WARNING` assertions | REQ-004; AC-1, AC-2, AC-3, AC-4 | Pinned tests at `:736-767`, `:769-819`, `:857+`; metric test at `:665` (checked in Step 2) | itself | Verified |
 | `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` | Modify | Update the chunk-file lifecycle row to the two-terminal-directory design | REQ-005; AC-5 | Line 35 documents "to `retry/` (embedding failures) or `failed/`" (checked in Step 3) | N/A: documentation file, validated by review | Verified |
 
 ## Reference Files
@@ -129,6 +137,12 @@ Verified in Step 3 that no other RAG doc references the `retry/` directory
 remains correct; `rag_05_03-logging.md:19` lists log categories, not directories).
 
 ## Assumptions
+- Step 3a (2026-11-06, HEAD `97b8f4f6b`): the cited line numbers have drifted slightly (for
+  example the `retry_dir` creation is at `file_routing.py:36-37` and the substring test at
+  `:80`, which still match; `ingester.py` passes reasons at `:322-325`); the code is identified
+  by symbol in the procedures. The 003 Plan's procedures (not yet executed) edit
+  `ingester.py` and the same lifecycle row of `rag_02_01_ingestion_pipeline-overview.md`;
+  the order recommended by this Plan (005 first) is kept.
 - No stranded files exist in production `retry/`: `/opt/llm/rag-src/` contains only
   `chunk/` and `registered/` (observed in Step 3), so removal needs no data migration.
 - All enum-branch reasons in `chunk_preparation.py` pass through as enum `value` strings;
@@ -140,8 +154,8 @@ remains correct; `rag_05_03-logging.md:19` lists log categories, not directories
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | The issue requires an operator decision between design 1 (consumer) and design 2 (removal); this Plan freezes design 2 | Explicit operator approval of design 2 | Operator approves design 2 before Phase 1 starts; if design 1 is chosen instead, this Plan is revised from scratch (attempt budget, promotion rules, deployment cleanup list) | True |
-| UNK-02 | WARNING-level logging for unknown reason strings may add noise from exception-derived reasons (`chunk_preparation.py:73` passes raw `str(e)`) | No production volume data for exception-path failures | Observe `ingest.log` WARNING volume after deploy; downgrade to DEBUG if noisy (one-line change) | False |
+| UNK-01 | The issue requires an operator decision between design 1 (consumer) and design 2 (removal); this Plan freezes design 2 | Resolved 2026-11-06: the operator approved design 2 (answer to the procedure-generation question in the working session) | Resolved; if design 1 were ever chosen instead, this Plan is revised from scratch (attempt budget, promotion rules, deployment cleanup list) | False |
+| UNK-02 | WARNING-level logging for unknown reason strings may add noise from exception-derived reasons (`chunk_preparation.py:73` passes raw `str(e)`); the deterministic `embedding_partial_failure` reason is excluded by REQ-002 (Step 3a) | No production volume data for exception-path failures | Observe `ingest.log` WARNING volume after deploy; downgrade to DEBUG if noisy (one-line change) | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -246,20 +260,23 @@ remains correct; `rag_05_03-logging.md:19` lists log categories, not directories
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 0 | Operator approval of design 2 | Pending | — | — | UNK-01 gate |
-| 1 | Flip/add tests in `tests/rag/ingestion/test_ingester.py` | Pending | — | — | REQ-004 |
-| 2 | Remove retry tier in `scripts/rag/ingestion/file_routing.py` and `scripts/rag/ingestion/chunk_preparation.py` | Pending | — | — | REQ-001, REQ-002, REQ-003 |
-| 3 | Docs update + gate sequence + deploy hand-off | Pending | — | — | REQ-005 |
+| 0 | Operator approval of design 2 | Completed | — | 20261106 | UNK-01 gate; approved 2026-11-06 |
+| 1 | Flip/add tests in `tests/rag/ingestion/test_ingester.py` | In Progress | — | — | REQ-004 |
+| 2 | Remove retry tier in `scripts/rag/ingestion/file_routing.py` and `scripts/rag/ingestion/chunk_preparation.py` | In Progress | — | — | REQ-001, REQ-002, REQ-003 |
+| 3 | Docs update + gate sequence + deploy hand-off | In Progress | — | — | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 0 | Design approval pending (design 2 recommended; issue requires operator decision) | No | — |
+| 0 | Design approval pending (design 2 recommended; issue requires operator decision) | Yes | 20261106 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261106-132221_01_tests_rag_ingestion_test_ingester.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261106-132221_02_scripts_rag_ingestion_file_routing.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261106-132221_03_scripts_rag_ingestion_chunk_preparation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261106-132221_04_docs_21_rag_rag_02_01_ingestion_pipeline-overview.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

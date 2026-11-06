@@ -25,7 +25,9 @@ a run that wrote nothing still advances the generation. The comment at `:177-180
 intent ("advance ... once this run has written new content"); the guard does not implement
 it. Equivalence verified in Step 2: `TransactionManager.commit` runs only when
 `len(prepared_chunks) > 0 and len(failed_paths) == 0` (`:304`), and there
-`n_success = len(prepared_chunks) > 0` (`:327`) — so `sum(r.n_success for r in results) > 0`
+`n_success = len(prepared_chunks)` (`:327`; Step 3a correction 2026-11-06: the expression is
+`len(prepared_chunks) if len(failed_paths) == 0 else 0`, not a comparison, and the
+equivalence below still holds) — so `sum(r.n_success for r in results) > 0`
 is exactly "at least one group wrote content"; mixed-failure groups commit nothing and report
 `n_success=0`. `bump_index_generation` is best-effort and never raises
 (`corpus_identity.py:235-253`).
@@ -84,14 +86,17 @@ consistency check, outside any per-URL transaction) and the best-effort contract
   `rules/toolchain.md` diff-cover threshold (≥ 90%).
 
 ## Tests
-- REQ-002 all-failed (embed): one URL group, embedding mocked to fail every chunk →
+- REQ-002 all-failed (embed): one URL group, `EmbeddingService.get_embedding` patched to return
+  `None` (which `embed_and_store` reports as `EMBEDDING_FAILED`; Step 3a, 2026-11-06) →
   `index_generation` unchanged after `ingest_all`.
 - REQ-002 all-failed (group validation): one poisoned group (mismatched 9-field signature) →
   `index_generation` unchanged. Note: with the current chunk-payload defect (UNK-01 in the 004
   Plan — `read_chunk_json` rejects ChunkSplitter output), construct the group files directly
   with valid chunk payloads via the `_write_chunk`-style harness rather than ChunkSplitter.
-- REQ-002 all-failed (unexpected exception): group raising `sqlite3.Error` →
-  `unexpected_failure` → no bump (pins the newly identified instance of the defect).
+- REQ-002 all-failed (unexpected exception): `RagIngester.ingest_url_group` patched to raise
+  `sqlite3.Error`; `_process_url_groups` catches `(OSError, RuntimeError, ValueError,
+  sqlite3.Error)` and returns `unexpected_failure` → no bump (pins the newly identified
+  instance of the defect; Step 3a verified the catch).
 - REQ-002 skipped-only characterization: group already registered → skip → no bump.
 - Characterization: the three existing tests unchanged and green.
 
@@ -101,6 +106,12 @@ N/A. Verified in Step 3: no `docs/` file states when `index_generation` advances
 findings, not the bump guard). No doc change is made.
 
 ## Assumptions
+- Step 3a (2026-11-06, HEAD `97b8f4f6b`): the line references of this Plan are close but not
+  exact (guard now at `:181-182`, `total_success` at `:184`, `n_success` at `:327`); the code
+  is identified by symbol in the procedures. The 003 Plan's procedure
+  (`implementations/20261106-115721_02_scripts_rag_ingestion_ingester.py.md`, not yet
+  executed) edits `ingest_all` only to route the grouping-rejected files after grouping and
+  `_process_url_groups` only to sort the groups, so it does not touch the bump guard region.
 - `n_success` remains the authoritative content-written signal: any future path that writes
   content must keep `n_success > 0` for its result (guaranteed today by the commit gate at
   `:304`/`:327`; the equivalence is pinned by a comment note rather than a runtime check).
@@ -189,8 +200,8 @@ findings, not the bump guard). No doc change is made.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add all-failed + skipped-only tests in `tests/rag/ingestion/test_ingester_index_generation.py` | Pending | — | — | REQ-002 |
-| 2 | Guard swap in `scripts/rag/ingestion/ingester.py` | Pending | — | — | REQ-001, REQ-003 |
+| 1 | Add all-failed + skipped-only tests in `tests/rag/ingestion/test_ingester_index_generation.py` | In Progress | — | — | REQ-002 |
+| 2 | Guard swap in `scripts/rag/ingestion/ingester.py` | In Progress | — | — | REQ-001, REQ-003 |
 | 3 | Gate sequence + deploy hand-off | Pending | — | — | REQ-001..003 |
 
 ### Blocker Log
@@ -201,7 +212,7 @@ findings, not the bump guard). No doc change is made.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261106-131804_01_scripts_rag_ingestion_ingester.py.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

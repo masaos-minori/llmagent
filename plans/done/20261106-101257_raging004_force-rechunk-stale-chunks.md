@@ -29,7 +29,10 @@ left all 20 in `chunk/`; the merged index set was exactly `range(20)` with unifo
 metadata, i.e. `ingest_url_group`'s contiguity and signature checks pass and the 10 stale
 chunks would be re-ingested. New series of zero chunks early-returns at
 `chunk_splitter.py:244-245` and also leaves the old series. Verified in Step 2 of this cycle
-(`/tmp/opencode/raging004/repro.py`).
+(`/tmp/opencode/raging004/repro.py`). Step 3a re-check (2026-11-06, HEAD `97b8f4f6b`): the behavior is unchanged; the cited
+line ranges drifted slightly, so the code is identified by symbol: the sentinel skip is in
+`process_file`, the empty-list early return is the first statement of `_write_chunk_files`,
+and the write loop is the `for idx, ...` loop of `_write_chunk_files`.
 
 ## Problem
 Any config or code change that reduces chunk count for an already-chunked document silently
@@ -48,11 +51,13 @@ exact `^{stem}-\d{4,}\.json$` pattern for that source, then write the new series
 the case where the new series is empty. Non-forced behavior is unchanged.
 
 ## Requirements
-- `REQ-001`: `ChunkSplitter.process_file`, when `force=True` and `_read_source_data`
-  succeeded, removes all existing `chunk/` files matching `^{escaped-stem}-\d{4,}\.json$`
+- `REQ-001`: `ChunkSplitter.process_file`, when `force=True` and both `_read_source_data` and
+  `_build_chunk_list` succeeded (Step 3a correction 2026-11-06: chunking itself can raise, as
+  the Japanese merge crash of the 001 Plan shows, and a raised error must not destroy the
+  existing series), removes all existing `chunk/` files matching `^{escaped-stem}-\d{4,}\.json$`
   before writing the new series; pruning runs even when the produced chunk list is empty, so
   a forced run always leaves the on-disk series exactly equal to the new output. When the
-  source payload cannot be read, no pruning occurs (a broken source must not destroy the
+  source payload cannot be read, or chunking raises, no pruning occurs (a broken source must not destroy the
   existing series).
 - `REQ-002`: Pruning is limited to the exact stem pattern — files of other stems (including
   stems with numeric suffixes, e.g. `page-1234-0000.json`) are never touched; the pruning
@@ -110,6 +115,8 @@ the case where the new series is empty. Non-forced behavior is unchanged.
   `page-1234`) chunked; force-rerun one → the other stem's files byte-identical.
 - REQ-003 broken source: source payload replaced with invalid JSON, `force=True` → existing
   series preserved, no pruning (REQ-001 guard).
+- REQ-003 chunking error (Step 3a addition): `_build_chunk_list` patched to raise, `force=True`
+  → the exception propagates as today and the existing series is preserved.
 - Characterization: all existing tests in `tests/rag/ingestion/test_chunk_splitter.py`
   unchanged and green.
 
@@ -131,7 +138,7 @@ REQ-004: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` line 33 gai
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | New defect found in Step 2 verification: `ChunkSplitter._build_chunk_payload` (`chunk_splitter.py:278-296`) omits `code_blocks`, but `read_chunk_json` (`pipeline_utils.py:164-182`) requires it, so `ChunkGroupingStrategy.group` silently skips 100% of ChunkSplitter output (empirically 0 groups from 20 real chunk files). Out of scope here; it also blocks a full group-visible integration test and re-arms this issue's corruption path once fixed | No filed issue yet (filing pending user decision; `issue-creator` candidate, also note that the 9-field group signature includes `chunk_type`, so text+code documents would fail group validation even after the payload fix) | File a separate High/Critical issue; implement it before or together with the group-visible end-to-end test of this Plan | False |
+| UNK-01 | New defect found in Step 2 verification: `ChunkSplitter._build_chunk_payload` (`chunk_splitter.py:278-296`) omits `code_blocks`, but `read_chunk_json` (`pipeline_utils.py:164-182`) requires it, so `ChunkGroupingStrategy.group` silently skips 100% of ChunkSplitter output (empirically 0 groups from 20 real chunk files). Out of scope here; it also blocks a full group-visible integration test and re-arms this issue's corruption path once fixed | Filed since this Plan was written (Step 3a, 2026-11-06): `issues/20261106-110845_ragfix001_chunk-payload-code-blocks.md` (High). Its fix edits `_build_chunk_payload` in the same file as this Plan; the two edits are in different functions, so they are compatible, with no ordering requirement. The 9-field group signature includes `chunk_type`, so text+code documents would fail group validation even after the payload fix | Implement `ragfix001` before or together with the group-visible end-to-end test of this Plan; this Plan's payload-level tests do not depend on it | False |
 | UNK-02 | Whether production runs the current `scripts/rag/ingestion/chunk_splitter.py` source or an older Nuitka-packaged binary (commit `a902feb76`) | Production deployment artifact inventory | Confirm at deploy time via `skills/deploy/SKILL.md` sync verification | False |
 
 ## Affected areas
@@ -149,8 +156,10 @@ REQ-004: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` line 33 gai
   early-returns on an empty chunk list (`:244-245`) and would miss the zero-chunk case
   (verified in Step 2); `process_file` is where `force` is known, and the helper keeps the
   deletion inside `ChunkSplitter`'s chunk-writing responsibility (issue constraint).
-  Pruning runs only after a successful `_read_source_data` — a broken source payload must
-  not destroy the existing series.
+  Pruning runs only after a successful `_read_source_data` and a successful
+  `_build_chunk_list` — a broken source payload or a chunking error must not destroy the
+  existing series (Step 3a correction 2026-11-06; the call goes between the chunk-list build
+  and `_write_chunk_files` in `process_file`).
 - Pattern decision — `re.compile(rf"^{re.escape(stem)}-\d{{4,}}\.json$")` matched against
   `chunk_dir.iterdir()`, not `glob(f"{stem}-*.json")`: a glob cross-matches other stems with
   numeric suffixes (e.g. stem `page` would match `page-1234-...json` variants such as
@@ -228,9 +237,9 @@ REQ-004: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` line 33 gai
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add force-prune regression tests in `tests/rag/ingestion/test_chunk_splitter.py` | Pending | — | — | REQ-003 |
-| 2 | Force-prune in `scripts/rag/ingestion/chunk_splitter.py` | Pending | — | — | REQ-001, REQ-002 |
-| 3 | Docs update + gate sequence + deploy hand-off | Pending | — | — | REQ-004 |
+| 1 | Add force-prune regression tests in `tests/rag/ingestion/test_chunk_splitter.py` | In Progress | — | — | REQ-003 |
+| 2 | Force-prune in `scripts/rag/ingestion/chunk_splitter.py` | In Progress | — | — | REQ-001, REQ-002 |
+| 3 | Docs update + gate sequence + deploy hand-off | In Progress | — | — | REQ-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -240,7 +249,8 @@ REQ-004: `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` line 33 gai
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261106-131606_01_scripts_rag_ingestion_chunk_splitter.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261106-131606_03_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
