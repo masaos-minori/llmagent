@@ -124,7 +124,9 @@ Requirements).
 - Avoid unnecessary abstraction — see `workflow.md` Step 6 Deletion-First Evaluation.
 
 ### Type safety rules
-- Add explicit type annotations where needed.
+- Annotate as completely as practical, but only the functions, classes, and attributes this
+  refactor already touches (`AGENTS.md` Global Rule 5); how to annotate: see
+  `skills/python-implementation/workflow.md` Step 5a.
 - A runtime boundary check or `None` guard only when it provably leaves exception types,
   messages, ordering, and return values unchanged (`validation.md` Exception behavior
   freeze); otherwise a Proposal plus a static annotation only.

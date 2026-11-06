@@ -169,6 +169,19 @@ This phase has four sub-steps, applied in order: write the code (5a), handle its
 - prefer explicit, readable code over compact clever code
 - annotate every parameter and return type of new or modified functions (existing untouched
   code keeps its current annotations); MUST NOT omit return types on code this task writes
+- type as completely as practical:
+  - annotate `-> None` explicitly, `*args`/`**kwargs`, and class/module-level attributes
+  - annotate a local variable only where mypy cannot infer it (empty collections, `None`
+    initial values, values narrowed from a broad type)
+  - use built-in generics and `X | None` (Python 3.13); MUST NOT use bare `list`/`dict`, or
+    `typing.List`/`Optional`/`Union`
+  - avoid `Any`: use `TypedDict`, `dataclass`, `Protocol`, `Literal`, `TypeVar`/`Self`, or
+    `Callable[[...], R]` instead; where `Any` is unavoidable (untyped third-party values, JSON
+    boundaries), confine it to the boundary and narrow immediately
+  - mark module constants `Final`; type read-only parameters as `Mapping`/`Sequence`
+  - when a signature cannot be typed precisely, record why and keep the loosest correct type
+    rather than adding `# type: ignore`; any suppression needs a code and justification
+    (`rules/coding.md`)
 - keep functions focused on a single responsibility
 - avoid excessive nesting; extract helpers when it improves clarity
 - keep side effects visible and localized

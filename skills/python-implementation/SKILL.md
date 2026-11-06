@@ -77,6 +77,17 @@ Even in Fast path, passing `ruff`, `mypy/pyright`, and the tests in Phase 9 is m
   (`tools/check_compat_shims.py` fails on leftovers)
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
+### Type Annotations
+Annotate as completely as practical in code this task writes or modifies (untouched code keeps
+its current annotations; see `AGENTS.md` Global Rule 5). Details: `workflow.md` Step 5a.
+- annotate every parameter and return type (`-> None` included), plus class and module-level
+  attributes
+- annotate a local variable when mypy cannot infer it (empty `[]`/`{}`, `None` initial values)
+- use built-in generics and union syntax (`list[str]`, `str | None`); parameterize every generic
+- prefer a precise type over `Any`; use `dataclass`/`TypedDict`/`Protocol` per
+  `skills/DESIGN.md` Pythonic safety constraints
+- `# type: ignore` only as a last resort, with the justification `rules/coding.md` requires
+
 ### Pythonic Code Quality & Safety Constraints
 See `skills/DESIGN.md` Pythonic safety constraints (mutable defaults, exception handling,
 typed data, resource management, dynamic execution, async safety) — apply in full.
