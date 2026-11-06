@@ -119,6 +119,8 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             return 0
         chunks = self._build_chunk_list(chunk_doc)
         chunking_strategy = "heading" if self._is_markdown_source(chunk_doc) else "text"
+        if force:
+            self._prune_stale_chunk_files(src_path.stem)
         written = self._write_chunk_files(
             chunks, chunk_doc, src_path, chunking_strategy
         )
@@ -129,6 +131,29 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             extra={"url": chunk_doc.url},
         )
         return written
+
+    def _prune_stale_chunk_files(self, stem: str) -> int:
+        """Delete existing chunk files matching {stem}-{NNNN}.json; returns the number removed.
+
+        Called on forced runs so the new series is authoritative: obsolete chunks of
+        a previous (longer) run must not survive and be re-ingested with fresh ones.
+        A failure to remove one file is logged and does not stop the run.
+        """
+        if not self._chunk_dir.exists():
+            return 0
+        pattern = re.compile(rf"^{re.escape(stem)}-\d{{4,}}\.json$")
+        removed: int = 0
+        for path in self._chunk_dir.iterdir():
+            if not path.is_file() or not pattern.fullmatch(path.name):
+                continue
+            try:
+                path.unlink()
+                removed += 1
+            except OSError as e:
+                logger.error("failed to remove stale chunk %s: %s", path, e)
+        if removed:
+            logger.info("pruned %s stale chunk files for %s", removed, stem)
+        return removed
 
     # ── English and Japanese chunking ─────────────────────────────────────────
     # Provided by ChunkEnglishMixin and ChunkJapaneseMixin respectively.
