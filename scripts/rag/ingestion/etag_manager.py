@@ -39,13 +39,16 @@ class ETagManager:
         Guards against stale overwrites: if new_fetched_at < stored fetched_at,
         the incoming data is older and the existing DB values are kept.
         """
-        incoming_wins = self._incoming_decision(etag, last_modified, new_fetched_at)
-        if incoming_wins is None:
+        if not new_fetched_at:
+            raise ValueError("new_fetched_at must be a non-empty string")
+        if etag is None and last_modified is None:
             return
-        if not incoming_wins:
+        stored = self._is_stale_update(new_fetched_at)
+        if stored is not None:
             logger.info(
                 "skip-path etag update skipped: incoming stale (%s < %s) for doc_id=%d",
                 new_fetched_at,
+                stored,
                 self._doc_id,
                 extra={"stage_name": "ingester"},
             )
@@ -92,12 +95,12 @@ class ETagManager:
             raise ValueError("new_fetched_at must be a non-empty string")
         if etag is None and last_modified is None:
             return None
-        return not self._is_stale_update(new_fetched_at)
+        return self._is_stale_update(new_fetched_at) is None
 
-    def _is_stale_update(self, new_fetched_at: str) -> bool:
-        """Return True when the incoming data is older than stored fetched_at."""
+    def _is_stale_update(self, new_fetched_at: str) -> str | None:
+        """Return the stored fetched_at string when the incoming data is older than stored fetched_at, else None."""
         if not new_fetched_at:
-            return False
+            return None
 
         # Parse incoming timestamp
         try:
@@ -113,9 +116,9 @@ class ETagManager:
         rows = self._db.fetchall(
             "SELECT fetched_at FROM documents WHERE doc_id = ?", (self._doc_id,)
         )
-        stored_fetched_at = rows[0][0] if rows else None
+        stored_fetched_at: str | None = rows[0][0] if rows else None
         if not stored_fetched_at:
-            return False
+            return None
 
         # Parse stored timestamp
         try:
@@ -127,7 +130,9 @@ class ETagManager:
                 f"Invalid stored timestamp: {stored_fetched_at}"
             )
 
-        return new_dt < stored_dt
+        if new_dt < stored_dt:
+            return stored_fetched_at
+        return None
 
     def _stored_freshness(self) -> tuple[str | None, str | None, str] | None:
         """Read the stored freshness row; None when the document does not exist."""

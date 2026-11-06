@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -39,6 +40,19 @@ from rag.ingestion.language_resolver import (
 from rag.ingestion.link_discovery import (
     LinkDiscovery,  # noqa: E402 — local import for circular dependency avoidance
 )
+
+# Scheduling bound as a multiple of the persisted-page budget (raging009): non-persisted
+# fetches (304, empty content, rejected language, failures) consume scheduling only.
+SCHEDULED_BUDGET_MULTIPLIER = 2
+
+
+@dataclass
+class _CrawlBudget:
+    """Per-crawl_site page-budget state: persisted count and scheduling bound."""
+
+    persisted: int = 0
+    max_persist: int = 0
+    max_scheduled: int = 0
 
 
 class CrawlOrchestrator:
@@ -80,11 +94,15 @@ class CrawlOrchestrator:
         )
 
     async def crawl_site(self, start_url: str, hint_lang: str) -> None:
-        """Async BFS crawl within the same origin up to max_depth levels via asyncio.Semaphore concurrency and FIRST_COMPLETED loop."""
+        """Async BFS crawl within the same origin up to max_depth levels via asyncio.Semaphore concurrency and FIRST_COMPLETED loop; max_pages bounds persisted pages and 2 * max_pages bounds scheduled URLs."""
         sem = asyncio.Semaphore(self._concurrency)
         queue: asyncio.Queue[tuple[str, int]] = asyncio.Queue()
         visited: set[str] = set()
         pending: set[asyncio.Task] = set()
+        budget = _CrawlBudget(
+            max_persist=self._max_pages,
+            max_scheduled=self._max_pages * SCHEDULED_BUDGET_MULTIPLIER,
+        )
         queue.put_nowait((normalize_url(start_url), 0))
 
         async with httpx.AsyncClient(
@@ -105,10 +123,19 @@ class CrawlOrchestrator:
                 ).open(reuse_connection=True, row_factory=True)
             try:
                 while not queue.empty() or pending:
-                    if len(visited) >= self._max_pages:
+                    if budget.persisted >= budget.max_persist:
                         logger.warning(
-                            "Reached max_pages=%s; stopping BFS at %s",
-                            self._max_pages,
+                            "persisted budget reached: persisted=%d max_pages=%d for %s",
+                            budget.persisted,
+                            budget.max_persist,
+                            start_url,
+                        )
+                        break
+                    if len(visited) >= budget.max_scheduled:
+                        logger.warning(
+                            "scheduling budget reached: scheduled=%d max_pages=%d for %s",
+                            len(visited),
+                            budget.max_persist,
                             start_url,
                         )
                         break
@@ -120,6 +147,7 @@ class CrawlOrchestrator:
                         client,
                         sem,
                         session_db,
+                        budget,
                     )
                     if not pending:
                         break
@@ -130,6 +158,12 @@ class CrawlOrchestrator:
                     for t in done:
                         if exc := t.exception():
                             logger.error("Crawl task error: %s", exc)
+                logger.info(
+                    "BFS stop: scheduled=%d persisted=%d max_pages=%d",
+                    len(visited),
+                    budget.persisted,
+                    budget.max_persist,
+                )
             finally:
                 if session_db is not None:
                     session_db.close()
@@ -143,13 +177,16 @@ class CrawlOrchestrator:
         client: httpx.AsyncClient,
         sem: asyncio.Semaphore,
         session_db: SQLiteHelper | None,
+        budget: _CrawlBudget,
     ) -> set[asyncio.Task]:
-        """Dequeue all pending URLs and create fetch tasks for unvisited ones."""
+        """Dequeue all pending URLs and create fetch tasks for unvisited ones, stopping as soon as the scheduling bound is reached."""
         tasks: set[asyncio.Task] = set()
         while not queue.empty():
             url, depth = queue.get_nowait()
             if url in visited or depth > self._max_depth:
                 continue
+            if len(visited) >= budget.max_scheduled:
+                break
             visited.add(url)
             tasks.add(
                 asyncio.create_task(
@@ -162,6 +199,7 @@ class CrawlOrchestrator:
                         client,
                         sem,
                         session_db,
+                        budget,
                     ),
                 ),
             )
@@ -177,8 +215,9 @@ class CrawlOrchestrator:
         client: httpx.AsyncClient,
         sem: asyncio.Semaphore,
         session_db: SQLiteHelper | None,
+        budget: _CrawlBudget,
     ) -> None:
-        """Fetch, extract, save one URL and enqueue its outbound links."""
+        """Fetch, extract, save one URL and enqueue its outbound links; counts the saved page against the persisted budget."""
         async with sem:
             logger.info("[depth=%s] %s", depth, url)
             await asyncio.sleep(self._crawl_delay)
@@ -214,4 +253,5 @@ class CrawlOrchestrator:
                 last_modified,
                 fetched_at,
             )
+            budget.persisted += 1
             self._link_discovery.enqueue_links(html, url, start_url, depth, queue)

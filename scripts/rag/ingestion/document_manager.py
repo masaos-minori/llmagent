@@ -146,5 +146,5 @@ class DocumentManager:
         if callback is not None:
             try:
                 callback()
-            except (TypeError, ValueError):
+            except Exception:
                 logger.exception("on_ingest_complete callback failed")

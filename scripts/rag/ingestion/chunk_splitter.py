@@ -28,6 +28,7 @@ from rag.ingestion.pipeline_utils import (
     read_crawl_json,
 )
 from rag.models_data import ChunkDocument
+from rag.utils import normalize_unicode
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 from shared.runtime_paths import resolve_sudachi_dict_path
@@ -182,24 +183,35 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             >= MIN_HEADING_LINES_FOR_MARKDOWN
         )
 
-    def _chunk_markdown_by_heading(self, text: str) -> list[str]:
-        """Split Markdown text at heading boundaries into snippet chunks; sections exceeding md_snippet_max_chars are further split via _chunk_english."""
+    def _chunk_markdown_by_heading(
+        self, text: str, lang: str
+    ) -> list[tuple[str, str | None]]:
+        """Split Markdown text at heading boundaries into (content, normalized) pairs; oversized sections are segmented by the language-appropriate chunker (_chunk_japanese for lang 'ja', else _chunk_english)."""
         # Split before each heading line; keep the heading with its section
         sections = re.split(
             rf"(?={MARKDOWN_HEADING_RE} )", text.strip(), flags=re.MULTILINE
         )
-        chunks: list[str] = []
+        pairs: list[tuple[str, str | None]] = []
         for section in sections:
             section = section.strip()
             if not section:
                 continue
             if len(section) <= self._md_snippet_max_chars:
                 if len(section) >= self._min_chunk:
-                    chunks.append(section)
+                    normalized: str | None = ""
+                    if lang == "ja":
+                        prepared = re.sub(
+                            r"\n{3,}", "\n\n", normalize_unicode(section)
+                        ).strip()
+                        normalized = self._normalize_ja_sentence(prepared) or None
+                    pairs.append((section, normalized))
             else:
-                # Section too large; fall back to sentence-level chunking
-                chunks.extend(self._chunk_english(section))
-        return chunks
+                # Section too large; fall back to language-appropriate chunking
+                if lang == "ja":
+                    pairs.extend(self._chunk_japanese(section))
+                else:
+                    pairs.extend((c, "") for c in self._chunk_english(section))
+        return pairs
 
     # ── Code chunking ─────────────────────────────────────────────────────────
 
@@ -247,7 +259,10 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         if not content:
             return []
         if self._is_markdown_source(data):
-            return [("text", c, "") for c in self._chunk_markdown_by_heading(content)]
+            return [
+                ("text", c, n)
+                for c, n in self._chunk_markdown_by_heading(content, lang)
+            ]
         if lang == "ja":
             return [
                 ("text", orig, norm) for orig, norm in self._chunk_japanese(content)

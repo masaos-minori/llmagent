@@ -12,12 +12,10 @@ import logging
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin
 
-from bs4 import Tag
+from bs4 import BeautifulSoup, Tag
 
 if TYPE_CHECKING:
     from asyncio import Queue
-
-    from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
