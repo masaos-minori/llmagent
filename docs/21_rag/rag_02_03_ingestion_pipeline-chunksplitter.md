@@ -49,12 +49,12 @@ URLs ending in `.md`, `.markdown`, or `.mdx` always use heading chunking regardl
 Text is split by Markdown headings (# through ######) in one pass over the whole text. Each heading-delimited section then takes exactly one of three paths:
 
 - **Fits** (`len(section) <= md_snippet_max_chars` and at least `min_chunk` characters): the section becomes one chunk.
-- **Oversized** (`len(section) > md_snippet_max_chars`): the section alone is split by sentence boundaries. The fallback is decided per section, not for the document as a whole, and runs after heading splitting; the two strategies are never applied in parallel.
+- **Oversized** (`len(section) > md_snippet_max_chars`): the section alone is split by the language-appropriate chunker (`_chunk_japanese` when `lang` is `"ja"`, otherwise `_chunk_english`). The fallback is decided per section, not for the document as a whole, and runs after heading splitting; the two strategies are never applied in parallel.
 - **Undersized** (fits but is smaller than `min_chunk`): the section is silently dropped, with no error or warning.
 
 **Metadata:** Every chunk returned by this path is tagged with the `"text"` chunk-type marker, so no metadata field distinguishes a whole-section chunk from a fallback-split fragment. `chunking_strategy` is `"heading"` for the whole source regardless of which sections fell back.
 
-**Japanese content:** Even when `lang` is `"ja"`, Sudachi morphological analysis is not applied on this path, including the sentence-split fallback portion, and `normalized_content` is not generated (it is stored as null). Japanese text routed through heading chunking therefore bypasses Sudachi normalization. FTS5 indexes `COALESCE(normalized_content, content)`, so the original `content` is indexed directly.
+**Japanese content:** When `lang` is `"ja"`, Markdown sections follow Japanese chunking semantics: an oversized section is segmented by `_chunk_japanese` (Sudachi morphological analysis), and a whole in-section chunk carries a `normalized_content` produced by the same Sudachi normalization. Japanese chunks routed through heading chunking therefore carry non-empty `normalized_content`, same as the Japanese text path. Non-ja Markdown chunks still emit empty `normalized_content`; FTS5 indexes `COALESCE(normalized_content, content)`, so for those chunks the original `content` is indexed directly.
 
 ### 3.2 Splitting Strategies
 

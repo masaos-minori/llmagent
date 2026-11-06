@@ -36,8 +36,14 @@ related:
 
 ### 2.1.1 Configuration Parameters
 
-`max_depth` and `max_pages` bound the crawl's BFS traversal to prevent
-unbounded growth in processing time, storage, and external-site load — see
+`max_depth` bounds the crawl's BFS traversal depth to prevent unbounded growth
+in processing time, storage, and external-site load. `max_pages` bounds the
+number of pages **persisted** by the crawl for the site: the BFS persists until
+`max_pages` pages are written to `rag-src/` and then stops. Because 304 /
+empty-content / language-rejected / failed fetches do not persist, the BFS
+schedules up to `2 * max_pages` URLs per `crawl_site` call (fixed internal
+scheduling headroom), and logs a `BFS stop: scheduled=%d persisted=%d
+max_pages=%d` summary line when the crawl stops. See
 [Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md)
 for the current operational values. No historical rationale for the
 specific limit values is recorded in this repository; `config/crawler.toml`'s
