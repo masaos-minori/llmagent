@@ -30,7 +30,7 @@ related:
 
 ### 3.1 Class Overview
 
-`ChunkSplitter` splits `rag-src/*.json` files into chunks based on language and content type, saving them to `rag-src/chunk/`. It is idempotent: if a `{stem}-0000.json` sentinel exists, processing is skipped (can be overwritten with `--force`). Language-specific splitting is composed from `ChunkEnglishMixin` and `ChunkJapaneseMixin`. The JSON payload shapes are defined by `CrawlJsonPayload`, `ChunkJsonRaw`, and `ChunkMetadata` in `scripts/rag/ingestion/pipeline_utils.py`.
+`ChunkSplitter` splits `rag-src/*.json` files into chunks based on language and content type, saving them to `rag-src/chunk/`. It is idempotent: if a `{stem}-0000.json` sentinel exists, processing is skipped (can be overwritten with `--force`). A forced run is authoritative for the source's chunk series: chunk files of the previous run that the new run does not produce are removed, including when the new run produces no chunks at all. Non-forced reruns never remove files, and a source that cannot be read or chunked keeps its existing series. Language-specific splitting is composed from `ChunkEnglishMixin` and `ChunkJapaneseMixin`. The JSON payload shapes are defined by `CrawlJsonPayload`, `ChunkJsonRaw`, and `ChunkMetadata` in `scripts/rag/ingestion/pipeline_utils.py`.
 
 ### 3.1.1 Markdown Heading Chunking Configuration
 
