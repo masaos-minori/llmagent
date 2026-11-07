@@ -74,3 +74,13 @@ Reuse the existing WHERE-guarded update pattern from lease recovery. Do not add 
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203220
 - **Related target files**: scripts/agent/workflow/state_store.py, scripts/agent/workflow/task_ops.py, scripts/agent/diagnostic_store.py
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- Claim corrected: "`completed` is never written to `tasks.status`" is stale at HEAD — the engine writes `running`/`halted`/`failed`/`completed` per run (`scripts/agent/workflow/workflow_engine.py:213-224`), and the adapter writes only `halted` for a cancelled exit (L230,273 via `_status_for_exit`). Normal turns now leave a terminal task status. — Evidence: `Verified by test` — Confidence: High
+- The surviving gap is exactly the recovery reconciliation: `recover_stale_attempts` (`scripts/agent/workflow/state_store.py:190-248`) updates only `attempts`; grep for `UPDATE tasks` finds only `task_ops.update_task_status` (L68-74). A task whose process died mid-run keeps `running` forever (the engine's terminal writes never run). Crash-residual `running` rows are confirmed unreachable by any writer. — Evidence: `Verified by test` (source + grep) — Confidence: High
+- Halt guard reader confirmed: the only `tasks.status` reader is the resume guard `if _fetched.status == "halted"` (`workflow_engine_adapter.py:315`) on the `existing_task_id` path; the engine's own writes read no status. — Evidence: `Verified by test` — Confidence: High
+- Consumers confirmed status-agnostic: `scripts/agent/diagnostic_store.py` writes only `session_diagnostics` and never reads the `tasks` table; task counting lives in `task_ops.py:111,121` (`WHERE session_id=?`, no status filter). — Evidence: `Verified by test` — Confidence: High
+- Dependency confirmed real: the terminal status value for reconciliation must come from the `wfaudit005` declared vocabulary (e.g. an abandoned/failed value), and the recovery transaction is shared with `wfaudit001`.
