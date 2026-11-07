@@ -129,8 +129,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit `rules/workflow-lifecycle.md` amendment classes to decided policy (REQ-001) | In Progress | — | — |  |
-| 2 | Add single-directory batch full-suite exception to `skills/code-implementation/workflow.md` (REQ-002) | In Progress | — | — |  |
+| 1 | Edit `rules/workflow-lifecycle.md` amendment classes to decided policy (REQ-001) | Completed | — | 20261107-182112 |  |
+| 2 | Add single-directory batch full-suite exception to `skills/code-implementation/workflow.md` (REQ-002) | Completed | — | 20261107-182309 |  |
 | 3 | Validate with skills checkers and `amend_plan.py --help` (AC-001/AC-002/AC-003) | Pending | — | — |  |
 
 ### Blocker Log
@@ -141,8 +141,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261107-180725_01_rules_workflow-lifecycle.md.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261107-180725_02_skills_code-implementation_workflow.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261107-180725_01_rules_workflow-lifecycle.md.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261107-180725_02_skills_code-implementation_workflow.md.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

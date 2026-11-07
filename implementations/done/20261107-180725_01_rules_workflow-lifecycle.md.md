@@ -83,10 +83,10 @@ N/A: revert the commit that makes this edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the "(proposed)" framing from the amendment classes in `rules/workflow-lifecycle.md` (REQ-001) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | N/A: docs-only, no tests | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: this document is the documentation change | — | — | |
+| 1 | Remove the "(proposed)" framing from the amendment classes in `rules/workflow-lifecycle.md` (REQ-001) | Completed | — | 20261107-182103 |  |
+| 2 | Add or update tests per Validation plan | N/A: docs-only, no tests | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261107-182103 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: this document is the documentation change | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -450,6 +450,12 @@ failure's cause is not immediately obvious, load and apply
   archived procedure is not un-archived.
   For a declared release unit, the single run is the end-of-unit run (see Multi-file processing >
   Batch mode (release unit)); this is a third exception to "exactly once per cycle", scoped to a unit.
+
+  For a batch whose target files are all confined to one directory tree (e.g. `tools/` and
+  `tests/tools/`) under the same Plan, with no `scripts/` change, the full-suite run is
+  shared: one run at the end of the batch instead of one per cycle. Targeted tests still
+  run per cycle, and this shared run feeds the coverage gate. This is a fourth exception to
+  "exactly once per cycle", scoped to a single-directory batch.
 - Run the test commands the procedure's `## Validation plan` lists too (a listed test
   that cannot be run is `Not run: {reason}` in Notes).
 - Make the full-suite run feed the coverage gate, so the suite still runs once:

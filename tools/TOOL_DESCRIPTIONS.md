@@ -22,8 +22,8 @@ Callers do not distinguish `1` from `2`: `run_validation_gates.py` maps exit `0`
 |---|---|---|---|
 | `check_docs_japanese.py` | Exits `1` when `docs/` is missing | Missing input reported as a finding; convention says `2` | `docs-japanese` pre-commit hook, `check_docs_japanese` gate: any non-zero is failure |
 | `check_dependency_graph_cycles.py` | Exits `1` when the graph document or section is missing | Same | `governance-docs-consistency.yml` step: any non-zero is failure |
-| `check_tool_descriptions_sync.py` | Exits `1` when `TOOL_DESCRIPTIONS.md` is missing | Same | pre-commit hook, console script `check-tool-descriptions`: any non-zero is failure |
-| `check_needs_confirmation_inventory.py` | Exits `1` when the inventory document is missing; warnings never produce a non-zero exit, only ERROR findings do | Same; the warning rule is a deliberate detection mode | `governance-docs-consistency.yml` step, console script `check-needs-confirmation`: any non-zero is failure |
+| `check_tool_descriptions_sync.py` | Exits `1` when `TOOL_DESCRIPTIONS.md` is missing | Same | pre-commit hook: any non-zero is failure |
+| `check_needs_confirmation_inventory.py` | Exits `1` when the inventory document is missing; warnings never produce a non-zero exit, only ERROR findings do | Same; the warning rule is a deliberate detection mode | `governance-docs-consistency.yml` step: any non-zero is failure |
 
 ## Output Format Audit
 

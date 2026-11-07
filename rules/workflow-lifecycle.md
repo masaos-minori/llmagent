@@ -130,21 +130,13 @@ procedure document until the Plan has been amended (the new row added, with evid
 and a requirement link) and this validation has been re-run and the section re-marked
 `Frozen`.
 
-### Plan Amendment Approval Classes (proposed)
-
-Status: proposed, pending the owner's decision (Plan UNK-01); it has no effect until the
-owner accepts it. The amendment itself is made with `tools/amend_plan.py`, to which the
-caller states the class; the tool records it in the dated amendment line and does not
-decide it. The validation rules above are unchanged.
+### Plan Amendment Approval Classes
 
 - **Fallout** — a file added only to keep existing behavior, tests, inventories, or
   checkers working. The executor MAY amend the Plan without asking first, and MUST report
   it afterward, naming the file, the class, and the reason.
 - **Scope or behavior change** — a change to scope or behavior, a new requirement, or a
   removed row. The executor MUST obtain approval before the amendment is made.
-
-While the policy is not accepted, every amendment follows the second class (approval
-first).
 
 ## Requirement Reference Format
 

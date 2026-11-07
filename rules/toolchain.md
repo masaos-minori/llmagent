@@ -170,7 +170,7 @@ uv run python tools/check_docs_consistency.py --domain mcp
 uv run python tools/check_docs_consistency.py --domain mcp --skip portdrift --skip tooldrift
 ```
 
-`uv run check-mcp-docs` and `uv run check-agent-docs` are shorthand for `--domain mcp`/`--domain agent`
+`uv run python -m tools.check_docs_consistency --domain mcp` and `uv run python -m tools.check_docs_consistency --domain agent` are the runnable forms
 (additional args like `--skip` still work — see `tools/check_docs_consistency.py`'s `main_mcp()`/`main_agent()` wrappers).
 
 Also available for `--domain agent|rag|deployment|overview|eventbus|shared|db`. It verifies, among other checks
