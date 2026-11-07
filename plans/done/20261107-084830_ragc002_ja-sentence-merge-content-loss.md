@@ -223,9 +223,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Retain short buffer in `_merge_ja_sentence_pairs` (`chunk_japanese.py`) | Pending | — | — | |
-| 2 | Unit + regression tests (`test_chunk_splitter.py`) | Pending | — | — | |
-| 3 | Deployment & verification (gates + diff-cover) | Pending | — | — | |
+| 1 | Retain short buffer in `_merge_ja_sentence_pairs` (`chunk_japanese.py`) | In Progress | — | — |  |
+| 2 | Unit + regression tests (`test_chunk_splitter.py`) | In Progress | — | — |  |
+| 3 | Deployment & verification (gates + diff-cover) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -235,7 +235,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|--------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261107-092152_01_scripts_rag_ingestion_chunk_japanese.py.md` | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -257,3 +257,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-002 | same | `tests/rag/ingestion/test_chunk_splitter.py` | 2 | reproduced case kept | regression test | Confirmed by repository evidence |
 | REQ-003 | Constraints (preserve overlap/COALESCE); existing tests pass | `scripts/rag/ingestion/chunk_japanese.py` | 1 | existing JA/EN tests unchanged | existing suite | Confirmed by repository evidence |
 | REQ-003 | same | `tests/rag/ingestion/test_chunk_splitter.py` | 2 | existing tests pass | existing suite | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261107-092152 -->
