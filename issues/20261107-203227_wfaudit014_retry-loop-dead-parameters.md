@@ -73,3 +73,11 @@ Land as one small commit; no behavior changes. If the backoff rename is chosen, 
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203227
 - **Related target files**: scripts/agent/workflow_engine_adapter.py, scripts/agent/workflow/workflow_engine.py, scripts/agent/workflow/workflow_loader.py, config/workflows/default.json
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- Dead `error_kind` parameter confirmed: `_status_for_exit(exit_reason, error_kind)` (`scripts/agent/workflow_engine_adapter.py:49-62`) branches only on `exit_reason` (`if exit_reason == "cancelled": return "halted"; return None`); `error_kind` is referenced only in the docstring, never read in the body. Called via `_record_exit_status(exit_reason, error_kind, task)` from the `execute_turn` finally (L255). — Evidence: `Verified by test` — Confidence: High
+- Default-timeout claim corrected in mechanism: `_run_stage`'s signature (`workflow_engine.py:291-297`) has no timeout parameter — the unreachable default is a fallback literal in the body: `timeout = stage_def.timeout_sec if stage_def else 60` (~L310), feeding `asyncio.timeout(timeout)` (L328) and the lease duration. The `else 60` branch is dead because every stage in a loaded `WorkflowDef` carries a loader-enforced `timeout_sec`. Removing the fallback (asserting/halting on missing stage_def) is the honest fix. — Evidence: `Verified by test` — Confidence: High
+- Flat-backoff naming confirmed: `wait = policy.backoff_sec` then `await asyncio.sleep(wait)` per failed attempt (`workflow_engine.py:271,268`) — constant wait, no growth. Loader tests pin numeric policy values (`tests/agent/workflow/test_workflow_loader.py:56` asserts `backoff_sec == 1`; L175-189, L254 pin validation) and the retry-kind tests (`retry_on`) exist from wfretry001; no test pins growing-backoff semantics, so renaming to e.g. `retry_wait_sec` is test-compatible. — Evidence: `Verified by test` — Confidence: High
