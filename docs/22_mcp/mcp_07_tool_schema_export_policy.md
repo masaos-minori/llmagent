@@ -24,7 +24,7 @@ Related: [mcp_03_02_tool-registry.md](mcp_03_02_tool-registry.md) — describes 
 
 ### Verification
 
-`tests/mcp_servers/test_mcp_tool_schema_exports.py` mechanically verifies that every active MCP tool schema module exports `TOOL_LIST` as a non-empty list of dictionaries with a `"name"` key and that no module still uses the legacy `_MCP_TOOLS`. Per-server service tests are `tests/test_<name>_mcp_service.py`.
+`tests/mcp_servers/test_mcp_tool_schema_exports.py` mechanically verifies that every active MCP tool schema module exports `TOOL_LIST` as a non-empty list of dictionaries with a `"name"` key, and that no module exports the retired pre-rename list name (the guard test itself carries that literal as fixture data). Per-server service tests are `tests/test_<name>_mcp_service.py`.
 
 ### Design Constraints
 

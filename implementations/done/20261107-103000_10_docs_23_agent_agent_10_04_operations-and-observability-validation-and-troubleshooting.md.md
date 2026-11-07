@@ -27,6 +27,18 @@ Replace the runbook's migration-era instructions (schema-version query and
   run commands against tables that no longer exist; the only historical mention left is one
   supersession note carrying `removed` in the same line.
 
+## Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- Already satisfied by the compatrm001-era rewrite; no edit needed. Lines 52-53 now read "Check
+  workflow DB schema tables (the legacy marker tables schema_migrations and
+  workflow_schema_version must be absent)" — an absence assertion carrying the `legacy` marker on
+  the same line (historical-context exempt), not a version-table query. Lines 91-93 are the
+  legacy-marker refusal symptom and the archive-and-recreate response ("No migration is
+  attempted"); "Re-run the deployment scripts to apply migrations" no longer exists in the file.
+- Whole-file sweep confirmed: the only `migration` mentions are the refusal/error texts and their
+  negations; the consolidated checker reports zero findings for this file (verified by the full
+  `--check-removed-names --check-doc-symbols` run). This row executes as VERIFY.
+
 ## Alternatives considered
 - Keeping the SQL query marked as historical inside the runbook: rejected — runbook sections are
   action text; historical context belongs in the db docs (docs 12-13), not an operator procedure.
@@ -74,12 +86,13 @@ Replace the runbook's migration-era instructions (schema-version query and
 - db docs policy text (docs 12-13).
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Lines 52-54 block | Pending | |
-| 2 Lines 91-93 sentence | Pending | |
-| 3 Sweep | Pending | |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Lines 52-54 block | Completed | 20261107-184026 | 20261107-184026 |  |
+| 2 | Lines 91-93 sentence | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | Sweep | Completed | 20261107-184026 | 20261107-184026 |  |
 ### Blocker Log
 - None.
 

@@ -16,10 +16,13 @@ spanning 27-33) that was covered by the deleted manifest exception.
 - `TOOL_LIST` is the current name; `_MCP_TOOLS` is the retired name — the policy section becomes
   current-state wording only.
 
+## Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- The `_MCP_TOOLS` entry lives in `COMPAT_PATTERNS`, which has no historical-context exemption and applies to `*.md` files too. The original Design decision ("one-line historical note carrying `was:`") would therefore still flag this document: any line containing the literal `_MCP_TOOLS` is a finding unless the whole file is exempted — and the exempting manifest entry is exactly what doc 02 deletes.
+- Corrected rewrite: the document must not contain the literal retired name at all. Line 27's verification sentence becomes a current-only statement about `TOOL_LIST` and the guard test, with no retired-symbol literal. `tests/mcp_servers/test_mcp_tool_schema_exports.py` remains the place that quotes the literal (covered by its existing `fixture` manifest entry).
+
 ## Design decisions
-- The migration narrative (renaming rationale) is replaced by a one-line historical note carrying
-  `was:` on the same line (10-line window rule), preserving reader context without asserting an
-  active migration policy.
+- The migration narrative (renaming rationale) is replaced by current-state wording only; the retired-symbol literal is removed from this document entirely (see Verification findings — a `was:` historical note does not survive the COMPAT-pattern stage).
 
 ## Alternatives considered
 - Deleting the whole policy subsection: rejected — the export policy itself is live content; only
@@ -61,12 +64,13 @@ spanning 27-33) that was covered by the deleted manifest exception.
 - Export policy rule content itself.
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Lines 27-33 rewrite | Pending | |
-| 2 Sweep | Pending | |
-| 3 Checker confirmation | Pending | |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Lines 27-33 rewrite | Completed | 20261107-184026 | 20261107-184026 |  |
+| 2 | Sweep | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | Checker confirmation | Completed | 20261107-184026 | 20261107-184026 |  |
 ### Blocker Log
 - None.
 

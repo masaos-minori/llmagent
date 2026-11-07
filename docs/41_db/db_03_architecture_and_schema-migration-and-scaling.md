@@ -70,7 +70,7 @@ The only supported source schema of each database is the schema of the current r
 
 | Database | Accepted schema | Recovery when not accepted | Owner |
 |---|---|---|---|
-| `workflow.sqlite` | Current task-table shape, no `schema_migrations` / `workflow_schema_version` markers | Archive and recreate (runbook below) | The workflow engine |
+| `workflow.sqlite` | Current task-table shape, no legacy `schema_migrations` / `workflow_schema_version` markers | Archive and recreate (runbook below) | The workflow engine |
 | `eventbus.sqlite` | `PRAGMA user_version = 6` plus the canonical `schema.sql` fingerprint | Archive and recreate (runbook below) | The EventBus service |
 | `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Delete the file and re-index the Markdown files (section 8d) | The `mdq-mcp` server |
 | `rag.sqlite`, `session.sqlite` | Current create-only shape | Archive and recreate (runbook below) | RAG / session layers |

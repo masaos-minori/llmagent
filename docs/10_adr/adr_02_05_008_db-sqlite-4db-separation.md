@@ -57,7 +57,7 @@ With multiple SQLite files, a recovery mechanism without an explicit safety cont
 - Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
 - A persistence failure in Workflow or EventBus is not treated as success with only a log entry
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
-- `rag.sqlite` and `session.sqlite` are recreated on a schema change (recreate policy). `workflow.sqlite` and `eventbus.sqlite` evolve through registered forward-only migrations gated on a verified backup: a migration runs only after a domain-identity backup passes the pre-migration gate, refuses before any mutation when the target version is unmapped or no verified backup exists, rolls back to the last good version on a failing step (never half-applies a migration), and records every applied step in the `schema_migrations` ledger. Migration design beyond these two domains' forward-only paths is out of scope for this ADR.
+- `rag.sqlite` and `session.sqlite` are recreated on a schema change (recreate policy). `workflow.sqlite` and `eventbus.sqlite` follow the same current-only policy: the startup gate accepts only the current canonical schema, refuses any file carrying the legacy migration marker tables (the marker machinery was removed by the compatrm001 plan), and a refused file is archived and recreated by the operator (see `db_03_architecture_and_schema-migration-and-scaling.md` section 8). Migration design is out of scope for this ADR.
 
 ## Assumptions
 
@@ -72,12 +72,14 @@ With multiple SQLite files, a recovery mechanism without an explicit safety cont
 
 ### Amendment (dbmig001, 2026-10-30)
 
+Superseded 2026-11-07 (source compatrm001): the forward-only migration machinery described in this Amendment was removed from the codebase. Current policy: every database must match the current canonical schema at startup; mismatched files are archived and recreated. The paragraph below is retained as historical record only.
+
 This ADR previously stated in Context > Constraints that all four databases "have no migration mechanism and are recreated on a schema change." That statement no longer covers `workflow.sqlite` and `eventbus.sqlite`, which now evolve through registered forward-only migrations recorded in `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` sections 8a and 8b. The separation decision, the per-DB responsibilities, and the `rag.sqlite`/`session.sqlite` recreate policy are unchanged; only the migration sub-decision for the two ledger-bearing domains was adopted by Plan `plans/20261029-214108_dbmig001_forward-only-db-migrations.md`. This adoption is made under the task-level approval decision referenced in this Approval Record.
 
 ### Recovery Category Glossary
 
 - **initialization**: Creating a fresh, empty database or required schema when no valid database exists (`scripts/db/create_schema.py`; section 11 "DB Recreation Procedure").
-- **schema-repair**: Correcting a missing or incompatible schema through an approved migration or initialization path; distinct from recreate-only paths.
+- **schema-repair**: Correcting a missing or incompatible schema by archiving the refused file and recreating it from the current canonical DDL (section 11 "DB Recreation Procedure"); the former migration path was removed by the compatrm001 plan, so recreation is the only repair path.
 - **logical-repair**: Correcting application-level inconsistencies while the SQLite file remains physically valid (`RagMaintenanceService.consistency()` in `scripts/agent/services/rag_maintenance_service.py`).
 - **derived-data-rebuild**: Recreating indexes or other data that can be derived from an authoritative source (`RagMaintenanceService.rebuild_fts()` / `rebuild_vec()` in `scripts/agent/services/rag_maintenance_service.py`; `rag.sqlite`-only per Decision Detail #20).
 - **physical-recovery**: Restoring usability after SQLite file corruption (`DbCondition.CORRUPTION` path in `scripts/db/recovery.py`; DbCondition StrEnum members: HEALTHY/CORRUPTION/LOCK_CONTENTION/PERMISSION_FAILURE/INVALID_FORMAT/UNKNOWN).
@@ -360,7 +362,7 @@ Not applicable
 - sqlite-vec is needed in a database other than `rag.sqlite` and `session.sqlite`
 - A store that is a system of record is added outside the four domains, mdq.sqlite starts holding data that cannot be rebuilt, or two domains are merged (a recovery policy must then be defined for it)
 - Persistent storage moves to something other than files
-- A migration mechanism is introduced (realized for `workflow.sqlite`/`eventbus.sqlite` by dbmig001's forward-only migrations) or a replicated storage foundation is introduced
+- A migration mechanism is proposed again (the previous forward-only machinery was removed by the compatrm001 plan; reintroducing one requires re-evaluating this ADR) or a replicated storage foundation is introduced
 - The backup strategy changes from periodic file copies to another method
 - An operator-restore trigger is proposed
 - The recovery policy for `workflow.sqlite`/`eventbus.sqlite` changes from manual handling to an automated path

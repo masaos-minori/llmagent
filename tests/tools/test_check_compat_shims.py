@@ -5,6 +5,8 @@ Tests for tools/check_compat_shims.py.
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -585,16 +587,20 @@ class TestManifestValidation:
 
 
 class TestManifestParity:
-    """The live manifest holds exactly the 21 paths that still produce findings
-    under check_all(..., allowlist=set(), include_removed_names=True)."""
+    """Final no-compatibility manifest (plan 20261107-064415 REQ-003): exactly 18
+    `fixture` entries plus the checker's own path, exempted via the dedicated
+    [checker_self_reference] table rather than an exception entry. Production-
+    category doc paths (the 3 former migration entries and the former
+    compatibility entry) are absent from the allowlist."""
+
+    def test_entry_count_and_categories(self) -> None:
+        entries, _, _ = load_exceptions(ROOT_DIR / "tools" / "compat_exceptions.toml")
+        assert len(entries) == 18
+        assert all(e["category"] == "fixture" for e in entries)
 
     def test_loaded_paths_match_needed_paths(self) -> None:
         _, allowlist, _ = load_exceptions(ROOT_DIR / "tools" / "compat_exceptions.toml")
         expected = {
-            ROOT_DIR / "docs/22_mcp/mcp_00_document-guide.md",
-            ROOT_DIR / "docs/22_mcp/mcp_07_tool_schema_export_policy.md",
-            ROOT_DIR
-            / "docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md",
             ROOT_DIR / "scripts/shared/tool_registry.py",
             ROOT_DIR / "tests/agent/commands/test_cmd_registry_note_removal.py",
             ROOT_DIR / "tests/agent/commands/test_removed_commands.py",
@@ -605,6 +611,7 @@ class TestManifestParity:
             ROOT_DIR / "tests/agent/test_startup_mcp_starter.py",
             ROOT_DIR / "tests/conftest.py",
             ROOT_DIR / "tests/db/test_create_schema.py",
+            ROOT_DIR / "tests/deploy/test_init_db_schema_gate.py",
             ROOT_DIR / "tests/mcp_servers/rag_pipeline/test_mcp_rag_pipeline.py",
             ROOT_DIR
             / "tests/mcp_servers/rag_pipeline/test_rag_pipeline_mcp_service.py",
@@ -616,8 +623,157 @@ class TestManifestParity:
             ROOT_DIR / "tools/check_compat_shims.py",
         }
         assert allowlist == expected
-        assert len(expected) == 21
+        assert len(expected) == 19  # 18 fixture entries + checker self-reference
         assert all(p.exists() for p in allowlist)
+
+    def test_production_category_paths_absent(self) -> None:
+        _, allowlist, _ = load_exceptions(ROOT_DIR / "tools" / "compat_exceptions.toml")
+        for stale in (
+            ROOT_DIR / "docs/22_mcp/mcp_00_document-guide.md",
+            ROOT_DIR / "docs/22_mcp/mcp_07_tool_schema_export_policy.md",
+            ROOT_DIR
+            / "docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md",
+        ):
+            assert stale not in allowlist
+
+
+class TestProductionCategoryZero:
+    """REQ-003 / AC-001 (plan 20261107-064415): production-category manifest
+    entries are rejected. `migration`, `compatibility`, and `fallback` are known
+    categories but forbidden; only `fixture` passes. The subprocess tests copy
+    the checker under a temporary repo root so its __file__-based ROOT_DIR
+    resolves to the tmp manifest."""
+
+    def _manifest(self, tmp_path: Path, category: str) -> Path:
+        tools_dir = tmp_path / "tools"
+        tools_dir.mkdir(exist_ok=True)
+        path = tools_dir / "compat_exceptions.toml"
+        path.write_text(
+            "[[compatibility_exceptions]]\n"
+            'id = "bad-entry"\n'
+            'path = "docs/x.md"\n'
+            'reason = "stale tolerance"\n'
+            'owner = "Repository owner"\n'
+            'expires = "2027-01-01"\n'
+            'removal_condition = "when done"\n'
+            f'category = "{category}"\n'
+        )
+        return path
+
+    @pytest.mark.parametrize(
+        "category", ["migration", "compatibility", "fallback", "production"]
+    )
+    def test_non_fixture_category_rejected_naming_id(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], category: str
+    ) -> None:
+        entries, _, _ = load_exceptions(self._manifest(tmp_path, category))
+        with pytest.raises(SystemExit) as exc:
+            validate_exceptions(entries)
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "bad-entry" in err
+
+    def test_fixture_category_passes(self, tmp_path: Path) -> None:
+        entries, _, _ = load_exceptions(self._manifest(tmp_path, "fixture"))
+        validate_exceptions(entries)  # must not raise
+
+    def test_subprocess_main_blocks_production_manifest(self, tmp_path: Path) -> None:
+        self._manifest(tmp_path, "migration")
+        checker = tmp_path / "tools" / "check_compat_shims.py"
+        shutil.copy(ROOT_DIR / "tools" / "check_compat_shims.py", checker)
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir(exist_ok=True)
+        (docs_dir / "x.md").write_text("nothing here\n")
+        result = subprocess.run(
+            [sys.executable, str(checker), "--check-removed-names"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 1
+        assert "bad-entry" in result.stderr
+
+    def test_real_repo_manifest_passes(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT_DIR / "tools" / "check_compat_shims.py"),
+                "--check-removed-names",
+                "--check-doc-symbols",
+            ],
+            cwd=ROOT_DIR,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+
+
+class TestDocClaimPatterns:
+    """REQ-002 self-tests: the five migration-claim phrases are flagged in
+    present-tense docs prose and exempted by the 10-line historical-context
+    window. The sentences are synthetic — the live corpus is already
+    historical-context-exempt, so quoting live text here would assert the
+    opposite of the intended behavior."""
+
+    @pytest.mark.parametrize(
+        "sentence",
+        [
+            "Operators apply migrations during every deploy.",
+            "The workflow database uses a forward-only migration on startup.",
+            "The migration ledger tracks the applied versions.",
+            "The schema migrates forward when the service opens it.",
+            "The verified-backup gate admits the file before changes.",
+        ],
+    )
+    def test_claim_phrase_flagged(self, tmp_path: Path, sentence: str) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text(sentence + "\n")
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert len(issues) == 1
+
+    @pytest.mark.parametrize(
+        "marker",
+        ["Historical:", "legacy", "was:", "removed", "archive only", "resolved"],
+    )
+    def test_claim_phrase_exempted_with_marker_above(
+        self, tmp_path: Path, marker: str
+    ) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text(
+            f"**Status**: {marker}\n\n"
+            "The migration ledger tracks the applied versions.\n"
+        )
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert issues == []
+
+    def test_claim_phrase_exempted_marker_same_line(self, tmp_path: Path) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text("removed: the migration ledger tracks versions\n")
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert issues == []
+
+
+class TestCheckerSelfReference:
+    """The checker source stays exempt through the dedicated
+    [checker_self_reference] table (not an exception entry), and doc paths
+    formerly covered by the deleted `check-compat-shims-source` entry are no
+    longer exempt."""
+
+    def test_checker_source_exempted_via_table(self) -> None:
+        entries, allowlist, _ = load_exceptions(
+            ROOT_DIR / "tools" / "compat_exceptions.toml"
+        )
+        assert ROOT_DIR / "tools" / "check_compat_shims.py" in allowlist
+        assert all(e["category"] == "fixture" for e in entries)
+
+    def test_dirty_doc_not_exempt(self, tmp_path: Path) -> None:
+        _, allowlist, _ = load_exceptions(ROOT_DIR / "tools" / "compat_exceptions.toml")
+        doc = tmp_path / "some_doc.md"
+        doc.write_text(
+            "This module keeps a backward compatibility layer for old clients.\n"
+        )
+        issues = check_all(doc.read_text(), doc, allowlist, include_removed_names=True)
+        assert any("backward compatibility layer" in issue for issue in issues)
 
 
 class TestDocSymbolExitCode:

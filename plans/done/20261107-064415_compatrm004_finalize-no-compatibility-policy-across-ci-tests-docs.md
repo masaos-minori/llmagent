@@ -186,10 +186,10 @@ Yes: this Plan is the documentation rewrite itself. Per `docs/00_index.md` "Docu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Checker and manifest consolidation | In Progress | — | — | Procedure documents generated 2026-11-07 |
-| 2 | Phase 2: Documentation rewrite | In Progress | — | — | Procedure documents generated 2026-11-07 |
-| 3 | Phase 3: Regression-test alignment and gate | In Progress | — | — | Procedure documents generated 2026-11-07 |
-| 4 | Phase 4: Automation parity and full validation | Pending | — | — | |
+| 1 | Phase 1: Checker and manifest consolidation | Completed | 20261107-184026 | 20261107-184026 | Procedure documents generated 2026-11-07 |
+| 2 | Phase 2: Documentation rewrite | Completed | 20261107-184026 | 20261107-184026 | Procedure documents generated 2026-11-07 |
+| 3 | Phase 3: Regression-test alignment and gate | Completed | 20261107-184026 | 20261107-184026 | Procedure documents generated 2026-11-07 |
+| 4 | Phase 4: Automation parity and full validation | Completed | 20261107-184026 | 20261107-184026 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

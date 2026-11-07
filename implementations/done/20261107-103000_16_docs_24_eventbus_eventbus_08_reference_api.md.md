@@ -16,6 +16,14 @@ description that presents `migrate.py`/`migrations.py` as live modules.
   owned here. The modules themselves are deleted by the compatrm001 procedures.
 - The EventBus `user_version` schema stamp remains live and is not part of this removal.
 
+## Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- Already satisfied by the compatrm001-era reference-table regeneration: `grep migrate|migrations|
+  verify_backup` over the file returns zero hits — the two retired API rows and the
+  scripts-directory description were removed when `tools/generate_reference_table.py --manifests`
+  refreshed the table from `registry/manifests/eventbus_api.yaml` after the modules were deleted.
+  Sweep of the five doc-claim phrases: zero hits. VERIFY row: no edit needed.
+
 ## Design decisions
 - Rows are deleted outright: this is an API reference section, and reference sections must list
   only callable entry points (same principle as doc 13's drill-field deletion).
@@ -66,12 +74,13 @@ description that presents `migrate.py`/`migrations.py` as live modules.
 - Other eventbus docs; the module deletion itself (compatrm001).
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Delete rows 130-131 | Pending | |
-| 2 Module-list rewrite | Pending | |
-| 3 Citation sweep | Pending | doc-symbol pass |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Delete rows 130-131 | Completed | 20261107-184026 | 20261107-184026 |  |
+| 2 | Module-list rewrite | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | Citation sweep | Completed | 20261107-184026 | 20261107-184026 | doc-symbol pass |
 ### Blocker Log
 - None.
 

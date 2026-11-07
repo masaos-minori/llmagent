@@ -16,6 +16,17 @@ re-evaluation trigger.
 - compatrm001's plan owns the schema-startup narrative; this document edit is the terminology and
   trigger rewrite only — no section restructure.
 
+## Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- Four surfaces edited, matching the measured flag sites (lines 60, 75, 363 at execution time):
+  Constraints bullet rewritten to the current-only policy (startup gate refuses legacy marker
+  tables; archive-and-recreate; "Migration design beyond these two domains" removed); the
+  `### Amendment (dbmig001, 2026-10-30)` subsection prefixed with a supersession paragraph
+  (mechanism removed by plan `plans/done/20261107-061846_plan.md` compatrm001, paragraph retained
+  as historical record); the schema-repair vocabulary entry rewritten to archive-and-recreate as
+  the only repair path; the Review Trigger "A migration mechanism is introduced..." rewritten to
+  reintroduction-requires-re-evaluation wording.
+
 ## Design decisions
 - Amendment blocks are history: line 73-75 gains a supersession note (`Superseded 2026-11-07:
   the migration machinery described here was removed; schema must match the code exactly`) instead
@@ -72,14 +83,15 @@ re-evaluation trigger.
 - Other ADR files; db docs (docs 11-13).
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Line 60 contract | Pending | |
-| 2 Lines 73-75 supersession | Pending | |
-| 3 Line 137 vocabulary | Pending | |
-| 4 Line 363 trigger | Pending | |
-| 5 Phrase sweep | Pending | |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Line 60 contract | Completed | 20261107-184026 | 20261107-184026 |  |
+| 2 | Lines 73-75 supersession | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | Line 137 vocabulary | Completed | 20261107-184026 | 20261107-184026 |  |
+| 4 | Line 363 trigger | Completed | 20261107-184026 | 20261107-184026 |  |
+| 5 | Phrase sweep | Completed | 20261107-184026 | 20261107-184026 |  |
 ### Blocker Log
 - None.
 

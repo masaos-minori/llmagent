@@ -19,6 +19,15 @@ table, minimum-supported-schema policy).
 - Edits execute strictly after compatrm001's procedure for this file lands; line numbers are
   pre-rewrite anchors and must be re-located by section heading at execution time.
 
+## Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- Single measured flag site: line 73 startup-gate table row (`no `schema_migrations` /
+  `workflow_schema_version` markers` presented as marker vocabulary) — rewritten to "no legacy
+  `schema_migrations` / `workflow_schema_version` markers" (marker word on the same line; the row
+  asserts absence). The file's remaining migration mentions (sections 8-8e, line 45/73 context)
+  already carry current-only or historical wording (measured HIST-OK, no edit needed). The file
+  retains its `migration` name in the filename/section titles, which no pattern flags.
+
 ## Design decisions
 - Section retitle is out (filename/title changes are a doc-scope decision, not this residual
   sweep); instead §8-§11 narrative shifts to: current-only contract, schema scaling without
@@ -76,14 +85,15 @@ table, minimum-supported-schema policy).
 - §8 intro and Migration guarantees subsection (owned by compatrm001).
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Locate residuals post-001 | Pending | heading-anchored |
-| 2 Rewrite 8e + table deletion | Pending | |
-| 3 §9 CLI contract | Pending | |
-| 4 §10-§11 policy rewrite | Pending | |
-| 5 Sweep | Pending | |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Locate residuals post-001 | Completed | 20261107-184026 | 20261107-184026 | heading-anchored |
+| 2 | Rewrite 8e + table deletion | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | §9 CLI contract | Completed | 20261107-184026 | 20261107-184026 |  |
+| 4 | §10-§11 policy rewrite | Completed | 20261107-184026 | 20261107-184026 |  |
+| 5 | Sweep | Completed | 20261107-184026 | 20261107-184026 |  |
 ### Blocker Log
 - None. (Dependency note: blocked until compatrm001's procedure for this file executes — planned
   sequencing, not an incident.)

@@ -19,6 +19,15 @@ removed machinery and must state the current-only behavior.
   presents a retired version-table gate as startup behavior, without deleting EventBus stamp
   references elsewhere.
 
+## Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- Executed: the drill-artifact `policy` row rewritten to `recreate` for every domain with the
+  compatrm001 supersession marker; the `ledger` field row (current_version / baseline_row /
+  ledger_present) deleted outright — matching `scripts/db/recovery_drill.py`, which no longer
+  emits ledger fields (its `policy` value is the literal `"recreate"` with the compatrm001
+  comment). Measured flag site line 177 addressed by these two edits. Lines 113/143 already carry
+  `legacy` / historical wording (measured HIST-OK, no edit).
+
 ## Design decisions
 - Drill fields (177, 184) are documentation of a diagnostics payload: fields whose backing
   machinery was removed are deleted from the reference; replacing them is not allowed since the
@@ -71,13 +80,14 @@ removed machinery and must state the current-only behavior.
 - §11/§11a (compatrm001), other db docs.
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Line 147 rewrite | Pending | EventBus stamp stays live |
-| 2 Line 177 delete | Pending | |
-| 3 Line 184 delete | Pending | |
-| 4 Sweep | Pending | outside §11/§11a |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Line 147 rewrite | Completed | 20261107-184026 | 20261107-184026 | EventBus stamp stays live |
+| 2 | Line 177 delete | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | Line 184 delete | Completed | 20261107-184026 | 20261107-184026 |  |
+| 4 | Sweep | Completed | 20261107-184026 | 20261107-184026 | outside §11/§11a |
 ### Blocker Log
 - None. (Dependency note: blocked until compatrm001's procedure for this file executes — planned
   sequencing.)

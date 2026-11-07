@@ -20,6 +20,13 @@ tests.
   `compatibility` entry.
 - `tests/conftest.py` puts `tools/` on `sys.path`, so the module imports as `check_compat_shims`.
 
+### Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`; corrected during implementation)
+
+- `TestManifestParity` EXISTS at line 587, pinned to the old 21-path allowlist (including the 3 migration doc paths and `tools/check_compat_shims.py` via the compatibility entry). Step 1 is "rewrite" it: expected allowlist becomes the 18 fixture paths plus `tools/check_compat_shims.py` supplied by the new `[checker_self_reference]` table (19 paths total); the parity class must also assert the entry count (18) and that every category is `fixture`.
+- `TestProductionCategoryZero` does NOT exist. `TestManifestValidation` (line 493) covers unknown-category rejection (`category="bogus"`). Step 3 becomes "add" a new class asserting rejection for the valid-but-forbidden categories `migration`, `compatibility`, `fallback` (and unknown `production` still rejected), matching the new stderr message naming the bad id, plus subprocess `main()` exit-code tests.
+- Manifest ids do not carry a `fixture-` prefix (e.g. `tool-registry-reset-helper`, `conftest-reset-helper`). The parity class pins entry count, category values, and the path set — not an id prefix. Final manifest state per sibling document 02: 18 `fixture` entries (17 retained + `deploy-init-db-schema-gate-test` for `tests/deploy/test_init_db_schema_gate.py`).
+- `check-compat-shims-test-data` (`tests/tools/test_check_compat_shims.py` itself) remains an entry inside the retained 17; the recount lands on 18 with the new entry.
+
 ## Design decisions
 - Keep the existing approval-subset and syntax-tree-rule tests (they pin `COMPAT_PATTERNS`
   approval-stage entries and the two AST rules) untouched — those checker surfaces are unchanged.
@@ -41,9 +48,9 @@ tests.
 - `tests/tools/test_check_compat_shims.py` (MODIFY).
 
 ### Procedure
-1. Rewrite `TestManifestParity`: expected entry count 17; all ids carry the `fixture-` prefix; all
-   categories equal `fixture`; pinned path set = the 17 fixture paths (drop the 3 migration doc
-   paths and the compatibility entry's path from the old 21-path pin); the checker source path
+1. Add `TestManifestParity`: expected entry count 18; all categories equal `fixture`; pinned path
+   set = the 18 fixture paths (the 17 retained paths plus `tests/deploy/test_init_db_schema_gate.py`;
+   the 3 migration doc paths and the compatibility entry's path are absent); the checker source path
    remains in the flagged set via the `[checker_self_reference]` table read in `load_exceptions()`.
 2. Add `TestDocClaimPatterns` (REQ-002 self-tests):
    - True positive: write a tmp `.md` containing each of the five new doc-claim patterns' match
@@ -110,14 +117,15 @@ tests.
 - Any checker or manifest content changes (docs 01, 02).
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Rewrite TestManifestParity | Pending | 17 fixture entries, `fixture-` id prefix |
-| 2 TestDocClaimPatterns | Pending | true positive + historical guard |
-| 3 TestProductionCategoryZero | Pending | incl. subprocess exit codes |
-| 4 Fixture-entry recount | Pending | `check-compat-shims-test-data` |
-| 5 Checker-self-reference behavior test | Pending | via `[checker_self_reference]` |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Rewrite TestManifestParity (18 fixture entries + checker self-reference; no id prefix) | Completed | 20261107-184026 | 20261107-184026 | 18 fixture entries + self-ref, no id prefix |
+| 2 | TestDocClaimPatterns | Completed | 20261107-184026 | 20261107-184026 | true positive + historical guard |
+| 3 | TestProductionCategoryZero | Completed | 20261107-184026 | 20261107-184026 | incl. subprocess exit codes |
+| 4 | Fixture-entry recount | Completed | 20261107-184026 | 20261107-184026 | `check-compat-shims-test-data` |
+| 5 | Checker-self-reference behavior test | Completed | 20261107-184026 | 20261107-184026 | via `[checker_self_reference]` |
 ### Blocker Log
 - None.
 

@@ -34,6 +34,7 @@ def _await(coro):
 
     return asyncio.run(coro)
 
+
 TEST_TOKEN = "test-auth-token"
 TEST_DB_PATH = "/tmp/test-eventbus.sqlite"
 TEST_STORAGE_DIR = "/tmp/test-storage"
@@ -860,6 +861,7 @@ class TestPairwiseConsumerAuthorization:
                 )
             assert exc.value.status_code == 403
 
+
 class TestPrincipalFieldValidation:
     """Unit-level tests for Principal field resolution from tokens."""
 
@@ -961,6 +963,7 @@ class TestFailClosedConsumerAuthorization:
         )
         with pytest.raises(ValueError, match="consumer_authorization is missing"):
             build_and_publish_generation(cfg)
+
     @pytest.mark.asyncio
     async def test_shared_and_admin_tokens_have_no_consumer_bypass(self) -> None:
         """ADR-013 INV-02/INV-07: auth_token and admin_token hold no Consumer role,
@@ -1014,6 +1017,7 @@ class TestFailClosedConsumerAuthorization:
             )
             is consumer
         )
+
     @pytest.mark.asyncio
     async def test_empty_mappings_deny_all_consumers(self) -> None:
         """ADR-013 INV-07: empty consumer/topic authorization mappings resolve to
@@ -1058,6 +1062,7 @@ class TestFailClosedConsumerAuthorization:
                 principal=principal,
             )
         assert exc.value.status_code == 403
+
     @pytest.mark.asyncio
     async def test_non_empty_mapping_restricts_to_allowlist(self) -> None:
         """A non-empty consumer/topic authorization mapping restricts the CONSUMER
@@ -1108,6 +1113,7 @@ class TestFailClosedConsumerAuthorization:
                 principal=principal,
             )
         assert exc.value.status_code == 403
+
 
 class TestAuditRecordValidation:
     """Tests for structured audit record emission on auth failures."""
@@ -1602,6 +1608,7 @@ class TestDuplicateTokenBinding:
         assert "shared-dup" not in message
         for field in ("auth_token", "consumer_token"):
             assert field in message
+
     def test_distinct_tokens_get_exactly_their_documented_role(self) -> None:
         """A distinct-token config gives each token exactly its documented role."""
         from eventbus.auth import (
@@ -1633,10 +1640,13 @@ class TestDuplicateTokenBinding:
         assert current_principals()["publisher-token"].roles == frozenset(
             {Role.PUBLISHER}
         )
-        assert current_principals()["consumer-token"].roles == frozenset({Role.CONSUMER})
+        assert current_principals()["consumer-token"].roles == frozenset(
+            {Role.CONSUMER}
+        )
         assert current_principals()["admin-token"].roles == frozenset(
             {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
         )
+
     @pytest.mark.parametrize(
         "field_a,field_b",
         [
@@ -1682,6 +1692,7 @@ class TestDuplicateTokenBinding:
         assert field_a in message
         assert field_b in message
 
+
 class TestAtomicPublishAndFailedRebuild:
     """Assert atomic publish (no empty-map window) and failed-rebuild preservation."""
 
@@ -1722,6 +1733,7 @@ class TestAtomicPublishAndFailedRebuild:
         assert current_principals()["auth-token"].roles == frozenset(
             {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
         )
+
     def test_failed_rebuild_preserves_previous_generation(self) -> None:
         """A failed rebuild (e.g. missing consumer_authorization) leaves the
         previous generation's principals intact and in force."""
@@ -1770,6 +1782,7 @@ class TestAtomicPublishAndFailedRebuild:
         assert current_principals()["auth-token"].roles == frozenset(
             {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
         )
+
     def test_published_generation_read_returns_identical_object(self) -> None:
         """REQ-001: two reads of current_generation() return the identical
         object between publications (the snapshot is never rebuilt per read)."""

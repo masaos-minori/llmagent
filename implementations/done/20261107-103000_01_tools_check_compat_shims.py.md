@@ -11,7 +11,17 @@
 
 - All line anchors re-verified 2026-11-07 at HEAD `1a13653e8`; `tools/check_compat_shims.py` unchanged between the Plan freeze base `1b2dded66` and HEAD.
 - Prerequisite implementations compatrm001/002/003 have landed before this unit (their checker edits — `db.store`/`eventbus.db`/auth patterns — are present in the file when this document is executed; this document supersedes them with the consolidated set).
-- UNK-01 resolution used by this document: the checker's `_is_historical_context()` (line 406) scans a 10-line window for markers that include `removed`, `legacy`, `historical`, `resolved`. Supersession prose in sibling documents 08-16 keeps one of those markers on or above every line that names a retired mechanism, so the REQ-002 phrase patterns do not flag dated history.
+- UNK-01 resolution used by this document: the checker's `_is_historical_context()` (line 421 at current HEAD) scans a 10-line window for markers that include `removed`, `legacy`, `historical`, `resolved` (plus the JA markers `解消`/`解決`/`廃止`/`撤廃`/`削除済み`/`確認済み`). Supersession prose in sibling documents 08-16 keeps one of those markers on or above every line that names a retired mechanism, so the REQ-002 phrase patterns do not flag dated history.
+
+### Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- Already landed by the prerequisite commits (do not re-add): the four auth entries and four facade entries in `COMPAT_PATTERNS` (checker lines 117-126) came from compatrm002 (`dc426f9ad`) and compatrm003 (`be4d74463`). This document adds only the remaining consolidated entries.
+- Marker-table names `schema_migrations`, `workflow_schema_version`, `WORKFLOW_SCHEMA_VERSION` must land in `_REMOVED_NAME_PATTERNS` (docs-only, historical-context exemption), NOT in `COMPAT_PATTERNS` as the original snippet stated. Measured fact: `scripts/db/recovery_drill.py:56` and `scripts/agent/services/workflow_schema.py:63` define `LEGACY_MARKER_TABLES = ("schema_migrations", "workflow_schema_version")` — live production detectors that legitimately name the marker tables in `.py`, plus many test fixtures (DDL strings in `tests/db/test_recovery_drill.py`, historical comments in `tests/eventbus/test_eventbus_schema_version.py`). A `COMPAT_PATTERNS` placement (no historical exemption, applies to `.py`) would flag production code. The docs-only placement flags only documentation that presents the markers as current.
+- `shared.db_migrations` regex narrowed to `\bshared[./]db_migrations\b`: the original `db_migrations\.py` alternative would flag `tests/mcp_servers/mdq/test_mdq_rag_boundary.py:78`, an ALLOWED-set filename literal in a boundary test. The narrowed form still flags every live provenance claim (`docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md:139` uses `shared/db_migrations.py`). Observation, out of scope: that test's ALLOWED entry names the deleted module and is dead data; left untouched (no pattern matches it after narrowing).
+- Measured zero-hit confirmations for the new patterns: `verify_backup_by_path` — no live reference anywhere; `nack_event` two-argument call regex — no match in any `*.py`/`*.md`; `WORKFLOW_SCHEMA_VERSION` — no docs hit (its only remaining uses are `.py` fixture strings in `tests/tools/test_generate_reference_table.py`, unaffected by the docs-only placement).
+- One new test-side finding under `migrate_db.py reference`: `tests/deploy/test_init_db_schema_gate.py:333` names the deleted CLI inside its absence assertion (`assert "migrate_db.py" not in result.stderr`). This is legitimate negative-test data: sibling document 02 adds one new `fixture` entry for that file (fixture count 17 → 18).
+- Confirmed NOT yet in the checker: the five `_REMOVED_NAME_PATTERNS` phrase entries, the marker-name entries above, the production-category-zero rule in `validate_exceptions()`, the `[checker_self_reference]` read in `load_exceptions()`, and the `done`-directory skip in `main()`'s file selection. All remain to implement.
+- Measured doc/flag impact of the new phrase patterns on the live tree (targets of sibling documents 08-13): `docs/10_adr/adr_01_index.md` 52, 63; `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` 60, 75, 363; `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` 46, 47, 74, 137, 138, 139; `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` 73; `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` 177. Historical-context pass (no edit needed): `agent_10_04` 52-53, `db_02` 46, `db_07` 113/143, `deployment_01` 304, `db_03` 45.
 
 ## Design decisions
 
@@ -31,27 +41,28 @@
 `tools/check_compat_shims.py`
 ### Procedure
 1. Confirm the prerequisite Plans' edits have landed (their added pattern entries are visible in the file); this document rewrites them into the consolidated form.
-2. Consolidate `COMPAT_PATTERNS` (lines 39-115): merge any prerequisite-added entries for the names below into single canonical entries, then add the final REQ-001 set following the existing entry style (`"name": r"regex"`):
+2. Consolidate `COMPAT_PATTERNS` (current lines 38-127): keep the prerequisite-added auth/facade entries as-is, and add the remaining REQ-001 set following the existing entry style (`"name": r"regex"`) under a `# compatrm004 patterns` comment:
    ```python
-   "_TOKEN_PRINCIPAL_MAP": r"_TOKEN_PRINCIPAL_MAP",
-   "_populate_token_maps": r"_populate_token_maps",
-   "principal_map": r"\bprincipal_map\b",
-   "verify_backup_by_path": r"\bverify_backup_by_path\b",
-   "shared.db_migrations reference": r"\bshared\.db_migrations\b|db_migrations\.py",
+   "verify_backup_by_path reference": r"\bverify_backup_by_path\b",
+   "shared.db_migrations reference": r"\bshared[./]db_migrations\b",
    "db.migrations_workflow reference": r"\bdb\.migrations_workflow\b|migrations_workflow\.py",
    "eventbus.migrations reference": r"\beventbus\.migrations\b|eventbus/migrations\.py",
    "eventbus.migrate reference": r"\beventbus\.migrate\b|eventbus/migrate\.py",
    "migrate_db.py reference": r"\bmigrate_db\.py\b",
-   "schema_migrations reference": r"\bschema_migrations\b",
-   "workflow_schema_version reference": r"\bworkflow_schema_version\b",
-   "WORKFLOW_SCHEMA_VERSION reference": r"\bWORKFLOW_SCHEMA_VERSION\b",
-   "from db.store import": r"from\s+db\.store\s+import",
-   "import db.store": r"\bimport\s+db\.store\b",
-   "from eventbus.db import": r"from\s+eventbus\.db\s+import",
-   "import eventbus.db": r"\bimport\s+eventbus\.db\b",
    "nack_event two-argument call form": r"nack_event\(\s*[\w.\[\]\"']+\s*,\s*[\w.\[\]\"']+\s*\)",
    ```
-3. Add the REQ-002 migration-claim phrase entries to `_REMOVED_NAME_PATTERNS` (after line 388, before the closing brace) following the existing `re.compile` style:
+   (Correction per Verification findings: the three marker-table names from the original snippet — `schema_migrations`, `workflow_schema_version`, `WORKFLOW_SCHEMA_VERSION` — move to step 3 instead; the `db_migrations` regex is narrowed to the `shared[./]` form.)
+3. Add the marker-table names and the REQ-002 migration-claim phrase entries to `_REMOVED_NAME_PATTERNS` (after the `security_lockdown_enabled` entry, before the closing brace) following the existing `re.compile` style:
+   ```python
+   "schema_migrations reference (removed by compatrm001/004)": re.compile(
+       r"\bschema_migrations\b"
+   ),
+   "workflow_schema_version reference (removed by compatrm001/004)": re.compile(
+       r"\bworkflow_schema_version\b"
+   ),
+   "WORKFLOW_SCHEMA_VERSION reference (removed by compatrm001/004)": re.compile(
+       r"\bWORKFLOW_SCHEMA_VERSION\b"
+   ),
    ```python
    "forward-only migration claim (removed by compatrm001/004)": re.compile(
        r"forward-only migration|registered forward-only"
@@ -81,7 +92,7 @@ the `db.workflow_schema` import regexes at lines 81-84) always-on across all sca
 `_REMOVED_NAME_PATTERNS` (lines 334-389; `_update_null_fill` through
 `security_lockdown_enabled`) docs-only and flag-gated with the historical-context exemption. The consolidation places each requirement in the family whose enforcement semantics it needs, so deleted production symbols are blocked everywhere while migration-claim sentences are blocked in documentation without flagging dated supersession history.
 ### Details
-Net effect: 17 consolidated `COMPAT_PATTERNS` entries (some replacing prerequisite-added duplicates), 5 new `_REMOVED_NAME_PATTERNS` phrase entries, one new validation rule in `validate_exceptions()`, one new table read in `load_exceptions()`, one file-selection filter in `main()`, and a `tools/TOOL_DESCRIPTIONS.md` description update. No change to the two AST rules or `check_doc_symbols()`.
+Net effect: 7 new `COMPAT_PATTERNS` entries (the 11 auth/facade/marker-adjacent entries of the original 17-entry snippet are either already landed by the prerequisite commits or, for the three marker-table names, moved to `_REMOVED_NAME_PATTERNS` per the Verification findings), 8 new `_REMOVED_NAME_PATTERNS` entries (3 marker names + 5 phrase claims), one new validation rule in `validate_exceptions()`, one new table read in `load_exceptions()`, one file-selection filter in `main()`, a `tools/TOOL_DESCRIPTIONS.md` description update, and a `tools/check_module_size_tools_baseline.txt` bump for the checker's new size. No change to the two AST rules or `check_doc_symbols()`.
 
 ## Compatibility considerations
 
@@ -121,9 +132,9 @@ N/A: checker pattern configuration only. New patterns tighten enforcement; no cr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Consolidate COMPAT_PATTERNS, extend _REMOVED_NAME_PATTERNS, add the production-category rule and checker_self_reference read — Plan Phase 1 | Pending | — | — | policy-finalization unit: checker green only with all unit documents landed |
-| 2 | Update tools/TOOL_DESCRIPTIONS.md rows 82/173 | Pending | — | — | |
-| 3 | Run this document's Validation plan commands; full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Consolidate COMPAT_PATTERNS, extend _REMOVED_NAME_PATTERNS, add the production-category rule and checker_self_reference read — Plan Phase 1 | Completed | 20261107-184026 | 20261107-184026 | policy-finalization unit: checker green only with all unit documents landed |
+| 2 | Update tools/TOOL_DESCRIPTIONS.md rows 82/173 | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | Run this document's Validation plan commands; full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-184026 | 20261107-184026 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

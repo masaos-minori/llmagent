@@ -389,7 +389,7 @@ class TestNackEvent:
         with pytest.raises(TypeError):
             # Intentional contract test: omit the required consumer_id to pin the
             # TypeError at runtime; mypy correctly flags the missing argument.
-            nack_event(db, "some-event")  # type: ignore[call-arg]
+            nack_event(db, "some-event")  # type: ignore[call-arg]  # — intentional contract test: omit the required consumer_id to pin the TypeError at runtime
 
     def test_nack_empty_consumer_id_raises_value_error(
         self, db: sqlite3.Connection

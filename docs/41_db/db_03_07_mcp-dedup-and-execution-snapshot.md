@@ -43,9 +43,10 @@ Contract details (all owned by `scripts/shared/mcp_dedup.py`):
 - File location: `dedup.db_path` in `config/mcp_dedup.toml`, default `/opt/llm/db/mcp_dedup.sqlite`.
   A missing config file raises `ConfigMissingError`; bad values raise `ConfigParseError`.
 - Bootstrap: the store creates its own table and indexes on open (`CREATE TABLE IF NOT EXISTS`),
-  stamps `PRAGMA user_version = 1`, and is not registered in the workflow migration ledger.
-  A future migration of this file is expected to adopt the per-database migration registry
-  (see Adoption Path below).
+  stamps `PRAGMA user_version = 1` as its current schema-shape marker. There is no migration
+  registry: the former migration machinery was removed by the compatrm001 plan, so a future
+  schema change to this file
+  lands as a new canonical DDL and the file is archived and recreated (see Adoption Path below).
 - Concurrency: WAL journal mode, `PRAGMA busy_timeout` (default 5000 ms), `synchronous = NORMAL`,
   one held connection guarded by a `threading.Lock`, and every write runs under `BEGIN IMMEDIATE`.
   Cross-process writers rely on the busy timeout; a `sqlite3.Error` rolls back and is re-raised.
@@ -71,11 +72,12 @@ the source for the agent-side stale-pending classification in `workflow.sqlite`.
 
 ## `tool_call_state` and `execution_snapshots` (workflow.sqlite)
 
-Both tables live in `workflow.sqlite`, added by the ledger migration step
-`workflow_tool_lifecycle` (`1 -> 2`, `scripts/db/migrations_workflow.py`) and byte-identical
-in shape to the create-path DDL in `db/schema_sql.py` so fresh-created and migrated databases
-converge. Column definitions (canonical DDL: `scripts/db/schema_sql.py::build_workflow_schema_sql`
-and the matching block in `scripts/db/migrations_workflow.py`):
+Both tables live in `workflow.sqlite`, defined in the canonical create-path DDL
+`db/schema_sql.py` and created at database creation. (Historical note: they were originally
+added by a per-database migration step that the compatrm001 plan later removed;
+fresh-created databases and the removed step produced byte-identical shapes, which is what the
+fingerprint gate compares against.) Column definitions (canonical DDL:
+`scripts/db/schema_sql.py::build_workflow_schema_sql`):
 
 - `execution_snapshots`: `snapshot_id` (TEXT PK), `snapshot_json` (TEXT NOT NULL),
   `recorded_at` (REAL NOT NULL).
@@ -131,16 +133,14 @@ Side notes:
 - Interrupted rows are never silently re-executed for `non_retryable` tools: the refusal is
   the guarantee, and the operator decides the next step.
 
-## Adoption Path (Migration Registry)
+## Adoption Path (Current-Only Policy)
 
 `mcp_dedup.sqlite` bootstraps with `CREATE TABLE IF NOT EXISTS` + `PRAGMA user_version`
-and is intentionally outside the `workflow.sqlite` migration ledger. Future schema changes
-to this file adopt the per-database migration registry mechanism established by dbmig001
-(`shared/db_migrations.py`, per-database step modules, verified-backup gating) as recorded
-in [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md); the `1 -> 2`
-`workflow_tool_lifecycle` step in `scripts/db/migrations_workflow.py` is the shipped example
-of that mechanism. Until then, recovery for this file is recreating it: the store is a replay
-cache, and a fresh empty store only means the next call of each key runs for real.
+and carries no version ledger or migration step: the per-database migration mechanism
+established by dbmig001 was removed by the compatrm001 plan. A future schema change to this file lands as a new canonical DDL in
+`scripts/shared/mcp_dedup.py`, and an existing file matching the previous shape is archived
+and recreated. Until such a change, recovery for this file is recreating it: the store is a
+replay cache, and a fresh empty store only means the next call of each key runs for real.
 
 Note: `db_08_active_databases.md` does not yet list `mcp_dedup.sqlite` among the live
 database files; no frozen procedure row owns that edit (flagged during implementation).

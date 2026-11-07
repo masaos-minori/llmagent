@@ -14,8 +14,13 @@ only state, and checker blocking of reintroduction (rotation/recovery).
 
 ## Assumptions
 - Prerequisites landed: facades and migration modules deleted (compatrm001/003), auth state is
-  `AuthzGeneration`-only (compatrm002), checker consolidated (doc 01), manifest holds 17 `fixture`
-  entries only (doc 02).
+  `AuthzGeneration`-only (compatrm002), checker consolidated (doc 01), manifest holds 18 `fixture`
+  entries only (doc 02, including the new `deploy-init-db-schema-gate-test` entry recorded in that
+  document's Verification findings). Verified 2026-11-07 (HEAD `be4d74463`): the pre-commit hook
+  (`.pre-commit-config.yaml` id `check-compat-shims`) and the CI run step
+  (`.github/workflows/backward-compat-check.yml`) both carry exactly
+  `--check-removed-names --check-doc-symbols`; `pyproject.toml` and `tox.ini` contain no checker
+  invocation — the step 7 assertions match the current tree before implementation.
 - `tests/conftest.py` adds `scripts/` and `tools/` to `sys.path`; imports resolve as
   `eventbus.delivery_repo` and `check_compat_shims`.
 - UNK-03 (Blocking? = False): early-session grep output referenced `TestGateguardCoverage`,
@@ -116,17 +121,18 @@ only state, and checker blocking of reintroduction (rotation/recovery).
   `pyproject.toml` — those are VERIFY rows (docs 05-07).
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Module scaffolding + derived pattern set | Pending | no literals |
-| 2 TestProductionExceptionZero | Pending | tomllib parse |
-| 3 TestNoLiveReferences | Pending | fixture paths excluded |
-| 4 TestMandatoryConsumerNack | Pending | inspect.signature |
-| 5 TestAuthzGenerationOnly | Pending | compatrm002 state |
-| 6 TestCheckerBlocking (rotation/recovery) | Pending | sandbox subprocess |
-| 7 TestOptionPairIdentity | Pending | YAML pair pin |
-| 8 TestGateFileSelfAudit | Pending | self-audit |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Module scaffolding + derived pattern set | Completed | 20261107-184026 | 20261107-184026 | no literals |
+| 2 | TestProductionExceptionZero | Completed | 20261107-184026 | 20261107-184026 | tomllib parse |
+| 3 | TestNoLiveReferences | Completed | 20261107-184026 | 20261107-184026 | fixture paths excluded |
+| 4 | TestMandatoryConsumerNack | Completed | 20261107-184026 | 20261107-184026 | inspect.signature |
+| 5 | TestAuthzGenerationOnly | Completed | 20261107-184026 | 20261107-184026 | compatrm002 state |
+| 6 | TestCheckerBlocking (rotation/recovery) | Completed | 20261107-184026 | 20261107-184026 | sandbox subprocess |
+| 7 | TestOptionPairIdentity | Completed | 20261107-184026 | 20261107-184026 | YAML pair pin |
+| 8 | TestGateFileSelfAudit | Completed | 20261107-184026 | 20261107-184026 | self-audit |
 ### Blocker Log
 - UNK-03: `TestGateguardCoverage` / `tests/test_precommit_gate_failure_recovery.py` /
   `tests/tools/test_gateguard_rotation.py` / `docs/40_testing/test_document.md` were referenced by

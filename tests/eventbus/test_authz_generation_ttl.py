@@ -119,7 +119,9 @@ class TestTTLExpirySweep:
         assert resp.status_code == 200
         effective_at = resp.json()["effective_at"]
         granted = _require_generation()
-        assert ("c1", "ttl-topic") in current_principals()[CONSUMER_TOKEN].consumer_grants
+        assert ("c1", "ttl-topic") in current_principals()[
+            CONSUMER_TOKEN
+        ].consumer_grants
 
         clock, advance = injectable_clock(start=effective_at)
         # Not yet expired: the sweep publishes nothing.
@@ -206,7 +208,9 @@ class TestTTLExpirySweep:
         bumped = _require_generation()
         assert bumped.generation == granted.generation + 100
         # The bump did not remove the grant: the sweep aborted before publishing.
-        assert ("c1", "ttl-topic") in current_principals()[CONSUMER_TOKEN].consumer_grants
+        assert ("c1", "ttl-topic") in current_principals()[
+            CONSUMER_TOKEN
+        ].consumer_grants
 
     def test_failed_rebuild_keeps_generation_unchanged(
         self,

@@ -91,7 +91,7 @@ Provides guidance on determining which chapters to open as the entry point for t
 | Tools provided by web-search/github/shell/mdq MCPs. mdq-mcp provides FTS5 (BM25) search only; it has no hybrid or semantic search | `mcp_04` (mdq-mcp only has FTS5 search implemented) |
 | allowed_dirs/allowed_repos, fail-closed/fail-open, dry_run, risk tiers, MDQ/RAG boundary | `mcp_05` |
 | Config file list, health verification, default values, startup warnings, failure diagnosis | `mcp_06` |
-| Naming convention for tool schema modules, TOOL_LIST exports, and cleanup of _MCP_TOOLS references | `mcp_07` |
+| Naming convention for tool schema modules and `TOOL_LIST` exports, verified by the schema-export guard test | `mcp_07` |
 | Tool capability naming convention (domain.action format) | `mcp_08` |
 | What is broken or unimplemented | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) |
 

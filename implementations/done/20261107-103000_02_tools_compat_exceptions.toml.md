@@ -12,6 +12,12 @@
 - Baseline re-verified 2026-11-07 at HEAD `1a13653e8`: 21 `[[compatibility_exceptions]]` entries — 3 `migration` (ids at lines 24, 33, 42), 1 `compatibility` (`check-compat-shims-source`, id line 204), 17 `fixture`; `[symbol_stage_allowance]` at line 219. The file is unchanged between the Plan freeze base `1b2dded66` and HEAD; the Plan's earlier 22/18 figures were a grep overcount (the header comment at line 4 matches the section syntax) and were corrected in the Plan.
 - `load_exceptions()` tolerates the new `[checker_self_reference]` table only after sibling document 01 lands (its step 5 adds the read); landing this document without document 01 would drop the checker's own pattern-literal exemption and fail the checker run.
 
+### Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- Baseline confirmed unchanged: 21 `[[compatibility_exceptions]]` entries — 3 `migration` (ids `mcp-00-document-guide` line 24, `mcp-07-tool-schema-export-policy` line 33, `db-03-migration-and-scaling` line 42), 1 `compatibility` (`check-compat-shims-source` line 204), 17 `fixture`; `[symbol_stage_allowance]` follows. The three `migration` entries cover exactly the two MCP docs and `db_03`; `docs/24_eventbus/eventbus_08_reference_api.md` is NOT and was never an entry (its migrate/migrations API rows were already removed by the compatrm001-generated reference-table refresh, so it needs no exemption).
+- Measured new finding requiring one extra `fixture` entry: `tests/deploy/test_init_db_schema_gate.py:333` names `migrate_db.py` inside its absence assertion (`assert "migrate_db.py" not in result.stderr`), which sibling document 01's `migrate_db.py reference` pattern flags. Legitimate negative-test data → one new `fixture` entry `deploy-init-db-schema-gate-test` is added by this document. Expected final state: 18 entries, `{'fixture': 18}` — the "17" in the Design decisions/Completion criteria below is superseded by this measured count.
+- No other new fixture entries are expected: `tests/mcp_servers/mdq/test_mdq_rag_boundary.py` is spared by document 01's narrowed `shared[./]db_migrations` regex; `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` findings are removed by sibling document 11's rewrite, not exempted.
+
 ## Design decisions
 
 - The three `migration` entries are deleted, not reclassified: their findings (`_MCP_TOOLS` naming text in the two MCP docs, `workflow_schema.py`/ledger text in `db_03`) are removed from those documents by sibling documents 12, 14, 15 (and the compatrm001 core rewrite), so no exemption is needed after the unit lands.
@@ -43,7 +49,7 @@
    ```
 4. Land only after sibling documents 12, 14, 15 have removed the findings these entries tolerated (same commit ordering within the unit).
 5. Recount: `uv run python -c "import tomllib, collections; d=tomllib.load(open('tools/compat_exceptions.toml','rb')); e=d['compatibility_exceptions']; print(len(e), collections.Counter(x['category'] for x in e))"`
-   Expected at execution time: 17 entries, `{'fixture': 17}` (or 18 fixture plus one fixture-only entry if the document 04 sweep required test data — record the actual number in the Execution Status Notes).
+   Expected at execution time: 18 entries, `{'fixture': 18}` (17 retained fixture entries + the one new `deploy-init-db-schema-gate-test` entry recorded in the Verification findings). Record the actual number in the Execution Status Notes.
 ### Method
 REQ-003 / AC-001. `load_exceptions()` (checker line 157) resolves every entry `path` into the scan allowlist and `validate_exceptions()` (line 181) enforces the schema; sibling document 01's step 4 makes any `compatibility`/`migration`/`fallback` category fatal, so leaving these entries in place would itself fail every CI run. The allowance tables (`[symbol_stage_allowance]`, new `[checker_self_reference]`) are separate top-level tables and are not `[[compatibility_exceptions]]` entries, satisfying "dedicated configuration".
 ### Details
@@ -85,9 +91,9 @@ N/A: configuration data change; no secrets or paths outside the repository.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete 3 migration entries and the compatibility entry; add the checker_self_reference table — Plan Phase 1 | Pending | — | — | land after docs 12/14/15 within the unit |
-| 2 | Recount entries and record the actual fixture count | Pending | — | — | |
-| 3 | Run this document's Validation plan commands; full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Delete 3 migration entries and the compatibility entry; add the checker_self_reference table — Plan Phase 1 | Completed | 20261107-184026 | 20261107-184026 | land after docs 12/14/15 within the unit |
+| 2 | Recount entries and record the actual fixture count | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | Run this document's Validation plan commands; full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-184026 | 20261107-184026 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

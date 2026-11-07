@@ -12,40 +12,13 @@
 # Paths are repo-relative and resolved against the repository root by the loader.
 version = "1"
 
-# --- Migrated compatibility-exception entries -------------------------------
-# These 21 paths are exactly the DEFAULT_ALLOWLIST entries that still produce a
-# finding under check_all(..., allowlist=set(), include_removed_names=True).
-# The 4 that do not (docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md,
-# tests/shared/test_rag_tools_consistency.py, tests/shared/test_route_resolver.py
-# produce no finding; tests/agent/test_startup_routing_drift.py was deleted) are
-# intentionally omitted.
-
-[[compatibility_exceptions]]
-id = "mcp-00-document-guide"
-path = "docs/22_mcp/mcp_00_document-guide.md"
-reason = "Guide that names the _MCP_TOOLS to TOOL_LIST naming-convention document"
-owner = "Repository owner"
-expires = "2027-04-22"
-removal_condition = "Remove when this guide no longer names the _MCP_TOOLS / TOOL_LIST naming convention."
-category = "migration"
-
-[[compatibility_exceptions]]
-id = "mcp-07-tool-schema-export-policy"
-path = "docs/22_mcp/mcp_07_tool_schema_export_policy.md"
-reason = "Doc that documents the _MCP_TOOLS -> TOOL_LIST migration policy"
-owner = "Repository owner"
-expires = "2027-04-22"
-removal_condition = "Remove when this policy doc no longer references the _MCP_TOOLS -> TOOL_LIST migration."
-category = "migration"
-
-[[compatibility_exceptions]]
-id = "db-03-migration-and-scaling"
-path = "docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md"
-reason = "Doc (split from the former 90_shared_04_db_architecture_and_schema.md) documenting the deleted workflow_schema.py entry point"
-owner = "Repository owner"
-expires = "2027-04-22"
-removal_condition = "Remove when this doc no longer documents the deleted workflow_schema.py entry point."
-category = "migration"
+# --- Fixture exception entries ----------------------------------------------
+# Each entry below exempts one path that legitimately names a retired mechanism
+# as negative-test data (a `fixture` category). Under the no-compatibility
+# policy (plan 20261107-064415 REQ-003) only `fixture` entries are permitted:
+# production-category entries (compatibility/migration/fallback) are rejected by
+# validate_exceptions(). The checker's own source is exempted separately via the
+# [checker_self_reference] table below, not via an exception entry.
 
 [[compatibility_exceptions]]
 id = "tool-registry-reset-helper"
@@ -201,13 +174,24 @@ removal_condition = "Remove when this test no longer contains compat patterns as
 category = "fixture"
 
 [[compatibility_exceptions]]
-id = "check-compat-shims-source"
-path = "tools/check_compat_shims.py"
-reason = "The checker itself (self-reference for new location)"
+id = "deploy-init-db-schema-gate-test"
+path = "tests/deploy/test_init_db_schema_gate.py"
+reason = "Names deleted migration CLIs/modules inside absence assertions (negative-test data)"
 owner = "Repository owner"
 expires = "2027-04-22"
-removal_condition = "Remove when the checker no longer self-references for its new manifest-backed location."
-category = "compatibility"
+removal_condition = "Remove when this test no longer names removed migration tooling."
+category = "fixture"
+
+# --- Checker self-reference allowance ---------------------------------------
+# The checker's own source carries the removed-name patterns as pattern
+# literals, so it must be exempt from matching itself. This is a dedicated
+# top-level table, NOT a [[compatibility_exceptions]] entry: it cannot be
+# mistaken for a production-category exemption (plan 20261107-064415 REQ-003).
+# tools/check_compat_shims.py's load_exceptions() merges these paths into the
+# allowlist.
+[checker_self_reference]
+reason = "The checker's own pattern literals match its own patterns; exempt from self-detection."
+paths = ["tools/check_compat_shims.py"]
 
 # --- Symbol-stage allowance -------------------------------------------------
 # The report-only --check-doc-symbols stage compares backtick-quoted `func()`

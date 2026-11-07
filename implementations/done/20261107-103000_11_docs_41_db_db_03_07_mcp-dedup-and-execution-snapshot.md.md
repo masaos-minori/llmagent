@@ -16,6 +16,16 @@ canonical schema, not the product of a workflow migration ledger or `migrations_
 - compatrm001 owns the deletion of the migration modules; this document edit only removes their
   live citation.
 
+## Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- Measured flag sites: lines 46-48 (Bootstrap "workflow migration ledger" / "per-database
+  migration registry" claims), 74-78 (`tool_call_state` provenance citing
+  `scripts/db/migrations_workflow.py` and "ledger migration step"), 137-139 (Adoption Path citing
+  `shared/db_migrations.py`, verified-backup gating, and the shipped `1 -> 2` example). All three
+  regions rewritten to current-only policy wording with explicit compatrm001 supersession markers;
+  the Adoption Path heading renamed to "Adoption Path (Current-Only Policy)". The `mcp_00`
+  cross-file finding is owned by sibling document 14.
+
 ## Design decisions
 - Provenance becomes: tables are defined in the canonical schema definition and created at
   database creation; any table-not-present condition is a startup error (current-only policy).
@@ -65,13 +75,14 @@ canonical schema, not the product of a workflow migration ledger or `migrations_
 - Other db docs (docs 12-13).
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Lines 46-48 | Pending | |
-| 2 Lines 74-78 | Pending | |
-| 3 Lines 134-141 | Pending | |
-| 4 Sweep | Pending | |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Lines 46-48 | Completed | 20261107-184026 | 20261107-184026 |  |
+| 2 | Lines 74-78 | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | Lines 134-141 | Completed | 20261107-184026 | 20261107-184026 |  |
+| 4 | Sweep | Completed | 20261107-184026 | 20261107-184026 |  |
 ### Blocker Log
 - None.
 

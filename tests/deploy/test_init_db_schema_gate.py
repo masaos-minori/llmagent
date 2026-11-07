@@ -39,7 +39,9 @@ pytestmark = pytest.mark.skipif(
     "without a deployed uv project cannot run the script",
 )
 
-_MARKER_FATAL = "carries legacy migration marker table(s) and does not match the current schema"
+_MARKER_FATAL = (
+    "carries legacy migration marker table(s) and does not match the current schema"
+)
 _MARKER_OK = "no legacy migration marker tables"
 _BANNER = "=== init_db.sh: 完了 ==="
 
@@ -335,7 +337,9 @@ def test_marker_gate_aborts_when_workflow_carries_marker(
     assert _hash(db_dir / "workflow.sqlite") == before  # refusal performs no write
 
 
-def test_marker_gate_aborts_when_eventbus_carries_marker(tmp_path: pathlib.Path) -> None:
+def test_marker_gate_aborts_when_eventbus_carries_marker(
+    tmp_path: pathlib.Path,
+) -> None:
     db_dir = tmp_path / "db"
     db_dir.mkdir(parents=True, exist_ok=True)
     scripts_dir = _write_stub_scripts(tmp_path)

@@ -124,6 +124,20 @@ COMPAT_PATTERNS = {
     "from eventbus.db import": r"\bfrom eventbus\.db import\b",
     "import eventbus.db": r"\bimport eventbus\.db\b",
     "from eventbus import db": r"\bfrom eventbus import db\b",
+    # compatrm004 patterns — final no-compatibility removed-name set (plan
+    # 20261107-064415). The marker-table names (schema_migrations,
+    # workflow_schema_version, WORKFLOW_SCHEMA_VERSION) deliberately live in
+    # _REMOVED_NAME_PATTERNS instead of here: scripts/db/recovery_drill.py and
+    # scripts/agent/services/workflow_schema.py name the marker tables in
+    # LEGACY_MARKER_TABLES as live detectors, and COMPAT_PATTERNS has no
+    # historical-context exemption.
+    "verify_backup_by_path reference": r"\bverify_backup_by_path\b",
+    "shared.db_migrations reference": r"\bshared[./]db_migrations\b",
+    "db.migrations_workflow reference": r"\bdb\.migrations_workflow\b|migrations_workflow\.py",
+    "eventbus.migrations reference": r"\beventbus\.migrations\b|eventbus/migrations\.py",
+    "eventbus.migrate reference": r"\beventbus\.migrate\b|eventbus/migrate\.py",
+    "migrate_db.py reference": r"\bmigrate_db\.py\b",
+    "nack_event two-argument call form": r"nack_event\(\s*[\w.\[\]\"']+\s*,\s*[\w.\[\]\"']+\s*\)",
 }
 
 # Patterns an Accepted ADR phrases as an explicit prohibition, keyed by name,
@@ -154,6 +168,12 @@ ADR_PROHIBITED_PATTERNS: dict[str, tuple[str, str]] = {
 
 _VALID_CATEGORIES: frozenset[str] = frozenset(
     {"compatibility", "migration", "fallback", "fixture"}
+)
+# Categories that encode "the repository tolerates a retired mechanism".
+# The no-compatibility policy (plan 20261107-064415 REQ-003) forbids them:
+# only `fixture` (negative-test data) may appear as an exception entry.
+_PRODUCTION_CATEGORIES: frozenset[str] = frozenset(
+    {"compatibility", "migration", "fallback"}
 )
 _REQUIRED_FIELDS: tuple[str, ...] = (
     "id",
@@ -187,6 +207,15 @@ def load_exceptions(
     }
     allowance_table = data.get("symbol_stage_allowance", {})
     symbol_allowances = frozenset(allowance_table.get("names", []))
+    # Dedicated allowance for the checker's own pattern literals (added by plan
+    # 20261107-064415): a top-level table, not a `[[compatibility_exceptions]]
+    # entry, so it cannot be mistaken for a production-category exemption.
+    self_reference_table = data.get("checker_self_reference", {})
+    self_reference_paths = self_reference_table.get("paths", [])
+    if isinstance(self_reference_paths, list):
+        allowlist.update(
+            ROOT_DIR / p for p in self_reference_paths if isinstance(p, str)
+        )
     return entries, allowlist, symbol_allowances
 
 
@@ -214,6 +243,14 @@ def validate_exceptions(entries: list[dict[str, str]]) -> None:
             print(
                 f"invalid compatibility exception {ident!r}: unknown category "
                 f"{category!r} (expected one of {sorted(_VALID_CATEGORIES)})",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if category in _PRODUCTION_CATEGORIES:
+            print(
+                f"invalid compatibility exception {ident!r}: production-category entries are "
+                f"not permitted ({category!r}) under the no-compatibility policy "
+                f"(plan 20261107-064415 REQ-003)",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -397,6 +434,37 @@ _REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
     "plans/done/20261015-112526_plan.md REQ-017; ADR-004 leaves no configuration path that "
     "downgrades a Safety/Integrity posture failure)": re.compile(
         r"\bsecurity_lockdown_enabled\b"
+    ),
+    # compatrm004 (plan 20261107-064415) — marker tables and migration-claim
+    # phrases from the removed migration framework (deleted by plan
+    # 20261107-061846). Docs-only stage with the historical-context exemption,
+    # so supersession prose that names the retired machinery passes while
+    # present-tense migration claims do not.
+    "schema_migrations reference (confirmed removed — migration framework deleted, per "
+    "plans/done/20261107-061846_plan.md compatrm001)": re.compile(
+        r"\bschema_migrations\b"
+    ),
+    "workflow_schema_version reference (confirmed removed — migration framework deleted, per "
+    "plans/done/20261107-061846_plan.md compatrm001)": re.compile(
+        r"\bworkflow_schema_version\b"
+    ),
+    "WORKFLOW_SCHEMA_VERSION reference (confirmed removed — migration framework deleted, per "
+    "plans/done/20261107-061846_plan.md compatrm001)": re.compile(
+        r"\bWORKFLOW_SCHEMA_VERSION\b"
+    ),
+    "forward-only migration claim (removed by plans/done/20261107-061846 and "
+    "20261107-064415)": re.compile(r"forward-only migration|registered forward-only"),
+    "migration ledger claim (removed by plans/done/20261107-061846 and "
+    "20261107-064415)": re.compile(
+        r"migration ledger|ledger migration|ledger-bearing|migration registry"
+    ),
+    "apply-migrations claim (removed by plans/done/20261107-061846 and "
+    "20261107-064415)": re.compile(r"\bapply migrations\b|to apply the migration"),
+    "migrates-forward claim (removed by plans/done/20261107-061846 and "
+    "20261107-064415)": re.compile(r"migrates through|migrates forward|evolve through"),
+    "verified-backup migration gate claim (removed by plans/done/20261107-061846 and "
+    "20261107-064415)": re.compile(
+        r"verified[- ]backup (?:precondition|gating|gate)|pre-migration gate"
     ),
 }
 
@@ -696,6 +764,13 @@ def main() -> int:
             else:
                 files.append(p)
         files = sorted(set(files))
+
+    # Skip `*.md` under any `done/` directory component: archived procedure
+    # and plan documents (implementations/done/, plans/done/) legitimately
+    # quote removed names as historical record and are not active docs
+    # (plan 20261107-064415 doc 01 step 6; a guard — no docs/**/done/ exists
+    # today).
+    files = [f for f in files if not (f.suffix == ".md" and "done" in f.parts)]
 
     # Symbol stage: the live corpus has zero findings, so each remaining
     # finding is blocking.

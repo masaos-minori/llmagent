@@ -17,6 +17,15 @@ Remove the migration-framing row (line 94) and the content that was covered by t
 - The document-guide structure (row table of mcp docs) stays; only the migration-era row/wording
   changes.
 
+## Verification findings (adversarial re-verification 2026-11-07, HEAD `be4d74463`)
+
+- The only finding was line 94's guide-table row naming `_MCP_TOOLS` (a COMPAT-pattern literal;
+  no historical-context exemption applies to it in docs, so the exempting manifest entry deleted
+  by sibling document 02 made it blocking). Row rewritten to "Naming convention for tool schema
+  modules and `TOOL_LIST` exports, verified by the schema-export guard test"; the retired literal
+  now appears in zero docs files (grep-verified after the edit), only in the guard test file
+  (covered by its `fixture` manifest entry).
+
 ## Design decisions
 - Replace the migration-framing row's description with the current doc-set description; do not
   delete the row if it maps to a live document — delete only the migration framing text.
@@ -63,12 +72,13 @@ Remove the migration-framing row (line 94) and the content that was covered by t
 - Other mcp docs (doc 15).
 
 ## Execution Status
-| Step | Status | Notes |
-|---|---|---|
-| 1 Line 94 rewrite | Pending | |
-| 2 Sweep | Pending | |
-| 3 Exception-reliance check | Pending | |
 
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Line 94 rewrite | Completed | 20261107-184026 | 20261107-184026 |  |
+| 2 | Sweep | Completed | 20261107-184026 | 20261107-184026 |  |
+| 3 | Exception-reliance check | Completed | 20261107-184026 | 20261107-184026 |  |
 ### Blocker Log
 - None.
 
