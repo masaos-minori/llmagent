@@ -67,3 +67,12 @@ Handle the two sites separately and state for each whether the condition is reac
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203226
 - **Related target files**: scripts/agent/workflow_engine_adapter.py
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle), including live bandit and ruff runs.
+
+- Two production asserts confirmed: `assert self._workflow_engine is not None` (`scripts/agent/workflow_engine_adapter.py:172`, in `execute_turn`'s engine-start path) and `assert boundary is not None` (L407, in the persist-as-assistant path). Bandit reports exactly two `B101: assert_used` findings for the file. — Evidence: `Verified by test` (live bandit) — Confidence: High
+- "Each followed by a suppression comment" claim corrected: only the L407 assert carries `# noqa: B101`; the L172 assert has no suppression. — Evidence: `Verified by test` — Confidence: High
+- Inert-suppression confirmed live: ruff `select = ["E", "W", "F", "I", "UP", "BLE001"]` (`pyproject.toml:106`) — no `B` family; `uv run ruff check --select RUF100 scripts/agent/workflow_engine_adapter.py` reports the L407 `# noqa: B101` as an unused directive (1 error, auto-fixable), confirming it suppresses nothing. — Evidence: `Verified by test` (live ruff) — Confidence: High
+- Replacement shape note: the L172 guard protects a `WorkflowEngine | None` constructor parameter used immediately after (`engine = self._workflow_engine`, L175) — a plain `if ... is None: raise` typed-error replacement must pick an exception the `execute_turn` except branches (`WorkflowHaltError`, `WorkflowTimeoutError`, generic) already plan for, per the issue's point about `AssertionError`. The L407 guard protects `ctx.turn.persistence_boundary` before `boundary.save(...)` (L408). — Evidence: `Verified by test` — Confidence: High
