@@ -79,9 +79,9 @@ resume), never via an implement/test/document step.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the archive-order guard to Allowed file operations and Step 7 | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs-only; structure checkers only |
-| 4 | Update documentation, if in scope | Pending | — | — | N/A: skill workflow file, not a docs/ task-scope row |
+| 1 | Add the archive-order guard to Allowed file operations and Step 7 | Completed | 20261107-133405 | 20261107-133405 | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261107-133405 | 20261107-133405 | docs-only; structure checkers only |
+| 4 | Update documentation, if in scope | Completed | 20261107-133405 | 20261107-133405 | N/A: skill workflow file, not a docs/ task-scope row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

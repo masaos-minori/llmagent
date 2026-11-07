@@ -7,23 +7,17 @@ a time, using GitPython so the move is recorded as a Git rename.
 
 Every subcommand shares these pre-move safety checks (`move_to_done()`): the source
 file must exist, the destination must not already exist, and the destination's `done/`
-directory must already exist. If the source file itself has uncommitted local changes
-(untracked, staged, or modified-since-commit — other files' uncommitted changes
-elsewhere in the repository are ignored), it is staged and committed automatically
-(via the real `git add`/`git commit` commands, so any configured pre-commit hooks
-still run) before the move proceeds — there is no flag to bypass this with an
-uncommitted move; auto-commit is the only path. If `origin` is configured as a
-remote, the move also fetches it and refuses when the destination path already exists
-on the remote-tracking branch (a concurrent session likely already archived this file
-there); a fetch failure (no network, no `origin`, detached HEAD) degrades to a no-op
-rather than blocking the move. `git status`/`git mv`/auto-commit invocations retry a
-bounded number of times on `.git/index.lock` contention from a concurrent git process.
-
-Every `close-*` subcommand accepts `--stage-only`: the dirty source is staged
-(`git add`) instead of committed before the move, so the rename lands in the next
-real commit together with the work it belongs to and no `chore: auto-commit ...`
-commit is created. Default behavior (auto-commit) is unchanged; pre-commit hooks
-then run at that later commit rather than at the move.
+directory must already exist. If the source file has uncommitted local changes
+(untracked, staged, or modified-since-commit; other files' changes elsewhere are
+ignored), it is staged and committed automatically via the real `git add`/`git commit`
+commands (pre-commit hooks still run) before the move — auto-commit is the only path.
+If `origin` is a remote, the move fetches it and refuses when the destination already
+exists on the remote-tracking branch (a concurrent session likely archived it); a
+fetch failure degrades to a no-op. `git status`/`git mv`/auto-commit retry a bounded
+number of times on `.git/index.lock` contention. Every `close-*` subcommand also
+accepts `--stage-only`: stage the dirty source (`git add`) instead of committing, so
+the rename lands in the next real commit with its work and no `chore: auto-commit ...`
+commit is created.
 
 `close-issue` additionally refuses the move while a Plan in `plans/` (not `plans/done/`)
 names the issue in its `- **Source issue**:` line and that Plan's `Freeze status` is not
@@ -46,6 +40,11 @@ Subcommands:
   set-step-status       same, but only for one row (--step N or --description text)
   detect-stale          list plans/implementations not modified in --days (default 7)
                          that are still In Progress or Pending
+detect-unexecuted-archive
+                      list implementations/done/*.md archived within --days
+                      (default 7) that still have an open Execution Status row
+                      (report-only; never moves or edits a file)
+
   list                  list plans/implementations, optionally filtered by --kind/--status
                          or, with --plan PLAN --order, one Plan's procedures in phase order
   show                  print a plan's or implementation procedure's Execution Status table
@@ -83,6 +82,7 @@ if __package__ in (None, ""):
 
 from typing import TYPE_CHECKING
 
+from tools._detect_unexecuted_archive import cmd_detect_unexecuted_archive
 from tools._workitem_stage_parser import build_parser
 from tools._workitem_status_table import (
     EXECUTION_STATUS_HEADING,
@@ -1025,6 +1025,8 @@ def main(argv=None):
         return cmd_set_step_status(args)
     elif args.subcommand == "detect-stale":
         return cmd_detect_stale(args)
+    elif args.subcommand == "detect-unexecuted-archive":
+        return cmd_detect_unexecuted_archive(args)
     elif args.subcommand == "list":
         return cmd_list(args)
     elif args.subcommand == "show":

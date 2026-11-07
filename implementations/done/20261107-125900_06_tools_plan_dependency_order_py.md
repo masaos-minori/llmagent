@@ -129,11 +129,11 @@ asserting the unchanged classification passes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add Plan→procedure mapping and uncompleted-procedure helpers | Pending | — | — | |
-| 2 | Add the `incomplete` Report field and compute it for open Plans | Pending | — | — | |
-| 3 | Render the non-blocking section in text and json; add `--days` flag | Pending | — | — | |
-| 4 | Add the readiness-unchanged regression test + uncompleted-flag test | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add Plan→procedure mapping and uncompleted-procedure helpers | Completed | 20261107-144904 | 20261107-144904 | Date source is file mtime scoped by --days (doc specifies only window-matching with the detector); non-git roots yield empty list. |
+| 2 | Add the `incomplete` Report field and compute it for open Plans | Completed | 20261107-144904 | 20261107-144904 |  |
+| 3 | Render the non-blocking section in text and json; add `--days` flag | Completed | 20261107-144904 | 20261107-144904 |  |
+| 4 | Add the readiness-unchanged regression test + uncompleted-flag test | Completed | 20261107-144904 | 20261107-144904 |  |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261107-144904 | 20261107-144904 | ruff format/check, mypy, bandit (0 issues), desc gate clean; 42 tests pass (36 existing + 6 new); adversarial edges (plans/done twin normalization, malformed file, empty dir, archived-only twin) verified. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

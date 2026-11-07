@@ -5,6 +5,8 @@ Tests for tools/plan_dependency_order.py.
 from __future__ import annotations
 
 import hashlib
+import os
+import time
 from pathlib import Path
 
 import orjson
@@ -364,3 +366,69 @@ class TestMain:
 
     def test_unreadable_plans_directory_returns_one(self, tmp_path: Path) -> None:
         assert pdo.main(["--root", str(tmp_path)]) == 1
+
+
+def _procedure(root: Path, rel: str, source_plan: str, status: str) -> None:
+    """Write a done procedure under `rel` naming `source_plan` as its
+    `**Source plan**` with a single `### Execution Status` row in `status`."""
+    body = (
+        "# Procedure\n\n"
+        "## Traceability\n"
+        f"- **Source plan**: `{source_plan}`\n\n"
+        "## Execution Status\n\n"
+        "### Execution Status\n"
+        "| Step | Description | Status | Started | Completed | Notes |\n"
+        "|------|-------------|--------|---------|-----------|-------|\n"
+        f"| 1 | step 1 | {status} | — | — | |\n"
+    )
+    _write(root / rel, body)
+
+
+class TestIncompleteProcedures:
+    def test_uncompleted_procedure_is_flagged_non_blocking(
+        self, tmp_path: Path
+    ) -> None:
+        _plan(tmp_path, PLAN_A)
+        _procedure(tmp_path, "implementations/done/20261107_x.md", PLAN_A, "Pending")
+        report = pdo.build_report(tmp_path)
+        assert report.incomplete == [PLAN_A]
+        text = pdo.render_text(report)
+        assert "Incomplete procedures (non-blocking):" in text
+        assert PLAN_A in text
+
+    def test_json_reports_incomplete(self, tmp_path: Path) -> None:
+        _plan(tmp_path, PLAN_A)
+        _procedure(
+            tmp_path, "implementations/done/20261107_x.md", PLAN_A, "In Progress"
+        )
+        data = orjson.loads(pdo.render_json(pdo.build_report(tmp_path)))
+        assert data["incomplete"] == [PLAN_A]
+
+    def test_ready_gated_unchanged_with_uncompleted_procedure(
+        self, tmp_path: Path
+    ) -> None:
+        # Regression guard (REQ-003): a leaked uncompleted procedure must not
+        # change the dependency-driven ready/gated classification.
+        _plan(tmp_path, PLAN_A, [], status_rows=[("1", "Completed")])
+        _plan(tmp_path, PLAN_B, [_depends(PLAN_A)])
+        before = {r.plan: r.status for r in pdo.build_report(tmp_path).results}
+        _procedure(tmp_path, "implementations/done/20261107_x.md", PLAN_A, "Blocked")
+        after = {r.plan: r.status for r in pdo.build_report(tmp_path).results}
+        assert before == after == {PLAN_A: "ready", PLAN_B: "gated"}
+
+    def test_completed_procedure_is_not_flagged(self, tmp_path: Path) -> None:
+        _plan(tmp_path, PLAN_A)
+        _procedure(tmp_path, "implementations/done/20261107_x.md", PLAN_A, "Completed")
+        assert pdo.build_report(tmp_path).incomplete == []
+
+    def test_old_procedure_outside_window_is_not_flagged(self, tmp_path: Path) -> None:
+        _plan(tmp_path, PLAN_A)
+        rel = "implementations/done/20260101_old.md"
+        _procedure(tmp_path, rel, PLAN_A, "Pending")
+        old = time.time() - 30 * 86_400
+        os.utime(tmp_path / rel, (old, old))
+        assert pdo.build_report(tmp_path).incomplete == []
+
+    def test_missing_done_directory_yields_empty(self, tmp_path: Path) -> None:
+        _plan(tmp_path, PLAN_A)
+        assert pdo.build_report(tmp_path).incomplete == []

@@ -178,6 +178,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of days since last modification to consider stale (default: 7)",
     )
 
+    # detect-unexecuted-archive: report recently-archived procedures with open rows
+    # (report-only; never moves or edits a work item).
+    unexecuted_parser = subparsers.add_parser(
+        "detect-unexecuted-archive",
+        help="Report recently-archived procedures with open Execution Status rows "
+        "(report-only; procedures with no archive-date commit are skipped)",
+    )
+    unexecuted_parser.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="Number of days since archive to consider recent (default: 7)",
+    )
+
     # list: list workitems by status/kind
     list_parser = subparsers.add_parser(
         "list",

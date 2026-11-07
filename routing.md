@@ -168,7 +168,7 @@ The full pipeline runs across three top-level directories, in order:
 | `plans/` | Work plan docs produced by `prompts/01_issue-to-plan.md`, ready for `prompts/02_plan-to-implementation-procedure.md`. |
 | `plans/done/` | Plan docs consumed by `prompts/02_plan-to-implementation-procedure.md`. |
 | `implementations/` | File-level implementation procedure docs produced by `prompts/02_plan-to-implementation-procedure.md`, ready for `prompts/03_implementation.md`. |
-| `implementations/done/` | Implementation procedure docs consumed by `prompts/03_implementation.md`. |
+| `implementations/done/` | Implementation procedure docs consumed by `prompts/03_implementation.md`. Only executed procedures are stored here; a procedure reaches this directory only via the `code-implementation` Step 7 archival move, never by an earlier phase. |
 
 ## Docs → task mapping
 

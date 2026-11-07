@@ -5,8 +5,11 @@ Tests for tools/manage_workitem_stage.py.
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import subprocess
 from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import git
@@ -107,6 +110,64 @@ def _commit_file(repo: git.Repo, path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
     repo.index.add([str(path)])
     repo.index.commit(f"add {path.name}")
+
+
+def _recent_archive_date() -> str:
+    """A committer date inside the default 7-day window (now - 1 day).
+
+    Uses a fixed non-UTC offset so ``git`` emits ``%cI`` as ``+HH:MM`` rather
+    than ``Z``; the detector keys on that textual form.
+    """
+    nine = timezone(timedelta(hours=9))
+    return (datetime.now(nine) - timedelta(days=1)).replace(microsecond=0).isoformat()
+
+
+def _old_archive_date() -> str:
+    """A committer date outside any reasonable window (now - 30 days)."""
+    nine = timezone(timedelta(hours=9))
+    return (datetime.now(nine) - timedelta(days=30)).replace(microsecond=0).isoformat()
+
+
+def _place_done_file(
+    repo: git.Repo,
+    rel_path: str,
+    content: str,
+    commit_date_str: str,
+) -> None:
+    """Write `content` under `rel_path` (e.g. ``implementations/<name>.md``),
+    commit it under ``implementations/``, then ``git mv`` it into
+    ``implementations/done/`` and commit the rename with a controlled committer
+    date.
+
+    The detector keys on the first commit that adds a file at its
+    ``implementations/done/`` path, so the archive date is driven by the
+    ``GIT_COMMITTER_DATE`` of that final commit, not the filesystem mtime.
+    ``git mv`` only stages the move; the subsequent ``git commit`` records it.
+    """
+    root = Path(repo.git.rev_parse("--show-toplevel"))
+    impl_path = root / rel_path
+    impl_path.parent.mkdir(parents=True, exist_ok=True)
+    impl_path.write_text(content, encoding="utf-8")
+    repo.index.add([str(impl_path)])
+    repo.index.commit(f"add {rel_path}")
+
+    done_path = root / "implementations" / "done" / Path(rel_path).name
+    dated_env = {
+        **os.environ,
+        "GIT_AUTHOR_DATE": commit_date_str,
+        "GIT_COMMITTER_DATE": commit_date_str,
+    }
+    subprocess.run(
+        ["git", "mv", str(impl_path), str(done_path)],
+        cwd=str(root),
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", f"archive {rel_path}"],
+        cwd=str(root),
+        check=True,
+        env=dated_env,
+    )
 
 
 SIMPLE_MOVE_CASES: list[tuple[str, str, Callable[[argparse.Namespace], int]]] = [
@@ -1622,3 +1683,101 @@ def test_show_prints_release_unit_only_for_a_member(
     out = capsys.readouterr().out
     assert "Release unit" not in out
     assert out.splitlines()[-1].startswith("| 1 |")
+
+
+# ---------------------------------------------------------------------------
+# detect-unexecuted-archive: detector tests over a temporary repository
+# (REQ-002). Archive dates are simulated via GIT_COMMITTER_DATE on the commit
+# that places a procedure into implementations/done/, because the detector keys
+# on the first add-commit at that path (not the filesystem mtime). Every test
+# chdirs into the temp repo so the detector scans it relative to the CWD.
+# ---------------------------------------------------------------------------
+
+
+def test_detect_unexecuted_archive_reports_recent_stale_archive(
+    monkeypatch: pytest.MonkeyPatch,
+    temp_git_repo: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    monkeypatch.chdir(temp_git_repo)
+    name = "20260101_recent_stale.md"
+    _place_done_file(
+        repo,
+        f"implementations/{name}",
+        EXECUTION_STATUS_PENDING,
+        _recent_archive_date(),
+    )
+
+    assert manage_main(["detect-unexecuted-archive"]) == 0
+    out = capsys.readouterr().out
+    assert name in out
+    assert "no unexecuted archives found" not in out.lower()
+
+
+def test_detect_unexecuted_archive_skips_recent_completed_archive(
+    monkeypatch: pytest.MonkeyPatch,
+    temp_git_repo: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    monkeypatch.chdir(temp_git_repo)
+    name = "20260101_recent_completed.md"
+    _place_done_file(
+        repo,
+        f"implementations/{name}",
+        EXECUTION_STATUS_COMPLETED,
+        _recent_archive_date(),
+    )
+
+    assert manage_main(["detect-unexecuted-archive"]) == 0
+    out = capsys.readouterr().out
+    assert name not in out
+    assert "no unexecuted archives found" in out.lower()
+
+
+def test_detect_unexecuted_archive_skips_old_stale_archive(
+    monkeypatch: pytest.MonkeyPatch,
+    temp_git_repo: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    monkeypatch.chdir(temp_git_repo)
+    name = "20260101_old_stale.md"
+    _place_done_file(
+        repo,
+        f"implementations/{name}",
+        EXECUTION_STATUS_PENDING,
+        _old_archive_date(),
+    )
+
+    assert manage_main(["detect-unexecuted-archive"]) == 0
+    out = capsys.readouterr().out
+    assert name not in out
+
+
+def test_detect_unexecuted_archive_is_read_only(
+    monkeypatch: pytest.MonkeyPatch,
+    temp_git_repo: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    monkeypatch.chdir(temp_git_repo)
+    name = "20260101_readonly.md"
+    _place_done_file(
+        repo,
+        f"implementations/{name}",
+        EXECUTION_STATUS_PENDING,
+        _recent_archive_date(),
+    )
+    commits_before = len(list(repo.iter_commits()))
+    head_before = repo.head.commit.hexsha
+
+    assert manage_main(["detect-unexecuted-archive"]) == 0
+
+    # Read-only contract: no new commit, no working-tree change, file stays
+    # at its implementations/done/ path.
+    assert len(list(repo.iter_commits())) == commits_before
+    assert repo.head.commit.hexsha == head_before
+    assert repo.git.status("--porcelain") == ""
+    assert (temp_git_repo / "implementations" / "done" / name).exists()

@@ -56,16 +56,26 @@ warns on recent stale archives, never on older ones, and never modifies a work i
    add a new subparser after the `detect-stale` block:
    - name `detect-unexecuted-archive`, help `"Report recently-archived procedures with open Execution Status rows"`.
    - argument `--days` (`type=int`, `default=7`, help matching the `detect-stale` flag).
-2. **Command function** — in `tools/manage_workitem_stage.py`, add `cmd_detect_unexecuted_archive(args)` returning `int`:
+2. **Command function** — in `tools/manage_workitem_stage.py`, add `cmd_detect_unexecuted_archive` (new)(args) returning `int`:
    - Resolve the repo root from the current working directory (the same basis every `_get_*` helper uses).
    - Enumerate `Path("implementations") / "done" / "*.md"` (skip if the directory is absent).
-   - For each file, compute the archive date: run `git log --diff-filter=A --format=%cI -1 -- <relative done-path>` from the repo root; if it returns empty (no add-commit), skip the file; otherwise parse the ISO date and compare to `now - timedelta(days=args.days)`.
+   - Compute every in-window archive date in a SINGLE `git log` pass rather than one
+     `git log` per file: run
+     `git log --no-renames --diff-filter=A --since=@<epoch> --format=%cI --name-only -- "implementations/done/*"`
+     from the repo root, where `<epoch>` is `int((now - timedelta(days=args.days)).timestamp())`,
+     then group the emitted `(date, path)` pairs by path and keep the earliest date per path.
+     A per-file `git log` would walk full history once per file (~8k files here, hours); the
+     `--since` filter restricts git to the window, keeping this to one cheap scan.
+     `--no-renames` is required: procedures reach `done/` via `git mv`, which git records as a
+     rename (R); `--diff-filter=A` alone skips every such archive and would report nothing.
+     Pairs whose path has no add-commit inside the window are simply absent from the output
+     (skipped, not reported).
    - If the archive date is older than the window, skip.
    - Otherwise parse the file's `### Execution Status` table with `parse_execution_status_rows`; collect rows whose `Status` is `Pending`, `In Progress`, or `Blocked`.
    - If any such row exists, record `(path, archive_date, statuses)` as a finding.
    - After the loop: if no findings, print a one-line "no unexecuted archives found (window: N days)" message; else print a header and one line per finding. Always `return 0`.
-   - Use `datetime` explicitly (`import datetime` at module top) instead of the `__import__` pattern used by `cmd_detect_stale`.
-3. **Dispatch** — in `main()`, add an `elif args.subcommand == "detect-unexecuted-archive": return cmd_detect_unexecuted_archive(args)` branch after the `detect-stale` branch.
+   - Use `datetime`/`timedelta`/`UTC` explicitly (`from datetime import UTC, datetime, timedelta` at module top) instead of the `__import__` pattern used by `cmd_detect_stale`.
+3. **Dispatch** — in `main()`, add an `elif args.subcommand == "detect-unexecuted-archive": return cmd_detect_unexecuted_archive(new)(args)` branch after the `detect-stale` branch.
 4. **Help text** — document in the subcommand help that procedures with no archive-date commit are skipped and that the command is report-only (never moves or edits a file).
 
 ### Method
@@ -125,11 +135,11 @@ procedures, never moves or edits a file, and exits 0; existing commands are unch
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Register the `detect-unexecuted-archive` subcommand in the parser | Pending | — | — | |
-| 2 | Implement `cmd_detect_unexecuted_archive` (archive-date basis, report-only) | Pending | — | — | |
-| 3 | Wire the dispatch branch into `main()` | Pending | — | — | |
-| 4 | Add detector tests to the companion test file | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) + smoke on live `done/` | Pending | — | — | |
+| 1 | Register the `detect-unexecuted-archive` subcommand in the parser | Completed | 20261107-141528 | 20261107-141528 |  |
+| 2 | Implement `cmd_detect_unexecuted_archive` (new) (archive-date basis, report-only) | Completed | 20261107-141528 | 20261107-141528 |  |
+| 3 | Wire the dispatch branch into `main()` | Completed | 20261107-141528 | 20261107-141528 |  |
+| 4 | Add detector tests to the companion test file | Completed | 20261107-143853 | 20261107-143853 |  |
+| 5 | Run the validation sequence (`rules/toolchain.md`) + smoke on live `done/` | Completed | 20261107-141528 | 20261107-141528 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

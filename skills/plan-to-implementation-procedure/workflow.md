@@ -25,6 +25,9 @@ This is a document-only phase. Allowed operations:
 - Create implementation procedure documents in `implementations/`.
 - Move the processed plan file to `plans/done/` once Step 3's validation passes
   (no human approval, `rules/workflow-lifecycle.md` Validation Reporting).
+- This workflow archives the Plan only (`plans/done/`) and never moves an
+  implementation procedure to `implementations/done/`; that move belongs to
+  `code-implementation` Step 7.
 - Correct the Plan file itself (`plans/{filename}.md`, via Edit) when Step 3's
   adversarial verification finds an unconfirmed item or an inconsistency (the
   document-only constraint covers source code and `docs/*.md`, not the Plan under revision).
@@ -436,6 +439,9 @@ resumed run reclassifies every row by Step 3c.
 ## Step 4: Move the Completed Plan File
 
 This step MUST NOT be skipped.
+
+This workflow moves only the Plan file; no implementation procedure under
+`implementations/` is ever moved here (that belongs to `code-implementation` Step 7).
 
 The move to `plans/done/` needs no human approval (`rules/workflow-lifecycle.md` Validation Reporting) — proceed once Step 3
 completes and the checks below pass, without asking.

@@ -46,7 +46,9 @@ move) if the target's `### Execution Status` table still has a `Pending` row, wi
 - Modify `docs/*.md` only for changed files with a matching `docs/00_index.md`
   "Document References by Task" row (Step 5).
 - Move the processed implementation procedure file to `implementations/done/` after
-  validation passes (Step 7).
+  validation passes (Step 7). No earlier step (implement, test, or document) moves a
+  procedure; the move happens only at Step 7 (or the Step 1 all-steps-completed resume
+  for an already-complete procedure).
 - Correct the implementation procedure file itself (`implementations/{filename}.md`,
   via Edit) when Step 3's adversarial verification finds an unconfirmed item or an
   inconsistency, in addition to its `## Execution Status` section.
@@ -515,6 +517,8 @@ run passes (Batch mode (release unit)).
 The move to `implementations/done/` needs no human approval — proceed once Step 2 (stale detection) and Steps 3, 4, 5, and 6 pass, without asking.
 `rules/workflow-lifecycle.md` is scoped to `issue-to-plan`/`plan-to-impl-procedure`: its Archival Move and Plan Freeze rules do not apply here; only Target Validation (Step 1) and the
 Correction-and-Recheck Cycle Bound (Step 3b) do.
+
+Moving a procedure to `implementations/done/` before its Execution Status rows are `Completed` is the mistake this rule prevents.
 
 - Before attempting the move, check whether the destination
   `implementations/done/{filename}.md` already exists. If it does (e.g. Step 1's

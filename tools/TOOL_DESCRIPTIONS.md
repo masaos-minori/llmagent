@@ -69,6 +69,7 @@ Every tool that rewrites a repository file writes through `_atomic_write.py`: `m
 | `_validation_gate_defs.py` | Shared base | The `Gate` type, the argv helpers it depends on, and the toolchain and routing gate tables of `run_validation_gates.py` |
 | `_workitem_stage_parser.py` | Shared base | The command-line parser of `manage_workitem_stage.py` (every subcommand and option) |
 | `_workitem_status_table.py` | Shared base | Parsing, rendering, and rewriting of the `### Execution Status` table for `manage_workitem_stage.py` |
+| `_detect_unexecuted_archive.py` | Shared base | Read-only `detect-unexecuted-archive` detector for `manage_workitem_stage.py`: lists `implementations/done/*.md` archived within `--days` that still carry an open Execution Status row (report-only; never moves or edits a work item) |
 | `_report.py` | Shared base | Finding record, key profiles, deterministic text, JSON, and CSV renderers, and the `--format` option helper |
 | `_tool_common.py` | Shared base | Repository root, one `git` runner (UTF-8 text mode with replacement or bytes mode, optional `check` and `timeout`), and the exit-code constants |
 | `check_adr_authority.py` | ADR | Validate `config/adr_authority.toml`: duplicate primaries, dangling ADR IDs, authority-graph cycles, unknown edge types, `config-check` assumption drift (ADR-016; runs in CI) |

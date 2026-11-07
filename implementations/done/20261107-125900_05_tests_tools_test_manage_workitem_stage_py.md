@@ -19,7 +19,7 @@ over a temporary repository.)
   temp repo as CWD.
 - Archive dates are controlled by the commit date of the `git mv` that places a procedure
   into `implementations/done/`; recent and old windows are simulated by setting
-  `GIT_AUTHOR_DATE` / `GIT_COMMITTER_DATE` around that commit.
+  GIT_AUTHOR_DATE / GIT_COMMITTER_DATE around that commit.
 - This is the companion test file for the row covering `tools/manage_workitem_stage.py`, but
   it is generated as its own document because it requires a design decision of its own: the
   git-commit-date simulation strategy. It therefore fails the "needs no design decision of
@@ -78,13 +78,13 @@ over a temporary repository.)
    `manage_main` so the full argv/subcommand path is exercised.
 
 ### Method
-- Append the four tests and the `_place_done_file` helper to the end of the module; do not
+- Append the four tests and the `_place_done_file`(new) helper to the end of the module; do not
   modify existing tests or fixtures.
 - Keep each test focused on one assertion group; use descriptive names prefixed
   `test_detect_unexecuted_archive_*`.
 
 ### Details
-- Date format for `GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE`: ISO-8601 UTC strings such as
+- Date format for GIT_AUTHOR_DATE/GIT_COMMITTER_DATE: ISO-8601 UTC strings such as
   `2026-10-07T12:00:00`, or `now - 1 day` arithmetic via `datetime.now() - timedelta`.
 - For the "recent" case pick a date inside the default 7-day window; for "old" pick a date
   outside it. Do not hard-code against a specific clock by using relative offsets.
@@ -124,9 +124,9 @@ pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `_place_done_file` helper and date-simulation approach | Pending | — | — | |
-| 2 | Add the four detector assertions (recent/stale, recent/completed, old/stale, read-only) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the `_place_done_file`(new) helper and date-simulation approach | Completed | 20261107-143707 | 20261107-143707 |  |
+| 2 | Add the four detector assertions (recent/stale, recent/completed, old/stale, read-only) | Completed | 20261107-143707 | 20261107-143707 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261107-143707 | 20261107-143707 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

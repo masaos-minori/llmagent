@@ -48,6 +48,7 @@ import argparse
 import heapq
 import re
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -80,6 +81,8 @@ _DEPENDENCIES_BULLET_RE = re.compile(r"(?m)^- \*\*Dependencies\*\*:")
 _TOP_BULLET_RE = re.compile(r"(?m)^- ")
 _PROSE_PATH_RE = re.compile(r"\b((?:plans|issues)/[\w./-]+\.md)")
 _ALLOWED_TOP_DIRS = frozenset({"plans", "issues"})
+_SOURCE_PLAN_RE = re.compile(r"\*\*Source plan\*\*:[ \t]*(.+)")
+_OPEN_STATUSES = frozenset({"Pending", "In Progress", "Blocked"})
 
 CLOSED = "closed"
 OPEN = "open"
@@ -343,6 +346,60 @@ def find_overlaps(nodes: list[PlanNode]) -> list[dict[str, str]]:
     return find_cross_plan_target_overlaps(documents)
 
 
+def _source_plan_stem(content: str) -> str | None:
+    """Return the normalized source-plan path named by a procedure's
+    `**Source plan**:` Traceability field, collapsing `plans/done/<x>` to
+    `plans/<x>`. Returns None when the field is absent or not a `plans/` path.
+    """
+    match = _SOURCE_PLAN_RE.search(content)
+    if match is None:
+        return None
+    raw = match.group(1).strip().replace("`", "")
+    parts = Path(raw).parts
+    if len(parts) < 2 or parts[0] != "plans":
+        return None
+    if len(parts) >= 3 and parts[1] == "done":
+        parts = ("plans", *parts[2:])
+    return Path(*parts).as_posix()
+
+
+def _procedure_has_open_status(content: str) -> bool:
+    """True when the procedure's `### Execution Status` table has any row whose
+    status is Pending, In Progress, or Blocked."""
+    rows = parse_execution_status_rows(content)
+    if rows is None:
+        return False
+    return any(row.get("Status", "").strip() in _OPEN_STATUSES for row in rows)
+
+
+def _incomplete_plans(root: Path, plans: set[str], days: int, now: float) -> list[str]:
+    """Return the sorted open Plans whose executed procedures leaked into
+    `implementations/done/` still carry an open Execution Status row and were
+    archived within the last `days` days.
+
+    Archive age uses each file's modification time; a missing
+    `implementations/done/` directory yields an empty list.
+    """
+    cutoff = now - days * 86_400
+    done_dir = root / "implementations" / "done"
+    flagged: set[str] = set()
+    if not done_dir.is_dir():
+        return []
+    for proc in sorted(done_dir.glob("*.md")):
+        try:
+            age = proc.stat().st_mtime
+            if age < cutoff:
+                continue
+            content = proc.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        stem = _source_plan_stem(content)
+        if stem is None or stem not in plans or not _procedure_has_open_status(content):
+            continue
+        flagged.add(stem)
+    return sorted(flagged)
+
+
 @dataclass
 class Report:
     order: list[str]
@@ -351,15 +408,19 @@ class Report:
     cycles: list[list[str]]
     overlaps: list[dict[str, str]]
     warnings: list[str]
+    incomplete: list[str] = field(default_factory=list)
 
 
-def build_report(root: Path, only_plan: str | None = None) -> Report:
+def build_report(root: Path, only_plan: str | None = None, days: int = 7) -> Report:
     nodes, warnings = load_plans(root)
     plans = {node.path: node for node in nodes}
     order, cyclic = recommended_order(nodes)
     results = [readiness(plans[path], root, plans) for path in order]
     cycles = find_cycles(nodes)
     overlaps = find_overlaps(nodes)
+    incomplete = _incomplete_plans(
+        root, {node.path for node in nodes}, days, time.time()
+    )
     if only_plan is not None:
         results = [r for r in results if r.plan == only_plan]
         warnings = [w for w in warnings if w.startswith(f"{only_plan}:")]
@@ -370,7 +431,7 @@ def build_report(root: Path, only_plan: str | None = None) -> Report:
             node, node_warnings = _load_node(root, archived)
             results = [readiness(node, root, plans)]
             warnings = node_warnings
-    return Report(order, cyclic, results, cycles, overlaps, warnings)
+    return Report(order, cyclic, results, cycles, overlaps, warnings, incomplete)
 
 
 def render_text(report: Report) -> str:
@@ -406,6 +467,12 @@ def render_text(report: Report) -> str:
     if report.warnings:
         lines += ["", "Warnings:"]
         lines.extend(f"  {warning}" for warning in report.warnings)
+    if report.incomplete:
+        lines += ["", "Incomplete procedures (non-blocking):"]
+        lines.extend(
+            f"  {plan}: uncompleted procedure(s) in implementations/done/"
+            for plan in report.incomplete
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -427,6 +494,7 @@ def render_json(report: Report) -> str:
         "cycles": report.cycles,
         "overlaps": report.overlaps,
         "warnings": report.warnings,
+        "incomplete": report.incomplete,
     }
     return orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode()
 
@@ -452,6 +520,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=str(ROOT_DIR),
         help="Repository root holding plans/ and issues/ (default: this repository)",
     )
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="Flag open Plans whose leaked procedures were archived within the "
+        "last N days (default: 7). Non-blocking; does not change ready/gated.",
+    )
     return parser
 
 
@@ -476,7 +551,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: Plan is outside the root: {args.plan}", file=sys.stderr)
             return 1
 
-    report = build_report(root, only_plan)
+    report = build_report(root, only_plan, args.days)
     if args.format == "json":
         print(render_json(report))
     else:
