@@ -70,3 +70,12 @@ Change only the checker and its tests/config. Any newly flagged symbol gets a on
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203225
 - **Related target files**: tools/check_compat_shims.py, scripts/agent/workflow_engine_adapter.py, scripts/agent/services/workflow_schema.py
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle), including live checker runs.
+
+- Case-sensitivity confirmed mechanically: `COMPAT_PATTERNS` matches are applied via `re.search(pattern, stripped)` with no flags (`tools/check_compat_shims.py:630-633`); the pattern `"backward-compatible keyword": r"backward-compatible"` (L95) does not match the capitalized section header "Backward-compatible public API" (`scripts/agent/workflow_engine_adapter.py:106`) or the four "Backward-compatible alias for ..." docstrings (L121,128,135,144). Live repro: `re.search(r"backward-compatible", "Backward-compatible ...")` -> False; with `re.IGNORECASE` -> True. — Evidence: `Verified by test` (live repro) — Confidence: High
+- Live checker run confirms the pass: `uv run python tools/check_compat_shims.py scripts/agent/workflow_engine_adapter.py` and the same with `--check-removed-names` on both target files both print "All checks passed" at HEAD. — Evidence: `Verified by test` — Confidence: High
+- `LEGACY_MARKER_TABLES` claim needs a mechanism correction: the constant is not covered by `COMPAT_PATTERNS` at all (no `LEGACY_`-shaped pattern exists there — confirmed by scan of the dict). The removed-names scan separately handles the marker table names via `_REMOVED_NAME_PATTERNS` (L447-449), and the checker comment at L128-133 states this placement is deliberate because `COMPAT_PATTERNS` has no historical-context exemption; the removed-names path applies case-insensitive `_HISTORICAL_CONTEXT_MARKERS` exemption (`legacy` in the frozenset, L345-347, applied at L494), which is why the constant line is not flagged there. The gap is that neither scan flags the capitalized constant name itself. — Evidence: `Verified by test` — Confidence: High
+- CI wiring confirmed: `.github/workflows/backward-compat-check.yml:39` runs `check_compat_shims.py --check-removed-names --check-doc-symbols`, so any case-insensitivity fix must be validated against the whole repository to avoid a flood of new findings (docs contain legitimate capitalized "Backward" history prose). — Evidence: `Verified by test` — Confidence: High
