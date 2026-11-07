@@ -7,8 +7,7 @@ Load this file only after `workflow.md` Step 2 classifies the change as Path B (
 
 ## Step 3 depth: Preparation
 
-- `rg` and the deploy-reference search (`deploy/`, `conf.d/`, `init.d/`) MUST run every
-  time — see `workflow.md` Step 2 and Refactoring-Specific Guidance.
+- `rg` and the deploy-reference search: See `workflow.md`, section "Refactoring-Specific Guidance".
 - Run `pydeps` (import graph), `PYTHONPATH=scripts uv run lint-imports` (module boundaries),
   and `ast-grep` (structural usage search), each under `validation.md` Conditional Validation
   handling (a skipped check MUST NOT be reported as passed).

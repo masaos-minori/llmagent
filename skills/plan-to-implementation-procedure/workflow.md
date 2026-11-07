@@ -202,9 +202,8 @@ Procedure/Method/Details for a row: look for reasons the Plan's claims about the
 target file, symbol, call path, or test might be wrong — shifted line numbers, an
 already renamed/removed symbol, a dependency the Plan did not account for, a
 Requirement duplicating/contradicting another Plan, or a code path the Plan's
-Background never checked — verifying each via `rg`/Read. Apply `rules/ai-execution.md`
-Tool Usage's idempotent-command rule: MUST NOT re-run a `rg`/Read check already performed
-against this same file at its current content within this cycle.
+Background never checked — verifying each via `rg`/Read. See `rules/ai-execution.md`,
+section "Tool Usage".
 
 If adversarial verification finds an unconfirmed item or an inconsistency (a stale
 claim, a missing Requirement, a newly discovered dead-code reference, a duplicate or
