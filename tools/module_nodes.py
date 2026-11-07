@@ -65,7 +65,12 @@ def measure(path: pathlib.Path, min_bytes: int) -> list[dict[str, object]]:
     for node in tree.body:
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             continue
-        start = node.lineno
+        decorators = getattr(node, "decorator_list", [])
+        start = (
+            node.lineno
+            if not decorators
+            else min(node.lineno, min(d.lineno for d in decorators))
+        )
         end = node.end_lineno or start
         size = len("\n".join(src[start - 1 : end]).encode("utf-8"))
         if size < min_bytes:
@@ -109,7 +114,13 @@ def _node_index(tree: ast.Module) -> dict[str, tuple[int, int]]:
     index: dict[str, tuple[int, int]] = {}
     for node in tree.body:
         if isinstance(node, _MOVED_NODE):
-            index[node.name] = (node.lineno, node.end_lineno or node.lineno)
+            decorators = getattr(node, "decorator_list", [])
+            start = (
+                node.lineno
+                if not decorators
+                else min(node.lineno, min(d.lineno for d in decorators))
+            )
+            index[node.name] = (start, node.end_lineno or start)
     return index
 
 
@@ -322,13 +333,16 @@ def _params(node: ast.FunctionDef) -> str:
 def _normalize(node: ast.FunctionDef, injected: set[str]) -> str:
     node.args.args = [a for a in node.args.args if a.arg != "self"]
     node.body = _strip_docstring(node.body)
-    node.decorator_list = []
     for stmt in node.body:
         _SelfToName().visit(stmt)
         if injected:
             _DropInjectedArgs(injected).visit(stmt)
     ast.fix_missing_locations(node)
-    return ast.dump(ast.Module(body=node.body, type_ignores=[]), indent=1)
+    body_dump = ast.dump(ast.Module(body=node.body, type_ignores=[]), indent=1)
+    if node.decorator_list:
+        dec_dump = "\n".join(ast.dump(dec, indent=1) for dec in node.decorator_list)
+        return f"{dec_dump}\n{body_dump}"
+    return body_dump
 
 
 def _functions(src: str, class_name: str | None) -> dict[str, ast.FunctionDef]:

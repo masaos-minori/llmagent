@@ -16,6 +16,9 @@ from tools import _atomic_write, module_nodes
 SRC = "import os\n\n\ndef alpha():\n    return 1\n\n\ndef gamma():\n    return 3\n"
 DEST_OLD = "def old():\n    return 0\n"
 SRC_AFTER = "import os\n\n\n\n\ndef gamma():\n    return 3\n"
+SRC_DECORATED = (
+    "@decorator\n\n\ndef alpha():\n    return 1\n\n\ndef gamma():\n    return 3\n"
+)
 
 
 def _sha(path: Path) -> str:
@@ -180,3 +183,25 @@ def test_failed_restore_reports_both_paths_and_keeps_the_moved_code(
     assert "both" in err
     assert "def alpha" in src.read_text(encoding="utf-8")
     assert "def alpha" in dest.read_text(encoding="utf-8")
+
+
+def test_decorated_node_moves_with_decorator_atomically(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    src = tmp_path / "src.py"
+    dest = tmp_path / "dest.py"
+    src.write_text(SRC_DECORATED, encoding="utf-8")
+
+    assert (
+        module_nodes.main(
+            ["extract", "--src", str(src), "--dest", str(dest), "--name", "alpha"]
+        )
+        == 0
+    )
+
+    dest_text = dest.read_text(encoding="utf-8")
+    src_text = src.read_text(encoding="utf-8")
+    assert "@decorator" in dest_text
+    assert "def alpha()" in dest_text
+    assert "@decorator" not in src_text
+    assert _leftovers(tmp_path) == []

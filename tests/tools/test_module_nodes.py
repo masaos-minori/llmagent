@@ -123,6 +123,34 @@ def test_measure_missing_file_returns_1(
     assert "not found" in capsys.readouterr().err
 
 
+def test_measure_includes_decorator_line_for_decorated_function(
+    tmp_path: Path,
+) -> None:
+    src = _write(tmp_path, "m.py", "@decorator\n\ndef alpha():\n    return 1\n")
+    rows = measure(src, 0)
+    assert len(rows) == 1
+    assert rows[0]["name"] == "alpha"
+    assert rows[0]["start"] == 1  # earliest decorator line, not the def line (3)
+    assert rows[0]["end"] == 4
+    assert rows[0]["span"] == 4
+
+
+def test_measure_includes_decorator_line_for_decorated_class(
+    tmp_path: Path,
+) -> None:
+    src = _write(
+        tmp_path,
+        "m.py",
+        "@dec2\n\nclass Beta:\n    def method(self):\n        return 2\n",
+    )
+    rows = measure(src, 0)
+    assert len(rows) == 1
+    assert rows[0]["name"] == "Beta"
+    assert rows[0]["start"] == 1  # earliest decorator line, not the class line (3)
+    assert rows[0]["end"] == 5
+    assert rows[0]["span"] == 5
+
+
 # --- extract ---
 
 
@@ -236,6 +264,26 @@ def test_extract_rejects_a_bad_range(tmp_path: Path, raw: str, message: str) -> 
     assert message in str(excinfo.value.code)
 
 
+def test_extract_moves_decorated_node_with_decorator(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    src_text = (
+        "@decorator\n\ndef alpha():\n    return 1\n\n\ndef gamma():\n    return 3\n"
+    )
+    src = _write(tmp_path, "src.py", src_text)
+    dest = tmp_path / "dest.py"
+    assert (
+        main(["extract", "--src", str(src), "--dest", str(dest), "--name", "alpha"])
+        == 0
+    )
+    dest_text = dest.read_text(encoding="utf-8")
+    src_after = src.read_text(encoding="utf-8")
+    assert "@decorator" in dest_text
+    assert "def alpha()" in dest_text
+    assert "@decorator" not in src_after
+    assert "def gamma()" in src_after
+
+
 # --- compare ---
 
 
@@ -323,3 +371,29 @@ def test_compare_param_option_ignores_the_injected_argument(
 def test_the_autouse_guard_blocks_unfaked_git(tmp_path: Path) -> None:
     with pytest.raises(AssertionError, match="must not run a real subprocess"):
         _compare(tmp_path, "def helper(x):\n    return x\n")
+
+
+def test_compare_differing_decorators_returns_1(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _fake_git(monkeypatch, "@old_dec\ndef helper(x):\n    return x + 1\n")
+    rc = _compare(tmp_path, "@new_dec\ndef helper(x):\n    return x + 1\n")
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "DIFFERS" in out
+    assert "differing: 1" in out
+
+
+def test_compare_identical_decorators_returns_0(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _fake_git(monkeypatch, "@shared\ndef helper(x):\n    return x + 1\n")
+    rc = _compare(tmp_path, "@shared\ndef helper(x):\n    return x + 1\n")
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "identical" in out
+    assert "differing: 0" in out
