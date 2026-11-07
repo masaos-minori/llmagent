@@ -74,3 +74,14 @@ Do not touch legacy-marker handling or error wording. Prefer deriving or cross-c
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203216
 - **Related target files**: scripts/agent/services/workflow_schema.py, scripts/db/schema_sql.py, deploy/init_db.sh, docs/41_db, docs/90_deployment
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- Required-tables constant confirmed: `REQUIRED_WORKFLOW_TABLES` in `scripts/agent/services/workflow_schema.py:44-57` lists only `tasks`, `attempts`, `processed_events`, `artifacts` (with per-table required columns). — Evidence: `Verified by test` — Confidence: High
+- Workflow DDL confirmed to contain the ungated tables: `execution_snapshots` (`scripts/db/schema_sql.py:227`) and `tool_call_state` (L233-242) are created by the same workflow schema block. — Evidence: `Verified by test` — Confidence: High
+- Duplicate list confirmed in the deploy pre-flight: `deploy/init_db.sh:46` hardcodes `REQUIRED_WORKFLOW_TABLES="tasks attempts processed_events artifacts"`. — Evidence: `Verified by test` — Confidence: High
+- Docs propagation confirmed: the four-table list appears in `docs/41_db/db_02_architecture_and_schema-schema-reference.md:46`, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md:143`, `docs/90_deployment/deployment_01_deployment.md:165` and `:300`. Separately, `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` documents the two lifecycle tables but not the gate gap. — Evidence: `Verified by test` — Confidence: High
+- Constraint "must not newly reject a database the current code created" confirmed satisfiable by inspection: `create_workflow_schema()` creates all six tables, so adding `tool_call_state` to the gate only rejects databases that already fail at first insert. — Evidence: `Derived from confirmed evidence` — Confidence: High
+- Dependency confirmed: the gate's final required-shape list depends on the `wfaudit010` keep-or-retire decision (`execution_snapshots`) and the `wfaudit002` `tool_call_state` key redesign; this Plan must be written after both decisions.
