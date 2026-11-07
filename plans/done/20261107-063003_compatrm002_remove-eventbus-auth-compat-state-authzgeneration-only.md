@@ -16,7 +16,7 @@ High
 - Initiative issue H-2 of `memo-issue.md`, second of four. Verified 2026-11-07 against current source:
   - `_TOKEN_PRINCIPAL_MAP` is defined at `scripts/eventbus/auth.py:96` and carries an explicit "Compatibility alias (owner-approved 2026-11-01)" comment; `publish_generation()` rebinds it in the same global block (auth.py:266-268); `resolve_principal()` reads it at auth.py:310/326.
   - `_populate_token_maps` is defined at auth.py:234 and referenced in 12 files: `scripts/eventbus/app.py` (import line 26, call line 84), `scripts/eventbus/config.py` (comment line 384), and eight test files (`test_eventbus_auth.py`, `test_eventbus_config.py`, `test_eventbus_consumer_authorization.py`, `test_eventbus_crash_ack.py`, `test_eventbus_ack_endpoint.py`, `test_eventbus_ack_nack.py`, `test_eventbus_dlq_pagination.py`, `test_admin_topics_authorization.py`), plus `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`.
-  - `principal_map()` is defined at `tests/eventbus/eventbus_helpers.py:218-230` and falls back to `auth._TOKEN_PRINCIPAL_MAP` when no generation is published. Its importers/callers are `tests/eventbus/test_eventbus_auth.py`, `test_eventbus_config.py`, `test_eventbus_consumer_authorization.py` (via `eb_auth._TOKEN_PRINCIPAL_MAP`), `test_eventbus_subscribe.py`, `test_admin_topics_authorization.py`, and `test_authz_generation_ttl.py`.
+  - `principal_map()` is defined at `tests/eventbus/eventbus_helpers.py:216-230` (re-verified 2026-11-07 at HEAD `1a13653e8`: def line 216) and falls back to `auth._TOKEN_PRINCIPAL_MAP` when no generation is published. Its importers/callers are `tests/eventbus/test_eventbus_auth.py`, `test_eventbus_config.py`, `test_eventbus_consumer_authorization.py` (via `eb_auth._TOKEN_PRINCIPAL_MAP`), `test_eventbus_subscribe.py`, `test_admin_topics_authorization.py`, and `test_authz_generation_ttl.py`.
   - Direct global-dictionary mutation appears in `test_eventbus_subscribe.py`, `test_eventbus_ack_nack.py`, `test_eventbus_ack_endpoint.py`, `test_eventbus_consumer_authorization.py`, `test_eventbus_auth.py`, and the `principal_map().clear()/update()` restore pattern in `test_eventbus_auth.py`; an object-identity assertion `generation.principals is auth._TOKEN_PRINCIPAL_MAP` exists at `tests/eventbus/test_eventbus_auth.py:1840`; an autouse fixture preserving `_TOKEN_PRINCIPAL_MAP` is at `tests/eventbus/conftest.py:55-68`; a no-op restore monkeypatch is at `tests/deploy/test_setup_services_eventbus.py:339`.
   - Production reads outside `auth.py`: none. `scripts/eventbus/admin_route.py` and `scripts/eventbus/authz_ttl.py` already use only `current_generation()` / `publish_generation()` / `_build_principal_map()` and are unaffected by the rename (reference-only).
   - `tools/check_compat_shims.py` already carries the removed-name pattern mechanism (`COMPAT_PATTERNS`, e.g. the "post-execution approval stage removed" entries) and the `tools/compat_exceptions.toml` manifest, including a self-reference exception for the checker source itself; `tests/tools/test_check_compat_shims.py` iterates `COMPAT_PATTERNS` generically and pins only the approval-stage subset, so adding patterns needs no test-file edit (verified 2026-11-07).
@@ -46,10 +46,10 @@ source; `tools/check_plan_target_overlaps.py` judged compatible (see Assumptions
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/eventbus/auth.py | MODIFY | Delete `_TOKEN_PRINCIPAL_MAP` (line 96); `resolve_principal()` reads `current_generation().principals` (lines 310, 326); remove alias rebinding from `publish_generation()` (lines 266-268); rename `_populate_token_maps` (line 234) to `build_and_publish_generation` | REQ-001, REQ-002 / AC-001, AC-002 | Verified by grep and source read 2026-11-07 | tests/eventbus/test_eventbus_auth.py, tests/eventbus/test_authz_generation_ttl.py | Verified |
-| scripts/eventbus/app.py | MODIFY | Lifespan imports (line 26) and calls (line 84) the renamed function | REQ-002 / AC-001 | lines 26, 84 | tests/deploy/test_setup_services_eventbus.py | Verified |
+| scripts/eventbus/auth.py | MODIFY | Delete `_TOKEN_PRINCIPAL_MAP` (line 96); `resolve_principal()` reads `current_generation().principals` (lines 310, 326); remove alias rebinding from `publish_generation()` (lines 266-268); rename `_populate_token_maps` (line 234) to `build_and_publish_generation` | REQ-001, REQ-002 / AC-001, AC-002 | Verified by grep and source read 2026-11-07 | `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_authz_generation_ttl.py` | Verified |
+| scripts/eventbus/app.py | MODIFY | Lifespan imports (line 26) and calls (line 84) the renamed function | REQ-002 / AC-001 | lines 26, 84 | `tests/deploy/test_setup_services_eventbus.py` | Verified |
 | scripts/eventbus/config.py | MODIFY | Comment at line 384 names `_populate_token_maps()` | REQ-002 / AC-001 | line 384 | — | Verified |
-| tests/eventbus/eventbus_helpers.py | MODIFY | Delete `principal_map()` (lines 218-230); add generation-based helpers: read current generation principals for assertions and publish a complete custom-principal generation for injection tests | REQ-003 / AC-003 | definition site verified | consumed by all tests/eventbus auth tests below | Verified |
+| tests/eventbus/eventbus_helpers.py | MODIFY | Delete `principal_map()` (lines 216-230); add generation-based helpers: read current generation principals for assertions and publish a complete custom-principal generation for injection tests | REQ-003 / AC-003 | definition site re-verified 2026-11-07 at HEAD `1a13653e8`: def line 216, body ends 230 | consumed by all tests/eventbus auth tests below | Verified |
 | tests/eventbus/conftest.py | MODIFY | `_reset_auth_state` fixture (lines 55-68) snapshots/restores `_TOKEN_PRINCIPAL_MAP`; switch to snapshot-and-republish `_CURRENT_GENERATION` | REQ-003 / AC-003 | lines 55-68 | — | Verified |
 | tests/eventbus/test_eventbus_auth.py | MODIFY | 29 `_populate_token_maps` references, map-mutation/restore helpers (lines 862-911, 1583-1592, 1719-1726, 1749-1815), identity assertion (line 1840) | REQ-003 / AC-003, AC-004 | grep-verified | — | Verified |
 | tests/eventbus/test_eventbus_consumer_authorization.py | MODIFY | Four snapshot/mutate/restore blocks via `eb_auth._TOKEN_PRINCIPAL_MAP` (lines 290-395) | REQ-003 / AC-003 | grep-verified | — | Verified |
@@ -62,7 +62,7 @@ source; `tools/check_plan_target_overlaps.py` judged compatible (see Assumptions
 | tests/eventbus/test_admin_topics_authorization.py | MODIFY | `principal_map` import (line 23), generation-identity assertion (line 269), principal read (line 441), `_populate_token_maps` calls (6) | REQ-002, REQ-003 / AC-001, AC-003 | grep-verified | — | Verified |
 | tests/eventbus/test_authz_generation_ttl.py | MODIFY | `principal_map` import (line 23) and calls (lines 136, 229, 244) | REQ-003 / AC-003, AC-004 | grep-verified | — | Verified |
 | tests/deploy/test_setup_services_eventbus.py | MODIFY | No-op alias-restore monkeypatch (line 339) becomes a generation restore aligned with the conftest pattern | REQ-003 / AC-003 | line 339 | — | Verified |
-| tools/check_compat_shims.py | MODIFY | Add `COMPAT_PATTERNS` entries for `_TOKEN_PRINCIPAL_MAP`, `principal_map`, `_populate_token_maps` (word-boundary regexes; `\bprincipal_map\b` does not match `_build_principal_map`) | REQ-005 / AC-007 | pattern mechanism exists (approval-stage precedent) | tests/tools/test_check_compat_shims.py (no edit: generic iteration verified) | Verified |
+| tools/check_compat_shims.py | MODIFY | Add `COMPAT_PATTERNS` entries for `_TOKEN_PRINCIPAL_MAP`, `principal_map`, `_populate_token_maps` (word-boundary regexes; `\bprincipal_map\b` does not match `_build_principal_map`) | REQ-005 / AC-007 | pattern mechanism exists (approval-stage precedent) | `tests/tools/test_check_compat_shims.py` (no edit: generic iteration verified) | Verified |
 | docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md | MODIFY | Line 65 alias parenthetical and `_populate_token_maps` mention describe the removed compatibility state | REQ-006 / AC-009 | grep-verified | — | Verified |
 
 ## Reference Files
@@ -171,9 +171,9 @@ N/A: no release unit — Phase 1 is a single atomic phase; no intermediate phase
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Atomic production + test cutover | Pending | — | — | |
-| 2 | Phase 2: Documentation | Pending | — | — | |
-| 3 | Phase 3: Verification and deploy check | Pending | — | — | |
+| 1 | Phase 1: Atomic production + test cutover | In Progress | — | — |  |
+| 2 | Phase 2: Documentation | In Progress | — | — |  |
+| 3 | Phase 3: Verification and deploy check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -183,7 +183,21 @@ N/A: no release unit — Phase 1 is a single atomic phase; no intermediate phase
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261107-083645_01_scripts_eventbus_auth.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_02_scripts_eventbus_app.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_03_scripts_eventbus_config.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_04_tests_eventbus_eventbus_helpers.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_05_tests_eventbus_conftest.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_07_tests_eventbus_test_eventbus_consumer_authorization.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_08_tests_eventbus_test_eventbus_config.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_09_tests_eventbus_test_eventbus_subscribe.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_10_tests_eventbus_test_eventbus_ack_nack.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_11_tests_eventbus_test_eventbus_ack_endpoint.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_12_tests_eventbus_test_eventbus_crash_ack.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_13_tests_eventbus_test_eventbus_dlq_pagination.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_14_tests_eventbus_test_admin_topics_authorization.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_17_tools_check_compat_shims.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-083645_18_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -209,3 +223,6 @@ N/A: no release unit — Phase 1 is a single atomic phase; no intermediate phase
 | Timestamp | Freeze status | Validation evidence |
 |---|---|---|
 | 2026-11-07 06:35 | Frozen | All `Implementation Target Files` rows `Verified` against HEAD `1b2dded66`: alias definition `auth.py:96`, rebinding `auth.py:266-268`, `resolve_principal` reads `auth.py:310/326`, `_populate_token_maps` definition `auth.py:234` with callers `app.py:26/84` + comment `config.py:384` + 8 test files, helper `eventbus_helpers.py:218-230`, fixture `conftest.py:55-68`, identity assertion `test_eventbus_auth.py:1840`, monkeypatch `test_setup_services_eventbus.py:339`, alias doc `adr_02_04_013` line 65 — all spot-checked by grep in this cycle. `tools/check_workitem_structure.py` clean. No blocking Unknown: UNK-01 `Blocking? = False`. `tools/check_plan_target_overlaps.py` after freeze reported `tests/deploy/test_setup_services_eventbus.py` shared with Frozen plan `plans/20261107-061846_compatrm001_...`; judged **compatible** per Step 8b (disjoint regions: compatrm001 edits workflow-schema fixture lines 25/133, this Plan edits the auth-restore line 339) and recorded in `Assumptions` with a sequencing note. |
+| 2026-11-07 08:55 | Frozen (adversarial re-validation) | Re-verified 2026-11-07 against HEAD `1a13653e8`: `git log 1b2dded66..HEAD` touches none of the target files, so all frozen line anchors hold — alias def `auth.py:96`, comment `auth.py:173/262`, rebinding `auth.py:266-268`, reads `auth.py:310/326`, `_populate_token_maps` def `auth.py:234` with callers `app.py:26/84` + comment `config.py:384` + 8 test files (grep: 12 files total incl. auth.py and the ADR), fixture `conftest.py:55-68`, identity assertion `test_eventbus_auth.py:1840`, no-op monkeypatch `test_setup_services_eventbus.py:339`, mutation blocks `test_eventbus_consumer_authorization.py:290-395` (4 blocks), alias comments `test_eventbus_crash_ack.py:83/93`, checker precedent `check_compat_shims.py:62-66` + generic iteration in `tests/tools/test_check_compat_shims.py`, ADR alias parenthetical line 65. Per-file `_populate_token_maps` counts match the rows exactly (29/4/3/6/4/2/6). One correction applied: `principal_map()` def is `eventbus_helpers.py:216-230`, not 218-230 (Background and row 15 fixed). `Related Tests` cells backticked so `tools/check_workitem_traceability.py --plan-coverage` companion rules see the paths. |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261107-083645 -->

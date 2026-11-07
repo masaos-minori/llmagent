@@ -15,7 +15,7 @@ High
 ## Background
 - Initiative issue H-1 of `memo-issue.md` ("Backward Compatibility Removal"), implemented first. Verified 2026-11-07 against current source:
   - All named modules exist: `scripts/shared/db_migrations.py` (`MigrationRefusalReason`, `MigrationRefusalError`, `MigrationSpec`, `LedgerRow`, `ensure_ledger`, `read_ledger`, `record_applied`, `MigrationRunner`), `scripts/db/migrations_workflow.py` (workflow `REGISTRY` steps 0→1, 1→2, 2→3, 3→4, `verify_backup`, `verify_backup_by_path`, `ensure_baseline`), `scripts/eventbus/migrations.py` (eventbus `REGISTRY` steps 3→4, 4→5, 5→6, `_BASELINE_VERSION=3`), `scripts/eventbus/migrate.py`, `scripts/db/migrate_db.py` (workflow CLI), `tests/eventbus/test_eventbus_migrations.py`, `tests/shared/test_db_migrations.py`, `tests/db/test_migrations_workflow.py`, `tests/db/test_create_schema.py`.
-  - Reference counts are larger than the Issue's figures: `schema_migrations` appears in 35 files and `dbmig001` in 26 files under `scripts/`, `tests/`, `tools/`, `docs/`, `deploy/` (excluding `__pycache__` and `done/`). The Issue's "about 20 / about 16" was accurate for its narrower path set; the counts below include `deploy/init_db.sh` and the docs/ADR files.
+  - Reference counts re-verified 2026-11-07 at HEAD `1a13653e8`: `schema_migrations` appears in 21 files and `dbmig001` in 16 files under `scripts/`, `tests/`, `tools/`, `docs/`, `deploy/` (excluding `__pycache__` and `done/`) — consistent with the Issue's "about 20 / about 16".
   - `verify_backup_by_path` has no caller outside `scripts/db/migrations_workflow.py` (repository-wide search) — the Issue's Unresolved Question 2 is resolved: delete it with the module.
   - `workflow_schema_version` is migration history, not one current schema: rows are inserted by each registry step (`INSERT INTO workflow_schema_version (version) VALUES ('1.2.0' / '1.3.0' / '1.4.0')`) and `docs/41_db/db_02` documents it as "an append-only log whose current version is the latest row". The Issue's Unresolved Question 1 is resolved per the Issue's own condition (keep version metadata only if it represents one current schema): delete it.
 - Operational state (inspected 2026-11-07): deployed DBs under `/opt/llm/db/` are `workflow.sqlite` at marker `1.4.0` with a `schema_migrations` ledger, and `eventbus.sqlite` at `PRAGMA user_version = 6` with a ledger and `dlq_outbox`; `eventbus.sqlite` is held open by the running eventbus service (PID 3104771). No `sqlite`-named systemd unit matched the grep filter, but the open handle proves a live writer. The acceptance criterion "current valid databases open normally" therefore holds only for freshly created current-shape databases; the deployed databases carry legacy markers and will be rejected after this change until the operator archives and recreates them. This is an intended deploy-time operator action, not a defect (see Risks).
@@ -47,23 +47,23 @@ clean.)
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/shared/db_migrations.py | DELETE | Migration runner, ledger, refusal types, spec/registry types (REQ-001) | REQ-001 / AC-001, AC-003 | Exists; imported by `create_schema.py`, `migrate_db.py`, `recovery_drill.py`, `eventbus/schema.py`, `eventbus/migrate.py` | tests/shared/test_db_migrations.py (DELETE) | Verified |
-| scripts/db/migrations_workflow.py | DELETE | Workflow registry, baseline, backup gate, `verify_backup_by_path` (no external caller) (REQ-001) | REQ-001 / AC-001, AC-003 | Exists; imported by `create_schema.py`, `migrate_db.py` | tests/db/test_migrations_workflow.py (DELETE) | Verified |
-| scripts/eventbus/migrations.py | DELETE | EventBus registry, baseline verify (REQ-001) | REQ-001 / AC-001, AC-003 | Exists; imported by `eventbus/schema.py`, `eventbus/migrate.py` | tests/eventbus/test_eventbus_migrations.py (DELETE) | Verified |
-| scripts/eventbus/migrate.py | DELETE | EventBus migration CLI (REQ-001) | REQ-001 / AC-001 | Exists | tests/eventbus/test_eventbus_migrations.py (DELETE) | Verified |
-| scripts/db/migrate_db.py | DELETE | Workflow migration CLI (REQ-001) | REQ-001 / AC-001 | Exists | tests/db/test_migrations_workflow.py (DELETE) | Verified |
-| scripts/db/create_schema.py | MODIFY | Remove `ensure_ledger` / `ensure_baseline` / version-row stamping; keep fail-closed rejection and fingerprint gate (REQ-002, REQ-003) | REQ-002 / AC-002 | Lines 25, 29, 71: ledger import, baseline import, version stamp | tests/db/test_create_schema.py (MODIFY) | Verified |
-| scripts/eventbus/schema.py | MODIFY | Remove `MigrationRunner`/`REGISTRY`/`read_ledger` wiring and auto-migration/stamping branches; keep version==6 + fingerprint gate; reject `user_version = 0` without stamping; import `MigrationRefusalError` from `shared.eventbus_schema_fingerprint` (REQ-001, REQ-003, REQ-004) | REQ-003 / AC-004, AC-005, AC-006 | Lines 8–16 import deleted framework; `_init_schema` stamping branch used by `db_conn.py` | tests/eventbus/test_eventbus_schema_version.py, tests/eventbus/test_eventbus_startup.py (MODIFY) | Verified |
-| scripts/db/schema_sql.py | MODIFY | Remove `schema_migrations` and `workflow_schema_version` DDL, `WORKFLOW_SCHEMA_VERSION` constant, `dbmig001` comments (REQ-002) | REQ-002 / AC-002 | Lines 25–27, 253–261 | tests/db/test_create_schema.py (MODIFY) | Verified |
-| scripts/eventbus/schema.sql | MODIFY | Remove `schema_migrations` CREATE TABLE; keep `PRAGMA user_version = 6` (REQ-002) | REQ-002 / AC-002, AC-007 | Line 46 CREATE, line 74 PRAGMA | tests/deploy/test_init_db_eventbus_schema.py (no change needed: fingerprint is derived dynamically) | Verified |
-| scripts/agent/services/workflow_schema.py | MODIFY | Startup/health gate: drop `workflow_schema_version` requirement and version-row comparison; reject legacy marker tables as incompatible (REQ-003, REQ-004) | REQ-003 / AC-004 | Lines 58, 78, 118–129 pin the marker table and constant | tests/agent/test_repl_health.py (MODIFY) | Verified |
-| scripts/db/recovery_drill.py | MODIFY | Replace ledger-state audit with current-shape audit; flag legacy marker tables (REQ-006) | REQ-006 / AC-008 | Lines 29, 58–62 import `read_ledger`, `_has_ledger_table` | tests/db/test_recovery_drill.py (MODIFY) | Verified |
-| deploy/init_db.sh | MODIFY | Invert ledger gate to marker-absence gate with archive-and-recreate guidance (REQ-005) | REQ-005 / AC-002 | Lines 100–123 require the ledger | tests/deploy/test_init_db_schema_gate.py (CREATE) | Verified |
+| scripts/shared/db_migrations.py | DELETE | Migration runner, ledger, refusal types, spec/registry types (REQ-001) | REQ-001 / AC-001, AC-003 | Exists; imported by `create_schema.py`, `migrate_db.py`, `recovery_drill.py`, `eventbus/schema.py`, `eventbus/migrate.py` | `tests/shared/test_db_migrations.py` (DELETE) | Verified |
+| scripts/db/migrations_workflow.py | DELETE | Workflow registry, baseline, backup gate, `verify_backup_by_path` (no external caller) (REQ-001) | REQ-001 / AC-001, AC-003 | Exists; imported by `create_schema.py`, `migrate_db.py` | `tests/db/test_migrations_workflow.py` (DELETE) | Verified |
+| scripts/eventbus/migrations.py | DELETE | EventBus registry, baseline verify (REQ-001) | REQ-001 / AC-001, AC-003 | Exists; imported by `eventbus/schema.py`, `eventbus/migrate.py` | `tests/eventbus/test_eventbus_migrations.py` (DELETE) | Verified |
+| scripts/eventbus/migrate.py | DELETE | EventBus migration CLI (REQ-001) | REQ-001 / AC-001 | Exists | `tests/eventbus/test_eventbus_migrations.py` (DELETE) | Verified |
+| scripts/db/migrate_db.py | DELETE | Workflow migration CLI (REQ-001) | REQ-001 / AC-001 | Exists | `tests/db/test_migrations_workflow.py` (DELETE) | Verified |
+| scripts/db/create_schema.py | MODIFY | Remove `ensure_ledger` / `ensure_baseline` / version-row stamping; keep fail-closed rejection and fingerprint gate (REQ-002, REQ-003) | REQ-002 / AC-002 | Lines 25, 29, 71: ledger import, baseline import, version stamp | `tests/db/test_create_schema.py` (MODIFY) | Verified |
+| scripts/eventbus/schema.py | MODIFY | Remove `MigrationRunner`/`REGISTRY`/`read_ledger` wiring and auto-migration/stamping branches; keep version==6 + fingerprint gate; reject `user_version = 0` without stamping; keep the `RuntimeError` raised by `shared.eventbus_schema_fingerprint` — that module defines no `MigrationRefusalError` (re-verified 2026-11-07) (REQ-001, REQ-003, REQ-004) | REQ-003 / AC-004, AC-005, AC-006 | Lines 8–16 import deleted framework; `_init_schema` stamping branch used by `db_conn.py` | `tests/eventbus/test_eventbus_schema_version.py`, `tests/eventbus/test_eventbus_startup.py` (MODIFY) | Verified |
+| scripts/db/schema_sql.py | MODIFY | Remove `schema_migrations` and `workflow_schema_version` DDL, `WORKFLOW_SCHEMA_VERSION` constant, `dbmig001` comments (REQ-002) | REQ-002 / AC-002 | Lines 25–27, 253–261 | `tests/db/test_create_schema.py` (MODIFY) | Verified |
+| scripts/eventbus/schema.sql | MODIFY | Remove `schema_migrations` CREATE TABLE; keep `PRAGMA user_version = 6` (REQ-002) | REQ-002 / AC-002, AC-007 | Line 46 CREATE, line 74 PRAGMA | `tests/deploy/test_init_db_eventbus_schema.py` (no change needed: fingerprint is derived dynamically) | Verified |
+| scripts/agent/services/workflow_schema.py | MODIFY | Startup/health gate: drop `workflow_schema_version` requirement and version-row comparison; reject legacy marker tables as incompatible (REQ-003, REQ-004) | REQ-003 / AC-004 | Lines 58, 78, 118–129 pin the marker table and constant | `tests/agent/test_repl_health.py` (MODIFY) | Verified |
+| scripts/db/recovery_drill.py | MODIFY | Replace ledger-state audit with current-shape audit; flag legacy marker tables (REQ-006) | REQ-006 / AC-008 | Lines 29, 58–62 import `read_ledger`, `_has_ledger_table` | `tests/db/test_recovery_drill.py` (MODIFY) | Verified |
+| deploy/init_db.sh | MODIFY | Invert ledger gate to marker-absence gate with archive-and-recreate guidance (REQ-005) | REQ-005 / AC-002 | Lines 100–123 require the ledger | `tests/deploy/test_init_db_schema_gate.py` (CREATE) | Verified |
 | tests/shared/test_db_migrations.py | DELETE | Tests the deleted shared runner | REQ-007 / AC-003 | Exists | — | Verified |
 | tests/db/test_migrations_workflow.py | DELETE | Tests the deleted workflow registry | REQ-007 / AC-003 | Exists | — | Verified |
 | tests/eventbus/test_eventbus_migrations.py | DELETE | Tests the deleted eventbus registry | REQ-007 / AC-003 | Exists | — | Verified |
 | tests/db/test_eventbus_schema_equivalence.py | DELETE | Tests runner/ledger equivalence against deleted framework | REQ-007 / AC-003 | Imports `eventbus.migrations.REGISTRY`, `shared.db_migrations` | — | Verified |
-| tests/deploy/test_init_db_ledger_gate.py | DELETE | Tests the inverted (removed) ledger-presence gate | REQ-007 / AC-002 | Asserts "ledger present/missing" strings | tests/deploy/test_init_db_schema_gate.py (CREATE) | Verified |
+| tests/deploy/test_init_db_ledger_gate.py | DELETE | Tests the inverted (removed) ledger-presence gate | REQ-007 / AC-002 | Asserts "ledger present/missing" strings | `tests/deploy/test_init_db_schema_gate.py` (CREATE) | Verified |
 | tests/deploy/test_init_db_schema_gate.py | CREATE | Replacement deploy-gate test: init_db.sh fails on legacy marker tables, passes on marker-free current-shape databases | REQ-005, REQ-007 / AC-002 | Replaces `test_init_db_ledger_gate.py` pattern | — | Verified |
 | tests/db/test_create_schema.py | MODIFY | Replace ledger/baseline expectations with marker-absence and rejection expectations | REQ-007 / AC-002 | Asserts ledger rows and version stamp | — | Verified |
 | tests/eventbus/test_eventbus_schema_version.py | MODIFY | Replace migration/stamping tests (`test_registered_v3_database_migrates_at_startup`, `test_unstamped_current_database_is_stamped`) with rejection tests | REQ-007 / AC-004 | Test list verified by grep | — | Verified |
@@ -71,7 +71,7 @@ clean.)
 | tests/agent/test_repl_health.py | MODIFY | Remove `WORKFLOW_SCHEMA_VERSION` import and version-row fixtures; add legacy-marker rejection cases | REQ-007 / AC-004 | Lines 27, 525, 607, 615 | — | Verified |
 | tests/deploy/test_setup_services_eventbus.py | MODIFY | Fixture stamps a `workflow_schema_version` row and imports `WORKFLOW_SCHEMA_VERSION` | REQ-007 / AC-004 | Lines 25, 133 | — | Verified |
 | tests/db/test_recovery_drill.py | MODIFY | Replace `test_missing_ledger_is_an_audited_finding` with legacy-marker and current-shape audit cases | REQ-007 / AC-008 | Line 652 | — | Verified |
-| docs/41_db/db_01_architecture_and_schema-overview-and-config.md | MODIFY | Overview states new databases "receive the migration ledger and baseline row" — must describe the new lifecycle | REQ-009 / AC-009 | Lines 17–20 | — | Verified |
+| docs/41_db/db_01_architecture_and_schema-overview-and-config.md | MODIFY | Overview carries no migration/ledger statement at HEAD; update it to describe the current-schema-only lifecycle so the overview matches the post-change behavior | REQ-009 / AC-009 | Re-verified 2026-11-07 at HEAD: lines 17–20 are document-guide links, no ledger/baseline sentence exists; lifecycle sentences are §2 L30 and §3 L40 | — | Verified |
 | docs/41_db/db_02_architecture_and_schema-schema-reference.md | MODIFY | Documents `workflow_schema_version` append-only log and version-comparison gate | REQ-009 / AC-009 | Line 46 | — | Verified |
 | docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md | MODIFY | Core migration-policy document: rewrite as current-schema-only + manual archive-and-recreate runbook | REQ-009 / AC-009 | Exists, cites ledger and dbmig001 | — | Verified |
 | docs/41_db/db_07_api_and_operations-recovery-and-reference.md | MODIFY | DB-recreation procedure (§11) must state the no-migration policy and archive-before-remove order | REQ-009 / AC-009 | §11 already exists; policy sentence must be added | — | Verified |
@@ -81,11 +81,11 @@ clean.)
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
 | scripts/db/rotation.py | Rotation gate preserved; verified it contains no ledger/migration reference, so it must keep working unchanged | REQ-006 / rotation tests in AC-008 |
-| scripts/db/backup.py | Generic backup/archive validation preserved as operational data protection | REQ-006 |
-| scripts/shared/eventbus_schema_fingerprint.py | The single fingerprint validator (`validate_canonical`, `assert_matches`) and its own `MigrationRefusalError`; becomes the only refusal type after REQ-001 | REQ-003, REQ-008 |
+| scripts/db/recovery.py | Generic backup/recovery validation preserved as operational data protection; ledger-free (re-verified: `scripts/db/backup.py` does not exist at HEAD; `recovery.py` is the backup/recovery module) | REQ-006 |
+| scripts/shared/eventbus_schema_fingerprint.py | The single fingerprint validator (`validate_canonical`, `assert_matches`); it raises plain `RuntimeError` and defines no `MigrationRefusalError` (re-verified 2026-11-07), so after REQ-001 it is the only refusal source | REQ-003, REQ-008 |
 | scripts/eventbus/db_conn.py | Calls `eventbus.schema._init_schema` on connection; startup gate behavior must hold here | REQ-003 |
 | tools/check_db_separation.py | Allowed-table sets already include the marker tables permissively; kept unchanged so marker-free databases pass and legacy databases are caught by startup gates, not this checker | REQ-006, environment rule |
-| tools/check_compat_shims.py + config/compat_exceptions.toml | Existing shim checker; 004 extends it to the deleted migration symbols — 001 must leave zero shim/facade behind | REQ-001 |
+| tools/check_compat_shims.py + tools/compat_exceptions.toml | Existing shim checker; 004 extends it to the deleted migration symbols — 001 must leave zero shim/facade behind | REQ-001 |
 | rules/persisted-schema-change.md | Persisted-schema checklist the Plan must run (recorded in Design) | whole Plan |
 | docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md (schema section) and scripts/eventbus/schema.sql | Current EventBus canonical shape for gate design | REQ-003 |
 
@@ -141,7 +141,7 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
 
 ## Design
 - **One lifecycle, two domains.** Workflow and EventBus keep separate gates but identical policy: version/shape match → accept; anything else → raise before opening write access; never mutate, archive, or delete an incompatible database.
-- **EventBus gate** (`scripts/eventbus/schema.py`): accept iff `PRAGMA user_version == eventbus_schema_version()` (6) AND `shared.eventbus_schema_fingerprint.assert_matches` passes. Delete the registered-lower-version auto-migration branch and the `user_version = 0` auto-stamp branch: an unversioned database is rejected and left unstamped. New databases get the stamp from canonical `schema.sql` DDL only (via `create_eventbus_schema`). `MigrationRefusalError` is imported from `shared.eventbus_schema_fingerprint` instead of `shared.db_migrations`, consolidating refusal types onto the single fingerprint validator (REQ-008).
+- **EventBus gate** (`scripts/eventbus/schema.py`): accept iff `PRAGMA user_version == eventbus_schema_version()` (6) AND `shared.eventbus_schema_fingerprint.assert_matches` passes. Delete the registered-lower-version auto-migration branch and the `user_version = 0` auto-stamp branch: an unversioned database is rejected and left unstamped. New databases get the stamp from canonical `schema.sql` DDL only (via `create_eventbus_schema`). After REQ-001 removes `MigrationRefusalError` (it exists only in `shared/db_migrations.py`), the EventBus gate raises the `RuntimeError` of `shared.eventbus_schema_fingerprint`, consolidating refusals onto the single fingerprint validator (REQ-008; re-verified 2026-11-07 that the fingerprint module defines no `MigrationRefusalError`).
 - **Workflow gate** (`scripts/agent/services/workflow_schema.py`): `workflow_schema_version` is migration history (Background), so the health check switches to shape-only acceptance: required tables/columns exactly as `REQUIRED_WORKFLOW_TABLES` (minus the marker row) AND absence of `schema_migrations` and `workflow_schema_version`; either marker present → incompatible legacy → fail with the fixed message. No new workflow version mechanism is introduced (the Issue's "keep Workflow schema-version metadata only if it represents one current schema" resolves to removal; `PRAGMA user_version` stays an EventBus-only identifier per the Issue). `WORKFLOW_SCHEMA_VERSION` disappears with `scripts/db/schema_sql.py`.
 - **DDL changes** (`scripts/db/schema_sql.py`, `scripts/eventbus/schema.sql`): delete both marker-table CREATEs, the baseline insert paths, ledger/version `dbmig001` comments, and the version constant. EventBus keeps `PRAGMA user_version = 6` (Issue line 34). EventBus fingerprint is computed from canonical `schema.sql` at runtime, so removing the ledger DDL regenerates it automatically (REQ-008).
 - **Refusal message** (REQ-004): one shared text per domain — "The database does not match the current schema. Automatic migration and version stamping are not supported. Stop the service, archive the existing database if required, remove or rename it, and create a new database using the current schema." plus database path and expected/detected versions; no credentials.
@@ -198,11 +198,11 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Red policy tests | Pending | — | — | |
-| 2 | Phase 2: Framework deletion and importer migration | Pending | — | — | |
-| 3 | Phase 3: Canonical DDL, gates, drill, deploy script | Pending | — | — | |
-| 4 | Phase 4: Documentation | Pending | — | — | |
-| 5 | Phase 5: Full validation and deploy hand-off | Pending | — | — | |
+| 1 | Phase 1: Red policy tests | In Progress | — | — |  |
+| 2 | Phase 2: Framework deletion and importer migration | In Progress | — | — |  |
+| 3 | Phase 3: Canonical DDL, gates, drill, deploy script | In Progress | — | — |  |
+| 4 | Phase 4: Documentation | In Progress | — | — |  |
+| 5 | Phase 5: Full validation and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -212,7 +212,30 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261107-081028_01_scripts_shared_db_migrations.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_02_scripts_db_migrations_workflow.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_03_scripts_eventbus_migrations.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_04_scripts_eventbus_migrate.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_05_scripts_db_migrate_db.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_06_scripts_db_create_schema.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_07_scripts_eventbus_schema.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_08_scripts_db_schema_sql.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261107-081028_09_scripts_eventbus_schema.sql.md | 3 | Procedure | Pending | — | — |
+| implementations/20261107-081028_10_scripts_agent_services_workflow_schema.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261107-081028_11_scripts_db_recovery_drill.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261107-081028_12_deploy_init_db.sh.md | 3 | Procedure | Pending | — | — |
+| implementations/20261107-081028_14_tests_db_test_migrations_workflow.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_15_tests_eventbus_test_eventbus_migrations.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_16_tests_db_test_eventbus_schema_equivalence.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-081028_17_tests_deploy_test_init_db_ledger_gate.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-081028_18_tests_deploy_test_init_db_schema_gate.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-081028_19_tests_db_test_create_schema.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-081028_23_tests_deploy_test_setup_services_eventbus.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261107-081028_25_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261107-081028_26_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261107-081028_27_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261107-081028_28_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261107-081028_29_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -241,3 +264,6 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
 | Timestamp | Freeze status | Validation evidence |
 |---|---|---|
 | 2026-11-07 06:25 | Frozen | All `Implementation Target Files` rows `Verified` against rebased HEAD `1b2dded66`: the five migration modules, both marker tables (`schema_migrations`, `workflow_schema_version`), the ledger gate in `deploy/init_db.sh` lines 100-123, `workflow_schema.py` lines 58/78/118-129, `recovery_drill.py` lines 29/58-62, and every test-row citation spot-checked by grep in this cycle. No blocking Unknown: UNK-01, UNK-02 `Blocking? = False`. No open dependency (004 runs after this Plan, not a blocker for freezing). `tools/check_plan_target_overlaps.py` returned "No findings"; no other Frozen plan exists in `plans/` (ragfix001/002 are in `plans/done/` with zero file overlap against this Plan's rows). |
+| 2026-11-07 07:40 | Frozen (revalidated) | Full adversarial revalidation against HEAD `1a13653e8` (post-merge of the dbmig001 implementation). All 29 rows re-confirmed; every line citation re-checked by grep (`schema_sql.py` 25-27/253-261, `eventbus/schema.sql` 46/74, `recovery_drill.py` 29/58-62, `workflow_schema.py` 58/78/118-129, `init_db.sh` 100-123, `create_schema.py` 25/29/71, `eventbus/schema.py` 8-16 + `_init_schema` stamp/migration branches, `db_conn.py` 21/95, test rows 267/281, 27/525/607/615, 133, 652, 17/20, 56/76/121). Corrections made in this cycle: (1) `scripts/shared/eventbus_schema_fingerprint.py` raises plain `RuntimeError` and defines no `MigrationRefusalError` — Design and the `eventbus/schema.py` row corrected; (2) `scripts/db/backup.py` does not exist — Reference Files row corrected to `scripts/db/recovery.py` (ledger-free, verified); (3) shim allowlist path is `tools/compat_exceptions.toml`, not `config/compat_exceptions.toml`; (4) `db_01` contains no migration/ledger sentence (rows 17-20 are guide links) — row re-scoped to a lifecycle-description alignment update; (5) reference counts corrected to 21 (`schema_migrations`) / 16 (`dbmig001`). Overlap candidates now exist (plan_dependency_order / check_plan_target_overlaps at HEAD): db_01 ↔ 003, db_03 ↔ 004, db_07 ↔ 004, tests/deploy/test_setup_services_eventbus.py ↔ 002 — judged compatible: this Plan runs first and the later Plans layer onto its result (recorded in the generated documents' Assumptions). |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261107-081028 -->
