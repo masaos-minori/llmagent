@@ -71,7 +71,7 @@ Unit tests in `tests/tools/test_module_nodes.py` (new decorated-class and decora
 
 ## Assumptions
 - `node.decorator_list` is non-empty exactly when the node has decorators, so `min(decorator lineno)` is a safe span start; `ast` decorator line numbers are 1-based like `node.lineno`.
-- Preserving decorators in `compare`'s normalized dump does not regress undecorated nodes: both sides keep an empty `decorator_list`, so their dumps stay equal.
+- Including the decorator list in `compare`'s normalized dump does not regress undecorated nodes: both sides keep an empty `decorator_list`, so both take the body-only dump path and their dumps stay equal.
 - Decorators that transfer verbatim on a move (e.g. `@dataclass`, `@staticmethod`) apply equally at the destination, so identical decorators do not produce a false `DIFFERS`.
 
 ## Unknowns
@@ -87,7 +87,7 @@ Unit tests in `tests/tools/test_module_nodes.py` (new decorated-class and decora
 | `tools/module_nodes.py` | Private helpers `_node_index`, `measure`, `_normalize`/`compare`; no public signature change | CLI tool only; no external importers | N/A: Path A skipped historical analysis | N/A | None: not a deployed service |
 
 ## Design
-`module_nodes.py` is a standalone CLI tool (`main()` dispatches `measure`/`extract`/`compare`); it has no external importers, so changing private helpers cannot break callers. The node span is computed in two places: the inline span in `measure` (start = `node.lineno`) and `_node_index` (used by `_extract_lines`, which `extract` calls). Both must clamp the start down to the earliest decorator line. `compare` currently strips decorators in `_normalize` (`node.decorator_list = []`) before dumping the AST; to detect a decorator difference it must preserve the decorator list so differing decorators change the normalized dump. Existing compare tests use undecorated functions, so keeping an empty decorator list for them keeps their dumps equal (no regression).
+`module_nodes.py` is a standalone CLI tool (`main()` dispatches `measure`/`extract`/`compare`); it has no external importers, so changing private helpers cannot break callers. The node span is computed in two places: the inline span in `measure` (start = `node.lineno`) and `_node_index` (used by `_extract_lines`, which `extract` calls). Both must clamp the start down to the earliest decorator line. `compare` calls `_normalize`, which dumps only `node.body` (`ast.dump(ast.Module(body=node.body, type_ignores=[]), ...)`) and sets `node.decorator_list = []`; because the dump contains only the function body, decorators never appear in the normalized dump regardless of that assignment, so the current assignment is a no-op on the output. To detect a decorator difference the normalized dump must therefore INCLUDE the decorator list: remove the no-op `node.decorator_list = []` and prepend `ast.dump(node.decorator_list, indent=1)` to the body dump when `node.decorator_list` is non-empty, so differing decorators change the dump while identical decorators (which transfer verbatim on a move) keep both dumps equal. Existing compare tests use undecorated functions, so both sides keep an empty `decorator_list` and take the body-only dump path, keeping their dumps equal (no regression).
 
 ## Implementation steps
 Each step description MUST cite the exact file path(s) it touches by referencing rows of `Implementation Target Files` above — do not restate file-level detail independently of that frozen table. A step is a top-level numbered item (a Phase); its checklist items are sub-tasks, and the Execution Status table has one row per step. Declare a release unit when a phase breaks existing callers or tests until another phase lands.
@@ -101,7 +101,7 @@ Each step description MUST cite the exact file path(s) it touches by referencing
    - [ ] Clamp the span start down to the earliest `decorator_list` line in `measure` (`tools/module_nodes.py`, REQ-001)
    - [ ] Clamp the span start down to the earliest `decorator_list` line in `_node_index` (`tools/module_nodes.py`, REQ-001); `_extract_lines` inherits this because it reads `_node_index`
 3. **Phase 3: Detect decorator differences in compare**
-   - [ ] Preserve the decorator list in `_normalize` so `compare` reports differing decorators as `DIFFERS` (`tools/module_nodes.py`, REQ-002)
+   - [ ] Remove the no-op `node.decorator_list = []` in `_normalize` and prepend `ast.dump(node.decorator_list, indent=1)` to the body dump when `node.decorator_list` is non-empty, so `compare` reports differing decorators as `DIFFERS` (`tools/module_nodes.py`, REQ-002)
 4. **Phase 4: Validation**
    - [ ] Run `uv run pytest tests/tools -q` and the `tools/` validation steps of `routing.md` "Adding a new tool"; confirm all pass and exit codes/format are unchanged (REQ-001, REQ-002, REQ-003)
 
@@ -116,7 +116,7 @@ N/A: no release unit
 | `tests/tools/test_module_nodes_extract_atomic.py` | Unit (new case) | `uv run pytest tests/tools -q` | Decorated-node atomic-move case passes |
 
 ## Risks
-- **Risk**: Preserving decorators in `_normalize` produces a false `DIFFERS` for a decorator valid only inside a class body. → **Mitigation**: `UNK-01` resolved by a failing-test check with identical decorators; scope any class-only decorator out and document it as a known limitation.
+- **Risk**: Including the decorator list in `_normalize`'s dump produces a false `DIFFERS` for a decorator that is valid only inside a class body. → **Mitigation**: `UNK-01` resolved by a failing-test check with identical decorators; scope any class-only decorator out and document it as a known limitation.
 - **Risk**: Changing the span start shifts byte sizes reported by `measure` for decorated nodes. → **Mitigation**: `Constraints` pin that byte sizes for decorated nodes include the decorators; the REQ-001 test asserts this explicitly.
 
 ## Execution Status
@@ -128,7 +128,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Phase 1: Failing tests | In Progress | — | — |  |
+| 2 | Phase 2: Include decorators in the node span | In Progress | — | — |  |
+| 3 | Phase 3: Detect decorator differences in compare | In Progress | — | — |  |
+| 4 | Phase 4: Validation | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -138,7 +141,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261107-160357_01_tools_module_nodes.py.md` | 1, 2, 3 | Procedure | Pending | — | — |
+| `implementations/20261107-160357_03_tests_tools_test_module_nodes_extract_atomic.py.md` | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -160,3 +164,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-002 | same as above | `tests/tools/test_module_nodes.py` | Phase 1 | `compare` fails when decorators differ | `compare` differing-decorator case | Confirmed by repository evidence |
 | REQ-003 | Testing Expectations | `tests/tools/test_module_nodes.py` | Phase 1 | new unit tests cover a decorated class and function moved and compared | `uv run pytest tests/tools -q` | Explicit in issue |
 | REQ-003 | same as above | `tests/tools/test_module_nodes_extract_atomic.py` | Phase 1 | new unit tests cover a decorated node moved | `uv run pytest tests/tools -q` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261107-160357 -->
