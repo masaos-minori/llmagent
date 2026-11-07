@@ -75,3 +75,12 @@ Do not add close calls ad hoc in turn paths. Centralize the ownership decision a
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203219
 - **Related target files**: scripts/agent/orchestrator.py, scripts/agent/workflow_engine_adapter.py, scripts/agent/workflow/state_store.py, scripts/agent/lifecycle.py
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- Orchestrator creation with no close path confirmed: `self._state_store = StateStore()` at `scripts/agent/orchestrator.py:91`; no `close`/`shutdown` reference exists in `orchestrator.py` (grep). — Evidence: `Verified by test` — Confidence: High
+- Ownership-flag mechanism confirmed and sharpened: `_init_workflow_task` creates a NEW local `StateStore()` when its `store` argument is None and sets `self._owns_state_store = True` (`scripts/agent/workflow_engine_adapter.py:290-294`); the local store is closed by that method's own finally (L321-323), but the flag survives, so the next `execute_turn` finally closes `self._state_store` — the constructor-injected store — and only then resets the flag (L254-258). A single store-less `init_workflow_task` call therefore arms a use-after-close of the shared store on the following turn. — Evidence: `Verified by test` — Confidence: High
+- Production injection confirmed: the orchestrator passes its store into the adapter (`orchestrator.py:141,147`), so the closing branch is reachable only via direct adapter use. — Evidence: `Verified by test` — Confidence: High
+- Shutdown-hook sites exist: `scripts/agent/resource_shutdown_coordinator.py` and `scripts/agent/http_lifecycle_shutdown_coordinator.py` (plus `lifecycle.py`) — candidate wiring points named by the issue's `lifecycle.py` target resolve to these files. — Evidence: `Verified by test` — Confidence: High
