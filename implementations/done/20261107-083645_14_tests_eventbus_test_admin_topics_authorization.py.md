@@ -9,12 +9,12 @@
 
 ## Assumptions
 
-- Verified 2026-11-07 at HEAD `1a13653e8`: `principal_map` import at 23 (with `post_topics_authorization` on the same line), generation-identity assertion at 269 (`assert principal_map() is state_before.principals`), principal read at 441 (`principal = principal_map()["consumer-tok"]`); `_populate_token_maps` references at 573 (comment), 589 (import), 609 (call), 630 (comment), 658 (import), 678 (call) — 6 total, matching the Plan row (grep-verified).
+- Verified 2026-11-07 at HEAD `70391b306`: `principal_map` import at 23 (with `post_topics_authorization` on the same line); 17 `principal_map()` calls at 269 (identity `is state_before.principals`), 441, 469, 480 (`map_before =`), 499 (identity `is map_before`), 511 (`map_before =`), 522 (identity `is map_before`), 530 (`map_before =`), 543 (identity `is not map_before`), 544 (read), 566, 610, 615-619 — the Plan-row grep-verified total; `_populate_token_maps` references at 573 (comment), 589 (import), 609 (call), 630 (comment), 658 (import), 678 (call) — 6 total, matching the Plan row. `_build_principal_map` monkeypatch at 486 stays unchanged (not a removed name).
 
 ## Design decisions
 
 - Identity assertion at 269 becomes `assert current_generation().principals is state_before.principals`: the no-op-rebuild test must keep proving the same generation object stays in force (REQ-004 / AC-004); the removed-name half of the old assertion (`principals is auth._TOKEN_PRINCIPAL_MAP`, an alias identity) is not the test's point and disappears with the alias — the generation-snapshot identity half survives unchanged (Plan Design "Test discipline").
-- `principal_map()` calls (269, 441) become `current_principals()` (sibling document 04).
+- `principal_map()` calls (all 17: 269, 441, 469, 480, 499, 511, 522, 530, 543, 544, 566, 610, 615-619) become `current_principals()` (sibling document 04). The identity semantics survive: `current_principals()` returns the published generation's `principals` object itself, so `is map_before` / `is not map_before` assertions (499, 522, 543) keep their no-op / rebuild-fresh meaning unchanged.
 - Populate comments (573, 630) name `build_and_publish_generation()` in the same sentences.
 
 ## Alternatives considered
@@ -26,7 +26,7 @@
 `tests/eventbus/test_admin_topics_authorization.py`
 
 ### Procedure
-1. Line 23: replace `principal_map` with `current_principals` (new) in the `tests.eventbus.eventbus_helpers` import; update calls at 269 and 441.
+1. Line 23: replace `principal_map` with `current_principals` (new) in the `tests.eventbus.eventbus_helpers` import; update all 17 calls (269, 441, 469, 480, 499, 511, 522, 530, 543, 544, 566, 610, 615-619).
 2. Rename the `_populate_token_maps` comments (573, 630), imports (589, 658), and calls (609, 678) to `build_and_publish_generation` (new).
 3. Confirm `grep -n "principal_map\|_populate_token_maps" tests/eventbus/test_admin_topics_authorization.py` (word-boundary) returns nothing except `_build_principal_map`-style names, of which this file has none.
 
@@ -67,8 +67,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convert helper import/calls (23, 269, 441) and populate references (573, 589, 609, 630, 658, 678) — Plan Phase 1 | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | |
+| 1 | Convert helper import/calls (23, 269, 441) and populate references (573, 589, 609, 630, 658, 678) — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | principal_map->current_principals (18 refs), populate renames; _build_principal_map monkeypatch at 486 retained |
+| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

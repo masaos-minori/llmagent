@@ -16,11 +16,11 @@ from eventbus.config import authorization_baseline_hash
 from fastapi.testclient import TestClient
 
 from tests.eventbus.eventbus_helpers import (
+    current_principals,
     eventbus_test_config,
     eventbus_test_tokens,
     injectable_clock,
     post_topics_authorization,
-    principal_map,
     reset_generation_state,  # noqa: F401 — fixture import for this module
 )
 
@@ -119,7 +119,7 @@ class TestTTLExpirySweep:
         assert resp.status_code == 200
         effective_at = resp.json()["effective_at"]
         granted = _require_generation()
-        assert ("c1", "ttl-topic") in principal_map()[CONSUMER_TOKEN].consumer_grants
+        assert ("c1", "ttl-topic") in current_principals()[CONSUMER_TOKEN].consumer_grants
 
         clock, advance = injectable_clock(start=effective_at)
         # Not yet expired: the sweep publishes nothing.
@@ -133,7 +133,7 @@ class TestTTLExpirySweep:
         assert new_gen is not None
         assert current_generation() is new_gen
         assert new_gen.generation == granted.generation + 1
-        assert ("c1", "ttl-topic") not in principal_map()[
+        assert ("c1", "ttl-topic") not in current_principals()[
             CONSUMER_TOKEN
         ].consumer_grants
         assert new_gen.expiries == frozenset()
@@ -206,7 +206,7 @@ class TestTTLExpirySweep:
         bumped = _require_generation()
         assert bumped.generation == granted.generation + 100
         # The bump did not remove the grant: the sweep aborted before publishing.
-        assert ("c1", "ttl-topic") in principal_map()[CONSUMER_TOKEN].consumer_grants
+        assert ("c1", "ttl-topic") in current_principals()[CONSUMER_TOKEN].consumer_grants
 
     def test_failed_rebuild_keeps_generation_unchanged(
         self,
@@ -226,7 +226,7 @@ class TestTTLExpirySweep:
         assert resp.status_code == 200
         granted = _require_generation()
         config_before = eb_app.app.state.config
-        map_before = principal_map()
+        map_before = current_principals()
 
         def _boom(config: Any) -> Any:
             raise ValueError("principal build failed")
@@ -241,7 +241,7 @@ class TestTTLExpirySweep:
         assert granted.generation == _require_generation().generation
         assert granted.baseline_hash == _require_generation().baseline_hash
         assert eb_app.app.state.config is config_before
-        assert principal_map() is map_before
+        assert current_principals() is map_before
 
 
 class TestRestartBaselineAudit:

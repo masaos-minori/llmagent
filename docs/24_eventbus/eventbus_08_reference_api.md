@@ -69,6 +69,7 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `Principal` | `class Principal` | Authenticated identity carrying roles, consumer grants, and token fingerprint. |
 |  | `AuthzGeneration` | `class AuthzGeneration` | Immutable authorization generation snapshot (EBAUTHGEN001). |
 |  | `unauthorized_response` | `def unauthorized_response(detail) -> JSONResponse` | Return a standardized HTTP 401 Unauthorized response. |
+|  | `build_and_publish_generation` | `def build_and_publish_generation(config) -> None` | Build the principals map and publish it as a new AuthzGeneration. |
 |  | `publish_generation` | `def publish_generation(new_generation) -> None` | Atomically publish a fully built AuthzGeneration. |
 |  | `current_generation` | `def current_generation() -> AuthzGeneration \| None` | Return the AuthzGeneration in force, or None before the baseline publishes. |
 |  | `get_auth_token` | `def get_auth_token(config) -> str` | Return the auth_token from EventBusConfig, or raise ValueError if missing. |

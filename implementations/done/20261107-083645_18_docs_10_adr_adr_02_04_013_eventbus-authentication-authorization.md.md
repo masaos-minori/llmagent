@@ -9,12 +9,12 @@
 
 ## Assumptions
 
-- Anchors verified 2026-11-07 at HEAD `1a13653e8`: line 65 "The generated map is published atomically into `AuthzGeneration.principals`. `_TOKEN_PRINCIPAL_MAP` is only an alias for that published map."; line 109 (component-contract table, `mcp_agent/api/auth.py` row) "validates it, calls `_populate_token_maps()`, exposes `issue_token_for_employee()`". Re-verify both lines before editing.
+- Anchors re-verified 2026-11-07 at HEAD `70391b306` (the Plan-era quotes below are corrected to the current wording): line 65 is Decision Details item 1 ("Authentication mechanism"); the alias appears as the second clause of a semicolon-separated parenthetical — "(the token→principal map of the published generation snapshot in `scripts/eventbus/auth.py`, read via `current_generation()`; `_TOKEN_PRINCIPAL_MAP` is only an alias for that published map)" — with no markdown link in that sentence. Line 109 is Decision Details item 15 ("Restart baseline", under "### Restart semantics"): "On startup, `_populate_token_maps()` publishes the baseline generation from `config/eventbus.toml`" — not a component-contract table row. Only these two lines name removed symbols; `_TOKEN_HASH_CACHE`/`_verify_token`/`_CONSUMER_TOKEN_HASH_CACHE` no longer appear (removed earlier, compatrm001 batch).
 - The file's "Superseded Architecture:" section (ADR-012 history, line 1 area) already covers historical naming and needs no change.
 
 ## Design decisions
 
-- Two-line minimal diff: delete the alias sentence at line 65; replace `` `_populate_token_maps()` `` with `` `build_and_publish_generation()` `` (new) at line 109 — the name introduced by document 04 (`tests/eventbus/eventbus_helpers.py` row 4 procedure renames the function).
+- Two-line minimal diff: delete the alias clause at line 65; replace `` `_populate_token_maps()` `` with `` `build_and_publish_generation()` `` (new) at line 109 — the name introduced by document 01 (`scripts/eventbus/auth.py` row 3 procedure renames the function).
 - No new sections, no renumbering; other ADR files untouched (this is the only docs match in the Step 2 audit).
 
 ## Alternatives considered
@@ -28,10 +28,8 @@
 
 ### Procedure
 
-1. Line 65: remove the sentence "`_TOKEN_PRINCIPAL_MAP` is only an alias for that published
-   map."; keep the first sentence and its links (`[auth.py](../../mcp_agent/api/auth.py)`).
-2. Line 109: replace `_populate_token_maps()` with `build_and_publish_generation()` (new) in the
-   component-contract table row for `mcp_agent/api/auth.py`.
+1. Line 65: in Decision Details item 1's parenthetical, delete the alias clause `; \`_TOKEN_PRINCIPAL_MAP\` is only an alias for that published map`; keep the rest of the parenthetical ("(the token→principal map of the published generation snapshot in `scripts/eventbus/auth.py`, read via `current_generation()`)") and the surrounding sentence unchanged.
+2. Line 109: in Decision Details item 15 ("Restart baseline"), replace `_populate_token_maps()` with `build_and_publish_generation()` (new); the rest of the item (audit record fields, INV-05 note) unchanged.
 
 ### Method
 
@@ -85,8 +83,8 @@ Expect no matches — this is exactly what unlocks the checker flip in document 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the two line edits — Plan Phase 1 (same commit as document 01) | Pending | — | — | re-verify line anchors first |
-| 2 | Run the docs checkers listed in Validation plan | Pending | — | — | |
+| 1 | Apply the two line edits — Plan Phase 1 (same commit as document 01) | Completed | 20261107-152722 | 20261107-152722 | re-verify line anchors first line 65 alias clause deleted, line 109 renamed to build_and_publish_generation |
+| 2 | Run the docs checkers listed in Validation plan | Completed | 20261107-152722 | 20261107-152722 | check_docs_quality/structure/content-policy/consistency --domain eventbus, check_adr_preservation/invariant_matrix/reference all exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

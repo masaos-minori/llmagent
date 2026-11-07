@@ -9,7 +9,7 @@
 
 ## Assumptions
 
-- Mechanism verified 2026-11-07 at HEAD `1a13653e8`: `COMPAT_PATTERNS` dict at line 39, closing brace at line 115, with the approval-stage precedent entries at 62-70 (`r"\bapproval_ops\b"` style); `tests/tools/test_check_compat_shims.py` iterates `COMPAT_PATTERNS` generically (line 550 region) and pins only the approval-stage subset (sample data lines 88-93) — adding entries needs no test-file edit (Plan Background).
+- Mechanism verified 2026-11-07 at HEAD `70391b306`: `COMPAT_PATTERNS` dict at line 39, closing brace at line 115, with the approval-stage precedent entries at 62-75 (`r"\bapproval_ops\b"` style); `tests/tools/test_check_compat_shims.py` scans generic content against all `COMPAT_PATTERNS.values()` (line 65) and pins the approval-stage subset with sample data (parametrize from line 88) and the `/mdq command` pattern (line 82) — adding entries needs no test-file edit (Plan Background).
 - Scan corpus: `scripts/`, `docs/`, `tests/`, `tools/` `.py`+`.md` (checker main, lines 665-679). Exceptions manifest already covers the two unavoidable literal homes: `check-compat-shims-source` (`tools/check_compat_shims.py`) and `check-compat-shims-test-data` (`tests/tools/test_check_compat_shims.py`) in `tools/compat_exceptions.toml` — no new exception entry is required (Plan Design "Removed-name protection").
 
 ## Design decisions
@@ -29,7 +29,7 @@
 `tools/check_compat_shims.py`
 
 ### Procedure
-1. Insert the three entries (above) into `COMPAT_PATTERNS`, appended at the end of the dict just before its closing brace (line 115), keeping the approval-stage block (62-70) contiguous.
+1. Insert the entries (above) into `COMPAT_PATTERNS`, appended at the end of the dict just before its closing brace (line 115), keeping the approval-stage block (62-75) contiguous. Verified during implementation: `COMPAT_PATTERNS` is a flat `name -> regex` dict (not `(module, names, replacement)` dicts), so each entry is `"auth._TOKEN_PRINCIPAL_MAP reference": r"\b_TOKEN_PRINCIPAL_MAP\b"`, `"auth._populate_token_maps reference": r"\b_populate_token_maps\b"`, `"eventbus auth._auth_alias_required reference": r"\b_auth_alias_required\b"`, `"eventbus helpers principal_map reference": r"\bprincipal_map\b"`, plus a `# compatrm002 patterns ...` comment line. `\bprincipal_map\b` does not match `_build_principal_map` (word boundary), so the retained builder is not flagged.
 2. No change to `tools/compat_exceptions.toml`.
 3. No change to `tests/tools/test_check_compat_shims.py` (generic iteration verified; approval-subset pins at 88-93 untouched).
 
@@ -72,8 +72,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the three `COMPAT_PATTERNS` entries — Plan Phase 1 | Pending | — | — | clean only with all reference deletions in the same commit |
-| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | |
+| 1 | Append the three `COMPAT_PATTERNS` entries — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | clean only with all reference deletions in the same commit 4 key->regex entries appended before closing brace; checker reports 0 compatrm002 findings after docs edits |
+| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

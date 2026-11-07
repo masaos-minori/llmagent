@@ -326,12 +326,14 @@ def test_setup_services_accepts_real_health_payload(
 
     from tests.eventbus.eventbus_helpers import make_eventbus_client
 
-    # Running the app lifespan in-process sets the shutdown flag and rebuilds the token
-    # map. tests/eventbus/conftest.py restores them only for its own tests, so restore
-    # them here or they leak into the Event Bus tests that run after this one.
+    # Running the app lifespan in-process sets the shutdown flag and publishes a new
+    # authorization generation. tests/eventbus/conftest.py restores them only for its
+    # own tests, so register restores here or they leak into the Event Bus tests that
+    # run after this one.
+    original_generation = auth.current_generation()
     monkeypatch.setattr(db_conn, "_shutting_down", db_conn._shutting_down)
     monkeypatch.setattr(db_conn, "_active_db_users", db_conn._active_db_users)
-    monkeypatch.setattr(auth, "_TOKEN_PRINCIPAL_MAP", auth._TOKEN_PRINCIPAL_MAP)
+    monkeypatch.setattr(auth, "_CURRENT_GENERATION", original_generation)
 
     app_dir = tmp_path / "app"
     app_dir.mkdir()

@@ -89,12 +89,6 @@ _ROUTE_ROLE_MAP: dict[str, set[Role]] = {
 # Populated from config at startup; empty means any consumer_id is valid for that caller
 _CONSUMER_ID_ALLOWLIST: dict[str, set[str]] = {}
 
-# Token-to-principal mapping: token -> Principal object.
-# Compatibility alias (owner-approved 2026-11-01): always names the same dict
-# object as the current generation's principals; publish_generation rebinds both
-# in one step. resolve_principal keeps reading this name.
-_TOKEN_PRINCIPAL_MAP: dict[str, Principal] = {}
-
 # The one AuthzGeneration in force; None until the lifespan publishes the baseline.
 _CURRENT_GENERATION: AuthzGeneration | None = None
 
@@ -170,7 +164,7 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
                 "Each token field must hold a distinct value."
             )
 
-    # Build the new map into a fresh local dict — do NOT touch _TOKEN_PRINCIPAL_MAP yet.
+    # Build the new map into a fresh local dict — do NOT touch the published generation yet.
     new_map: dict[str, Principal] = {}
 
     # The shared auth_token and admin_token are control-plane credentials: they hold
@@ -231,7 +225,7 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
     return new_map
 
 
-def _populate_token_maps(config: Any) -> None:
+def build_and_publish_generation(config: Any) -> None:
     """Build the principals map and publish it as a new AuthzGeneration.
 
     Builds the whole map and the baseline hash first, then publishes one
@@ -258,14 +252,12 @@ def _populate_token_maps(config: Any) -> None:
 def publish_generation(new_generation: AuthzGeneration) -> None:
     """Atomically publish a fully built AuthzGeneration.
 
-    Called after the new generation is completely built. The generation and the
-    _TOKEN_PRINCIPAL_MAP alias are rebound in one global block so both names
-    always denote the same principals dict; a single module-level assignment
-    under the GIL ensures concurrent readers never observe an empty map window.
+    Called after the new generation is completely built. A single module-level
+    assignment under the GIL ensures concurrent readers never observe an empty
+    map window.
     """
-    global _CURRENT_GENERATION, _TOKEN_PRINCIPAL_MAP
+    global _CURRENT_GENERATION
     _CURRENT_GENERATION = new_generation
-    _TOKEN_PRINCIPAL_MAP = new_generation.principals
 
 
 def current_generation() -> AuthzGeneration | None:
@@ -307,7 +299,10 @@ async def resolve_principal(
             status_code=500, detail="Server misconfiguration: auth_token not configured"
         )
 
-    if token not in _TOKEN_PRINCIPAL_MAP:
+    generation = current_generation()
+    principals = generation.principals if generation is not None else {}
+
+    if token not in principals:
         logger.warning("Authentication failed: invalid Bearer token")
         log_auth_failure(
             consumer_id="",
@@ -323,7 +318,7 @@ async def resolve_principal(
             headers={"WWW-Authenticate": 'Bearer realm="eventbus"'},
         )
 
-    principal = _TOKEN_PRINCIPAL_MAP[token]
+    principal = principals[token]
     token_fp = _derive_token_fingerprint(token)
 
     return Principal(

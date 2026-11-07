@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 if TYPE_CHECKING:
-    from eventbus.auth import Principal
+    from eventbus.auth import AuthzGeneration, Principal
 
 # ids and topics used by the Event Bus tests; Consumer routes admit only principals
 # with explicit authorizations (ADR-013 INV-02), so these are granted explicitly.
@@ -213,21 +213,51 @@ def eventbus_two_lifecycle_clients(
     yield open_client, snapshots
 
 
-def principal_map() -> dict[str, Principal]:
+def current_principals() -> dict[str, Principal]:
     """Return the principals map of the AuthzGeneration currently in force.
 
-    `eventbus.auth.publish_generation()` rebinds the generation and the
-    `_TOKEN_PRINCIPAL_MAP` compatibility alias to the new principals dict on
-    every effective rebuild, so a reference imported before that call goes
-    stale. Look the map up through the generation each time it is read or
-    modified.
+    Mirrors the production fail-closed read: with no generation published there
+    are no principals, so this returns an empty dict.
     """
     from eventbus import auth
 
     generation = auth.current_generation()
-    if generation is not None:
-        return generation.principals
-    return auth._TOKEN_PRINCIPAL_MAP
+    return generation.principals if generation is not None else {}
+
+
+def publish_derived_generation(
+    overrides: dict[str, Principal],
+    removed: frozenset[str] = frozenset(),
+) -> AuthzGeneration:
+    """Build and publish the next complete generation derived from the current one.
+
+    Injection tests publish test principals through this instead of mutating any
+    module-level map: the next generation copies the current principals with
+    ``overrides`` applied and ``removed`` tokens dropped, then is published in
+    one ``publish_generation()`` call, so concurrent readers never observe a
+    partial state. Raises RuntimeError when no generation is published yet —
+    injection tests must run after the lifespan baseline exists.
+    """
+    import time
+
+    from eventbus import auth
+    from eventbus.auth import AuthzGeneration
+
+    current = auth.current_generation()
+    if current is None:
+        raise RuntimeError("no generation published to derive from")
+    merged = {**current.principals, **overrides}
+    principals = {token: p for token, p in merged.items() if token not in removed}
+    generation = AuthzGeneration(
+        generation=current.generation + 1,
+        config=current.config,
+        principals=principals,
+        effective_at=time.time(),
+        baseline_hash=current.baseline_hash,
+        expiries=current.expiries,
+    )
+    auth.publish_generation(generation)
+    return generation
 
 
 def injectable_clock(start: float = 1_700_000_000.0) -> tuple[Any, Any]:

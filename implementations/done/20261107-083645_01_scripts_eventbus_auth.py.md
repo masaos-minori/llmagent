@@ -9,9 +9,9 @@
 
 ## Assumptions
 
-- All line anchors re-verified 2026-11-07 at HEAD `1a13653e8` (no target-file changes since the Plan freeze at `1b2dded66`).
+- All line anchors re-verified 2026-11-07 at HEAD `70391b306` (no target-file changes since the Plan freeze at `1b2dded66`).
 - `_CONSUMER_ID_ALLOWLIST` (auth.py:90) is consumer-ID allowlist state, not a principal map; it stays out of this row (Plan Scope: only the principal alias is removed).
-- Overlap with plan001 document implementations/20261107-081028_23_tests_deploy_test_setup_services_eventbus.py.md: plan001 edits the workflow-schema fixture lines (25, 133) of the companion file `tests/deploy/test_setup_services_eventbus.py`; this Plan's companion edits the populate call at line 339 of the same file — disjoint regions; re-verify line positions at implementation time (Plan Assumptions).
+- Overlap with plan001 document implementations/20261107-081028_23_tests_deploy_test_setup_services_eventbus.py.md: plan001 edits the workflow-schema fixture lines (25, 133) of the companion file `tests/deploy/test_setup_services_eventbus.py`; this Plan's companion edits the populate call at line 334 of the same file — disjoint regions. Re-verified at HEAD `70391b306` on 2026-11-07: the deploy-test anchor shifted 339 -> 334 (db_conn restores now 332-333) when `70391b306` changed that file (Plan Assumptions).
 - UNK-01 (indirect auth-state construction via `make_eventbus_client` lifespan) is covered by the conftest generation-restore fixture (sibling document 05) and verified by the full-suite run (Plan Unknowns, Blocking? = False).
 
 ## Design decisions
@@ -33,7 +33,7 @@
 1. Delete the alias comment block (lines 92-95) and the `_TOKEN_PRINCIPAL_MAP` definition (line 96).
 2. Reword the `_build_principal_map()` comment at line 173: "do NOT touch _TOKEN_PRINCIPAL_MAP yet" -> "do NOT touch the published generation yet".
 3. Rename `_populate_token_maps` (def at line 234) to `build_and_publish_generation` (new); keep its body and docstring (they already describe build-then-publish semantics).
-4. In `publish_generation()` (lines 259-270): drop the alias sentence from the docstring; body becomes `global _CURRENT_GENERATION` + `_CURRENT_GENERATION = new_generation` only (delete line 268).
+4. In `publish_generation()` (def at 258, docstring 259-265, global block 266-268): drop the alias sentence from the docstring; body becomes `global _CURRENT_GENERATION` + `_CURRENT_GENERATION = new_generation` only (delete line 268).
 5. In `resolve_principal()`: after the `get_auth_token(config)` fail-closed block, add `generation = current_generation()` and `principals = generation.principals if generation is not None else {}`; replace `token not in _TOKEN_PRINCIPAL_MAP` (line 310) with `token not in principals` and `_TOKEN_PRINCIPAL_MAP[token]` (line 326) with `principals[token]`. An unpublished generation therefore takes the existing 401 path at lines 311-323 (audit `log_auth_failure`, no token echo).
 6. Confirm `grep -n "_TOKEN_PRINCIPAL_MAP\|_populate_token_maps" scripts/eventbus/auth.py` returns nothing.
 
@@ -47,10 +47,15 @@
 
 ### Companion test files
 - `tests/eventbus/test_eventbus_auth.py`
-  - Procedure: rename all 29 `_populate_token_maps` references (imports and calls, incl. the atomic-swap concurrent test at 1729-1770 and the failed-rebuild case at 1775-1816) to `build_and_publish_generation` (new); replace the map-mutation/restore helpers and blocks (regions 860-866 import block with `finally: _TOKEN_PRINCIPAL_MAP.pop(token, None)` at 911, `_snapshot`/`_restore` pairs at 1583-1592 and 1719-1726, and the concurrent-reader test at 1749-1815) with generation discipline: snapshot `auth.current_generation()`, inject via the helpers-module publish helper (sibling document 04), read via `auth.current_generation().principals`; delete the object-identity assertion at 1836-1840 (`assert generation.principals is auth._TOKEN_PRINCIPAL_MAP`) and assert generation identity (`current_generation() is snapshot`), generation-number advancement, and principal content instead (Plan Design "Test discipline").
+  - Procedure (regions re-verified at HEAD `70391b306` on 2026-11-07):
+    1. Rename all 29 `_populate_token_maps` references (comment 92; imports/calls at 262/265, 816/833, 923/940, 953/974, 1014/1035, 1063/1084, 1503/1517, 1597/1614, 1626/1648, 1675/1703, 1731/1748/1755, 1775/1792/1810; docstring 1729 and comment 1751 text updated in the same sentences) to `build_and_publish_generation` (new).
+    2. Replace the `principal_map` import (line 25) with `current_principals` (new) (sibling document 04) and all 27 `principal_map()` calls (101-103, 819, 840, 844-845, 926, 942-943, 959, 979, 990, 1001-1002, 1021, 1036, 1051-1052, 1070, 1085, 1107-1108, 1649, 1652, 1655-1656) with it.
+    3. Replace the direct-alias injection blocks (import at 862 with inject at 869 and `finally: _TOKEN_PRINCIPAL_MAP.pop(token, None)` at 883; second block import 890 / inject 897 / pop 911) and the `_snapshot`/`_restore` helper pairs (1582-1585 / 1588-1592 and 1716-1719 / 1722-1726) with generation discipline: snapshot `auth.current_generation()`, inject via the helpers-module publish helper (sibling document 04), read via `auth.current_generation().principals`.
+    4. Convert the concurrent-reader assertions (atomic-swap test 1728-1769: map-emptiness/count assertions at 1749, 1754-1756, 1764-1765; failed-rebuild test 1771-1819: assertions at 1793-1794, 1813-1815) to generation-based reads of the same properties.
+    5. Rework the two tail tests of `TestAtomicPublishAndFailedRebuild` (1821-1840): both read a generation published by an earlier test, which the conftest per-test rollback no longer preserves — make each self-contained (`build_and_publish_generation(cfg)` first). For `test_published_generation_principals_is_the_map_resolve_principal_consults`: drop the alias phrase from the docstring and delete the object-identity assertion (`assert generation.principals is auth._TOKEN_PRINCIPAL_MAP`); assert instead that `resolve_principal()` resolves from `current_generation().principals`, that a failed rebuild keeps `current_generation() is gen1`, and that a successful rebuild publishes `gen1.generation + 1` with a new principals map (Plan Design "Test discipline"). Also add `assert auth.current_generation() is gen_before` to `test_failed_rebuild_preserves_previous_generation` (AC-004 object identity, not just content).
   - Validation: `uv run pytest tests/eventbus/test_eventbus_auth.py` green after Method; `grep -c "_TOKEN_PRINCIPAL_MAP\|_populate_token_maps" tests/eventbus/test_eventbus_auth.py` -> 0.
 - `tests/eventbus/test_authz_generation_ttl.py`
-  - Procedure: swap the `principal_map` import (line 23, from `tests.eventbus.eventbus_helpers`) for `current_principals` (new) (new, sibling document 04) and update its calls at lines 136, 229, and 244; `map_before = principal_map()` (229) and `assert principal_map() is map_before` (244) become `map_before = current_principals()` / `assert current_principals() is map_before` — the failed-rebuild case (232-244) keeps asserting the previous generation stays in force (REQ-004 / AC-004).
+  - Procedure: swap the `principal_map` import (line 23, from `tests.eventbus.eventbus_helpers`) for `current_principals` (new) (new, sibling document 04) and update its calls at lines 122, 136, 209, 229, and 244 (re-verified at HEAD `70391b306`: 5 calls, not 3); `map_before = principal_map()` (229) and `assert principal_map() is map_before` (244) become `map_before = current_principals()` / `assert current_principals() is map_before` — the failed-rebuild case (232-244) keeps asserting the previous generation stays in force (REQ-004 / AC-004).
   - Validation: `uv run pytest tests/eventbus/test_authz_generation_ttl.py` green; failed-rebuild assertions (`current_generation() is granted`) unchanged.
 
 ## Compatibility considerations
@@ -91,9 +96,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `scripts/eventbus/auth.py` (delete alias, rewire `resolve_principal`, rename to `build_and_publish_generation` (new)) — Plan Phase 1 | Pending | — | — | Atomic cutover: suite green only with all Phase 1 documents landed |
-| 2 | Convert companion tests `test_eventbus_auth.py` and `test_authz_generation_ttl.py` — Plan Phase 1 | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | |
+| 1 | Rewrite `scripts/eventbus/auth.py` (delete alias, rewire `resolve_principal`, rename to `build_and_publish_generation` (new)) — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | Atomic cutover: suite green only with all Phase 1 documents landed auth.py alias removed, resolve_principal via current_generation, rename landed |
+| 2 | Convert companion tests `test_eventbus_auth.py` and `test_authz_generation_ttl.py` — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | test_eventbus_auth.py + test_authz_generation_ttl.py converted; 59 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

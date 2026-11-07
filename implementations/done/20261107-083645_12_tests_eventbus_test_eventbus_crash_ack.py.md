@@ -65,8 +65,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename references (60, 81, 82, 91) and reword alias comments (83, 93) — Plan Phase 1 | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | |
+| 1 | Rename references (60, 81, 82, 91) and reword alias comments (83, 93) — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | populate renamed; comments reworded to generation wording |
+| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

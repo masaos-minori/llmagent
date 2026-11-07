@@ -67,8 +67,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename populate references (22/34, 49/70, 80-82) and convert mutation (83-89) — Plan Phase 1 | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | |
+| 1 | Rename populate references (22/34, 49/70, 80-82) and convert mutation (83-89) — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | populate renamed; vestigial post-TestClient mutation removed (cfg grants identical) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

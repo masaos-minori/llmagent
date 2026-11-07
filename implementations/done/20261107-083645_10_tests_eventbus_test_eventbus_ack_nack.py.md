@@ -68,8 +68,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convert populate calls (144, 165, 182) and mutation regions (167-187) — Plan Phase 1 | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | |
+| 1 | Convert populate calls (144, 165, 182) and mutation regions (167-187) — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | populate renamed; vestigial pre/post-TestClient mutations removed (cfg grants identical) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

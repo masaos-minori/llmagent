@@ -53,16 +53,22 @@ def _reset_db_conn_state() -> Generator[None]:
 
 
 @pytest.fixture(autouse=True)
-def _reset_auth_state(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
+def _reset_auth_state() -> Generator[None]:
     """Preserve auth module-level state across tests.
 
-    _TOKEN_PRINCIPAL_MAP is populated at runtime by
-    attach_auth_middleware() or config loading; preserving it prevents
-    test-to-test leakage while keeping the map intact for the duration
-    of each test run.
+    _CURRENT_GENERATION is published at runtime by the app lifespan or by test
+    helpers via publish_generation(); restoring it after every test prevents
+    test-to-test generation leakage while keeping the baseline intact for the
+    duration of each test run. Restore is a direct module-attribute assignment
+    in a post-yield finally block, not a monkeypatch.undo()-managed patch:
+    tests that call monkeypatch.undo() mid-test (test_eventbus_requeue_edge_cases.py,
+    test_eventbus_concurrent.py, test_eventbus_dlq_outbox.py) would otherwise
+    undo this fixture's patch too and rewind the generation under test.
     """
     from eventbus import auth
 
-    original_map = getattr(auth, "_TOKEN_PRINCIPAL_MAP", {})
-    yield
-    monkeypatch.setattr(auth, "_TOKEN_PRINCIPAL_MAP", original_map)
+    original_generation = auth.current_generation()
+    try:
+        yield
+    finally:
+        auth._CURRENT_GENERATION = original_generation

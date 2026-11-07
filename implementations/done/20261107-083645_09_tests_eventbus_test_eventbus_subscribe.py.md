@@ -70,8 +70,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convert mutation blocks (131-137, 207-218) and alias comments (596-597) — Plan Phase 1 | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | |
+| 1 | Convert mutation blocks (131-137, 207-218) and alias comments (596-597) — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | fixture vestigial mutation removed (cfg grants identical); in-test mutation via publish_derived_generation, finally removed; comments reworded |
+| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

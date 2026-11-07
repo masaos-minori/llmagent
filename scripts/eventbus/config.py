@@ -381,7 +381,7 @@ def load_config(path: Path | None = None) -> EventBusConfig:
     # Normalize authorization-mapping value types to the EventBusConfig annotations
     # (REQ-002): topic_authorization values become set[str]; consumer_authorization
     # values stay list[str]. A missing key stays None so the empty-vs-missing
-    # distinction _populate_token_maps() depends on is preserved.
+    # distinction build_and_publish_generation() depends on is preserved.
     consumer_authorization = data.get("consumer_authorization")
     topic_authorization = data.get("topic_authorization")
     if topic_authorization is not None:

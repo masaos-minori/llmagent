@@ -171,9 +171,9 @@ N/A: no release unit — Phase 1 is a single atomic phase; no intermediate phase
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Atomic production + test cutover | In Progress | — | — |  |
-| 2 | Phase 2: Documentation | In Progress | — | — |  |
-| 3 | Phase 3: Verification and deploy check | Pending | — | — |  |
+| 1 | Phase 1: Atomic production + test cutover | Completed | — | 20261107-151024 | all 15 procedure members implemented in one atomic cutover (incl. F7 companion deploy/load_env.sh preflight) |
+| 2 | Phase 2: Documentation | Completed | — | 20261107-151024 | ADR-013 lines 65/109 updated; docs checkers exit 0 |
+| 3 | Phase 3: Verification and deploy check | Completed | — | 20261107-152700 | full suite 11784 passed 9 skipped; diff-cover 100pct fail-under=90; ruff/mypy/lint-imports/bandit/check_compat_shims clean; deploy check: scripts and deploy changes require user-requested deploy to /opt/llm |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -183,21 +183,21 @@ N/A: no release unit — Phase 1 is a single atomic phase; no intermediate phase
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261107-083645_01_scripts_eventbus_auth.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_02_scripts_eventbus_app.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_03_scripts_eventbus_config.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_04_tests_eventbus_eventbus_helpers.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_05_tests_eventbus_conftest.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_07_tests_eventbus_test_eventbus_consumer_authorization.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_08_tests_eventbus_test_eventbus_config.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_09_tests_eventbus_test_eventbus_subscribe.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_10_tests_eventbus_test_eventbus_ack_nack.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_11_tests_eventbus_test_eventbus_ack_endpoint.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_12_tests_eventbus_test_eventbus_crash_ack.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_13_tests_eventbus_test_eventbus_dlq_pagination.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_14_tests_eventbus_test_admin_topics_authorization.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_17_tools_check_compat_shims.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-083645_18_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-083645_01_scripts_eventbus_auth.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_02_scripts_eventbus_app.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_03_scripts_eventbus_config.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_04_tests_eventbus_eventbus_helpers.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_05_tests_eventbus_conftest.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_07_tests_eventbus_test_eventbus_consumer_authorization.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_08_tests_eventbus_test_eventbus_config.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_09_tests_eventbus_test_eventbus_subscribe.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_10_tests_eventbus_test_eventbus_ack_nack.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_11_tests_eventbus_test_eventbus_ack_endpoint.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_12_tests_eventbus_test_eventbus_crash_ack.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_13_tests_eventbus_test_eventbus_dlq_pagination.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_14_tests_eventbus_test_admin_topics_authorization.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_17_tools_check_compat_shims.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261107-083645_18_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

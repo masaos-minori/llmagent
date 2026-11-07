@@ -113,8 +113,8 @@ def principal_client(
         publisher_token="publisher-token",
         consumer_token="consumer-token",
         # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. The manual Principal override below governs the
-        # actual consumer_id restriction; topic "t" matches these subscribe tests.
+        # consumer_authorization; the consumer-A on "t" grants below govern
+        # the authorization checks under test.
         consumer_authorization={"consumer-A": ["t"]},
         operator_token="operator-token",
         admin_token="admin-token",
@@ -126,16 +126,6 @@ def principal_client(
     )
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
     monkeypatch.setattr(sr_module, "DEFAULT_SSE_IDLE_TIMEOUT", sse_idle_timeout)
-
-    # Map consumer-token to a specific consumer ID for authorization testing
-    from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal
-
-    if "consumer-token" in _TOKEN_PRINCIPAL_MAP:
-        _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
-            roles=_TOKEN_PRINCIPAL_MAP["consumer-token"].roles,
-            consumer_grants=frozenset({("consumer-A", "t")}),
-            token_fingerprint=_TOKEN_PRINCIPAL_MAP["consumer-token"].token_fingerprint,
-        )
 
     with TestClient(eb_app.app) as c:
         c.headers["Authorization"] = "Bearer consumer-token"
@@ -204,18 +194,21 @@ def test_subscribe_with_restricted_topic_rejects_disallowed_topic(
     """ADR-013 INV-02 and ADR-006 INV-10: a token with a non-empty grant set
     is still rejected for a topic outside its grants (implementations/done/20260913-152721_02_scripts_eventbus_subscribe_route.py.md).
     """
-    from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal, Role
+    from eventbus.auth import Principal, Role
 
-    _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
-        roles=frozenset({Role.CONSUMER}),
-        consumer_grants=frozenset({("c1", "allowed-topic")}),
-        token_fingerprint="test-fingerprint",
+    from tests.eventbus.eventbus_helpers import publish_derived_generation
+
+    publish_derived_generation(
+        overrides={
+            "consumer-token": Principal(
+                roles=frozenset({Role.CONSUMER}),
+                consumer_grants=frozenset({("c1", "allowed-topic")}),
+                token_fingerprint="test-fingerprint",
+            )
+        }
     )
-    try:
-        resp = client.get("/subscribe?consumer_id=c1&topic=disallowed-topic")
-        assert resp.status_code == 403
-    finally:
-        _TOKEN_PRINCIPAL_MAP.pop("consumer-token", None)
+    resp = client.get("/subscribe?consumer_id=c1&topic=disallowed-topic")
+    assert resp.status_code == 403
 
 
 def test_subscribe_heartbeat_resets_idle_timeout(
@@ -593,8 +586,8 @@ class TestSubscribePrincipalValidation:
         resp = principal_client.get(
             "/subscribe?consumer_id=unauthorized-consumer&topic=t"
         )
-        # Subscribe uses topic-based authorization (_TOKEN_PRINCIPAL_MAP), not consumer ID ownership.
-        # When _TOKEN_PRINCIPAL_MAP maps consumer-token to a Principal whose grants only
+        # Subscribe uses topic-based authorization (AuthzGeneration.principals), not consumer ID ownership.
+        # When AuthzGeneration.principals maps consumer-token to a Principal whose grants only
         # name consumer-A, the shared authorization decision rejects any other consumer_id with 403.
         # However, the current implementation may allow the request through depending on
         # whether the subscribe route enforces consumer_id ownership at all.

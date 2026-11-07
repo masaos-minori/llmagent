@@ -73,8 +73,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `principal_map()` (216-230); add `current_principals()` and `publish_derived_generation()` — Plan Phase 1 | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | consumers land in the same commit |
+| 1 | Delete `principal_map()` (216-230); add `current_principals()` and `publish_derived_generation()` — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | principal_map deleted; current_principals + publish_derived_generation added |
+| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | consumers land in the same commit full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -112,6 +112,12 @@ COMPAT_PATTERNS = {
     "WorkflowExecutionPolicy import": r"from\s+agent\.workflow_execution_policy\s+import",
     "workflow_execution_policy module import": r"\bimport\s+workflow_execution_policy\b",
     "_reset_registry_for_testing": r"_reset_registry_for_testing",
+    # compatrm002 patterns — eventbus auth compat state removed after plan
+    # 20261107-063003 (AuthzGeneration-only authz state)
+    "auth._TOKEN_PRINCIPAL_MAP reference": r"\b_TOKEN_PRINCIPAL_MAP\b",
+    "auth._populate_token_maps reference": r"\b_populate_token_maps\b",
+    "eventbus auth._auth_alias_required reference": r"\b_auth_alias_required\b",
+    "eventbus helpers principal_map reference": r"\bprincipal_map\b",
 }
 
 # Patterns an Accepted ADR phrases as an explicit prohibition, keyed by name,

@@ -124,6 +124,11 @@ entries:
   summary: Return a standardized HTTP 401 Unauthorized response.
 - file: scripts/eventbus/auth.py
   kind: function
+  name: build_and_publish_generation
+  signature: def build_and_publish_generation(config) -> None
+  summary: Build the principals map and publish it as a new AuthzGeneration.
+- file: scripts/eventbus/auth.py
+  kind: function
   name: publish_generation
   signature: def publish_generation(new_generation) -> None
   summary: Atomically publish a fully built AuthzGeneration.

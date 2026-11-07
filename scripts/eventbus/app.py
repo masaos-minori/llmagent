@@ -23,8 +23,8 @@ from eventbus.audit import log_privileged_action
 from eventbus.auth import (
     Principal,
     Role,
-    _populate_token_maps,  # noqa: PLC0415 — new module, REQ-004
     attach_auth_middleware,  # noqa: PLC0415 — new module, REQ-002
+    build_and_publish_generation,  # noqa: PLC0415 — new module, REQ-004
     current_generation,
     require_consumer_identity,
     require_role,
@@ -80,8 +80,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     clear_shutdown_flag()  # a new lifecycle must not inherit a prior shutdown flag
     app.state.config = load_config(get_config_path())
     app.state.db = open_db(app.state.config.db_path)
-    # Populate token maps from config for authorization
-    _populate_token_maps(app.state.config)
+    # Publish the baseline authorization generation from config
+    build_and_publish_generation(app.state.config)
     # Restart-baseline audit record (REQ-006): documents the baseline generation
     # hash in force and that any prior runtime overrides were removed.
     baseline_gen = current_generation()

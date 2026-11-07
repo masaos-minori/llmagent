@@ -19,7 +19,7 @@ from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     from eventbus import app as eb_app
-    from eventbus.auth import _populate_token_maps
+    from eventbus.auth import build_and_publish_generation
     from eventbus.config import EventBusConfig
 
     cfg = EventBusConfig(
@@ -31,7 +31,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         **eventbus_test_tokens("test-token"),
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
-    _populate_token_maps(cfg)
+    build_and_publish_generation(cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )
@@ -46,7 +46,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
 def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     """Create a TestClient with Principal-based authentication."""
     from eventbus import app as eb_app
-    from eventbus.auth import _populate_token_maps
+    from eventbus.auth import build_and_publish_generation
     from eventbus.config import EventBusConfig
 
     cfg = EventBusConfig(
@@ -60,14 +60,14 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         publisher_token="publisher-token",
         consumer_token="consumer-token",
         # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. The manual Principal override below sets the
-        # actual (consumer_id, topic) grants (consumer-A on ack_test).
+        # consumer_authorization; the consumer-A on ack_test grants below
+        # govern the authorization checks under test.
         consumer_authorization={"consumer-A": ["ack_test"]},
         operator_token="operator-token",
         monitoring_token="monitoring-token",
         admin_token="admin-token",
     )
-    _populate_token_maps(cfg)
+    build_and_publish_generation(cfg)
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
@@ -75,21 +75,6 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        # Override consumer-token's consumer_grants for authorization testing.
-        # Must run after TestClient entry: entering TestClient triggers the app's
-        # `lifespan` startup handler, which calls _populate_token_maps() again and
-        # would otherwise wipe out this override (see scripts/eventbus/app.py
-        # lifespan(), scripts/eventbus/auth.py _populate_token_maps()).
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal
-
-        if "consumer-token" in _TOKEN_PRINCIPAL_MAP:
-            _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
-                roles=_TOKEN_PRINCIPAL_MAP["consumer-token"].roles,
-                consumer_grants=frozenset({("consumer-A", "ack_test")}),
-                token_fingerprint=_TOKEN_PRINCIPAL_MAP[
-                    "consumer-token"
-                ].token_fingerprint,
-            )
         c.headers["Authorization"] = "Bearer consumer-token"
         yield c
 

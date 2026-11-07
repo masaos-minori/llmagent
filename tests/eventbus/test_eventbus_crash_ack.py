@@ -57,7 +57,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
 def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     """Create a TestClient with Principal-based authentication."""
     from eventbus import app as eb_app
-    from eventbus.auth import _populate_token_maps
+    from eventbus.auth import build_and_publish_generation
     from eventbus.config import EventBusConfig
 
     cfg = EventBusConfig(
@@ -71,16 +71,16 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         publisher_token="publisher-token",
         consumer_token="consumer-token",
         # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. The manual Principal override below sets the
-        # actual consumer_id restriction (consumer-A); this satisfies startup.
+        # consumer_authorization; the consumer-A on "crash" grants below
+        # govern the authorization checks under test.
         consumer_authorization={"consumer-A": ["crash"]},
         operator_token="operator-token",
         monitoring_token="monitoring-token",
         admin_token="admin-token",
     )
-    _populate_token_maps(cfg)
-    # consumer-token principal is built via _populate_token_maps() above;
-    # no direct _TOKEN_PRINCIPAL_MAP mutation needed.
+    build_and_publish_generation(cfg)
+    # consumer-token principal is built by build_and_publish_generation()
+    # above and re-published by the app lifespan at TestClient entry.
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
@@ -88,9 +88,9 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        # App lifespan re-runs _populate_token_maps() via the monkeypatched
-        # load_config, which carries consumer_authorization={"consumer-A": ["crash"]}.
-        # No direct _TOKEN_PRINCIPAL_MAP mutation needed.
+        # App lifespan re-runs build_and_publish_generation() via the
+        # monkeypatched load_config, which carries consumer_authorization={"consumer-A": ["crash"]}.
+        # The generation in force carries the consumer-A grants under test.
         c.headers["Authorization"] = "Bearer consumer-token"
         yield c
 

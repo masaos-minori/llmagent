@@ -141,7 +141,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
 def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     """Create a TestClient with Principal-based authentication."""
     from eventbus import app as eb_app
-    from eventbus.auth import _populate_token_maps
+    from eventbus.auth import build_and_publish_generation
     from eventbus.config import EventBusConfig
 
     cfg = EventBusConfig(
@@ -155,23 +155,14 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         publisher_token="publisher-token",
         consumer_token="consumer-token",
         # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. The manual Principal override below sets the
-        # actual consumer_id restriction (consumer-A); this satisfies startup.
+        # consumer_authorization; the consumer-A on "t" grants below govern
+        # the ownership check under test.
         consumer_authorization={"consumer-A": ["t"]},
         operator_token="operator-token",
         monitoring_token="monitoring-token",
         admin_token="admin-token",
     )
-    _populate_token_maps(cfg)
-    # Map consumer-token to a specific consumer ID for authorization testing
-    from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal
-
-    if "consumer-token" in _TOKEN_PRINCIPAL_MAP:
-        _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
-            roles=_TOKEN_PRINCIPAL_MAP["consumer-token"].roles,
-            consumer_grants=frozenset({("consumer-A", "t")}),
-            token_fingerprint=_TOKEN_PRINCIPAL_MAP["consumer-token"].token_fingerprint,
-        )
+    build_and_publish_generation(cfg)
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
@@ -179,16 +170,6 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        # The app lifespan re-runs _populate_token_maps() on startup, resetting
-        # consumer-token to the config-derived grants. Re-apply the per-consumer
-        # restriction here so the ownership check under test actually fires.
-        base = _TOKEN_PRINCIPAL_MAP.get("consumer-token")
-        if base is not None:
-            _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
-                roles=base.roles,
-                consumer_grants=frozenset({("consumer-A", "t")}),
-                token_fingerprint=base.token_fingerprint,
-            )
         c.headers["Authorization"] = "Bearer consumer-token"
         yield c
 

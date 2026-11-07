@@ -68,8 +68,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convert the four snapshot/mutate/restore blocks (290-395) — Plan Phase 1 | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | |
+| 1 | Convert the four snapshot/mutate/restore blocks (290-395) — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | snapshot/finally blocks removed (conftest generation restore); populate renamed; principal reads via current_principals(); mypy-clean import added |
+| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

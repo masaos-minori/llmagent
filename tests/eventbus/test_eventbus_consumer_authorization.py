@@ -16,6 +16,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.eventbus.eventbus_helpers import current_principals
+
 _AUTH = {
     "shared": "control-token",
     "admin": "admin-token",
@@ -283,113 +285,93 @@ class TestConsumerMappingConfigPath:
         self, tmp_path: Path
     ) -> None:
         """A consumer mapping written to a TOML file survives load_config() and
-        reaches the consumer principal after _populate_token_maps()."""
+        reaches the consumer principal after build_and_publish_generation()."""
         import eventbus.auth as eb_auth
         import eventbus.config as eb_config
 
-        snapshot = dict(eb_auth._TOKEN_PRINCIPAL_MAP)
-        try:
-            toml_path = tmp_path / "eventbus_consumer.toml"
-            toml_path.write_text(
-                "port = 8015\n"
-                'db_path = "/tmp/test-eventbus-consumer.sqlite"\n'
-                'storage_dir = "/tmp/test-eventbus-consumer"\n'
-                'deadletter_dir = "/tmp/test-eventbus-consumer"\n'
-                "max_retry = 3\n"
-                'host = "127.0.0.1"\n'
-                'auth_token = "shared-auth-token"\n'
-                'consumer_token = "consumer-token"\n'
-                'consumer_authorization = { "c1" = ["topicA"] }\n'
-                'topic_authorization = { "topicA" = ["c1"] }\n'
-            )
-            cfg = eb_config.load_config(toml_path)
-            assert cfg.consumer_authorization == {"c1": ["topicA"]}
-            eb_auth._populate_token_maps(cfg)
-            principal = eb_auth._TOKEN_PRINCIPAL_MAP["consumer-token"]
-            assert principal.consumer_grants == frozenset({("c1", "topicA")})
-        finally:
-            eb_auth._TOKEN_PRINCIPAL_MAP.clear()
-            eb_auth._TOKEN_PRINCIPAL_MAP.update(snapshot)
+        toml_path = tmp_path / "eventbus_consumer.toml"
+        toml_path.write_text(
+            "port = 8015\n"
+            'db_path = "/tmp/test-eventbus-consumer.sqlite"\n'
+            'storage_dir = "/tmp/test-eventbus-consumer"\n'
+            'deadletter_dir = "/tmp/test-eventbus-consumer"\n'
+            "max_retry = 3\n"
+            'host = "127.0.0.1"\n'
+            'auth_token = "shared-auth-token"\n'
+            'consumer_token = "consumer-token"\n'
+            'consumer_authorization = { "c1" = ["topicA"] }\n'
+            'topic_authorization = { "topicA" = ["c1"] }\n'
+        )
+        cfg = eb_config.load_config(toml_path)
+        assert cfg.consumer_authorization == {"c1": ["topicA"]}
+        eb_auth.build_and_publish_generation(cfg)
+        principal = current_principals()["consumer-token"]
+        assert principal.consumer_grants == frozenset({("c1", "topicA")})
 
     def test_empty_mapping_via_config_denies_all(self, tmp_path: Path) -> None:
         """An empty consumer mapping written to a TOML file reaches
-        _populate_token_maps() as deny-all (an empty grant set)."""
+        build_and_publish_generation() as deny-all (an empty grant set)."""
         import eventbus.auth as eb_auth
         import eventbus.config as eb_config
 
-        snapshot = dict(eb_auth._TOKEN_PRINCIPAL_MAP)
-        try:
-            toml_path = tmp_path / "eventbus_empty.toml"
-            toml_path.write_text(
-                "port = 8015\n"
-                'db_path = "/tmp/test-eventbus-empty.sqlite"\n'
-                'storage_dir = "/tmp/test-eventbus-empty"\n'
-                'deadletter_dir = "/tmp/test-eventbus-empty"\n'
-                "max_retry = 3\n"
-                'host = "127.0.0.1"\n'
-                'auth_token = "shared-auth-token"\n'
-                'consumer_token = "consumer-token"\n'
-                "consumer_authorization = {}\n"
-            )
-            cfg = eb_config.load_config(toml_path)
-            assert cfg.consumer_authorization == {}
-            eb_auth._populate_token_maps(cfg)
-            principal = eb_auth._TOKEN_PRINCIPAL_MAP["consumer-token"]
-            assert principal.consumer_grants == frozenset()
-        finally:
-            eb_auth._TOKEN_PRINCIPAL_MAP.clear()
-            eb_auth._TOKEN_PRINCIPAL_MAP.update(snapshot)
+        toml_path = tmp_path / "eventbus_empty.toml"
+        toml_path.write_text(
+            "port = 8015\n"
+            'db_path = "/tmp/test-eventbus-empty.sqlite"\n'
+            'storage_dir = "/tmp/test-eventbus-empty"\n'
+            'deadletter_dir = "/tmp/test-eventbus-empty"\n'
+            "max_retry = 3\n"
+            'host = "127.0.0.1"\n'
+            'auth_token = "shared-auth-token"\n'
+            'consumer_token = "consumer-token"\n'
+            "consumer_authorization = {}\n"
+        )
+        cfg = eb_config.load_config(toml_path)
+        assert cfg.consumer_authorization == {}
+        eb_auth.build_and_publish_generation(cfg)
+        principal = current_principals()["consumer-token"]
+        assert principal.consumer_grants == frozenset()
 
     def test_consumer_authorization_with_empty_topic_list_grants_nothing(self) -> None:
         import eventbus.auth as eb_auth
         from eventbus.config import EventBusConfig
 
-        snapshot = dict(eb_auth._TOKEN_PRINCIPAL_MAP)
-        try:
-            cfg = EventBusConfig(
-                port=8015,
-                db_path="/tmp/test-eventbus-empty-topics.sqlite",
-                storage_dir="/tmp/test-eventbus-empty-topics",
-                deadletter_dir="/tmp/test-eventbus-empty-topics",
-                max_retry=3,
-                auth_token="shared-auth-token",
-                consumer_token="consumer-token",
-                consumer_authorization={"c1": []},
-            )
-            eb_auth._populate_token_maps(cfg)
-            principal = eb_auth._TOKEN_PRINCIPAL_MAP["consumer-token"]
-            assert principal.consumer_grants == frozenset()
-            assert principal.topics_for("c1") == frozenset()
-        finally:
-            eb_auth._TOKEN_PRINCIPAL_MAP.clear()
-            eb_auth._TOKEN_PRINCIPAL_MAP.update(snapshot)
+        cfg = EventBusConfig(
+            port=8015,
+            db_path="/tmp/test-eventbus-empty-topics.sqlite",
+            storage_dir="/tmp/test-eventbus-empty-topics",
+            deadletter_dir="/tmp/test-eventbus-empty-topics",
+            max_retry=3,
+            auth_token="shared-auth-token",
+            consumer_token="consumer-token",
+            consumer_authorization={"c1": []},
+        )
+        eb_auth.build_and_publish_generation(cfg)
+        principal = current_principals()["consumer-token"]
+        assert principal.consumer_grants == frozenset()
+        assert principal.topics_for("c1") == frozenset()
 
     def test_missing_mapping_via_config_raises(self, tmp_path: Path) -> None:
         """A consumer_token configured without consumer_authorization raises from
-        _populate_token_maps() when loaded through the config path."""
+        build_and_publish_generation() when loaded through the config path."""
         import eventbus.auth as eb_auth
         import eventbus.config as eb_config
 
-        snapshot = dict(eb_auth._TOKEN_PRINCIPAL_MAP)
-        try:
-            toml_path = tmp_path / "eventbus_missing.toml"
-            toml_path.write_text(
-                "port = 8015\n"
-                'db_path = "/tmp/test-eventbus-missing.sqlite"\n'
-                'storage_dir = "/tmp/test-eventbus-missing"\n'
-                'deadletter_dir = "/tmp/test-eventbus-missing"\n'
-                "max_retry = 3\n"
-                'host = "127.0.0.1"\n'
-                'auth_token = "shared-auth-token"\n'
-                'consumer_token = "consumer-token"\n'
-            )
-            cfg = eb_config.load_config(toml_path)
-            with pytest.raises(
-                ValueError, match="consumer_authorization is missing"
-            ) as exc_info:
-                eb_auth._populate_token_maps(cfg)
-            message = str(exc_info.value)
-            assert "Add consumer_authorization" in message
-        finally:
-            eb_auth._TOKEN_PRINCIPAL_MAP.clear()
-            eb_auth._TOKEN_PRINCIPAL_MAP.update(snapshot)
+        toml_path = tmp_path / "eventbus_missing.toml"
+        toml_path.write_text(
+            "port = 8015\n"
+            'db_path = "/tmp/test-eventbus-missing.sqlite"\n'
+            'storage_dir = "/tmp/test-eventbus-missing"\n'
+            'deadletter_dir = "/tmp/test-eventbus-missing"\n'
+            "max_retry = 3\n"
+            'host = "127.0.0.1"\n'
+            'auth_token = "shared-auth-token"\n'
+            'consumer_token = "consumer-token"\n'
+        )
+        cfg = eb_config.load_config(toml_path)
+        with pytest.raises(
+            ValueError, match="consumer_authorization is missing"
+        ) as exc_info:
+            eb_auth.build_and_publish_generation(cfg)
+        message = str(exc_info.value)
+        assert "Add consumer_authorization" in message

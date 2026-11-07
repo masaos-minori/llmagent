@@ -106,8 +106,8 @@ require_env_vars() {
 }
 
 # preflight_eventbus_tokens は require_env_vars の後に呼ぶ設定レベルのゲート。
-# app.py の lifespan と同じ順序 (load_config → _populate_token_maps) で
-# トークンマップを構築し、設定の各トークンがマップに一致するかを指紋で検証する。
+# app.py の lifespan と同じ順序 (load_config → build_and_publish_generation) で
+# 認可 generation を公開し、設定の各トークンが principals に一致するかを指紋で検証する。
 # 呼び出し側の EVENTBUS_CONFIG_PATH / DEPLOY_SCRIPTS / UV_PROD_FLAGS を読む
 # (require_env_vars が ENV_FILE / REPO_ROOT を読むのと同じ規約)。
 preflight_eventbus_tokens() {
@@ -119,8 +119,9 @@ from eventbus import auth
 from eventbus.config import get_config_path, load_config
 
 config = load_config(get_config_path())
-auth._populate_token_maps(config)
-principal_map = auth._TOKEN_PRINCIPAL_MAP
+auth.build_and_publish_generation(config)
+generation = auth.current_generation()
+principals = generation.principals if generation is not None else {}
 for field in (
     "auth_token",
     "admin_token",
@@ -132,7 +133,7 @@ for field in (
     token = getattr(config, field, "")
     if not token:
         continue
-    principal = principal_map.get(token)
+    principal = principals.get(token)
     if principal is None:
         raise SystemExit(f"token for config field '{field}' is absent from the token map")
     if principal.token_fingerprint != auth._derive_token_fingerprint(token):

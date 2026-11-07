@@ -20,7 +20,10 @@ from eventbus.auth import (
 )
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import post_topics_authorization, principal_map
+from tests.eventbus.eventbus_helpers import (
+    current_principals,
+    post_topics_authorization,
+)
 
 ADMIN_HEADERS = {"Authorization": "Bearer admin-tok"}
 
@@ -266,7 +269,7 @@ class TestGenerationConflict:
         after = current_generation()
         assert after is state_before
         assert eb_app.app.state.config is state_before.config
-        assert principal_map() is state_before.principals
+        assert current_principals() is state_before.principals
 
     def test_stale_expected_generation_on_noop_body_still_409(
         self, admin_client: TestClient
@@ -438,7 +441,7 @@ class TestUpdateTakesEffect:
         )
         assert resp.status_code == 200
 
-        principal = principal_map()["consumer-tok"]
+        principal = current_principals()["consumer-tok"]
         assert principal.consumer_grants == frozenset(
             {("c1", "topicA"), ("c1", "topicB")}
         )
@@ -466,7 +469,7 @@ class TestValidation:
         assert bad.status_code == 422
 
         # Confirm the earlier, valid state is unaffected by the rejected request.
-        principal = principal_map()["consumer-tok"]
+        principal = current_principals()["consumer-tok"]
         assert principal.consumer_grants == frozenset({("c1", "topicA")})
 
 
@@ -477,7 +480,7 @@ class TestPublishOrder:
         from eventbus import app as eb_app
 
         config_before = eb_app.app.state.config
-        map_before = principal_map()
+        map_before = current_principals()
         gen_before = _require_generation()
 
         def _boom(config: Any) -> Any:
@@ -496,7 +499,7 @@ class TestPublishOrder:
 
         assert resp.status_code == 500
         assert eb_app.app.state.config is config_before
-        assert principal_map() is map_before
+        assert current_principals() is map_before
         # AC-3: the failed rebuild publishes nothing — generation number and
         # baseline hash are unchanged.
         after = _require_generation()
@@ -508,7 +511,7 @@ class TestPublishOrder:
         from eventbus import app as eb_app
 
         config_before = eb_app.app.state.config
-        map_before = principal_map()
+        map_before = current_principals()
 
         resp = post_topics_authorization(
             admin_client,
@@ -519,7 +522,7 @@ class TestPublishOrder:
         assert resp.status_code == 200
         assert resp.json()["changed"] is False
         assert eb_app.app.state.config is config_before
-        assert principal_map() is map_before
+        assert current_principals() is map_before
 
     def test_effective_update_publishes_config_and_map(
         self, admin_client: TestClient
@@ -527,7 +530,7 @@ class TestPublishOrder:
         from eventbus import app as eb_app
 
         config_before = eb_app.app.state.config
-        map_before = principal_map()
+        map_before = current_principals()
         gen_before = _require_generation()
 
         resp = post_topics_authorization(
@@ -540,8 +543,8 @@ class TestPublishOrder:
         assert resp.json()["changed"] is True
         assert resp.json()["new_generation"] == gen_before.generation + 1
         assert eb_app.app.state.config is not config_before
-        assert principal_map() is not map_before
-        assert principal_map()["consumer-tok"].consumer_grants == frozenset(
+        assert current_principals() is not map_before
+        assert current_principals()["consumer-tok"].consumer_grants == frozenset(
             {("c1", "topicB")}
         )
 
@@ -563,14 +566,14 @@ class TestUpdateRemovesPairs:
         )
         assert second.status_code == 200
 
-        principal = principal_map()["consumer-tok"]
+        principal = current_principals()["consumer-tok"]
         assert principal.is_granted("c1", "topicA")
         assert not principal.is_granted("c1", "topicB")
 
 
 class TestOneRolePerTokenAdminRebuild:
     """ADR-013 INV-02: each configured token holds exactly its documented role
-    when _populate_token_maps() runs as admin_route.py rebuilds the maps."""
+    when build_and_publish_generation() runs as admin_route.py rebuilds the maps."""
 
     @staticmethod
     def _snapshot():
@@ -586,7 +589,7 @@ class TestOneRolePerTokenAdminRebuild:
     def test_each_token_holds_exactly_its_documented_role(self) -> None:
         """A distinct-token config gives every token exactly its documented role
         set, with no control-plane-plus-CONSUMER collision."""
-        from eventbus.auth import _populate_token_maps
+        from eventbus.auth import build_and_publish_generation
         from eventbus.config import EventBusConfig
 
         snapshot = self._snapshot()
@@ -606,17 +609,17 @@ class TestOneRolePerTokenAdminRebuild:
                 consumer_authorization={"c1": ["topicA"]},
                 topic_authorization={"topicA": {"c1"}},
             )
-            _populate_token_maps(cfg)
-            assert set(principal_map()["auth-token"].roles) == {
+            build_and_publish_generation(cfg)
+            assert set(current_principals()["auth-token"].roles) == {
                 "operator",
                 "monitoring",
                 "admin",
             }
-            assert set(principal_map()["publisher-token"].roles) == {"publisher"}
-            assert set(principal_map()["consumer-token"].roles) == {"consumer"}
-            assert set(principal_map()["operator-token"].roles) == {"operator"}
-            assert set(principal_map()["monitoring-token"].roles) == {"monitoring"}
-            assert set(principal_map()["admin-token"].roles) == {
+            assert set(current_principals()["publisher-token"].roles) == {"publisher"}
+            assert set(current_principals()["consumer-token"].roles) == {"consumer"}
+            assert set(current_principals()["operator-token"].roles) == {"operator"}
+            assert set(current_principals()["monitoring-token"].roles) == {"monitoring"}
+            assert set(current_principals()["admin-token"].roles) == {
                 "operator",
                 "monitoring",
                 "admin",
@@ -627,7 +630,7 @@ class TestOneRolePerTokenAdminRebuild:
 
 class TestDuplicateRejectionAdminRebuild:
     """Duplicate non-empty token values are rejected by
-    _populate_token_maps() as admin_route.py calls it, naming the fields."""
+    build_and_publish_generation() as admin_route.py calls it, naming the fields."""
 
     @staticmethod
     def _snapshot():
@@ -655,7 +658,7 @@ class TestDuplicateRejectionAdminRebuild:
         raises, naming both fields and not the shared value."""
         import dataclasses
 
-        from eventbus.auth import _populate_token_maps
+        from eventbus.auth import build_and_publish_generation
         from eventbus.config import EventBusConfig
 
         base = EventBusConfig(
@@ -675,7 +678,7 @@ class TestDuplicateRejectionAdminRebuild:
         overrides: dict[str, Any] = {field_a: "shared-value", field_b: "shared-value"}
         cfg = dataclasses.replace(base, **overrides)
         with pytest.raises(ValueError, match="duplicate token") as exc_info:
-            _populate_token_maps(cfg)
+            build_and_publish_generation(cfg)
         message = str(exc_info.value)
         assert "shared-value" not in message
         assert field_a in message

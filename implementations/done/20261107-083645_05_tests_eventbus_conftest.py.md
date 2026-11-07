@@ -28,11 +28,11 @@
 ### Procedure
 1. In `_reset_auth_state` (lines 55-68): replace the docstring's alias wording with generation wording ("`_CURRENT_GENERATION` is published at runtime by the app lifespan or by test helpers via `publish_generation()`; preserving it prevents test-to-test generation leakage").
 2. Replace `original_map = getattr(auth, "_TOKEN_PRINCIPAL_MAP", {})` with `original_generation = auth.current_generation()`.
-3. Replace the two `monkeypatch.setattr(auth, "_TOKEN_PRINCIPAL_MAP", ...)` teardown lines with one `monkeypatch.setattr(auth, "_CURRENT_GENERATION", original_generation)`.
-4. Keep the `monkeypatch: pytest.MonkeyPatch` fixture parameter and the autouse decorator.
+3. Replace the `monkeypatch.setattr(auth, "_TOKEN_PRINCIPAL_MAP", ...)` teardown line with a direct restore: `try: yield finally: auth._CURRENT_GENERATION = original_generation` (second revision during implementation — a before-`yield` `monkeypatch.setattr` was tried first, but tests that call `monkeypatch.undo()` mid-test (`test_eventbus_requeue_edge_cases.py`, `test_eventbus_concurrent.py`, `test_eventbus_dlq_outbox.py`) share the same function-scoped `monkeypatch` fixture instance and would undo this autouse fixture's patch too, rewinding the generation the test's own lifespan just published — observed as 401 failures in 4 deploy/eventbus tests. Direct module-attribute assignment in a post-`yield` finally block is immune to `monkeypatch.undo()`).
+4. Drop the `monkeypatch: pytest.MonkeyPatch` fixture parameter (no longer needed); keep the autouse decorator.
 
 ### Method
-- Verified current body at HEAD `1a13653e8`: decorator line 55, def line 56, `from eventbus import auth` line 64, snapshot line 66, teardown setattrs lines 67-68 (second one re-sets the live map — dead code removed by this rewrite).
+- Verified current body at HEAD `70391b306`: decorator line 55, def line 56, `from eventbus import auth` line 64, snapshot line 66, `yield` line 67, single teardown setattr at line 68 (the Plan-era note of "two setattrs" does not match the current file — only one exists; the fixture's docstring 57-62 also references `_TOKEN_PRINCIPAL_MAP` and is rewritten by this procedure).
 
 ### Details
 - Fixture ordering is unchanged; the db_conn fixture (lines 40-53) and any other conftest content stay as-is.
@@ -69,8 +69,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `_reset_auth_state` (lines 55-68) to generation snapshot/republish — Plan Phase 1 | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Pending | — | — | whole-suite order run verifies restoration |
+| 1 | Rewrite `_reset_auth_state` (lines 55-68) to generation snapshot/republish — Plan Phase 1 | Completed | 20261107-152722 | 20261107-152722 | generation-restore fixture landed (setattr registered before yield) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) in the Plan Phase 3 pass | Completed | 20261107-152722 | 20261107-152722 | whole-suite order run verifies restoration full suite 11784 passed diff-cover 100pct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

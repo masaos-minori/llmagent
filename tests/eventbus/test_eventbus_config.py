@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from eventbus.config import EventBusConfig, load_config
 
-from tests.eventbus.eventbus_helpers import principal_map
+from tests.eventbus.eventbus_helpers import current_principals
 
 
 def test_invalid_port_too_low() -> None:
@@ -505,7 +505,7 @@ def test_admin_token_grants_control_plane_roles_only() -> None:
     from eventbus.auth import (
         Principal,
         Role,
-        _populate_token_maps,
+        build_and_publish_generation,
     )
 
     cfg = EventBusConfig(
@@ -518,10 +518,10 @@ def test_admin_token_grants_control_plane_roles_only() -> None:
         admin_token="admin-token",
     )
 
-    _populate_token_maps(cfg)
+    build_and_publish_generation(cfg)
 
-    assert "admin-token" in principal_map()
-    principal = principal_map()["admin-token"]
+    assert "admin-token" in current_principals()
+    principal = current_principals()["admin-token"]
     assert isinstance(principal, Principal)
     assert set(principal.roles) == {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
 
@@ -736,10 +736,10 @@ def test_load_config_duplicate_token_via_load_path_raises(tmp_path) -> None:
         'admin_token = "shared-dup"\n'
     )
     cfg = load_config(config_file)
-    from eventbus.auth import _populate_token_maps
+    from eventbus.auth import build_and_publish_generation
 
     with pytest.raises(ValueError, match="duplicate token") as exc_info:
-        _populate_token_maps(cfg)
+        build_and_publish_generation(cfg)
     message = str(exc_info.value)
     assert "shared-dup" not in message
     for field in ("auth_token", "admin_token"):

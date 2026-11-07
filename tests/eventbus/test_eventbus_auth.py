@@ -22,7 +22,17 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import principal_map
+from tests.eventbus.eventbus_helpers import (
+    current_principals,
+    publish_derived_generation,
+)
+
+
+def _await(coro):
+    """Run a coroutine to completion (unit-level resolve_principal calls)."""
+    import asyncio
+
+    return asyncio.run(coro)
 
 TEST_TOKEN = "test-auth-token"
 TEST_DB_PATH = "/tmp/test-eventbus.sqlite"
@@ -45,6 +55,7 @@ def _make_test_app(
         Principal,
         Role,
         attach_auth_middleware,
+        current_generation,
         require_consumer_identity,
         require_role,
         resolve_principal,
@@ -89,7 +100,7 @@ def _make_test_app(
     finally:
         loop.close()
 
-    # _populate_token_maps() (run inside _init_local_state) leaves every token
+    # build_and_publish_generation() (run inside _init_local_state) leaves every token
     # carry no consumer grants. The
     # identity/topic rejection tests in this module (TestSubscribeAuth,
     # TestAuditRecordValidation) exercise require_consumer_identity and therefore
@@ -98,12 +109,19 @@ def _make_test_app(
     # the consumer IDs/topics these tests legitimately use so unauthorized
     # consumers and disallowed topics still reject while valid subscribers pass.
     _ct = getattr(cfg, "consumer_token", None)
-    if _ct and _ct in principal_map():
-        _existing = principal_map()[_ct]
-        principal_map()[_ct] = Principal(
-            roles=_existing.roles,
-            consumer_grants=frozenset({("consumer_a", "test"), ("consumer_b", "test")}),
-            token_fingerprint=_existing.token_fingerprint,
+    _generation = current_generation()
+    if _ct and _generation is not None and _ct in _generation.principals:
+        _existing = _generation.principals[_ct]
+        publish_derived_generation(
+            overrides={
+                _ct: Principal(
+                    roles=_existing.roles,
+                    consumer_grants=frozenset(
+                        {("consumer_a", "test"), ("consumer_b", "test")}
+                    ),
+                    token_fingerprint=_existing.token_fingerprint,
+                )
+            }
         )
 
     attach_auth_middleware(local_app)
@@ -259,10 +277,10 @@ async def _init_local_state(app: FastAPI, cfg: Any) -> None:
     import pathlib
 
     from eventbus import app as eb_app
-    from eventbus.auth import _populate_token_maps
+    from eventbus.auth import build_and_publish_generation
 
     app.state.config = cfg
-    _populate_token_maps(cfg)
+    build_and_publish_generation(cfg)
     pathlib.Path(cfg.db_path).parent.mkdir(parents=True, exist_ok=True)
     app.state.db = eb_app.open_db(cfg.db_path)
     schema_path = (
@@ -813,37 +831,34 @@ class TestPairwiseConsumerAuthorization:
 
     @pytest.mark.asyncio
     async def test_control_plane_token_cannot_use_consumer_routes(self) -> None:
-        from eventbus.auth import _populate_token_maps, require_consumer_identity
+        from eventbus.auth import (
+            build_and_publish_generation,
+            require_consumer_identity,
+        )
         from eventbus.config import EventBusConfig
 
-        snapshot = dict(principal_map())
-        try:
-            cfg = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-control-plane.sqlite",
-                storage_dir="/tmp/test-eventbus-control-plane",
-                deadletter_dir="/tmp/test-eventbus-control-plane",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="shared-token",
-                admin_token="admin-token",
-                consumer_token="consumer-token",
-                consumer_authorization={"consumer_a": ["test"]},
-            )
-            _populate_token_maps(cfg)
-            for token in ("shared-token", "admin-token"):
-                with pytest.raises(HTTPException) as exc:
-                    await require_consumer_identity(
-                        self._request(),
-                        consumer_id="consumer_a",
-                        topics=["test"],
-                        principal=principal_map()[token],
-                    )
-                assert exc.value.status_code == 403
-        finally:
-            principal_map().clear()
-            principal_map().update(snapshot)
-
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-control-plane.sqlite",
+            storage_dir="/tmp/test-eventbus-control-plane",
+            deadletter_dir="/tmp/test-eventbus-control-plane",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="shared-token",
+            admin_token="admin-token",
+            consumer_token="consumer-token",
+            consumer_authorization={"consumer_a": ["test"]},
+        )
+        build_and_publish_generation(cfg)
+        for token in ("shared-token", "admin-token"):
+            with pytest.raises(HTTPException) as exc:
+                await require_consumer_identity(
+                    self._request(),
+                    consumer_id="consumer_a",
+                    topics=["test"],
+                    principal=current_principals()[token],
+                )
+            assert exc.value.status_code == 403
 
 class TestPrincipalFieldValidation:
     """Unit-level tests for Principal field resolution from tokens."""
@@ -859,56 +874,66 @@ class TestPrincipalFieldValidation:
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
-            _TOKEN_PRINCIPAL_MAP,
             Principal,
             Role,
+            build_and_publish_generation,
             resolve_principal,
         )
+        from eventbus.config import EventBusConfig
 
         token = "publisher-token"
-        _TOKEN_PRINCIPAL_MAP[token] = Principal(
-            roles=frozenset({Role.PUBLISHER}),
-            consumer_grants=frozenset(),
-            token_fingerprint="test-fingerprint",
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-fields1.sqlite",
+            storage_dir="/tmp/test-eventbus-fields1",
+            deadletter_dir="/tmp/test-eventbus-fields1",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="test-token",
+            publisher_token=token,
         )
-        try:
-            principal = await resolve_principal(
-                self._make_request_mock(),
-                credentials=MagicMock(credentials=token),
-            )
-            assert isinstance(principal, Principal)
-            assert principal.roles == frozenset([Role.PUBLISHER])
-            assert principal.consumer_grants == frozenset()
-        finally:
-            _TOKEN_PRINCIPAL_MAP.pop(token, None)
+        build_and_publish_generation(cfg)
+        principal = await resolve_principal(
+            self._make_request_mock(auth_token=cfg.auth_token),
+            credentials=MagicMock(credentials=token),
+        )
+        assert isinstance(principal, Principal)
+        assert principal.roles == frozenset([Role.PUBLISHER])
+        assert principal.consumer_grants == frozenset()
 
     @pytest.mark.asyncio
     async def test_per_role_token_has_no_consumer_restriction(self) -> None:
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
-            _TOKEN_PRINCIPAL_MAP,
             Principal,
             Role,
+            build_and_publish_generation,
             resolve_principal,
         )
+        from eventbus.config import EventBusConfig
 
         token = "consumer-token"
-        _TOKEN_PRINCIPAL_MAP[token] = Principal(
-            roles=frozenset({Role.CONSUMER}),
-            consumer_grants=frozenset(),
-            token_fingerprint="test-fingerprint",
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-fields2.sqlite",
+            storage_dir="/tmp/test-eventbus-fields2",
+            deadletter_dir="/tmp/test-eventbus-fields2",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="test-token",
+            consumer_token=token,
+            # Empty (deny-all) mapping: the Principal carries no consumer grants.
+            consumer_authorization={},
         )
-        try:
-            principal = await resolve_principal(
-                self._make_request_mock(),
-                credentials=MagicMock(credentials=token),
-            )
-            assert isinstance(principal, Principal)
-            assert principal.roles == frozenset([Role.CONSUMER])
-            assert principal.consumer_grants == frozenset()
-        finally:
-            _TOKEN_PRINCIPAL_MAP.pop(token, None)
+        build_and_publish_generation(cfg)
+        principal = await resolve_principal(
+            self._make_request_mock(auth_token=cfg.auth_token),
+            credentials=MagicMock(credentials=token),
+        )
+        assert isinstance(principal, Principal)
+        assert principal.roles == frozenset([Role.CONSUMER])
+        assert principal.consumer_grants == frozenset()
 
 
 class TestFailClosedConsumerAuthorization:
@@ -920,28 +945,22 @@ class TestFailClosedConsumerAuthorization:
 
     @staticmethod
     def test_consumer_token_without_consumer_authorization_raises() -> None:
-        from eventbus.auth import _populate_token_maps
+        from eventbus.auth import build_and_publish_generation
         from eventbus.config import EventBusConfig
 
-        snapshot = dict(principal_map())
-        try:
-            cfg = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-failclosed.sqlite",
-                storage_dir="/tmp/test-eventbus-failclosed",
-                deadletter_dir="/tmp/test-eventbus-failclosed",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="shared-token",
-                consumer_token="consumer-token",
-                # consumer_authorization intentionally omitted (defaults to None)
-            )
-            with pytest.raises(ValueError, match="consumer_authorization is missing"):
-                _populate_token_maps(cfg)
-        finally:
-            principal_map().clear()
-            principal_map().update(snapshot)
-
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-failclosed.sqlite",
+            storage_dir="/tmp/test-eventbus-failclosed",
+            deadletter_dir="/tmp/test-eventbus-failclosed",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="shared-token",
+            consumer_token="consumer-token",
+            # consumer_authorization intentionally omitted (defaults to None)
+        )
+        with pytest.raises(ValueError, match="consumer_authorization is missing"):
+            build_and_publish_generation(cfg)
     @pytest.mark.asyncio
     async def test_shared_and_admin_tokens_have_no_consumer_bypass(self) -> None:
         """ADR-013 INV-02/INV-07: auth_token and admin_token hold no Consumer role,
@@ -950,57 +969,51 @@ class TestFailClosedConsumerAuthorization:
 
         from eventbus.auth import (
             Role,
-            _populate_token_maps,
+            build_and_publish_generation,
             require_consumer_identity,
         )
         from eventbus.config import EventBusConfig
         from fastapi import HTTPException
 
-        snapshot = dict(principal_map())
-        try:
-            cfg = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-superuser.sqlite",
-                storage_dir="/tmp/test-eventbus-superuser",
-                deadletter_dir="/tmp/test-eventbus-superuser",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="shared-token",
-                admin_token="admin-token",
-                consumer_token="consumer-token",
-                consumer_authorization={"consumer-a": ["topic-a"]},
-                topic_authorization={},
-            )
-            _populate_token_maps(cfg)
-            mock_request = MagicMock()
-            mock_request.state.request_id = "req-superuser"
-            mock_request.url.path = "/subscribe"
-            for token in ("shared-token", "admin-token"):
-                principal = principal_map()[token]
-                assert Role.CONSUMER not in principal.roles
-                assert Role.PUBLISHER not in principal.roles
-                with pytest.raises(HTTPException) as exc:
-                    await require_consumer_identity(
-                        mock_request,
-                        consumer_id="consumer-a",
-                        topics=["topic-a"],
-                        principal=principal,
-                    )
-                assert exc.value.status_code == 403
-            consumer = principal_map()["consumer-token"]
-            assert (
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-superuser.sqlite",
+            storage_dir="/tmp/test-eventbus-superuser",
+            deadletter_dir="/tmp/test-eventbus-superuser",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="shared-token",
+            admin_token="admin-token",
+            consumer_token="consumer-token",
+            consumer_authorization={"consumer-a": ["topic-a"]},
+            topic_authorization={},
+        )
+        build_and_publish_generation(cfg)
+        mock_request = MagicMock()
+        mock_request.state.request_id = "req-superuser"
+        mock_request.url.path = "/subscribe"
+        for token in ("shared-token", "admin-token"):
+            principal = current_principals()[token]
+            assert Role.CONSUMER not in principal.roles
+            assert Role.PUBLISHER not in principal.roles
+            with pytest.raises(HTTPException) as exc:
                 await require_consumer_identity(
                     mock_request,
                     consumer_id="consumer-a",
                     topics=["topic-a"],
-                    principal=consumer,
+                    principal=principal,
                 )
-                is consumer
+            assert exc.value.status_code == 403
+        consumer = current_principals()["consumer-token"]
+        assert (
+            await require_consumer_identity(
+                mock_request,
+                consumer_id="consumer-a",
+                topics=["topic-a"],
+                principal=consumer,
             )
-        finally:
-            principal_map().clear()
-            principal_map().update(snapshot)
-
+            is consumer
+        )
     @pytest.mark.asyncio
     async def test_empty_mappings_deny_all_consumers(self) -> None:
         """ADR-013 INV-07: empty consumer/topic authorization mappings resolve to
@@ -1011,46 +1024,40 @@ class TestFailClosedConsumerAuthorization:
         from eventbus.auth import (
             Principal,
             Role,
-            _populate_token_maps,
+            build_and_publish_generation,
             require_consumer_identity,
         )
         from eventbus.config import EventBusConfig
         from fastapi import HTTPException
 
         token = "consumer-token"
-        snapshot = dict(principal_map())
-        try:
-            cfg = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-denyall.sqlite",
-                storage_dir="/tmp/test-eventbus-denyall",
-                deadletter_dir="/tmp/test-eventbus-denyall",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="shared-token",
-                consumer_token=token,
-                consumer_authorization={},
-                topic_authorization={},
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-denyall.sqlite",
+            storage_dir="/tmp/test-eventbus-denyall",
+            deadletter_dir="/tmp/test-eventbus-denyall",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="shared-token",
+            consumer_token=token,
+            consumer_authorization={},
+            topic_authorization={},
+        )
+        build_and_publish_generation(cfg)
+        principal = current_principals()[token]
+        assert isinstance(principal, Principal)
+        assert principal.roles == frozenset({Role.CONSUMER})
+        assert principal.consumer_grants == frozenset()
+        mock_request = MagicMock()
+        mock_request.state.request_id = "req-denyall"
+        mock_request.url.path = "/subscribe"
+        with pytest.raises(HTTPException) as exc:
+            await require_consumer_identity(
+                mock_request,
+                consumer_id="consumer-x",
+                principal=principal,
             )
-            _populate_token_maps(cfg)
-            principal = principal_map()[token]
-            assert isinstance(principal, Principal)
-            assert principal.roles == frozenset({Role.CONSUMER})
-            assert principal.consumer_grants == frozenset()
-            mock_request = MagicMock()
-            mock_request.state.request_id = "req-denyall"
-            mock_request.url.path = "/subscribe"
-            with pytest.raises(HTTPException) as exc:
-                await require_consumer_identity(
-                    mock_request,
-                    consumer_id="consumer-x",
-                    principal=principal,
-                )
-            assert exc.value.status_code == 403
-        finally:
-            principal_map().clear()
-            principal_map().update(snapshot)
-
+        assert exc.value.status_code == 403
     @pytest.mark.asyncio
     async def test_non_empty_mapping_restricts_to_allowlist(self) -> None:
         """A non-empty consumer/topic authorization mapping restricts the CONSUMER
@@ -1060,53 +1067,47 @@ class TestFailClosedConsumerAuthorization:
 
         from eventbus.auth import (
             Principal,
-            _populate_token_maps,
+            build_and_publish_generation,
             require_consumer_identity,
         )
         from eventbus.config import EventBusConfig
         from fastapi import HTTPException
 
         token = "consumer-token"
-        snapshot = dict(principal_map())
-        try:
-            cfg = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-allowlist.sqlite",
-                storage_dir="/tmp/test-eventbus-allowlist",
-                deadletter_dir="/tmp/test-eventbus-allowlist",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="shared-token",
-                consumer_token=token,
-                consumer_authorization={"consumer_a": ["test"], "consumer_b": ["test"]},
-                topic_authorization={"test": {"consumer_a", "consumer_b"}},
-            )
-            _populate_token_maps(cfg)
-            principal = principal_map()[token]
-            assert isinstance(principal, Principal)
-            assert principal.consumer_grants == frozenset(
-                {("consumer_a", "test"), ("consumer_b", "test")}
-            )
-            mock_request = MagicMock()
-            mock_request.state.request_id = "req-allowlist"
-            mock_request.url.path = "/subscribe"
-            accepted = await require_consumer_identity(
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-allowlist.sqlite",
+            storage_dir="/tmp/test-eventbus-allowlist",
+            deadletter_dir="/tmp/test-eventbus-allowlist",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="shared-token",
+            consumer_token=token,
+            consumer_authorization={"consumer_a": ["test"], "consumer_b": ["test"]},
+            topic_authorization={"test": {"consumer_a", "consumer_b"}},
+        )
+        build_and_publish_generation(cfg)
+        principal = current_principals()[token]
+        assert isinstance(principal, Principal)
+        assert principal.consumer_grants == frozenset(
+            {("consumer_a", "test"), ("consumer_b", "test")}
+        )
+        mock_request = MagicMock()
+        mock_request.state.request_id = "req-allowlist"
+        mock_request.url.path = "/subscribe"
+        accepted = await require_consumer_identity(
+            mock_request,
+            consumer_id="consumer_a",
+            principal=principal,
+        )
+        assert accepted is principal
+        with pytest.raises(HTTPException) as exc:
+            await require_consumer_identity(
                 mock_request,
-                consumer_id="consumer_a",
+                consumer_id="consumer_c",
                 principal=principal,
             )
-            assert accepted is principal
-            with pytest.raises(HTTPException) as exc:
-                await require_consumer_identity(
-                    mock_request,
-                    consumer_id="consumer_c",
-                    principal=principal,
-                )
-            assert exc.value.status_code == 403
-        finally:
-            principal_map().clear()
-            principal_map().update(snapshot)
-
+        assert exc.value.status_code == 403
 
 class TestAuditRecordValidation:
     """Tests for structured audit record emission on auth failures."""
@@ -1500,7 +1501,7 @@ class TestProductionRouteWiring:
         import dataclasses
 
         from eventbus import app as eb_app
-        from eventbus.auth import _populate_token_maps
+        from eventbus.auth import build_and_publish_generation
         from eventbus_helpers import make_eventbus_client
 
         with make_eventbus_client(tmp_path, monkeypatch) as client:
@@ -1514,7 +1515,7 @@ class TestProductionRouteWiring:
                 monitoring_token="prod-monitoring-token",
             )
             eb_app.app.state.config = cfg
-            _populate_token_maps(cfg)
+            build_and_publish_generation(cfg)
             yield client
 
     @staticmethod
@@ -1578,87 +1579,64 @@ class TestDuplicateTokenBinding:
     """Duplicate non-empty token values are rejected and each token holds
     exactly its documented role."""
 
-    @staticmethod
-    def _snapshot():
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
-
-        return dict(_TOKEN_PRINCIPAL_MAP)
-
-    @staticmethod
-    def _restore(snapshot):
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
-
-        _TOKEN_PRINCIPAL_MAP.clear()
-        _TOKEN_PRINCIPAL_MAP.update(snapshot)
-
     def test_consumer_token_equal_to_auth_token_is_rejected(self) -> None:
         """A per-role token equal to the shared auth_token is rejected, not
         admitted with control-plane + CONSUMER roles."""
-        from eventbus.auth import _populate_token_maps
+        from eventbus.auth import build_and_publish_generation
         from eventbus.config import EventBusConfig
 
-        snapshot = self._snapshot()
-        try:
-            cfg = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-dup1.sqlite",
-                storage_dir="/tmp/test-eventbus-dup1",
-                deadletter_dir="/tmp/test-eventbus-dup1",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="shared-dup",
-                consumer_token="shared-dup",
-                consumer_authorization={},
-            )
-            with pytest.raises(ValueError, match="duplicate token") as exc_info:
-                _populate_token_maps(cfg)
-            message = str(exc_info.value)
-            assert "shared-dup" not in message
-            for field in ("auth_token", "consumer_token"):
-                assert field in message
-        finally:
-            self._restore(snapshot)
-
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-dup1.sqlite",
+            storage_dir="/tmp/test-eventbus-dup1",
+            deadletter_dir="/tmp/test-eventbus-dup1",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="shared-dup",
+            consumer_token="shared-dup",
+            consumer_authorization={},
+        )
+        with pytest.raises(ValueError, match="duplicate token") as exc_info:
+            build_and_publish_generation(cfg)
+        message = str(exc_info.value)
+        assert "shared-dup" not in message
+        for field in ("auth_token", "consumer_token"):
+            assert field in message
     def test_distinct_tokens_get_exactly_their_documented_role(self) -> None:
         """A distinct-token config gives each token exactly its documented role."""
         from eventbus.auth import (
             Role,
-            _populate_token_maps,
+            build_and_publish_generation,
         )
         from eventbus.config import EventBusConfig
 
-        snapshot = self._snapshot()
-        try:
-            cfg = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-distinct.sqlite",
-                storage_dir="/tmp/test-eventbus-distinct",
-                deadletter_dir="/tmp/test-eventbus-distinct",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="auth-token",
-                publisher_token="publisher-token",
-                consumer_token="consumer-token",
-                operator_token="operator-token",
-                monitoring_token="monitoring-token",
-                admin_token="admin-token",
-                consumer_authorization={"consumer_a": ["test"]},
-                topic_authorization={"test": {"consumer_a"}},
-            )
-            _populate_token_maps(cfg)
-            assert principal_map()["auth-token"].roles == frozenset(
-                {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
-            )
-            assert principal_map()["publisher-token"].roles == frozenset(
-                {Role.PUBLISHER}
-            )
-            assert principal_map()["consumer-token"].roles == frozenset({Role.CONSUMER})
-            assert principal_map()["admin-token"].roles == frozenset(
-                {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
-            )
-        finally:
-            self._restore(snapshot)
-
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-distinct.sqlite",
+            storage_dir="/tmp/test-eventbus-distinct",
+            deadletter_dir="/tmp/test-eventbus-distinct",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="auth-token",
+            publisher_token="publisher-token",
+            consumer_token="consumer-token",
+            operator_token="operator-token",
+            monitoring_token="monitoring-token",
+            admin_token="admin-token",
+            consumer_authorization={"consumer_a": ["test"]},
+            topic_authorization={"test": {"consumer_a"}},
+        )
+        build_and_publish_generation(cfg)
+        assert current_principals()["auth-token"].roles == frozenset(
+            {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
+        )
+        assert current_principals()["publisher-token"].roles == frozenset(
+            {Role.PUBLISHER}
+        )
+        assert current_principals()["consumer-token"].roles == frozenset({Role.CONSUMER})
+        assert current_principals()["admin-token"].roles == frozenset(
+            {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
+        )
     @pytest.mark.parametrize(
         "field_a,field_b",
         [
@@ -1672,157 +1650,144 @@ class TestDuplicateTokenBinding:
     ) -> None:
         """Every pair of distinct token fields sharing a non-empty value raises,
         naming both fields and not the shared value."""
-        from eventbus.auth import _populate_token_maps
+        from eventbus.auth import build_and_publish_generation
         from eventbus.config import EventBusConfig
 
-        snapshot = self._snapshot()
-        try:
-            cfg = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-dup2.sqlite",
-                storage_dir="/tmp/test-eventbus-dup2",
-                deadletter_dir="/tmp/test-eventbus-dup2",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="auth-token",
-                publisher_token="",
-                consumer_token="",
-                operator_token="",
-                monitoring_token="",
-                admin_token="",
-                consumer_authorization={},
-            )
-            import dataclasses
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-dup2.sqlite",
+            storage_dir="/tmp/test-eventbus-dup2",
+            deadletter_dir="/tmp/test-eventbus-dup2",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="auth-token",
+            publisher_token="",
+            consumer_token="",
+            operator_token="",
+            monitoring_token="",
+            admin_token="",
+            consumer_authorization={},
+        )
+        import dataclasses
 
-            overrides: dict[str, Any] = {
-                field_a: "shared-value",
-                field_b: "shared-value",
-            }
-            cfg = dataclasses.replace(cfg, **overrides)
-            with pytest.raises(ValueError, match="duplicate token") as exc_info:
-                _populate_token_maps(cfg)
-            message = str(exc_info.value)
-            assert "shared-value" not in message
-            assert field_a in message
-            assert field_b in message
-        finally:
-            self._restore(snapshot)
-
+        overrides: dict[str, Any] = {
+            field_a: "shared-value",
+            field_b: "shared-value",
+        }
+        cfg = dataclasses.replace(cfg, **overrides)
+        with pytest.raises(ValueError, match="duplicate token") as exc_info:
+            build_and_publish_generation(cfg)
+        message = str(exc_info.value)
+        assert "shared-value" not in message
+        assert field_a in message
+        assert field_b in message
 
 class TestAtomicPublishAndFailedRebuild:
     """Assert atomic publish (no empty-map window) and failed-rebuild preservation."""
 
-    @staticmethod
-    def _snapshot():
-        from eventbus import auth
-
-        return dict(auth._TOKEN_PRINCIPAL_MAP)
-
-    @staticmethod
-    def _restore(snapshot):
-        from eventbus import auth
-
-        auth._TOKEN_PRINCIPAL_MAP.clear()
-        auth._TOKEN_PRINCIPAL_MAP.update(snapshot)
-
     def test_atomic_publish_no_empty_map_window(self) -> None:
-        """_populate_token_maps publishes atomically — readers never see an empty map."""
-        from eventbus import auth
-        from eventbus.auth import Role, _populate_token_maps
+        """build_and_publish_generation publishes atomically — readers never see an empty map."""
+        from eventbus.auth import Role, build_and_publish_generation
         from eventbus.config import EventBusConfig
 
         # Establish a known-good principal map first
-        snapshot = self._snapshot()
-        try:
-            cfg = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-atomic.sqlite",
-                storage_dir="/tmp/test-eventbus-atomic",
-                deadletter_dir="/tmp/test-eventbus-atomic",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="auth-token",
-                consumer_token="consumer-token",
-                consumer_authorization={"consumer_a": ["topicA"]},
-            )
-            _populate_token_maps(cfg)
-            assert len(auth._TOKEN_PRINCIPAL_MAP) > 0
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-atomic.sqlite",
+            storage_dir="/tmp/test-eventbus-atomic",
+            deadletter_dir="/tmp/test-eventbus-atomic",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="auth-token",
+            consumer_token="consumer-token",
+            consumer_authorization={"consumer_a": ["topicA"]},
+        )
+        build_and_publish_generation(cfg)
+        assert len(current_principals()) > 0
 
-            # Now call _populate_token_maps again — it should swap atomically.
-            # If there were an empty-map window, we'd see zero entries mid-swap.
-            # Simulate concurrent reads by checking before and after.
-            pre_count = len(auth._TOKEN_PRINCIPAL_MAP)
-            _populate_token_maps(cfg)
-            post_count = len(auth._TOKEN_PRINCIPAL_MAP)
+        # Now call build_and_publish_generation again — it should swap atomically.
+        # If there were an empty-map window, we'd see zero entries mid-swap.
+        # Simulate concurrent reads by checking before and after.
+        pre_count = len(current_principals())
+        build_and_publish_generation(cfg)
+        post_count = len(current_principals())
 
-            # Both before and after must have entries; no empty-map window.
-            assert pre_count > 0
-            assert post_count > 0
-            assert post_count == pre_count  # same config → same number of entries
+        # Both before and after must have entries; no empty-map window.
+        assert pre_count > 0
+        assert post_count > 0
+        assert post_count == pre_count  # same config → same number of entries
 
-            # Verify the principal for auth-token is still present (not cleared).
-            assert "auth-token" in auth._TOKEN_PRINCIPAL_MAP
-            assert auth._TOKEN_PRINCIPAL_MAP["auth-token"].roles == frozenset(
-                {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
-            )
-        finally:
-            self._restore(snapshot)
-
+        # Verify the principal for auth-token is still present (not cleared).
+        assert "auth-token" in current_principals()
+        assert current_principals()["auth-token"].roles == frozenset(
+            {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
+        )
     def test_failed_rebuild_preserves_previous_generation(self) -> None:
         """A failed rebuild (e.g. missing consumer_authorization) leaves the
         previous generation's principals intact and in force."""
         from eventbus import auth
-        from eventbus.auth import Role, _populate_token_maps
+        from eventbus.auth import Role, build_and_publish_generation
         from eventbus.config import EventBusConfig
 
-        snapshot = self._snapshot()
-        try:
-            # Step 1: establish a valid principal map
-            cfg_valid = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-fail1.sqlite",
-                storage_dir="/tmp/test-eventbus-fail1",
-                deadletter_dir="/tmp/test-eventbus-fail1",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="auth-token",
-                consumer_token="consumer-token",
-                consumer_authorization={"consumer_a": ["topicA"]},
-            )
-            _populate_token_maps(cfg_valid)
-            assert len(auth._TOKEN_PRINCIPAL_MAP) > 0
-            assert "auth-token" in auth._TOKEN_PRINCIPAL_MAP
+        # Step 1: establish a valid principal map
+        cfg_valid = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-fail1.sqlite",
+            storage_dir="/tmp/test-eventbus-fail1",
+            deadletter_dir="/tmp/test-eventbus-fail1",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="auth-token",
+            consumer_token="consumer-token",
+            consumer_authorization={"consumer_a": ["topicA"]},
+        )
+        build_and_publish_generation(cfg_valid)
+        assert len(current_principals()) > 0
+        assert "auth-token" in current_principals()
 
-            # Step 2: attempt a rebuild with invalid config (consumer_token without
-            # consumer_authorization raises ValueError)
-            cfg_invalid = EventBusConfig(
-                port=8091,
-                db_path="/tmp/test-eventbus-fail2.sqlite",
-                storage_dir="/tmp/test-eventbus-fail2",
-                deadletter_dir="/tmp/test-eventbus-fail2",
-                max_retry=2,
-                host="127.0.0.1",
-                auth_token="auth-token",
-                consumer_token="consumer-token",
-                # consumer_authorization omitted — should raise
-            )
-            with pytest.raises(ValueError, match="consumer_authorization"):
-                _populate_token_maps(cfg_invalid)
+        # Step 2: attempt a rebuild with invalid config (consumer_token without
+        # consumer_authorization raises ValueError)
+        cfg_invalid = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-fail2.sqlite",
+            storage_dir="/tmp/test-eventbus-fail2",
+            deadletter_dir="/tmp/test-eventbus-fail2",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="auth-token",
+            consumer_token="consumer-token",
+            # consumer_authorization omitted — should raise
+        )
+        gen_before = auth.current_generation()
+        with pytest.raises(ValueError, match="consumer_authorization"):
+            build_and_publish_generation(cfg_invalid)
+        # AC-004: the previous generation object stays in force.
+        assert auth.current_generation() is gen_before
 
-            # Step 3: verify the previous generation is still in force
-            assert len(auth._TOKEN_PRINCIPAL_MAP) > 0
-            assert "auth-token" in auth._TOKEN_PRINCIPAL_MAP
-            assert auth._TOKEN_PRINCIPAL_MAP["auth-token"].roles == frozenset(
-                {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
-            )
-        finally:
-            self._restore(snapshot)
-
+        # Step 3: verify the previous generation is still in force
+        assert len(current_principals()) > 0
+        assert "auth-token" in current_principals()
+        assert current_principals()["auth-token"].roles == frozenset(
+            {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
+        )
     def test_published_generation_read_returns_identical_object(self) -> None:
         """REQ-001: two reads of current_generation() return the identical
         object between publications (the snapshot is never rebuilt per read)."""
-        from eventbus.auth import current_generation
+        from eventbus.auth import build_and_publish_generation, current_generation
+        from eventbus.config import EventBusConfig
 
+        # Self-contained baseline: conftest rolls generations back per test,
+        # so this test publishes its own generation before reading it.
+        cfg = EventBusConfig(
+            port=8091,
+            db_path="/tmp/test-eventbus-ident.sqlite",
+            storage_dir="/tmp/test-eventbus-ident",
+            deadletter_dir="/tmp/test-eventbus-ident",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="auth-token",
+        )
+        build_and_publish_generation(cfg)
         generation = current_generation()
         assert generation is not None
         assert current_generation() is generation
@@ -1830,11 +1795,57 @@ class TestAtomicPublishAndFailedRebuild:
     def test_published_generation_principals_is_the_map_resolve_principal_consults(
         self,
     ) -> None:
-        """REQ-001: the published AuthzGeneration carries the same principals
-        mapping resolve_principal() consults (_TOKEN_PRINCIPAL_MAP alias)."""
-        from eventbus import auth
-        from eventbus.auth import current_generation
+        """REQ-001: resolve_principal() consults exactly the published
+        AuthzGeneration's principals map; a failed rebuild leaves the previous
+        generation object in force and a successful one advances the number."""
+        from unittest.mock import MagicMock
 
-        generation = current_generation()
-        assert generation is not None
-        assert generation.principals is auth._TOKEN_PRINCIPAL_MAP
+        from eventbus.auth import (
+            build_and_publish_generation,
+            current_generation,
+            resolve_principal,
+        )
+        from eventbus.config import EventBusConfig
+
+        base_kwargs: dict[str, Any] = dict(
+            port=8091,
+            db_path="/tmp/test-eventbus-resolve-map.sqlite",
+            storage_dir="/tmp/test-eventbus-resolve-map",
+            deadletter_dir="/tmp/test-eventbus-resolve-map",
+            max_retry=2,
+            host="127.0.0.1",
+            auth_token="shared-token",
+        )
+        cfg_v1 = EventBusConfig(**base_kwargs, publisher_token="publisher-v1")
+        build_and_publish_generation(cfg_v1)
+        gen1 = current_generation()
+        assert gen1 is not None
+        assert "publisher-v1" in gen1.principals
+
+        mock_request = MagicMock()
+        mock_request.app.state.config.auth_token = cfg_v1.auth_token
+        mock_request.state.request_id = "req-resolve-map"
+        mock_request.url.path = "/publish"
+        principal = _await(
+            resolve_principal(
+                mock_request, credentials=MagicMock(credentials="publisher-v1")
+            )
+        )
+        assert principal.roles == gen1.principals["publisher-v1"].roles
+
+        # A failed rebuild keeps the previous generation object in force.
+        with pytest.raises(ValueError, match="consumer_authorization"):
+            build_and_publish_generation(
+                EventBusConfig(**base_kwargs, consumer_token="consumer-bad")
+            )
+        assert current_generation() is gen1
+
+        # A successful rebuild publishes generation+1 with a new principals map.
+        cfg_v2 = EventBusConfig(**base_kwargs, publisher_token="publisher-v2")
+        build_and_publish_generation(cfg_v2)
+        gen2 = current_generation()
+        assert gen2 is not None
+        assert gen2.generation == gen1.generation + 1
+        assert gen2.principals is not gen1.principals
+        assert "publisher-v2" in gen2.principals
+        assert "publisher-v1" not in gen2.principals
