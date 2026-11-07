@@ -76,3 +76,13 @@ Do not touch the transport key derivation shared with the dispatcher. Change onl
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203215
 - **Related target files**: scripts/agent/tool_runner.py, scripts/agent/workflow/tool_call_state_ops.py, scripts/db/schema_sql.py, docs/23_agent/agent_04_03
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- Key derivation confirmed: `_state_key` = `derive_idempotency_key("call_tool", name, args, session_id)` — sha256 of method/tool/canonical-args/session uid, no turn/task component (`scripts/agent/tool_runner.py:149-160`, `scripts/shared/http_transport.py:62-75`). A separate audit-only key containing workflow/task/turn/call ids already exists (`_idempotency_key`, tool_runner L138-146) but is not the state key. — Evidence: `Verified by test` — Confidence: High
+- `record_tool_call` confirmed `INSERT OR IGNORE` on the `idempotency_key` PRIMARY KEY (`scripts/agent/workflow/tool_call_state_ops.py:64-71`); `finalize_tool_call` updates `WHERE idempotency_key=?` only (L74-80); `classify_stale_pending` selects `WHERE task_id=? AND state='pending'` (L113-115). — Evidence: `Verified by test` — Confidence: High
+- DDL confirmed: `tool_call_state.idempotency_key TEXT PRIMARY KEY`, separate `task_id TEXT NOT NULL`, `snapshot_id` FK into `execution_snapshots` (`scripts/db/schema_sql.py:233-242`) — a second row for the same key in a new task is rejected by the PK. — Evidence: `Verified by test` — Confidence: High
+- Docs claim confirmed: `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` L78 states rows are "keyed by the transport idempotency key and scoped to a `task_id`" — the implementation stores but does not enforce per-task scoping. — Evidence: `Verified by test` — Confidence: High
+- Dependency confirmed real: the DDL change here intersects `wfaudit003` (gate shape) and `wfaudit010` (snapshot_id FK on the same table); all three touch `tool_call_state`/`execution_snapshots` DDL and should share one archive-and-recreate procedure.
