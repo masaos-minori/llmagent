@@ -75,3 +75,12 @@ Keep the vocabulary declaration single-sourced; do not sprinkle validation condi
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203218
 - **Related target files**: scripts/agent/workflow/state_store.py, scripts/agent/workflow/task_ops.py, scripts/agent/workflow/attempt_ops.py, scripts/agent/workflow/workflow_engine.py, scripts/db/schema_sql.py
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- DDL confirmed: `tasks.status` (`scripts/db/schema_sql.py:184`) and `attempts.status` (L194) have no CHECK; `tool_call_state.state` (L237) has `CHECK (state IN ('pending','completed','failed','interrupted'))` — the pattern to mirror. — Evidence: `Verified by test` — Confidence: High
+- Unvalidated writers confirmed: `update_task_status` (`scripts/agent/workflow/task_ops.py:68-74`), `finish_attempt` (`attempt_ops.py:80-94`), `finalize_tool_call` (`tool_call_state_ops.py:74-80`) pass caller-supplied status straight into SQL. — Evidence: `Verified by test` — Confidence: High
+- Vocabulary observed in current code: the engine writes `running`/`halted`/`failed`/`completed` to `tasks.status` (`scripts/agent/workflow/workflow_engine.py:213-224`); DDL default is `pending`; the adapter writes only `halted` (`workflow_engine_adapter.py:230,273`; `_status_for_exit` returns `halted` for a cancelled exit and `None` otherwise, L49-62). `attempts.status` values written today: `running` (begin_stage_if_new), `completed`, `failed` (finish_attempt / recovery). The vocabulary declaration must cover every value the current code can write, and a production probe query is required before fixing the CHECK. — Evidence: `Verified by test` — Confidence: High
+- Dependency confirmed: recovery (`state_store.py:190-248`) writes `failed` to attempts; the `wfaudit001`/`wfaudit007` reconciliation values must come from this declared vocabulary — land this Plan's declaration first.
