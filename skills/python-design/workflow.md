@@ -358,8 +358,8 @@ Verification Item.
 
 ## Final Output
 
-Produce these sections when relevant. Populate each from what Steps 1-9 already
-recorded; MUST NOT re-derive or re-run a check merely to produce this output. Omit sections
+Produce these sections when relevant. See `rules/ai-execution.md`,
+section "Progress Reporting (Base)". Omit sections
 that do not apply; MUST NOT fill irrelevant sections just to satisfy the template.
 
 1. **Goal** — what the program or change is intended to do, what problem it solves, what value it provides.

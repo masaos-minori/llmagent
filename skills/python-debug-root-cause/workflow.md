@@ -640,7 +640,7 @@ cycle ended in a `Blocked` state per Phase 6b or Phase 9a's own stop condition.
 
 ## Output format
 
-Populate every item from what earlier Phases recorded — MUST NOT re-derive or re-run a check merely to produce this report.
+See `rules/ai-execution.md`, section "Progress Reporting (Base)".
 
 1. symptom (exact error or behavior)
 2. failure classification (reproducibility / sync-async / domain)

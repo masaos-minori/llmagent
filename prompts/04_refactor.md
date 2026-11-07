@@ -78,8 +78,7 @@ Responsibility Analysis, and Documentation Drift Detection.
 #### Step 4: Behavior lock
 
 Follow `skills/python-refactoring/workflow.md` Step 4 in full, at the depth the Path
-classification calls for. Do not proceed to Step 6 if important behavior is uncovered
-and no characterization test or explicit exception is recorded for it.
+classification calls for. See `skills/python-refactoring/workflow.md`, section "Step 4: Behavior Lock".
 
 #### Step 5: Side-effect inventory
 

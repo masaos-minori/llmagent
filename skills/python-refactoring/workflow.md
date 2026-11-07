@@ -363,9 +363,7 @@ Proposals and Findings live only in this report. When it lists any, offer to fil
 
 ## Refactoring-Specific Guidance
 
-- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run a
-  check (`mypy`/`pyright`/`ruff`/`pydeps`/`import-linter`/`mutmut`/`rg`) against an unchanged
-  target expecting a different result; re-run only after the fix it depends on.
+- See `rules/ai-execution.md`, section "Tool Usage".
 - Step 3 runs sequentially. `rg` and the deploy-reference search run every time; `pydeps`/
   `import-linter`/`ast-grep` only for Path B or C (`path-a.md`/`path-b.md`). Keep only the
   impact scope table, not raw tool output.

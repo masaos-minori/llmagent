@@ -324,9 +324,7 @@ are still accurate. Step 2's stale detector already aborted on a missing symbol,
 or cited line range, so this step covers what pattern matching cannot — check via
 `rg`/Read whether the behavior, call path, and dependencies the procedure describes still
 match current source, and whether any stated assumption or scope boundary is stale or
-inconsistent with a sibling procedure document or the source Plan. Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule:
-MUST NOT re-run a `rg`/Read check already performed against this same file at its current
-content within this cycle.
+inconsistent with a sibling procedure document or the source Plan. See `rules/ai-execution.md`, section "Tool Usage".
 
 **Completed when**: the target file, its specific symbol/line/call-path claims, and its
 stated dependencies have each been checked once against current source.
