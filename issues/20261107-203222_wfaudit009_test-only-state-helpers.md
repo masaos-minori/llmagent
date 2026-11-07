@@ -73,3 +73,12 @@ Verify the caller census against current source before deleting (the archived du
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203222
 - **Related target files**: scripts/agent/workflow/attempt_ops.py, scripts/agent/workflow/state_store.py, scripts/agent/workflow/idempotency_ops.py, tests/agent/workflow/test_workflow_state_store.py
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- `attempt_ops.start_attempt` / `attempt_ops.count_attempts` test-only status confirmed: the only callers are `tests/agent/workflow/test_workflow_state_store.py` (import at L20; used at L145-160); zero callers in `scripts/`. The near-duplicate insert warning is live: `idempotency_ops.py:57-59` comment — "Not attempt_ops.start_attempt: this insert stays in the same transaction ... change together." — Evidence: `Verified by test` (grep) — Confidence: High
+- Partially superseded context: `cbb58b12a refactor(wfreview006)` already removed the StateStore facade-level `start_attempt`/`count_attempts` wrappers and documented the delegation; what remains is the ops-level duplication filed here. — Evidence: `Verified by test` (git log) — Confidence: High
+- `StateStore.find_stale_running_attempts` confirmed test-only: callers are `tests/agent/workflow/test_state_store.py:267` and `test_workflow_state_store.py:515`; production recovery uses `StateStore.recover_stale_attempts` (`state_store.py:190-248`) which queries the ops layer directly. — Evidence: `Verified by test` — Confidence: High
+- `StateStore.pending_tool_calls` confirmed test-only facade method (`state_store.py:123-125` delegates to `tool_call_state_ops.pending_tool_calls`); callers are five test sites in `test_workflow_state_store.py:706-735`, zero in `scripts/`. — Evidence: `Verified by test` — Confidence: High
