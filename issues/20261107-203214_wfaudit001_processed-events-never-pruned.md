@@ -77,3 +77,14 @@ Keep the change inside the recovery/idempotency boundary: attempt-state and even
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203214
 - **Related target files**: scripts/agent/workflow/idempotency_ops.py, scripts/agent/workflow/state_store.py, scripts/agent/workflow_engine_adapter.py, docs/41_db
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- `begin_stage_if_new` misleading statement confirmed, with one location correction: the "recovery ... removes their event IDs" statement is an in-function comment block (`scripts/agent/workflow/idempotency_ops.py:43-46`), not the docstring. — Evidence: `Verified by test` (source read) — Confidence: High
+- Adapter comment corrected: no "crashed tasks will not produce duplicate stage executions" comment exists anymore — the adapter has zero `processed_events`/`event_id` references today (grep at HEAD `926dbc109`; likely removed by `dee33ce7b fix(wfreview004)`). Only the idempotency_ops comment needs correcting. — Evidence: `Verified by test` (grep) — Confidence: High
+- `DELETE FROM processed_events` confirmed absent across `scripts/` (grep exit 1). `recover_stale_attempts` (`scripts/agent/workflow/state_store.py:190-248`) updates `attempts` to failed with a WHERE-guarded compare-and-swap and commits — no event-row reconciliation. — Evidence: `Verified by test` — Confidence: High
+- Permanent-skip trap confirmed live: engine builds `event_id = f"{task_id}:{stage_id}:{attempt}"` (`scripts/agent/workflow/workflow_engine.py:311`), and on `begin_stage_if_new` returning None logs "Stage ... skipped (already processed)" and returns without executing (`workflow_engine.py:321-325`). — Evidence: `Verified by test` — Confidence: High
+- `DedupStore.purge_expired` exists as the retention precedent (`scripts/shared/mcp_dedup.py:313`). — Evidence: `Verified by test` — Confidence: High
+- Adjacent fact: the engine now calls `begin_stage_if_new` with `self._store.get_connection()` (`workflow_engine.py:314`) — the facade-bypass pattern separately filed as `wfaudit015`; a prune change here touches the same call path.
