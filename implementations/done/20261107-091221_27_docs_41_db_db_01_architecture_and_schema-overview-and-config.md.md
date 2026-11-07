@@ -25,13 +25,13 @@
 ### Target file
 `docs/41_db/db_01_architecture_and_schema-overview-and-config.md`
 ### Procedure
-1. Replace line 34's second sentence, keeping the link sentence intact:
+1. Replace line 36's second sentence (anchor re-verified 2026-11-07), keeping the link sentence intact:
    ```markdown
    **Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers import contracts and helpers from `db.store_protocols` and SQLite implementations from `db.store_impl`; the `db.store` re-export facade was deleted (2026-11-07) and must not be reintroduced.
    ```
 2. Leave all other lines unchanged (compatrm001's region and the schema tables).
 ### Method
-REQ-007 / AC-005. Line 34: "Callers should always import from `db.store` and must not import directly
+REQ-007 / AC-005. Line 36: "Callers should always import from `db.store` and must not import directly
 from internal modules." The facade is deleted by docs 01; the rule inverts to
 responsibility-specific imports.
 ### Details
@@ -71,9 +71,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the import-boundary sentence in `docs/41_db/db_01` — Plan Phase 3 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Replace the import-boundary sentence in `docs/41_db/db_01` — Plan Phase 3 | Completed | 20261107-164339 | 20261107-164339 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164339 | 20261107-164339 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164339 | 20261107-164339 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

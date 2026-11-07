@@ -32,6 +32,11 @@
    - `test_store_wildcard_import_works` (62-67).
 3. Do not touch the `db`-module `__all__` and wildcard tests or any other test in the file:
    the package-level direct-import surface stays (plan Assumptions).
+4. Verification finding (2026-11-07): the module docstring line 4 (`- __all__ exists in
+   db.store and db.__init__`) names the deleted facade — update it to name only the `db`
+   package surface. The fixture is used by the kept `db`-module tests, so apply the
+   strip-only variant of step 1 (the whole fixture stays; its saved/del/yield/restore
+   targets become just `db`).
 ### Method
 REQ-003 / AC-001. The file guards the public import surface of `scripts/db`: a fixture
 region (lines 24-31) reloads `db.store` for facade tests, and three tests assert the
@@ -78,9 +83,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the three store-facade tests in `tests/db/test_db_public_api.py` — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Delete the three store-facade tests in `tests/db/test_db_public_api.py` — Plan Phase 2 | Completed | 20261107-164339 | 20261107-164339 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164339 | 20261107-164339 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164339 | 20261107-164339 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -150,7 +150,7 @@ def test_same_consumer_id_resumes_from_last_acked_offset(
 ) -> None:
     """Consumer with same consumer_id reconnects → resumes from last acked offset."""
     from eventbus import app as eb_app
-    from eventbus.db import get_consumer_offset
+    from eventbus.delivery_repo import get_consumer_offset
 
     # Publish and ack first event
     r1 = _pub(client)
@@ -180,7 +180,7 @@ def test_different_consumer_id_starts_from_zero(
 ) -> None:
     """Consumer with different consumer_id reconnects → starts from seq=0 (offset not found)."""
     from eventbus import app as eb_app
-    from eventbus.db import get_consumer_offset
+    from eventbus.delivery_repo import get_consumer_offset
 
     # Consumer-A publishes and acks
     r1 = _pub(client)
@@ -210,7 +210,7 @@ def test_different_consumer_id_starts_from_zero(
 def test_same_consumer_id_last_write_wins(client: TestClient, tmp_path: Path) -> None:
     """Two ACKs with the same consumer_id share one offset (highest acked seq wins; no collision detection on ACK)."""
     from eventbus import app as eb_app
-    from eventbus.db import get_consumer_offset
+    from eventbus.delivery_repo import get_consumer_offset
 
     # Both consumers ack different events with the same consumer_id
     r1 = _pub(client)
@@ -238,7 +238,8 @@ def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
     import json
 
     from eventbus import app as eb_app
-    from eventbus.db import ack_event_for_consumer, get_consumer_offset, insert_event
+    from eventbus.delivery_repo import ack_event_for_consumer, get_consumer_offset
+    from eventbus.event_repo import insert_event
 
     db = eb_app.app.state.db
 
@@ -325,8 +326,12 @@ class TestOutOfOrderAckNoSkipOnReconnect:
         """ACK a higher seq before a lower seq → reconnect must not skip the lower seq."""
         import sqlite3
 
-        from eventbus.db import get_consumer_offset, get_resume_position, insert_event
-        from eventbus.delivery_repo import ack_event_for_consumer
+        from eventbus.delivery_repo import (
+            ack_event_for_consumer,
+            get_consumer_offset,
+            get_resume_position,
+        )
+        from eventbus.event_repo import insert_event
 
         db_path = str(tmp_path / "test.db")
         conn = sqlite3.connect(db_path)
@@ -389,8 +394,12 @@ class TestOutOfOrderAckNoSkipOnReconnect:
         """Ordered ACKs: reconnect resumes from stored offset + 1 (fast-forward)."""
         import sqlite3
 
-        from eventbus.db import get_consumer_offset, get_resume_position, insert_event
-        from eventbus.delivery_repo import ack_event_for_consumer
+        from eventbus.delivery_repo import (
+            ack_event_for_consumer,
+            get_consumer_offset,
+            get_resume_position,
+        )
+        from eventbus.event_repo import insert_event
 
         db_path = str(tmp_path / "test.db")
         conn = sqlite3.connect(db_path)
@@ -441,7 +450,7 @@ class TestOutOfOrderAckNoSkipOnReconnect:
         """No prior offset: resume position returns 0 (start from beginning)."""
         import sqlite3
 
-        from eventbus.db import get_resume_position
+        from eventbus.delivery_repo import get_resume_position
 
         db_path = str(tmp_path / "test.db")
         conn = sqlite3.connect(db_path)

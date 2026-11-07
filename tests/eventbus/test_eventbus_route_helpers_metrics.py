@@ -210,7 +210,7 @@ class TestRunWithDbLockMetrics:
         callback time), increments the contention counter and records the callback as
         the query duration. The clock is scripted so the timing is deterministic."""
         import eventbus.route_helpers as rh
-        from eventbus import db as eb_db
+        from eventbus import db_conn as eb_db
 
         from tests.eventbus.conftest import _ensure_route_helpers_metrics_registered
 

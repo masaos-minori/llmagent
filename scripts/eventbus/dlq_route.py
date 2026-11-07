@@ -8,8 +8,8 @@ from fastapi import HTTPException, Query, Request
 
 from eventbus.audit import log_privileged_action
 from eventbus.auth import Principal
-from eventbus.db import count_dlq, fetch_dlq, redeliver_event
-from eventbus.dlq_repo import RequeueResult
+from eventbus.dlq_repo import RequeueResult, redeliver_event
+from eventbus.event_repo import count_dlq, fetch_dlq
 from eventbus.route_helpers import (
     ERR_EVENT_NOT_FOUND,
     ERR_EVENT_NOT_IN_DLQ,

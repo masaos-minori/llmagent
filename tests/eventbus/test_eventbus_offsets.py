@@ -119,10 +119,10 @@ def _event(topic: str = "t") -> dict[str, Any]:
 
 def test_ack_writes_offset(client: TestClient, tmp_path: Path) -> None:
     """Acknowledge an event writes the offset atomically via ack_event_for_consumer."""
-    from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
+    from eventbus.delivery_repo import (  # noqa: PLC0415 — deferred import kept local to this test helper
         ack_event_for_consumer,
-        insert_event,
     )
+    from eventbus.event_repo import insert_event
 
     db = cast(FastAPI, client.app).state.db
     now = "2026-09-09T10:00:00Z"
@@ -173,7 +173,7 @@ def test_reconnect_resume_via_consumer_id(client: TestClient) -> None:
 
     # Verify: new broker subscription with consumer_id picks up from last acked seq
     from eventbus import app as eb_app
-    from eventbus.db import get_consumer_offset
+    from eventbus.delivery_repo import get_consumer_offset
 
     offset = get_consumer_offset(eb_app.app.state.db, "consumer2")
     assert offset == r1["seq"]
@@ -192,7 +192,7 @@ def test_reconnect_resume_via_consumer_id(client: TestClient) -> None:
 def test_offset_not_advanced_without_ack(client: TestClient) -> None:
     """Offset should remain 0 for consumer_id that never acked."""
     from eventbus import app as eb_app
-    from eventbus.db import get_consumer_offset
+    from eventbus.delivery_repo import get_consumer_offset
 
     _pub(client)
     offset = get_consumer_offset(eb_app.app.state.db, "never-acked-consumer")
@@ -222,10 +222,10 @@ class TestSqliteOffsetMonotonicity:
         self, tmp_path: Path, client: TestClient
     ) -> None:
         """An older-or-equal seq cannot move a consumer's offset backward."""
-        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
+        from eventbus.delivery_repo import (  # noqa: PLC0415 — deferred import kept local to this test helper
             ack_event_for_consumer,
-            insert_event,
         )
+        from eventbus.event_repo import insert_event
 
         db = cast(FastAPI, client.app).state.db
         now = "2026-09-09T10:00:00Z"
@@ -264,7 +264,8 @@ class TestSqliteOffsetMonotonicity:
 
 class TestConsumerOffsetsTable:
     def test_get_consumer_offset_defaults_to_zero(self, tmp_path: Path) -> None:
-        from eventbus.db import get_consumer_offset, open_db
+        from eventbus.db_conn import open_db
+        from eventbus.delivery_repo import get_consumer_offset
 
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         try:
@@ -273,7 +274,8 @@ class TestConsumerOffsetsTable:
             db.close()
 
     def test_ack_event_for_consumer_advances_offset(self, tmp_path: Path) -> None:
-        from eventbus.db import ack_event_for_consumer, get_consumer_offset, open_db
+        from eventbus.db_conn import open_db
+        from eventbus.delivery_repo import ack_event_for_consumer, get_consumer_offset
 
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         try:
@@ -304,7 +306,8 @@ class TestConsumerOffsetsTable:
             db.close()
 
     def test_offset_does_not_regress_on_older_seq(self, tmp_path: Path) -> None:
-        from eventbus.db import ack_event_for_consumer, get_consumer_offset, open_db
+        from eventbus.db_conn import open_db
+        from eventbus.delivery_repo import ack_event_for_consumer, get_consumer_offset
 
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         try:

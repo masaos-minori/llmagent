@@ -87,9 +87,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the four facade patterns to `COMPAT_PATTERNS` — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Add the four facade patterns to `COMPAT_PATTERNS` — Plan Phase 2 | Completed | 20261107-164339 | 20261107-164339 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164339 | 20261107-164339 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164339 | 20261107-164339 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

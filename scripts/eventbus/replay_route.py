@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 
 from eventbus.audit import log_privileged_action
 from eventbus.auth import Principal
-from eventbus.db import fetch_events_since
+from eventbus.event_repo import fetch_events_since
 from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import _row_to_dict, get_db, run_with_db_lock
 

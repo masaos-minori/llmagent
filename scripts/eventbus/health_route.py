@@ -6,7 +6,7 @@ import logging
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from eventbus.db import check_db
+from eventbus.db_conn import check_db
 from eventbus.route_helpers import (
     _db_lock_contention,
     _db_lock_wait_time,

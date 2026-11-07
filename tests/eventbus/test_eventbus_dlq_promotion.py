@@ -139,7 +139,7 @@ class TestDLQPromotionSemantics:
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """Event is promoted to DLQ when consumer_delivery_failure_count >= max_retry."""
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")
@@ -172,7 +172,7 @@ class TestDLQPromotionSemantics:
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """Requeue of event at consumer_delivery_failure_count >= max_retry succeeds."""
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")
@@ -206,7 +206,7 @@ class TestDLQPromotionSemantics:
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """DLQ requeue increments dlq_requeue_count but does NOT modify consumer_delivery_failure_count."""
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")
@@ -259,7 +259,7 @@ class TestDLQPromotionSemantics:
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """After requeue, next DLQ loop tick will re-promote if consumer_delivery_failure_count >= max_retry."""
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")
@@ -311,7 +311,7 @@ class TestDLQPromotionSemantics:
         import threading
         import time
 
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")
@@ -389,7 +389,7 @@ class TestMultiConsumerPromotion:
     def test_sweep_does_not_promote_when_other_consumer_below_limit(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         event_id = self._publish(client)
@@ -404,7 +404,7 @@ class TestMultiConsumerPromotion:
     def test_sweep_does_not_promote_when_other_consumer_acked(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         event_id = self._publish(client)
@@ -418,7 +418,7 @@ class TestMultiConsumerPromotion:
     def test_sweep_promotes_when_all_consumers_exhausted(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         event_id = self._publish(client)
@@ -434,7 +434,7 @@ class TestMultiConsumerPromotion:
     def test_sweep_ignores_event_without_delivery_rows(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         event_id = self._publish(client)
@@ -544,7 +544,7 @@ class TestPromotionFailurePaths:
         transaction regardless of file I/O; the outbox worker generates the artifact.
         """
         from eventbus import dlq
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
 
         body = _event("dlq_promo")
         assert client.post("/publish", json=body).status_code == 200
@@ -626,7 +626,7 @@ class TestPromotionFailurePaths:
         """A DB failure at the delivery upsert rolls back and re-raises with state unchanged."""
         import sqlite3
 
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.delivery_repo import nack_event
 
         body = _event("dlq_promo")
@@ -675,7 +675,7 @@ class TestPromotionFailurePaths:
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """Inline promotion is idempotent against the sweep: a following sweep promotes nothing."""
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         body = _event("dlq_promo")

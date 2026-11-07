@@ -93,9 +93,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `scripts/eventbus/db.py` — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Delete `scripts/eventbus/db.py` — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

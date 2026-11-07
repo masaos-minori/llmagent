@@ -1,6 +1,6 @@
 ## Goal
 
-- tests/eventbus/test_eventbus_restart_resume.py — migrate 7 facade import sites by layer (AC-002, REQ-002)
+- tests/eventbus/test_eventbus_route_helpers_metrics.py — move the eb_db monkeypatch to db_conn (AC-002, REQ-002)
 
 ## Scope
 **Release unit**: facade-cutover
@@ -21,29 +21,29 @@
 
 ## Implementation
 ### Target file
-`tests/eventbus/test_eventbus_restart_resume.py`
+`tests/eventbus/test_eventbus_route_helpers_metrics.py`
 ### Procedure
-1. Apply the mapping above, keeping deferred placement and `# noqa: PLC0415` markers.
-2. Change nothing else: restart/resume assertions are unchanged.
+1. Replace line 213 with:
+   ```python
+   from eventbus import db_conn as eb_db
+   ```
+   keeping the `eb_db` local name so line 232 (`monkeypatch.setattr(eb_db, "get_db_lock", lambda: _SignalingLock())`)
+   needs no edit.
+2. Change nothing else: the metrics assertions and `_SignalingLock` helper are unchanged.
 ### Method
-REQ-002 / AC-002. Seven facade import sites (lines 153, 183, 213, 241, 328, 392, 444):
-- lines 153, 183, 213: `get_consumer_offset` → `delivery_repo`
-- line 241: `ack_event_for_consumer, get_consumer_offset, insert_event` →
-  `delivery_repo` (first two) + `event_repo`
-- lines 328, 392: `get_consumer_offset, get_resume_position, insert_event` →
-  `delivery_repo` (first two) + `event_repo`
-- line 444: `get_resume_position` → `delivery_repo`
-
-The file already imports `ack_event_for_consumer` from `eventbus.delivery_repo` in
-places; consolidate with those existing imports where that avoids duplicate import
-lines.
+REQ-002 / AC-002. `tests/eventbus/test_eventbus_route_helpers_metrics.py` uses the
+facade as a module object: line 213 imports `from eventbus import db as eb_db` and line
+232 monkeypatches `eb_db.get_db_lock` with a `_SignalingLock`. `get_db_lock` is the
+only facade attribute this file touches. After doc 10, `run_with_db_lock` resolves the
+attribute from `eventbus.db_conn` at call time, so the patch target must move there.
 ### Details
 Import lines only; assertions and fixtures unchanged.
 
 ## Compatibility considerations
 
 - Sibling document ordering (Plan phase sequence):
-  - Depends on: nothing (Phase 2 of the `facade-cutover` unit).
+  - Depends on: doc 10 (route_helpers must resolve `get_db_lock` from `db_conn` before the
+  patched attribute takes effect).
   - Blocks: sibling documents 02, 26.
 
 ## Security considerations
@@ -56,14 +56,15 @@ N/A: import-boundary change.
 
 ## Validation plan
 
-- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_restart_resume.py`
-  Expected: 0.
-- Command: `uv run pytest tests/eventbus/test_eventbus_restart_resume.py -q`
-  Expected: pass.
+- Command: `grep -n "eventbus.db\b\|from eventbus import db\b" tests/eventbus/test_eventbus_route_helpers_metrics.py`
+  Expected: no matches.
+- Command: `uv run pytest tests/eventbus/test_eventbus_route_helpers_metrics.py -q`
+  Expected: pass; the lock-signal assertions prove the patch took effect on the new
+  target (AC-006).
 
 ## Completion criteria
 
-- every name imported from its owning layer module. (AC-002, REQ-002)
+- the only module-object import is `db_conn`. (AC-002, REQ-002)
 
 ## Out of Scope
 
@@ -74,9 +75,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -96,4 +97,4 @@ N/A: import-boundary change.
 - **Source plan**: plans/20261107-063921_compatrm003_remove-db-store-and-eventbus-db-facades-and-optional-nack-consumer-id.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-091221
-- **Related target files**: `tests/eventbus/test_eventbus_restart_resume.py`
+- **Related target files**: `tests/eventbus/test_eventbus_route_helpers_metrics.py`

@@ -118,6 +118,12 @@ COMPAT_PATTERNS = {
     "auth._populate_token_maps reference": r"\b_populate_token_maps\b",
     "eventbus auth._auth_alias_required reference": r"\b_auth_alias_required\b",
     "eventbus helpers principal_map reference": r"\bprincipal_map\b",
+    # compatrm003 patterns — db.store and eventbus.db re-export facades deleted
+    # after plan 20261107-063921 (layer-module-direct imports only)
+    "from db.store import": r"\bfrom db\.store import\b",
+    "from eventbus.db import": r"\bfrom eventbus\.db import\b",
+    "import eventbus.db": r"\bimport eventbus\.db\b",
+    "from eventbus import db": r"\bfrom eventbus import db\b",
 }
 
 # Patterns an Accepted ADR phrases as an explicit prohibition, keyed by name,

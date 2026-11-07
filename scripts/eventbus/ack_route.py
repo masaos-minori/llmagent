@@ -11,7 +11,7 @@ from eventbus.auth import (
     Principal,
     authorize_consumer_access,
 )
-from eventbus.db import nack_event as _nack_event
+from eventbus.delivery_repo import nack_event as _nack_event
 from eventbus.event_repo import get_event_topic
 from eventbus.json_utils import now_iso
 from eventbus.route_helpers import (
@@ -76,7 +76,7 @@ async def _do_ack(
         a per-consumer offset). The consumer-less ack_event() path has been
         removed — all consumer-scoped operations must be attributable.
         """
-        from eventbus.db import ack_event_for_consumer  # noqa: PLC0415
+        from eventbus.delivery_repo import ack_event_for_consumer  # noqa: PLC0415
 
         now = now_iso()
         found, newly_acked, seq = ack_event_for_consumer(db, event_id, consumer_id, now)

@@ -10,7 +10,7 @@ import jsonschema
 from fastapi import HTTPException, Request
 from prometheus_client import Counter
 
-from eventbus.db import insert_event
+from eventbus.event_repo import insert_event
 from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import (
     ERR_EVENT_CONFLICT,

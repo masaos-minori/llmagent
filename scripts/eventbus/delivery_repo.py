@@ -26,8 +26,8 @@ class NackResult:
       recorded (or an idempotent repeat of the same attempt); "not_found" when the
       event does not exist; "invalid_state" when the event is already DLQ'd or
       already ACKed by this consumer.
-    consumer_failure_count: int | None — per-consumer failure count when
-      consumer_id was provided, None when consumer_id was not provided.
+    consumer_failure_count: int | None — per-consumer failure count for "ok"
+      results, None for "not_found" / "invalid_state".
     """
 
     status: Literal["ok", "not_found", "invalid_state"]
@@ -37,19 +37,18 @@ class NackResult:
 def nack_event(
     conn: sqlite3.Connection,
     event_id: str,
-    consumer_id: str
-    | None = None,  # internal-only: the /nack route always supplies consumer_id
+    consumer_id: str,
     last_nack_attempt: str | None = None,  # REQ-001: idempotency key for NACK
 ) -> NackResult:
     """Record a per-consumer NACK failure for an event.
 
-    When consumer_id is provided, the consumer's failure count is incremented and
+    consumer_id is required and must be a non-empty string; an empty value raises
+    ValueError before any query. The consumer's failure count is incremented and
     its last NACK attempt marker is stored. The per-consumer count is the only
     failure counter; the events table carries none.
 
-    Nothing is recorded if the event is already DLQ'd (has dlq_at) or, when
-    consumer_id is provided, if that consumer has already ACKed the event —
-    attempting to do so would corrupt state.
+    Nothing is recorded if the event is already DLQ'd (has dlq_at) or if that
+    consumer has already ACKed the event — attempting to do so would corrupt state.
     NACK is idempotent per delivery attempt: if the same consumer has already
     NACKed this event for the same attempt ID (last_nack_attempt matches), the
     count is not incremented again.
@@ -59,9 +58,11 @@ def nack_event(
         same attempt); "not_found" when the event does not exist;
         "invalid_state" when the event is already DLQ'd or already ACKed by this
         consumer.
-      - consumer_failure_count: per-consumer count when consumer_id was provided,
-        None otherwise.
+      - consumer_failure_count: per-consumer count for "ok" results, None for
+        "not_found" / "invalid_state".
     """
+    if not consumer_id:
+        raise ValueError("consumer_id must be a non-empty string")
     try:
         # Check if event exists and is not DLQ'd
         existing = conn.execute(
@@ -73,61 +74,26 @@ def nack_event(
         if existing[_COL_DLQ_AT] is not None:
             return NackResult("invalid_state")
 
-        if consumer_id is not None:
-            # internal-only: the /nack route always supplies consumer_id
-            # Per-consumer ACK guard: reject NACK if this consumer already ACKed
-            acked = conn.execute(
-                "SELECT 1 FROM consumer_delivery "
-                "WHERE consumer_id = ? AND event_id = ? AND acked = 1",
-                (consumer_id, event_id),
-            ).fetchone()
-            if acked:
-                return NackResult("invalid_state")
+        # Per-consumer ACK guard: reject NACK if this consumer already ACKed
+        acked = conn.execute(
+            "SELECT 1 FROM consumer_delivery "
+            "WHERE consumer_id = ? AND event_id = ? AND acked = 1",
+            (consumer_id, event_id),
+        ).fetchone()
+        if acked:
+            return NackResult("invalid_state")
 
-            # NACK idempotency: skip if same consumer already NACKed this attempt
-            last_attempt = conn.execute(
-                f"SELECT {_COL_CONSUMER_LAST_NACK_ATTEMPT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
-                f"WHERE consumer_id = ? AND event_id = ?",
-                (consumer_id, event_id),
-            ).fetchone()
-            if (
-                last_attempt
-                and last_attempt[_COL_CONSUMER_LAST_NACK_ATTEMPT] == last_nack_attempt
-            ):
-                # Idempotent: return current counts without incrementing
-                consumer_row = conn.execute(
-                    f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
-                    f"WHERE consumer_id = ? AND event_id = ?",
-                    (consumer_id, event_id),
-                ).fetchone()
-                if consumer_row:
-                    return NackResult(
-                        "ok",
-                        consumer_failure_count=int(
-                            consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT]
-                        ),
-                    )
-                return NackResult("not_found")
-
-        # Per-consumer model: only the per-consumer failure counter is authoritative for
-        # DLQ promotion (ADR-006 INV-13); there is no events-level failure counter under
-        # this model.
-        # Update consumer_delivery table if consumer_id is provided
-        # internal-only: the /nack route always supplies consumer_id
-        if consumer_id is not None:
-            conn.execute(
-                f"INSERT INTO consumer_delivery (consumer_id, event_id, {_COL_CONSUMER_DELIVERY_FAILURE_COUNT}, {_COL_CONSUMER_LAST_NACK_ATTEMPT}) "  # nosec B608 — column names are module-level constants, values parameterized
-                f"VALUES (?, ?, 1, ?) "
-                f"ON CONFLICT(consumer_id, event_id) DO UPDATE SET "
-                f"{_COL_CONSUMER_DELIVERY_FAILURE_COUNT} = {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} + 1, "
-                f"{_COL_CONSUMER_LAST_NACK_ATTEMPT} = excluded.{_COL_CONSUMER_LAST_NACK_ATTEMPT}",
-                (consumer_id, event_id, last_nack_attempt),
-            )
-
-        conn.commit()
-
-        # Read back the per-consumer count when a consumer was involved
-        if consumer_id is not None:
+        # NACK idempotency: skip if same consumer already NACKed this attempt
+        last_attempt = conn.execute(
+            f"SELECT {_COL_CONSUMER_LAST_NACK_ATTEMPT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
+            f"WHERE consumer_id = ? AND event_id = ?",
+            (consumer_id, event_id),
+        ).fetchone()
+        if (
+            last_attempt
+            and last_attempt[_COL_CONSUMER_LAST_NACK_ATTEMPT] == last_nack_attempt
+        ):
+            # Idempotent: return current counts without incrementing
             consumer_row = conn.execute(
                 f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
                 f"WHERE consumer_id = ? AND event_id = ?",
@@ -140,7 +106,36 @@ def nack_event(
                         consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT]
                     ),
                 )
-        return NackResult("ok")
+            return NackResult("not_found")
+
+        # Per-consumer model: only the per-consumer failure counter is authoritative for
+        # DLQ promotion (ADR-006 INV-13); there is no events-level failure counter under
+        # this model.
+        conn.execute(
+            f"INSERT INTO consumer_delivery (consumer_id, event_id, {_COL_CONSUMER_DELIVERY_FAILURE_COUNT}, {_COL_CONSUMER_LAST_NACK_ATTEMPT}) "  # nosec B608 — column names are module-level constants, values parameterized
+            f"VALUES (?, ?, 1, ?) "
+            f"ON CONFLICT(consumer_id, event_id) DO UPDATE SET "
+            f"{_COL_CONSUMER_DELIVERY_FAILURE_COUNT} = {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} + 1, "
+            f"{_COL_CONSUMER_LAST_NACK_ATTEMPT} = excluded.{_COL_CONSUMER_LAST_NACK_ATTEMPT}",
+            (consumer_id, event_id, last_nack_attempt),
+        )
+
+        conn.commit()
+
+        # Read back the per-consumer count
+        consumer_row = conn.execute(
+            f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
+            f"WHERE consumer_id = ? AND event_id = ?",
+            (consumer_id, event_id),
+        ).fetchone()
+        if consumer_row:
+            return NackResult(
+                "ok",
+                consumer_failure_count=int(
+                    consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT]
+                ),
+            )
+        return NackResult("not_found")
     except Exception:
         conn.rollback()
         raise

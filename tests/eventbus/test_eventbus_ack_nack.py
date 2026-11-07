@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from eventbus.db import NackResult
+from eventbus.delivery_repo import NackResult
 from fastapi.testclient import TestClient
 
 from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
@@ -15,7 +15,7 @@ from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test
 
 @pytest.fixture
 def db(tmp_path: Path) -> Any:
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     return open_db(str(tmp_path / "eventbus.sqlite"))
 
@@ -51,11 +51,11 @@ class TestAckEvent:
 
     def test_two_consumers_ack_same_event(self, tmp_path: Path) -> None:
         """Two distinct consumer_ids can each ACK the same event independently."""
-        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
+        from eventbus.db_conn import open_db
+        from eventbus.delivery_repo import (  # noqa: PLC0415 — deferred import kept local to this test helper
             ack_event_for_consumer,
-            insert_event,
-            open_db,
         )
+        from eventbus.event_repo import insert_event
 
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         now = "2026-09-09T10:00:00Z"
@@ -330,7 +330,7 @@ class TestNackEvent:
         return int(resp.status_code)
 
     def test_nack_event_increments_failure_count(self, db: sqlite3.Connection) -> None:
-        from eventbus.db import nack_event
+        from eventbus.delivery_repo import nack_event
 
         ev = _event()
         db.execute(
@@ -345,11 +345,11 @@ class TestNackEvent:
         )
         db.commit()
 
-        result = nack_event(db, ev["event_id"])
-        assert result == NackResult("ok")
+        result = nack_event(db, ev["event_id"], consumer_id="consumer-A")
+        assert result == NackResult("ok", consumer_failure_count=1)
 
     def test_nack_event_increments_again(self, db: sqlite3.Connection) -> None:
-        from eventbus.db import nack_event
+        from eventbus.delivery_repo import nack_event
 
         ev = _event()
         db.execute(
@@ -364,23 +364,66 @@ class TestNackEvent:
         )
         db.commit()
 
-        result1 = nack_event(db, ev["event_id"])
-        assert result1 == NackResult("ok")
+        result1 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-1"
+        )
+        assert result1 == NackResult("ok", consumer_failure_count=1)
 
-        result2 = nack_event(db, ev["event_id"])
-        assert result2 == NackResult("ok")
+        result2 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-2"
+        )
+        assert result2 == NackResult("ok", consumer_failure_count=2)
 
     def test_nack_event_not_found(self, db: sqlite3.Connection) -> None:
-        from eventbus.db import nack_event
+        from eventbus.delivery_repo import nack_event
 
-        result = nack_event(db, "nonexistent-event")
+        result = nack_event(db, "nonexistent-event", consumer_id="consumer-A")
         assert result == NackResult("not_found")
+
+    def test_nack_missing_consumer_id_raises_type_error(
+        self, db: sqlite3.Connection
+    ) -> None:
+        """consumer_id is a required positional argument; omitting it raises TypeError."""
+        from eventbus.delivery_repo import nack_event
+
+        with pytest.raises(TypeError):
+            # Intentional contract test: omit the required consumer_id to pin the
+            # TypeError at runtime; mypy correctly flags the missing argument.
+            nack_event(db, "some-event")  # type: ignore[call-arg]
+
+    def test_nack_empty_consumer_id_raises_value_error(
+        self, db: sqlite3.Connection
+    ) -> None:
+        """An empty consumer_id raises ValueError before any query writes delivery state."""
+        from eventbus.delivery_repo import nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        with pytest.raises(ValueError):
+            nack_event(db, ev["event_id"], consumer_id="")
+
+        # The guard runs before any query: no consumer_delivery row was written.
+        row = db.execute(
+            "SELECT * FROM consumer_delivery WHERE event_id = ?", (ev["event_id"],)
+        ).fetchone()
+        assert row is None
 
     def test_nack_per_consumer_acked_then_nack_returns_invalid_transition(
         self, db: sqlite3.Connection
     ) -> None:
         """NACK from consumer C for event E, when C has already ACKed E, returns NackResult("invalid_state")."""
-        from eventbus.db import ack_event_for_consumer, nack_event
+        from eventbus.delivery_repo import ack_event_for_consumer, nack_event
 
         ev = _event()
         db.execute(
@@ -410,7 +453,7 @@ class TestNackEvent:
         self, db: sqlite3.Connection
     ) -> None:
         """Consumer D (different consumer) can still NACK event E after consumer A ACKed it."""
-        from eventbus.db import ack_event_for_consumer, nack_event
+        from eventbus.delivery_repo import ack_event_for_consumer, nack_event
 
         ev = _event()
         db.execute(
@@ -435,36 +478,6 @@ class TestNackEvent:
         # Consumer B sends NACK — should succeed
         result = nack_event(db, ev["event_id"], consumer_id="consumer-B")
         assert result == NackResult("ok", consumer_failure_count=1)
-
-    def test_nack_no_consumer_id_unaffected_by_consumer_acks(
-        self, db: sqlite3.Connection
-    ) -> None:
-        """NACK without consumer_id is unaffected by per-consumer ACK state."""
-        from eventbus.db import ack_event_for_consumer, nack_event
-
-        ev = _event()
-        db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
-            (
-                ev["event_id"],
-                ev["topic"],
-                json.dumps(ev["payload"]),
-                ev["producer"],
-                ev["published_at"],
-            ),
-        )
-        db.commit()
-
-        # Consumer A ACKs the event
-        found, newly_acked, _ = ack_event_for_consumer(
-            db, ev["event_id"], "consumer-A", "2026-06-22T13:00:00Z"
-        )
-        assert found is True
-        assert newly_acked is True
-
-        # NACK without consumer_id — should succeed (events-level only)
-        result = nack_event(db, ev["event_id"])
-        assert result == NackResult("ok")
 
     def test_nack_http_409_on_per_consumer_acked(
         self, principal_client: TestClient
@@ -588,7 +601,7 @@ class TestNackIdempotency:
 
     def test_nack_same_key_no_increment(self, db: sqlite3.Connection) -> None:
         """A repeated delivery-attempt key does not increment the failure counter."""
-        from eventbus.db import nack_event
+        from eventbus.delivery_repo import nack_event
 
         ev = _event()
         db.execute(
@@ -617,7 +630,7 @@ class TestNackIdempotency:
 
     def test_nack_distinct_key_and_boundary(self, db: sqlite3.Connection) -> None:
         """Different keys each count once; a non-latest key counts as a new attempt (latest-key-only)."""
-        from eventbus.db import nack_event
+        from eventbus.delivery_repo import nack_event
 
         ev = _event()
         db.execute(
@@ -655,7 +668,7 @@ class TestNackIdempotency:
         Note: SQLite connections are not thread-safe, so true concurrent testing
         is not possible here. Sequential retries of the same key are tested instead.
         """
-        from eventbus.db import nack_event
+        from eventbus.delivery_repo import nack_event
 
         ev = _event()
         db.execute(
@@ -687,7 +700,7 @@ class TestNackIdempotency:
 
     def test_nack_max_retry_minus_one_boundary(self, db: sqlite3.Connection) -> None:
         """At max_retry - 1, the next distinct key increments the counter (DLQ promotion is HTTP-layer)."""
-        from eventbus.db import nack_event
+        from eventbus.delivery_repo import nack_event
 
         ev = _event()
         db.execute(
@@ -713,56 +726,6 @@ class TestNackIdempotency:
             db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-2"
         )
         assert result2 == NackResult("ok", consumer_failure_count=2)
-
-    def test_nack_same_key_no_increment_no_consumer_id(
-        self, db: sqlite3.Connection
-    ) -> None:
-        """Without consumer_id, the idempotency key has no effect (events-level only)."""
-        from eventbus.db import nack_event
-
-        ev = _event()
-        db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
-            (
-                ev["event_id"],
-                ev["topic"],
-                json.dumps(ev["payload"]),
-                ev["producer"],
-                ev["published_at"],
-            ),
-        )
-        db.commit()
-
-        result1 = nack_event(db, ev["event_id"], last_nack_attempt="key-A")
-        assert result1 == NackResult("ok")
-
-        result2 = nack_event(db, ev["event_id"], last_nack_attempt="key-A")
-        assert result2 == NackResult("ok")  # no consumer_id → no per-consumer dedup
-
-    def test_nack_different_key_no_consumer_id(self, db: sqlite3.Connection) -> None:
-        """Without consumer_id, different keys still increment (events-level only)."""
-        from eventbus.db import nack_event
-
-        ev = _event()
-        db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
-            (
-                ev["event_id"],
-                ev["topic"],
-                json.dumps(ev["payload"]),
-                ev["producer"],
-                ev["published_at"],
-            ),
-        )
-        db.commit()
-
-        result1 = nack_event(db, ev["event_id"], last_nack_attempt="key-A")
-        assert result1 == NackResult("ok")
-
-        result2 = nack_event(db, ev["event_id"], last_nack_attempt="key-B")
-        assert result2 == NackResult(
-            "ok"
-        )  # no consumer_id → no per-consumer dedup, but still increments
 
 
 class TestNackPrincipalValidation:

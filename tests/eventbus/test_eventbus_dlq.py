@@ -113,7 +113,7 @@ def _drain_outbox(db: Any, deadletter_dir: str) -> dict[str, int]:
 
 
 def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) -> None:
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -138,7 +138,7 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
 
 
 def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -172,7 +172,7 @@ def test_inline_promotion_inserts_pending_outbox_row_without_file(
     client: TestClient, tmp_path: Path
 ) -> None:
     """An inline NACK promotion commits dlq_at + a pending outbox row and writes no file."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -205,7 +205,7 @@ def test_sweep_promotion_inserts_outbox_rows(
     client: TestClient, tmp_path: Path
 ) -> None:
     """Sweep promotion carries its dlq_outbox request row in the same transaction."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -230,7 +230,7 @@ def test_racing_promotion_inserts_single_outbox_row(
 ) -> None:
     """The rowcount guard means a second promotion attempt duplicates neither dlq_at nor the outbox row."""
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -250,7 +250,7 @@ def test_racing_promotion_inserts_single_outbox_row(
 
 
 def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -301,7 +301,7 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
 def test_requeue_increments_dlq_requeue_count(
     client: TestClient, tmp_path: Path
 ) -> None:
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -357,7 +357,7 @@ def test_requeue_increments_dlq_requeue_count(
 
 
 def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> None:
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -403,7 +403,7 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
 def test_inline_dlq_promotion_skipped_below_threshold(
     client: TestClient, tmp_path: Path
 ) -> None:
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -442,7 +442,7 @@ def test_inline_dlq_promotion_not_found(client: TestClient) -> None:
 def test_nack_on_already_dlq_event_does_not_repromote(
     client: TestClient, tmp_path: Path
 ) -> None:
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -473,7 +473,7 @@ def test_nack_on_already_dlq_event_does_not_repromote(
 
 def test_requeue_non_dlq_event_fails(client: TestClient, tmp_path: Path) -> None:
     """Requeue should fail with 409 for events not currently in DLQ."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -537,7 +537,7 @@ def test_promotion_commit_precedes_artifact_generation(
     failure can never roll the promoted row back.
     """
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     ev = _event()
     client.post("/publish", json=ev)
@@ -582,7 +582,7 @@ def test_outbox_write_failure_meters_counter_and_records_attempt(
 ) -> None:
     """The outbox worker meters the artifact failure, records a bounded attempt, and keeps the row promoted."""
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event("dlq-inline-io")
@@ -625,7 +625,7 @@ def test_outbox_continues_after_one_event_write_failure(
 ) -> None:
     """A failing artifact write is metered, recorded as an attempt, and isolated per event."""
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev1 = _event("io-a")
@@ -700,7 +700,7 @@ def test_db_failure_during_promotion_is_repaired_by_next_sweep(
     import sqlite3
 
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event("dlq-db-fail")
@@ -774,7 +774,7 @@ async def test_concurrent_requeue_same_event(
     client: TestClient, tmp_path: Path
 ) -> None:
     """Concurrent requeue attempts on the same event must produce exactly one successful redelivery."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -835,7 +835,7 @@ async def test_concurrent_requeue_different_events(
     client: TestClient, tmp_path: Path
 ) -> None:
     """Concurrent requeue attempts on different events must both succeed independently."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
     from httpx import ASGITransport, AsyncClient
 
@@ -890,7 +890,7 @@ async def test_concurrent_requeue_different_events(
 
 def test_reconciliation_orphan_file(client: TestClient, tmp_path: Path) -> None:
     """Orphan DLQ file (dlq_at IS NULL but .json exists) is resolved deterministically."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -926,7 +926,7 @@ def test_reconciliation_orphan_file(client: TestClient, tmp_path: Path) -> None:
 
 def test_reconciliation_missing_file(client: TestClient, tmp_path: Path) -> None:
     """Missing DLQ file (promoted event without .json) does not cause errors."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -967,7 +967,7 @@ def test_reconcile_rebuilds_full_record_from_db(
     client: TestClient, tmp_path: Path
 ) -> None:
     """A promoted event whose file was lost is rebuilt byte-for-byte from SQLite."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import reconcile_missing_dlq_files, sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -1002,7 +1002,7 @@ def test_reconcile_ignores_unpromoted_events(
     client: TestClient, tmp_path: Path
 ) -> None:
     """Events with dlq_at IS NULL are not touched (only promoted events are reconciled)."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import reconcile_missing_dlq_files
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -1025,7 +1025,7 @@ def test_reconcile_is_idempotent_and_preserves_existing_file(
     client: TestClient, tmp_path: Path
 ) -> None:
     """Re-running reconcile on an intact file leaves it untouched (no rewrite, mtime preserved)."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import reconcile_missing_dlq_files, sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -1060,7 +1060,7 @@ def test_reconcile_isolates_single_event_write_failure(
 ) -> None:
     """A write failure for one event is skipped without blocking the others."""
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import _atomic_write, reconcile_missing_dlq_files, sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -1122,7 +1122,7 @@ def test_reconcile_concurrent_callers_under_db_lock(
     """Two callers each holding get_db_lock() reconcile their events without corruption."""
     import threading
 
-    from eventbus.db import get_db_lock, open_db
+    from eventbus.db_conn import get_db_lock, open_db
     from eventbus.dlq import reconcile_missing_dlq_files, sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -1167,7 +1167,7 @@ def test_reconcile_counts_orphan_file_without_deleting(
     client: TestClient, tmp_path: Path
 ) -> None:
     """REQ-007: a DLQ file with no promoted row and no done outbox row is counted, not deleted."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import reconcile_missing_dlq_files
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -1192,7 +1192,7 @@ def test_reconcile_counts_interrupted_tmp_leftovers(
     client: TestClient, tmp_path: Path
 ) -> None:
     """REQ-007: .dlq_tmp_* leftovers from interrupted atomic writes are counted, not removed."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import reconcile_missing_dlq_files
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -1217,7 +1217,7 @@ def test_reconcile_counts_mismatch_without_rewrite(
     client: TestClient, tmp_path: Path
 ) -> None:
     """REQ-007: a tampered existing file is reported as mismatch and never silently rewritten."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import reconcile_missing_dlq_files, sweep_orphans
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -1249,7 +1249,7 @@ def test_reconcile_audit_note_requeued_subdirectory_not_orphaned(
     client: TestClient, tmp_path: Path
 ) -> None:
     """Files under requeued/ (archive_dlq_record target) are outside the orphan scan."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import reconcile_missing_dlq_files
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))

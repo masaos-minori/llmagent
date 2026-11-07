@@ -1,6 +1,6 @@
 ## Goal
 
-- scripts/eventbus/route_helpers.py — import get_db_lock from db_conn (AC-002, REQ-002)
+- scripts/eventbus/dlq_route.py — import DLQ operations from their repositories (AC-002, REQ-002)
 
 ## Scope
 **Release unit**: facade-cutover
@@ -13,7 +13,7 @@
 
 ## Design decisions
 
-- Keep the deferred-import placement (PLC0415 discipline); after the move, monkeypatches target the `db_conn` module attribute that `run_with_db_lock` resolves at call time.
+- Only the import line moves: `redeliver_event` already matches the call-site usage, so no call-site edits and no aliases.
 
 ## Alternatives considered
 
@@ -21,33 +21,31 @@
 
 ## Implementation
 ### Target file
-`scripts/eventbus/route_helpers.py`
+`scripts/eventbus/dlq_route.py`
 ### Procedure
-1. Replace line 133 with `from eventbus.db_conn import get_db_lock` keeping its
-   `# noqa: PLC0415` marker:
+1. Replace line 11:
    ```python
-   from eventbus.db_conn import get_db_lock
+   from eventbus.event_repo import count_dlq, fetch_dlq
+   from eventbus.dlq_repo import redeliver_event
    ```
-   (or merge `get_db_lock` into the existing `eventbus.db_conn` deferred import block at
-   lines 134-138 — either form; keep the `# noqa: PLC0415` marker.)
-2. Change nothing else: lines 134-138, `_locked()`, and line 147 stay as-is.
+2. Touch nothing else in the file; call sites and the `run_with_db_lock` helper usage
+   stay identical.
 ### Method
-REQ-002 / AC-002. `run_with_db_lock()` carries a deferred facade import at line 133
-(`from eventbus.db import get_db_lock  # noqa: PLC0415`), immediately before an existing
-deferred import block from `eventbus.db_conn` (lines 134-138). The lock usage at line
-147 (`with get_db_lock():`) stays unchanged. After the move, tests that monkeypatch
-`get_db_lock` patch the `eventbus.db_conn` module attribute, which `run_with_db_lock`
-resolves at call time (docs 06 companion and 24).
+REQ-002 / AC-002. Line 11 imports `count_dlq, fetch_dlq, redeliver_event` from the
+`eventbus.db` facade. `count_dlq` and `fetch_dlq` live in `eventbus.event_repo`;
+`redeliver_event` lives in `eventbus.dlq_repo` (its signature takes
+`conn, event_id, now` — it is not consumer-scoped, so no call-site change is needed).
+Call sites: lines 33 (`count_dlq(db)`), 34 (`fetch_dlq(db, ...)`), 65
+(`redeliver_event(db, event_id)`) — names are unchanged, so only the import line moves.
 ### Details
 Import lines only; assertions and fixtures unchanged.
 
 ## Compatibility considerations
 
 - Sibling document ordering (Plan phase sequence):
-  - Depends on: nothing (Phase 2 of the `facade-cutover` unit).
-  - Blocks: sibling documents 02 (an importer that must be migrated before the facade is deleted), and
-  the monkeypatch targets in the companion of doc 06 and in doc 24 (this is where the
-  patched attribute resolves from).
+  - Depends on: nothing (can land any time in Phase 2 of the `facade-cutover` unit).
+  - Blocks: sibling documents 02 (dlq_route is one of the importers that must be migrated before the
+  facade is deleted).
 
 ## Security considerations
 
@@ -59,14 +57,14 @@ N/A: import-boundary change.
 
 ## Validation plan
 
-- Command: `grep -n "eventbus.db\b" scripts/eventbus/route_helpers.py`
+- Command: `grep -n "eventbus.db\b" scripts/eventbus/dlq_route.py`
   Expected: no matches.
-- Command: `uv run pytest tests/eventbus/test_eventbus_route_helpers_metrics.py -q`
-  Expected: pass after doc 24 lands (its monkeypatch target moves with this change).
+- Command: `uv run pytest tests/eventbus/test_eventbus_dlq.py tests/eventbus/test_eventbus_dlq_outbox.py -q`
+  Expected: pass (with doc 14/16 migrations landed).
 
 ## Completion criteria
 
-- the only `get_db_lock` import in route_helpers is from `db_conn`. (AC-002, REQ-002)
+- dlq_route imports each operation from its owning repository module. (AC-002, REQ-002)
 
 ## Out of Scope
 
@@ -77,9 +75,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -99,4 +97,4 @@ N/A: import-boundary change.
 - **Source plan**: plans/20261107-063921_compatrm003_remove-db-store-and-eventbus-db-facades-and-optional-nack-consumer-id.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-091221
-- **Related target files**: `scripts/eventbus/route_helpers.py`
+- **Related target files**: `scripts/eventbus/dlq_route.py`

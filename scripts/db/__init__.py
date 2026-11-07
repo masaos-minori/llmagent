@@ -5,7 +5,6 @@ Public API (import from db.* submodules directly for clarity):
   - db.config:     DbConfig, build_db_config
   - db.helper:     SQLiteHelper
   - db.models:     DTO dataclasses
-  - db.store:      Protocols + SQLite impls (protocol re-exports)
   - db.store_protocols: Protocol definitions + embedding helpers
   - db.store_impl:  SQLite-backed implementations
   - db.maintenance: WAL checkpoint, vacuum, purge, rotation, recovery

@@ -194,10 +194,10 @@ Yes: REQ-007 drives updates named in the `docs/00_index.md` "Document References
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: NACK contract tightening | In Progress | — | — | Procedure documents generated 2026-11-07 |
-| 2 | Phase 2: Facade migration and deletion | In Progress | — | — | Procedure documents generated 2026-11-07 |
-| 3 | Phase 3: Documentation | In Progress | — | — | Procedure documents generated 2026-11-07 |
-| 4 | Phase 4: Verification and deploy check | Pending | — | — |  |
+| 1 | Phase 1: NACK contract tightening | Completed | 20261107-164339 | 20261107-164339 | Procedure documents generated 2026-11-07 |
+| 2 | Phase 2: Facade migration and deletion | Completed | 20261107-164339 | 20261107-164339 | Procedure documents generated 2026-11-07 |
+| 3 | Phase 3: Documentation | Completed | 20261107-164339 | 20261107-164339 | Procedure documents generated 2026-11-07 |
+| 4 | Phase 4: Verification and deploy check | Completed | 20261107-164339 | 20261107-164339 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

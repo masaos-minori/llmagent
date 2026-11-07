@@ -33,7 +33,7 @@ The `workflow` and `eventbus` databases are validated against the current schema
 
 Four DB files exist; `rag.sqlite`, `session.sqlite` and `eventbus.sqlite` have their own path keys in `agent.toml`, while `workflow.sqlite` uses a Python-level default path (`workflow_db_path` is not an `agent.toml` key): `rag.sqlite` (documents, chunks, FTS and vector index), `session.sqlite` (sessions, messages, long-term memory with FTS and vector index), `workflow.sqlite` (task tracking) and `eventbus.sqlite` (event, delivery and offset state). Table definitions are in `db_02`. The files are separated because RAG indexing and conversation state have different access patterns (`rag.sqlite` writes heavily during ingestion and reads during query; `session.sqlite` appends heavily during conversations); separation avoids WAL contention.
 
-**Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers should always import from `db.store` and must not import directly from internal modules.
+**Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers import contracts and helpers from `db.store_protocols` and SQLite implementations from `db.store_impl`; the `db.store` re-export facade was deleted (2026-11-07) and must not be reintroduced.
 
 ---
 

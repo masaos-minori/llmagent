@@ -76,9 +76,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Retarget db_05 section 3 to `db.store_protocols` — Plan Phase 3 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Retarget db_05 section 3 to `db.store_protocols` — Plan Phase 3 | Completed | 20261107-164339 | 20261107-164339 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164339 | 20261107-164339 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164339 | 20261107-164339 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

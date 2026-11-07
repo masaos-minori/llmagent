@@ -160,7 +160,6 @@ async def test_queued_worker_refuses_sql_after_shutdown_began(
 ) -> None:
     """A worker admitted before shutdown that acquires the lock after the
     flag is set must raise the shutdown error and never run `func`."""
-    from eventbus import db as eb_db
     from eventbus import db_conn
     from eventbus.route_helpers import run_with_db_lock
 
@@ -177,7 +176,7 @@ async def test_queued_worker_refuses_sql_after_shutdown_began(
         def __exit__(self, *exc_info: object) -> None:
             real_lock.release()
 
-    monkeypatch.setattr(eb_db, "get_db_lock", lambda: _SignalingLock())
+    monkeypatch.setattr(db_conn, "get_db_lock", lambda: _SignalingLock())
     calls: list[int] = []
 
     real_lock.acquire()  # the test plays the role of the lock holder
@@ -308,7 +307,7 @@ async def test_shutdown_joins_inflight_outbox_cycle_before_closing_db(
     closes the connection only behind the lock; the pending row survives intact."""
     from eventbus import app as eb_app
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import now_iso
 
     cfg = _make_config(tmp_path)
@@ -394,7 +393,7 @@ async def test_dlq_loop_logs_outbox_and_reconcile_activity(
     outbox inconsistency logs both warnings; the pending row completes and the
     orphan file is reported, never deleted."""
     from eventbus import app as eb_app
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import now_iso
 
     cfg = _make_config(tmp_path)

@@ -1,6 +1,6 @@
 ## Goal
 
-- tests/eventbus/test_eventbus_requeue_edge_cases.py — migrate 5 facade open_db imports (AC-002, REQ-002)
+- scripts/eventbus/replay_route.py — import fetch_events_since from event_repo (AC-002, REQ-002)
 
 ## Scope
 **Release unit**: facade-cutover
@@ -13,7 +13,7 @@
 
 ## Design decisions
 
-- Mechanical import-path rewrite only: zero behavior, assertion, or fixture edits.
+- Single import-line replacement; replay semantics untouched.
 
 ## Alternatives considered
 
@@ -21,15 +21,16 @@
 
 ## Implementation
 ### Target file
-`tests/eventbus/test_eventbus_requeue_edge_cases.py`
+`scripts/eventbus/replay_route.py`
 ### Procedure
-1. Replace each of the five `from eventbus.db import open_db` occurrences with
-   `from eventbus.db_conn import open_db`.
-2. Change nothing else.
+1. Replace line 13:
+   ```python
+   from eventbus.event_repo import fetch_events_since
+   ```
+2. Leave the replay body unchanged.
 ### Method
-REQ-002 / AC-002. `tests/eventbus/test_eventbus_requeue_edge_cases.py` has five facade
-`open_db` imports (lines 120, 181, 251, 562, 611), all connection-layer. `open_db`
-lives in `eventbus.db_conn`.
+REQ-002 / AC-002. `scripts/eventbus/replay_route.py` imports `fetch_events_since` from
+the `eventbus.db` facade at line 13. `fetch_events_since` lives in `eventbus.event_repo`.
 ### Details
 Import lines only; assertions and fixtures unchanged.
 
@@ -37,7 +38,7 @@ Import lines only; assertions and fixtures unchanged.
 
 - Sibling document ordering (Plan phase sequence):
   - Depends on: nothing (Phase 2 of the `facade-cutover` unit).
-  - Blocks: sibling documents 02, 26.
+  - Blocks: sibling documents 02 (an importer that must be migrated before the facade is deleted).
 
 ## Security considerations
 
@@ -49,14 +50,14 @@ N/A: import-boundary change.
 
 ## Validation plan
 
-- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_requeue_edge_cases.py`
-  Expected: 0.
-- Command: `uv run pytest tests/eventbus/test_eventbus_requeue_edge_cases.py -q`
+- Command: `grep -n "eventbus.db\b" scripts/eventbus/replay_route.py`
+  Expected: no matches.
+- Command: `uv run pytest tests/eventbus/test_eventbus_replay_subscribe.py tests/eventbus/test_eventbus_replay_pagination.py -q`
   Expected: pass.
 
 ## Completion criteria
 
-- no facade import remains. (AC-002, REQ-002)
+- replay_route has no facade import. (AC-002, REQ-002)
 
 ## Out of Scope
 
@@ -67,9 +68,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -89,4 +90,4 @@ N/A: import-boundary change.
 - **Source plan**: plans/20261107-063921_compatrm003_remove-db-store-and-eventbus-db-facades-and-optional-nack-consumer-id.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-091221
-- **Related target files**: `tests/eventbus/test_eventbus_requeue_edge_cases.py`
+- **Related target files**: `scripts/eventbus/replay_route.py`

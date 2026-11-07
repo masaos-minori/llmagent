@@ -157,7 +157,7 @@ def test_commit_then_crash_before_file(client: TestClient, tmp_path: Path) -> No
     only a pending outbox row; re-running the worker (the restart analogue,
     in-process) completes it.
     """
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
@@ -205,7 +205,7 @@ def test_crash_during_tmp_write_leaves_interrupted_tmp(
     outbox row records the failed attempt; reconcile reports interrupted_tmp.
     """
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import reconcile_missing_dlq_files
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -255,7 +255,7 @@ def test_one_failing_artifact_does_not_block_others(
 ) -> None:
     """REQ-005/AC-4: per-event isolation — B completes while A records a bounded attempt."""
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import now_iso
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -299,7 +299,7 @@ def test_terminal_failed_after_bound(
 ) -> None:
     """REQ-005: attempts are bounded by outbox_max_attempts; the row turns terminal 'failed'."""
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     deadletter = str(tmp_path / "deadletter")
@@ -355,7 +355,7 @@ def test_restart_with_pending_rows(
     """REQ-006/AC-3: a fresh lifespan with a fresh connection processes pending rows."""
     import eventbus.app as eb_app
     from eventbus.config import EventBusConfig
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     cfg = EventBusConfig(
         port=8015,
@@ -402,7 +402,7 @@ def test_restart_with_pending_rows(
 
 def test_idempotent_reprocessing_no_rewrite(client: TestClient, tmp_path: Path) -> None:
     """A done artifact that is already canonical completes without touching the file."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     deadletter = str(tmp_path / "deadletter")
@@ -444,7 +444,7 @@ def test_failed_row_never_undoes_committed_dlq_state(
 ) -> None:
     """REQ-009: repeated artifact-generation failures never clear dlq_at or duplicate the event."""
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     deadletter = str(tmp_path / "deadletter")
@@ -489,7 +489,7 @@ def test_outbox_retry_backoff_delays_next_attempt(
 ) -> None:
     """REQ-005/AC-4: after a failed attempt the row is pending and not due until the backoff window."""
     from eventbus import dlq
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     deadletter = str(tmp_path / "deadletter")
@@ -540,7 +540,7 @@ def test_outbox_missing_event_row_records_terminal_attempt(
     records a bounded attempt, and turns terminal at the bound — generation is
     never attempted and committed DLQ state is untouched."""
     from eventbus import dlq_repo
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import now_iso
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -606,7 +606,7 @@ def test_reconcile_counts_corrupt_or_non_object_pair_as_mismatch(
 ) -> None:
     """A completed pair whose file cannot be confirmed equivalent (corrupt bytes
     or a non-object JSON) is a mismatch, not an orphan, and is never rewritten."""
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
     from eventbus.dlq import reconcile_missing_dlq_files
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))

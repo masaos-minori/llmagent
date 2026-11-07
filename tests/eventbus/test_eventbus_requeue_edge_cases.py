@@ -117,7 +117,7 @@ class TestRequeueEdgeCases:
 
     def test_requeue_valid_dlq_event(self, client: TestClient, tmp_path: Path) -> None:
         """POST /dlq/{event_id}/requeue for valid DLQ event succeeds."""
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         body = _event()
@@ -178,7 +178,7 @@ class TestRequeueEdgeCases:
         original event") — this is a permanent, per-original-event rule, not a
         guard scoped only to simultaneous concurrent requests.
         """
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         body = _event()
@@ -248,7 +248,7 @@ class TestRequeueEdgeCases:
         """Requeue succeeds; the original event's dlq_at is never cleared (lineage
         model), so the next DLQ tick promotes the new descendant event instead of
         re-promoting the original."""
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
         body = _event()
@@ -559,7 +559,7 @@ def test_redelivered_from_violation_maps_to_already_redelivered(tmp_path: Path) 
     events.redelivered_from unique index: redeliver_event must return status
     already_redelivered with a clean rollback, not raise."""
     import eventbus.dlq_repo as dlq_repo
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db_path = str(tmp_path / "redeliver_race.sqlite")
     conn = open_db(db_path)
@@ -608,7 +608,7 @@ def test_two_connections_requeue_same_original_exactly_once(tmp_path: Path) -> N
     import threading
 
     import eventbus.dlq_repo as dlq_repo
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     db_path = str(tmp_path / "two_conn_race.sqlite")
     seed = open_db(db_path)

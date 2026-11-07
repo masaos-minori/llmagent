@@ -90,7 +90,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 
 ### Duplicate NACK Behavior
 
-`nack_event` is idempotent per delivery attempt: a NACK that repeats the stored `consumer_delivery.consumer_last_nack_attempt` (the same delivery attempt) is a no-op and does not increment the consumer's failure count. Only a NACK for a new delivery attempt increments it.
+`nack_event` is idempotent per delivery attempt: a NACK that repeats that consumer's stored `consumer_delivery.consumer_last_nack_attempt` (the same delivery attempt) is a no-op and does not increment the consumer's failure count. Only a NACK for a new delivery attempt increments it.
 
 ### NACK followed by ACK
 
@@ -98,7 +98,7 @@ NACK does not set the consumer's `consumer_delivery.acked` flag, so a later ACK 
 
 ### ACK followed by NACK
 
-`nack_event` checks `consumer_delivery.acked` for the requesting consumer when `consumer_id` is provided; a NACK from a consumer that has already ACKed the event is rejected with HTTP 409 `event already acknowledged`.
+`nack_event` requires a non-empty `consumer_id` (an empty value raises `ValueError` before any query) and checks `consumer_delivery.acked` for the requesting consumer; a NACK from a consumer that has already ACKed the event is rejected with HTTP 409 `event already acknowledged`.
 
 ## Offset Semantics
 

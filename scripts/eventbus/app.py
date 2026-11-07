@@ -39,8 +39,12 @@ from eventbus.config import (
     get_schema_path,
     load_config,
 )
-from eventbus.db import get_db_lock, open_db
-from eventbus.db_conn import clear_shutdown_flag, set_shutdown_flag
+from eventbus.db_conn import (
+    clear_shutdown_flag,
+    get_db_lock,
+    open_db,
+    set_shutdown_flag,
+)
 from eventbus.dlq import (
     process_outbox,
     reconcile_missing_dlq_files,

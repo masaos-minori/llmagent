@@ -42,7 +42,7 @@ class FlakyConnection:
 
 @pytest.fixture
 def db(tmp_path: Path) -> Any:
-    from eventbus.db import open_db
+    from eventbus.db_conn import open_db
 
     return open_db(str(tmp_path / "eventbus.sqlite"))
 
@@ -117,7 +117,7 @@ class TestCrashBeforeAck:
     def test_unacked_event_replayed_on_reconnect(self, client: TestClient) -> None:
         """Consumer disconnects before acking — event must be replayed."""
         import eventbus.app as eb_app
-        from eventbus.db import get_consumer_offset
+        from eventbus.delivery_repo import get_consumer_offset
 
         body = _event("crash")
         resp = client.post("/publish", json=body)
@@ -142,7 +142,7 @@ class TestCrashBeforeAck:
         import asyncio
 
         import eventbus.app as eb_app
-        from eventbus.db import get_consumer_offset
+        from eventbus.delivery_repo import get_consumer_offset
 
         body1 = _event("crash")
         body2 = _event("crash")
@@ -208,7 +208,8 @@ class TestCrashBeforeAck:
         """When offset-write fails after delivery-state write, neither commits."""
         import sqlite3
 
-        from eventbus.db import ack_event_for_consumer, insert_event
+        from eventbus.delivery_repo import ack_event_for_consumer
+        from eventbus.event_repo import insert_event
 
         now = "2026-09-09T10:00:00Z"
         consumer_id = "crash_consumer"

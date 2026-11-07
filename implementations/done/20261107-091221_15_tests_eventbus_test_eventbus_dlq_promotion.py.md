@@ -1,6 +1,6 @@
 ## Goal
 
-- tests/eventbus/test_eventbus_offsets.py — migrate 7 facade import sites by layer (AC-002, REQ-002)
+- tests/eventbus/test_eventbus_dlq_promotion.py — migrate 12 facade open_db imports (AC-002, REQ-002)
 
 ## Scope
 **Release unit**: facade-cutover
@@ -21,28 +21,16 @@
 
 ## Implementation
 ### Target file
-`tests/eventbus/test_eventbus_offsets.py`
+`tests/eventbus/test_eventbus_dlq_promotion.py`
 ### Procedure
-1. Split each facade import into per-module imports:
-   ```python
-   from eventbus.delivery_repo import ack_event_for_consumer
-   from eventbus.delivery_repo import get_consumer_offset
-   from eventbus.event_repo import insert_event
-   from eventbus.db_conn import open_db
-   ```
-   keeping the deferred (in-function) placement and the existing `# noqa: PLC0415`
-   markers on the two multi-line blocks.
-2. Change nothing else: offset assertions and fixtures are unchanged.
+1. Replace every `from eventbus.db import open_db` with
+   `from eventbus.db_conn import open_db` (12 occurrences).
+2. Leave line 630 (already `eventbus.delivery_repo`) and the NACK call unchanged.
 ### Method
-REQ-002 / AC-002. Seven facade import sites mix three layers:
-- lines 122-124: deferred block `ack_event_for_consumer, insert_event`
-- lines 176, 195: `get_consumer_offset`
-- lines 225-227: deferred block `ack_event_for_consumer, insert_event`
-- line 267: `get_consumer_offset, open_db`
-- lines 276 and 307: `ack_event_for_consumer, get_consumer_offset, open_db`
-
-Mapping: `ack_event_for_consumer` and `get_consumer_offset` → `delivery_repo`;
-`insert_event` → `event_repo`; `open_db` → `db_conn`.
+REQ-002 / AC-002. The file has 12 facade `open_db` imports (spread over lines 142-629),
+all connection-layer. The NACK call is already on the post-cutover pattern: `nack_event`
+is imported from `eventbus.delivery_repo` at line 630 and the call at line 657 already
+passes `"consumer-A"` positionally, so doc 03's signature change needs no edit here.
 ### Details
 Import lines only; assertions and fixtures unchanged.
 
@@ -62,14 +50,14 @@ N/A: import-boundary change.
 
 ## Validation plan
 
-- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_offsets.py`
+- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_dlq_promotion.py`
   Expected: 0.
-- Command: `uv run pytest tests/eventbus/test_eventbus_offsets.py -q`
+- Command: `uv run pytest tests/eventbus/test_eventbus_dlq_promotion.py -q`
   Expected: pass.
 
 ## Completion criteria
 
-- every name imported from its owning layer module. (AC-002, REQ-002)
+- no facade import remains; the consumer-scoped NACK flow is untouched. (AC-002, REQ-002)
 
 ## Out of Scope
 
@@ -80,9 +68,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -102,4 +90,4 @@ N/A: import-boundary change.
 - **Source plan**: plans/20261107-063921_compatrm003_remove-db-store-and-eventbus-db-facades-and-optional-nack-consumer-id.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-091221
-- **Related target files**: `tests/eventbus/test_eventbus_offsets.py`
+- **Related target files**: `tests/eventbus/test_eventbus_dlq_promotion.py`

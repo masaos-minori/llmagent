@@ -25,14 +25,15 @@
 ### Target file
 `tests/eventbus/test_eventbus_ack_endpoint.py`
 ### Procedure
-1. Replace the import at line 320 with:
+1. Replace the import at line 305 (anchor re-verified 2026-11-07 at HEAD `dc426f9ad`;
+   compatrm002 shifted the original line 320) with:
    ```python
    from eventbus.delivery_repo import get_consumer_offset
    ```
 2. Change nothing else.
 ### Method
 REQ-002 / AC-002. `tests/eventbus/test_eventbus_ack_endpoint.py` has one facade import:
-line 320 imports `get_consumer_offset`, which lives in `eventbus.delivery_repo`. The
+line 305 imports `get_consumer_offset`, which lives in `eventbus.delivery_repo`. The
 file's 401/403 auth coverage (added by compatrm002) is unrelated and unchanged.
 ### Details
 Import lines only; assertions and fixtures unchanged.
@@ -71,9 +72,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

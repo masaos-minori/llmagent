@@ -1,6 +1,6 @@
 ## Goal
 
-- tests/eventbus/test_eventbus_dlq_promotion.py — migrate 12 facade open_db imports (AC-002, REQ-002)
+- tests/eventbus/test_eventbus_restart_resume.py — migrate 7 facade import sites by layer (AC-002, REQ-002)
 
 ## Scope
 **Release unit**: facade-cutover
@@ -21,16 +21,22 @@
 
 ## Implementation
 ### Target file
-`tests/eventbus/test_eventbus_dlq_promotion.py`
+`tests/eventbus/test_eventbus_restart_resume.py`
 ### Procedure
-1. Replace every `from eventbus.db import open_db` with
-   `from eventbus.db_conn import open_db` (12 occurrences).
-2. Leave line 630 (already `eventbus.delivery_repo`) and the NACK call unchanged.
+1. Apply the mapping above, keeping deferred placement and `# noqa: PLC0415` markers.
+2. Change nothing else: restart/resume assertions are unchanged.
 ### Method
-REQ-002 / AC-002. The file has 12 facade `open_db` imports (spread over lines 142-629),
-all connection-layer. The NACK call is already on the post-cutover pattern: `nack_event`
-is imported from `eventbus.delivery_repo` at line 630 and the call at line 657 already
-passes `"consumer-A"` positionally, so doc 03's signature change needs no edit here.
+REQ-002 / AC-002. Seven facade import sites (lines 153, 183, 213, 241, 328, 392, 444):
+- lines 153, 183, 213: `get_consumer_offset` → `delivery_repo`
+- line 241: `ack_event_for_consumer, get_consumer_offset, insert_event` →
+  `delivery_repo` (first two) + `event_repo`
+- lines 328, 392: `get_consumer_offset, get_resume_position, insert_event` →
+  `delivery_repo` (first two) + `event_repo`
+- line 444: `get_resume_position` → `delivery_repo`
+
+The file already imports `ack_event_for_consumer` from `eventbus.delivery_repo` in
+places; consolidate with those existing imports where that avoids duplicate import
+lines.
 ### Details
 Import lines only; assertions and fixtures unchanged.
 
@@ -50,14 +56,14 @@ N/A: import-boundary change.
 
 ## Validation plan
 
-- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_dlq_promotion.py`
+- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_restart_resume.py`
   Expected: 0.
-- Command: `uv run pytest tests/eventbus/test_eventbus_dlq_promotion.py -q`
+- Command: `uv run pytest tests/eventbus/test_eventbus_restart_resume.py -q`
   Expected: pass.
 
 ## Completion criteria
 
-- no facade import remains; the consumer-scoped NACK flow is untouched. (AC-002, REQ-002)
+- every name imported from its owning layer module. (AC-002, REQ-002)
 
 ## Out of Scope
 
@@ -68,9 +74,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -90,4 +96,4 @@ N/A: import-boundary change.
 - **Source plan**: plans/20261107-063921_compatrm003_remove-db-store-and-eventbus-db-facades-and-optional-nack-consumer-id.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-091221
-- **Related target files**: `tests/eventbus/test_eventbus_dlq_promotion.py`
+- **Related target files**: `tests/eventbus/test_eventbus_restart_resume.py`

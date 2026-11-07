@@ -45,21 +45,31 @@
 4. Unconditionalize the three branches (the bodies stay identical, only the
    `if consumer_id is not None:` wrappers are removed and the bodies dedented):
    - the per-consumer ACK guard at line 76 (and its internal-only comments),
-   - the `consumer_delivery` upsert block (lines 117-133 region) including its
-     "if consumer_id is provided" comment,
-   - the count read-back block (lines 136-149 region).
-5. Delete the trailing `return NackResult("ok")` (line 150): with the read-back block
-   unconditional, the `consumer_delivery` row always exists after the upsert, and the
-   block's `return NackResult("ok", consumer_failure_count=...)` is the only success
-   exit. Keep the inner `if consumer_row:` defensive check as-is.
-6. Keep every other part of the function untouched: `not_found` / `invalid_state`
+   - the `consumer_delivery` upsert block (lines 115-125 region) including its
+     "if consumer_id is provided" comment and the second internal-only comment (line 116),
+   - the count read-back block (lines 129-142 region).
+5. Replace the trailing `return NackResult("ok")` (line 143) with
+   `return NackResult("not_found")`: with the read-back block unconditional, the
+   `consumer_delivery` row always exists after the upsert, and the block's
+   `return NackResult("ok", consumer_failure_count=...)` is the only success exit.
+   Verification finding (2026-11-07): simply deleting the trailing return would leave a
+   fall-through path that implicit-returns `None`, which mypy (`warn_no_return` default)
+   rejects; `NackResult("not_found")` mirrors the existing defensive pattern at line 110
+   (missing consumer row after a matched idempotency key) and removes the
+   success-without-delivery-state exit the Issue requires deleted. Keep the inner
+   `if consumer_row:` defensive check as-is.
+6. Update the `NackResult` dataclass docstring (lines 27-30): its
+   `consumer_failure_count` description ("... when consumer_id was provided, None when
+   consumer_id was not provided") describes the deleted no-consumer path — state it is
+   the per-consumer count for successful results, `None` for `not_found`/`invalid_state`.
+7. Keep every other part of the function untouched: `not_found` / `invalid_state`
    early returns, the idempotency-key gate, `conn.commit()` / rollback semantics.
 ### Method
 REQ-004 / AC-003. `nack_event()` (line 37) takes `consumer_id: str | None = None` with
 an "internal-only: the /nack route always supplies consumer_id" comment (line 41), and
 three `if consumer_id is not None:` branches exist: the per-consumer ACK guard (line
-76), the `consumer_delivery` upsert (lines 117-133 region), and the per-consumer
-count read-back (lines 136-149 region). The final `return NackResult("ok")` (line 150)
+76), the `consumer_delivery` upsert (lines 115-125 region), and the per-consumer
+count read-back (lines 129-142 region). The final `return NackResult("ok")` (line 143)
 is the success-without-delivery-state path the Issue requires deleted: an internal
 caller could not represent consumer state. The /nack route already validates the
 pair via `authorize_event_pair()` and always passes consumer_id (docs 05, 06), so the
@@ -111,9 +121,9 @@ Signature, guard, and branch structure only; all SQL statements stay byte-identi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tighten `nack_event` in `scripts/eventbus/delivery_repo.py` — Plan Phase 1 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Tighten `nack_event` in `scripts/eventbus/delivery_repo.py` — Plan Phase 1 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

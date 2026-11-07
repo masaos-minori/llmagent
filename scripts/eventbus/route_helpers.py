@@ -130,9 +130,9 @@ def app_get_broker(app: Any) -> "EventBroker":
 
 async def run_with_db_lock(func: Any) -> Any:
     """Execute a function inside get_db_lock() via asyncio.to_thread."""
-    from eventbus.db import get_db_lock  # noqa: PLC0415
     from eventbus.db_conn import (  # noqa: PLC0415
         bump_active_db_user,
+        get_db_lock,
         is_shutting_down,
         release_active_db_user,
     )

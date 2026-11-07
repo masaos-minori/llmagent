@@ -1,6 +1,6 @@
 ## Goal
 
-- scripts/eventbus/dlq_route.py — import DLQ operations from their repositories (AC-002, REQ-002)
+- scripts/eventbus/publish_route.py — import insert_event from event_repo (AC-002, REQ-002)
 
 ## Scope
 **Release unit**: facade-cutover
@@ -13,7 +13,7 @@
 
 ## Design decisions
 
-- Only the import line moves: `redeliver_event` already matches the call-site usage, so no call-site edits and no aliases.
+- Single import-line replacement; the 400 DLQ-mirror rejection stays identical.
 
 ## Alternatives considered
 
@@ -21,31 +21,26 @@
 
 ## Implementation
 ### Target file
-`scripts/eventbus/dlq_route.py`
+`scripts/eventbus/publish_route.py`
 ### Procedure
-1. Replace line 11:
+1. Replace line 13:
    ```python
-   from eventbus.event_repo import count_dlq, fetch_dlq
-   from eventbus.dlq_repo import redeliver_event
+   from eventbus.event_repo import insert_event
    ```
-2. Touch nothing else in the file; call sites and the `run_with_db_lock` helper usage
-   stay identical.
+2. Leave the publish body unchanged.
 ### Method
-REQ-002 / AC-002. Line 11 imports `count_dlq, fetch_dlq, redeliver_event` from the
-`eventbus.db` facade. `count_dlq` and `fetch_dlq` live in `eventbus.event_repo`;
-`redeliver_event` lives in `eventbus.dlq_repo` (its signature takes
-`conn, event_id, now` — it is not consumer-scoped, so no call-site change is needed).
-Call sites: lines 33 (`count_dlq(db)`), 34 (`fetch_dlq(db, ...)`), 65
-(`redeliver_event(db, event_id)`) — names are unchanged, so only the import line moves.
+REQ-002 / AC-002. `scripts/eventbus/publish_route.py` imports `insert_event` from the
+`eventbus.db` facade at line 13. `insert_event` lives in `eventbus.event_repo`. The
+route's DLQ-mirror rejection behavior (400 on `dlq_at` set) is unrelated to this
+migration and unchanged.
 ### Details
 Import lines only; assertions and fixtures unchanged.
 
 ## Compatibility considerations
 
 - Sibling document ordering (Plan phase sequence):
-  - Depends on: nothing (can land any time in Phase 2 of the `facade-cutover` unit).
-  - Blocks: sibling documents 02 (dlq_route is one of the importers that must be migrated before the
-  facade is deleted).
+  - Depends on: nothing (Phase 2 of the `facade-cutover` unit).
+  - Blocks: sibling documents 02 (an importer that must be migrated before the facade is deleted).
 
 ## Security considerations
 
@@ -57,14 +52,14 @@ N/A: import-boundary change.
 
 ## Validation plan
 
-- Command: `grep -n "eventbus.db\b" scripts/eventbus/dlq_route.py`
+- Command: `grep -n "eventbus.db\b" scripts/eventbus/publish_route.py`
   Expected: no matches.
-- Command: `uv run pytest tests/eventbus/test_eventbus_dlq.py tests/eventbus/test_eventbus_dlq_outbox.py -q`
-  Expected: pass (with doc 14/16 migrations landed).
+- Command: `uv run pytest tests/eventbus/test_eventbus_dlq_promotion.py tests/eventbus/test_eventbus_publish.py -q`
+  Expected: pass.
 
 ## Completion criteria
 
-- dlq_route imports each operation from its owning repository module. (AC-002, REQ-002)
+- publish_route has no facade import. (AC-002, REQ-002)
 
 ## Out of Scope
 
@@ -75,9 +70,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -97,4 +92,4 @@ N/A: import-boundary change.
 - **Source plan**: plans/20261107-063921_compatrm003_remove-db-store-and-eventbus-db-facades-and-optional-nack-consumer-id.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-091221
-- **Related target files**: `scripts/eventbus/dlq_route.py`
+- **Related target files**: `scripts/eventbus/publish_route.py`

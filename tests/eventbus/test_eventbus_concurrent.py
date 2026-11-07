@@ -71,7 +71,7 @@ class TestConcurrentAck:
         event_id = body["event_id"]
 
         # Mark the event as delivered but not yet acked so the first ack succeeds
-        from eventbus.db import open_db
+        from eventbus.db_conn import open_db
 
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         try:

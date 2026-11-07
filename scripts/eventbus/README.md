@@ -12,10 +12,15 @@ The module follows a layered architecture:
 4. **Delivery repository** (`delivery_repo.py`): Ack/nack semantics and per-consumer delivery state
 5. **DLQ repository** (`dlq_repo.py`): Dead-letter queue operations
 
-## Stub Module Pattern
+## Module Import Pattern
 
-`db.py` is a stub module that re-exports functions from the layer modules above. It provides a single entry point for consumers of the eventbus module.
+Each layer module is the public import surface for its own operations: connection
+operations from `db_conn.py`, event operations from `event_repo.py`, delivery
+operations from `delivery_repo.py`, and DLQ operations from `dlq_repo.py`.
 
-**Rule**: Do not add new functions here. Add them to the appropriate layer module and re-export from this stub.
+**Rule**: Import each operation from its owning layer module. Do not add re-export
+stubs.
 
-**Decision (2026-10-27)**: Retain this facade as the single entry point for the eventbus module; all consumer imports, including `scripts/agent/services/*`, go through it.
+**Decision (2026-11-07)**: The `db.py` stub facade and its "Retain this facade"
+decision (2026-10-27) are reversed: all consumers, including
+`scripts/agent/services/*`, import the layer modules directly.

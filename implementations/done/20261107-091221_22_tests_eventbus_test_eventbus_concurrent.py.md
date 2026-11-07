@@ -1,6 +1,6 @@
 ## Goal
 
-- scripts/eventbus/health_route.py — import check_db from db_conn (AC-002, REQ-002)
+- tests/eventbus/test_eventbus_concurrent.py — migrate the facade open_db import (AC-002, REQ-002)
 
 ## Scope
 **Release unit**: facade-cutover
@@ -13,7 +13,7 @@
 
 ## Design decisions
 
-- Single import-line replacement; the health check body is untouched.
+- Mechanical import-path rewrite only: zero behavior, assertion, or fixture edits.
 
 ## Alternatives considered
 
@@ -21,16 +21,16 @@
 
 ## Implementation
 ### Target file
-`scripts/eventbus/health_route.py`
+`tests/eventbus/test_eventbus_concurrent.py`
 ### Procedure
-1. Replace line 9:
+1. Replace the import at line 74 with:
    ```python
-   from eventbus.db_conn import check_db
+   from eventbus.db_conn import open_db
    ```
-2. Leave the health check body unchanged.
+2. Change nothing else.
 ### Method
-REQ-002 / AC-002. `scripts/eventbus/health_route.py` imports `check_db` from the
-`eventbus.db` facade at line 9. `check_db` lives in `eventbus.db_conn`.
+REQ-002 / AC-002. `tests/eventbus/test_eventbus_concurrent.py` has one facade import:
+line 74 imports `open_db`, which lives in `eventbus.db_conn`.
 ### Details
 Import lines only; assertions and fixtures unchanged.
 
@@ -38,7 +38,7 @@ Import lines only; assertions and fixtures unchanged.
 
 - Sibling document ordering (Plan phase sequence):
   - Depends on: nothing (Phase 2 of the `facade-cutover` unit).
-  - Blocks: sibling documents 02 (an importer that must be migrated before the facade is deleted).
+  - Blocks: sibling documents 02, 26.
 
 ## Security considerations
 
@@ -50,14 +50,14 @@ N/A: import-boundary change.
 
 ## Validation plan
 
-- Command: `grep -n "eventbus.db\b" scripts/eventbus/health_route.py`
-  Expected: no matches.
-- Command: `uv run pytest tests/eventbus/test_eventbus_health.py -q`
-  Expected: pass (the file exercises the health route and its DB lock usage).
+- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_concurrent.py`
+  Expected: 0.
+- Command: `uv run pytest tests/eventbus/test_eventbus_concurrent.py -q`
+  Expected: pass.
 
 ## Completion criteria
 
-- health_route has no facade import. (AC-002, REQ-002)
+- no facade import remains. (AC-002, REQ-002)
 
 ## Out of Scope
 
@@ -68,9 +68,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -90,4 +90,4 @@ N/A: import-boundary change.
 - **Source plan**: plans/20261107-063921_compatrm003_remove-db-store-and-eventbus-db-facades-and-optional-nack-consumer-id.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-091221
-- **Related target files**: `scripts/eventbus/health_route.py`
+- **Related target files**: `tests/eventbus/test_eventbus_concurrent.py`

@@ -1,6 +1,6 @@
 ## Goal
 
-- scripts/eventbus/publish_route.py — import insert_event from event_repo (AC-002, REQ-002)
+- tests/eventbus/test_eventbus_dlq.py — migrate 28 facade imports to db_conn (AC-002, REQ-002)
 
 ## Scope
 **Release unit**: facade-cutover
@@ -13,7 +13,7 @@
 
 ## Design decisions
 
-- Single import-line replacement; the 400 DLQ-mirror rejection stays identical.
+- Mechanical import-path rewrite only: zero behavior, assertion, or fixture edits.
 
 ## Alternatives considered
 
@@ -21,26 +21,26 @@
 
 ## Implementation
 ### Target file
-`scripts/eventbus/publish_route.py`
+`tests/eventbus/test_eventbus_dlq.py`
 ### Procedure
-1. Replace line 13:
-   ```python
-   from eventbus.event_repo import insert_event
-   ```
-2. Leave the publish body unchanged.
+1. Replace every `from eventbus.db import open_db` with
+   `from eventbus.db_conn import open_db`.
+2. Replace the mixed import at line 1125 with
+   `from eventbus.db_conn import get_db_lock, open_db`.
+3. Change nothing else: DLQ assertions, fixtures, and route calls stay identical.
 ### Method
-REQ-002 / AC-002. `scripts/eventbus/publish_route.py` imports `insert_event` from the
-`eventbus.db` facade at line 13. `insert_event` lives in `eventbus.event_repo`. The
-route's DLQ-mirror rejection behavior (400 on `dlq_at` set) is unrelated to this
-migration and unchanged.
+REQ-002 / AC-002. All 28 `from eventbus.db import ...` occurrences in this file import
+only connection-layer names (`open_db`, and the mixed `get_db_lock, open_db` import at
+line 1125); both live in `eventbus.db_conn`. No symbol renames and no call-site changes.
 ### Details
 Import lines only; assertions and fixtures unchanged.
 
 ## Compatibility considerations
 
 - Sibling document ordering (Plan phase sequence):
-  - Depends on: nothing (Phase 2 of the `facade-cutover` unit).
-  - Blocks: sibling documents 02 (an importer that must be migrated before the facade is deleted).
+  - Depends on: nothing (Phase 2 of the `facade-cutover` unit; DLQ route behavior is
+  unchanged by sibling documents 03-05).
+  - Blocks: sibling documents 02, 26.
 
 ## Security considerations
 
@@ -52,14 +52,14 @@ N/A: import-boundary change.
 
 ## Validation plan
 
-- Command: `grep -n "eventbus.db\b" scripts/eventbus/publish_route.py`
-  Expected: no matches.
-- Command: `uv run pytest tests/eventbus/test_eventbus_dlq_promotion.py tests/eventbus/test_eventbus_publish.py -q`
+- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_dlq.py`
+  Expected: 0.
+- Command: `uv run pytest tests/eventbus/test_eventbus_dlq.py -q`
   Expected: pass.
 
 ## Completion criteria
 
-- publish_route has no facade import. (AC-002, REQ-002)
+- the file imports connection names only from `db_conn`. (AC-002, REQ-002)
 
 ## Out of Scope
 
@@ -70,9 +70,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -92,4 +92,4 @@ N/A: import-boundary change.
 - **Source plan**: plans/20261107-063921_compatrm003_remove-db-store-and-eventbus-db-facades-and-optional-nack-consumer-id.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-091221
-- **Related target files**: `scripts/eventbus/publish_route.py`
+- **Related target files**: `tests/eventbus/test_eventbus_dlq.py`

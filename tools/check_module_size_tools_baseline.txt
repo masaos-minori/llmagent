@@ -1,7 +1,7 @@
 _adr_authority_core.py	25689
 check_canonical_source_conflicts.py	41349
 check_canonical_source_registry.py	36416
-check_compat_shims.py	31327
+check_compat_shims.py	31716
 check_docs_consistency.py	40577
 check_docs_content_policy.py	33240
 check_docs_quality.py	35387

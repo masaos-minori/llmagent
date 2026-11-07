@@ -1,6 +1,6 @@
 ## Goal
 
-- tests/eventbus/test_eventbus_concurrent.py — migrate the facade open_db import (AC-002, REQ-002)
+- tests/eventbus/test_eventbus_offsets.py — migrate 7 facade import sites by layer (AC-002, REQ-002)
 
 ## Scope
 **Release unit**: facade-cutover
@@ -21,16 +21,28 @@
 
 ## Implementation
 ### Target file
-`tests/eventbus/test_eventbus_concurrent.py`
+`tests/eventbus/test_eventbus_offsets.py`
 ### Procedure
-1. Replace the import at line 74 with:
+1. Split each facade import into per-module imports:
    ```python
+   from eventbus.delivery_repo import ack_event_for_consumer
+   from eventbus.delivery_repo import get_consumer_offset
+   from eventbus.event_repo import insert_event
    from eventbus.db_conn import open_db
    ```
-2. Change nothing else.
+   keeping the deferred (in-function) placement and the existing `# noqa: PLC0415`
+   markers on the two multi-line blocks.
+2. Change nothing else: offset assertions and fixtures are unchanged.
 ### Method
-REQ-002 / AC-002. `tests/eventbus/test_eventbus_concurrent.py` has one facade import:
-line 74 imports `open_db`, which lives in `eventbus.db_conn`.
+REQ-002 / AC-002. Seven facade import sites mix three layers:
+- lines 122-124: deferred block `ack_event_for_consumer, insert_event`
+- lines 176, 195: `get_consumer_offset`
+- lines 225-227: deferred block `ack_event_for_consumer, insert_event`
+- line 267: `get_consumer_offset, open_db`
+- lines 276 and 307: `ack_event_for_consumer, get_consumer_offset, open_db`
+
+Mapping: `ack_event_for_consumer` and `get_consumer_offset` → `delivery_repo`;
+`insert_event` → `event_repo`; `open_db` → `db_conn`.
 ### Details
 Import lines only; assertions and fixtures unchanged.
 
@@ -50,14 +62,14 @@ N/A: import-boundary change.
 
 ## Validation plan
 
-- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_concurrent.py`
+- Command: `grep -c "from eventbus.db import" tests/eventbus/test_eventbus_offsets.py`
   Expected: 0.
-- Command: `uv run pytest tests/eventbus/test_eventbus_concurrent.py -q`
+- Command: `uv run pytest tests/eventbus/test_eventbus_offsets.py -q`
   Expected: pass.
 
 ## Completion criteria
 
-- no facade import remains. (AC-002, REQ-002)
+- every name imported from its owning layer module. (AC-002, REQ-002)
 
 ## Out of Scope
 
@@ -68,9 +80,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -90,4 +102,4 @@ N/A: import-boundary change.
 - **Source plan**: plans/20261107-063921_compatrm003_remove-db-store-and-eventbus-db-facades-and-optional-nack-consumer-id.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261107-091221
-- **Related target files**: `tests/eventbus/test_eventbus_concurrent.py`
+- **Related target files**: `tests/eventbus/test_eventbus_offsets.py`

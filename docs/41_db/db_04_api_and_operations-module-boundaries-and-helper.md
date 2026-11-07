@@ -16,17 +16,17 @@ related:
 
 ## 1. Purpose
 
-To document the `SQLiteHelper` behavior contract, the protocol groups and implementations in `db/store.py`, memory-related table operations, maintenance functions, recovery procedures in case of corruption, error handling, and operational verification plans.
+To document the `SQLiteHelper` behavior contract, the protocol groups and implementations in `db/store_protocols.py` and `db/store_impl.py`, memory-related table operations, maintenance functions, recovery procedures in case of corruption, error handling, and operational verification plans.
 
 ---
 
 ## 1a. DB Store Module Boundaries
 
-The DB store layer is split into modules with clear import boundaries. `db/store.py` is the public API surface — it re-exports protocols and embedding helpers; callers should import from here to maintain a stable contract. `db/store_protocols.py` is the extension point — containing protocol definitions for storage contracts; implementers import this, while callers rarely use it directly. `db/store_impl.py` is the SQLite implementation layer — providing concrete implementations of the protocols; do not import directly unless intentionally working at the protocol/implementation level. **Rule:** Callers must always import from `db.store`; direct imports from `store_protocols.py` or `store_impl.py` are discouraged and should only be used for intentional protocol/implementation development.
+The DB store layer is split into modules with clear import boundaries. `db/store_protocols.py` holds the protocol definitions for storage contracts and the embedding helpers (`get_embedding_dims`, `get_embedding_bytes`, `validate_embedding_blob`) — import contracts and helpers from here. `db/store_impl.py` provides the concrete SQLite implementations — import implementations from here. **Rule:** Contracts and helpers come from `db.store_protocols`; SQLite implementations come from `db.store_impl`. The `db/store.py` re-export facade was deleted (2026-11-07) and must not be reintroduced.
 
 ### How to extend the DB store
 
-Add the `Protocol` to `db/store_protocols.py`, implement it in `db/store_impl.py`, and export it from `db/store.py`. Caller code imports from `db.store` only; importing `store_protocols.py` or `store_impl.py` directly breaks the abstraction.
+Add the `Protocol` to `db/store_protocols.py` and implement it in `db/store_impl.py`. Caller code imports contracts and helpers from `db.store_protocols` and implementations from `db.store_impl`.
 
 ---
 

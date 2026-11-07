@@ -52,6 +52,9 @@ REQ-007 / AC-005. The "Stub Module Pattern" section (lines 15-21) mandates the f
 
 compatrm003 deletes the stub (docs 02) and every production module already imports the
 layer modules directly, so the section must be reversed.
+Verification finding (2026-11-07): `scripts/agent/services/*` does not import `eventbus`
+at all (grep before and after the cutover); the new Decision line inherits the frozen
+plan wording that names it — kept as-is, it states the rule for any future consumer.
 ### Details
 Prose only.
 
@@ -91,9 +94,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reverse the stub-module section in `scripts/eventbus/README.md` — Plan Phase 3 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Reverse the stub-module section in `scripts/eventbus/README.md` — Plan Phase 3 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

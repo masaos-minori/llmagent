@@ -104,7 +104,6 @@ db/create_schema.py	empty description
 db/helper.py	missing separator
 db/models.py	missing separator
 db/schema_sql.py	empty description
-db/store.py	empty description
 db/store_impl.py	empty description
 db/store_protocols.py	empty description
 eventbus/app.py	missing separator

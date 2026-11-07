@@ -302,7 +302,7 @@ class TestAckMonotonicOffset:
         self, client: TestClient
     ) -> None:
         import eventbus.app as eb_app
-        from eventbus.db import get_consumer_offset
+        from eventbus.delivery_repo import get_consumer_offset
 
         event1 = _event()
         event2 = _event()

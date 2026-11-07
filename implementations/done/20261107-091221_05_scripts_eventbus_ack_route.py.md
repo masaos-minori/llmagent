@@ -67,7 +67,7 @@ Import lines only; assertions and fixtures unchanged.
 - Command: `grep -n "eventbus.db\b" scripts/eventbus/ack_route.py`
   Expected: no matches.
 - Command: `uv run pytest tests/eventbus/test_eventbus_ack_endpoint.py tests/eventbus/test_eventbus_ack_nack.py -q`
-  Expected: pass; the 422-missing-param test at line 592 of `tests/eventbus/test_eventbus_ack_nack.py` and the 403 tests (lines 791-847) pass unchanged (AC-004).
+  Expected: pass; the 422-missing-param test at line 573 of `tests/eventbus/test_eventbus_ack_nack.py` (anchor re-verified at HEAD `dc426f9ad`) and the 403 tests (lines 772-828) pass unchanged (AC-004).
   validation contract is byte-for-byte unchanged.
 
 ## Completion criteria
@@ -83,9 +83,9 @@ Import lines only; assertions and fixtures unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate facade imports in this file — Plan Phase 2 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate facade imports in this file — Plan Phase 2 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

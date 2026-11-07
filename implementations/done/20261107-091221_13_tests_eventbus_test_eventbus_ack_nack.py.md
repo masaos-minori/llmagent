@@ -10,9 +10,13 @@
 ## Assumptions
 
 - All line anchors re-verified 2026-11-07 at HEAD `1a13653e8` (no target-file changes since the Plan freeze at `1b2dded66`).
-- Overlap note (compatrm002): 002 edits the auth map/fixture regions; the lines quoted
-  here are facade-import and NACK-call regions — re-verify line positions after 002
-  lands.
+- Overlap note (compatrm002): resolved 2026-11-07 re-verification at HEAD `dc426f9ad`.
+  compatrm002 shifted this file's line numbers; the anchors below are the current ones.
+- Verification finding (2026-11-07): the four surviving two-argument call sites assert
+  `result == NackResult("ok")`. With `consumer_id` supplied, `nack_event()` returns
+  `consumer_failure_count=<int>`, so equality with the count-less `NackResult("ok")`
+  breaks — the assertions must be updated to `NackResult("ok", consumer_failure_count=N)`
+  as part of step 2.
 
 ## Design decisions
 
@@ -27,30 +31,40 @@
 ### Target file
 `tests/eventbus/test_eventbus_ack_nack.py`
 ### Procedure
-1. Import migration:
+1. Import migration (anchors verified 2026-11-07 at HEAD `dc426f9ad`):
    - Line 10: `from eventbus.db import NackResult` →
      `from eventbus.delivery_repo import NackResult`.
    - Line 18: `from eventbus.db import open_db` → `from eventbus.db_conn import open_db`.
    - Lines 54-58 block: split into `from eventbus.delivery_repo import ack_event_for_consumer`,
      `from eventbus.event_repo import insert_event`, `from eventbus.db_conn import open_db`
      (keep the deferred placement and the `# noqa: PLC0415` marker).
-   - Lines 352, 371, 393, 610, 639, 677, 709: `from eventbus.db import nack_event` →
+   - Lines 333, 352, 374, 591, 620, 658, 690: `from eventbus.db import nack_event` →
      `from eventbus.delivery_repo import nack_event`.
-   - Lines 402, 432: `from eventbus.db import ack_event_for_consumer, nack_event` →
+   - Lines 383, 413: `from eventbus.db import ack_event_for_consumer, nack_event` →
      `from eventbus.delivery_repo import ack_event_for_consumer, nack_event`.
-2. Convert the surviving two-argument calls to pass `consumer_id`:
-   - Line 367 (`test_nack_event_increments_failure_count`), lines 386 and 389
-     (`test_nack_event_increments_again`), line 395 (`test_nack_event_not_found`): add
-     `consumer_id="consumer-A"`. The failure-count assertions stay valid because the
-     counts become consumer-scoped.
-   - The call at line 485 is inside a deleted test (step 3) and disappears with it.
+   - The facade imports at lines 443, 721, 744 belong to the tests deleted in step 3 and
+     disappear with them.
+2. Convert the surviving two-argument calls to pass `consumer_id` and update the
+   equality assertions to the consumer-scoped result:
+   - Line 348 (`test_nack_event_increments_failure_count`, assertion at 349 →
+     `NackResult("ok", consumer_failure_count=1)`), lines 367 and 370
+     (`test_nack_event_increments_again`, assertions at 368 and 371 → counts 1 and 2),
+     line 376 (`test_nack_event_not_found`: add `consumer_id="consumer-A"`; the
+     `NackResult("not_found")` assertion at 377 is unchanged — the existence check runs
+     before any consumer logic).
+   - The call at line 466 is inside a deleted test (step 3) and disappears with it.
+   - Verification finding (2026-11-07): in `test_nack_event_increments_again` the two
+     calls must also pass distinct `last_nack_attempt` keys (`"key-1"`, `"key-2"`).
+     With both keys left as `None`, the idempotency gate compares
+     `consumer_last_nack_attempt == last_nack_attempt` as `None == None` and treats the
+     second NACK as an idempotent repeat — count would stay 1, not 2.
 3. Delete the three no-consumer tests entirely (imports, bodies, and decorators):
-   - `test_nack_no_consumer_id_unaffected_by_consumer_acks` (def at line 458, facade
-     import at 462, call at 485),
-   - `test_nack_same_key_no_increment_no_consumer_id` (def at line 736, import at 740,
-     calls at 755 and 758),
-   - `test_nack_different_key_no_consumer_id` (def at line 761, import at 763, calls at
-     778 and 781).
+   - `test_nack_no_consumer_id_unaffected_by_consumer_acks` (def at line 439, facade
+     import at 443, call at 466),
+   - `test_nack_same_key_no_increment_no_consumer_id` (def at line 717, import at 721,
+     calls at 736 and 739),
+   - `test_nack_different_key_no_consumer_id` (def at line 742, import at 744, calls at
+     759 and 762).
 4. Add the AC-003 regression tests next to the surviving NACK unit tests:
    ```python
    def test_nack_missing_consumer_id_raises_type_error(self, db: sqlite3.Connection) -> None:
@@ -72,10 +86,10 @@
        assert row is None
    ```
    (adapt `insert_event`/`now_iso` to the helpers the neighboring tests already import.)
-5. Keep unchanged: `test_nack_event_mandatory_consumer_id` (def at line 592, route 422),
-   the per-consumer ACK-guard tests (defs at 398, 428), the idempotency-key tests (defs
-   at 608-731, which already pass consumer_id), the 403 tests (defs at 791, 831, 847),
-   and the unknown-event 404 test (def at 863).
+5. Keep unchanged: `test_nack_event_mandatory_consumer_id` (def at line 573, route 422),
+   the per-consumer ACK-guard tests (defs at 379, 409), the idempotency-key tests (defs at
+   589-716, which already pass consumer_id), the 403 tests (defs at 772, 812, 828),
+   and the unknown-event 404 test (def at 844).
 ### Method
 REQ-002, REQ-004 / AC-003, AC-006. The file has 15 facade import lines (10, 18, the
 54-58 block, and per-test `nack_event`/`ack_event_for_consumer` imports at 352, 371,
@@ -121,9 +135,9 @@ N/A: import-boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate imports and convert the NACK test matrix in `tests/eventbus/test_eventbus_ack_nack.py` — Plan Phase 1 | Pending | — | — | facade-cutover unit: suite green only with all unit documents landed |
-| 2 | Run this document's Validation plan commands | Pending | — | — | |
-| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Pending | — | — | |
+| 1 | Migrate imports and convert the NACK test matrix in `tests/eventbus/test_eventbus_ack_nack.py` — Plan Phase 1 | Completed | 20261107-164122 | 20261107-164122 | facade-cutover unit: suite green only with all unit documents landed |
+| 2 | Run this document's Validation plan commands | Completed | 20261107-164122 | 20261107-164122 |  |
+| 3 | Full validation sequence (`rules/toolchain.md`) in the Plan Phase 4 pass | Completed | 20261107-164122 | 20261107-164122 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
