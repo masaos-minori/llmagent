@@ -74,3 +74,11 @@ Do not write any snapshot-capture code in this issue. If retiring, remove every 
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203223
 - **Related target files**: scripts/db/schema_sql.py, scripts/agent/workflow/tool_call_state_ops.py, scripts/agent/context.py, tools/check_db_separation.py, docs/23_agent/agent_04_03, docs/41_db
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- No-write claim confirmed: grep across `scripts/` finds no `INSERT INTO execution_snapshots`; the only `snapshot_id` references are the DDL (`scripts/db/schema_sql.py:227-228`, FK on `tool_call_state.snapshot_id` at L239) and pass-through parameters that default to `None` (`state_store.py:112,116`, `tool_call_state_ops.py:55,67-69`, `context.py:297`). No production caller passes a non-None value (grep for `snapshot_id=` finds none). — Evidence: `Verified by test` (grep) — Confidence: High
+- Stale doc claim confirmed verbatim: `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md:72` says the tool-call lifecycle covers "the `tool_call_state` / `execution_snapshots` tables, written through ... `tool_call_state_ops.py`", and the table map at L79 describes `execution_snapshots` as "recorded at call time" — neither is true of the code. — Evidence: `Verified by test` — Confidence: High
+- Dependency confirmed: the keep-or-retire decision gates `wfaudit003`'s required-shape list (`execution_snapshots` in or out of the gate) and `wfaudit002`'s DDL edit (FK on `tool_call_state.snapshot_id` must be resolved before re-keying that table). Decide this first. — Evidence: `Derived from confirmed evidence` — Confidence: High
