@@ -75,3 +75,13 @@ Change only `workflow_loader.py` validation and its tests. Reuse the established
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203217
 - **Related target files**: scripts/agent/workflow/workflow_loader.py, tests/agent/workflow/test_workflow_loader.py, scripts/agent/services/workflow_schema.py
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle), including live repro in the project venv.
+
+- Non-dict element escape confirmed with corrected mechanism: `stages: ["plan"]` raises raw `AttributeError: 'str' object has no attribute 'get'` (from `stage_ids = [s.get("id") for s in stages_data]`, `scripts/agent/workflow/workflow_loader.py:103`); `retry_policy: "default"` raises raw `AttributeError: 'str' object has no attribute 'keys'` (L118). Current `_validate` uses `.keys()` set-difference, not the `"id" in s` membership form the issue describes — the escape is real but crashes one line earlier than stated. — Evidence: `Verified by test` (live repro) — Confidence: High
+- `retryable: "false"` → `retryable=True` confirmed live: `bool(s["retryable"])` at `workflow_loader.py:158`; repro loaded the definition and observed `retryable is True`. No test pins a non-bool `retryable` (grep: all test fixtures use JSON booleans). — Evidence: `Verified by test` — Confidence: High
+- Broad preflight except confirmed: `scripts/agent/services/workflow_schema.py:38` wraps loading in `except (WorkflowLoadError, ValueError, TypeError, AttributeError)`; the orchestrator catch is `except (WorkflowLoadError, FileNotFoundError)` (`scripts/agent/orchestrator.py:130`) and would propagate the raw error at construction. — Evidence: `Verified by test` — Confidence: High
+- Name correction: `validate_path` no longer exists; the preflight entry points are `check_workflow_definition()` / `check_workflow_schema()` (`workflow_schema.py:21,86`). Tests must target `check_workflow_definition`. — Evidence: `Verified by test` — Confidence: High
+- Strict-int pattern to mirror confirmed and test-pinned (`_require_int`, L84-95; parametrized tests at `tests/agent/workflow/test_workflow_loader.py:236,254`). — Evidence: `Verified by test` — Confidence: High
