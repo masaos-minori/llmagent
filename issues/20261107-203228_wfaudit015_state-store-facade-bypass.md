@@ -73,3 +73,13 @@ Preserve transaction boundaries exactly as they behave today; this is a call-pat
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203228
 - **Related target files**: scripts/agent/workflow/state_store.py, scripts/agent/workflow/workflow_engine.py, scripts/agent/orchestrator.py, scripts/agent/workflow_engine_adapter.py
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- Engine bypass sites confirmed: `begin_stage_if_new(self._store.get_connection(), ...)` (`scripts/agent/workflow/workflow_engine.py:313-314`) and `record_artifact(self._store.get_connection(), ...)` (L373-374) pass the store's raw connection into module-level ops functions instead of facade methods. — Evidence: `Verified by test` — Confidence: High
+- Orchestrator bypass site confirmed: `self._state_store.recover_stale_attempts(self._state_store.get_connection())` (`scripts/agent/orchestrator.py:92`) — the store's own recovery method fed its own connection. — Evidence: `Verified by test` — Confidence: High
+- Facade self-description confirmed: `StateStore` docstring "CRUD facade over workflow.sqlite. One instance per workflow engine lifecycle." (`state_store.py:46`); several facade methods take no db argument and use `self._db` internally (e.g. `pending_tool_calls` L123-125), while `find_stale_running_attempts`/`recover_stale_attempts` require an explicit db argument — the mixed signature style is what forces callers to fetch the connection. — Evidence: `Verified by test` — Confidence: High
+- Provenance confirmed: `get_connection()` usage is the sanctioned replacement for private-attribute access from `dee33ce7b fix(wfreview004)` (resolved plan `plans/done/20261105-085959_wfreview004_workflow-adapter-and-engine-private-attribute-access.md`); this issue targets the next step — facade methods instead of raw connections. — Evidence: `Verified by test` (git log) — Confidence: High
+- Dependency: `begin_stage_if_new` runs `begin_immediate` on the passed helper — any facade method wrapping it must preserve the transaction semantics that `wfaudit001`'s prune/reconcile change also relies on.
