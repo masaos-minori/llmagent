@@ -279,8 +279,32 @@ def test_canonical_stamped_database_passes_the_startup_shape_gate(
     open_db(str(path)).close()  # found == expected: the shared fingerprint check runs
     conn = sqlite3.connect(path)
     version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    }
     conn.close()
     assert version == eventbus_schema_version()
+    assert "schema_migrations" not in tables  # fresh creation is marker-free (AC-002)
+
+
+def test_unstamped_ddl_only_database_is_refused_and_left_unstamped(
+    tmp_path: Path,
+) -> None:
+    """A DDL-only database (canonical shape, user_version 0) is refused by open_db
+    and stays unstamped: version stamping is not supported (REQ-003)."""
+    path = tmp_path / "eventbus_unstamped.sqlite"
+    conn = sqlite3.connect(path)
+    conn.executescript(build_eventbus_schema_sql())
+    conn.execute("PRAGMA user_version = 0")  # nosec B608 — fixed test int
+    conn.commit()
+    conn.close()
+    with pytest.raises(RuntimeError, match="does not match the current schema"):
+        open_db(str(path))
+    conn = sqlite3.connect(path)
+    version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    conn.close()
+    assert version == 0
 
 
 def test_malformed_stamped_database_missing_index_is_refused(tmp_path: Path) -> None:

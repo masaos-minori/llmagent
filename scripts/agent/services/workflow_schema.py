@@ -55,8 +55,19 @@ REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
     ],
     "processed_events": ["event_id", "task_id"],
     "artifacts": ["artifact_id", "task_id"],
-    "workflow_schema_version": ["version", "applied_at"],
 }
+
+# Legacy migration bookkeeping tables. Their presence in a database means it
+# was created or carried by the removed migration tooling; the current-schema
+# gate refuses such databases read-only (compatrm001).
+LEGACY_MARKER_TABLES: tuple[str, ...] = ("schema_migrations", "workflow_schema_version")
+
+LEGACY_MARKER_REFUSAL_MESSAGE = (
+    "The database does not match the current schema. Automatic migration and "
+    "version stamping are not supported. Stop the service, archive the existing "
+    "database if required, remove or rename it, and create a new database using "
+    "the current schema."
+)
 
 # ── SchemaCheckResult ─────────────────────────────────────────────────────────
 
@@ -75,7 +86,6 @@ class SchemaCheckResult:
 def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
     """Return SchemaCheckResult indicating whether the workflow DB schema is valid."""
     from db.helper import SQLiteHelper
-    from db.schema_sql import WORKFLOW_SCHEMA_VERSION
 
     db = SQLiteHelper(target="workflow", db_path=db_path)
 
@@ -99,6 +109,15 @@ def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
                 "SELECT name FROM sqlite_master WHERE type='table'", ()
             )
         }
+        markers = sorted(marker for marker in LEGACY_MARKER_TABLES if marker in tables)
+        if markers:
+            return SchemaCheckResult(
+                valid=False,
+                error=(
+                    f"Legacy migration marker table(s) present: {', '.join(markers)}. "
+                    + LEGACY_MARKER_REFUSAL_MESSAGE
+                ),
+            )
         for table, required_cols in REQUIRED_WORKFLOW_TABLES.items():
             if table not in tables:
                 return SchemaCheckResult(
@@ -114,19 +133,6 @@ def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
                         valid=False,
                         error=f"Workflow schema missing column {table}.{col}. Reinitialize the workflow database.",
                     )
-
-        rows = db.fetchall(
-            "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1",
-            (),
-        )
-        actual_version = rows[0][0] if rows else None
-        if actual_version != WORKFLOW_SCHEMA_VERSION:
-            return SchemaCheckResult(
-                valid=False,
-                error=f"Workflow schema version mismatch: expected {WORKFLOW_SCHEMA_VERSION!r}, "
-                f"found {actual_version!r}. Recreate the workflow database "
-                "(archive the file, then run deploy/init_db.sh).",
-            )
 
         return SchemaCheckResult(valid=True)
     finally:

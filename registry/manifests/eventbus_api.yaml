@@ -425,16 +425,6 @@ entries:
   name: now_iso
   signature: def now_iso() -> str
   summary: "\u2014"
-- file: scripts/eventbus/migrate.py
-  kind: function
-  name: main
-  signature: def main(argv) -> int
-  summary: Parse flags, guard against a live service, and run the migration mode.
-- file: scripts/eventbus/migrations.py
-  kind: function
-  name: verify_backup
-  signature: def verify_backup(conn, _backup_path) -> None
-  summary: 'Injected backup verifier: confirm the backup is a real eventbus database.'
 - file: scripts/eventbus/publish_route.py
   kind: async function
   name: publish

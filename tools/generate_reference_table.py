@@ -52,7 +52,6 @@ _CHUNK_SPLITTER_TOML = REPO_ROOT / "config" / "chunk_splitter.toml"
 _INGESTER_TOML = REPO_ROOT / "config" / "ingester.toml"
 
 MANIFEST_DIR = REPO_ROOT / "registry" / "manifests"
-DB_SCHEMA_SQL_SRC = REPO_ROOT / "scripts" / "db" / "schema_sql.py"
 EVENTBUS_SCHEMA_SQL_SRC = REPO_ROOT / "scripts" / "eventbus" / "schema.sql"
 EVENTBUS_AUTH_SRC = REPO_ROOT / "scripts" / "eventbus" / "auth.py"
 CONFIG_FIELD_REGISTRY_SRC = (
@@ -72,7 +71,6 @@ _DB_PATH_FIELD_RE = re.compile(
     r'^\s+(\w+_db_path):\s*str(?:\s*=\s*"([^"]*)")?', re.MULTILINE
 )
 _PRAGMA_USER_VERSION_RE = re.compile(r"PRAGMA user_version = (\d+)")
-_WORKFLOW_VERSION_RE = re.compile(r'^WORKFLOW_SCHEMA_VERSION = "([^"]+)"', re.MULTILINE)
 
 CONFIG_PATHS = [
     _CRAWLER_TOML,
@@ -562,18 +560,11 @@ def _db_schema_version_entries() -> list[dict[str, Any]]:
     eventbus_match = _PRAGMA_USER_VERSION_RE.search(eventbus_text)
     if eventbus_match is None:
         raise ManifestError("eventbus schema.sql does not stamp PRAGMA user_version")
-    workflow_text = DB_SCHEMA_SQL_SRC.read_text(encoding="utf-8")
-    workflow_match = _WORKFLOW_VERSION_RE.search(workflow_text)
-    if workflow_match is None:
-        raise ManifestError("schema_sql.py does not define WORKFLOW_SCHEMA_VERSION")
     entries = _db_path_entries()
     entries.append(
         _schema_version_row(
             "eventbus", EVENTBUS_SCHEMA_SQL_SRC, int(eventbus_match.group(1))
         )
-    )
-    entries.append(
-        _schema_version_row("workflow", DB_SCHEMA_SQL_SRC, workflow_match.group(1))
     )
     entries.sort(key=lambda e: (e["kind"], e["name"]))
     return entries

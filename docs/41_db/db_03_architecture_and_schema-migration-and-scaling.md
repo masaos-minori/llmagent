@@ -21,13 +21,14 @@ related:
 - Overview → [shared_00_document-guide.md](../40_shared/shared_00_document-guide.md)
 - DB API → [db_04_api_and_operations-module-boundaries-and-helper.md](db_04_api_and_operations-module-boundaries-and-helper.md)
 
-## 8. Schema Generation and Migration Policy
+## 8. Schema Generation and Current-Schema-Only Policy
 
 `create_schema()` (`db/create_schema.py`) initializes all four schemas (rag, session, workflow, eventbus).
 
-- For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
-- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a) and `eventbus.sqlite` (section 8b) evolve through registered forward-only migrations gated on a verified backup; `mdq.sqlite` (section 8d) is create-only — see respective sections for details.
-- `create_schema()` is a wrapper that calls the four per-database initializers in order, and the responsibilities differ per database: `create_rag_schema()` and `create_session_schema()` run create-only DDL (idempotent, no migration); `create_workflow_schema()` runs the DDL, then records the schema version (section 8a); `create_eventbus_schema()` runs the create-only DDL read from `scripts/eventbus/schema.sql` (section 8b). Against an existing file the rag, session, and workflow initializers change nothing (the workflow initializer refuses a different recorded version), while the eventbus initializer leaves it unchanged.
+- All statements in create-only DDL use `IF NOT EXISTS` — idempotent and safe to run multiple times.
+- **No automatic migration and no version stamping of existing databases exist for any domain.** A database that does not match the current schema is refused at startup or by a health/deploy gate and is never mutated, archived, or deleted by the software. The operator archives it and recreates it from the current canonical DDL.
+- Refusal wording (identical policy, per-domain wording): "The database does not match the current schema. Automatic migration and version stamping are not supported. Stop the service, archive the existing database if required, remove or rename it, and create a new database using the current schema."
+- `create_schema()` is a wrapper that calls the four per-database initializers in order: `create_rag_schema()` and `create_session_schema()` run create-only DDL; `create_workflow_schema()` runs the create-only DDL without recording any version; `create_eventbus_schema()` runs the create-only DDL read from `scripts/eventbus/schema.sql` (section 8b). Against an existing matching file all four change nothing.
 - The embedding dimension is a fixed code-level constant (`get_embedding_dims()`), not a config key.
 
 ### Recreating `session.sqlite`: Session and Memory Recovery
@@ -39,33 +40,19 @@ Recreating `session.sqlite` physically removes both sessions and memories, but t
 3. Recover memory only, from the JSONL archive, with `/memory rebuild`.
 4. Past session history is not restored into the database; `/memory rebuild` does not recover sessions and `/session export` output is for human reference only.
 
-### 8a. Forward-Only Migration for `workflow.sqlite`
+### 8a. Startup Validation for `workflow.sqlite`
 
-`workflow.sqlite` evolves through the registered forward-only migration in `db/migrations_workflow.py`: a database migrates along the `0 -> 1 -> 2 -> 3 -> 4` chain — the `0 -> 1` bootstrap adds the `schema_migrations` ledger, the `1 -> 2` step adds the `tool_call_state` / `execution_snapshots` lifecycle tables, the `2 -> 3` step renames `tasks.idempotency_key` to `tasks.task_nonce` with `ALTER TABLE ... RENAME COLUMN`, which preserves every stored value, and the `3 -> 4` step (`workflow_attempt_lease`) adds the `attempts.owner_id` / `attempts.lease_expires_at` lease columns — preserving every row. Each step verifies its own effect with a `pre_commit_verification` callback that runs inside the step transaction before the commit; a failed check rolls the schema change, the version stamp, and the ledger row back together. The migration refuses before any mutation when the target version is unmapped, a step precondition does not match the database shape, or the pre-migration gate does not pass, and each applied step is recorded in the ledger. A database whose recorded version is unmapped falls back to recreation (section 8e).
+`workflow.sqlite` is accepted only when the current required tables (`tasks`, `attempts`, `processed_events`, `artifacts`) and their required columns are present. `check_workflow_schema()` (agent startup) enforces this shape. A database that carries `schema_migrations` or `workflow_schema_version` is a legacy migration-era database: `check_workflow_schema()` and the deploy pre-flight (`deploy/init_db.sh`) refuse it with the fixed message, and the file is left untouched for manual archive-and-recreate. The workflow domain has no version identifier and no migration path.
 
-- `create_workflow_schema()` creates the base tables with `IF NOT EXISTS` statements and then records the schema version.
-- `workflow_schema_version` is an append-only log. An empty log records the current `WORKFLOW_SCHEMA_VERSION`; a log whose latest version is the current one is left unchanged; any other latest version makes `create_workflow_schema()` raise instead of recording the current version, so an older database is never marked as current.
-- The agent startup check rejects a database whose latest recorded version differs from `WORKFLOW_SCHEMA_VERSION`; recovery is recreating the database ([db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)).
+### 8b. Startup Validation for `eventbus.sqlite`
 
-### 8b. Forward-Only Migration for `eventbus.sqlite`
+`create_eventbus_schema()` (`db/create_schema.py`) and the EventBus service (`open_db()`) both create the schema from the single DDL definition in `scripts/eventbus/schema.sql`, read through `build_eventbus_schema_sql()`. `schema.sql` ends with `PRAGMA user_version = 6;`: new databases receive that stamp from the canonical DDL itself. Validation gates:
 
-`create_eventbus_schema()` (`db/create_schema.py`) and the EventBus service (`open_db()`) both create the schema from the single DDL definition in `scripts/eventbus/schema.sql`, read through `build_eventbus_schema_sql()`. `schema.sql` ends with `PRAGMA user_version = 6;`, the schema version. There are three registered forward-only migrations: the ledger bootstrap that bumps the baseline from `3` to `4` (`eventbus_ledger_baseline` in `eventbus/migrations.py`), the `4 -> 5` step (`eventbus_dlq_outbox`) that adds the `dlq_outbox` table and its pending-scan index, and the `5 -> 6` step (`eventbus_dlq_outbox_fk_dedup`) that rebuilds `dlq_outbox` down to the canonical single-inline-FK shape. All three preserve rows and verify their effect with a `pre_commit_verification` callback that runs inside the step transaction before the commit — intermediate steps verify the version-scoped shape they land (canonical `schema.sql` already carries later steps' shapes), and the FK-dedup step re-verifies the full canonical `schema.sql` fingerprint both before the commit and after it via its `postcondition` — and a failed check rolls the step back. At startup `open_db()` migrates a registered stamped version through this path, stamps an unstamped existing database only when its tables match `schema.sql` column for column, and refuses any other; `create_eventbus_schema()` validates an existing database before any mutation — `validate_canonical` (`shared/eventbus_schema_fingerprint.py`: the `PRAGMA user_version` stamp plus the `assert_matches` structural fingerprint) gates the current version, an unstamped database is stamped only when its shape matches, and any other version is refused with the registered CLI or the recreate route. Recovery for a refused database is recreating the database. Table roles: `eventbus_06_persistence_schema_and_replay.md`.
+- An existing database is accepted only when `PRAGMA user_version` equals the version stamped by the canonical DDL and its tables, columns, and indexes match the `shared/eventbus_schema_fingerprint.py` fingerprint computed from `schema.sql` at runtime.
+- An unstamped existing database (`user_version 0`) is refused and left unstamped, even when its shape matches.
+- Any other version or shape difference is refused. Every refusal names the database path and leaves the file unmodified.
 
-`events.published_at` has a `DEFAULT` expression in `schema.sql`. SQLite cannot change a column default without rebuilding the table, so existing databases created before the default was added are not rebuilt; the difference has no effect because every insert path (`POST /publish` and the DLQ requeue) supplies `published_at` explicitly.
-
-### Migration guarantees
-
-Both registered migrations share one contract. **Verified-backup precondition:** a migration runs only after the pre-migration gate passes: `PRAGMA wal_checkpoint(FULL)` on the live database must complete cleanly, and a domain-identity backup must pass the domain verifier. A busy checkpoint refuses the run as `checkpoint_busy`; a missing or unverifiable backup refuses it as `no_verified_backup`. The `FULL` checkpoint mode is deliberately conservative — it can refuse a database a less strict mode would accept — and is implemented behavior pending an ADR. **Per-step transactionality:** the runner owns one write transaction per step — an explicit begin, the mutation statements executed individually, and the step's `schema_migrations` ledger row written inside the same transaction — so a failing step leaves no partial change, the database never half-applies a migration, and it stays at the last ledger-recorded version. **Foreign-key handling:** a step may opt out of foreign-key enforcement for its transaction; the setting is switched before the transaction begins, the mutated database is checked with `PRAGMA foreign_key_check` before the commit while enforcement is off (a violation rolls the step back), and the prior setting is always restored. **Verification order:** a step's preconditions run before the transaction; the mutation statements, the ledger row, and the step's `pre_commit_verification` callback all run inside the transaction before the commit, and a failed verification rolls the step back. Postconditions, when a spec defines one, run after the commit and are observational only. **Durable pre-migration archive:** `--apply` requires `--archive-dir`, an operator-supplied directory that must already exist and be writable. Before any step mutates, the runner copies the live database with the SQLite backup API to `<stem>-v<version>-<timestamp>.sqlite` in that directory, verifies it with `PRAGMA integrity_check` and a SHA-256, and writes a `<same-stem>.audit.json` sidecar recording `archive_path`, `sha256`, `source_db`, `source_version`, `created_at`, and `retention_status` (`"unset"` pending a retention policy). A refused run creates no archive, and a failed archive removes its partial files. Nothing prunes archives automatically: archive files are full database copies, and their location and retention are an operator responsibility. **Dry-run purity:** a dry run gates against a throwaway backup-API snapshot of the live database and mutates nothing; the live file stays byte-identical. The snapshot is WAL-consistent — rows committed by other connections are visible in it. **Ledger ordering:** `read_ledger` returns rows in append (`rowid`) order and exposes `LedgerRow.seq`, so same-second `applied_at` stamps cannot scramble application order. **Refusal classes:** every refusal names a `MigrationRefusalReason` and aborts before any mutation; the CLIs map the gate-family reasons to `EXIT_GATE_FAILURE` (1) and all other reasons to `EXIT_REFUSAL` (2).
-
-| Refusal reason | Meaning | CLI exit class |
-|---|---|---|
-| `no_verified_backup` | Backup integrity or domain verifier failure | `EXIT_GATE_FAILURE` (1) |
-| `checkpoint_busy` | `PRAGMA wal_checkpoint(FULL)` returned a non-zero busy count | `EXIT_GATE_FAILURE` (1) |
-| `no_archive_target` | Archive target directory missing or unwritable | `EXIT_GATE_FAILURE` (1) |
-| `archive_failure` | Archive creation or verification failed | `EXIT_GATE_FAILURE` (1) |
-| `in_memory_database` | Gate and archive cannot run on an in-memory database | `EXIT_REFUSAL` (2) |
-
-The unattended EventBus startup path (`open_db()` through `eventbus/schema.py`) runs archive-less until a retention policy exists (owner decision 20261105). **CLI contract:** `--dry-run`, `--apply`, and `--status` exist on both migration CLIs, and a successful run exits `EXIT_OK` (0). `--apply` requires `--archive-dir` on both CLIs; no default location is ever inferred, and a missing option is a refusal. `--status` prints machine-readable fields: `user_version=` is the integer migration code from `PRAGMA user_version`, and `marker=` is the semantic `workflow_schema_version` string (workflow domain only; the EventBus CLI prints `user_version=` only). `migrate_db.py` accepts a database-file option so `--status`, `--dry-run` and `--apply` can be rehearsed on a copy; a path that does not exist is refused without creating a file, and the option is for rehearsal, not for bypassing service handling. Every applied step is recorded in the `schema_migrations` ledger.
+`events.published_at` has a `DEFAULT` expression in `schema.sql`; every insert path (`POST /publish` and the DLQ requeue) supplies `published_at` explicitly. Table roles: `eventbus_06_persistence_schema_and_replay.md`.
 
 ### 8c. RAG Consistency Verification
 
@@ -77,23 +64,32 @@ The unattended EventBus startup path (`open_db()` through `eventbus/schema.py`) 
 
 The `chunks_vec` (`rag.sqlite`) and `memories_vec` (`session.sqlite`) tables defined in `db/schema_sql.py` are unrelated to the MDQ schema and are unaffected.
 
-### 8e. Supported Upgrade Baseline
+### 8e. Supported Baseline and Archive-and-Recreate Runbook
 
-The minimum supported source schema of each database is the schema of the current release. A `workflow.sqlite` or `eventbus.sqlite` database older than the supported baseline migrates through its registered forward-only path (sections 8a, 8b), which preserves rows; a database whose recorded version is unmapped falls back to recreation. `rag`, `session`, and `mdq` remain create-only and recreate when older than baseline. The workflow and eventbus ledger migrations are a permanent part of each domain's create policy.
+The only supported source schema of each database is the schema of the current release. Nothing migrates: `rag`, `session`, `workflow`, `eventbus`, and `mdq` all accept the current shape only, and an older or marker-carrying database is refused (workflow/eventbus) or simply not upgraded (rag/session/mdq).
 
-| Database | Minimum supported source schema | Why the migration code is kept | Removal condition | Owner |
-|---|---|---|---|---|
-| `workflow.sqlite` | A legacy database at `user_version 0` predating the ledger | Registered forward-only migration (`db/migrations_workflow.py`) adds the `schema_migrations` ledger and advances the version stamp from `1` to the current target `4`, preserving rows | Never — the ledger is the replayable migration history | The workflow engine |
-| `eventbus.sqlite` | A legacy database stamped `user_version 3` predating the ledger | Registered forward-only migrations (`eventbus/migrations.py`) add the ledger (`3 -> 4`), add the `dlq_outbox` outbox (`4 -> 5`), and rebuild it down to the canonical single-FK shape (`5 -> 6`); each step verifies the shape it lands — the final step re-verifies the full `schema.sql` fingerprint — preserving rows | Never — the ledger is the replayable migration history | The EventBus service |
-| `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Same; a rebuilt store is recovered by re-indexing the Markdown files | Same | The `mdq-mcp` server |
+| Database | Accepted schema | Recovery when not accepted | Owner |
+|---|---|---|---|
+| `workflow.sqlite` | Current task-table shape, no `schema_migrations` / `workflow_schema_version` markers | Archive and recreate (runbook below) | The workflow engine |
+| `eventbus.sqlite` | `PRAGMA user_version = 6` plus the canonical `schema.sql` fingerprint | Archive and recreate (runbook below) | The EventBus service |
+| `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Delete the file and re-index the Markdown files (section 8d) | The `mdq-mcp` server |
+| `rag.sqlite`, `session.sqlite` | Current create-only shape | Archive and recreate (runbook below) | RAG / session layers |
 
-Recreation impact when a database is older than the baseline (procedure: [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):
+Recreation impact when a database is not accepted (full procedure: [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):
 
 | Database | Data loss possible | Backup before recreation | Rollback |
 |---|---|---|---|
-| `workflow.sqlite` | Only when recreation is used as the fallback for an unmapped version; the registered migration preserves rows | Required: `rotate_all_dbs()` archives it (db_07 section 11, step 1) | Restore the archived file |
+| `workflow.sqlite` | Yes — task history is not carried over | Required: `rotate_all_dbs()` archives it (db_07 section 11, step 1) | Restore the archived file |
 | `eventbus.sqlite` | Yes — events and delivery state are not carried over | Required: `rotate_all_dbs()` archives it (`rotate_eventbus_db()`) | Restore the archived file manually; no automated restoration path exists (db_07 section 9) |
 | `mdq.sqlite` | No lasting loss — derived store, rebuilt from the Markdown files | Not required | Delete the file and re-index (section 8d) |
+
+Archive-and-recreate runbook (operator procedure; details in [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):
+
+1. Stop the affected service.
+2. Archive the refused database with `rotate_all_dbs()` (per-DB archive helpers, verified copies).
+3. Remove or rename the refused file. Automatic migration is not supported; do not attempt one.
+4. Recreate the database with the current canonical DDL (`deploy/init_db.sh` or `create_schema()`).
+5. Restart the service; the startup gate now accepts the new file.
 
 How to read a database's current schema without changing it: [DB API and Operations](db_07_api_and_operations-recovery-and-reference.md#11a-identifying-a-databases-current-schema) (section 11a).
 
@@ -101,7 +97,7 @@ How to read a database's current schema without changing it: [DB API and Operati
 
 ## 9. Schema Evolution
 
-Schema evolution rules per database are defined in sections 8 through 8d; the minimum supported source schema of each database is in section 8e. `eventbus.sqlite` is created from its DDL and migrates forward when older than the supported baseline; recreation remains the fallback for an unmapped version.
+Schema evolution rules per database are defined in sections 8 through 8d. A canonical DDL change (workflow `schema_sql.py`, eventbus `schema.sql`, rag/session create-only DDL) lands as a new current shape: databases matching the previous shape stop matching and must be archived and recreated by the operator; there is no registered migration path to bridge shapes. The minimum supported source schema is always the current release (section 8e).
 
 ---
 
@@ -163,7 +159,7 @@ Monitor these indicators during normal operation using `/session health` and `/s
 - **Full-Text Search:** Full-text search services offer lower latency for large corpora.
 - **Hybrid Store:** Relational DB + Vector extensions (e.g., `pgvector` compatible) allow scaling write concurrency while maintaining SQL semantics.
 
-> **Note:** The indicators above are qualitative and not backed by benchmarking. Actual limits depend on hardware, embedding dimensions, query patterns, and corpus characteristics. Always verify in individual deployment environments before treating any threshold as definitive.
+> **Note:** The indicators above are qualitative and are not backed by benchmarking. Actual limits depend on hardware, embedding dimensions, query patterns, and corpus characteristics. Always verify in individual deployment environments before treating any threshold as definitive.
 
 ## 13. Schema Change Checklist
 
@@ -172,8 +168,8 @@ Before performing a schema change task, answer all of the following:
 - [ ] Which DB is affected? (rag/session/workflow/eventbus/mdq)
 - [ ] Which schema source files are affected?
 - [ ] Is this a DDL change exclusive to new installations?
-- [ ] Is a migration required for existing databases?
-- [ ] If no migration is provided, is database recreation required?
+- [ ] Which gate (startup, health check, deploy pre-flight) will refuse databases matching the old shape, and which docs and manifests must be regenerated with the new shape?
+- [ ] Is database recreation required for existing databases? (No migration path exists; recreation is the only recovery)
 - [ ] Is there a possibility of data loss?
 - [ ] Are tests updated to reflect the schema behavior?
 - [ ] Which component is affected: RAG, session, workflow, eventbus, or MDQ?

@@ -60,6 +60,28 @@ if [ -n "${MISSING_TABLES}" ]; then
 fi
 echo "OK: all required workflow.sqlite tables present (${REQUIRED_WORKFLOW_TABLES})"
 
+# ── レガシー マーカー ゲート (REQ-005) ────────────────────────────────────────
+# workflow.sqlite and eventbus.sqlite must not carry legacy migration marker
+# tables. A database created or carried by the removed migration tooling predates
+# the current-schema-only policy; no migration or re-stamping is supported, so
+# reject it before the shape checks (fail-closed, same style as the workflow
+# table gate above). The script performs no write, archive, or delete itself.
+echo "--- legacy migration marker check ---"
+for DB_NAME in "workflow.sqlite" "eventbus.sqlite"; do
+  COUNT=$(sqlite3 "${DEPLOY_DB}/${DB_NAME}" \
+    "SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('schema_migrations','workflow_schema_version');")
+  if [ "${COUNT}" != "0" ]; then
+    echo "[FATAL] ${DB_NAME} carries legacy migration marker table(s) and does not match the current schema." >&2
+    echo "Automatic migration and version stamping are not supported." >&2
+    echo "Stop the service, archive the existing database if required, remove or rename it, and create a new database using the current schema:" >&2
+    echo "  1. Archive it with the rotation step (rotate_all_dbs)" >&2
+    echo "  2. Remove or rename ${DEPLOY_DB}/${DB_NAME}" >&2
+    echo "  3. Re-run deploy/init_db.sh" >&2
+    exit 1
+  fi
+done
+echo "OK: no legacy migration marker tables in workflow.sqlite and eventbus.sqlite"
+
 # ── eventbus.sqlite 形状ゲート（REQ-003）────────────────────────────────────────
 # 存在確認だけでなく shared.eventbus_schema_fingerprint で正準形状と比較し、
 # バージョン一致で形状だけのずれた DB を service 起動前に reject する。
@@ -95,32 +117,6 @@ PY
     echo "Delete the database and re-run init_db.sh before starting the Event Bus services." >&2
     exit 1
 fi
-
-# ── Ledger baseline gate (REQ-006) ───────────────────────────────────────────
-# workflow.sqlite and eventbus.sqlite must carry the schema_migrations ledger.
-# A database created before the migration baseline existed cannot serve as a
-# migration-compatible recovery point, so reject it before starting services
-# (fail-closed, same style as the workflow table gate above).
-echo "--- schema_migrations ledger check ---"
-for DB_NAME in "workflow.sqlite" "eventbus.sqlite"; do
-  COUNT=$(sqlite3 "${DEPLOY_DB}/${DB_NAME}" \
-    "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations';")
-  if [ "${COUNT}" != "1" ]; then
-    echo "[FATAL] ${DB_NAME} is missing the schema_migrations ledger table." >&2
-    echo "This database predates the migration baseline and cannot be used as a " >&2
-    echo "migration-compatible recovery point." >&2
-    case "${DB_NAME}" in
-      workflow.sqlite)
-        echo "Bootstrap the ledger first:" >&2
-        echo "  python ${DEPLOY_SCRIPTS}/db/migrate_db.py --apply --archive-dir <dir>" >&2 ;;
-      eventbus.sqlite)
-        echo "Bootstrap the ledger first:" >&2
-        echo "  python ${DEPLOY_SCRIPTS}/eventbus/migrate.py --apply --archive-dir <dir>" >&2 ;;
-    esac
-    exit 1
-  fi
-done
-echo "OK: schema_migrations ledger present in workflow.sqlite and eventbus.sqlite"
 
 # ── Recovery drill hook (REQ-007) ────────────────────────────────────────────
 # Default OFF. Only run the read-only drill when an operator opts in with

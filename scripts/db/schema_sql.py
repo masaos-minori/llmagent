@@ -20,12 +20,6 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Bump this constant whenever the workflow schema changes in a way that requires
-# recreating the database. Additive tables land through the registered forward
-# migration (dbmig001 registry); the bumped value must match the registry's head
-# step (wflease001 row 17: 1.4.0 <-> workflow_attempt_lease, code 4).
-WORKFLOW_SCHEMA_VERSION = "1.4.0"
-
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
         doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -228,8 +222,8 @@ CREATE TABLE IF NOT EXISTS artifacts (
 -- Tool-call lifecycle tables (toolexec001 REQ-007). Keyed on the tool-call
 -- idempotency key, which is the only idempotency_key column in the workflow
 -- database (wftaskapi001 renamed the task-side column to task_nonce).
--- Byte-identical in shape to _TOOL_CALL_STATE_SQL in db.migrations_workflow, so
--- fresh-created and migrated databases converge.
+-- This file is their single canonical definition; fresh-created databases are
+-- the only databases the workflow layer accepts.
 CREATE TABLE IF NOT EXISTS execution_snapshots (
     snapshot_id   TEXT PRIMARY KEY,
     snapshot_json TEXT NOT NULL,
@@ -249,21 +243,6 @@ CREATE TABLE IF NOT EXISTS tool_call_state (
 
 CREATE INDEX IF NOT EXISTS idx_tool_call_state_task_state
     ON tool_call_state(task_id, state);
-
-CREATE TABLE IF NOT EXISTS workflow_schema_version (
-    version    TEXT NOT NULL,
-    applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-
--- Forward-only migration ledger (dbmig001 row 09). Same column contract as the
--- shared runner's LEDGER_CREATE and eventbus.schema.sql; kept IF NOT EXISTS so
--- re-execution against an existing workflow database stays idempotent.
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    id           TEXT PRIMARY KEY,
-    applied_at   TEXT,
-    from_version INTEGER,
-    to_version   INTEGER
-);
 """
 
 # eventbus.sqlite's DDL is owned by the EventBus service (ADR-008 INV-04). The db layer

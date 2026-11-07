@@ -7,7 +7,9 @@ httpx.AsyncClient and AgentContext are mocked.
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -24,7 +26,6 @@ from agent.services.workflow_schema import (
     check_workflow_schema,
 )
 from db.config import DbConfig
-from db.schema_sql import WORKFLOW_SCHEMA_VERSION
 
 
 def _async_result(value: object) -> AsyncMock:
@@ -522,15 +523,18 @@ def _create_workflow_db(
     *,
     exclude_table: str | None = None,
     missing_column: tuple[str, str] | None = None,
-    schema_version: str | None = WORKFLOW_SCHEMA_VERSION,
+    marker: str | None = None,
 ) -> str:
-    """Create a minimal workflow SQLite DB for testing check_workflow_schema().
+    """Create a minimal marker-free workflow SQLite DB for check_workflow_schema().
 
-    schema_version=None creates an empty workflow_schema_version table (simulates
-    a pre-existing DB created before any version was ever recorded).
+    marker seeds a legacy migration marker table ('schema_migrations' or
+    'workflow_schema_version') to simulate a pre-cutover database.
     """
     db_path = str(tmp_path / "workflow.sqlite")
     conn = sqlite3.connect(db_path)
+    # Production DBs run in WAL; seed it here so the read-only gate's
+    # journal_mode pragma is a no-op and the file hash stays stable.
+    conn.execute("PRAGMA journal_mode=WAL")
     schemas = {
         "tasks": (
             "CREATE TABLE tasks (task_id TEXT, session_id TEXT, workflow_id TEXT, status TEXT, created_at TEXT)"
@@ -551,15 +555,14 @@ def _create_workflow_db(
             col = missing_column[1]
             ddl = ddl.replace(f", {col} TEXT", "").replace(f"{col} TEXT, ", "")
         conn.execute(ddl)
-    if exclude_table != "workflow_schema_version":
+    if marker == "schema_migrations":
+        conn.execute(
+            "CREATE TABLE schema_migrations (version TEXT NOT NULL, applied_at TEXT NOT NULL)"
+        )
+    elif marker == "workflow_schema_version":
         conn.execute(
             "CREATE TABLE workflow_schema_version (version TEXT NOT NULL, applied_at TEXT NOT NULL)"
         )
-        if schema_version is not None:
-            conn.execute(
-                "INSERT INTO workflow_schema_version (version, applied_at) VALUES (?, ?)",
-                (schema_version, "2026-01-01T00:00:00Z"),
-            )
     conn.commit()
     conn.close()
     return db_path
@@ -611,28 +614,32 @@ class TestCheckWorkflowSchema:
         assert result.valid is False
         assert result.error is not None and "attempts.owner_id" in result.error
 
-    def test_matching_schema_version_passes(self, tmp_path: Any) -> None:
-        db_path = _create_workflow_db(tmp_path, schema_version=WORKFLOW_SCHEMA_VERSION)
+    def test_marker_free_database_passes(self, tmp_path: Any) -> None:
+        # AC-006: a marker-free current-shape database is accepted with no
+        # version comparison (compatrm001 shape-only gate).
+        db_path = _create_workflow_db(tmp_path)
         result = check_workflow_schema(db_path=db_path)
         assert result.valid is True
 
-    def test_missing_schema_version_row_fails(self, tmp_path: Any) -> None:
-        db_path = _create_workflow_db(tmp_path, schema_version=None)
+    def test_legacy_marker_schema_migrations_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, marker="schema_migrations")
+        before = hashlib.sha256(Path(db_path).read_bytes()).hexdigest()
         result = check_workflow_schema(db_path=db_path)
+        after = hashlib.sha256(Path(db_path).read_bytes()).hexdigest()
         assert result.valid is False
-        assert result.error is not None and "schema version mismatch" in result.error
+        assert result.error is not None and "schema_migrations" in result.error
+        assert "does not match the current schema" in result.error
+        assert after == before
 
-    def test_mismatched_schema_version_fails(self, tmp_path: Any) -> None:
-        db_path = _create_workflow_db(tmp_path, schema_version="0.9.0")
+    def test_legacy_marker_workflow_schema_version_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, marker="workflow_schema_version")
+        before = hashlib.sha256(Path(db_path).read_bytes()).hexdigest()
         result = check_workflow_schema(db_path=db_path)
-        assert result.valid is False
-        assert result.error is not None and "schema version mismatch" in result.error
-
-    def test_missing_workflow_schema_version_table_fails(self, tmp_path: Any) -> None:
-        db_path = _create_workflow_db(tmp_path, exclude_table="workflow_schema_version")
-        result = check_workflow_schema(db_path=db_path)
+        after = hashlib.sha256(Path(db_path).read_bytes()).hexdigest()
         assert result.valid is False
         assert result.error is not None and "workflow_schema_version" in result.error
+        assert "does not match the current schema" in result.error
+        assert after == before
 
     def test_missing_db_file_returns_error(self, tmp_path: Any) -> None:
         nonexistent = str(tmp_path / "nonexistent.db")

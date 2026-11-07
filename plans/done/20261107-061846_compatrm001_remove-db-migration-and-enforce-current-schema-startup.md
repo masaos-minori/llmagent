@@ -44,6 +44,11 @@ High
 **Freeze status**: Frozen (Step 8 validation passed 2026-11-07: every row `Verified` against current
 source; `tools/check_plan_target_overlaps.py` returned "No findings"; `tools/check_workitem_structure.py`
 clean.)
+Amended 2026-11-07 (fallout): added deploy/setup_services.sh — REQ-002 removes WORKFLOW_SCHEMA_VERSION and the workflow_schema_version table; the workflow schema-version gate in this script (lines 71-80) imports the constant and queries the removed table, so it FATAL-exits after the cutover
+Amended 2026-11-07 (fallout): added tools/generate_reference_table.py — REQ-002 deletes WORKFLOW_SCHEMA_VERSION from schema_sql.py; _db_schema_version_entries raises ManifestError when the constant is absent, so the CI reference-manifest gate fails after the cutover
+Amended 2026-11-07 (fallout): added tools/check_db_separation.py — its TABLE_OWNERSHIP inventory lists schema_migrations and workflow_schema_version; after REQ-001/REQ-002 no module creates them, so the checker's own inventory-drift gate reports violations and CI fails; the checker's docstring requires the inventory to be updated together with the ADR
+Amended 2026-11-07 (fallout): added docs/23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md — the workflow troubleshooting section instructs querying workflow_schema_version (line 54) and documents the removed "Workflow schema version mismatch" symptom/response (lines 89-93)
+Amended 2026-11-07 (fallout): added docs/90_deployment/deployment_01_deployment.md — the deployment runbook asserts init_db.sh "Records the schema version" (line 306) and the failure table carries the removed workflow schema-version FATAL row (line 343)
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
@@ -76,6 +81,11 @@ clean.)
 | docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md | MODIFY | Core migration-policy document: rewrite as current-schema-only + manual archive-and-recreate runbook | REQ-009 / AC-009 | Exists, cites ledger and dbmig001 | — | Verified |
 | docs/41_db/db_07_api_and_operations-recovery-and-reference.md | MODIFY | DB-recreation procedure (§11) must state the no-migration policy and archive-before-remove order | REQ-009 / AC-009 | §11 already exists; policy sentence must be added | — | Verified |
 | docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md | MODIFY | EventBus schema document describing the ledger table and migration versions | REQ-009 / AC-009 | Cites `schema_migrations` | — | Verified |
+| `deploy/setup_services.sh` | Deploy service startup gate | REQ-002 removes WORKFLOW_SCHEMA_VERSION and the workflow_schema_version table; the workflow schema-version gate in this script (lines 71-80) imports the constant and queries the removed table, so it FATAL-exits after the cutover | REQ-002 / AC-002 | Lines 71-80: EXPECTED_SCHEMA_VERSION imports db.schema_sql.WORKFLOW_SCHEMA_VERSION; ACTUAL_SCHEMA_VERSION reads workflow_schema_version; mismatch exits 1 | tests/deploy/test_setup_services_eventbus.py | Verified |
+| `tools/generate_reference_table.py` | CI reference manifest gate | REQ-002 deletes WORKFLOW_SCHEMA_VERSION from schema_sql.py; _db_schema_version_entries raises ManifestError when the constant is absent, so the CI reference-manifest gate fails after the cutover | REQ-002 / AC-002 | tools/generate_reference_table.py line 75 _WORKFLOW_VERSION_RE, line 568 ManifestError; .github/workflows/ci.yml lines 35-37 run --check and --manifests; registry/manifests/db_schema_versions.yaml carries the workflow 1.4.0 entry | tests/tools/test_generate_reference_table.py | Verified |
+| `tools/check_db_separation.py` | DB-separation inventory checker | TABLE_OWNERSHIP lists `schema_migrations` (workflow lines 78-79, eventbus line 87) and `workflow_schema_version` (workflow line 79); after REQ-001/REQ-002 deletion no module creates them, so check_inventory() reports 3 violations and CI fails; the inventory must be updated with the ADR per the checker's own contract | REQ-001, REQ-002, REQ-006 / AC-001, AC-002 | tools/check_db_separation.py lines 74-88, 146-166; invoked via tests/tools/test_check_db_separation.py | Verified |
+| docs/23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md | MODIFY | Workflow troubleshooting must drop the workflow_schema_version diagnostic query and replace the "Schema Version Mismatch" section with the current-schema-only gate: fixed refusal wording and archive-and-recreate procedure | REQ-009 / AC-009 | Line 54 queries workflow_schema_version; lines 89-93 cite the removed "Workflow schema version mismatch" message and "re-run the deployment scripts to apply migrations" | — | Verified |
+| docs/90_deployment/deployment_01_deployment.md | MODIFY | Deployment runbook must drop the removed version-recording claims: the "Records the schema version" bullet and the workflow schema-version FATAL table row; align prose with the fixed refusal wording | REQ-009 / AC-009 | Line 306 "- Records the schema version"; line 343 `[FATAL] Workflow schema version mismatch` row; prose lines 299-310 describe ledger-era behavior | — | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -84,7 +94,7 @@ clean.)
 | scripts/db/recovery.py | Generic backup/recovery validation preserved as operational data protection; ledger-free (re-verified: `scripts/db/backup.py` does not exist at HEAD; `recovery.py` is the backup/recovery module) | REQ-006 |
 | scripts/shared/eventbus_schema_fingerprint.py | The single fingerprint validator (`validate_canonical`, `assert_matches`); it raises plain `RuntimeError` and defines no `MigrationRefusalError` (re-verified 2026-11-07), so after REQ-001 it is the only refusal source | REQ-003, REQ-008 |
 | scripts/eventbus/db_conn.py | Calls `eventbus.schema._init_schema` on connection; startup gate behavior must hold here | REQ-003 |
-| tools/check_db_separation.py | Allowed-table sets already include the marker tables permissively; kept unchanged so marker-free databases pass and legacy databases are caught by startup gates, not this checker | REQ-006, environment rule |
+| tools/check_db_separation.py | Allowed-table sets already include the marker tables permissively; kept unchanged so marker-free databases pass and legacy databases are caught by startup gates, not this checker — corrected 2026-11-07: the premise is wrong; the tool is a static TABLE_OWNERSHIP inventory drift check (check_inventory, lines 146-166) and its docstring requires updating the inventory together with the ADR; moved to a target-file row (seq 32) | REQ-006, environment rule |
 | tools/check_compat_shims.py + tools/compat_exceptions.toml | Existing shim checker; 004 extends it to the deleted migration symbols — 001 must leave zero shim/facade behind | REQ-001 |
 | rules/persisted-schema-change.md | Persisted-schema checklist the Plan must run (recorded in Design) | whole Plan |
 | docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md (schema section) and scripts/eventbus/schema.sql | Current EventBus canonical shape for gate design | REQ-003 |
@@ -138,6 +148,8 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
 | scripts/agent/services/workflow_schema.py | MODIFY | agent startup health gate | 5 | 1 | Yes — service restart |
 | scripts/db/recovery_drill.py | MODIFY | drill verification semantics | 4 | 1 | Yes — script sync |
 | deploy/init_db.sh | MODIFY | deploy pre-flight gate | 6 | 1 | Yes — deploy entry point |
+| `deploy/setup_services.sh` | Modify | Not assessed (amendment 2026-11-07) | N/A | N/A | Not assessed (amendment 2026-11-07) |
+| `tools/generate_reference_table.py` | Modify | Not assessed (amendment 2026-11-07) | N/A | N/A | Not assessed (amendment 2026-11-07) |
 
 ## Design
 - **One lifecycle, two domains.** Workflow and EventBus keep separate gates but identical policy: version/shape match → accept; anything else → raise before opening write access; never mutate, archive, or delete an incompatible database.
@@ -166,6 +178,8 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
    - [ ] Invert the ledger gate in `deploy/init_db.sh` to marker-absence with archive-and-recreate guidance (REQ-005).
    - [ ] Rework `scripts/db/recovery_drill.py` ledger audit into legacy-marker audit; update `tests/db/test_recovery_drill.py` (REQ-006, REQ-007).
    - [ ] Align `tests/agent/test_repl_health.py` and `tests/deploy/test_setup_services_eventbus.py` fixtures with the removed constant/table (REQ-007).
+   - [ ] Deploy service startup gate (REQ-002; `deploy/setup_services.sh`) — amendment 2026-11-07
+   - [ ] CI reference manifest gate (REQ-002; `tools/generate_reference_table.py`) — amendment 2026-11-07
 4. **Phase 4: Documentation**
    - [ ] Update `docs/41_db/db_01_architecture_and_schema-overview-and-config.md`, `docs/41_db/db_02_architecture_and_schema-schema-reference.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` (current-schema-only + manual archive-and-recreate runbook), `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` (§11 policy sentence), `docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md` (REQ-009).
 5. **Phase 5: Full validation and deploy hand-off**
@@ -198,11 +212,11 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Red policy tests | In Progress | — | — |  |
-| 2 | Phase 2: Framework deletion and importer migration | In Progress | — | — |  |
-| 3 | Phase 3: Canonical DDL, gates, drill, deploy script | In Progress | — | — |  |
-| 4 | Phase 4: Documentation | In Progress | — | — |  |
-| 5 | Phase 5: Full validation and deploy hand-off | Pending | — | — |  |
+| 1 | Phase 1: Red policy tests | Completed | 2026-11-07 | 2026-11-07 | Batch `20261107-135500` added m8a/m9/m10 members (docs 32-34) after scope leak |
+| 2 | Phase 2: Framework deletion and importer migration | Completed | 2026-11-07 | 2026-11-07 |  |
+| 3 | Phase 3: Canonical DDL, gates, drill, deploy script | Completed | 2026-11-07 | 2026-11-07 | Batch `20261107-135500` added m6e/m11 members (docs 30-32) after scope leak |
+| 4 | Phase 4: Documentation | Completed | 2026-11-07 | 2026-11-07 |  |
+| 5 | Phase 5: Full validation and deploy hand-off | Completed | 2026-11-07 | 2026-11-07 | Static gates green (ruff, mypy 558 files, lint-imports 6 kept, bandit, compat_shims, db_separation, reference-table drift check), full suite 11780 passed, diff-cover 100 pct; UNK-01 external-runbook sweep and production restart remain with ops (startup-guard enabling) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -212,30 +226,35 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261107-081028_01_scripts_shared_db_migrations.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_02_scripts_db_migrations_workflow.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_03_scripts_eventbus_migrations.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_04_scripts_eventbus_migrate.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_05_scripts_db_migrate_db.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_06_scripts_db_create_schema.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_07_scripts_eventbus_schema.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_08_scripts_db_schema_sql.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261107-081028_09_scripts_eventbus_schema.sql.md | 3 | Procedure | Pending | — | — |
-| implementations/20261107-081028_10_scripts_agent_services_workflow_schema.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261107-081028_11_scripts_db_recovery_drill.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261107-081028_12_deploy_init_db.sh.md | 3 | Procedure | Pending | — | — |
-| implementations/20261107-081028_14_tests_db_test_migrations_workflow.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_15_tests_eventbus_test_eventbus_migrations.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_16_tests_db_test_eventbus_schema_equivalence.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261107-081028_17_tests_deploy_test_init_db_ledger_gate.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-081028_18_tests_deploy_test_init_db_schema_gate.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-081028_19_tests_db_test_create_schema.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261107-081028_23_tests_deploy_test_setup_services_eventbus.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261107-081028_25_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261107-081028_26_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261107-081028_27_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261107-081028_28_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261107-081028_29_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261107-081028_01_scripts_shared_db_migrations.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_02_scripts_db_migrations_workflow.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_03_scripts_eventbus_migrations.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_04_scripts_eventbus_migrate.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_05_scripts_db_migrate_db.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_06_scripts_db_create_schema.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_07_scripts_eventbus_schema.py.md | 1, 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_08_scripts_db_schema_sql.py.md | 3 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_09_scripts_eventbus_schema.sql.md | 3 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_10_scripts_agent_services_workflow_schema.py.md | 1, 3 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_11_scripts_db_recovery_drill.py.md | 3 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_12_deploy_init_db.sh.md | 3 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_14_tests_db_test_migrations_workflow.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_15_tests_eventbus_test_eventbus_migrations.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_16_tests_db_test_eventbus_schema_equivalence.py.md | 2 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_17_tests_deploy_test_init_db_ledger_gate.py.md | 1 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_18_tests_deploy_test_init_db_schema_gate.py.md | 1 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_19_tests_db_test_create_schema.py.md | 1 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_23_tests_deploy_test_setup_services_eventbus.py.md | 3 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_25_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 4 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_26_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md | 4 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_27_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 4 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_28_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-081028_29_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 4 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-113303_30_deploy_setup_services.sh.md | 3 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-113303_31_tools_generate_reference_table.py.md | 3 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-135500_32_tools_check_db_separation.py.md | 3 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-135500_33_docs_23_agent_agent_10_04_operations-and-observability-validation-and-troubleshooting.md.md | 4 | Procedure | Completed (archived to implementations/done/) | — | — |
+| implementations/20261107-135500_34_docs_90_deployment_deployment_01_deployment.md.md | 4 | Procedure | Completed (archived to implementations/done/) | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -244,7 +263,7 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261107-061846
-- **Related target files**: scripts/shared/db_migrations.py, scripts/db/migrations_workflow.py, scripts/eventbus/migrations.py, scripts/eventbus/migrate.py, scripts/db/migrate_db.py, scripts/db/create_schema.py, scripts/eventbus/schema.py, scripts/db/schema_sql.py, scripts/eventbus/schema.sql, scripts/agent/services/workflow_schema.py, scripts/db/recovery_drill.py, deploy/init_db.sh, tests/shared/test_db_migrations.py, tests/db/test_migrations_workflow.py, tests/eventbus/test_eventbus_migrations.py, tests/db/test_eventbus_schema_equivalence.py, tests/deploy/test_init_db_ledger_gate.py, tests/deploy/test_init_db_schema_gate.py, tests/db/test_create_schema.py, tests/eventbus/test_eventbus_schema_version.py, tests/eventbus/test_eventbus_startup.py, tests/agent/test_repl_health.py, tests/deploy/test_setup_services_eventbus.py, tests/db/test_recovery_drill.py, docs/41_db/db_01_architecture_and_schema-overview-and-config.md, docs/41_db/db_02_architecture_and_schema-schema-reference.md, docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md, docs/41_db/db_07_api_and_operations-recovery-and-reference.md, docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md
+- **Related target files**: scripts/shared/db_migrations.py, scripts/db/migrations_workflow.py, scripts/eventbus/migrations.py, scripts/eventbus/migrate.py, scripts/db/migrate_db.py, scripts/db/create_schema.py, scripts/eventbus/schema.py, scripts/db/schema_sql.py, scripts/eventbus/schema.sql, scripts/agent/services/workflow_schema.py, scripts/db/recovery_drill.py, deploy/init_db.sh, tests/shared/test_db_migrations.py, tests/db/test_migrations_workflow.py, tests/eventbus/test_eventbus_migrations.py, tests/db/test_eventbus_schema_equivalence.py, tests/deploy/test_init_db_ledger_gate.py, tests/deploy/test_init_db_schema_gate.py, tests/db/test_create_schema.py, tests/eventbus/test_eventbus_schema_version.py, tests/eventbus/test_eventbus_startup.py, tests/agent/test_repl_health.py, tests/deploy/test_setup_services_eventbus.py, tests/db/test_recovery_drill.py, docs/41_db/db_01_architecture_and_schema-overview-and-config.md, docs/41_db/db_02_architecture_and_schema-schema-reference.md, docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md, docs/41_db/db_07_api_and_operations-recovery-and-reference.md, docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md, deploy/setup_services.sh, tools/generate_reference_table.py
 
 ### Requirement Traceability
 | Requirement ID | Source | Acceptance Criteria | Implementation Target Files | Procedure | Status |
@@ -258,6 +277,11 @@ Yes: REQ-009 drives updates named in the `docs/00_index.md` "Document References
 | REQ-007 | same, Required Changes (tests) | AC-003 | test rows in Implementation Target Files | — | Planned |
 | REQ-008 | same, Required Changes (fingerprints) | AC-007 | scripts/db/schema_sql.py, scripts/eventbus/schema.sql | — | Planned |
 | REQ-009 | same, Documentation Impact | AC-009 | docs rows in Implementation Target Files | — | Planned |
+| REQ-002 | Amendment 2026-11-07: REQ-002 removes WORKFLOW_SCHEMA_VERSION and the workflow_schema_version table; the workflow schema-version gate in this script (lines 71-80) imports the constant and queries the removed table, so it FATAL-exits after the cutover | deploy/setup_services.sh | Phase 3 | AC-002 | tests/deploy/test_setup_services_eventbus.py | Confirmed by repository evidence |
+| REQ-002 | Amendment 2026-11-07: REQ-002 deletes WORKFLOW_SCHEMA_VERSION from schema_sql.py; _db_schema_version_entries raises ManifestError when the constant is absent, so the CI reference-manifest gate fails after the cutover | tools/generate_reference_table.py | Phase 3 | AC-002 | tests/tools/test_generate_reference_table.py | Confirmed by repository evidence |
+| REQ-001, REQ-002, REQ-006 | Amendment 2026-11-07: deleting the marker tables breaks the checker's own inventory-drift gate (3 violations); the docstring contract requires updating the inventory with the ADR | tools/check_db_separation.py | Phase 3 | AC-001, AC-002 | tests/tools/test_check_db_separation.py | Confirmed by repository evidence |
+| REQ-009 | Amendment 2026-11-07: agent troubleshooting doc cites the removed workflow_schema_version query and mismatch message | docs/23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md | Phase 4 | AC-009 | — | Confirmed by repository evidence |
+| REQ-009 | Amendment 2026-11-07: deployment runbook asserts the removed version-recording behavior and old workflow mismatch FATAL row | docs/90_deployment/deployment_01_deployment.md | Phase 4 | AC-009 | — | Confirmed by repository evidence |
 
 ## Freeze Decision Log
 

@@ -29,6 +29,8 @@ Describes the `db/` layer responsibilities, DB file separation, `DbConfig` bound
 
 `db/` separates connection lifecycle (`helper.py`), idempotent DDL creation (`create_schema.py`), store protocols and their SQLite implementations (`store_protocols.py`, `store_impl.py`, re-exported through `store.py`), and maintenance operations (`maintenance.py`: WAL checkpoint, VACUUM, purge, rotate, recover).
 
+The `workflow` and `eventbus` databases are validated against the current schema at startup and health check. A database that does not match the current schema (legacy migration marker tables present, or a mismatched EventBus `PRAGMA user_version`) is refused with an explicit error and never modified, archived, or deleted automatically; the operator archives the file and recreates it from the current canonical DDL. Automatic migration is not supported.
+
 Four DB files exist; `rag.sqlite`, `session.sqlite` and `eventbus.sqlite` have their own path keys in `agent.toml`, while `workflow.sqlite` uses a Python-level default path (`workflow_db_path` is not an `agent.toml` key): `rag.sqlite` (documents, chunks, FTS and vector index), `session.sqlite` (sessions, messages, long-term memory with FTS and vector index), `workflow.sqlite` (task tracking) and `eventbus.sqlite` (event, delivery and offset state). Table definitions are in `db_02`. The files are separated because RAG indexing and conversation state have different access patterns (`rag.sqlite` writes heavily during ingestion and reads during query; `session.sqlite` appends heavily during conversations); separation avoids WAL contention.
 
 **Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers should always import from `db.store` and must not import directly from internal modules.
@@ -37,7 +39,7 @@ Four DB files exist; `rag.sqlite`, `session.sqlite` and `eventbus.sqlite` have t
 
 ## 3. `DbConfig` (`db/config.py`)
 
-`DbConfig` is the frozen configuration for the DB files (field list and validation: `shared_02_03_types_and_protocols-reference.md`). The `workflow` and `eventbus` paths fall back to code-level defaults when absent from `agent.toml`. DB files themselves are created on first open; parent directories must exist. The embedding dimension is a fixed code constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not a `DbConfig` field. `build_db_config()` builds it from `agent.toml`.
+`DbConfig` is the frozen configuration for the DB files (field list and validation: `shared_02_03_types_and_protocols-reference.md`). The `workflow` and `eventbus` paths fall back to code-level defaults when absent from `agent.toml`. DB files themselves are created on first open using only the current canonical DDL; an existing database that does not match the current schema is refused at startup, never migrated. Parent directories must exist. The embedding dimension is a fixed code constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not a `DbConfig` field. `build_db_config()` builds it from `agent.toml`.
 
 ---
 

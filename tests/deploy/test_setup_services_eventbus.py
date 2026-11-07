@@ -22,7 +22,7 @@ import threading
 import time
 
 import pytest
-from db.schema_sql import WORKFLOW_SCHEMA_VERSION, build_eventbus_schema_sql
+from db.schema_sql import build_eventbus_schema_sql
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
@@ -125,12 +125,7 @@ def _seed_workflow_db(sb: pathlib.Path) -> None:
         CREATE TABLE attempts (id INTEGER PRIMARY KEY);
         CREATE TABLE processed_events (id INTEGER PRIMARY KEY);
         CREATE TABLE artifacts (id INTEGER PRIMARY KEY);
-        CREATE TABLE workflow_schema_version (version TEXT, applied_at TEXT);
         """
-    )
-    conn.execute(
-        "INSERT INTO workflow_schema_version (version, applied_at) VALUES (?, ?)",
-        (WORKFLOW_SCHEMA_VERSION, "2026-10-26 00:00:00"),
     )
     conn.commit()
     conn.close()

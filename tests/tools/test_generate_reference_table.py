@@ -235,9 +235,6 @@ def _synthetic_repo(
     monkeypatch.setattr(grt, "AGENT_TOML", tmp_path / "config" / "agent.toml")
     monkeypatch.setattr(grt, "DB_CONFIG_SRC", tmp_path / "scripts" / "db" / "config.py")
     monkeypatch.setattr(
-        grt, "DB_SCHEMA_SQL_SRC", tmp_path / "scripts" / "db" / "schema_sql.py"
-    )
-    monkeypatch.setattr(
         grt, "EVENTBUS_SCHEMA_SQL_SRC", tmp_path / "scripts" / "eventbus" / "schema.sql"
     )
     monkeypatch.setattr(
@@ -314,7 +311,6 @@ class TestManifestGeneration:
             ("db_path", "history.sqlite"),
             ("db_path", "session.sqlite"),
             ("schema", "eventbus"),
-            ("schema", "workflow"),
         ]
         fields = grt.build_manifest("config_ownership")["entries"]
         assert fields[0] == {

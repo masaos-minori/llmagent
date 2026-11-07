@@ -26,7 +26,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from shared.db_migrations import read_ledger
 from shared.eventbus_schema_fingerprint import assert_matches
 
 from db.config import build_db_config, format_timestamp
@@ -47,53 +46,34 @@ logger = logging.getLogger(__name__)
 #: The four persistence domains the drill covers, in canonical order.
 DOMAINS: tuple[str, ...] = ("rag", "session", "workflow", "eventbus")
 
-#: Domains whose create policy is forward-migration (carry a ledger); the others
-#: are recreate-only and record no ledger fields.
-MIGRATE_POLICY_DOMAINS: frozenset[str] = frozenset({"workflow", "eventbus"})
-
 #: Exit codes (row 11 contract): 0 all domains passed, 1 any domain failed.
 EXIT_OK = 0
 EXIT_DRILL_FAILED = 1
 
-_LEDGER_TABLE = "schema_migrations"
+#: Legacy migration bookkeeping tables (compatrm001). Their presence in any
+#: domain database is an audited drill finding: the drill reports the archived
+#: copy as legacy and the operator follows the archive-and-recreate procedure.
+LEGACY_MARKER_TABLES: tuple[str, ...] = ("schema_migrations", "workflow_schema_version")
+
+LEGACY_MARKER_FINDING_MESSAGE = (
+    "The database does not match the current schema. Automatic migration and "
+    "version stamping are not supported. Stop the service, archive the existing "
+    "database if required, remove or rename it, and create a new database using "
+    "the current schema."
+)
 
 
-def _has_ledger_table(conn: sqlite3.Connection) -> bool:
-    """Return True when the ``schema_migrations`` ledger table exists."""
-    row = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-        (_LEDGER_TABLE,),
-    ).fetchone()
-    return row is not None
-
-
-def _read_ledger_state(conn: sqlite3.Connection) -> dict:
-    """Return current_version, ledger presence, and the baseline ledger row.
-
-    The baseline row is the earliest recorded ledger row (the bootstrap/baseline
-    stamp). A migrate-policy domain with no ledger table reports
-    ``ledger_present=False`` so the caller can treat it as a drill finding.
-    """
+def _legacy_marker_tables(db_path: Path) -> list[str]:
+    """Return the legacy migration marker tables present in a database file."""
+    conn = sqlite3.connect(str(db_path))
     try:
-        current_version = int(conn.execute("PRAGMA user_version").fetchone()[0])
-    except sqlite3.Error:
-        current_version = None
-    rows = read_ledger(conn)
-    present = _has_ledger_table(conn)
-    baseline_row = None
-    if rows:
-        first = rows[0]
-        baseline_row = {
-            "id": first.id,
-            "from_version": first.from_version,
-            "to_version": first.to_version,
-            "applied_at": first.applied_at,
-        }
-    return {
-        "current_version": current_version,
-        "ledger_present": present,
-        "baseline_row": baseline_row,
-    }
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    finally:
+        conn.close()
+    names = {row[0] for row in rows}
+    return [marker for marker in LEGACY_MARKER_TABLES if marker in names]
 
 
 def _verify_rag_session(domain: str, isolated: Path) -> dict:
@@ -125,8 +105,8 @@ def _verify_rag_session(domain: str, isolated: Path) -> dict:
     return verification
 
 
-def _verify_workflow(isolated: Path) -> tuple[dict, dict]:
-    """Per-domain checks for workflow; returns (verification, ledger_state)."""
+def _verify_workflow(isolated: Path) -> dict:
+    """Per-domain checks for workflow."""
     with SQLiteHelper("workflow", db_path=str(isolated)).open() as db:
         condition, _ = run_integrity_check(isolated, "workflow")
         tasks = (
@@ -139,12 +119,11 @@ def _verify_workflow(isolated: Path) -> tuple[dict, dict]:
             "integrity": condition == DbCondition.HEALTHY,
             "tasks_table": tasks,
         }
-        ledger = _read_ledger_state(db._require_conn())
-    return verification, ledger
+    return verification
 
 
-def _verify_eventbus(isolated: Path) -> tuple[dict, dict]:
-    """Per-domain checks for eventbus; returns (verification, ledger_state)."""
+def _verify_eventbus(isolated: Path) -> dict:
+    """Per-domain checks for eventbus."""
     with SQLiteHelper("eventbus", db_path=str(isolated)).open() as db:
         condition, _ = run_integrity_check(isolated, "eventbus")
         try:
@@ -157,8 +136,7 @@ def _verify_eventbus(isolated: Path) -> tuple[dict, dict]:
             "integrity": condition == DbCondition.HEALTHY,
             "fingerprint": fingerprint_ok,
         }
-        ledger = _read_ledger_state(db._require_conn())
-    return verification, ledger
+    return verification
 
 
 def _drill_one_domain(
@@ -196,11 +174,9 @@ def _drill_one_domain(
         "rpo_seconds": None,
         "integrity": None,
         "verification": {},
-        "policy": "migrate" if domain in MIGRATE_POLICY_DOMAINS else "recreate",
+        "policy": "recreate",  # current-schema-only policy for every domain (compatrm001)
         "error": None,
     }
-    if domain in MIGRATE_POLICY_DOMAINS:
-        artifact["ledger"] = {"current_version": None, "baseline_row": None}
 
     # Take the recovery point through the rotation code path (a read-only
     # backup-API copy; the live file is never rewritten).
@@ -226,22 +202,16 @@ def _drill_one_domain(
     shutil.copy2(recovery_point, isolated)
 
     started = time.time()
-    ledger: dict | None = None
     try:
         if domain in ("rag", "session"):
             verification = _verify_rag_session(domain, isolated)
         elif domain == "workflow":
-            verification, ledger = _verify_workflow(isolated)
+            verification = _verify_workflow(isolated)
         else:
-            verification, ledger = _verify_eventbus(isolated)
+            verification = _verify_eventbus(isolated)
     except sqlite3.Error as exc:
         logger.error("drill %s: restore read failed: %s", domain, exc)
         verification = {"integrity": False, "restore_error": False}
-        ledger = {
-            "current_version": None,
-            "baseline_row": None,
-            "ledger_present": False,
-        }
     finally:
         restore_end_epoch = time.time()
 
@@ -256,21 +226,19 @@ def _drill_one_domain(
     assumed_failure_ts = restore_end_epoch
     artifact["rpo_seconds"] = round(assumed_failure_ts - archive_ts_epoch, 6)
     artifact["verification"] = verification
-    if ledger is not None:
-        artifact["ledger"] = {
-            "current_version": ledger["current_version"],
-            "baseline_row": ledger["baseline_row"],
-            "ledger_present": ledger["ledger_present"],
-        }
-    artifact["integrity"] = bool(verification.get("integrity", False))
 
-    # A missing ledger table in a migrate-policy domain is itself a finding.
-    if (
-        domain in MIGRATE_POLICY_DOMAINS
-        and ledger is not None
-        and not ledger["ledger_present"]
-    ):
-        artifact["verification"]["ledger_present"] = False
+    # Legacy migration marker tables in the restored copy are themselves a
+    # finding (compatrm001): the archived source predates the current-schema-only
+    # policy and the operator must archive-and-recreate instead of relying on it.
+    markers = _legacy_marker_tables(isolated)
+    verification["no_legacy_markers"] = not markers
+    if markers:
+        artifact["error"] = (
+            f"Legacy migration marker table(s) present in restored copy: "
+            f"{', '.join(markers)}. {LEGACY_MARKER_FINDING_MESSAGE}"
+        )
+
+    artifact["integrity"] = bool(verification.get("integrity", False))
 
     _persist_artifact(drill_dir, artifact)
     return artifact

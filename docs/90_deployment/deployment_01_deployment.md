@@ -162,7 +162,7 @@ MCP servers (ports defined per server in `config/agent.toml`) auto-start as agen
 
 **Workflow pre-flight responsibilities (setup_services.sh):**
 - Re-checks that the deployed workflow definition (`config/workflows/default.json` under the production install root) exists and re-validates it
-- Re-checks that `workflow.sqlite` exists with all required tables and a matching schema version
+- Re-checks that `workflow.sqlite` exists with all required tables (`tasks`, `attempts`, `processed_events`, `artifacts`); it performs no schema-version comparison
 - The Event Bus is started **only if** all workflow checks pass — a failure here aborts before any service is spawned
 - The Event Bus credential is checked against the variables its configuration references; a missing or empty one aborts with a `[FATAL]` list before the process is spawned
 
@@ -299,15 +299,14 @@ bash deploy/init_db.sh
 - Runs `db/create_schema.py` to initialize the rag, session, workflow, and eventbus databases
 - Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts)
 - Creates `eventbus.sqlite` from `scripts/eventbus/schema.sql` with `PRAGMA user_version`; every database is create-only, none is migrated
-- Refuses an `eventbus.sqlite` stamped with another version
+- Refuses an `eventbus.sqlite` stamped with another version or unstamped
 - Checks required `workflow.sqlite` tables for presence; this is the only table-presence check
+- Rejects any `workflow.sqlite` or `eventbus.sqlite` carrying the legacy migration marker tables `schema_migrations` or `workflow_schema_version`
 - Validates `eventbus.sqlite` against the shared schema fingerprint and aborts on any deviation
-
-- Records the schema version
 
 The EventBus shape gate is the shared validator `scripts/shared/eventbus_schema_fingerprint.py`. It derives the canonical shape — tables, columns (name/type/nullability/default/pk), indexes, table-level constraints, foreign keys, and triggers (if any) — from `scripts/eventbus/schema.sql` via `PRAGMA` on a fresh in-memory apply, and `assert_matches()` raises on any mismatch against the target connection even when `PRAGMA user_version` matches. `create_eventbus_schema()` runs it after DDL on a database already stamped with the current version, and `init_db.sh` runs the same validator on `eventbus.sqlite`, so a correctly stamped but malformed `eventbus.sqlite` is refused identically at deployment and at runtime startup (`_init_schema()` in `scripts/eventbus/schema.py`).
 
-Run `init_db.sh` before `setup_services.sh`, which rejects a schema-version mismatch. A workflow or EventBus database older than the current schema is recreated, not migrated: archive it first (`rotate_all_dbs()`), delete it, then run `init_db.sh`; it refuses to record the current version over a different one. `setup_services.sh` proves Event Bus liveness and readiness with a bounded poll before reporting success: a dead child, a persistent connection failure, or a `/health` body failing the readiness predicate `db == ok` AND `dlq_task == running` is fatal, with child cleanup and last-response logging; an HTTP 503 carrying only capacity-only `degraded_reasons` (`lock_wait_high`, `slow_consumers_detected`, `query_duration_high`, `broker_queue_backlog_high`, `subscribers_at_capacity`) is tolerated. The workflow definition must not contain `require_approval`; the loader rejects the key.
+Run `init_db.sh` before `setup_services.sh`. A workflow or EventBus database older than the current schema — carrying legacy marker tables, or stamped with a different version or unstamped — is refused by the gates and recreated, not migrated: archive it first (`rotate_all_dbs()`), delete it, then run `init_db.sh`; no deployment script records or stamps a version on an existing database. `setup_services.sh` proves Event Bus liveness and readiness with a bounded poll before reporting success: a dead child, a persistent connection failure, or a `/health` body failing the readiness predicate `db == ok` AND `dlq_task == running` is fatal, with child cleanup and last-response logging; an HTTP 503 carrying only capacity-only `degraded_reasons` (`lock_wait_high`, `slow_consumers_detected`, `query_duration_high`, `broker_queue_backlog_high`, `subscribers_at_capacity`) is tolerated. The workflow definition must not contain `require_approval`; the loader rejects the key.
 
 **Recreating `session.sqlite`.** `session.sqlite` has no incremental migration, so a schema change to it (for example the `sessions.undo_floor_message_id` column of the `/undo` compression boundary) requires recreating the file. The recreated file is empty, and the memory tables recover separately.
 
@@ -327,7 +326,7 @@ Sessions, messages, and diagnostics are not recovered; past sessions can no long
 
 - [ ] `config/workflows/default.json` exists
 - [ ] `deploy.sh` finished successfully (no [FATAL] errors)
-- [ ] `init_db.sh` reported all mandatory tables and correct schema version
+- [ ] `init_db.sh` reported all mandatory tables and no legacy migration markers
 - [ ] `setup_services.sh` passed pre-flight checks
 - [ ] `setup_services.sh` reported no `[FATAL]` Event Bus credential error, meaning EVENTBUS_AUTH_TOKEN is set in the environment file or shell
 - [ ] Each Event Bus publisher and consumer process is configured with its own per-role token, and every consumer token has explicit `consumer_authorization` (`eventbus_07_configuration-and-operations.md`, Token Distribution)
@@ -340,7 +339,7 @@ Sessions, messages, and diagnostics are not recovered; past sessions can no long
 | `[FATAL] Workflow definition failed validation; aborting deployment.` | deploy.sh | Fix JSON validation error |
 | `[FATAL] Deployed workflow definition checksum does not match source; deployment corrupted.` | deploy.sh | Re-run `deploy.sh`, check filesystem integrity |
 | `[FATAL] Workflow database schema is missing or incomplete.` | init_db.sh / setup_services.sh | Re-run `init_db.sh` |
-| `[FATAL] Workflow schema version mismatch: expected <X>, found <Y>.` | setup_services.sh | Recreate the workflow database (archive the file, then run `init_db.sh`) |
+| `[FATAL] workflow.sqlite carries legacy migration marker table(s) and does not match the current schema.` | init_db.sh | Automatic migration is not supported: archive the database (`rotate_all_dbs()`), remove or rename it, and run `init_db.sh` to create a new database using the current schema |
 | `[FATAL] LLM services did not become ready within <N> attempts` | setup_services.sh | Start `agent-llm` (or `embed-llm` under `LLM_GATE_STRICT=1`); an unreachable `embed-llm` alone only warns |
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).

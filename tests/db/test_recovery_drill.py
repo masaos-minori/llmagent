@@ -21,7 +21,7 @@ from unittest.mock import patch
 import pytest
 from db.config import DbConfig
 from db.models import RagConsistencyReport
-from db.recovery_drill import DOMAINS, MIGRATE_POLICY_DOMAINS, run_drill
+from db.recovery_drill import DOMAINS, run_drill
 from db.schema_sql import build_rag_schema_sql, build_session_schema_sql
 
 _EVENTBUS_SCHEMA = (
@@ -202,18 +202,21 @@ _WORKFLOW_TABLES_DDL = """CREATE TABLE tasks (
     status TEXT NOT NULL DEFAULT 'pending',
     task_nonce TEXT UNIQUE NOT NULL,
     created_at TEXT NOT NULL
-);
-CREATE TABLE workflow_schema_version (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    version TEXT NOT NULL,
-    applied_at TEXT NOT NULL
 )"""
 
-_LEDGER_DDL = """CREATE TABLE schema_migrations (
+# Legacy migration marker tables (compatrm001): seeded only in marker-fixture
+# cases; the current schema creates neither.
+_SCHEMA_MIGRATIONS_MARKER_DDL = """CREATE TABLE schema_migrations (
     id TEXT PRIMARY KEY,
     applied_at TEXT,
     from_version INTEGER,
     to_version INTEGER
+)"""
+
+_WORKFLOW_VERSION_MARKER_DDL = """CREATE TABLE workflow_schema_version (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version TEXT NOT NULL,
+    applied_at TEXT NOT NULL
 )"""
 
 _COMMON_ARTIFACT_KEYS = {
@@ -234,8 +237,6 @@ _COMMON_ARTIFACT_KEYS = {
     "error",
 }
 
-_LEDGER_KEYS = {"current_version", "baseline_row", "ledger_present"}
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -244,12 +245,14 @@ def _connect(path: Path) -> sqlite3.Connection:
     return sqlite3.connect(str(path))
 
 
-def _build_workflow(path: Path, *, with_ledger: bool = True) -> None:
+def _build_workflow(path: Path, *, marker: str | None = None) -> None:
     conn = _connect(path)
     try:
         conn.executescript(_WORKFLOW_TABLES_DDL)
-        if with_ledger:
-            conn.executescript(_LEDGER_DDL)
+        if marker == "schema_migrations":
+            conn.executescript(_SCHEMA_MIGRATIONS_MARKER_DDL)
+        elif marker == "workflow_schema_version":
+            conn.executescript(_WORKFLOW_VERSION_MARKER_DDL)
         conn.commit()
     finally:
         conn.close()
@@ -270,7 +273,7 @@ def _domain_dbs(tmp_path: Path) -> dict[str, Path]:
     paths = {domain: tmp_path / f"{domain}.sqlite" for domain in DOMAINS}
     _build_rag(paths["rag"], prod=_VEC_AVAILABLE)
     _build_session(paths["session"], prod=_VEC_AVAILABLE)
-    _build_workflow(paths["workflow"], with_ledger=True)
+    _build_workflow(paths["workflow"])
     _build_eventbus(paths["eventbus"])
     return paths
 
@@ -358,9 +361,9 @@ def test_each_domain_artifact_carries_schema_fields(
     for domain, art in artifacts.items():
         assert _COMMON_ARTIFACT_KEYS <= set(art)
         assert art["domain"] == domain
-        assert art["policy"] == (
-            "migrate" if domain in MIGRATE_POLICY_DOMAINS else "recreate"
-        )
+        assert (
+            art["policy"] == "recreate"
+        )  # current-schema-only: no migrate policy (compatrm001)
         assert art["integrity"] is True
         assert art["backup_duration_seconds"] >= 0
         assert art["rto_seconds"] > 0  # monotonic clock measured a restore
@@ -378,11 +381,7 @@ def test_each_domain_artifact_carries_schema_fields(
         assert art["archive_path"] is not None
         assert art["archive_ts"] is not None
         assert art["drill_ts"] is not None
-        if domain in MIGRATE_POLICY_DOMAINS:
-            assert "ledger" in art
-            assert _LEDGER_KEYS <= set(art["ledger"])
-        else:
-            assert "ledger" not in art  # recreate domains record no ledger
+        assert "ledger" not in art  # no ledger fields after the cutover
 
 
 def test_verify_per_domain_reports_expected_verdicts(
@@ -400,19 +399,23 @@ def test_verify_per_domain_reports_expected_verdicts(
         "integrity": True,
         "required_table_rag": True,
         "rag_consistency": True,
+        "no_legacy_markers": True,
     }
     assert artifacts["session"]["verification"] == {
         "integrity": True,
         "required_table_session": True,
         "session_consistent": True,
+        "no_legacy_markers": True,
     }
     assert artifacts["workflow"]["verification"] == {
         "integrity": True,
         "tasks_table": True,
+        "no_legacy_markers": True,
     }
     assert artifacts["eventbus"]["verification"] == {
         "integrity": True,
         "fingerprint": True,
+        "no_legacy_markers": True,
     }
 
 
@@ -649,14 +652,14 @@ def test_session_orphaned_memory_link_fails_drill_with_integrity_ok(
 # ── Audited failure ──────────────────────────────────────────────────────────
 
 
-def test_missing_ledger_is_an_audited_finding(tmp_path: Path) -> None:
-    # A migrate-policy domain whose create path should have stamped a ledger but
-    # did not is itself a drill finding (row 11): the drill fails, yet still
-    # writes an artifact for every domain and leaves the live DB untouched.
+def test_legacy_marker_is_an_audited_finding(tmp_path: Path) -> None:
+    # A domain database carrying a legacy migration marker table is a drill
+    # finding (compatrm001): the drill fails, yet still writes an artifact for
+    # every domain and leaves the live DB untouched.
     paths = {domain: tmp_path / f"{domain}.sqlite" for domain in DOMAINS}
     _build_rag(paths["rag"])
     _build_session(paths["session"])
-    _build_workflow(paths["workflow"], with_ledger=False)
+    _build_workflow(paths["workflow"], marker="schema_migrations")
     _build_eventbus(paths["eventbus"])
     cfg = _config(paths)
     archive = tmp_path / "archive"
@@ -667,7 +670,13 @@ def test_missing_ledger_is_an_audited_finding(tmp_path: Path) -> None:
     assert ok is False
     artifacts = {art["domain"]: art for art in _load_artifacts(drill)}
     assert set(artifacts) == set(DOMAINS)  # every artifact still written
-    assert artifacts["workflow"]["verification"].get("ledger_present") is False
+    assert artifacts["workflow"]["verification"].get("no_legacy_markers") is False
+    assert "schema_migrations" in (artifacts["workflow"]["error"] or "")
+    assert all(
+        art["verification"].get("no_legacy_markers") is True
+        for domain, art in artifacts.items()
+        if domain != "workflow"
+    )
     assert archive.exists()  # used the drill archive dir, not /opt/llm
     assert _sha256(paths["workflow"]) == before_wf  # live DB untouched
 
@@ -701,7 +710,7 @@ def test_cli_exits_nonzero_on_failure(tmp_path: Path) -> None:
     paths = {domain: tmp_path / f"{domain}.sqlite" for domain in DOMAINS}
     _build_rag(paths["rag"])
     _build_session(paths["session"])
-    _build_workflow(paths["workflow"], with_ledger=False)
+    _build_workflow(paths["workflow"], marker="workflow_schema_version")
     _build_eventbus(paths["eventbus"])
     config_dir = tmp_path / "config"
     config_dir.mkdir()
@@ -719,4 +728,4 @@ def test_cli_exits_nonzero_on_failure(tmp_path: Path) -> None:
     )
     assert result.returncode == 1, result.stderr
     artifacts = _load_artifacts(drill)
-    assert artifacts and artifacts[0]["verification"].get("ledger_present") is False
+    assert artifacts and artifacts[0]["verification"].get("no_legacy_markers") is False

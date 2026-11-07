@@ -414,11 +414,6 @@ _WORKFLOW_SCHEMA_NO_VEC0 = """
         uri         TEXT NOT NULL,
         created_at  TEXT NOT NULL
     );
-
-    CREATE TABLE IF NOT EXISTS workflow_schema_version (
-        version    TEXT NOT NULL,
-        applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-    );
 """
 
 
@@ -678,45 +673,27 @@ def _create_workflow_db(db_file: Path) -> None:
         cs.create_workflow_schema()
 
 
-def _recorded_versions(db_file: Path) -> list[str]:
-    conn = sqlite3.connect(str(db_file))
-    try:
-        rows = conn.execute(
-            "SELECT version FROM workflow_schema_version ORDER BY applied_at, rowid"
-        ).fetchall()
-    finally:
-        conn.close()
-    return [row[0] for row in rows]
+class TestWorkflowSchemaNoMarkers:
+    """Fresh workflow databases carry no marker tables and no version rows (AC-002)."""
 
+    def test_canonical_builder_emits_no_marker_tables(self) -> None:
+        from db.schema_sql import build_workflow_schema_sql
 
-class TestWorkflowSchemaVersionRecord:
-    """The version log is recorded once and an older database is never stamped."""
+        ddl = build_workflow_schema_sql()
+        assert "schema_migrations" not in ddl
+        assert "workflow_schema_version" not in ddl
 
-    def test_first_run_records_the_current_version_once(self, tmp_path: Path) -> None:
-        from db.schema_sql import WORKFLOW_SCHEMA_VERSION
-
+    def test_fresh_creation_has_no_marker_tables_or_rows(self, tmp_path: Path) -> None:
         db_file = tmp_path / "first_run.sqlite"
         _create_workflow_db(db_file)
-        assert _recorded_versions(db_file) == [WORKFLOW_SCHEMA_VERSION]
-
-    def test_rerun_at_the_current_version_is_idempotent(self, tmp_path: Path) -> None:
-        from db.schema_sql import WORKFLOW_SCHEMA_VERSION
-
-        db_file = tmp_path / "rerun.sqlite"
-        _create_workflow_db(db_file)
-        _create_workflow_db(db_file)
-        assert _recorded_versions(db_file) == [WORKFLOW_SCHEMA_VERSION]
-
-    def test_differing_version_raises_and_records_nothing(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "older.sqlite"
-        _create_workflow_db(db_file)
+        _create_workflow_db(db_file)  # re-run stays a no-op
         conn = sqlite3.connect(str(db_file))
-        conn.execute("UPDATE workflow_schema_version SET version = '0.0.1'")
-        conn.commit()
-        conn.close()
-        with pytest.raises(RuntimeError, match="recreate the database"):
-            _create_workflow_db(db_file)
-        assert _recorded_versions(db_file) == ["0.0.1"]
+        try:
+            tables = _table_names(conn)
+            assert "workflow_schema_version" not in tables
+            assert "schema_migrations" not in tables
+        finally:
+            conn.close()
 
     def test_new_database_has_no_approvals_table(self, tmp_path: Path) -> None:
         db_file = tmp_path / "new_workflow.sqlite"
@@ -728,53 +705,30 @@ class TestWorkflowSchemaVersionRecord:
         assert {"tasks", "attempts", "processed_events", "artifacts"} <= tables
 
 
-class TestCreatePathLedgerCoverage:
-    """New workflow/eventbus databases carry the migration ledger + baseline row;
-    recreate-only rag/session domains record none (dbmig001 row 18)."""
+class TestCreatePathMarkerAbsence:
+    """Fresh workflow/eventbus databases carry no marker tables or baseline rows;
+    recreate-only rag/session domains carry none either (REQ-002 / AC-002)."""
 
-    def test_workflow_fresh_creation_carries_ledger_and_baseline(
-        self, tmp_path: Path
-    ) -> None:
-        from db.schema_sql import WORKFLOW_SCHEMA_VERSION
-
+    def test_workflow_fresh_creation_has_no_marker_tables(self, tmp_path: Path) -> None:
         db_file = tmp_path / "ledger_workflow.sqlite"
         _create_workflow_db(db_file)
         conn = sqlite3.connect(str(db_file))
         try:
-            assert "schema_migrations" in _table_names(conn)
-            row = conn.execute(
-                "SELECT id, from_version, to_version FROM schema_migrations "
-                "WHERE id='workflow_ledger_baseline'"
-            ).fetchone()
-            assert row == ("workflow_ledger_baseline", 0, 1)
-            latest = conn.execute(
-                "SELECT version FROM workflow_schema_version "
-                "ORDER BY applied_at DESC LIMIT 1"
-            ).fetchone()
-            assert latest is not None and latest[0] == WORKFLOW_SCHEMA_VERSION
-            # Fresh create stamps the registry head code (wflease001 row 17:
-            # the canonical template already carries the lease columns).
-            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 4
+            assert "schema_migrations" not in _table_names(conn)
+            assert "workflow_schema_version" not in _table_names(conn)
         finally:
             conn.close()
 
-    def test_eventbus_fresh_creation_carries_ledger_and_baseline(
-        self, tmp_path: Path
-    ) -> None:
+    def test_eventbus_fresh_creation_has_no_marker_tables(self, tmp_path: Path) -> None:
         db_file = tmp_path / "ledger_eventbus.sqlite"
         cfg = _make_db_config(db_file, "eventbus")
         with patch("db.helper.build_db_config", return_value=cfg):
             cs.create_eventbus_schema()
         conn = sqlite3.connect(str(db_file))
         try:
-            assert "schema_migrations" in _table_names(conn)
-            row = conn.execute(
-                "SELECT id, from_version, to_version FROM schema_migrations "
-                "WHERE id='eventbus_ledger_baseline'"
-            ).fetchone()
-            assert row is not None
-            assert row[0] == "eventbus_ledger_baseline"
-            assert row[1] == row[2] == eventbus_schema_version()
+            assert "schema_migrations" not in _table_names(conn)
+            assert "workflow_schema_version" not in _table_names(conn)
+            # The current-schema stamp comes from the canonical schema.sql DDL only.
             assert (
                 int(conn.execute("PRAGMA user_version").fetchone()[0])
                 == eventbus_schema_version()
@@ -1123,7 +1077,7 @@ class TestEventbusSchemaCreation:
         raw.close()
         cfg = _make_db_config(db_file, "eventbus")
         with patch("db.helper.build_db_config", return_value=cfg):
-            with pytest.raises(RuntimeError, match="recreate the database"):
+            with pytest.raises(RuntimeError, match="does not match the current schema"):
                 cs.create_eventbus_schema()
         conn = sqlite3.connect(str(db_file))
         columns = [r[1] for r in conn.execute("PRAGMA table_info(events)")]
@@ -1132,10 +1086,11 @@ class TestEventbusSchemaCreation:
         assert columns == ["seq", "event_id"]
         assert "consumer_delivery" not in tables
 
-    def test_unstamped_matching_shape_is_stamped_with_zero_ddl(
+    def test_unstamped_matching_shape_is_refused_without_stamping(
         self, tmp_path: Path
     ) -> None:
-        """An unstamped database whose shape matches canonical is stamped with no DDL."""
+        """An unstamped database whose shape matches canonical is refused and stays
+        unstamped: version stamping is not supported (REQ-003)."""
         db_file = tmp_path / "eventbus_unstamped.sqlite"
         raw = sqlite3.connect(str(db_file))
         raw.executescript(build_eventbus_schema_sql())
@@ -1146,22 +1101,23 @@ class TestEventbusSchemaCreation:
             patch("db.helper.build_db_config", return_value=cfg),
             patch.object(SQLiteHelper, "executescript") as ddl_spy,
         ):
-            cs.create_eventbus_schema()
+            with pytest.raises(RuntimeError, match="unstamped \\(user_version 0\\)"):
+                cs.create_eventbus_schema()
         assert ddl_spy.call_count == 0
         conn = sqlite3.connect(str(db_file))
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         conn.close()
-        assert version == eventbus_schema_version()
+        assert version == 0
 
     def test_unstamped_old_shape_fails_explicitly(self, tmp_path: Path) -> None:
-        """An old-shape unstamped database is refused by the shape gate, unstamped."""
+        """An old-shape unstamped database is refused by the version gate, unstamped."""
         db_file = tmp_path / "eventbus_old_shape.sqlite"
         raw = sqlite3.connect(str(db_file))
         raw.execute("CREATE TABLE events (seq INTEGER PRIMARY KEY, event_id TEXT)")
         raw.close()
         cfg = _make_db_config(db_file, "eventbus")
         with patch("db.helper.build_db_config", return_value=cfg):
-            with pytest.raises(RuntimeError, match="missing table"):
+            with pytest.raises(RuntimeError, match="unstamped \\(user_version 0\\)"):
                 cs.create_eventbus_schema()
         conn = sqlite3.connect(str(db_file))
         version = conn.execute("PRAGMA user_version").fetchone()[0]
@@ -1235,8 +1191,8 @@ class TestEventbusValidateFirstPaths:
     def test_current_version_database_is_validated_with_zero_ddl(
         self, tmp_path: Path
     ) -> None:
-        """A current-version database is validated, never re-DDL'd, and gains the
-        baseline row only when absent (path b)."""
+        """A current-version database is validated, never re-DDL'd, and carries no
+        ledger or baseline row (REQ-002 / AC-002)."""
         db_file = tmp_path / "eventbus_current.sqlite"
         raw = sqlite3.connect(str(db_file))
         raw.executescript(build_eventbus_schema_sql())
@@ -1251,18 +1207,10 @@ class TestEventbusValidateFirstPaths:
             cs.create_eventbus_schema()  # re-running stays a validated no-op
         assert ddl_spy.call_count == 0
         conn = sqlite3.connect(str(db_file))
-        rows = conn.execute(
-            "SELECT id, from_version, to_version FROM schema_migrations"
-            " WHERE id='eventbus_ledger_baseline'"
-        ).fetchall()
+        tables = _table_names(conn)
         conn.close()
-        assert rows == [
-            (
-                "eventbus_ledger_baseline",
-                eventbus_schema_version(),
-                eventbus_schema_version(),
-            )
-        ]
+        assert "schema_migrations" not in tables
+        assert "workflow_schema_version" not in tables
 
     def test_refusal_branches_leave_schema_facts_unchanged(
         self, tmp_path: Path

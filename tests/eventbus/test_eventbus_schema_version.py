@@ -1,20 +1,26 @@
 """tests/eventbus/test_eventbus_schema_version.py
 
 eventbus.sqlite carries a schema version (PRAGMA user_version stamped by
-schema.sql). open_db() refuses a database stamped with another version, stamps an
-unstamped database only when its tables match schema.sql, and refuses the rest.
+schema.sql). open_db() accepts only a database stamped with the current version
+whose shape matches the shared schema fingerprint. Every other existing database
+— including an unstamped one (user_version 0) — is refused before any mutation
+and left byte-identical (REQ-003/REQ-004): automatic migration and version
+stamping are not supported, the operator archives and recreates. A missing
+database is created and stamped through the canonical schema.sql DDL.
 
 The version is pinned to 6 (ebschema001 rebuilt dlq_outbox down to a single inline
 FK via the registered 5 -> 6 step; dlqbox001 added the dlq_outbox table at version
 5; version 4 added the forward-only migration ledger schema_migrations via dbmig001;
 version 3 enforced the date-time format check via rfc3339-validator plus removed the
 dead published_at schema default; version 2 was the idx_events_redelivered_from
-unique index bump); a database still stamped 1 must be refused with the recreate
-message.
+unique index bump); a database still stamped 1 must be refused with the
+archive-and-recreate message.
 """
 
 from __future__ import annotations
 
+import gc
+import hashlib
 import sqlite3
 from pathlib import Path
 
@@ -32,15 +38,57 @@ def _version(path: Path) -> int:
         conn.close()
 
 
+def _sha256(path: Path) -> str:
+    """File hash: the byte-fact a refusal must not change (AC-005)."""
+    gc.collect()  # finalize any connection left open by a refused open_db()
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _seed_wal(path: Path, ddl: str | None = None, *, stamp: int | None = None) -> None:
+    """Seed a WAL-mode database so a refused open_db() cannot change the header.
+
+    Production databases already run in WAL; the refused open only re-applies
+    the (no-op) journal_mode pragma, keeping the file byte-identical.
+    """
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")  # nosec B704 — fixed WAL seeding
+        if ddl is not None:
+            conn.executescript(ddl)
+        if stamp is not None:
+            conn.execute(f"PRAGMA user_version = {stamp}")  # nosec B608 — fixed test int
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _refused_unchanged(path: Path, match: str) -> None:
+    """Assert open_db() refuses and leaves the database byte-identical."""
+    before = _sha256(path)
+    with pytest.raises(RuntimeError, match=match):
+        open_db(str(path))
+    assert _sha256(path) == before
+
+
 def test_db_layer_and_service_agree_on_the_version() -> None:
     expected = _expected_schema_version(_SCHEMA_PATH.read_text())
     assert eventbus_schema_version() == expected
 
 
-def test_new_database_is_stamped(tmp_path: Path) -> None:
+def test_new_database_is_stamped_and_marker_free(tmp_path: Path) -> None:
     path = tmp_path / "eventbus.sqlite"
     open_db(str(path)).close()
     assert _version(path) == eventbus_schema_version()
+    conn = sqlite3.connect(path)
+    try:
+        tables = {
+            row[0]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+    finally:
+        conn.close()
+    assert "schema_migrations" not in tables
+    assert "workflow_schema_version" not in tables
 
 
 def test_mismatched_version_is_refused(tmp_path: Path) -> None:
@@ -49,27 +97,25 @@ def test_mismatched_version_is_refused(tmp_path: Path) -> None:
     raw = sqlite3.connect(path)
     raw.execute("PRAGMA user_version = 99")
     raw.close()
-    with pytest.raises(RuntimeError, match="recreate the database"):
-        open_db(str(path))
+    _refused_unchanged(path, "does not match the current schema")
 
 
-def test_unstamped_current_database_is_stamped(tmp_path: Path) -> None:
+def test_unstamped_current_shape_is_refused_and_left_unstamped(tmp_path: Path) -> None:
+    """A current-shape database left unstamped (user_version 0) is refused and
+    stays unstamped: version stamping is not supported (REQ-003)."""
     path = tmp_path / "eventbus.sqlite"
     open_db(str(path)).close()
     raw = sqlite3.connect(path)
     raw.execute("PRAGMA user_version = 0")
     raw.close()
-    open_db(str(path)).close()
-    assert _version(path) == eventbus_schema_version()
+    _refused_unchanged(path, "does not match the current schema")
+    assert _version(path) == 0
 
 
 def test_unstamped_old_shape_is_refused_and_left_unstamped(tmp_path: Path) -> None:
     path = tmp_path / "eventbus.sqlite"
-    raw = sqlite3.connect(path)
-    raw.execute("CREATE TABLE events (seq INTEGER PRIMARY KEY, event_id TEXT)")
-    raw.close()
-    with pytest.raises(RuntimeError, match="recreate the database"):
-        open_db(str(path))
+    _seed_wal(path, "CREATE TABLE events (seq INTEGER PRIMARY KEY, event_id TEXT);")
+    _refused_unchanged(path, "does not match the current schema")
     assert _version(path) == 0
 
 
@@ -79,7 +125,7 @@ def test_schema_version_is_pinned_to_six() -> None:
     dbmig001 added the forward-only migration ledger (schema_migrations) moving
     version 3 -> 4; dlqbox001 added the dlq_outbox table moving version 4 -> 5;
     ebschema001 rebuilt dlq_outbox down to a single inline FK moving version
-    5 -> 6 (see scripts/eventbus/migrations.py).
+    5 -> 6.
     """
     assert eventbus_schema_version() == 6
 
@@ -114,60 +160,54 @@ def test_database_stamped_one_is_refused(tmp_path: Path) -> None:
     raw = sqlite3.connect(path)
     raw.execute("PRAGMA user_version = 1")
     raw.close()
-    with pytest.raises(RuntimeError, match="recreate the database"):
-        open_db(str(path))
+    _refused_unchanged(path, "does not match the current schema")
 
 
-def test_registered_v3_database_migrates_at_startup(tmp_path: Path) -> None:
-    """A database at the pre-ledger baseline (user_version 3) migrates at startup.
+def test_registered_era_version_is_refused(tmp_path: Path) -> None:
+    """A database at the pre-cutover baseline (user_version 5) is refused.
 
-    The registered 3 -> 4 -> 5 -> 6 path runs through the shared runner gate-gated
-    (row 03 wiring): startup succeeds, the ledger records all three steps, and the
-    shared fingerprint passes. This is the dbmig001 behaviour that replaces
-    today's hard refusal for a lower-but-registered version.
+    The registered 5 -> 6 migration path no longer exists (REQ-003): a lower-
+    but-registered version is refused with the archive-and-recreate guidance
+    and left byte-identical.
     """
     path = tmp_path / "eventbus.sqlite"
-    # Seed a realistic pre-migration database: the full current shape minus the
-    # ledger table and minus the post-bootstrap dlq_outbox table, stamped at the
-    # pre-ledger baseline (user_version 3).
-    seed = sqlite3.connect(str(path))
-    try:
-        seed.execute("PRAGMA journal_mode=WAL")  # nosec B704 — WAL is required for the gate
-        seed.executescript(_SCHEMA_PATH.read_text(encoding="utf-8"))
-        seed.commit()
-        seed.execute("DROP TABLE dlq_outbox")  # nosec B608 — fixed test DDL
-        seed.execute("DROP TABLE schema_migrations")
-        seed.execute("PRAGMA user_version = 3")  # nosec B608 — fixed test int
-        seed.commit()
-    finally:
-        seed.close()
+    open_db(str(path)).close()
+    raw = sqlite3.connect(path)
+    raw.execute("PRAGMA user_version = 5")  # nosec B608 — fixed test int
+    raw.close()
+    _refused_unchanged(path, "does not match the current schema")
+    assert _version(path) == 5
 
-    migrated = open_db(str(path))
+
+def test_malformed_current_version_is_refused(tmp_path: Path) -> None:
+    """A current-shape-minus-one-column database stamped 6 fails the fingerprint
+    gate and is left as-is (REQ-004 / AC-005)."""
+    path = tmp_path / "eventbus.sqlite"
+    open_db(str(path)).close()
+    raw = sqlite3.connect(path)
+    raw.execute("ALTER TABLE events DROP COLUMN consumer_id")  # nosec B608 — fixed test DDL
+    raw.commit()
+    raw.close()
+    _refused_unchanged(path, "columns differ")
+    conn = sqlite3.connect(path)
     try:
-        assert _version(path) == 6
-        rows = migrated.execute(
-            "SELECT id, from_version, to_version FROM schema_migrations"
-        ).fetchall()
-        assert {(r[0], r[1], r[2]) for r in rows} == {
-            ("eventbus_ledger_baseline", 3, 4),
-            ("eventbus_dlq_outbox", 4, 5),
-            ("eventbus_dlq_outbox_fk_dedup", 5, 6),
-        }
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(events)")}
+        version = int(conn.execute("PRAGMA user_version").fetchone()[0])
     finally:
-        migrated.close()
+        conn.close()
+    assert "consumer_id" not in columns  # deviation preserved, nothing repaired
+    assert version == eventbus_schema_version()
 
 
 def test_future_version_is_refused(tmp_path: Path) -> None:
     """A database stamped beyond the baseline (user_version 7) refuses at startup.
 
-    No registered forward path reaches a target below the current version, so the
-    runner raises an unknown-path refusal and startup keeps the recreate guidance
-    (fail-closed, REQ-003/REQ-005).
+    No automatic path reaches or accepts a version above the current schema, so
+    startup keeps the archive-and-recreate guidance (fail-closed, REQ-003).
     """
     path = tmp_path / "eventbus.sqlite"
     open_db(str(path)).close()
     raw = sqlite3.connect(path)
     raw.execute("PRAGMA user_version = 7")  # nosec B608 — fixed test int
     raw.close()
-    with pytest.raises(RuntimeError, match="recreate the database"):
-        open_db(str(path))
+    _refused_unchanged(path, "does not match the current schema")

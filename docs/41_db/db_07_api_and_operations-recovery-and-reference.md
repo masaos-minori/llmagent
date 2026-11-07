@@ -110,7 +110,7 @@ Busy/locked `sqlite3.OperationalError` waits automatically via `PRAGMA busy_time
 
 ## 11. DB Recreation Procedure
 
-Schema changes require DB recreation — a migration feature does not exist. **Step 1: Archive** — execute `rotate_all_dbs()` to archive every production DB (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`). **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path`/`eventbus_db_path` keys (`db/config.py::DbConfig`); `create_schema()` also recreates `eventbus.sqlite`, so include the `eventbus_db_path` file if deleting **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
+Schema changes require DB recreation — a migration feature does not exist. Automatic migration and version stamping are not supported for any domain: a database that does not match the current schema — including one carrying the legacy `schema_migrations` or `workflow_schema_version` tables — is never repaired in place, stamped, or rewritten. It must be archived (step 1) before it is removed (step 2), then recreated from the current schema (step 3). **Step 1: Archive** — execute `rotate_all_dbs()` to archive every production DB (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`). **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path`/`eventbus_db_path` keys (`db/config.py::DbConfig`); `create_schema()` also recreates `eventbus.sqlite`, so include the `eventbus_db_path` file if deleting **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
 
 **Important notes:** 
 - Recreated DBs are empty — existing records are not automatically migrated.
@@ -123,9 +123,9 @@ Schema changes require DB recreation — a migration feature does not exist. **S
 To see which schema a database has without changing it, open the file read-only (`mode=ro`). Replace each placeholder with the path from the configuration (`mdq.sqlite`: `db_path` in `config/mdq_mcp_server.toml`). The supported baseline is defined in [DB migration and scaling](db_03_architecture_and_schema-migration-and-scaling.md) (section 8e).
 
 ```bash
-# workflow.sqlite: latest recorded schema version
+# workflow.sqlite: table inventory — the four task tables must be present
 sqlite3 "file:<workflow_db_path>?mode=ro" \
-  "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1;"
+  "SELECT group_concat(name) FROM sqlite_master WHERE type='table';"
 
 # eventbus.sqlite: column names of its three tables
 sqlite3 "file:<eventbus_db_path>?mode=ro" \
@@ -140,11 +140,11 @@ sqlite3 "file:<mdq_db_path>?mode=ro" \
 
 A database at the supported baseline shows:
 
-- `workflow.sqlite`: the version that `setup_services.sh` expects; a mismatch fails startup.
+- `workflow.sqlite`: `tasks`, `attempts`, `processed_events`, `artifacts` present, and no `schema_migrations` or `workflow_schema_version` table; a legacy marker table or a shape difference fails startup.
 - `eventbus.sqlite`: `events` without `retry_count`; `consumer_delivery` with `acked` and without `acked_at`; `consumer_offsets` with `offset`.
 - `mdq.sqlite`: `chunk_id` as the first `chunks` column.
 
-A database that does not match is recreated (section 11), not migrated. `eventbus.sqlite` is stamped with `PRAGMA user_version` (the version in `scripts/eventbus/schema.sql`); the EventBus service fails to start on a different version.
+A database that does not match is recreated (section 11), not migrated. `eventbus.sqlite` is stamped with `PRAGMA user_version` (the version in `scripts/eventbus/schema.sql`); the EventBus service refuses an unstamped or differently stamped database.
 
 ---
 

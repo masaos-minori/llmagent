@@ -68,17 +68,6 @@ if [ -n "${MISSING_TABLES}" ]; then
   exit 1
 fi
 
-EXPECTED_SCHEMA_VERSION=$(PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -c \
-  "from db.schema_sql import WORKFLOW_SCHEMA_VERSION; print(WORKFLOW_SCHEMA_VERSION)")
-ACTUAL_SCHEMA_VERSION=$(sqlite3 "${WORKFLOW_DB}" \
-  "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1;")
-echo "Workflow schema version: ${ACTUAL_SCHEMA_VERSION:-<none>} (expected: ${EXPECTED_SCHEMA_VERSION})"
-if [ "${ACTUAL_SCHEMA_VERSION}" != "${EXPECTED_SCHEMA_VERSION}" ]; then
-  echo "[FATAL] Workflow schema version mismatch: expected ${EXPECTED_SCHEMA_VERSION}, found ${ACTUAL_SCHEMA_VERSION:-<none>}." >&2
-  echo "Recreate the workflow database (archive the file, then run deploy/init_db.sh) before starting services." >&2
-  exit 1
-fi
-
 echo "OK: workflow definition and schema pre-flight checks passed"
 echo ""
 

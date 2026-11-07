@@ -49,9 +49,9 @@ Workflows are **mandatory** deployment artifacts; there are no settings, environ
 # Directly validate workflow definition files (without starting services)
 PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/default.json
 
-# Check workflow DB schema tables and versions
+# Check workflow DB schema tables (the legacy marker tables schema_migrations
+# and workflow_schema_version must be absent)
 sqlite3 <workflow_db_path> ".tables"
-sqlite3 <workflow_db_path> "SELECT * FROM workflow_schema_version ORDER BY applied_at DESC;"
 ```
 
 ### Common Failures and Responses
@@ -86,11 +86,11 @@ sqlite3 <workflow_db_path> "SELECT * FROM workflow_schema_version ORDER BY appli
 
 **Response:** Re-run the deployment scripts.
 
-#### Schema Version Mismatch
+#### Legacy Migration Marker Refusal
 
-**Symptom:** Agent startup or deployment scripts report `Workflow schema version mismatch: expected <X>, found <Y>`.
+**Symptom:** Agent startup reports `Legacy migration marker table(s) present: <tables>` followed by "The database does not match the current schema. Automatic migration and version stamping are not supported." `init_db.sh` reports `[FATAL] workflow.sqlite carries legacy migration marker table(s) and does not match the current schema.`
 
-**Response:** Re-run the deployment scripts to apply migrations.
+**Response:** Stop the service, archive the existing database if required, remove or rename it, and create a new database using the current schema. No migration is attempted; the refused file is never modified in place.
 
 #### Workflow Definition Updates Require Restart
 

@@ -40,16 +40,6 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
     offset               INTEGER NOT NULL DEFAULT 0
 );
 
--- Forward-only migration ledger (REQ-006): records each applied migration id and
--- the version range it moved. New databases get this table here; existing
--- databases receive it through the eventbus registry's bootstrap step.
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    id               TEXT    PRIMARY KEY,
-    applied_at       TEXT,
-    from_version     INTEGER,
-    to_version       INTEGER
-);
-
 -- DLQ promotion outbox (dlqbox001): durable generation record for DLQ->replay
 -- promotion requests. The worker consumes 'pending' rows ordered by next_attempt_at;
 -- 'done' rows are retained as the durable generation record for reconciliation.
@@ -69,6 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_dlq_outbox_status
     ON dlq_outbox(status, next_attempt_at);
 
 -- Schema version of this DDL. Bump it whenever the schema changes in a way that
--- requires recreating the database; open_db() refuses a database stamped otherwise.
--- Existing databases upgrade only through the eventbus registry's registered steps.
+-- requires recreating the database; open_db() refuses a database stamped otherwise,
+-- including unstamped (user_version 0) ones: automatic migration and version
+-- stamping are not supported, the operator archives and recreates.
 PRAGMA user_version = 6;
