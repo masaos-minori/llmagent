@@ -84,7 +84,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `skills/plan-to-implementation-procedure/workflow.md` | Modify | Add the archive-order rule: this workflow archives the Plan only, never the procedures. | `REQ-001` | Exists; archives the Plan in its own Step 7 (verified in Step 3) | None | Verified |
+| `skills/plan-to-implementation-procedure/workflow.md` | Modify | Add the archive-order rule: this workflow archives the Plan only, never the procedures. | `REQ-001` | Exists; archives the Plan in its own Step 4 (verified in Step 3) | None | Verified |
 | `skills/code-implementation/workflow.md` | Modify | State that only Step 7 (archival move) moves a procedure to `implementations/done/`. | `REQ-001` | Exists; Step 7 performs the archival move (verified in Step 3) | None | Verified |
 | `routing.md` | Modify | Add to the "Document workflow directories" table a note that `implementations/done/` holds only executed procedures and who archives them. | `REQ-001` | Line 171 documents `implementations/done/` as consumed by `prompts/03_implementation.md` (verified in Step 3) | None | Verified |
 | `tools/manage_workitem_stage.py` | Modify | Add a read-only `detect-unexecuted-archive` subcommand (or equivalent) implementing `REQ-002`. | `REQ-002` | Exists; already owns `detect-stale` (mtime-based, lines 786-799) and the `close-implementation` refusal (lines 401-435); no archive-date detector exists (verified in Step 3) | `tests/tools/test_manage_workitem_stage.py` | Verified |
@@ -262,9 +262,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | State the archive-order rule in the two workflow files and `routing.md` (`REQ-001`) | Pending | — | — | |
-| 2 | Add the read-only archive-date detector to `manage_workitem_stage.py` and test it (`REQ-002`) | Pending | — | — | |
-| 3 | Implement the `REQ-003` decision and run the full tool validation sequence | Pending | — | — | |
+| 1 | State the archive-order rule in the two workflow files and `routing.md` (`REQ-001`) | In Progress | — | — | Procedures generated this cycle (docs 01-03); awaiting code-implementation |
+| 2 | Add the read-only archive-date detector to `manage_workitem_stage.py` and test it (`REQ-002`) | In Progress | — | — | Procedures generated this cycle (docs 04-05); awaiting code-implementation |
+| 3 | Implement the `REQ-003` decision and run the full tool validation sequence | In Progress | — | — | Procedure generated this cycle (doc 06); awaiting code-implementation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -274,7 +274,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261107-125900_01_skills_plan-to-implementation-procedure_workflow.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-125900_02_skills_code-implementation_workflow.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-125900_03_routing.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261107-125900_04_tools_manage_workitem_stage_py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-125900_05_tests_tools_test_manage_workitem_stage_py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261107-125900_06_tools_plan_dependency_order_py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -297,3 +302,4 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-002 | Required Changes; Unresolved Questions | `tools/manage_workitem_stage.py` | 2 | REQ-002 | Detector temp-repo test; regression; smoke on live `done/` | Confirmed by repository evidence |
 | REQ-002 | Required Changes; Unresolved Questions | `tests/tools/test_manage_workitem_stage.py` | 2 | REQ-002 | Detector temp-repo test | Confirmed by repository evidence |
 | REQ-003 | Required Changes | `tools/plan_dependency_order.py` | 3 | REQ-003 | plan-dependency-order readiness test | Derived from confirmed evidence |
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261107-125900 -->
