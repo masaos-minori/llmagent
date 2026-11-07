@@ -1,0 +1,150 @@
+## Goal
+Route `mcp_dedup` config through the project's shared config-directory resolver and cache its load: no CWD-relative default path, no hardcoded fallback DB path outside the `[paths]` convention, and no synchronous TOML re-read on every turn.
+
+## Priority
+Medium
+
+## Scope
+- **In-Scope**:
+  - `scripts/shared/mcp_dedup.py` — `DEFAULT_CONFIG_PATH` resolved via `resolve_config_dir()` (`config/mcp_dedup.toml` under the resolver-managed directory); `DEFAULT_DB_PATH` fallback sourced from the `[paths]` config convention; module-level cached load keyed by resolved path (invalidatable for tests).
+  - `scripts/agent/workflow/workflow_engine.py` — call site (L165) unchanged in shape (still `load_dedup_config()`), now hitting the cache.
+  - Tests: resolver-path behavior (`LLMAGENT_CONFIG_DIR` honored), cache behavior (second call performs no file read), fail-open contract preserved.
+  - Docs: dedup config location and caching contract (`docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md`, deployment docs config-mirroring note).
+- **Out-of-Scope**:
+  - Changing dedup semantics (retention days, timeout values, retry classes).
+  - Async file reading (`anyio.to_thread`) — caching removes the per-turn hot-path read, which is the issue; making the cold read async is not needed.
+  - The dispatcher's own startup config consumption pattern beyond the shared loader (`scripts/mcp_servers/dispatch.py:183` benefits from the same cache automatically).
+- **Dependencies**: None blocking. Independent of the recovery/status cluster.
+
+## Background
+`scripts/shared/mcp_dedup.py:29-30` hardcodes `DEFAULT_CONFIG_PATH = Path("config/mcp_dedup.toml")` (CWD-relative) and `DEFAULT_DB_PATH = "/opt/llm/db/mcp_dedup.sqlite"`, while every other config consumer resolves through `resolve_config_dir()` / `LLMAGENT_CONFIG_DIR` (`scripts/shared/config_loader.py:75`, `scripts/shared/execution_snapshot.py:159`, `scripts/shared/runtime_paths.py:51`). `WorkflowEngine.build_turn_control_message` calls `load_dedup_config()` per turn-execution attempt (`workflow_engine.py:165`) — a blocking TOML parse + file read on the turn path (synchronous `def` called from the async turn flow; corrected mechanism in validation). Today it works only because services start at the production root (both `config/mcp_dedup.toml` and `/opt/llm/config/mcp_dedup.toml` exist). The engine's per-turn catch (L166-170) already degrades on config errors. Verified in the issue's `## Adversarial Validation`.
+
+## Problem
+A config consumer outside the resolver convention silently depends on the process CWD; any launch from a different directory turns every turn's dedup classification into a `ConfigMissingError` (degraded, logged, no control message). And the hot path re-parses the same TOML every turn.
+
+## Reason for Change
+Every other config path in the project flows through the resolver; this is the last outlier (issue's census). Caching converts an N-times-per-session file read into one, and the resolver move makes the config location an environment fact rather than a launch-directory accident.
+
+## Implementation Intent
+Resolve the default path once via `resolve_config_dir()`; read and parse once per resolved path via a module-level cache; source the DB-path fallback from the `[paths]` config section convention; keep every existing error type and the fail-open turn contract unchanged.
+
+## Requirements
+- `REQ-001`: `load_dedup_config()` with no explicit path resolves `config/mcp_dedup.toml` under `resolve_config_dir()` (honors `LLMAGENT_CONFIG_DIR`); explicit-path callers keep working unchanged.
+- `REQ-002`: A successful load for a resolved path is cached; subsequent calls return the cached `DedupConfig` without touching the filesystem (test proves via file deletion/mtime change after first load).
+- `REQ-003`: The DB-path default flows from the same `[paths]` convention as other databases; when `[paths]` lacks the key, behavior matches today's production path value (no new failure mode).
+- `REQ-004`: Error contract unchanged: missing file -> `ConfigMissingError`, bad values -> `ConfigParseError` (typed errors preserved), and a failed load on the turn path still degrades per the documented catch (`workflow_engine.py:166-170`).
+- `REQ-005`: A cache-invalidation seam exists for tests (explicit-path loads bypass the cache, or a `clear_dedup_config_cache()` helper); tests pin `REQ-001`-`REQ-004`.
+
+## Implementation Target Files
+**Freeze status**: Draft
+
+| File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
+|---|---|---|---|---|---|---|
+| `scripts/shared/mcp_dedup.py` | Modify | Resolver-based default path (L29); `[paths]`-sourced DB default (L30); module-level cache with invalidation seam | `REQ-001`-`REQ-003`/`REQ-005` | Hardcoded constants verified (Step 2) | `tests/shared/` dedup tests | `Verified` |
+| `scripts/agent/workflow/workflow_engine.py` | Reference | Confirmed no-change at the call site (L165) — behavior change comes from the cached loader | `REQ-004` | Call site verified | `tests/agent/workflow/` turn-control tests | `Verified` |
+| `scripts/mcp_servers/dispatch.py` | Reference | Confirmed no-change (L183 startup-time load) — benefits from cache, no contract change | `REQ-002` | Call site verified | dispatcher tests | `Verified` |
+| `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` | Modify | Config-location and caching contract statement | `REQ-001`/`REQ-002` | Doc covers the dedup store | docs checkers | `Verified` |
+
+## Reference Files
+| File Path | Why It Must Be Read | Related Target File or Requirement |
+|---|---|---|
+| `scripts/shared/runtime_paths.py` | `resolve_config_dir` semantics (`LLMAGENT_CONFIG_DIR`, default) — must match other consumers exactly | `REQ-001` |
+| `scripts/shared/config_loader.py` | `[paths]` section access pattern for the DB-path convention | `REQ-003` |
+| `scripts/agent/workflow/workflow_engine.py` (L160-176) | The fail-open contract the change must preserve | `REQ-004` |
+| `config/mcp_dedup.toml` + `/opt/llm/config/mcp_dedup.toml` | Verify both trees resolve identically after the move | Validation plan |
+
+## Acceptance Criteria
+- `REQ-001`: Test with `LLMAGENT_CONFIG_DIR` pointed at a tmp config dir: `load_dedup_config()` finds the file there; on HEAD the CWD-relative default would miss it.
+- `REQ-002`: After the first successful load, deleting the config file and calling again returns the cached config (no `ConfigMissingError`).
+- `REQ-003`: DB path resolution: `[paths]`-configured value used; absent key falls back to the production value; a test compares the resolved path against today's constant.
+- `REQ-004`: Turn-control degradation test: a broken config on the turn path logs and proceeds (existing behavior preserved).
+- `REQ-005`: Full `tests/shared/ tests/agent/workflow/` green; no config value semantics changed.
+
+## Tests
+- Resolver-honor test (env var), explicit-path bypass test.
+- Cache hit/invalidation tests (seam-driven).
+- Regression: existing dedup config value tests unchanged; engine turn-control fail-open tests unchanged.
+
+## Documentation Impact
+- `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` — config path resolution + one-load-per-process contract.
+- Check `docs/90_deployment` for `config/mcp_dedup.toml` location statements; align if present.
+- Run docs checkers for domains db/deployment as applicable per `routing.md`.
+
+## Assumptions
+- Config file location in both dev and production trees is already the resolver-managed directory (`resolve_config_dir()` default resolves to the production config dir the same way other consumers use it — verified: both files exist at `config/` under repo root and `/opt/llm/config/`).
+- A process-lifetime cache is acceptable: config changes require a service restart, matching every other config consumer in the project.
+
+## Unknowns
+| ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
+|---|---|---|---|---|
+| `UNK-01` | whether the `[paths]` section currently has (or should gain) a dedicated key for the dedup DB, or reuse of the existing db-dir key | config schema decision | inspect `config/*.toml` `[paths]` at implementation; prefer reuse of the existing db-dir convention | `False` |
+
+## Affected areas
+| File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
+|---|---|---|---|---|---|
+| `scripts/shared/mcp_dedup.py` | Modify | agent turn path + dispatcher service | 1 | N/A | not applicable (rsynced) |
+| docs (1-2 files) | Modify | docs only | N/A | N/A | not applicable |
+
+## Design
+**Resolve once, cache per resolved path.** `load_dedup_config(path=None)` resolves the default via `resolve_config_dir()` only when no explicit path is passed; a module-level `dict[Path, DedupConfig]` caches results. Explicit-path calls (tests) bypass or key separately — no cache-poisoning between test fixtures. Invalidation seam: a `clear_dedup_config_cache()` function (chosen over mtime checks: simpler, and restart-based reload matches project convention).
+
+**DB path via [paths].** The default DB path becomes `resolve_db_dir()/mcp_dedup.sqlite` (or the `[paths]` key equivalent — `UNK-01`), falling back to the same literal today's constant holds, so no deployed database path changes.
+
+**Fail-open preserved.** No exception-type changes: the engine catch (L166-170) keeps degrading on config failure; the cache only removes repeat reads, it does not swallow first-load errors.
+
+## Implementation steps
+1. **Phase 1: Resolver + cache (`REQ-001`, `REQ-002`, `REQ-005`).** Path resolution, cache + seam, tests.
+2. **Phase 2: DB-path convention (`REQ-003`).** `[paths]` wiring with fallback equality test.
+3. **Phase 3: Docs.** Location/caching contract; docs checkers.
+
+### Release units
+**Unit**: wfaudit011-full | **Phases**: 1, 2, 3 | **Reason**: path resolution and caching are the same loader change; docs mirror it.
+
+## Validation plan
+- `uv run pytest tests/shared/ tests/agent/workflow/ -q` after each phase; full `uv run pytest tests/ -q` before completion.
+- New resolver test fails on HEAD (CWD-relative miss), cache test fails on HEAD (second read observed).
+- Deploy check: after restart, agent log shows no dedup config errors; dispatcher service starts cleanly.
+- Lint/type gates per `rules/toolchain.md`; docs checkers after Phase 3.
+
+## Risks
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| Cache hides a config edit made while the service runs | Medium | Low (restart required — matches project convention) | Documented contract in docs row; seam available for tooling |
+| Resolver default resolves to a different directory than today's CWD-relative default on some launch path | Low | Medium (missing config -> degraded turns, logged) | Deploy verification step compares resolved path against the existing file on both trees before rollout |
+| Dispatcher and agent cache the same file with different explicit paths | Low | Low | Cache keyed by resolved absolute path |
+
+## Execution Status
+### Execution Status
+| Work Item | Status | Owner | Started | Completed | Notes |
+|---|---|---|---|---|---|
+| Phase 1: resolver + cache | Planned | engineer | | | |
+| Phase 2: DB-path convention | Planned | engineer | | | |
+| Phase 3: docs | Planned | engineer | | | |
+
+### Blocker Log
+| Date | Blocker | Status | Resolution |
+|---|---|---|---|
+
+### Work Items Created
+| Work Item | Type | Link | Created |
+|---|---|---|---|
+
+## Traceability
+- **Workflow phase**: issue-to-plan
+- **Source issue**: `issues/20261107-203224_wfaudit011_dedup-config-path-boundary.md`
+- **Source requirement**: N/A: the issue is the requirement source
+- **Source plan**: N/A: this document is the plan
+- **Generated at**: 20261108-084012
+- **Related target files**: see Implementation Target Files table
+
+### Requirement Traceability
+| Requirement | Source | Target File | Acceptance Criterion | Test |
+|---|---|---|---|---|
+| `REQ-001` | Issue Problem (CWD-relative path) | `scripts/shared/mcp_dedup.py` | resolver honored | env-var test |
+| `REQ-002` | Issue Problem (per-turn re-read) | same | one load per path | cache tests |
+| `REQ-003` | Issue Problem (hardcoded DB path) | same | `[paths]` convention | equality test |
+| `REQ-004` | Issue constraint (fail-open) | engine contract preserved | degradation unchanged | regression tests |
+| `REQ-005` | Issue Testing Expectations | tests | fail on HEAD | pytest |
+
+## Notes
+- Source verified against HEAD `926dbc109`; the `async def` mechanism in the issue was corrected during validation (sync `def` called from async turn flow — see the issue's `## Adversarial Validation`).
