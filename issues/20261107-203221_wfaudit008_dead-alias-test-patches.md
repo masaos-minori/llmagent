@@ -73,3 +73,12 @@ Do the test retargeting first and get the suite green before deleting anything. 
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203221
 - **Related target files**: scripts/agent/workflow_engine_adapter.py, tests/agent/test_orchestrator.py, tests/integration/test_orchestrator_integration.py
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- Alias block confirmed: `init_workflow_task` / `activate_workflow` / `deactivate_workflow` / `handle_workflow_halt` in `scripts/agent/workflow_engine_adapter.py:108-146`, each documented "Backward-compatible alias for ..." and delegating to the private method. — Evidence: `Verified by test` — Confidence: High
+- Claim corrected: production does NOT use private methods exclusively — `scripts/agent/orchestrator.py:200` calls the public `deactivate_workflow` alias. That alias has one live production caller and is not dead. The dead aliases are `init_workflow_task`, `activate_workflow`, `handle_workflow_halt` (zero callers outside the adapter's own alias block; grep across scripts/ and tests/). — Evidence: `Verified by test` (grep) — Confidence: High
+- Halt-alias return-drop claim is stale: `_handle_workflow_halt` itself returns `None` (`workflow_engine_adapter.py:343-349`), so the alias drops nothing today. The claim likely referred to an earlier revision where the halt handler returned a status. — Evidence: `Verified by test` — Confidence: High
+- Inert test patches confirmed: `tests/agent/test_orchestrator.py` patches public names at 10 locations (e.g. L315-316, 344-345, 2758-2759, 2801-2802); production turn flow calls `_activate_workflow`/`_init_workflow_task` (`workflow_engine_adapter.py:168-171`), so `activate_workflow`/`init_workflow_task` patches intercept nothing, while `deactivate_workflow` patches do intercept the real orchestrator call. Retargeting must keep the `deactivate_workflow` patches live. — Evidence: `Verified by test` — Confidence: High
