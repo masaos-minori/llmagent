@@ -116,9 +116,9 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit `rules/toolchain.md` shorthand to module form (REQ-001) | Pending | — | — | |
-| 2 | Edit `tools/TOOL_DESCRIPTIONS.md` caller cells (REQ-002) | Pending | — | — | |
-| 3 | Validate documented forms still run (AC-001/AC-002/AC-003) | Pending | — | — | |
+| 1 | Edit `rules/toolchain.md` shorthand to module form (REQ-001) | In Progress | — | — |  |
+| 2 | Edit `tools/TOOL_DESCRIPTIONS.md` caller cells (REQ-002) | In Progress | — | — |  |
+| 3 | Validate documented forms still run (AC-001/AC-002/AC-003) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -128,7 +128,8 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261107-180341_01_rules_toolchain.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261107-180341_02_tools_TOOL_DESCRIPTIONS.md.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -141,3 +142,5 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261107-180341 -->

@@ -129,9 +129,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit `rules/workflow-lifecycle.md` amendment classes to decided policy (REQ-001) | Pending | — | — | |
-| 2 | Add single-directory batch full-suite exception to `skills/code-implementation/workflow.md` (REQ-002) | Pending | — | — | |
-| 3 | Validate with skills checkers and `amend_plan.py --help` (AC-001/AC-002/AC-003) | Pending | — | — | |
+| 1 | Edit `rules/workflow-lifecycle.md` amendment classes to decided policy (REQ-001) | In Progress | — | — |  |
+| 2 | Add single-directory batch full-suite exception to `skills/code-implementation/workflow.md` (REQ-002) | In Progress | — | — |  |
+| 3 | Validate with skills checkers and `amend_plan.py --help` (AC-001/AC-002/AC-003) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -141,7 +141,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261107-180725_01_rules_workflow-lifecycle.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261107-180725_02_skills_code-implementation_workflow.md.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -154,3 +155,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261107-180725 -->
