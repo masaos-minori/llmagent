@@ -77,3 +77,12 @@ Do not fork a second config-resolution path for dedup — reuse the shared resol
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203224
 - **Related target files**: scripts/shared/mcp_dedup.py, scripts/agent/workflow/workflow_engine.py, scripts/mcp_servers/dispatch.py, config/mcp_dedup.toml
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- CWD-relative default confirmed: `DEFAULT_CONFIG_PATH = Path("config/mcp_dedup.toml")` and hardcoded `DEFAULT_DB_PATH = "/opt/llm/db/mcp_dedup.sqlite"` (`scripts/shared/mcp_dedup.py:29-30`); the module never imports `resolve_config_dir`, which every other config consumer uses (`scripts/shared/config_loader.py:75`, `scripts/shared/execution_snapshot.py:159`, `shared/runtime_paths.py:51`). — Evidence: `Verified by test` — Confidence: High
+- Per-turn re-read confirmed with one location correction: the call site is `WorkflowEngine.build_turn_control_message` (`scripts/agent/workflow/workflow_engine.py:165`, `load_dedup_config()` inside the per-turn stale-pending classification). `build_turn_control_message` is a plain `def`, not `async def` — the blocking TOML read happens synchronously on the event-loop thread when the async turn path calls it, which strengthens rather than weakens the issue's concern. — Evidence: `Verified by test` — Confidence: High
+- Config file exists in both trees (`config/mcp_dedup.toml` and `/opt/llm/config/mcp_dedup.toml`), so today's behavior only works because services start from the production root, as the issue states. — Evidence: `Verified by test` — Confidence: High
+- Fail-open note carried forward: the engine catch at `workflow_engine.py:166-170` already swallows config errors per turn ("turn availability beats replay accuracy"), so moving to a resolver-managed path must not change that contract — a missing resolved config must keep the documented degraded behavior. — Evidence: `Verified by test` — Confidence: High
