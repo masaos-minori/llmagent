@@ -72,7 +72,6 @@ the embedding service (REQ-001, REQ-002).
 
 - `_split_overlong` (new) operates on raw characters only (no tokenizer, no language
   model), so it is correct for any source language (REQ-002).
-  it is correct for any source language (REQ-002).
 - The hard-character fallback guarantees forward progress because the window width
   `max_chunk` is positive; a non-empty `item` always yields at least one chunk.
 - After the split, `buf` is empty, so the post-loop tail handling
@@ -135,10 +134,10 @@ N/A: revert the single commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion `tests/rag/ingestion/test_chunk_utils.py` added in same change set |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes diff-cover ≥ 90% |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261107-104500 | 20261107-105129 | Change applied: _split_overlong helper added (module level) + else branch caps over-long item. Static gates pass (ruff format/check, mypy 564 files, lint-imports 6 contracts, bandit -ll clean). |
+| 2 | Add or update tests per Validation plan | Completed | 20261107-104800 | 20261107-105129 | Companion `tests/rag/ingestion/test_chunk_utils.py` added in same change set Companion test test_oversized_single_item_capped added; targeted impact-based run 1545 passed / 1896 deselected. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261107-111000 | 20261107-112145 | Includes diff-cover ≥ 90% Full suite 11899 passed / 11 skipped; diff-cover 100% on chunk_utils.py (>=90%). All static gates pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261107-105130 | 20261107-105130 | N/A: no docs/00_index.md task-scope mapping for scripts/rag/ingestion/chunk_utils.py (only chunk_splitter.py has a row). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

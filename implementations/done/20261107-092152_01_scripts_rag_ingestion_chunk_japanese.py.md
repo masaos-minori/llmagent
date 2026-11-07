@@ -144,10 +144,10 @@ N/A: revert the single commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion `tests/rag/ingestion/test_chunk_splitter.py` added in same change set |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes diff-cover ≥ 90% |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261107-113000 | 20261107-113506 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261107-113000 | 20261107-113506 | Companion `tests/rag/ingestion/test_chunk_splitter.py` added in same change set Companion test TestJapaneseMergeRetention::test_short_lead_before_oversized_is_retained added to tests/rag/ingestion/test_chunk_splitter.py; RED->GREEN. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261107-113010 | 20261107-114801 | Includes diff-cover ≥ 90% Full suite 11901 passed / 11 skipped; diff-cover 100% on chunk_utils.py (>=90%). chunk_japanese.py is pyproject-omitted from coverage; new retain branch directly covered by TestJapaneseMergeRetention. Static gates clean. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261107-114816 | 20261107-114816 | N/A: no docs/00_index.md task-scope mapping for scripts/rag/ingestion/chunk_japanese.py (not in the Document References by Task table); Step 6 skipped. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

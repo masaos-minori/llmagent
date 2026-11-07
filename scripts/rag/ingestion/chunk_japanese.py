@@ -91,7 +91,11 @@ class ChunkJapaneseMixin:
             elif len(self._orig_buf) >= self._min_chunk:
                 self._emit_and_start_new(result, orig, norm_str)
             else:
-                self._reset_buffer(orig, norm_str)
+                # Retain the short (< min_chunk) buffer instead of dropping it: emit it
+                # as its own chunk, then start a fresh buffer from this sentence.
+                result.append((self._orig_buf, self._norm_buf or None))
+                self._orig_buf = orig
+                self._norm_buf = norm_str
         if not self._orig_buf:
             return result
         if len(self._orig_buf) >= self._min_chunk:

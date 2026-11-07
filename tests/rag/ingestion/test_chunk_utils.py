@@ -88,3 +88,19 @@ class TestMergeTextItems:
         )
         for chunk in result[:-1]:
             assert len(chunk) <= max_c + 10
+
+    def test_oversized_single_item_capped(self) -> None:
+        long_item = "word " * 40
+        result = merge_text_items(
+            [long_item], " ", min_chunk=1, max_chunk=50, chunk_overlap=0
+        )
+        assert len(result) >= 2
+        assert all(len(chunk) <= 50 for chunk in result)
+        assert "".join(result) == long_item
+
+    def test_item_at_max_chunk_emitted_unchanged(self) -> None:
+        item = "a" * 50
+        result = merge_text_items(
+            [item], " ", min_chunk=1, max_chunk=50, chunk_overlap=0
+        )
+        assert result == [item]

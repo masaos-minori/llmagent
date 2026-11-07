@@ -17,6 +17,29 @@ def start_next_buf(prev: str, next_item: str, sep: str, chunk_overlap: int) -> s
     return (overlap + sep + next_item).strip() if overlap else next_item
 
 
+def _split_overlong(item: str, sep: str, max_chunk: int) -> list[str]:
+    """Split one item longer than max_chunk into chunks each within max_chunk.
+
+    Greedy fill: within each max_chunk window break at the last space or newline,
+    otherwise hard-cut at max_chunk. The concatenation of the returned chunks
+    reproduces item exactly. Raw character slicing only, so language-independent.
+    """
+    chunks: list[str] = []
+    start = 0
+    end = len(item)
+    while start < end:
+        window_end = min(start + max_chunk, end)
+        if window_end == end:
+            chunks.append(item[start:])
+            break
+        window = item[start:window_end]
+        gap = max(window.rfind(" "), window.rfind("\n"))
+        cut = start + gap + 1 if gap >= 0 else window_end
+        chunks.append(item[start:cut])
+        start = cut
+    return chunks
+
+
 def merge_text_items(
     items: list[str],
     sep: str,
@@ -40,7 +63,11 @@ def merge_text_items(
             result.append(buf)
             buf = start_next_buf(buf, item, sep, chunk_overlap)
         else:
-            buf = item
+            if len(item) > max_chunk:
+                result.extend(_split_overlong(item, sep, max_chunk))
+                buf = ""
+            else:
+                buf = item
     if not buf:
         return result
     if len(buf) >= min_chunk:

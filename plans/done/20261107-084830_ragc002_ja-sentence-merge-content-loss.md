@@ -223,8 +223,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Retain short buffer in `_merge_ja_sentence_pairs` (`chunk_japanese.py`) | In Progress | — | — |  |
-| 2 | Unit + regression tests (`test_chunk_splitter.py`) | In Progress | — | — |  |
+| 1 | Retain short buffer in `_merge_ja_sentence_pairs` (`chunk_japanese.py`) | Completed | — | 20261107-115104 |  |
+| 2 | Unit + regression tests (`test_chunk_splitter.py`) | Completed | — | 20261107-115105 |  |
 | 3 | Deployment & verification (gates + diff-cover) | Pending | — | — |  |
 
 ### Blocker Log
@@ -235,7 +235,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|--------|----------|
-| `implementations/20261107-092152_01_scripts_rag_ingestion_chunk_japanese.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261107-092152_01_scripts_rag_ingestion_chunk_japanese.py.md` | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

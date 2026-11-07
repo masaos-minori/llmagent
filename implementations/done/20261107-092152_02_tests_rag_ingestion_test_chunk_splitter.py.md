@@ -110,10 +110,10 @@ N/A: revert the single commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document IS the test addition |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261107-112500 | 20261107-112757 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261107-112500 | 20261107-112757 | This document IS the test addition This document IS the test addition (TestCodeChunkSizeBound). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | In Progress | 20261107-112757 | — |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261107-112828 | 20261107-112828 | N/A: test-only addition; no source/docs changed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

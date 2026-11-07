@@ -76,6 +76,19 @@ class TestIsMarkdownSource:
         assert splitter._is_markdown_source(doc) is False
 
 
+class TestCodeChunkSizeBound:
+    def test_long_single_line_code_block_capped_to_max_chunk(self) -> None:
+        splitter = _make_splitter()
+        splitter._min_chunk = 40
+        splitter._max_chunk = 500
+        splitter._chunk_overlap = 50
+        code = "x" * 1200
+        chunks = splitter._chunk_code(code)
+        assert len(chunks) >= 2
+        assert all(len(chunk) <= splitter._max_chunk for chunk in chunks)
+        assert "".join(chunks) == code
+
+
 # ── Helpers for Japanese chunk overlap characterization ───────────────────────
 
 
@@ -272,6 +285,28 @@ class TestJapaneseMergeRegression:
         assert len(chunks) == 2
         assert chunks[1][0] == "い" * 12 + " うう"
         assert chunks[1][1] == "い" * 12 + " うう"
+
+
+# ── TestJapaneseMergeRetention (ragc002 REQ-001 / REQ-002) ─────────────────────
+
+
+class TestJapaneseMergeRetention:
+    """_merge_ja_sentence_pairs must never drop a short sentence that precedes an
+    oversized next sentence (ragc002)."""
+
+    def test_short_lead_before_oversized_is_retained(self) -> None:
+        mixin = _make_ja_mixin(_max_chunk=500, _min_chunk=40, _chunk_overlap=50)
+        lead = "l" * 30
+        sentence = "s" * 480
+        pairs = [(lead, None), (sentence, None)]
+        chunks = mixin._merge_ja_sentence_pairs(pairs)
+        originals = [o for o, _ in chunks]
+        assert lead in originals
+        assert sentence in originals
+        # No source text dropped: every input original appears in output.
+        assert "".join(o for o, _ in pairs) == "".join(originals)
+        # None-normalized COALESCE fallback preserved for both chunks.
+        assert all(n is None for _, n in chunks)
 
 
 # ── Helpers for fetched_at propagation tests ───────────────────────────────────
