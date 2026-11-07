@@ -91,3 +91,28 @@ Do not rewrite the pipeline and do not change the float32/4096-byte storage cont
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261107-203511
 - **Related target files**: `scripts/rag/stages/search.py`, `scripts/rag/stage_lifecycle.py`, `scripts/rag/repository.py`, `scripts/rag/utils.py`, `scripts/rag/llm_client.py`
+
+## Adversarial Validation
+
+Validated against current source on 2026-11-08 (issue-to-plan Step 2 cycle).
+
+- Packing behavior confirmed live in the project venv: `math.isfinite(1e300)` is `True`, `struct.pack('<f', 1e300)` raises `OverflowError` ("float too large to pack with f format"), and `orjson.loads('{"a":1e300}')` yields the finite double `1e+300`. — Evidence: `Verified by test` — Confidence: High
+- `floats_to_blob` confirmed: `_validate_float_list` raises `ValueError` on non-finite elements (`scripts/rag/utils.py:128-131`), but the pack wrapper catches only `struct.error` (`utils.py:97-101`), so the out-of-range `OverflowError` propagates uncaught. Correction found: the `floats_to_blob` docstring (`utils.py:94`) documents out-of-range values as raising `struct.error` — the docstring is inaccurate against live CPython behavior; the issue's claim is the accurate one. — Evidence: `Explicit in code` + live test — Confidence: High
+- `RagRepository.vector_search` confirmed unguarded: it inlines `floats_to_blob(embedding)` inside `_execute_with_timing` (`scripts/rag/repository.py:172-174`). — Evidence: `Explicit in code` — Confidence: High
+- Search-stage escape confirmed: `_search_all_queries` wraps `repo.vector_search` and `repo.fts_search` in `except (sqlite3.OperationalError, RuntimeError)` only (`scripts/rag/stages/search.py:59-68`); an `OverflowError` escapes, and because both searches share one `try`, the FTS search for that query is skipped too. — Evidence: `Explicit in code` — Confidence: High
+- Lifecycle escape confirmed: `_run_stage` catches `RuntimeError`, `sqlite3.OperationalError`, `httpx.HTTPStatusError`, `httpx.RequestError`, `TimeoutError` (`scripts/rag/stage_lifecycle.py:75-81`); neither `OverflowError` nor `struct.error` is listed. — Evidence: `Explicit in code` — Confidence: High
+- Boundary mapping discovered: `get_embedding` (`scripts/rag/llm_client.py:266-285`) validates only list-ness/non-emptiness — no magnitude check — but a `ValueError` it raises is already recorded as `embed_failed` because `_search_all_queries` gathers embeddings with `return_exceptions=True` (`search.py:40-42,50-52`). Sanitizing at `get_embedding` therefore maps directly onto the existing degraded contract with no search-stage change. — Evidence: `Explicit in code` — Confidence: High
+- Ingestion-path nuance: ingestion's own `get_embedding` wrapper already maps `ValueError` to `None` -> `EMBEDDING_FAILED` (`scripts/rag/ingestion/embedding.py:56-68,103`), but the pack step `floats_to_blob(embedding)` at `embedding.py:109` is outside any handler, so the same provider-supplied out-of-range value also crashes the ingestion pack step today. The issue places ingestion validation out of scope; recorded here as a known adjacent gap. — Evidence: `Explicit in code` — Confidence: High
+- Adjacent duplicate found: `scripts/agent/memory/mapper.py:35` defines its own `_floats_to_blob` copy with the same overflow pattern (used by `write_ops.py:54`, `retriever.py:159`). Out of scope for this query-path issue; candidate follow-up. — Evidence: `Explicit in code` — Confidence: High
+- Test-coverage gap confirmed: `tests/rag/test_rag_utils.py` pins empty/non-list/non-numeric/NaN cases (lines 56-72) but has no out-of-range case; search-stage degraded behavior is exercised in `tests/rag/test_rag_stages.py` / `tests/rag/test_rag_pipeline.py`. — Evidence: `Explicit in code` — Confidence: High
+- Dependency claim confirmed: `issues/done/20261104-143443_ragverify001_complete-fail-closed-rag-consistency.md` checks stored row byte-length/dimension (`scripts/db/rag_consistency.py:101,356`), not query-time magnitude — the two do not overlap. No open `plans/*.md` and no open issue touches `scripts/rag/stages/search.py`, `scripts/rag/utils.py`, or `scripts/rag/llm_client.py` (churn 0-1 commits/30d across the five target files). — Evidence: `Operationally observed` (grep) — Confidence: High
+
+Verdict: accepted; all factual claims confirmed (one live-repro re-run), one correction added (the `floats_to_blob` docstring itself misdocuments the out-of-range exception type), two adjacent gaps recorded out of scope (ingestion pack step, `agent/memory` duplicate).
+
+## Content Analysis
+
+- Type: availability fix at a trust boundary — turn an uncaught `OverflowError` from float32 packing into the pipeline's existing degraded-search contract.
+- Pipeline path: issue -> plan -> implementation procedure -> code and tests.
+- Owner: engineer (RAG query pipeline); the two open design questions (boundary ownership, degrade vs fail-closed) are resolvable from existing conventions: `embed_failed` already defines degraded handling for embedding failures, so sanitize-at-entry + degrade is the convention-consistent choice.
+- Scope: `scripts/rag/llm_client.py` (primary boundary), `scripts/rag/utils.py` (typed pack validation + docstring correction), `scripts/rag/stages/search.py` (backstop handler only), tests; `scripts/rag/repository.py` and `scripts/rag/stage_lifecycle.py` verified as no-change files (the escape is fully contained once the two boundaries are added).
+- Dependency: distinct from archived ragverify001; no ordering with any open issue or plan.
