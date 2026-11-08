@@ -410,6 +410,23 @@ async def dispatch_tool(
                     ),
                     "record-pending",
                 )
+        else:
+            # Init failure / disabled: reconcile with the
+            # lookup-failure asymmetry (REQ-001/REQ-002/REQ-003).
+            # Non-retryable tools fail closed; retryable tools
+            # degrade to overlay-only store_error.
+            try:
+                is_retryable = retry_class(name) == "retryable"
+            except Exception:  # noqa: BLE001 -- default closed on config error
+                is_retryable = False
+            if not is_retryable:
+                return DispatchResult(
+                    output=(f"Dedup store unavailable; call to tool {name!r} refused"),
+                    is_error=True,
+                    error_type="dedup_store_error",
+                    dedup_state="store_error",
+                )
+            dedup_state = "store_error"
 
     try:
         result = await handler(args)

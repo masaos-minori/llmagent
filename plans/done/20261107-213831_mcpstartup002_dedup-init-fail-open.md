@@ -127,9 +127,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Choose the failure mechanism (a fail-closed asymmetry / b startup failure) | Pending | — | — | Open design decision in Design section |
-| 2 | Apply the chosen fix in `dispatch.py` | In Progress | — | — | `_dedup_context` + caller; procedure generated |
-| 3 | Repair the dedup store-failure tests | Pending | — | — | `test_mcp_dispatch.py` (companion of step 2) |
+| 1 | Choose the failure mechanism (a fail-closed asymmetry / b startup failure) | Completed | 20261108-162909 | 20261108-162909 | Open design decision in Design section Approach (a) mirror lookup-failure asymmetry chosen and recorded in Design section. Implementation procedure 20261108-082130 archived. |
+| 2 | Apply the chosen fix in `dispatch.py` | Completed | 20261108-162909 | 20261108-162909 | `_dedup_context` + caller; procedure generated dispatch_tool() init-failure else branch applied; implementation procedure 20261108-082130 archived. |
+| 3 | Repair the dedup store-failure tests | Completed | 20261108-162909 | 20261108-162909 | `test_mcp_dispatch.py` (companion of step 2) test_init_failure_fail_closed_and_degrade added; REQ-004 verified (fails pre-fix, passes post-fix). |
 | 4 | Deployment & verification | Pending | — | — | run validation commands; test fails pre-fix |
 
 ### Blocker Log
@@ -140,7 +140,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261108-082130_01_scripts_mcp_servers_dispatch.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-082130_01_scripts_mcp_servers_dispatch.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

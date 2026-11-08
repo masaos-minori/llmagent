@@ -154,6 +154,7 @@ class TestCallToolEndpoint:
         self,
         client: TestClient,
         fake_service: _FakeService,
+        isolated_dedup,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(

@@ -544,6 +544,61 @@ class TestDurableDedup:
         assert len(calls2) == 0
 
     @pytest.mark.asyncio
+    async def test_init_failure_fail_closed_and_degrade(
+        self, durable: dict, monkeypatch: Any
+    ) -> None:
+        """Store initialization failure (dedup unavailable): non-retryable tools
+        fail closed with dedup_store_error; retryable tools degrade to
+        store_error and proceed overlay-only (REQ-001/REQ-002). Mirrors the
+        lookup-failure test but forces the (None, None) init-failure path."""
+        import shared.mcp_dedup as dedup_mod
+
+        mod = durable["mod"]
+        # Force the (None, None) init-failure path: clear any cached context so
+        # _dedup_context() re-enters init, point load_dedup_config at a valid
+        # config, then make open_dedup_store raise so init fails open.
+        mod._dedup_store = None
+        mod._dedup_config = None
+        mod._dedup_disabled = False
+        monkeypatch.setattr(mod, "load_dedup_config", lambda: durable["config"])
+
+        def _boom(*a: Any, **kw: Any) -> None:
+            raise sqlite3.OperationalError("init failed")
+
+        monkeypatch.setattr(mod, "open_dedup_store", _boom)
+
+        def _cfg(retry: dict[str, str]) -> Any:
+            return replace(durable["config"], retry_class=retry)
+
+        # Retryable tool: degrade to store_error and proceed overlay-only (REQ-002).
+        monkeypatch.setattr(
+            dedup_mod, "load_dedup_config", lambda: _cfg({self.TOOL: "retryable"})
+        )
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert not r.is_error
+        assert r.dedup_state == "store_error"
+        assert len(calls) == 1
+
+        # Non-retryable tool: fail closed (REQ-001).
+        monkeypatch.setattr(dedup_mod, "load_dedup_config", lambda: _cfg({}))
+        calls2: list[int] = []
+        r2 = await dispatch_tool(
+            {self.TOOL: self._handler(calls2)},
+            self.TOOL,
+            {"p": "b"},
+            idempotency_key="k2",
+        )
+        assert r2.is_error
+        assert r2.error_type == "dedup_store_error"
+        assert len(calls2) == 0
+
+    @pytest.mark.asyncio
     async def test_retention_sweep_runs_once_per_process(self, durable: dict) -> None:
         """One opportunistic purge per process (REQ-009)."""
         import time
