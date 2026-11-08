@@ -168,9 +168,9 @@ Run after documents 01-08 of the unit have landed (the unit gate is evaluated on
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend imports; add facade `begin_stage_if_new` and Artifact section `record_artifact` | Pending | — | — | |
-| 2 | Re-signature `recover_stale_attempts` with `db = self._db` binding | Pending | — | — | |
-| 3 | Run the unit validation gates (valid only after documents 01-08 land) | Pending | — | — | |
+| 1 | Extend imports; add facade `begin_stage_if_new` and Artifact section `record_artifact` | Completed | 20261109 | 20261109 | Facade methods landed at L109/L161; covered by end-of-unit suite |
+| 2 | Re-signature `recover_stale_attempts` with `db = self._db` binding | Completed | 20261109 | 20261109 | No-arg form at L222; orchestrator calls it no-arg (L92) |
+| 3 | Run the unit validation gates (valid only after documents 01-08 land) | Completed | 20261109 | 20261109 | End-of-unit suite: 4220 passed, 3 skipped, 0 failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

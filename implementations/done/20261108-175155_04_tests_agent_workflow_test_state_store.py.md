@@ -86,8 +86,8 @@ Run after documents 01-08 have landed (unit gate):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace all argument-carrying call sites with no-argument calls | Pending | — | — | |
-| 2 | Run the unit validation gates (valid only after documents 01-08 land) | Pending | — | — | |
+| 1 | Replace all argument-carrying call sites with no-argument calls | Completed | 20261109 | 20261109 | All 12 sites now no-argument; behavior-preserving |
+| 2 | Run the unit validation gates (valid only after documents 01-08 land) | Completed | 20261109 | 20261109 | End-of-unit suite: 4220 passed, 3 skipped, 0 failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

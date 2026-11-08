@@ -140,7 +140,7 @@ class TestLiveLeaseIsProtected:
             lease_expires_at=_iso_ahead(600),
         )
 
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
 
         assert result == 0
         report = store.last_recovery_report
@@ -165,8 +165,8 @@ class TestExpiredLeaseIsRecovered:
             lease_expires_at=_iso(1),
         )
 
-        first = store.recover_stale_attempts(store.get_connection())
-        second = store.recover_stale_attempts(store.get_connection())
+        first = store.recover_stale_attempts()
+        second = store.recover_stale_attempts()
 
         assert first == 1
         assert second == 0
@@ -193,7 +193,7 @@ class TestExpiredLeaseIsRecovered:
             lease_expires_at=_iso_ahead(300),
         )
 
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
 
         assert result == 1
         assert store.last_recovery_report.still_live == 1
@@ -230,7 +230,7 @@ class TestConcurrentRecoverSingleWinner:
             ):
                 s = StateStore()
             try:
-                count = s.recover_stale_attempts(s.get_connection())
+                count = s.recover_stale_attempts()
             finally:
                 s.close()
             with lock:
@@ -257,7 +257,7 @@ class TestLegacyFallback:
             workflow_db, "att-old", started_at=_iso(_LEGACY_STALE_AGE_SEC + 60)
         )
 
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
 
         assert result == 1
         report = store.last_recovery_report
@@ -276,7 +276,7 @@ class TestLegacyFallback:
             workflow_db, "att-young", started_at=_iso(_LEGACY_STALE_AGE_SEC - 600)
         )
 
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
 
         assert result == 0
         assert store.last_recovery_report.legacy_recovered == 0
@@ -296,7 +296,7 @@ class TestLegacyFallback:
         )
 
         with caplog.at_level("WARNING"):
-            result = store.recover_stale_attempts(store.get_connection())
+            result = store.recover_stale_attempts()
 
         assert result == 0
         report = store.last_recovery_report

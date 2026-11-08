@@ -93,13 +93,23 @@ Run after documents 01-08 have landed (unit gate):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append `TestOrchestratorStartupRecoveryRouting` (new) with the startup call-shape test | Pending | — | — | |
-| 2 | Run the unit validation gates (valid only after documents 01-08 land) | Pending | — | — | |
+| 1 | Append `TestOrchestratorStartupRecoveryRouting` (new) with the startup call-shape test | Completed | 20261109 | 20261109 | Deviation D-003: see below |
+| 2 | Run the unit validation gates | Completed | 20261109 | 20261109 | ruff clean; 131/131 pass incl. new test |
+
+### Deviations from Procedure Snippet
+| ID | Snippet (as written) | Actual | Reason |
+|---|---|---|---|
+| D-003 | `with (_patch_workflow_loader(), patch("agent.orchestrator.StateStore") as state_store_cls):` | `with patch("agent.orchestrator.StateStore") as state_store_cls:` (fixture line removed) | `_patch_workflow_loader` is `@pytest.fixture(autouse=True)`; calling it directly inside the test body raises "Fixtures are not meant to be called directly." It is already active for every test in the module, so the nested `patch` alone shadows it. Test failed until the fixture line was dropped. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Direct call of autouse fixture `_patch_workflow_loader()` in the test body (pytest deprecation error) | Yes | 20261109 |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

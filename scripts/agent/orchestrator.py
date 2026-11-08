@@ -89,7 +89,7 @@ class Orchestrator:
         self._diagnostic_store = DiagnosticStore()
         ctx.diagnostics = self._diagnostic_store
         self._state_store = StateStore()
-        self._state_store.recover_stale_attempts(self._state_store.get_connection())
+        self._state_store.recover_stale_attempts()
 
         # ── Component initialization (new constructor signatures) ────────────
         self._bg_task_monitor = BgTaskMonitor(

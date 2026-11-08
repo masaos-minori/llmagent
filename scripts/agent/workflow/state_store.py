@@ -14,8 +14,13 @@ from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 from shared.json_utils import parse_iso_utc
 
-from agent.workflow import attempt_ops, tool_call_state_ops
-from agent.workflow.models import TaskRecord
+from agent.workflow import (
+    artifact_ops,
+    attempt_ops,
+    idempotency_ops,
+    tool_call_state_ops,
+)
+from agent.workflow.models import ArtifactRef, AttemptRecord, TaskRecord
 from agent.workflow.task_ops import (
     create_task,
     get_task_by_id,
@@ -101,6 +106,30 @@ class StateStore:
             self._db, attempt_id, status, error_msg, error_kind, error_detail
         )
 
+    def begin_stage_if_new(
+        self,
+        event_id: str,
+        task_id: str,
+        stage_id: str,
+        workflow_id: str | None = None,
+        lease_duration_sec: int | None = None,
+    ) -> AttemptRecord | None:
+        """Start an attempt for the event if it has not been processed yet.
+
+        Delegates to idempotency_ops.begin_stage_if_new with the store's own
+        connection. Returns AttemptRecord if the stage should run, None if the
+        event was already processed. begin_immediate handles the transaction;
+        no explicit commit here.
+        """
+        return idempotency_ops.begin_stage_if_new(
+            self._db,
+            event_id,
+            task_id,
+            stage_id,
+            workflow_id=workflow_id,
+            lease_duration_sec=lease_duration_sec,
+        )
+
     # ── Tool-call state (workflow.sqlite tool_call_state table) ──────────────
 
     def record_tool_call(
@@ -125,6 +154,29 @@ class StateStore:
         """Mark this task's timed-out pending tool-call rows as 'interrupted'."""
         return tool_call_state_ops.classify_stale_pending(
             self._db, task_id, timeout_seconds
+        )
+
+    # ── Artifact ─────────────────────────────────────────────────────────────
+
+    def record_artifact(
+        self,
+        task_id: str,
+        stage_id: str,
+        uri: str,
+        workflow_id: str | None = None,
+        attempt_number: int | None = None,
+    ) -> ArtifactRef:
+        """Insert an artifact reference using the store's own connection.
+
+        Delegates to artifact_ops.record_artifact; that function commits.
+        """
+        return artifact_ops.record_artifact(
+            self._db,
+            task_id,
+            stage_id,
+            uri,
+            workflow_id=workflow_id,
+            attempt_number=attempt_number,
         )
 
     # ── Diagnostic Queries ───────────────────────────────────────────────
@@ -167,8 +219,10 @@ class StateStore:
 
     # ── Startup Recovery ─────────────────────────────────────────────────────
 
-    def recover_stale_attempts(self, db: SQLiteHelper) -> int:
+    def recover_stale_attempts(self) -> int:
         """Mark lease-expired (or lease-less and old) running attempts as failed.
+
+        Always operates on the store's own connection; callers pass no arguments.
 
         An attempt is stale when its ``lease_expires_at`` is in the past, or —
         for rows that predate the lease migration and have no lease — when
@@ -183,6 +237,7 @@ class StateStore:
         the row is skipped. The four-way classification counts land in
         ``last_recovery_report``; the return value stays the recovered count.
         """
+        db = self._db
         classified = _classify_running_attempts(db)
         unparseable = sum(1 for r in classified if r["classification"] == "unparseable")
         still_live = sum(1 for r in classified if r["classification"] == "live")

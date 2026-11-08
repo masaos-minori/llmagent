@@ -89,8 +89,8 @@ Runnable as soon as this docs edit lands (independent of the code rows):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword the Startup Recovery call clause | Pending | — | — | |
-| 2 | Run the docs validation gates | Pending | — | — | |
+| 1 | Reword the Startup Recovery call clause | Completed | 20261109 | 20261109 | Only the call clause reworded; rest of paragraph byte-identical |
+| 2 | Run the docs validation gates | Completed | 20261109 | 20261109 | quality/structure/content-policy/domain-consistency/japanese/stale all clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

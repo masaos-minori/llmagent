@@ -87,8 +87,8 @@ Run after the whole unit (documents 01-08) has landed:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the startup recovery call with the no-argument facade call | Pending | — | — | |
-| 2 | Run the unit validation gates (valid only after documents 01-08 land) | Pending | — | — | |
+| 1 | Replace the startup recovery call with the no-argument facade call | Completed | 20261109 | 20261109 | L92 now `recover_stale_attempts()`; covered by orchestrator routing test |
+| 2 | Run the unit validation gates (valid only after documents 01-08 land) | Completed | 20261109 | 20261109 | End-of-unit suite: 4220 passed, 3 skipped, 0 failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

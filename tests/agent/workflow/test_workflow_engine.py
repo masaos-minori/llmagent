@@ -761,3 +761,56 @@ class TestBuildTurnControlMessage:
             side_effect=sqlite3.OperationalError("boom"),
         ):
             assert engine.build_turn_control_message(task.task_id) is None
+
+
+class TestEngineFacadeRouting:
+    """Engine must route stage-start and artifact writes through the store facade.
+
+    wfaudit015: the engine must never fetch a raw connection; every store
+    interaction goes through the StateStore facade (document 02).
+    """
+
+    def _single_stage_plan_wdef(self) -> WorkflowDef:
+        return WorkflowDef(
+            name="default",
+            version="1.0.0",
+            stages=[StageDefinition(id="plan", timeout_sec=5, retryable=False)],
+            retry_policy=RetryPolicy(max_attempts=3, backoff_sec=0),
+        )
+
+    @pytest.mark.asyncio
+    async def test_engine_stage_start_routes_through_facade(self, store) -> None:
+        """Patching StateStore.begin_stage_if_new intercepts the engine's stage
+        start; the engine composes the `{task_id}:plan:1` event id (REQ-005)."""
+        wdef = self._single_stage_plan_wdef()
+        task = create_task(store._db, "s-routing", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+        with patch(
+            "agent.workflow.state_store.StateStore.begin_stage_if_new",
+            return_value=None,
+        ) as facade:
+            await engine.run(task, _noop, _noop, _noop)
+        # run() iterates plan -> execute -> verify; the plan stage-start is one
+        # of the facade calls and carries the engine-composed event id (REQ-005).
+        # The patched mock does not bind self, so args[0] is the event id.
+        assert facade.called
+        plan_event_ids = [
+            c.args[0]
+            for c in facade.call_args_list
+            if c.args and c.args[0].endswith(":plan:1")
+        ]
+        assert f"{task.task_id}:plan:1" in plan_event_ids
+
+    @pytest.mark.asyncio
+    async def test_engine_never_fetches_raw_connection(self, store) -> None:
+        """A full engine run completes while StateStore.get_connection raises;
+        the attempt row still exists, proving the facade path is used (REQ-003)."""
+        wdef = self._single_stage_plan_wdef()
+        task = create_task(store._db, "s-routing2", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+        with patch(
+            "agent.workflow.state_store.StateStore.get_connection",
+            side_effect=AssertionError("engine must not fetch raw connections"),
+        ):
+            await engine.run(task, _noop, _noop, _noop)
+        assert _attempt_count(store._db, task.task_id, "plan") == 1

@@ -128,9 +128,9 @@ Run after the whole unit (documents 01-08) has landed:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Swap the two call sites to facade calls | Pending | — | — | |
-| 2 | Delete the unused ops imports | Pending | — | — | |
-| 3 | Run the unit validation gates (valid only after documents 01-08 land) | Pending | — | — | |
+| 1 | Swap the two call sites to facade calls | Completed | 20261109 | 20261109 | Engine now uses begin_stage_if_new/record_artifact facades |
+| 2 | Delete the unused ops imports | Completed | 20261109 | 20261109 | Ops imports dropped once call sites converted |
+| 3 | Run the unit validation gates (valid only after documents 01-08 land) | Completed | 20261109 | 20261109 | End-of-unit suite: 4220 passed, 3 skipped, 0 failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

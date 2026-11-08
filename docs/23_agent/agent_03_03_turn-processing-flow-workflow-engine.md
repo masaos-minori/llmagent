@@ -163,7 +163,7 @@ See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observabi
 
 ### Startup Recovery
 
-During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is called with the store's connection. It classifies every `running` attempt row and repairs attempt records only: it never changes the persisted task status, so a task left `running` or `halted` by an earlier process stays as it was.
+During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is called with no arguments; the store uses its own connection internally. It classifies every `running` attempt row and repairs attempt records only: it never changes the persisted task status, so a task left `running` or `halted` by an earlier process stays as it was.
 
 - Expired lease means stale. An attempt is stale when its `lease_expires_at` is in the past. The lease is stamped at attempt start as `started_at` plus the stage `timeout_sec` plus a 30 s margin (`workflow_engine._LEASE_MARGIN_SEC`), so a lease never expires while its own stage is still executing. A live lease is never recovered, even when `started_at` is hours old.
 - Lease-less (pre-migration) rows use the age rule: they are stale only when `started_at` is older than 3600 s.

@@ -4012,3 +4012,18 @@ class TestTurnLevelPersistenceFailureRealFlow:
         assert on_error.call_count == 1
         assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
         assert self._turn_rows(db.conn) >= 1
+
+
+class TestOrchestratorStartupRecoveryRouting:
+    """Startup recovery must be a no-argument facade call (REQ-002/REQ-005)."""
+
+    def test_startup_recovery_no_arg_facade_call(self) -> None:
+        ctx = MagicMock()
+        # The autouse _patch_workflow_loader fixture already patches
+        # agent.orchestrator.StateStore; this nested patch shadows it so the
+        # code under construction binds to state_store_cls.
+        with patch("agent.orchestrator.StateStore") as state_store_cls:
+            _make_orchestrator(ctx)
+        store_instance = state_store_cls.return_value
+        store_instance.recover_stale_attempts.assert_called_once_with()
+        store_instance.get_connection.assert_not_called()

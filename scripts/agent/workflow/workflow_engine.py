@@ -17,8 +17,6 @@ from typing import Protocol
 
 from shared.mcp_dedup import load_dedup_config
 
-from agent.workflow.artifact_ops import record_artifact
-from agent.workflow.idempotency_ops import begin_stage_if_new
 from agent.workflow.models import TaskRecord, WorkflowDef
 from agent.workflow.state_store import StateStore
 
@@ -310,8 +308,7 @@ class WorkflowEngine:
             timeout = stage_def.timeout_sec if stage_def else 60
             event_id = f"{task.task_id}:{stage_id}:{attempt}"
 
-            attempt_rec = begin_stage_if_new(
-                self._store.get_connection(),
+            attempt_rec = self._store.begin_stage_if_new(
                 event_id,
                 task.task_id,
                 stage_id,
@@ -370,8 +367,7 @@ class WorkflowEngine:
 
             self._store.finish_attempt(attempt_rec.attempt_id, "completed")
             if artifact_uri:
-                record_artifact(
-                    self._store.get_connection(),
+                self._store.record_artifact(
                     task.task_id,
                     stage_id,
                     artifact_uri,

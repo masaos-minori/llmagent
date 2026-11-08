@@ -119,7 +119,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
 
     def test_recover_single_stale_attempt(self, store, workflow_db: Path) -> None:
         _seed_attempt(workflow_db, "att-1", started_at=_iso(7200))
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
         assert result == 1
         row = _attempt_row(workflow_db, "att-1")
         assert row["status"] == "failed"
@@ -133,7 +133,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
         self, store, workflow_db: Path
     ) -> None:
         _seed_attempt(workflow_db, "att-1", started_at=_iso(60))
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
         assert result == 0
         assert _attempt_row(workflow_db, "att-1")["status"] == "running"
         assert store.last_recovery_report.still_live == 1
@@ -147,7 +147,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
             owner_id="host-a",
             lease_expires_at=_iso_ahead(300),
         )
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
         assert result == 0
         assert _attempt_row(workflow_db, "att-1")["status"] == "running"
         assert store.last_recovery_report.still_live == 1
@@ -164,7 +164,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
             owner_id="host-a",
             lease_expires_at=_iso(10),
         )
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
         assert result == 1
         row = _attempt_row(workflow_db, "att-1")
         assert row["status"] == "failed"
@@ -178,8 +178,8 @@ class TestRecoverStaleAttemptsOptimisticLocking:
         # Conditional update: the second pass sees the row already failed and
         # claims nothing (rowcount 0 path).
         _seed_attempt(workflow_db, "att-1", started_at=_iso(7200))
-        first = store.recover_stale_attempts(store.get_connection())
-        second = store.recover_stale_attempts(store.get_connection())
+        first = store.recover_stale_attempts()
+        second = store.recover_stale_attempts()
         assert first == 1
         assert second == 0
         assert store.last_recovery_report.recovered == 0
@@ -189,7 +189,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
     ) -> None:
         _seed_attempt(workflow_db, "att-1", started_at=_iso(7200))
         _seed_attempt(workflow_db, "att-2", started_at=_iso(7300))
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
         assert result == 2
         assert _attempt_row(workflow_db, "att-1")["status"] == "failed"
         assert _attempt_row(workflow_db, "att-2")["status"] == "failed"
@@ -198,14 +198,14 @@ class TestRecoverStaleAttemptsOptimisticLocking:
     def test_recover_mixed_stale_and_non_stale(self, store, workflow_db: Path) -> None:
         _seed_attempt(workflow_db, "att-1", started_at=_iso(7200))
         _seed_attempt(workflow_db, "att-2", started_at=_iso(30))
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
         assert result == 1
         assert _attempt_row(workflow_db, "att-2")["status"] == "running"
         report = store.last_recovery_report
         assert (report.recovered, report.still_live) == (1, 1)
 
     def test_recover_no_running_attempts(self, store, workflow_db: Path) -> None:
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
         assert result == 0
         report = store.last_recovery_report
         assert (report.recovered, report.still_live) == (0, 0)
@@ -214,7 +214,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
         self, store, workflow_db: Path
     ) -> None:
         _seed_attempt(workflow_db, "att-1", started_at=_iso(7200), status="failed")
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
         assert result == 0
 
     def test_recover_unparseable_started_at_is_reported_not_skipped(
@@ -224,7 +224,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
         # logged with the raw value and counted in the report.
         _seed_attempt(workflow_db, "att-1", started_at="not-a-date")
         with caplog.at_level(logging.WARNING, logger="agent.workflow.state_store"):
-            result = store.recover_stale_attempts(store.get_connection())
+            result = store.recover_stale_attempts()
         assert result == 0
         assert _attempt_row(workflow_db, "att-1")["status"] == "running"
         assert store.last_recovery_report.unparseable == 1
@@ -247,7 +247,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
             lease_expires_at="garbage",
         )
         with caplog.at_level(logging.WARNING, logger="agent.workflow.state_store"):
-            result = store.recover_stale_attempts(store.get_connection())
+            result = store.recover_stale_attempts()
         assert result == 0
         assert _attempt_row(workflow_db, "att-1")["status"] == "running"
         assert store.last_recovery_report.unparseable == 1
@@ -262,7 +262,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
             owner_id="host-a",
             lease_expires_at=lease,
         )
-        result = store.recover_stale_attempts(store.get_connection())
+        result = store.recover_stale_attempts()
         assert result == 1
         row = _attempt_row(workflow_db, "att-1")
         assert row["status"] == "failed"

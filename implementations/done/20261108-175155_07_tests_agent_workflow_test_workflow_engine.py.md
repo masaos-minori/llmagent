@@ -111,8 +111,24 @@ Run after documents 01-08 have landed (unit gate):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append `TestEngineFacadeRouting` (new) with the two routing tests | Pending | — | — | |
-| 2 | Run the unit validation gates (valid only after documents 01-08 land) | Pending | — | — | |
+| 1 | Append `TestEngineFacadeRouting` (new) with the two routing tests | Completed | 20261109 | 20261109 | See adaptation notes below |
+| 2 | Run the unit validation gates (valid only after documents 01-08 land) | Completed | 20261109 | 20261109 | End-of-unit suite: 4220 passed, 3 skipped, 0 failures |
+
+### Execution adaptation notes
+The procedure's code snippets could not be applied verbatim against the current
+`workflow_engine.py`; the following deviations were required and are intentional:
+- `run()` hardcodes `plan -> execute -> verify` iteration (L213-215), so the facade
+  is called once per hardcoded stage regardless of `wdef.stages`. `assert_called_once()`
+  is therefore factually wrong; the interception test asserts the plan event id appears
+  among the facade calls (`args[0].endswith(":plan:1")`).
+- A patched class method does not bind `self` (MagicMock has no `__get__`), so the
+  event id is `args[0]`, not `args[1]` as the snippet assumed (`args[1]` is `task_id`).
+- The file exposes `_attempt_count(db, task_id, stage_id)`, not `count_attempts`; the
+  no-raw-connection test uses `_attempt_count`.
+- `wdef` is an explicit single-stage `WorkflowDef` (stage `plan`) built inline via a
+  `_single_stage_plan_wdef()` helper rather than the snippet's bare `wdef` placeholder.
+All changes satisfy the stated completion criteria (intercept engine stage start; full
+run completes with `get_connection` raising).
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -124,9 +124,9 @@ Run after documents 01-08 have landed (unit gate):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `s._db` and `s.get_connection()` call variants with no-argument calls | Pending | — | — | |
-| 2 | Add the two facade delegation tests | Pending | — | — | |
-| 3 | Run the unit validation gates (valid only after documents 01-08 land) | Pending | — | — | |
+| 1 | Replace the `s._db` and `s.get_connection()` call variants with no-argument calls | Completed | 20261109 | 20261109 | All 11 sites now `s.recover_stale_attempts()`; ruff clean |
+| 2 | Add the two facade delegation tests | Completed | 20261109 | 20261109 | Inserted after `test_event_processed_after_begin` and `test_record_artifact`; import symbol order auto-fixed by ruff (ArtifactRef, AttemptRecord) |
+| 3 | Run the unit validation gates (valid only after documents 01-08 land) | Completed | 20261109 | 20261109 | End-of-unit suite: 4220 passed, 3 skipped, 0 failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

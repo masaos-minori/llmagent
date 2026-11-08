@@ -134,9 +134,9 @@ Add thin facade methods that call the same ops functions with `self._db`; conver
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |---|---|---|---|---|---|
-| 1 | Phase 1: facade methods | In Progress | — | — |  |
-| 2 | Phase 2: call-site conversion | In Progress | — | — |  |
-| 3 | Phase 3: boundary check + docs | In Progress | — | — |  |
+| 1 | Phase 1: facade methods | Completed | 20261109 | 20261109 | Facade methods + no-arg recover_stale_attempts landed; unit archived |
+| 2 | Phase 2: call-site conversion | Completed | 20261109 | 20261109 | Engine/orchestrator sites + 31 test sites converted; routing tests added; unit archived |
+| 3 | Phase 3: boundary check + docs | Completed | 20261109 | 20261109 | grep-clean on this plan's three sites; Startup Recovery doc updated; unit archived |
 
 ### Blocker Log
 | Date | Blocker | Status | Resolution |
@@ -145,15 +145,15 @@ Add thin facade methods that call the same ops functions with `self._db`; conver
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261108-175155_01_scripts_agent_workflow_state_store.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261108-175155_02_scripts_agent_workflow_workflow_engine.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-175155_03_scripts_agent_orchestrator.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-175155_04_tests_agent_workflow_test_state_store.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-175155_05_tests_agent_workflow_test_workflow_state_store.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-175155_06_tests_agent_workflow_test_stale_recovery_lease.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-175155_07_tests_agent_workflow_test_workflow_engine.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-175155_08_tests_agent_test_orchestrator.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-175155_09_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261108-175155_01_scripts_agent_workflow_state_store.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261108-175155_02_scripts_agent_workflow_workflow_engine.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-175155_03_scripts_agent_orchestrator.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-175155_04_tests_agent_workflow_test_state_store.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-175155_05_tests_agent_workflow_test_workflow_state_store.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-175155_06_tests_agent_workflow_test_stale_recovery_lease.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-175155_07_tests_agent_workflow_test_workflow_engine.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-175155_08_tests_agent_test_orchestrator.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-175155_09_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md` | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -19,6 +19,7 @@ from agent.workflow import tool_call_state_ops
 from agent.workflow.artifact_ops import record_artifact
 from agent.workflow.attempt_ops import finish_attempt
 from agent.workflow.idempotency_ops import begin_stage_if_new, is_event_processed
+from agent.workflow.models import ArtifactRef, AttemptRecord
 from agent.workflow.task_ops import (
     create_task,
     get_task_by_id,
@@ -246,6 +247,15 @@ class TestIdempotency:
         begin_stage_if_new(store._db, "evt-2", task.task_id, "execute")
         assert is_event_processed(store._db, "evt-2") is True
 
+    def test_store_facade_begin_stage_if_new_delegates(self, store) -> None:
+        """StateStore.begin_stage_if_new produces the same rows as the ops function."""
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        first = store.begin_stage_if_new("evt-1", task.task_id, "plan")
+        assert isinstance(first, AttemptRecord)
+        second = store.begin_stage_if_new("evt-1", task.task_id, "plan")
+        assert second is None
+        assert is_event_processed(store._db, "evt-1") is True
+
 
 class TestArtifacts:
     def test_record_artifact(self, store) -> None:
@@ -255,6 +265,15 @@ class TestArtifacts:
         )
         assert ref.task_id == task.task_id
         assert ref.uri == "file:///tmp/result.json"
+
+    def test_store_facade_record_artifact_delegates(self, store) -> None:
+        """StateStore.record_artifact produces the same rows as the ops function."""
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        ref = store.record_artifact(task.task_id, "execute", "file:///tmp/facade.json")
+        assert isinstance(ref, ArtifactRef)
+        assert ref.task_id == task.task_id
+        assert ref.uri == "file:///tmp/facade.json"
+        assert "file:///tmp/facade.json" in store.get_artifact_uris(task.session_id)
 
 
 class TestDiagnosticQueries:
@@ -361,7 +380,7 @@ class TestRecoverStaleAttempts:
                 s, "att-stale", "task-1", "execute", "running", "2026-01-01T00:00:00Z"
             )
 
-            count = s.recover_stale_attempts(s._db)
+            count = s.recover_stale_attempts()
             assert count == 1
 
             rows = s._db.fetchall(
@@ -380,7 +399,7 @@ class TestRecoverStaleAttempts:
                 s, "att-fresh", "task-2", "execute", "running", _iso(5)
             )
 
-            s.recover_stale_attempts(s._db)
+            s.recover_stale_attempts()
 
             rows = s._db.fetchall(
                 "SELECT status FROM attempts WHERE attempt_id='att-fresh'"
@@ -398,7 +417,7 @@ class TestRecoverStaleAttempts:
                 s, "att-done", "task-3", "plan", "completed", "2026-01-01T00:00:00Z"
             )
 
-            s.recover_stale_attempts(s._db)
+            s.recover_stale_attempts()
 
             rows = s._db.fetchall(
                 "SELECT status FROM attempts WHERE attempt_id='att-done'"
@@ -422,7 +441,7 @@ class TestRecoverStaleAttempts:
                 lease_expires_at=_iso(30),
             )
 
-            count = s.recover_stale_attempts(s._db)
+            count = s.recover_stale_attempts()
             assert count == 1
 
             rows = s._db.fetchall(
@@ -449,7 +468,7 @@ class TestRecoverStaleAttempts:
                 lease_expires_at=_iso_future(600),
             )
 
-            count = s.recover_stale_attempts(s._db)
+            count = s.recover_stale_attempts()
             assert count == 0
 
             rows = s._db.fetchall(
@@ -471,7 +490,7 @@ class TestRecoverStaleAttempts:
                 s, "att-bad", "task-7", "execute", "running", "not-a-date"
             )
             with caplog.at_level(logging.WARNING, logger="agent.workflow.state_store"):
-                count = s.recover_stale_attempts(s._db)
+                count = s.recover_stale_attempts()
             assert count == 0
             rows = s._db.fetchall(
                 "SELECT status FROM attempts WHERE attempt_id='att-bad'"
@@ -531,7 +550,7 @@ class TestRecoverStaleAttempts:
                 lease_expires_at=_iso_future(600),
             )
 
-            count = s.recover_stale_attempts(s._db)
+            count = s.recover_stale_attempts()
             assert count == 2
 
             statuses = {
@@ -561,7 +580,7 @@ class TestRecoverStaleAttempts:
                 s, "att-2", "task-2", "execute", "running", _iso(5)
             )
 
-            count = s.recover_stale_attempts(s._db)
+            count = s.recover_stale_attempts()
 
             assert count == 1
             rows_1 = s._db.fetchall(
@@ -584,7 +603,7 @@ class TestRecoverStaleAttempts:
                 s, "att-end", "task-4", "execute", "running", "2026-01-01T00:00:00Z"
             )
 
-            s.recover_stale_attempts(s._db)
+            s.recover_stale_attempts()
 
             rows = s._db.fetchall(
                 "SELECT ended_at FROM attempts WHERE attempt_id='att-end'"
@@ -626,7 +645,7 @@ class TestRecoverStaleAttempts:
             conn.commit()
             conn.close()
 
-            count = s.recover_stale_attempts(s._db)
+            count = s.recover_stale_attempts()
             assert count == 2
 
             rows = s._db.fetchall(
@@ -665,7 +684,7 @@ class TestRecoverStaleAttempts:
             conn.commit()
             conn.close()
 
-            count = s.recover_stale_attempts(s._db)
+            count = s.recover_stale_attempts()
             assert count == 0
         finally:
             s.close()
@@ -714,7 +733,7 @@ class TestStaleRecoveryConcurrency:
         def worker():
             try:
                 s = StateStore()
-                count = s.recover_stale_attempts(s.get_connection())
+                count = s.recover_stale_attempts()
                 results.append(count)
                 s.close()
             except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
