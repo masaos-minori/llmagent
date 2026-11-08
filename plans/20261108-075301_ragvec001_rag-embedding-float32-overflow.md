@@ -38,7 +38,7 @@ Keep the fix at the two existing trust boundaries plus one defense-in-depth hand
 - `REQ-005`: New tests pin `REQ-001`-`REQ-004` (unit + stage + pipeline level).
 
 ## Implementation Target Files
-**Freeze status**: Draft
+**Freeze status**: Frozen (revalidated 20261108 against HEAD `eb19564fe` — see Notes)
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
@@ -138,20 +138,22 @@ Keep the fix at the two existing trust boundaries plus one defense-in-depth hand
 
 ## Execution Status
 ### Execution Status
-| Work Item | Status | Owner | Started | Completed | Notes |
-|---|---|---|---|---|---|
-| Phase 1: utility contract | Planned | engineer | | | |
-| Phase 2: provider boundary | Planned | engineer | | | |
-| Phase 3: stage backstop | Planned | engineer | | | |
-| Phase 4: documentation | Planned | engineer | | | |
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Phase 1: utility contract (`scripts/rag/utils.py`; `tests/rag/test_rag_utils.py`) | Pending | — | — | |
+| 2 | Phase 2: provider boundary (`scripts/rag/llm_client.py`; `tests/rag/test_llm_client_timeout.py`) | Pending | — | — | |
+| 3 | Phase 3: stage backstop (`scripts/rag/stages/search.py`; `tests/rag/test_rag_stages.py`) | Pending | — | — | |
+| 4 | Phase 4: documentation (three `docs/21_rag/*.md` rows) | Pending | — | — | |
 
 ### Blocker Log
-| Date | Blocker | Status | Resolution |
-|---|---|---|---|
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
 
 ### Work Items Created
-| Work Item | Type | Link | Created |
-|---|---|---|---|
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -173,3 +175,6 @@ Keep the fix at the two existing trust boundaries plus one defense-in-depth hand
 ## Notes
 - Source verified against HEAD `276b265fc` (2026-11-08). The issue's `## Adversarial Validation` and `## Content Analysis` sections carry the validation evidence this plan builds on.
 - Docs paths reflect the current `docs/21_rag/` layout after the 2026-11-07 documentation renumbering.
+- Adversarial re-verification 2026-11-08 against HEAD `eb19564fe` (memo2 batch): every Background/Requirements claim re-checked against current source — `get_embedding` list-ness-only check (`llm_client.py` `get_embedding`), `_validate_float_list` `isfinite`-only check and the inaccurate `Raises struct.error` docstring line (`utils.py`), per-query `except (sqlite3.OperationalError, RuntimeError)` (`stages/search.py` `_search_all_queries`), `vector_search` inline pack (`repository.py`), `stage_lifecycle.py` caught tuple, `ingestion/embedding.py` pack call site, and the three docs-row claims all confirmed unchanged; no disconfirming finding required a content correction. The four Plan Freeze criteria (Exists / Requires modification / Has supporting evidence / Linked to a Plan requirement) pass for every row — all rows `Verified`; the section was therefore marked `Frozen` (Draft at intake; freeze performed in this verification pass per the owner's memo2 instruction). Line citations in the tables remain accurate at this HEAD. Execution Status / Blocker Log / Work Items Created tables were corrected to the canonical `templates/execution-status.md` column format. `tools/plan_dependency_order.py` reports this Plan `gated (prose)` on open issue `issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md`; the Plan's own Scope records "Related, no order required" and the owner's memo2 instruction lists this Plan for conversion, so procedures carry the `Gated:` marker (Step 3c) and execution order stays owner-decided.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261108-091441 -->
