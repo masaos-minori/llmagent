@@ -42,17 +42,17 @@ Provide one enforcement point that every server uses, either by making the helpe
 - `REQ-004`: Existing auth tests pass, or are updated only where they relied on the accept-all default.
 
 ## Implementation Target Files
-**Freeze status**: Draft
+**Freeze status**: Frozen
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/mcp_servers/server.py` | Modify | `require_auth_token` is the shared enforcement point used by four servers; `attach_auth_middleware()` accept-all default (L116-119) is documented as test-only. Consolidate so every server routes through one point and make the test-only intent explicit in the API. | `REQ-001`/`REQ-002`/`REQ-003` | `require_auth_token` used by git/cicd/rag/web_search; `_is_authorized` returns True on empty token L119 (checked in Step 2) | `test_require_auth_token.py` | `Verified` |
 | `scripts/mcp_servers/shell/shell_server.py` | Modify | Inline `if not _cfg.auth_token: raise RuntimeError(...)` (L120-121) duplicates the shared rule; route through the shared enforcement point. | `REQ-001`/`REQ-003` | inline guard L120-121 (checked in Step 2) | `tests/mcp_servers/shell/test_shell_server_auth.py` | `Verified` |
-| `scripts/mcp_servers/github/github_server.py` | Modify | Inline guard (L140-141) duplicates the shared rule; route through the shared enforcement point. | `REQ-001`/`REQ-003` | inline guard L140-141 (checked in Step 2) | per-server auth test | `Verified` |
+| `scripts/mcp_servers/github/github_server.py` | Modify | Inline guard (L140-141) duplicates the shared rule; route through the shared enforcement point. | `REQ-001`/`REQ-003` | inline guard L140-141 (checked in Step 2) | `tests/mcp_servers/github/test_github_server_auth.py` | `Verified` |
 | `scripts/mcp_servers/mdq/mdq_server.py` | Modify | Inline guard (L484) duplicates the shared rule; route through the shared enforcement point while preserving `_load_auth_token()`. | `REQ-001`/`REQ-003` | inline guard L484 (checked in Step 2) | `tests/mcp_servers/mdq/test_mdq_authentication.py` | `Verified` |
-| `scripts/mcp_servers/file/read_server.py` | Modify | Inline guard (L126-127) duplicates the shared rule; route through the shared enforcement point. | `REQ-001`/`REQ-003` | inline guard L126-127 (checked in Step 2) | per-server auth test | `Verified` |
-| `scripts/mcp_servers/file/write_server.py` | Modify | Inline guard (L116-117) duplicates the shared rule; route through the shared enforcement point. | `REQ-001`/`REQ-003` | inline guard L116-117 (checked in Step 2) | per-server auth test | `Verified` |
-| `scripts/mcp_servers/file/delete_server.py` | Modify | Inline guard (L118-119) duplicates the shared rule; route through the shared enforcement point. | `REQ-001`/`REQ-003` | inline guard L118-119 (checked in Step 2) | per-server auth test | `Verified` |
+| `scripts/mcp_servers/file/read_server.py` | Modify | Inline guard (L126-127) duplicates the shared rule; route through the shared enforcement point. | `REQ-001`/`REQ-003` | inline guard L126-127 (checked in Step 2) | `tests/mcp_servers/file/test_file_server_auth.py` | `Verified` |
+| `scripts/mcp_servers/file/write_server.py` | Modify | Inline guard (L116-117) duplicates the shared rule; route through the shared enforcement point. | `REQ-001`/`REQ-003` | inline guard L116-117 (checked in Step 2) | `tests/mcp_servers/file/test_file_server_auth.py` | `Verified` |
+| `scripts/mcp_servers/file/delete_server.py` | Modify | Inline guard (L118-119) duplicates the shared rule; route through the shared enforcement point. | `REQ-001`/`REQ-003` | inline guard L118-119 (checked in Step 2) | `tests/mcp_servers/file/test_file_server_auth.py` | `Verified` |
 | `tests/mcp_servers/test_require_auth_token.py` | Modify | Assert the shared enforcement point is used by all ten servers and that adding an unvalidated call fails (`REQ-001`/`REQ-002`). | `REQ-001`/`REQ-002` | existing helper + four-server tests (checked in Step 2) | `test_require_auth_token.py` | `Verified` |
 | `tests/mcp_servers/shell/test_shell_server_auth.py` | Modify | Preserve the empty-token refusal after routing through the shared point. | `REQ-003` | existing shell auth test (checked in Step 2) | `test_shell_server_auth.py` | `Verified` |
 | `tests/mcp_servers/mdq/test_mdq_authentication.py` | Modify | Preserve the empty-token refusal after routing through the shared point. | `REQ-003` | existing mdq auth test (checked in Step 2) | `test_mdq_authentication.py` | `Verified` |
@@ -160,10 +160,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Choose the consolidation mechanism (a helper-only / b structural gate) | Pending | — | — | Open design decision in Design section |
-| 2 | Consolidate the six inline guards | Pending | — | — | shell/github/mdq/read/write/delete |
-| 3 | Make the test-only accept-all intent explicit | Pending | — | — | `attach_auth_middleware` API |
-| 4 | Add the structural enforcement test | Pending | — | — | `test_require_auth_token.py` |
-| 5 | Repair per-server auth tests | Pending | — | — | shell/mdq per-server tests |
+| 2 | Consolidate the six inline guards | In Progress | — | — | shell/github/mdq/read/write/delete; procedures generated |
+| 3 | Make the test-only accept-all intent explicit | In Progress | — | — | `attach_auth_middleware` API (server.py row) |
+| 4 | Add the structural enforcement test | In Progress | — | — | `test_require_auth_token.py` procedure generated |
+| 5 | Repair per-server auth tests | In Progress | — | — | shell/mdq per-server tests are companions of rows 2/4 |
 | 6 | Deployment & verification | Pending | — | — | run validation commands |
 
 ### Blocker Log
@@ -174,7 +174,14 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261108-083903_01_scripts_mcp_servers_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261108-083903_02_scripts_mcp_servers_shell_shell_server.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-083903_03_scripts_mcp_servers_github_github_server.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-083903_04_scripts_mcp_servers_mdq_mdq_server.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-083903_05_scripts_mcp_servers_file_read_server.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-083903_06_scripts_mcp_servers_file_write_server.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-083903_07_scripts_mcp_servers_file_delete_server.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-083903_08_tests_mcp_servers_test_require_auth_token.py.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -187,3 +194,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261108-083903 -->

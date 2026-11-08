@@ -35,12 +35,12 @@ Preserve the documented fail-open intent for **retryable** tools (a store failur
 - `REQ-004`: `tests/mcp_servers/test_mcp_dispatch.py` asserts the initialization-failure behavior for both a retryable and a non-retryable tool, and the updated test fails on the current code.
 
 ## Implementation Target Files
-**Freeze status**: Draft
+**Freeze status**: Frozen
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/mcp_servers/dispatch.py` | Modify | `_dedup_context()` (`L182-193`) sets `_dedup_disabled=True` and returns `(None,None)` on init failure; the caller skips the dedup block for every tool including non-retryable ones (`dedup_state=""`). Reconcile the init-failure path with the lookup-failure asymmetry. | `REQ-001`/`REQ-002`/`REQ-003` | `_dedup_disabled` L171; `_dedup_context` `except Exception` L186; caller `store is None` skip L304-305; lookup error `dedup_store_error` L309-323 (checked in Step 2) | `test_mcp_dispatch.py` | `Verified` |
-| `tests/mcp_servers/test_mcp_dispatch.py` | Modify | Assert the new initialization-failure behavior for retryable and non-retryable tools; confirm the test fails on current code. | `REQ-004` | existing dedup store-failure tests (checked in Step 2) | `test_mcp_dispatch.py` | `Verified` |
+| `scripts/mcp_servers/dispatch.py` | Modify | `_dedup_context()` (`L182-193`) sets `_dedup_disabled=True` and returns `(None,None)` on init failure; the caller skips the dedup block for every tool including non-retryable ones (`dedup_state=""`). Reconcile the init-failure path with the lookup-failure asymmetry. | `REQ-001`/`REQ-002`/`REQ-003` | `_dedup_disabled` L171; `_dedup_context` `except Exception` L186; caller `store is None` skip L304-305; lookup error `dedup_store_error` L309-323 (checked in Step 2) | `tests/mcp_servers/test_mcp_dispatch.py` | `Verified` |
+| `tests/mcp_servers/test_mcp_dispatch.py` | Modify | Assert the new initialization-failure behavior for retryable and non-retryable tools; confirm the test fails on current code. | `REQ-004` | existing dedup store-failure tests (checked in Step 2) | `tests/mcp_servers/test_mcp_dispatch.py` | `Verified` |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze) for the full validation procedure):
 - One row per file. A directory, glob pattern (`*`, `**`), component/module name, file group, or vague phrase (e.g. "related files", "as necessary", "etc.") MUST NOT appear as a row — list each file individually by its exact repository-relative path.
@@ -53,8 +53,6 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
 | `scripts/mcp_servers/models.py` | Defines the retryable vs non-retryable classification consumed by `dispatch_tool()`; needed to route the init-failure path correctly. | `scripts/mcp_servers/dispatch.py` (`REQ-001`/`REQ-002`) |
-| `scripts/mcp_servers/dispatch.py` | Read in full to understand `_dedup_context`, `_store_op`, `_purge_once`, and the lookup-failure asymmetry before editing. | `scripts/mcp_servers/dispatch.py` (`REQ-003`) |
-| `tests/mcp_servers/test_mcp_dispatch.py` | Existing dedup store-failure tests to extend and to confirm the new assertion fails pre-fix. | `tests/mcp_servers/test_mcp_dispatch.py` (`REQ-004`) |
 
 ## Acceptance Criteria
 - `REQ-001`: With a store that fails to initialize, a non-retryable tool call is failed closed with `error_type="dedup_store_error"` (approach a) or the process fails to start (approach b); it never returns a successful overlay-only write with `dedup_state=""`.
@@ -130,8 +128,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Choose the failure mechanism (a fail-closed asymmetry / b startup failure) | Pending | — | — | Open design decision in Design section |
-| 2 | Apply the chosen fix in `dispatch.py` | Pending | — | — | `_dedup_context` + caller |
-| 3 | Repair the dedup store-failure tests | Pending | — | — | `test_mcp_dispatch.py` |
+| 2 | Apply the chosen fix in `dispatch.py` | In Progress | — | — | `_dedup_context` + caller; procedure generated |
+| 3 | Repair the dedup store-failure tests | Pending | — | — | `test_mcp_dispatch.py` (companion of step 2) |
 | 4 | Deployment & verification | Pending | — | — | run validation commands; test fails pre-fix |
 
 ### Blocker Log
@@ -142,7 +140,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261108-082130_01_scripts_mcp_servers_dispatch.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -155,3 +153,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261108-082130 -->

@@ -35,12 +35,12 @@ Make the log message and the post-start check's docstring describe what the code
 - `REQ-004`: Existing tests in `tests/mcp_servers/test_mcp_server_base.py` pass, and a test asserts the corrected message and re-raise for a `SystemExit` from `server.run()`.
 
 ## Implementation Target Files
-**Freeze status**: Draft
+**Freeze status**: Frozen
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/mcp_servers/server.py` | Modify | `run_http` `except SystemExit` (L329-331) logs "Posture-gate failure during startup" for any `SystemExit` from `server.run()`, which is not a posture-gate failure (the gate runs before the `try`); the function also carries a redundant local `import logging` (L277) shadowing the module-level import (L16); `_LoopbackVerifyingServer.startup` docstring (L302-308) does not state its post-bind timing or skip conditions. | `REQ-001`/`REQ-002`/`REQ-003` | `except SystemExit` L329; `"Posture-gate failure during startup"` L331; `import logging` L277; `startup` L307-312 (checked in Step 2) | `test_mcp_server_base.py` | `Verified` |
-| `tests/mcp_servers/test_mcp_server_base.py` | Modify | Add or adjust one unit test asserting the corrected log message and re-raise for a `SystemExit` from `server.run()`. | `REQ-004` | existing `run_http` tests (checked in Step 2) | `test_mcp_server_base.py` | `Verified` |
+| `scripts/mcp_servers/server.py` | Modify | `run_http` `except SystemExit` (L329-331) logs "Posture-gate failure during startup" for any `SystemExit` from `server.run()`, which is not a posture-gate failure (the gate runs before the `try`); the function also carries a redundant local `import logging` (L277) shadowing the module-level import (L16); `_LoopbackVerifyingServer.startup` docstring (L302-308) does not state its post-bind timing or skip conditions. | `REQ-001`/`REQ-002`/`REQ-003` | `except SystemExit` L329; `"Posture-gate failure during startup"` L331; `import logging` L277; `startup` L307-312 (checked in Step 2) | `tests/mcp_servers/test_mcp_server_base.py` | `Verified` |
+| `tests/mcp_servers/test_mcp_server_base.py` | Modify | Add or adjust one unit test asserting the corrected log message and re-raise for a `SystemExit` from `server.run()`. | `REQ-004` | existing `run_http` tests (checked in Step 2) | `tests/mcp_servers/test_mcp_server_base.py` | `Verified` |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze) for the full validation procedure):
 - One row per file. A directory, glob pattern (`*`, `**`), component/module name, file group, or vague phrase (e.g. "related files", "as necessary", "etc.") MUST NOT appear as a row — list each file individually by its exact repository-relative path.
@@ -125,10 +125,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the `SystemExit` log message | Pending | — | — | `run_http` |
-| 2 | Update the `_LoopbackVerifyingServer.startup` docstring | Pending | — | — | post-bind timing/skip |
-| 3 | Remove the redundant `import logging` | Pending | — | — | L277 |
-| 4 | Repair the tests | Pending | — | — | `test_mcp_server_base.py` |
+| 1 | Correct the `SystemExit` log message | In Progress | — | — | `run_http`; procedure generated |
+| 2 | Update the `_LoopbackVerifyingServer.startup` docstring | In Progress | — | — | post-bind timing/skip; procedure generated |
+| 3 | Remove the redundant `import logging` | In Progress | — | — | L277; procedure generated |
+| 4 | Repair the tests | In Progress | — | — | `test_mcp_server_base.py` (companion of step 1) |
 | 5 | Deployment & verification | Pending | — | — | run validation commands |
 
 ### Blocker Log
@@ -139,7 +139,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261108-085934_01_scripts_mcp_servers_server.py.md | 1, 2, 3, 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -152,3 +152,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261108-085934 -->
