@@ -41,16 +41,18 @@ Additive change. Add a new default-`0` integer field `tool_unavailable_repeat_ma
 
 ## Implementation Target Files
 **Freeze status**: Frozen (Implementation Target Files Validation passed all rows `Verified`; Step 8 complete).
+Amended 2026-11-08 (fallout): added tests/agent/test_llm_turn_runner.py — TestUnavailableRepeatBoundIntegration._real_guard_runner (line 970) drives the real unavailable-repeat guard through tool_empty_result_max_repeats; repoint it to tool_unavailable_repeat_max_repeats so the three runner-level tests keep passing
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/agent/config_dataclasses.py` | Modify | Add `tool_unavailable_repeat_max_repeats: int = 0` to `ToolConfig` near `tool_empty_result_max_repeats` (line 178) | REQ-001, REQ-006 | `scripts/agent/config_dataclasses.py:178` `tool_empty_result_max_repeats: int = 0`; class at line 154 | REQ-001 | Verified |
 | `scripts/agent/config_section_builders.py` | Modify | Wire `tool_unavailable_repeat_max_repeats` via `_get_or_default(cfg, "tool_unavailable_repeat_max_repeats", _get_int, 0)` in `_build_tool_config` | REQ-001, REQ-006 | `scripts/agent/config_section_builders.py:180-223` explicit `_get_or_default` list; note `tool_empty_result_max_repeats` is NOT currently wired here | REQ-001 | Verified |
 | `scripts/agent/tool_loop_guard.py` | Modify | Repoint `scan_unavailable_repeat` (line 277) and `check_unavailable_repeat` (line ~288) to the new field; update the reuse docstring | REQ-002, REQ-004 | `scripts/agent/tool_loop_guard.py:277` reads `tool_empty_result_max_repeats`; docstring at line 287 | REQ-002, REQ-004 | Verified |
-| `tests/agent/test_tool_loop_guard.py` | Add | Independent-toggle tests for both guards; default-off test for the new knob; empty-result regression | REQ-003, REQ-005, REQ-006 | `tests/agent/test_tool_loop_guard.py` exists (verified via `find tests`); sibling `test_tool_loop_guard_wiring.py` also present | REQ-005 | Verified |
+| `tests/agent/test_tool_loop_guard.py` | Modify | Re-point the existing `TestUnavailableRepeat._guard` (line 527) from the old knob to the new one; add independent-toggle tests for both guards, a default-off test for the new knob and an empty-result regression | REQ-003, REQ-005, REQ-006 | `tests/agent/test_tool_loop_guard.py` exists (verified via `find tests`); sibling `test_tool_loop_guard_wiring.py` also present | REQ-005 | Verified |
 | `tests/agent/test_tool_loop_guard_wiring.py` | Add | Confirm config wiring (new field flows through `_build_tool_config`) reaches `ToolLoopGuard`; additive-load regression | REQ-006 | `tests/agent/test_tool_loop_guard_wiring.py` exists (verified via `find tests`) | REQ-006 | Verified |
 | `docs/23_agent/agent_08_03_configuration-tools-memory.md` | Modify | Document the two independent knobs and their separate semantics (config reference) | REQ-001 | `docs/23_agent/agent_08_03_configuration-tools-memory.md:39` enumerates tool loop limits | REQ-001 | Verified |
-| `docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md` | Modify | Correct the statement that unavailable-repeat is "bounded by the existing empty-result repeat configuration" (line 87) | REQ-002, REQ-005 | `docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md:87` currently documents the coupling | REQ-002 | Verified |
+| `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md` | Modify | Correct the statement that unavailable-repeat is "bounded by the existing empty-result repeat configuration" (line 87) | REQ-002, REQ-005 | `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md:87` states the unavailable-repeat bound is "the existing empty-result repeat configuration (`tool_empty_result_max_repeats`)"; agent_06_03 has no such statement (its line 41 only says the knob disables the empty-result guard, which stays true) | REQ-002 | Verified |
+| `tests/agent/test_llm_turn_runner.py` | Modify | TestUnavailableRepeatBoundIntegration._real_guard_runner (line 970) drives the real unavailable-repeat guard through tool_empty_result_max_repeats; repoint it to tool_unavailable_repeat_max_repeats so the three runner-level tests keep passing | REQ-002 / N/A: none cites REQ-002 | tests/agent/test_llm_turn_runner.py:970 ctx.cfg.tool.tool_empty_result_max_repeats = limit in _real_guard_runner; assertions at :1020 and :1072 depend on the unavailable guard firing/not firing | tests/agent/test_llm_turn_runner.py::TestUnavailableRepeatBoundIntegration | Verified |
 
 Rules: one row per file; the two doc rows are recorded separately from the source rows per the freeze rules.
 
@@ -81,18 +83,20 @@ Files that must be read to implement the targets but MUST NOT be modified.
 
 ## Documentation Impact
 - `docs/23_agent/agent_08_03_configuration-tools-memory.md` (ToolConfig/MemoryConfig config reference) — document the two independent knobs and separate semantics. Driven by REQ-001.
-- `docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md` line 87 — correct the coupling statement. Driven by REQ-002.
+- `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md` line 87 — correct the coupling statement. Driven by REQ-002.
 - Names resolved via `docs/00_index.md` "Document References by Task" mapping (do not hardcode filenames downstream).
 
 ## Assumptions
 - Adding a dataclass field with a default is additive and does not break existing `ToolConfig(...)` construction sites (all callers pass keyword args or rely on defaults); verified via consumer scan that no caller positional-binds every field.
 - The new knob does not require a `CONFIG_FIELD_REGISTRY` entry or validator, matching sibling knobs `tool_dedup_max_repeats` / `tool_cycle_detect_window` (registered validators only, not as hot-reloadable fields).
+- Adversarial verification (plan-to-implementation-procedure, 2026-11-08) corrected two claims: the coupling sentence lives in `agent_06_01` line 87 (not `agent_06_03`, which has no line 87 and whose line 41 stays accurate), and `tests/agent/test_llm_turn_runner.py::TestUnavailableRepeatBoundIntegration` (line 970) also drives the unavailable guard via the old knob (added as a fallout row). Existing tests that set `tool_empty_result_max_repeats` for empty-result behaviour (`test_tool_runner.py`, `test_tool_loop_guard_wiring.py`, `test_orchestrator.py`, `test_agent_repl_tool_exec.py`) are unaffected.
+- `tests/agent/test_tool_loop_guard_wiring.py` covers the empty-result guard at turn level and builds its ctx directly; the builder-level check of REQ-006 belongs in `tests/agent/test_tool_loop_guard.py`, which already uses `build_agent_config`.
 - No config-version schema exists (no `config_version`/serialization write-back for `ToolConfig`), so no serialized-config version bump is needed.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Should the new knob get the same startup enabled/disabled observability the empty-result guard has (startup log/warn)? The issue flags this as needing confirmation. | Product/owner preference on observability parity | Decide in plan-to-implementation-procedure Step 2; if yes, add a startup signal mirroring the empty-result path (out of the core REQ set) | False |
+| UNK-01 | Should the new knob get the same startup enabled/disabled observability the empty-result guard has (startup log/warn)? The issue flags this as needing confirmation. | Product/owner preference on observability parity | Verified 2026-11-08: `ToolLoopGuard.report_effective_state()` already logs a once-per-process startup diagnostic, but only for retry suppression and empty-result detection. Decision: NOT added here (new behavior outside REQ-001..006; the Out-of-Scope list excludes it). Follow-up issue candidate: add `unavailable_repeat_detection=on/off` to that diagnostic and to `agent_03_02` line 110. | False |
 | UNK-02 | Is a serialized-config version bump required for the additive field? | None — no config-version schema found in repo | Resolved: no version/schema write-back mechanism exists for `ToolConfig`; additive field needs no bump | False |
 
 ## Affected areas
@@ -103,6 +107,7 @@ Files that must be read to implement the targets but MUST NOT be modified.
 | `scripts/agent/config_dataclasses.py` | Additive `ToolConfig` field | Medium: new public dataclass field; scanned consumers (`production_config_validator`, `config_validators`, tests) all tolerate additive fields | Low | High | None: no new module |
 | `scripts/agent/config_section_builders.py` | Add one `_get_or_default` wiring line | Low: only the tool-config build path | Low | High | None |
 | `scripts/agent/tool_loop_guard.py` | Repoint two method reads to the new field | Low: internal to `ToolLoopGuard`; invoked by `llm_turn_executor`/`llm_turn_runner` | Low | High | None |
+| `tests/agent/test_llm_turn_runner.py` | Modify | Not assessed (amendment 2026-11-08) | N/A | N/A | Not assessed (amendment 2026-11-08) |
 
 ## Design
 - Current coupling: `scan_unavailable_repeat` (line 277) does `limit = self._ctx.cfg.tool.tool_empty_result_max_repeats`; `check_unavailable_repeat` (line 287) documents the reuse. The empty-result guard (lines 217/229) reads the same field.
@@ -118,9 +123,10 @@ Files that must be read to implement the targets but MUST NOT be modified.
    - [ ] Repoint `scan_unavailable_repeat` / `check_unavailable_repeat` in `scripts/agent/tool_loop_guard.py` and update the docstring (REQ-002, REQ-004).
 2. **Phase 2: Tests**
    - [ ] Add independent-toggle tests (REQ-005), default-off test (REQ-004), empty-result regression (REQ-003), and additive config-load test (REQ-006).
+   - [ ] Modify (REQ-002; `tests/agent/test_llm_turn_runner.py`) — amendment 2026-11-08
 3. **Phase 3: Documentation & Verification**
    - [ ] Document the two independent knobs in `docs/23_agent/agent_08_03_configuration-tools-memory.md` (REQ-001).
-   - [ ] Correct the coupling statement in `docs/23_agent/agent_06_03_...:87` (REQ-002).
+   - [ ] Correct the coupling statement in `docs/23_agent/agent_06_01_...:87` (REQ-002).
    - [ ] Run the tool-loop-guard and config suites; confirm no pinned assertion broke (REQ-003..REQ-006).
 
 ### Release units
@@ -143,7 +149,9 @@ N/A: no release unit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Phase 1: Core Logic Implementation (config field, builder wiring, guard repoint) | In Progress | — | — | Procedures generated 2026-11-08: implementations/20261108-195023_1_, _2_, _3_ |
+| 2 | Phase 2: Tests (independence matrix, default-off, additive load; repoint existing tests) | In Progress | — | — | Procedures generated: _4_, _5_, _8_ (fallout row) |
+| 3 | Phase 3: Documentation & Verification | In Progress | — | — | Doc procedures generated: _6_, _7_; the final suite run is carried out by code-implementation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -153,7 +161,14 @@ N/A: no release unit.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261108-195023_1_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261108-195023_2_scripts_agent_config_section_builders.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261108-195023_3_scripts_agent_tool_loop_guard.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261108-195023_4_tests_agent_test_tool_loop_guard.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-195023_5_tests_agent_test_tool_loop_guard_wiring.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-195023_6_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261108-195023_7_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261108-195023_8_tests_agent_test_llm_turn_runner.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -162,7 +177,7 @@ N/A: no release unit.
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261108-190626
-- **Related target files**: `scripts/agent/config_dataclasses.py`, `scripts/agent/config_section_builders.py`, `scripts/agent/tool_loop_guard.py`, `tests/agent/test_tool_loop_guard.py`, `tests/agent/test_tool_loop_guard_wiring.py`, `docs/23_agent/agent_08_03_configuration-tools-memory.md`, `docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md`
+- **Related target files**: `scripts/agent/config_dataclasses.py`, `scripts/agent/config_section_builders.py`, `scripts/agent/tool_loop_guard.py`, `tests/agent/test_tool_loop_guard.py`, `tests/agent/test_tool_loop_guard_wiring.py`, `docs/23_agent/agent_08_03_configuration-tools-memory.md`, `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md`, `tests/agent/test_llm_turn_runner.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -171,9 +186,12 @@ N/A: no release unit.
 | REQ-001 | Implementation Intent | `scripts/agent/config_section_builders.py` | Phase 1 | REQ-001 | raw-dict build honors key | Confirmed by repository evidence |
 | REQ-001 | Implementation Intent (document knobs) | `docs/23_agent/agent_08_03_configuration-tools-memory.md` | Phase 3 | REQ-001 | doc lists two knobs | Confirmed by repository evidence |
 | REQ-002 | Problem (shared knob) | `scripts/agent/tool_loop_guard.py` | Phase 1 | REQ-002 | method reads new field | Confirmed by repository evidence |
-| REQ-002 | Problem (silent activation) | `docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md` | Phase 3 | REQ-002 | coupling statement corrected | Confirmed by repository evidence |
+| REQ-002 | Problem (silent activation) | `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md` | Phase 3 | REQ-002 | coupling statement corrected | Confirmed by repository evidence |
 | REQ-003 | Constraints (empty-result knob untouched) | `scripts/agent/tool_loop_guard.py` | Phase 1 | REQ-003 | empty-result regression test | Confirmed by repository evidence |
 | REQ-004 | Constraints (`<= 0` disables) | `scripts/agent/tool_loop_guard.py` | Phase 1 | REQ-004 | default-off test | Confirmed by repository evidence |
 | REQ-005 | Problem (no independent toggling) | `scripts/agent/tool_loop_guard.py` | Phase 2 | REQ-005 | four-combination toggle tests | Confirmed by repository evidence |
 | REQ-006 | Constraints (additive-only) | `scripts/agent/config_dataclasses.py` | Phase 1 | REQ-006 | additive-load test | Confirmed by repository evidence |
 | REQ-006 | Constraints (additive-only) | `tests/agent/test_tool_loop_guard_wiring.py` | Phase 2 | REQ-006 | wiring reaches ToolLoopGuard | Confirmed by repository evidence |
+| REQ-002 | Amendment 2026-11-08: TestUnavailableRepeatBoundIntegration._real_guard_runner (line 970) drives the real unavailable-repeat guard through tool_empty_result_max_repeats; repoint it to tool_unavailable_repeat_max_repeats so the three runner-level tests keep passing | tests/agent/test_llm_turn_runner.py | Phase 2 | N/A: none cites REQ-002 | tests/agent/test_llm_turn_runner.py::TestUnavailableRepeatBoundIntegration | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261108-195023 -->

@@ -74,6 +74,13 @@ Files that must be read to implement the targets but MUST NOT be modified.
 - The replacement lambda keeps `group(1)` intact; making the username+colon optional only widens what matches, it does not change the masked token.
 - No other pattern in `SECRET_PATTERNS` also matches bare-password URLs and would double-mask; verified only line 38 matches URL userinfo.
 - `detects_secrets()` (which compares masked vs. original) will now report `True` for bare-password URLs, consistent with the leak being closed.
+- Adversarial verification (plan-to-implementation-procedure, 2026-11-08), reproduced against the candidate pattern:
+  - A bare userinfo cannot be told apart from a username-only one, so `ssh://git@github.com/o/r.git`, `https://user@host/x` and `ftp://anon@host/f` are masked too (`ssh://***MASKED***@github.com/...`). This is an accepted over-mask; the repository already redacts every userinfo in `scripts/mcp_servers/git/repository_state.py::_redact_remote_url` (`://[^@/]+@`).
+  - `redis://:pw@host:6379/0` (empty username) leaked before and is now masked (`redis://***MASKED***@host:6379/0`).
+  - Real consumer of `detects_secrets()`: `scripts/agent/diagnostic_store.py:164` raises `RuntimeError` (contained to a warning by diagstore001) when diagnostic content has a secret and no encryption key is set. Diagnostic content holding a bare-userinfo URL, including `ssh://git@...`, is now refused in that mode. Accepted; no change to that module (not a target file).
+  - The masker output is idempotent for the bare form (`https://***MASKED***@h/p` re-masks to itself).
+  - Pre-existing and unchanged by this plan: the pattern scan is quadratic on long input with a scheme prefix and no `@` (about 2.1 s for 16 000 chars, identical for the old and new pattern). Follow-up issue candidate, out of scope here.
+  - `docs/.../agent_10_01` line 96 says "only the password ... is masked, the username is preserved"; that stays true for the colon form only, so the doc edit must scope that clause to the colon form.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -113,6 +120,7 @@ N/A: no release unit.
 
 ## Risks
 - **Risk**: The optional group could over-match a scheme-like token followed by `@` in prose. → **Mitigation**: the mandatory `scheme://` anchor and `(?=@)` lookahead restrict matches to real URL userinfo; verified no match on `user@example.com` / `a_b@domain.org`.
+- **Risk**: Username-only userinfo (`ssh://git@host`) is now masked, and `diagnostic_store` refuses such content when no encryption key is set. → **Mitigation**: accepted over-mask consistent with `_redact_remote_url`; pinned by a test so the behavior is intentional (Phase 2).
 - **Risk**: A second pattern already covers bare-password URLs, causing a redundant re-mask. → **Mitigation**: confirmed only line 38 matches URL userinfo; idempotence test in `test_extended_idempotence` covers this.
 
 ## Execution Status
@@ -120,7 +128,9 @@ N/A: no release unit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Phase 1: Core Logic Implementation (optional-username URL regex) | In Progress | — | — | Procedure generated 2026-11-08: implementations/20261108-195603_1_ |
+| 2 | Phase 2: Tests (bare, username-only, negative, idempotence) | In Progress | — | — | Procedure generated: _2_ |
+| 3 | Phase 3: Documentation & Verification | In Progress | — | — | Doc procedure generated: _3_; the final suite and caller sweep are carried out by code-implementation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -130,7 +140,9 @@ N/A: no release unit.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261108-195603_1_scripts_agent_secrets_masker.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261108-195603_2_tests_agent_test_secrets_masker.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-195603_3_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -151,3 +163,5 @@ N/A: no release unit.
 | REQ-004 | Summary (signature/call-site unchanged) | `scripts/agent/secrets_masker.py` | Phase 1 | REQ-004 | `git diff` shows only line-38 regex + test/doc | Explicit in issue |
 | REQ-004 | Summary (call-site unchanged) | `scripts/agent/shared/retry_helper.py` | Phase 3 | REQ-004 | caller sweep | Explicit in issue |
 | REQ-005 | Implementation Intent (keep inventory at 14) | `scripts/agent/secrets_masker.py` | Phase 1 | REQ-005 | `test_pattern_count_matches_inventory` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261108-195603 -->
