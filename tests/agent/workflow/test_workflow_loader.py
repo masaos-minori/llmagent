@@ -372,3 +372,105 @@ class TestWorkflowsDirResolver:
         from shared.runtime_paths import resolve_config_dir
 
         assert WORKFLOWS_DIR == resolve_config_dir() / "workflows"
+
+
+class TestWorkflowLoaderStageShapeValidation:
+    """REQ-001..REQ-004: loader refuses malformed stages and retry_policy shapes."""
+
+    @pytest.mark.parametrize(
+        "bad_element",
+        ["analyze", 42, None],
+        ids=["string-stage", "int-stage", "none-stage"],
+    )
+    def test_bad_stage_element_refused(
+        self, tmp_path: Path, bad_element: object
+    ) -> None:
+        data = copy.deepcopy(_VALID)
+        data["stages"].append(bad_element)
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="stage 3 must be a dict"):
+            loader.load()
+
+    def test_stages_container_not_list_refused(self, tmp_path: Path) -> None:
+        """Regression pin: a non-list stages container still fails the existing guard."""
+        data = dict(_VALID)
+        data["stages"] = {"id": "analyze", "timeout_sec": 1, "retryable": False}
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(
+            WorkflowLoadError, match="'stages' must be a non-empty list"
+        ):
+            loader.load()
+
+    @pytest.mark.parametrize(
+        "bad_policy,bad_repr",
+        [("default", "'default'"), (3, "3")],
+        ids=["retry_policy-str", "retry_policy-int"],
+    )
+    def test_bad_retry_policy_shape_refused(
+        self, tmp_path: Path, bad_policy: object, bad_repr: str
+    ) -> None:
+        data = copy.deepcopy(_VALID)
+        data["retry_policy"] = bad_policy
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(
+            WorkflowLoadError,
+            match=f"retry_policy must be a dict, got .*: {bad_repr}",
+        ):
+            loader.load()
+
+
+class TestWorkflowLoaderRetryableStrictBool:
+    """REQ-003: stage retryable must be a strict bool, not a truthy/falsy value."""
+
+    @pytest.mark.parametrize(
+        "value",
+        ["false", 0, None],
+        ids=["retryable-str-false", "retryable-int-zero", "retryable-none"],
+    )
+    def test_non_bool_retryable_refused(self, tmp_path: Path, value: object) -> None:
+        data = copy.deepcopy(_VALID)
+        data["stages"][1]["retryable"] = value
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="retryable must be a bool"):
+            loader.load()
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False)],
+        ids=["retryable-true", "retryable-false"],
+    )
+    def test_bool_retryable_loads(
+        self, tmp_path: Path, value: bool, expected: bool
+    ) -> None:
+        data = copy.deepcopy(_VALID)
+        data["stages"][1]["retryable"] = value
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        assert loader.load().stages[1].retryable is expected
+
+
+class TestPreflightCauseWiring:
+    """REQ-005: check_workflow_definition wraps loader shape errors as __cause__."""
+
+    def test_check_workflow_definition_wraps_stage_shape_error(
+        self, tmp_path: Path
+    ) -> None:
+        from agent.services.workflow_schema import check_workflow_definition
+
+        data = copy.deepcopy(_VALID)
+        data["stages"].append("analyze")
+        _write_json(tmp_path, "default", data)
+        with pytest.raises(RuntimeError) as excinfo:
+            check_workflow_definition(workflows_dir=tmp_path)
+        assert isinstance(excinfo.value.__cause__, WorkflowLoadError)
+
+
+def test_shipped_default_stage_retryable_values_are_bool() -> None:
+    """Shipped config/workflows/default.json carries strict-bool retryable values."""
+    wdef = WorkflowLoader().load("default")
+    for stage in wdef.stages:
+        assert type(stage.retryable) is bool

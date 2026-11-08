@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from agent.cli_view import CLIView
@@ -60,6 +61,17 @@ class ResourceShutdownCoordinator:
         self._ctx = ctx
         self._view = view
         self._wal = wal
+        self._close_hooks: list[tuple[str, Callable[[], None]]] = []
+
+    def register_close_hook(self, name: str, hook: Callable[[], None]) -> None:
+        """Register a synchronous zero-argument close hook to run last in close_resources.
+
+        Hooks are component-agnostic owners of a resource to release on shutdown
+        (e.g. the orchestrator's workflow StateStore). They run after background-task
+        cancellation and service lifecycle shutdown, so turn-processing resources
+        settle before the store closes.
+        """
+        self._close_hooks.append((name, hook))
 
     async def close_resources(self) -> None:
         """Close all session resources. Called in the run() finally block."""
@@ -136,6 +148,14 @@ class ResourceShutdownCoordinator:
                         )
         else:
             logger.debug("No services available to shut down")
+
+        # 4. Registered close hooks run last, after every turn-processing step above.
+        for name, hook in self._close_hooks:
+            try:
+                hook()
+            except Exception as e:  # noqa: BLE001 — shutdown path must record and continue past any hook failure, not propagate
+                errors.append(("close_hook", f"{name}: {type(e).__name__}: {e}"))
+                logger.error("close_hook %r failed: %s", name, e)
 
         if errors:
             summary = "; ".join(f"{name}: {err}" for name, err in errors)

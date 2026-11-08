@@ -309,10 +309,10 @@ class TestHandleTurnInvokesWorkflowEngine:
         with (
             patch.object(
                 orch._workflow_adapter,
-                "init_workflow_task",
+                "_init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "_activate_workflow"),
             patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore"),
         ):
@@ -338,10 +338,10 @@ class TestHandleTurnInvokesWorkflowEngine:
         with (
             patch.object(
                 orch._workflow_adapter,
-                "init_workflow_task",
+                "_init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "_activate_workflow"),
             patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore"),
             patch(
@@ -432,7 +432,7 @@ class TestHandleTurnInvokesWorkflowEngine:
 
         with (
             patch.object(
-                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+                orch._workflow_adapter, "_activate_workflow", side_effect=_fake_activate
             ),
             patch.object(
                 orch._workflow_adapter,
@@ -529,7 +529,7 @@ class TestHandleTurnInvokesWorkflowEngine:
 
         with (
             patch.object(
-                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+                orch._workflow_adapter, "_activate_workflow", side_effect=_fake_activate
             ),
             patch.object(
                 orch._workflow_adapter,
@@ -629,7 +629,7 @@ class TestExecuteStageRetryRunsTurnEntryOnce:
 
         with (
             patch.object(
-                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+                orch._workflow_adapter, "_activate_workflow", side_effect=_fake_activate
             ),
             patch.object(
                 orch._workflow_adapter,
@@ -859,7 +859,7 @@ class TestEntryWorkFailureIsNotRetried:
         with (
             patch.object(
                 orch._workflow_adapter,
-                "activate_workflow",
+                "_activate_workflow",
                 side_effect=lambda ctx_obj, task: None,
             ),
             patch.object(
@@ -977,7 +977,7 @@ class TestEntryWorkOutsideStageTimeout:
 
         with (
             patch.object(
-                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+                orch._workflow_adapter, "_activate_workflow", side_effect=_fake_activate
             ),
             patch.object(
                 orch._workflow_adapter,
@@ -1071,7 +1071,7 @@ class TestEntryWorkOutsideStageTimeout:
 
         with (
             patch.object(
-                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+                orch._workflow_adapter, "_activate_workflow", side_effect=_fake_activate
             ),
             patch.object(
                 orch._workflow_adapter,
@@ -2752,10 +2752,10 @@ class TestHandleWorkflowEngineStatusPreservation:
         with (
             patch.object(
                 orch._workflow_adapter,
-                "init_workflow_task",
+                "_init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "_activate_workflow"),
             patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore", return_value=mock_store),
             patch(
@@ -2795,10 +2795,10 @@ class TestHandleWorkflowEngineStatusPreservation:
         with (
             patch.object(
                 orch._workflow_adapter,
-                "init_workflow_task",
+                "_init_workflow_task",
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
-            patch.object(orch._workflow_adapter, "activate_workflow"),
+            patch.object(orch._workflow_adapter, "_activate_workflow"),
             patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch("agent.orchestrator.StateStore", return_value=mock_store),
             patch(
@@ -2870,7 +2870,7 @@ class TestHandleWorkflowEngineStatusPreservation:
                 return_value=("wf-1", MagicMock(task_id="task-1")),
             ),
             patch.object(orch._workflow_adapter, "_activate_workflow"),
-            patch.object(orch._workflow_adapter, "_deactivate_workflow"),
+            patch.object(orch._workflow_adapter, "deactivate_workflow"),
             patch.object(
                 orch._workflow_adapter,
                 "_run_execute_stage",

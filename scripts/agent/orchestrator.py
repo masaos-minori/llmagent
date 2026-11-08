@@ -210,6 +210,10 @@ class Orchestrator:
             return {"tracking": "running"}
         return {"tracking": "enabled"}
 
+    def close(self) -> None:
+        """Close the workflow StateStore. Called once by the shutdown coordinator hook."""
+        self._state_store.close()
+
     async def _on_pause_blocked(self, paused_names):
         logger.warning(
             "Turn blocked: agent paused due to background task failures: %s",

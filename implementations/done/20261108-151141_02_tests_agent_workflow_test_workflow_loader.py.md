@@ -158,10 +158,10 @@ uv run pytest tests/ -q                                                 # full s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add shape-validation and strict-bool test classes (Steps 1-3) | Pending | — | — | |
-| 2 | Add entry-point `__cause__` test and shipped-definition pin (Steps 4-5) | Pending | — | — | |
-| 3 | Run pytest per Validation plan; confirm red-on-HEAD for new cases | Pending | — | — | |
-| 4 | Run the validation sequence (rules/toolchain.md) | Pending | — | — | |
+| 1 | Add shape-validation and strict-bool test classes (Steps 1-3) | Completed | — | 20261109-005342 |  |
+| 2 | Add entry-point `__cause__` test and shipped-definition pin (Steps 4-5) | Completed | — | 20261109-005342 |  |
+| 3 | Run pytest per Validation plan; confirm red-on-HEAD for new cases | Completed | — | 20261109-005342 |  |
+| 4 | Run the validation sequence (rules/toolchain.md) | Completed | — | 20261109-005342 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

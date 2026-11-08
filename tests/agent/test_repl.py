@@ -971,6 +971,44 @@ class TestRunBindsStartupResultsToInputLoop:
         assert repl._input_loop._orchestrator is orchestrator
 
 
+class TestShutdownHookRegistration:
+    """REQ-003: run() registers the orchestrator's workflow-store close with the shutdown
+    coordinator after startup, so the store closes once through close_resources on every exit.
+    """
+
+    @pytest.mark.asyncio
+    async def test_workflow_store_hook_registered_and_executed(self) -> None:
+        repl = _make_bare_repl()
+        orchestrator = MagicMock()
+        cmds = MagicMock()
+
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(return_value=(cmds, orchestrator))
+            with patch.object(repl._input_loop, "run", new=AsyncMock()):
+                await repl.run()
+
+        # A single hook named "workflow_store" bound to the orchestrator's close.
+        names = [name for name, _hook in repl._shutdown._close_hooks]
+        assert names == ["workflow_store"]
+        assert repl._shutdown._close_hooks[0][1] is orchestrator.close
+        # The finally's close_resources executed it exactly once.
+        orchestrator.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_hook_registered_when_startup_raises(self) -> None:
+        repl = _make_bare_repl()
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(
+                side_effect=RuntimeError("startup failed")
+            )
+            with pytest.raises(RuntimeError, match="startup failed"):
+                await repl.run()
+
+        # Startup never produced an orchestrator, so nothing is registered and
+        # close_resources completes with no store-close error entry.
+        assert repl._shutdown._close_hooks == []
+
+
 # ── AgentREPL.run() sqlite3.Error message format ──────────────────────────────
 
 

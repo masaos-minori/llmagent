@@ -267,3 +267,78 @@ class TestRealContendedStepIsBounded:
         assert "wal_checkpoint_timeout" in summary
         assert "bound of 0.3s expired" in summary
         assert background.cancelled()
+
+
+class TestCloseHooks:
+    """REQ-003: ResourceShutdownCoordinator.register_close_hook registers a terminal close
+    hook that runs last, records hook failures without propagating, and is a no-op when empty.
+    """
+
+    @staticmethod
+    def _coordinator_with_services() -> ResourceShutdownCoordinator:
+        coordinator = _make_coordinator()
+        svc = MagicMock()
+        svc.http.aclose = AsyncMock()
+        svc.lifecycle.shutdown_all = AsyncMock(return_value=[])
+        coordinator._ctx.services = svc
+        return coordinator
+
+    @pytest.mark.asyncio
+    async def test_registered_hook_runs_once(self) -> None:
+        coordinator = _make_coordinator()
+        calls: list[int] = []
+        coordinator.register_close_hook("wf", lambda: calls.append(1))
+        await coordinator.close_resources()
+        assert calls == [1]
+
+    @pytest.mark.asyncio
+    async def test_raising_hook_is_recorded_and_later_hook_runs(self) -> None:
+        coordinator = _make_coordinator()
+        order: list[str] = []
+
+        def raising() -> None:
+            order.append("raising")
+            raise RuntimeError("store boom")
+
+        def later() -> None:
+            order.append("later")
+
+        coordinator.register_close_hook("bad", raising)
+        coordinator.register_close_hook("good", later)
+        with patch("agent.resource_shutdown_coordinator.logger") as mock_logger:
+            await coordinator.close_resources()
+
+        # The failing hook does not skip the later hook; both run in registration order.
+        assert order == ["raising", "later"]
+        # The failure is recorded once, labeled "close_hook", and surfaces in the summary.
+        summary = coordinator._view.write_warning.call_args[0][0]
+        assert summary.count("close_hook") == 1
+        assert "bad: RuntimeError: store boom" in summary
+        error_messages = [str(c.args) for c in mock_logger.error.call_args_list]
+        assert any("close_hook" in msg for msg in error_messages)
+
+    @pytest.mark.asyncio
+    async def test_hook_runs_after_services_shutdown(self) -> None:
+        """The hook body observes that service lifecycle shutdown already ran."""
+        coordinator = self._coordinator_with_services()
+        order: list[str] = []
+
+        async def _shutdown_all() -> list:
+            order.append("services")
+            return []
+
+        coordinator._ctx.services.lifecycle.shutdown_all = AsyncMock(
+            side_effect=_shutdown_all
+        )
+        coordinator.register_close_hook("wf", lambda: order.append("hook"))
+        await coordinator.close_resources()
+
+        assert order == ["services", "hook"]
+
+    @pytest.mark.asyncio
+    async def test_no_hooks_completes_without_error_entries(self) -> None:
+        coordinator = _make_coordinator()
+        with patch("agent.resource_shutdown_coordinator.logger") as mock_logger:
+            await coordinator.close_resources()
+        error_messages = [str(c.args) for c in mock_logger.error.call_args_list]
+        assert not any("close_hook" in msg for msg in error_messages)

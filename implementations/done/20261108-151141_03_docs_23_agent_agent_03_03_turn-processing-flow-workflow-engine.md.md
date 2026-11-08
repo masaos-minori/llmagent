@@ -121,8 +121,8 @@ line are not reworded and stay byte-identical.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the Validation Rules bullets (Steps 1-3) | Pending | — | — | |
-| 2 | Run docs checkers (`check_docs_claims.py`, `check_docs_diagrams.py`) and stale_detector | Pending | — | — | |
+| 1 | Edit the Validation Rules bullets (Steps 1-3) | Completed | — | 20261109-005342 |  |
+| 2 | Run docs checkers (`check_docs_claims.py`, `check_docs_diagrams.py`) and stale_detector | Completed | — | 20261109-005342 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

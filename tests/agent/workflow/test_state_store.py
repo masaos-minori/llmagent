@@ -268,3 +268,18 @@ class TestRecoverStaleAttemptsOptimisticLocking:
         assert [row["attempt_id"] for row in stale] == ["att-1"]
         assert stale[0]["owner_id"] == "host-a"
         assert stale[0]["lease_expires_at"] == lease
+
+
+class TestDoubleClose:
+    """REQ-005: StateStore.close() is idempotent-safe through SQLiteHelper.close (early
+    return when conn is None); a second close neither raises nor re-opens the connection.
+    """
+
+    def test_double_close_is_noop(self, store) -> None:
+        conn = store.get_connection()
+        assert conn.conn is not None
+        store.close()
+        assert conn.conn is None
+        # Second close is a no-op: no raise, conn stays None.
+        store.close()
+        assert conn.conn is None

@@ -126,6 +126,15 @@ class AgentREPL:
                 self._view.write_fatal(f"Startup failed: {e}")
                 raise
 
+            # Register the orchestrator's workflow-store close with the shutdown
+            # coordinator. The coordinator was built in __init__ before the
+            # orchestrator existed, so this post-startup registration is the only
+            # point where both objects are present. Before bind() means every exit
+            # path that reaches the finally already carries the hook.
+            self._shutdown.register_close_hook(
+                "workflow_store", self._orchestrator.close
+            )
+
             self._input_loop.bind(self._cmds, self._orchestrator)
 
             # Show memory disabled warning immediately after startup if applicable

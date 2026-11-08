@@ -5,7 +5,7 @@ Workflow engine integration: task creation, activation/deactivation,
 halt handling.
 
 Extracted from orchestrator.py (_init_workflow_task, _activate_workflow,
-_deactivate_workflow, _handle_workflow_halt).
+deactivate_workflow, _handle_workflow_halt).
 """
 
 # ADR-014: adapter between the Orchestrator and the WorkflowEngine that owns persistent state
@@ -102,48 +102,6 @@ class WorkflowEngineAdapter:
         self._on_error = on_error
         self._allowed_tools = allowed_tools
         self._owns_state_store = False
-
-    # ── Backward-compatible public API ────────────────────────────────────────
-
-    def init_workflow_task(
-        self,
-        ctx: AgentContext,
-        session_id: str,
-        existing_task_id: str | None = None,
-        store: StateStore | None = None,
-    ) -> tuple[str, TaskRecord]:
-        """Create a workflow task and audit its start.
-
-        If existing_task_id is provided, use that task instead of creating a new one.
-        The caller may pass a pre-opened StateStore via the `store` parameter to avoid
-        opening a second connection.
-
-        Backward-compatible alias for _init_workflow_task.
-        """
-        return self._init_workflow_task(ctx, session_id, existing_task_id, store)
-
-    def activate_workflow(self, ctx: AgentContext, task: TaskRecord) -> None:
-        """Set workflow state to active.
-
-        Backward-compatible alias for _activate_workflow.
-        """
-        self._activate_workflow(ctx, task)
-
-    def deactivate_workflow(self, ctx: AgentContext) -> None:
-        """Reset workflow state after engine completion.
-
-        Backward-compatible alias for _deactivate_workflow.
-        """
-        self._deactivate_workflow(ctx)
-
-    def handle_workflow_halt(
-        self, ctx: AgentContext, exc: WorkflowHaltError | WorkflowTimeoutError
-    ) -> None:
-        """Handle workflow halt event.
-
-        Backward-compatible alias for _handle_workflow_halt.
-        """
-        self._handle_workflow_halt(exc)
 
     # ── Private implementation ────────────────────────────────────────────────
 
@@ -287,6 +245,9 @@ class WorkflowEngineAdapter:
         store: StateStore | None = None,
     ) -> tuple[str, TaskRecord]:
         """Create a workflow task and audit its start."""
+        # Reset per-call ownership so a prior store-less init cannot leak True
+        # across calls and close an injected store on the next turn's exit.
+        self._owns_state_store = False
         close_store = False
         if store is None:
             store = StateStore()
@@ -333,7 +294,7 @@ class WorkflowEngineAdapter:
         ctx.workflow.current_workflow_version = self._workflow_engine.version
         ctx.workflow.active = True
 
-    def _deactivate_workflow(self, ctx: AgentContext) -> None:
+    def deactivate_workflow(self, ctx: AgentContext) -> None:
         """Reset workflow state after engine completion."""
         ctx.workflow.active = False
         ctx.workflow.current_task_id = None

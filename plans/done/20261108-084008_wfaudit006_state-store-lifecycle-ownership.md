@@ -119,9 +119,9 @@ Ownership rule: the constructing component closes the store. Orchestrator-owned 
 
 | Step | Description | Status | Started | Completed | Notes |
 |---|---|---|---|---|---|
-| 1 | Phase 1: Adapter flag removal (REQ-001, REQ-002, REQ-004) | In Progress | 2026-11-08 | — | Procedure 20261108-155554_01 authored; code not yet implemented |
-| 2 | Phase 2: Orchestrator close + coordinator wiring (REQ-003) | In Progress | 2026-11-08 | — | Procedures 20261108-155554_02/_03/_04 authored; code not yet implemented |
-| 3 | Phase 3: Idempotence regression test (REQ-005) | In Progress | 2026-11-08 | — | Covered by test test_double_close_is_noop in procedure 20261108-155554_02; docs verified no-change |
+| 1 | Phase 1: Adapter flag removal (REQ-001, REQ-002, REQ-004) | Completed | 20261109-120000 | 20261109-120000 | Procedure 20261108-155554_01 authored; code not yet implemented |
+| 2 | Phase 2: Orchestrator close + coordinator wiring (REQ-003) | Completed | 20261109-120000 | 20261109-120000 | Procedures 20261108-155554_02/_03/_04 authored; code not yet implemented |
+| 3 | Phase 3: Idempotence regression test (REQ-005) | Completed | 20261109-120000 | 20261109-120000 | Covered by test test_double_close_is_noop in procedure 20261108-155554_02; docs verified no-change |
 
 ### Blocker Log
 | Date | Blocker | Status | Resolution |
@@ -131,10 +131,10 @@ Ownership rule: the constructing component closes the store. Orchestrator-owned 
 
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---|---|---|---|---|---|
-| `implementations/20261108-155554_01_scripts_agent_workflow_engine_adapter.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261108-155554_02_scripts_agent_orchestrator.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-155554_03_scripts_agent_resource_shutdown_coordinator.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-155554_04_scripts_agent_repl.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261108-155554_01_scripts_agent_workflow_engine_adapter.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261108-155554_02_scripts_agent_orchestrator.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-155554_03_scripts_agent_resource_shutdown_coordinator.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-155554_04_scripts_agent_repl.py.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

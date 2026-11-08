@@ -112,8 +112,8 @@ Amended 2026-11-08 (scope): added docs/23_agent/agent_03_03_turn-processing-flow
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Loader validation (loader helpers + loader test file extension) | In Progress | 20261108-151141 |  | procedures 151141_01-02 generated 2026-11-08 |
-| 2 | Phase 2: Entry-point consistency + docs (entry-point test; docs contract section update) | In Progress | 20261108-151141 |  | procedure 151141_03 generated 2026-11-08 |
+| 1 | Phase 1: Loader validation (loader helpers + loader test file extension) | Completed | 20261108-151141 | 20261109-005543 | procedures 151141_01-02 generated 2026-11-08 |
+| 2 | Phase 2: Entry-point consistency + docs (entry-point test; docs contract section update) | Completed | 20261108-151141 | 20261109-005513 | procedure 151141_03 generated 2026-11-08 |
 
 ### Blocker Log
 | Date | Blocker | Status | Resolution |

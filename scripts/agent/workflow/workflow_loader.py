@@ -2,6 +2,10 @@
 """scripts/agent/workflow/workflow_loader.py
 
 Load and validate workflow definitions from config/workflows/*.json.
+
+Validation refuses malformed shapes before any subscript: each stage and
+``retry_policy`` must be a JSON object, and ``retryable`` must be a strict JSON
+bool; every failure raises ``WorkflowLoadError`` naming the offending field.
 """
 
 from __future__ import annotations
@@ -97,14 +101,29 @@ def _require_int(value: object, label: str, minimum: int) -> int:
     return value
 
 
+def _require_dict(value: object, label: str) -> dict[str, object]:
+    """Validate that value is a strict dict.
+
+    Raises WorkflowLoadError naming the field for any other type. Mirrors
+    _require_int's strictness and message shape.
+    """
+    if type(value) is not dict:
+        raise WorkflowLoadError(
+            f"{label} must be a dict, got {type(value).__name__}: {value!r}"
+        )
+    return value
+
+
 def _validate(data: _WorkflowJson) -> None:
-    """Raise WorkflowLoadError for missing keys, wrong numeric types, or out-of-range values."""
+    """Raise WorkflowLoadError for missing keys, wrong shapes, wrong numeric types, or out-of-range values."""
     for key in ("name", "version", "stages", "retry_policy"):
         if key not in data:
             raise WorkflowLoadError(f"missing required key: {key!r}")
     stages_data = data.get("stages", [])
     if not isinstance(stages_data, list) or not stages_data:
         raise WorkflowLoadError("'stages' must be a non-empty list")
+    for index, stage in enumerate(stages_data):
+        _require_dict(stage, f"stage {index}")
     stage_ids = [s.get("id") for s in stages_data]
     for sid in stage_ids:
         if sid is None:
@@ -123,7 +142,13 @@ def _validate(data: _WorkflowJson) -> None:
         if missing:
             raise WorkflowLoadError(f"stage[{i}] missing keys: {missing}")
         _require_int(stage["timeout_sec"], f"stages[{i}].timeout_sec", 1)
+        if type(stage["retryable"]) is not bool:
+            raise WorkflowLoadError(
+                f"stages[{i}].retryable must be a bool, "
+                f"got {type(stage['retryable']).__name__}: {stage['retryable']!r}"
+            )
     retry_policy_data = data.get("retry_policy", {})
+    _require_dict(retry_policy_data, "retry_policy")
     missing_p = _REQUIRED_POLICY_KEYS - retry_policy_data.keys()
     if missing_p:
         raise WorkflowLoadError(f"retry_policy missing keys: {missing_p}")
