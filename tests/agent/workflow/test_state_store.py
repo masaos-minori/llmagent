@@ -253,9 +253,7 @@ class TestRecoverStaleAttemptsOptimisticLocking:
         assert store.last_recovery_report.unparseable == 1
         assert any("garbage" in rec.getMessage() for rec in caplog.records)
 
-    def test_find_stale_running_attempts_exposes_lease_keys(
-        self, store, workflow_db: Path
-    ) -> None:
+    def test_recover_stale_lease_expired_row(self, store, workflow_db: Path) -> None:
         lease = _iso(10)
         _seed_attempt(
             workflow_db,
@@ -264,10 +262,12 @@ class TestRecoverStaleAttemptsOptimisticLocking:
             owner_id="host-a",
             lease_expires_at=lease,
         )
-        stale = store.find_stale_running_attempts(store.get_connection())
-        assert [row["attempt_id"] for row in stale] == ["att-1"]
-        assert stale[0]["owner_id"] == "host-a"
-        assert stale[0]["lease_expires_at"] == lease
+        result = store.recover_stale_attempts(store.get_connection())
+        assert result == 1
+        row = _attempt_row(workflow_db, "att-1")
+        assert row["status"] == "failed"
+        assert "lease expired" in row["error_msg"]
+        assert store.last_recovery_report.recovered == 1
 
 
 class TestDoubleClose:

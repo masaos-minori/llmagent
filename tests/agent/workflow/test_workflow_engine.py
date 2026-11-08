@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from agent.workflow.attempt_ops import count_attempts
+from agent.workflow import tool_call_state_ops
 from agent.workflow.idempotency_ops import is_event_processed
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 from agent.workflow.task_ops import (
@@ -28,6 +28,7 @@ from agent.workflow.workflow_engine import (
 from agent.workflow.workflow_loader import WorkflowLoader
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
+from db.helper import SQLiteHelper
 from shared.json_utils import parse_iso_utc
 
 
@@ -125,6 +126,15 @@ def _attempt_error_kinds(
         conn.close()
 
 
+def _attempt_count(db: SQLiteHelper, task_id: str, stage_id: str) -> int:
+    """Count attempts for a task/stage via an inline COUNT query (REQ-001)."""
+    rows = db.fetchall(
+        "SELECT COUNT(*) as cnt FROM attempts WHERE task_id=? AND stage_id=?",
+        (task_id, stage_id),
+    )
+    return int(rows[0]["cnt"])
+
+
 def _lease_delta_sec(row: sqlite3.Row) -> float:
     """lease_expires_at minus started_at, both parsed with parse_iso_utc (REQ-009)."""
     return (
@@ -218,7 +228,7 @@ class TestWorkflowEngineRetry:
         with pytest.raises(WorkflowHaltError):
             await engine.run(task, _noop, always_fail, _noop)
 
-        assert count_attempts(store._db, task.task_id, "execute") == 3
+        assert _attempt_count(store._db, task.task_id, "execute") == 3
 
 
 class TestWorkflowEngineTimeout:
@@ -375,7 +385,7 @@ class TestWorkflowEngineRetryKinds:
         with pytest.raises(WorkflowHaltError):
             await engine.run(task, _noop, always_fail, _noop)
 
-        assert count_attempts(store._db, task.task_id, "execute") == 3
+        assert _attempt_count(store._db, task.task_id, "execute") == 3
         assert (
             _attempt_error_kinds(workflow_db, task.task_id, "execute")
             == ["exception"] * 3
@@ -402,7 +412,7 @@ class TestWorkflowEngineRetryKinds:
                 await engine.run(task, _noop, failing_execute, _noop)
         mock_sleep.assert_not_called()
 
-        assert count_attempts(store._db, task.task_id, "execute") == 1
+        assert _attempt_count(store._db, task.task_id, "execute") == 1
 
     @pytest.mark.asyncio
     async def test_llm_failure_persisted_kind_terminal_under_shipped_config(
@@ -459,7 +469,7 @@ class TestWorkflowEngineRetryKinds:
             await engine.run(task, _noop, halting_execute, _noop)
 
         assert calls["n"] == 1
-        assert count_attempts(store._db, task.task_id, "execute") == 1
+        assert _attempt_count(store._db, task.task_id, "execute") == 1
         found = get_task_by_id(store._db, task.task_id)
         assert found is not None
         assert found.status == "halted"
@@ -619,7 +629,7 @@ class TestRunStageWithRetryGeneralization:
             await engine.run(task, failing_plan, _noop, _noop)
 
         assert calls["n"] == 1, "non-retryable stage must not be retried"
-        assert count_attempts(store._db, task.task_id, "plan") == 1
+        assert _attempt_count(store._db, task.task_id, "plan") == 1
 
     @pytest.mark.asyncio
     async def test_non_retryable_verify_stage_does_not_retry_on_failure(
@@ -640,7 +650,7 @@ class TestRunStageWithRetryGeneralization:
             await engine.run(task, _noop, _noop, failing_verify)
 
         assert calls["n"] == 1, "non-retryable stage must not be retried"
-        assert count_attempts(store._db, task.task_id, "verify") == 1
+        assert _attempt_count(store._db, task.task_id, "verify") == 1
 
     @pytest.mark.asyncio
     async def test_execute_success_verify_failure_marks_task_failed(
@@ -680,7 +690,7 @@ class TestRunStageWithRetryGeneralization:
 
         await engine.run(task, _noop, flaky_execute, _noop)
         assert calls["n"] == 2
-        assert count_attempts(store._db, task.task_id, "execute") == 2
+        assert _attempt_count(store._db, task.task_id, "execute") == 2
 
 
 class TestBuildTurnControlMessage:
@@ -732,7 +742,7 @@ class TestBuildTurnControlMessage:
         store.record_tool_call(task.task_id, "k3", "calculator__calculate", "retryable")
         engine = WorkflowEngine(_make_wdef(), store)
         assert engine.build_turn_control_message(task.task_id) is None
-        assert len(store.pending_tool_calls(task.task_id)) == 1
+        assert len(tool_call_state_ops.pending_tool_calls(store._db, task.task_id)) == 1
 
     def test_interrupted_rows_are_consumed_once(self, store) -> None:
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")

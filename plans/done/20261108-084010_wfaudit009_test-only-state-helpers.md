@@ -115,9 +115,9 @@ Delete, not wire: every deletion target has a production path already used by th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |---|---|---|---|---|---|
-| 1 | Phase 1: behavior-preserving test migration | In Progress | — | — | Procedure docs 20261108-170505_04..08 created 20261108-170505 |
-| 2 | Phase 2: helper deletion and comment cleanup | In Progress | — | — | Procedure docs 20261108-170505_01..03 created 20261108-170505 |
-| 3 | Phase 3: documentation verification | Planned | — | — |  |
+| 1 | Phase 1: behavior-preserving test migration | Completed | 20261109-071245 | 20261109-071245 | Procedure docs 20261108-170505_04..08 created 20261108-170505 |
+| 2 | Phase 2: helper deletion and comment cleanup | Completed | 20261109-071245 | 20261109-071245 | Procedure docs 20261108-170505_01..03 created 20261108-170505 |
+| 3 | Phase 3: documentation verification | Completed | 20261109-071245 | 20261109-071245 | verification-only: grep zero matches for deleted helper names in docs/ |
 
 ### Blocker Log
 | Date | Blocker | Status | Resolution |
@@ -126,14 +126,14 @@ Delete, not wire: every deletion target has a production path already used by th
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261108-170505_01_scripts_agent_workflow_attempt_ops.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-170505_02_scripts_agent_workflow_state_store.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-170505_03_scripts_agent_workflow_idempotency_ops.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-170505_04_tests_agent_workflow_test_workflow_state_store.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261108-170505_05_tests_agent_workflow_test_state_store.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261108-170505_06_tests_agent_workflow_test_workflow_engine.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261108-170505_07_tests_agent_workflow_test_workflow_stage_persistence.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261108-170505_08_tests_agent_workflow_test_workflow_status_vocabulary.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261108-170505_01_scripts_agent_workflow_attempt_ops.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-170505_02_scripts_agent_workflow_state_store.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-170505_03_scripts_agent_workflow_idempotency_ops.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-170505_04_tests_agent_workflow_test_workflow_state_store.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261108-170505_05_tests_agent_workflow_test_state_store.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261108-170505_06_tests_agent_workflow_test_workflow_engine.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261108-170505_07_tests_agent_workflow_test_workflow_stage_persistence.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261108-170505_08_tests_agent_workflow_test_workflow_status_vocabulary.py.md` | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

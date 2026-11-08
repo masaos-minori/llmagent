@@ -18,7 +18,8 @@ from unittest.mock import patch
 
 import pytest
 from agent.workflow import tool_call_state_ops
-from agent.workflow.attempt_ops import finish_attempt, start_attempt
+from agent.workflow.attempt_ops import finish_attempt
+from agent.workflow.idempotency_ops import begin_stage_if_new
 from agent.workflow.models import ATTEMPT_STATUSES, TASK_STATUSES, TOOL_CALL_STATES
 from agent.workflow.task_ops import create_task, get_task_by_id, update_task_status
 from db.config import DbConfig
@@ -112,7 +113,8 @@ class TestHelperRejection:
 
     def test_finish_attempt_rejects_and_writes_nothing(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
-        attempt = start_attempt(store._db, task.task_id, "plan")
+        attempt = begin_stage_if_new(store._db, "evt-vocab-1", task.task_id, "plan")
+        assert attempt is not None
         finish_attempt(store._db, attempt.attempt_id, "completed")
         with pytest.raises(ValueError, match="invalid attempts.status 'done'"):
             finish_attempt(store._db, attempt.attempt_id, "done")

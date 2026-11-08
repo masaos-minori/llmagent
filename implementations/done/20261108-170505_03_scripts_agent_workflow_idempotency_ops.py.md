@@ -63,10 +63,10 @@ No other lines change: the docstring, the processed_events semantics block (owne
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | lands with document 01 (plan step 2) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | no tests for a comment-only edit |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | includes the REQ-001 grep |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs grep verified zero matches; verification-only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-071047 | 20261109-071047 | lands with document 01 (plan step 2) |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-071047 | 20261109-071047 | no tests for a comment-only edit |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-071047 | 20261109-071047 | includes the REQ-001 grep |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-071047 | 20261109-071047 | docs grep verified zero matches; verification-only N/A: no docs/00_index.md task-scope mapping; grep zero matches for deleted helper names |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

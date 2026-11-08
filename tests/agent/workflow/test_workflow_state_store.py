@@ -17,7 +17,7 @@ from unittest.mock import patch
 import pytest
 from agent.workflow import tool_call_state_ops
 from agent.workflow.artifact_ops import record_artifact
-from agent.workflow.attempt_ops import count_attempts, finish_attempt, start_attempt
+from agent.workflow.attempt_ops import finish_attempt
 from agent.workflow.idempotency_ops import begin_stage_if_new, is_event_processed
 from agent.workflow.task_ops import (
     create_task,
@@ -148,22 +148,28 @@ class TestUpdateTaskStatus:
 
 
 class TestAttempts:
-    def test_start_attempt_returns_record(self, store) -> None:
+    def test_begin_stage_returns_record(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        attempt = start_attempt(store._db, task.task_id, "plan")
+        attempt = begin_stage_if_new(store._db, "evt-ta-1", task.task_id, "plan")
+        assert attempt is not None
         assert attempt.task_id == task.task_id
         assert attempt.stage_id == "plan"
         assert attempt.status == "running"
 
-    def test_count_attempts(self, store) -> None:
+    def test_attempt_count_via_inline_query(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        start_attempt(store._db, task.task_id, "execute")
-        start_attempt(store._db, task.task_id, "execute")
-        assert count_attempts(store._db, task.task_id, "execute") == 2
+        begin_stage_if_new(store._db, "evt-ta-2", task.task_id, "execute")
+        begin_stage_if_new(store._db, "evt-ta-3", task.task_id, "execute")
+        rows = store._db.fetchall(
+            "SELECT COUNT(*) as cnt FROM attempts WHERE task_id=? AND stage_id='execute'",
+            (task.task_id,),
+        )
+        assert int(rows[0]["cnt"]) == 2
 
     def test_finish_attempt_completed(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        attempt = start_attempt(store._db, task.task_id, "plan")
+        attempt = begin_stage_if_new(store._db, "evt-ta-4", task.task_id, "plan")
+        assert attempt is not None
         finish_attempt(store._db, attempt.attempt_id, "completed")
         rows = store._db.fetchall(
             "SELECT status FROM attempts WHERE attempt_id=?", (attempt.attempt_id,)
@@ -179,7 +185,8 @@ class TestAttempts:
 
     def test_finish_attempt_with_error(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        attempt = start_attempt(store._db, task.task_id, "execute")
+        attempt = begin_stage_if_new(store._db, "evt-ta-5", task.task_id, "execute")
+        assert attempt is not None
         finish_attempt(store._db, attempt.attempt_id, "failed", "timeout")
         rows = store._db.fetchall(
             "SELECT status, error_msg FROM attempts WHERE attempt_id=?",
@@ -187,6 +194,35 @@ class TestAttempts:
         )
         assert rows[0][0] == "failed"
         assert rows[0][1] == "timeout"
+
+    def test_begin_stage_if_new_stamps_lease_columns(self, store) -> None:
+        """begin_stage_if_new stamps owner_id/lease_expires_at only with lease_duration_sec (REQ-002)."""
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        stamped = begin_stage_if_new(
+            store._db, "evt-ta-lease", task.task_id, "execute", lease_duration_sec=900
+        )
+        assert stamped is not None
+        stamped_rows = store._db.fetchall(
+            "SELECT owner_id, lease_expires_at, started_at FROM attempts WHERE attempt_id=?",
+            (stamped.attempt_id,),
+        )
+        assert stamped_rows[0][0] is not None  # owner_id
+        assert stamped_rows[0][1] is not None  # lease_expires_at
+        assert stamped_rows[0][2] is not None  # started_at
+        assert (
+            stamped_rows[0][1] > stamped_rows[0][2]
+        )  # Z-format string compare: later time
+
+        leaseless = begin_stage_if_new(
+            store._db, "evt-ta-nolease", task.task_id, "execute"
+        )
+        assert leaseless is not None
+        leaseless_rows = store._db.fetchall(
+            "SELECT owner_id, lease_expires_at FROM attempts WHERE attempt_id=?",
+            (leaseless.attempt_id,),
+        )
+        assert leaseless_rows[0][0] is None  # owner_id
+        assert leaseless_rows[0][1] is None  # lease_expires_at
 
 
 class TestIdempotency:
@@ -249,9 +285,9 @@ class TestDiagnosticQueries:
 
     def test_get_execute_attempt_count_filters_by_stage(self, store) -> None:
         task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
-        start_attempt(store._db, task.task_id, "execute")
-        start_attempt(store._db, task.task_id, "execute")
-        start_attempt(store._db, task.task_id, "plan")
+        begin_stage_if_new(store._db, "evt-diag-1", task.task_id, "execute")
+        begin_stage_if_new(store._db, "evt-diag-2", task.task_id, "execute")
+        begin_stage_if_new(store._db, "evt-diag-3", task.task_id, "plan")
 
         assert store.get_execute_attempt_count("sess-diag") == 2
         assert store.get_execute_attempt_count("sess-none") == 0
@@ -514,8 +550,8 @@ class TestRecoverStaleAttempts:
         finally:
             s.close()
 
-    def test_find_stale_returns_only_old_attempts(self, workflow_db) -> None:
-        """find_stale_running_attempts returns only lease-expired or legacy-old attempts."""
+    def test_recovery_marks_only_old_attempts(self, workflow_db) -> None:
+        """recover_stale_attempts marks only lease-expired or legacy-old attempts as failed."""
         s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
@@ -525,11 +561,18 @@ class TestRecoverStaleAttempts:
                 s, "att-2", "task-2", "execute", "running", _iso(5)
             )
 
-            stale = s.find_stale_running_attempts(s._db)
+            count = s.recover_stale_attempts(s._db)
 
-            stale_ids = [item["attempt_id"] for item in stale]
-            assert "att-1" in stale_ids
-            assert "att-2" not in stale_ids
+            assert count == 1
+            rows_1 = s._db.fetchall(
+                "SELECT status FROM attempts WHERE attempt_id='att-1'"
+            )
+            assert rows_1[0][0] == "failed"
+            rows_2 = s._db.fetchall(
+                "SELECT status FROM attempts WHERE attempt_id='att-2'"
+            )
+            assert rows_2[0][0] == "running"
+            assert s.last_recovery_report.legacy_recovered == 1
         finally:
             s.close()
 
@@ -716,13 +759,13 @@ class TestToolCallStateOps:
         store.record_tool_call(
             t1.task_id, "key-1", "calculator__calculate", "retryable"
         )
-        pending1 = store.pending_tool_calls(t1.task_id)
+        pending1 = tool_call_state_ops.pending_tool_calls(store._db, t1.task_id)
         assert [c.idempotency_key for c in pending1] == ["key-1"]
         assert pending1[0].state == "pending"
         assert pending1[0].tool == "calculator__calculate"
         assert pending1[0].retry_class == "retryable"
         # Task isolation: the other task sees nothing (completion criterion).
-        assert store.pending_tool_calls(t2.task_id) == []
+        assert tool_call_state_ops.pending_tool_calls(store._db, t2.task_id) == []
 
     def test_lifecycle_works_on_legacy_shape_with_unused_snapshot_column(
         self, store
@@ -746,11 +789,12 @@ class TestToolCallStateOps:
         store.record_tool_call(
             task.task_id, "key-legacy", "calculator__calculate", "retryable"
         )
-        assert [c.idempotency_key for c in store.pending_tool_calls(task.task_id)] == [
-            "key-legacy"
-        ]
+        assert [
+            c.idempotency_key
+            for c in tool_call_state_ops.pending_tool_calls(store._db, task.task_id)
+        ] == ["key-legacy"]
         store.finalize_tool_call("key-legacy", "completed")
-        assert store.pending_tool_calls(task.task_id) == []
+        assert tool_call_state_ops.pending_tool_calls(store._db, task.task_id) == []
 
     def test_record_duplicate_key_is_ignored(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
@@ -760,19 +804,19 @@ class TestToolCallStateOps:
         store.record_tool_call(
             task.task_id, "key-dup", "deepresearch__search", "retryable"
         )
-        assert len(store.pending_tool_calls(task.task_id)) == 1
+        assert len(tool_call_state_ops.pending_tool_calls(store._db, task.task_id)) == 1
 
     def test_finalize_moves_state_and_bumps_updated_at(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         store.record_tool_call(
             task.task_id, "key-f", "calculator__calculate", "non_retryable"
         )
-        before = store.pending_tool_calls(task.task_id)[0]
+        before = tool_call_state_ops.pending_tool_calls(store._db, task.task_id)[0]
         store.finalize_tool_call("key-f", "failed")
         row = tool_call_state_ops.get_tool_call_state(store._db, "key-f")
         assert row is not None and row.state == "failed"
         assert row.updated_at >= before.updated_at
-        assert store.pending_tool_calls(task.task_id) == []
+        assert tool_call_state_ops.pending_tool_calls(store._db, task.task_id) == []
         # wfaudit005 REQ-002: out-of-vocabulary state raises and writes nothing.
         with pytest.raises(ValueError, match="invalid tool_call_state.state 'done'"):
             store.finalize_tool_call("key-f", "done")
@@ -786,7 +830,10 @@ class TestToolCallStateOps:
                 task.task_id, f"key-{i}", "calculator__calculate", "retryable"
             )
             time.sleep(0.01)
-        keys = [c.idempotency_key for c in store.pending_tool_calls(task.task_id)]
+        keys = [
+            c.idempotency_key
+            for c in tool_call_state_ops.pending_tool_calls(store._db, task.task_id)
+        ]
         assert keys == ["key-0", "key-1", "key-2"]
 
     def test_classify_stale_pending_only_expired_rows_and_idempotent(
@@ -809,8 +856,9 @@ class TestToolCallStateOps:
         assert [c.idempotency_key for c in stale] == ["old"]
         assert stale[0].state == "interrupted"
         # Fresh row still pending; expired row interrupted.
-        assert [c.idempotency_key for c in store.pending_tool_calls(task.task_id)] == [
-            "fresh"
-        ]
+        assert [
+            c.idempotency_key
+            for c in tool_call_state_ops.pending_tool_calls(store._db, task.task_id)
+        ] == ["fresh"]
         # Idempotent on re-run: nothing transitions twice.
         assert store.classify_stale_pending(task.task_id, 60.0) == []

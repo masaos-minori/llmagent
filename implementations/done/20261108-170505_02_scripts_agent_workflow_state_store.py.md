@@ -61,10 +61,10 @@ Delete the two facade method blocks; no other edits.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | lands after documents 04-06 (plan step 1); symbol-anchored edits |
-| 2 | Add or update tests per Validation plan | Pending | — | — | no new tests here; coverage moved in documents 04-06 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | includes the REQ-001 grep |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs grep verified zero matches; verification-only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-071047 | 20261109-071047 | lands after documents 04-06 (plan step 1); symbol-anchored edits |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-071047 | 20261109-071047 | no new tests here; coverage moved in documents 04-06 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-071047 | 20261109-071047 | includes the REQ-001 grep |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-071047 | 20261109-071047 | docs grep verified zero matches; verification-only N/A: no docs/00_index.md task-scope mapping; grep zero matches for deleted helper names |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

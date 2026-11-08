@@ -8,7 +8,7 @@ import uuid
 
 import pytest
 from agent.workflow.artifact_ops import record_artifact
-from agent.workflow.attempt_ops import finish_attempt, start_attempt
+from agent.workflow.attempt_ops import finish_attempt
 from agent.workflow.idempotency_ops import begin_stage_if_new
 from db.helper import SQLiteHelper
 from db.schema_sql import build_workflow_schema_sql
@@ -39,7 +39,8 @@ def _insert_task(db: SQLiteHelper, workflow_id: str = "wf-test-1") -> str:
 
 def test_finish_attempt_persists_error_kind(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
-    rec = start_attempt(db, task_id, "stage1")
+    rec = begin_stage_if_new(db, "evt-ep-1", task_id, "stage1")
+    assert rec is not None
     finish_attempt(
         db,
         rec.attempt_id,
@@ -58,7 +59,8 @@ def test_finish_attempt_persists_error_kind(db: SQLiteHelper) -> None:
 
 def test_finish_attempt_null_error_kind_by_default(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
-    rec = start_attempt(db, task_id, "stage1")
+    rec = begin_stage_if_new(db, "evt-ep-2", task_id, "stage1")
+    assert rec is not None
     finish_attempt(db, rec.attempt_id, "completed")
     row = db.execute(
         "SELECT error_kind, error_detail FROM attempts WHERE attempt_id=?",
@@ -70,7 +72,8 @@ def test_finish_attempt_null_error_kind_by_default(db: SQLiteHelper) -> None:
 
 def test_finish_attempt_exception_kind(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
-    rec = start_attempt(db, task_id, "stage1")
+    rec = begin_stage_if_new(db, "evt-ep-3", task_id, "stage1")
+    assert rec is not None
     finish_attempt(
         db,
         rec.attempt_id,

@@ -54,9 +54,8 @@ def begin_stage_if_new(
     with db.begin_immediate():
         if is_event_processed(db, event_id):
             return None
-        # Not attempt_ops.start_attempt: this insert stays in the same
-        # begin_immediate() transaction as the processed_events check/insert,
-        # whereas start_attempt commits on its own. Same columns — change together.
+        # Single-source attempts insert: this begin_immediate() transaction is the
+        # only path that writes running attempts rows, stamped with lease columns here.
         db.execute(
             """
 

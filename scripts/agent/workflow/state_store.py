@@ -119,10 +119,6 @@ class StateStore:
         """Move a tool-call row to its final state, bumping updated_at."""
         tool_call_state_ops.finalize_tool_call(self._db, idempotency_key, state)
 
-    def pending_tool_calls(self, task_id: str) -> list[ToolCallState]:
-        """Return the task's pending tool-call rows, oldest first."""
-        return tool_call_state_ops.pending_tool_calls(self._db, task_id)
-
     def classify_stale_pending(
         self, task_id: str, timeout_seconds: float
     ) -> list[ToolCallState]:
@@ -170,21 +166,6 @@ class StateStore:
         return [str(d["uri"]) for d in uris if d.get("uri")]
 
     # ── Startup Recovery ─────────────────────────────────────────────────────
-
-    def find_stale_running_attempts(self, db: SQLiteHelper) -> list[dict]:
-        """Find running attempts whose lease expired, or that are lease-less
-        and older than ``_LEGACY_STALE_AGE_SEC``.
-
-        Returns a list of dicts with keys: attempt_id, started_at, elapsed_sec,
-        owner_id, lease_expires_at. Rows whose timestamps cannot be parsed are
-        reported (logged and counted in ``last_recovery_report``) but never
-        returned as stale (REQ-003).
-        """
-        return [
-            row
-            for row in _classify_running_attempts(db)
-            if row["classification"] == "stale"
-        ]
 
     def recover_stale_attempts(self, db: SQLiteHelper) -> int:
         """Mark lease-expired (or lease-less and old) running attempts as failed.

@@ -72,10 +72,10 @@ Six ordered edits: import line, `TestAttempts` block, diagnostic seeds, recovery
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | the test edits are the implementation; lands before documents 01-03 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | merged into step 1: renames, seed swaps and `test_begin_stage_if_new_stamps_lease_columns` (new) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Phase 1 equivalence gate runs here with helpers still present |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs grep verified zero matches; verification-only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-071047 | 20261109-071047 | the test edits are the implementation; lands before documents 01-03 |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-071047 | 20261109-071047 | merged into step 1: renames, seed swaps and `test_begin_stage_if_new_stamps_lease_columns` (new) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-071047 | 20261109-071047 | Phase 1 equivalence gate runs here with helpers still present |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-071047 | 20261109-071047 | docs grep verified zero matches; verification-only N/A: no docs/00_index.md task-scope mapping; grep zero matches for deleted helper names |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
