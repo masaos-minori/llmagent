@@ -70,9 +70,9 @@ Remove the never-written `execution_snapshots` table and the `snapshot_id` colum
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocks wfaudit003 and wfaudit002: land this plan's batch first |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | Blocks wfaudit003 and wfaudit002: land this plan's batch first |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Blocks wfaudit003 and wfaudit002: land this plan's batch first |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-120435 | 20261108-120435 | Blocks wfaudit003 and wfaudit002: land this plan's batch first |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | 20261108-120435 | 20261108-120435 | Blocks wfaudit003 and wfaudit002: land this plan's batch first |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-120435 | 20261108-120435 | ruff/format/mypy/lint-imports/bandit pass; full suite with coverage 11829 passed, 3 failed: 1 environmental (mdq allowed_dir_invalid, unrelated) and 2 fixed afterwards (citation count pinned to 55 after the adrver001 index edit; execution_snapshots inventory entry removed from tools/check_db_separation.py as fallout, plan archived so amend_plan refused); both re-run green; diff-cover N/A (deletions only); new tests fail pre-change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -219,24 +219,17 @@ CREATE TABLE IF NOT EXISTS artifacts (
     attempt_number INTEGER
 );
 
--- Tool-call lifecycle tables (toolexec001 REQ-007). Keyed on the tool-call
+-- Tool-call lifecycle table (toolexec001 REQ-007). Keyed on the tool-call
 -- idempotency key, which is the only idempotency_key column in the workflow
 -- database (wftaskapi001 renamed the task-side column to task_nonce).
--- This file is their single canonical definition; fresh-created databases are
+-- This file is its single canonical definition; fresh-created databases are
 -- the only databases the workflow layer accepts.
-CREATE TABLE IF NOT EXISTS execution_snapshots (
-    snapshot_id   TEXT PRIMARY KEY,
-    snapshot_json TEXT NOT NULL,
-    recorded_at   REAL NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS tool_call_state (
     idempotency_key TEXT PRIMARY KEY,
     task_id         TEXT NOT NULL,
     tool            TEXT NOT NULL,
     state           TEXT NOT NULL CHECK (state IN ('pending', 'completed', 'failed', 'interrupted')),
     retry_class     TEXT NOT NULL,
-    snapshot_id     TEXT REFERENCES execution_snapshots(snapshot_id),
     created_at      REAL NOT NULL,
     updated_at      REAL NOT NULL
 );

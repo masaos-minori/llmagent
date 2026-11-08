@@ -27,7 +27,6 @@ class ToolCallState:
     tool: str
     state: str  # pending | completed | failed | interrupted
     retry_class: str
-    snapshot_id: str | None
     created_at: float  # epoch seconds
     updated_at: float  # epoch seconds
 
@@ -40,7 +39,6 @@ def _row_to_state(r: object) -> ToolCallState:
         tool=row["tool"],
         state=row["state"],
         retry_class=row["retry_class"],
-        snapshot_id=row["snapshot_id"],
         created_at=float(row["created_at"]),
         updated_at=float(row["updated_at"]),
     )
@@ -52,7 +50,6 @@ def record_tool_call(
     idempotency_key: str,
     tool: str,
     retry_class: str,
-    snapshot_id: str | None = None,
 ) -> None:
     """Insert a tool-call row in state 'pending'.
 
@@ -64,9 +61,9 @@ def record_tool_call(
     now = time.time()
     db.execute(
         "INSERT OR IGNORE INTO tool_call_state"
-        " (idempotency_key, task_id, tool, state, retry_class, snapshot_id, created_at, updated_at)"
-        " VALUES (?, ?, ?, 'pending', ?, ?, ?, ?)",
-        (idempotency_key, task_id, tool, retry_class, snapshot_id, now, now),
+        " (idempotency_key, task_id, tool, state, retry_class, created_at, updated_at)"
+        " VALUES (?, ?, ?, 'pending', ?, ?, ?)",
+        (idempotency_key, task_id, tool, retry_class, now, now),
     )
     db.commit()
 

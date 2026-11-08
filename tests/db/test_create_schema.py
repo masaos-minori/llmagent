@@ -19,7 +19,11 @@ import db.create_schema as cs
 import pytest
 from db.config import DbConfig
 from db.helper import SQLiteHelper
-from db.schema_sql import build_eventbus_schema_sql, eventbus_schema_version
+from db.schema_sql import (
+    build_eventbus_schema_sql,
+    build_workflow_schema_sql,
+    eventbus_schema_version,
+)
 from shared.eventbus_schema_fingerprint import (
     apply_schema_in_memory,
     assert_matches,
@@ -461,6 +465,17 @@ class TestCreateWorkflowSchema:
         ):
             cs.create_workflow_schema()
             cs.create_workflow_schema()  # must not raise
+
+    def test_fresh_schema_has_no_snapshot_surface(self) -> None:
+        """The canonical workflow DDL creates no execution_snapshots table or snapshot_id column."""
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(build_workflow_schema_sql())
+        tables = _table_names(conn)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(tool_call_state)")}
+        conn.close()
+        assert "tool_call_state" in tables
+        assert "execution_snapshots" not in tables
+        assert "snapshot_id" not in columns
 
     def test_workflow_id_column_exists(self, tmp_path: Path) -> None:
         """create_workflow_schema() creates the workflow_id column in tasks."""

@@ -294,7 +294,6 @@ class ToolCallRecorder(Protocol):
         idempotency_key: str,
         tool: str,
         retry_class: str,
-        snapshot_id: str | None = None,
     ) -> None: ...
 
     def finalize_tool_call(self, idempotency_key: str, state: str) -> None: ...

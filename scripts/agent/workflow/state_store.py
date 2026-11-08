@@ -109,11 +109,10 @@ class StateStore:
         idempotency_key: str,
         tool: str,
         retry_class: str,
-        snapshot_id: str | None = None,
     ) -> None:
         """Insert a tool-call row in state 'pending' for the task."""
         tool_call_state_ops.record_tool_call(
-            self._db, task_id, idempotency_key, tool, retry_class, snapshot_id
+            self._db, task_id, idempotency_key, tool, retry_class
         )
 
     def finalize_tool_call(self, idempotency_key: str, state: str) -> None:

@@ -25,8 +25,8 @@ related:
 
 Operational and failure semantics for the two durable stores introduced by toolexec001:
 the standalone `mcp_dedup.sqlite` dedup store (owned by the shared MCP dispatcher) and
-the `tool_call_state` / `execution_snapshots` tables inside `workflow.sqlite` (owned by
-the agent). Transport-facing semantics: [mcp_03_03](../22_mcp/mcp_03_03_transport-and-health.md).
+the `tool_call_state` table inside `workflow.sqlite` (owned by
+the agent; the former `execution_snapshots` table is retired, see its section). Transport-facing semantics: [mcp_03_03](../22_mcp/mcp_03_03_transport-and-health.md).
 Agent-facing semantics: [agent_04_03](../23_agent/agent_04_03_state-and-persistence-platform-databases.md).
 
 ## The Standalone `mcp_dedup.sqlite` Store
@@ -70,20 +70,20 @@ Config keys (all in `config/mcp_dedup.toml`): `dedup.db_path`, `dedup.retention_
 `dedup.pending_timeout_minutes` (10), and the `[retry_class]` map. The same timeout value is
 the source for the agent-side stale-pending classification in `workflow.sqlite`.
 
-## `tool_call_state` and `execution_snapshots` (workflow.sqlite)
+## `tool_call_state` (workflow.sqlite); `execution_snapshots` retired
 
-Both tables live in `workflow.sqlite`, defined in the canonical create-path DDL
-`db/schema_sql.py` and created at database creation. (Historical note: they were originally
+The `execution_snapshots` table and the `tool_call_state.snapshot_id` foreign key were never written by any code path and are retired (wfaudit010). Fresh databases no longer create them; a legacy database may still contain the empty table and a NULL column, and no migration drops them.
+
+`tool_call_state` lives in `workflow.sqlite`, defined in the canonical create-path DDL
+`db/schema_sql.py` and created at database creation. (Historical note: it was originally
 added by a per-database migration step that the compatrm001 plan later removed;
 fresh-created databases and the removed step produced byte-identical shapes, which is what the
 fingerprint gate compares against.) Column definitions (canonical DDL:
 `scripts/db/schema_sql.py::build_workflow_schema_sql`):
 
-- `execution_snapshots`: `snapshot_id` (TEXT PK), `snapshot_json` (TEXT NOT NULL),
-  `recorded_at` (REAL NOT NULL).
 - `tool_call_state`: `idempotency_key` (TEXT PK), `task_id` (TEXT NOT NULL),
   `tool` (TEXT NOT NULL), `state` (TEXT NOT NULL, CHECK `pending|completed|failed|interrupted`),
-  `retry_class` (TEXT NOT NULL), `snapshot_id` (TEXT, FK to `execution_snapshots.snapshot_id`),
+  `retry_class` (TEXT NOT NULL),
   `created_at` / `updated_at` (REAL NOT NULL).
 - Index: `idx_tool_call_state_task_state` on `tool_call_state(task_id, state)`.
 
@@ -93,7 +93,7 @@ Operational notes:
   (`scripts/agent/workflow/tool_call_state_ops.py`); the dispatcher's `mcp_dedup.sqlite`
   store is a separate system of record behind the dispatcher boundary. The producer wiring
   on the agent side is tracked by follow-up issue `issues/20261031-175803_toolstate001_tool-call-state-producer.md`.
-- Timestamps: `created_at`/`updated_at`/`recorded_at` are REAL epoch seconds (wall-clock),
+- Timestamps: `created_at`/`updated_at` are REAL epoch seconds (wall-clock),
   unlike the ISO-8601 TEXT columns of the older workflow tables.
   Consumers must not assume a single timestamp format across workflow tables
   (see db_02 section 7b).

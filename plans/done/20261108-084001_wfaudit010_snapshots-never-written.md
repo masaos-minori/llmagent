@@ -124,9 +124,9 @@ Retire the snapshot schema surface completely rather than keep it dormant: remov
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: code retirement (`REQ-001`, `REQ-002`; four source files) | Pending | — | — | |
-| 2 | Phase 2: tests (`REQ-003`, `REQ-005`; retarget + legacy-shape fixture) | Pending | — | — | |
-| 3 | Phase 3: documentation (`REQ-004`; two docs) | Pending | — | — | |
+| 1 | Phase 1: code retirement (`REQ-001`, `REQ-002`; four source files) | Completed | — | 20261108-120511 |  |
+| 2 | Phase 2: tests (`REQ-003`, `REQ-005`; retarget + legacy-shape fixture) | Completed | — | 20261108-120511 |  |
+| 3 | Phase 3: documentation (`REQ-004`; two docs) | Completed | — | 20261108-120511 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

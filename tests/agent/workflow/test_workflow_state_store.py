@@ -708,9 +708,36 @@ class TestToolCallStateOps:
         assert pending1[0].state == "pending"
         assert pending1[0].tool == "calculator__calculate"
         assert pending1[0].retry_class == "retryable"
-        assert pending1[0].snapshot_id is None
         # Task isolation: the other task sees nothing (completion criterion).
         assert store.pending_tool_calls(t2.task_id) == []
+
+    def test_lifecycle_works_on_legacy_shape_with_unused_snapshot_column(
+        self, store
+    ) -> None:
+        """A database created before the snapshot retirement keeps working.
+
+        The legacy shape carries an ``execution_snapshots`` table and a nullable
+        ``tool_call_state.snapshot_id`` foreign-key column that no code names.
+        """
+        store._db.execute(
+            "CREATE TABLE execution_snapshots ("
+            " snapshot_id TEXT PRIMARY KEY, snapshot_json TEXT NOT NULL,"
+            " recorded_at REAL NOT NULL)"
+        )
+        store._db.execute(
+            "ALTER TABLE tool_call_state ADD COLUMN snapshot_id TEXT"
+            " REFERENCES execution_snapshots(snapshot_id)"
+        )
+        store._db.commit()
+        task = create_task(store._db, "sess-legacy", 1, "1.0.0", "wf-test")
+        store.record_tool_call(
+            task.task_id, "key-legacy", "calculator__calculate", "retryable"
+        )
+        assert [c.idempotency_key for c in store.pending_tool_calls(task.task_id)] == [
+            "key-legacy"
+        ]
+        store.finalize_tool_call("key-legacy", "completed")
+        assert store.pending_tool_calls(task.task_id) == []
 
     def test_record_duplicate_key_is_ignored(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")

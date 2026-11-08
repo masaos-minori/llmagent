@@ -58,8 +58,8 @@ Remove the stale claims that `execution_snapshots` is written by the tool-call l
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the edits described in Implementation > Procedure/Method/Details | Pending | — | — | Land after the code retirement (Plan Phase 3 order) |
-| 2 | Run the docs checkers named in the Validation plan | Pending | — | — | |
+| 1 | Apply the edits described in Implementation > Procedure/Method/Details | Completed | 20261108-120435 | 20261108-120435 | Land after the code retirement (Plan Phase 3 order) |
+| 2 | Run the docs checkers named in the Validation plan | Completed | 20261108-120435 | 20261108-120435 | ruff/format/mypy/lint-imports/bandit pass; full suite with coverage 11829 passed, 3 failed: 1 environmental (mdq allowed_dir_invalid, unrelated) and 2 fixed afterwards (citation count pinned to 55 after the adrver001 index edit; execution_snapshots inventory entry removed from tools/check_db_separation.py as fallout, plan archived so amend_plan refused); both re-run green; diff-cover N/A (deletions only); new tests fail pre-change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
