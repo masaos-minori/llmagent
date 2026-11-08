@@ -133,7 +133,7 @@ class TestRealMatrixRegression:
 
     def test_matrix_has_expected_unique_citation_count(self, helper: Any) -> None:
         # Pins the matrix size; a drift that adds/removes citations fails here.
-        # 53 after 2026-10-31: ADR-014 INV-02 row gained the second counting-test
-        # citation (turnadr001 row 07; verified via check_adr_invariant_matrix.py).
+        # 55 after 2026-11-08: the ADR-010 INV-05 row cites the two stage-order tests
+        # (adrver001); earlier, ADR-014 INV-02 gained its second counting-test citation.
         lines = helper.ADR_INDEX.read_text(encoding="utf-8").splitlines()
-        assert len(helper.extract_cited_node_ids(lines)) == 53
+        assert len(helper.extract_cited_node_ids(lines)) == 55

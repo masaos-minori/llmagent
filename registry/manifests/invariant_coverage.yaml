@@ -33,15 +33,9 @@ entries:
   - tests/agent/test_security_audit_config_isolation.py::test_audit_dtos_hold_no_secret_fields
   - tests/mcp_servers/test_config_isolation_fail_closed.py
   - tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation
-  gate: Unit Test
-  invariant: INV-01
-  status: Confirmed
-  timing: CI
-- adr: ADR-002
-  cited:
   - tests/shared/test_config_loader.py::TestRestrictToIsolation
   gate: Unit Test
-  invariant: INV-01, INV-02
+  invariant: INV-01
   status: Confirmed
   timing: CI
 - adr: ADR-002
@@ -77,9 +71,10 @@ entries:
   timing: Startup
 - adr: ADR-004
   cited:
+  - tests/agent/test_failure_handling_policy_cross_cutting.py
   - tests/agent/test_mcp_health_posture.py
   gate: Startup Validation
-  invariant: INV-07, INV-10
+  invariant: INV-07, INV-09, INV-10 (server posture)
   status: Confirmed
   timing: Startup
 - adr: ADR-004
@@ -204,6 +199,7 @@ entries:
   cited:
   - tests/db/test_create_schema.py::TestCreateSchemaWrapper
   - tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path
+  - tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations
   gate: Unit Test
   invariant: INV-01
   status: Confirmed
@@ -247,6 +243,16 @@ entries:
   gate: Integration Test
   invariant: INV-04
   status: Confirmed
+  timing: CI
+- adr: ADR-010
+  cadence: each release review.
+  cited:
+  - tests/rag/test_rag_http_mode.py::test_in_process_fallback_runs_stages_in_order
+  - tests/rag/test_stage_lifecycle.py::TestStageExecutionOrder::test_stage_order_with_mocked_stages
+  expected_evidence: a fallback run showing every stage ran.
+  gate: Integration Test
+  invariant: INV-05
+  status: Partial
   timing: CI
 - adr: ADR-012
   cited:
