@@ -14,6 +14,7 @@ Import from here:  from rag.llm_client import RagLLM, get_embedding, summarize_t
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any, cast
 
 import httpx
@@ -58,6 +59,10 @@ logger = logging.getLogger(__name__)
 # Module-level cached llm_url; loaded once and reused across calls.
 _llm_url_cache: str | None = None
 _embed_url_cache: str | None = None
+
+# Float32 maximum magnitude; embedding elements beyond this cannot be packed
+# by floats_to_blob and are rejected at the provider-response boundary.
+_FLOAT32_MAX = 3.4028234663852886e38
 
 
 def _get_cached_llm_url() -> str:
@@ -272,6 +277,10 @@ async def get_embedding(
     timeout, declared explicitly at the call site. Contrast: the delegate
     path ``scripts/rag/pipeline_service.py::call_rag_service`` uses a fixed
     per-attempt timeout (``_REQUEST_TIMEOUT_SECONDS``).
+
+    Raises ValueError if the response has no 'embedding' list, or if any
+    element is non-numeric, non-finite, or outside the float32 range
+    (``abs(v) > _FLOAT32_MAX``), naming the offending index.
     """
     resp = await client.post(
         embed_url,
@@ -282,6 +291,16 @@ async def get_embedding(
     embedding = parse_http_json(resp).get("embedding")
     if not isinstance(embedding, list) or not embedding:
         raise ValueError("missing or empty 'embedding' field in embed response")
+    for i, v in enumerate(embedding):
+        if (
+            not isinstance(v, int | float)
+            or not math.isfinite(v)
+            or abs(v) > _FLOAT32_MAX
+        ):
+            raise ValueError(
+                f"invalid embedding element at index {i}: {v!r} "
+                "(must be finite and within float32 range)"
+            )
     return embedding
 
 

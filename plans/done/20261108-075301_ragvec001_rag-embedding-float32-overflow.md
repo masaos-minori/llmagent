@@ -140,10 +140,10 @@ Keep the fix at the two existing trust boundaries plus one defense-in-depth hand
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: utility contract (`scripts/rag/utils.py`; `tests/rag/test_rag_utils.py`) | Pending | — | — | |
-| 2 | Phase 2: provider boundary (`scripts/rag/llm_client.py`; `tests/rag/test_llm_client_timeout.py`) | Pending | — | — | |
-| 3 | Phase 3: stage backstop (`scripts/rag/stages/search.py`; `tests/rag/test_rag_stages.py`) | Pending | — | — | |
-| 4 | Phase 4: documentation (three `docs/21_rag/*.md` rows) | Pending | — | — | |
+| 1 | Phase 1: utility contract (`scripts/rag/utils.py`; `tests/rag/test_rag_utils.py`) | Completed | — | 20261108-114456 |  |
+| 2 | Phase 2: provider boundary (`scripts/rag/llm_client.py`; `tests/rag/test_llm_client_timeout.py`) | Completed | — | 20261108-114456 |  |
+| 3 | Phase 3: stage backstop (`scripts/rag/stages/search.py`; `tests/rag/test_rag_stages.py`) | Completed | — | 20261108-114456 |  |
+| 4 | Phase 4: documentation (three `docs/21_rag/*.md` rows) | Completed | — | 20261108-114215 | all three docs target rows have archived procedures (seq 07/08/09); close_procedures_batch could not map this step (no cited paths), executor judgment per Plan Execution Status update rule |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

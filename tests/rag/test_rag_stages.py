@@ -285,8 +285,80 @@ class TestSearchStage:
 
             assert mock_context.search_results == []
 
+    @pytest.mark.asyncio
+    async def test_run_pack_failure_degrades(self, mock_context, mock_db):
+        """ragvec001 REQ-003: a ValueError from a pack path is counted as fts_errors and remaining queries continue."""
+        mock_context.queries = ["query1", "query2"]
 
-# ── SearchDiagnostics ─────────────────────────────────────────────────────────
+        with (
+            patch(
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+        ):
+            mock_get_embedding.return_value = [0.1, 0.2, 0.3]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.side_effect = [
+                ValueError(
+                    "floats_to_blob: element 1 is out of float32 range (1e+300)"
+                ),
+                [{"chunk_id": 2, "content": "result2"}],
+            ]
+            mock_repo_instance.fts_search.return_value = []
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert mock_context.search_diagnostics.fts_errors == 1
+            assert mock_context.search_diagnostics.degraded is True
+            assert mock_context.search_results == [
+                [{"chunk_id": 2, "content": "result2"}]
+            ]
+
+    @pytest.mark.asyncio
+    async def test_run_out_of_range_embedding_degrades(self, mock_context, mock_db):
+        """ragvec001 REQ-004: one out-of-range embedding degrades the run; valid queries still return results.
+
+        Drives the real get_embedding (REQ-001 boundary) through a fake HTTP client.
+        """
+        import orjson
+
+        mock_context.queries = ["q_ok1", "q_bad", "q_ok2"]
+
+        def _embed_response(*args: object, **kwargs: object) -> MagicMock:
+            content = kwargs["json"]["content"]
+            body = {"embedding": [1e300] if content == "q_bad" else [0.1, 0.2]}
+            resp = MagicMock()
+            resp.content = orjson.dumps(body)
+            return resp
+
+        client = MagicMock()
+        client.timeout = 7.5
+        client.post = AsyncMock(side_effect=_embed_response)
+
+        with patch("rag.stages.search.RagRepository") as mock_repo:
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.return_value = [
+                {"chunk_id": 1, "content": "result1"}
+            ]
+            mock_repo_instance.fts_search.return_value = []
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(
+                cfg, http=client, embed_url="http://localhost:8000/embeddings"
+            )
+
+            await stage.run(mock_context, db=mock_db)
+
+            diag = mock_context.search_diagnostics
+            assert diag.embed_failed == 1
+            assert diag.embed_ok == 2
+            assert diag.degraded is True
+            assert len(mock_context.search_results) == 2
 
 
 class TestSearchDiagnostics:

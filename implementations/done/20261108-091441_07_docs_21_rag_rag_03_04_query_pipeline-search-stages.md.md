@@ -56,8 +56,8 @@ Extend the `SearchStage` error-handling note with the out-of-range embedding pat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the note edit described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" |
-| 2 | Run the docs checkers named in the Validation plan | Pending | — | — | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" |
+| 1 | Apply the note edit described in Implementation > Procedure/Method/Details | Completed | — | 20261108-111435 | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" authorized by owner memo3; extended SearchStage error-handling blockquote |
+| 2 | Run the docs checkers named in the Validation plan | Completed | — | 20261108-111435 | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" authorized by owner memo3; check_docs_quality/structure/content_policy/consistency all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

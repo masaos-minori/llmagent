@@ -43,7 +43,7 @@ related:
 - Logs to the search log file: warnings for embedding failures and search degradation (count of `embed_failed` and FTS errors).
 - If `db=None`, it processes with an empty result and a warning.
 
-> **Error handling**: `sqlite3.OperationalError` / `RuntimeError` raised by `vector_search`/`fts_search` are caught within `SearchStage` and merely increment the `fts_errors` counter per query; they are NOT propagated as exceptions to the caller. A failure in one query does not stop processing of remaining queries. Embedding acquisition failures are likewise swallowed individually (`return_exceptions=True`) and reflected only in the `SearchDiagnostics` counters.
+> **Error handling**: `sqlite3.OperationalError` / `RuntimeError` raised by `vector_search`/`fts_search` are caught within `SearchStage` and merely increment the `fts_errors` counter per query; packing failures (`ValueError`, `OverflowError`, `struct.error`) surfacing from the search path are caught the same way and counted in `fts_errors`; they are NOT propagated as exceptions to the caller. A failure in one query does not stop processing of remaining queries. Embedding acquisition failures are likewise swallowed individually (`return_exceptions=True`) and reflected only in the `SearchDiagnostics` counters; out-of-range or non-finite embedding elements are rejected at `get_embedding` and land in `embed_failed`.
 
 
 ### 5.3 FusionStage

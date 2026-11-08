@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+import struct
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from rag.repository import RagRepository
@@ -63,7 +64,13 @@ async def _search_all_queries(
                 all_results.append(vec_res)
             if fts_res:
                 all_results.append(fts_res)
-        except (sqlite3.OperationalError, RuntimeError) as e:
+        except (
+            sqlite3.OperationalError,
+            RuntimeError,
+            ValueError,
+            OverflowError,
+            struct.error,
+        ) as e:
             logger.warning("Search failed for '%s': %s", q, e)
             fts_errors += 1
     # degraded reflects whether any embedding or FTS error occurred during this run.

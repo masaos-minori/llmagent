@@ -79,9 +79,9 @@ Reject a provider embedding response whose elements are non-finite or outside th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-110431 | 20261108-110612 | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required"; execution authorized by owner memo3 instruction. Changed: scripts/rag/llm_client.py, tests/rag/test_llm_client_timeout.py |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | 20261108-110431 | 20261108-110612 | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required"; execution authorized by owner memo3 instruction. Pre-change: 2 failed/4 passed (REQ-005 evidence); post-change: 6 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-110612 | 20261108-114215 | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required"; execution authorized by owner memo3 instruction. ruff/mypy(scoped)/lint-imports/bandit(pass; 2 pre-existing B101 Low unchanged); full suite pending at end of release unit ragvec001-full validation sequence pass; end-of-unit full suite 11841 passed 9 skipped; diff-cover 100 percent on changed lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

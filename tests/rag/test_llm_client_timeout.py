@@ -132,3 +132,35 @@ async def test_forwarded_timeout_matches_production_client_value() -> None:
     embed_client = _make_fake_client(120.0, _EMBED_BODY)
     await get_embedding("text", embed_client, "http://localhost:8000/embeddings")
     assert embed_client.post.await_args.kwargs["timeout"] == 120.0
+
+
+# ── get_embedding element validation (ragvec001) ───────────────────────────────
+
+# orjson serializes non-finite floats as null on the way in, so the inf case
+# arrives at get_embedding as a non-numeric element; both must be rejected.
+_OVER_RANGE_EMBED_BODY = orjson.dumps({"embedding": [0.1, 1e300]})
+_INF_EMBED_BODY = orjson.dumps({"embedding": [0.1, float("inf")]})
+
+
+@pytest.mark.asyncio
+async def test_get_embedding_rejects_out_of_float32_range() -> None:
+    """REQ-001: a finite-but-out-of-range element raises ValueError naming the index."""
+    client = _make_fake_client(7.5, _OVER_RANGE_EMBED_BODY)
+    with pytest.raises(ValueError, match="index 1"):
+        await get_embedding("text", client, "http://localhost:8000/embeddings")
+
+
+@pytest.mark.asyncio
+async def test_get_embedding_rejects_non_numeric_element() -> None:
+    """REQ-001: an element that is not numeric (inf serialized as null) is rejected."""
+    client = _make_fake_client(7.5, _INF_EMBED_BODY)
+    with pytest.raises(ValueError, match="index 1"):
+        await get_embedding("text", client, "http://localhost:8000/embeddings")
+
+
+@pytest.mark.asyncio
+async def test_get_embedding_returns_valid_embedding_unchanged() -> None:
+    """REQ-001: a normal-range embedding passes validation and is returned as-is."""
+    client = _make_fake_client(7.5, _EMBED_BODY)
+    result = await get_embedding("text", client, "http://localhost:8000/embeddings")
+    assert result == [0.1, 0.2]

@@ -83,6 +83,23 @@ class TestFloatsToBlob:
         with pytest.raises(ValueError, match="element 2 must be numeric"):
             floats_to_blob([1.0, 2.0, "x", 4.0])
 
+    # ragvec001: out-of-float32-range values previously escaped as OverflowError
+    def test_out_of_range_mid_list_raises_value_error(self):
+        with pytest.raises(ValueError, match="element 1 is out of float32 range"):
+            floats_to_blob([1.0, 1e300, 3.0])
+
+    def test_neg_out_of_range_raises_value_error(self):
+        with pytest.raises(ValueError, match="out of float32 range"):
+            floats_to_blob([-1e300])
+
+    def test_above_float32_max_raises_value_error(self):
+        with pytest.raises(ValueError, match="out of float32 range"):
+            floats_to_blob([3.5e38])
+
+    def test_near_float32_max_boundary_packs(self):
+        blob = floats_to_blob([3.4e38])
+        assert len(blob) == 4  # 4 bytes per float32
+
 
 # ── validate_url ─────────────────────────────────────────────────────────────
 

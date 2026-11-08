@@ -32,7 +32,7 @@ This module provides stateless helpers shared by ingestion and query code.
 **Vectors**
 
 - `cosine_sim()` returns cosine similarity and returns `0.0` when either vector has zero magnitude.
-- `floats_to_blob()` packs a float list into a little-endian float32 BLOB for sqlite-vec. It raises `TypeError` for a non-list and `ValueError` for an empty list or non-numeric or non-finite elements; a packing failure is logged and the `struct.error` is re-raised.
+- `floats_to_blob()` packs a float list into a little-endian float32 BLOB for sqlite-vec. It raises `TypeError` for a non-list and `ValueError` for an empty list, non-numeric elements, non-finite elements, or elements outside the float32 range; a residual packing failure is logged and the `struct.error` is re-raised.
 
 **Text normalization**
 

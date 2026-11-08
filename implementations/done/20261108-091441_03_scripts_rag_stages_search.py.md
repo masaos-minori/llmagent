@@ -75,9 +75,9 @@ Catch packing-related failures surfacing from `repo.vector_search` / `repo.fts_s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261108-111340 | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" authorized by owner memo3; changed scripts/rag/stages/search.py |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | — | 20261108-111340 | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" authorized by owner memo3; pre-change 1 failed/62 passed (REQ-005, ValueError escaped stage); post-change 63 passed + test_rag_pipeline regression gate green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-111340 | 20261108-114215 | Gated: issues/20261107-050701_adrrag001_rag-fallback-failure-policy.md phase all - prose dependency; Plan Scope records "Related, no order required" authorized by owner memo3; ruff/mypy(scoped)/bandit pass; lint-imports and full suite at end of release unit ragvec001-full validation sequence pass; end-of-unit full suite 11841 passed 9 skipped; diff-cover 100 percent on changed lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

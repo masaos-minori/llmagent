@@ -23,6 +23,10 @@ LOG_KEY_CHUNK_ID = "chunk_id"
 LOG_KEY_SOURCE_TYPE = "source_type"
 LOG_KEY_STAGE_NAME = "stage_name"
 
+# Float32 maximum magnitude; elements beyond this cannot be packed by
+# floats_to_blob and are rejected with a typed ValueError before struct.pack.
+_FLOAT32_MAX = 3.4028234663852886e38
+
 # Library module — no FileHandler; caller controls log routing
 logger = logging.getLogger(__name__)
 
@@ -90,8 +94,9 @@ def floats_to_blob(values: list[float]) -> bytes:
 
     Raises TypeError  if *values* is not a list.
     Raises ValueError if *values* is empty, contains non-numeric elements,
-                      or contains non-finite values (NaN, inf, -inf).
-    Raises struct.error if packing fails (e.g. value out of float32 range).
+                      contains non-finite values (NaN, inf, -inf), or contains
+                      values outside the float32 range (abs > _FLOAT32_MAX).
+    Raises struct.error if a residual packing failure occurs after validation.
     """
     _validate_float_list(values)
     try:
@@ -128,4 +133,8 @@ def _validate_float_list(values: list[float]) -> None:
         if not math.isfinite(v):
             raise ValueError(
                 f"floats_to_blob: element {i} is not finite ({v!r})",
+            )
+        if abs(v) > _FLOAT32_MAX:
+            raise ValueError(
+                f"floats_to_blob: element {i} is out of float32 range ({v!r})",
             )
