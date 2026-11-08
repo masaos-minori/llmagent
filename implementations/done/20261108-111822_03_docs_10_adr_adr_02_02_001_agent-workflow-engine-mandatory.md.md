@@ -59,8 +59,8 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document as described in Implementation > Procedure | Pending | — | — |  |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — |  |
+| 1 | Edit the document as described in Implementation > Procedure | Completed | 20261108-114442 | 20261108-114442 | — |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261108-114442 | 20261108-114442 | checkers pass; lease tests 9 passed; preservation shows only a Decision-section WARNING and the intended removal of the stale plan path |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

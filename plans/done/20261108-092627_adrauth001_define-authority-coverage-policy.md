@@ -126,7 +126,7 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Facts and structure | In Progress | — | — |  |
+| 1 | Facts and structure | Completed | — | 20261108-114358 |  |
 | 2 | Decision text | In Progress | — | — |  |
 | 3 | Verification | Pending | — | — |  |
 

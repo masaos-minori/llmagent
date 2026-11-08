@@ -163,11 +163,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | ADR-010 decision table and corrections | In Progress | — | — |  |
-| 2 | ADR-004 wording | In Progress | — | — |  |
-| 3 | RAG specifications (`rag_05_04`, `rag_05_07`) | In Progress | — | — |  |
-| 4 | Register Needs confirmation items | In Progress | — | — |  |
-| 5 | Verification | Pending | — | — |  |
+| 1 | ADR-010 decision table and corrections | Completed | — | 20261108-112655 |  |
+| 2 | ADR-004 wording | Completed | — | 20261108-112655 |  |
+| 3 | RAG specifications (`rag_05_04`, `rag_05_07`) | Completed | — | 20261108-112655 |  |
+| 4 | Register Needs confirmation items | Completed | — | 20261108-112655 |  |
+| 5 | Verification | Completed | — | 20261108-112727 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -177,11 +177,11 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261108-111044_01_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261108-111044_02_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-111044_03_docs_21_rag_rag_05_04-error-handling-reference.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261108-111044_04_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261108-111044_05_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261108-111044_01_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261108-111044_02_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-111044_03_docs_21_rag_rag_05_04-error-handling-reference.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261108-111044_04_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261108-111044_05_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

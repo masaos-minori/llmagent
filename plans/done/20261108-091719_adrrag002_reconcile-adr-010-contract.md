@@ -133,10 +133,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Names and references | In Progress | — | — |  |
-| 2 | Sharing, identity and equivalence statements | In Progress | — | — |  |
-| 3 | Failure-policy sync and Amendment record | In Progress | — | — |  |
-| 4 | Verification | Pending | — | — |  |
+| 1 | Names and references | Completed | — | 20261108-112927 |  |
+| 2 | Sharing, identity and equivalence statements | Completed | — | 20261108-112927 |  |
+| 3 | Failure-policy sync and Amendment record | Completed | — | 20261108-112927 |  |
+| 4 | Verification | Completed | — | 20261108-112927 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -146,7 +146,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261108-111420_01_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 1, 2, 3, 4 | Procedure | Pending | — | — |
+| implementations/20261108-111420_01_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 1, 2, 3, 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

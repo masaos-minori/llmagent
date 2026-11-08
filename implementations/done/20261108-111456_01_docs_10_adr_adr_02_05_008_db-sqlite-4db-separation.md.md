@@ -65,9 +65,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply Phases 1 to 3 of Implementation > Procedure | Pending | — | — |  |
-| 2 | Condense historical text to the size ceiling (Phase 4) | Pending | — | — |  |
-| 3 | Run the documentation checkers named in the Validation plan | Pending | — | — |  |
+| 1 | Apply Phases 1 to 3 of Implementation > Procedure | Completed | 20261108-113139 | 20261108-113139 | — |
+| 2 | Condense historical text to the size ceiling (Phase 4) | Completed | 20261108-113139 | 20261108-113139 | — |
+| 3 | Run the documentation checkers named in the Validation plan | Completed | 20261108-113139 | 20261108-113139 | size 34199 (ceiling 34206); preservation ERRORs are the intended INV-01 rewording and the Approval mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

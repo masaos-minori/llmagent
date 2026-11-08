@@ -59,9 +59,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply Phase 1 of Implementation > Procedure (no owner decision needed) | Pending | — | — |  |
+| 1 | Apply Phase 1 of Implementation > Procedure (no owner decision needed) | Completed | 20261108-114358 | 20261108-114358 | Phase 1 applied (item 9 Coverage, Verification coverage note); authority and docs checkers pass; Phase 2 waits for owner confirmation of UNK-01/UNK-03 |
 | 2 | Apply Phase 2 after the owner confirms selective coverage and no self-governance target (UNK-01, UNK-03) | Pending | — | — | Owner decision pending (UNK-01, UNK-03): do not start until the owner confirms |
-| 3 | Run the checkers and record the cycle and assignment results (Phase 3) | Pending | — | — |  |
+| 3 | Run the checkers and record the cycle and assignment results (Phase 3) | Pending | — | — | — Candidate unregistered topics to report after Phase 2: configuration isolation, failure classification, FTS5 text separation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

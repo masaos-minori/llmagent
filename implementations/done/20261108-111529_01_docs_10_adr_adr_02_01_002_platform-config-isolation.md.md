@@ -62,8 +62,8 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply Phases 1 to 3 of Implementation > Procedure | Pending | — | — |  |
-| 2 | Read the whole ADR for remaining universal claims and run the documentation checkers (Phase 4) | Pending | — | — |  |
+| 1 | Apply Phases 1 to 3 of Implementation > Procedure | Completed | 20261108-113256 | 20261108-113256 | — |
+| 2 | Read the whole ADR for remaining universal claims and run the documentation checkers (Phase 4) | Completed | 20261108-113256 | 20261108-113256 | checkers pass; config/eventbus tests 103 passed; preservation shows only a Decision-section WARNING |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

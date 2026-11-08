@@ -56,8 +56,8 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document as described in Implementation > Procedure | Pending | — | — | Gated: plans/done/20261108-092007_adrdb001_clarify-adr-008-scope.md phase 4 - the ADR-008 wording and size reduction must be executed first |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — |  |
+| 1 | Edit the document as described in Implementation > Procedure | Completed | 20261108-114043 | 20261108-114043 | Gated: plans/done/20261108-092007_adrdb001_clarify-adr-008-scope.md phase 4 - the ADR-008 wording and size reduction must be executed first |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261108-114043 | 20261108-114043 | checkers and check_db_separation pass; file at 34186 bytes (ceiling 34206); preservation ERRORs are the intended INV-01, Approval and test-citation edits |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -53,8 +53,8 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document as described in Implementation > Procedure | Pending | — | — |  |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — |  |
+| 1 | Edit the document as described in Implementation > Procedure | Completed | 20261108-112654 | 20261108-112654 | — |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261108-112654 | 20261108-112654 | checkers pass; tests/rag 747 passed (docs-only, no source change); preservation WARNING for Decision section is expected |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

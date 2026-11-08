@@ -150,7 +150,7 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Complete the ADR-001 current contract | In Progress | — | — |  |
+| 1 | Complete the ADR-001 current contract | Completed | — | 20261108-114443 |  |
 | 2 | Policy rule | In Progress | — | — |  |
 | 3 | Apply the marker to ADR-010 | In Progress | — | — |  |
 | 4 | Verification | Pending | — | — |  |
@@ -165,7 +165,7 @@ N/A: no release unit
 |---------|--------------|------|--------|-------|----------|
 | implementations/20261108-111822_01_docs_00_governance_governance_01_documentation-policy.md.md | 2 | Procedure | Pending | — | — |
 | implementations/20261108-111822_02_docs_10_adr_adr_00_document-guide.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-111822_03_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261108-111822_03_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 1 | Procedure | Completed | — | — |
 | implementations/20261108-111822_04_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
