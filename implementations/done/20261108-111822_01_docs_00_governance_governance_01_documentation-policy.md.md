@@ -60,8 +60,8 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document as described in Implementation > Procedure | Pending | — | — | Gated: owner decision on UNK-01 (policy versus retained amendments) and approval check UNK-03 - do not start the policy edit until both are resolved |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — |  |
+| 1 | Edit the document as described in Implementation > Procedure | Completed | 20261108-122020 | 20261108-122020 | Gated: owner decision on UNK-01 (policy versus retained amendments) and approval check UNK-03 - do not start the policy edit until both are resolved |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261108-122020 | 20261108-122020 | owner decided: ADR Amendment is an explicit exception, marked in force or superseded; docs checkers pass; ADR-010 at 24561 bytes (ceiling 24576) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
