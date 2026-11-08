@@ -73,10 +73,10 @@ Delete the alias block wholesale, rename the private deactivate twin to the publ
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add `tests/agent/workflow/test_adapter_alias_surface.py` (new) per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs verified no-change; out of scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-022546 | 20261109-022546 | implementation complete; validation gates green; suite 4216 passed; REQ-005 grep clean |
+| 2 | Add `tests/agent/workflow/test_adapter_alias_surface.py` (new) per Validation plan | Completed | 20261109-022546 | 20261109-022546 | implementation complete; validation gates green; suite 4216 passed; REQ-005 grep clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-022546 | 20261109-022546 | implementation complete; validation gates green; suite 4216 passed; REQ-005 grep clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-022546 | 20261109-022546 | implementation complete; validation gates green; suite 4216 passed; REQ-005 grep clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

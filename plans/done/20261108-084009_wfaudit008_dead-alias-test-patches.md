@@ -114,9 +114,9 @@ Collapse, don't rename broadly: delete the three dead public wrappers (their pri
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: HEAD interception experiment (`UNK-02`, per-test interception map) | In Progress | — | — |  |
-| 2 | Phase 2: Test retargeting (`REQ-003`, `REQ-004`) | In Progress | — | — |  |
-| 3 | Phase 3: Alias deletion + hasattr-pinning test (`REQ-001`, `REQ-002`, `REQ-005`) | In Progress | — | — |  |
+| 1 | Phase 1: HEAD interception experiment (`UNK-02`, per-test interception map) | Completed | — | 20261109 | UNK-02 resolved: interception proven via post-collapse suite (HEAD replay not possible after sibling collapse); 132 tests green with private-name patches |
+| 2 | Phase 2: Test retargeting (`REQ-003`, `REQ-004`) | Completed | — | 20261109 | 10 public-name patch groups retargeted to `_init_workflow_task`/`_activate_workflow`; `deactivate_workflow` stays live; twin L2873 flipped to public name; REQ-005 grep clean |
+| 3 | Phase 3: Alias deletion + hasattr-pinning test (`REQ-001`, `REQ-002`, `REQ-005`) | Completed | — | 20261109 | dead wrappers deleted; deactivate pair collapsed to public `deactivate_workflow`; `test_adapter_alias_surface.py` pins REQ-005/REQ-001 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -126,8 +126,8 @@ Collapse, don't rename broadly: delete the three dead public wrappers (their pri
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261108-162804_01_scripts_agent_workflow_engine_adapter.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-162804_02_tests_agent_test_orchestrator.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261108-162804_01_scripts_agent_workflow_engine_adapter.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-162804_02_tests_agent_test_orchestrator.py.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

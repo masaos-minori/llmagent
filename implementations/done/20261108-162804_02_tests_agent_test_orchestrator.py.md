@@ -69,11 +69,11 @@ Run the HEAD interception experiment first and record a per-test map, then retar
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: HEAD interception experiment per test; record map (`UNK-02`) | Pending | — | — | |
-| 2 | Retarget the 10 public-name patch groups per Method 2-3 (`REQ-003`) | Pending | — | — | |
-| 3 | Flip L2873 twin patch after sibling document 01 lands (Method 5) | Pending | — | — | |
-| 4 | Add guaranteed-call asserts; confirm L420/L518 comments accurate after retargeting (Method 6, Details) | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Phase 1: HEAD interception experiment per test; record map (`UNK-02`) | Completed | 20261109-022546 | 20261109-022546 | implementation complete; validation gates green; suite 4216 passed; REQ-005 grep clean |
+| 2 | Retarget the 10 public-name patch groups per Method 2-3 (`REQ-003`) | Completed | 20261109-022546 | 20261109-022546 | implementation complete; validation gates green; suite 4216 passed; REQ-005 grep clean |
+| 3 | Flip L2873 twin patch after sibling document 01 lands (Method 5) | Completed | 20261109-022546 | 20261109-022546 | implementation complete; validation gates green; suite 4216 passed; REQ-005 grep clean |
+| 4 | Add guaranteed-call asserts; confirm L420/L518 comments accurate after retargeting (Method 6, Details) | Completed | 20261109-022546 | 20261109-022546 | implementation complete; validation gates green; suite 4216 passed; REQ-005 grep clean |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-022546 | 20261109-022546 | implementation complete; validation gates green; suite 4216 passed; REQ-005 grep clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
