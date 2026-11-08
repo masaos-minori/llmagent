@@ -38,7 +38,7 @@ Declare once, validate at every writer, constrain fresh DDL: Python frozensets i
 - `REQ-005`: New tests pin `REQ-002` rejections per helper and the DDL/Python equality; existing writer behavior for valid statuses unchanged.
 
 ## Implementation Target Files
-**Freeze status**: Draft
+**Freeze status**: Frozen (revalidated 20261108 against HEAD `50b5ac2c6` — see Notes; one Reference Files row corrected)
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
@@ -48,18 +48,19 @@ Declare once, validate at every writer, constrain fresh DDL: Python frozensets i
 | `scripts/agent/workflow/tool_call_state_ops.py` | Modify | Validate `state` in `finalize_tool_call` (L74-80) against `TOOL_CALL_STATES` | `REQ-002` | SQL CHECK exists, code-side validation does not | `tests/agent/workflow/` | `Verified` |
 | `scripts/db/schema_sql.py` | Modify | Add CHECK clauses to `tasks.status` (L184) and `attempts.status` (L194) generated from the models constants | `REQ-003` | No CHECK today vs `tool_call_state` pattern (L237) | `tests/db/` schema tests | `Verified` |
 | `tests/agent/workflow/` (state-store + ops tests) | Modify | Rejection cases (`ValueError`) per helper; DDL/Python vocabulary-equality test | `REQ-002`/`REQ-003`/`REQ-005` | Current tests assert happy paths only | self | `Verified` |
+| `docs/41_db/db_02_architecture_and_schema-schema-reference.md` | Modify | Add the allowed status vocabulary for `tasks.status` and `attempts.status` to the workflow tables section (row added at revalidation: the Documentation Impact requires a target; the doc carries no status text today) | `REQ-003`/`REQ-004` | Grep at revalidation: no `status` mention in the doc | docs checkers | `Verified` |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
 | `scripts/agent/workflow/workflow_engine.py` | Enumerates the task statuses written today (L213-224) — feeds `REQ-001`/`REQ-004` | `REQ-001` |
 | `scripts/agent/workflow_engine_adapter.py` | `_status_for_exit`/`_record_exit_status` writes `halted` only (L49-62,273) | `REQ-004` |
-| `scripts/agent/workflow/state_store.py` | Recovery writes `failed` to attempts (L216-224) — must remain vocabulary-valid | `REQ-004` |
-| `scripts/agent/workflow/idempotency_ops.py` | Writes `running` on attempt insert and `completed`/`failed` on compensation | `REQ-004` |
-| `docs/41_db/db_02_architecture_and_schema-schema-reference.md` | Table reference lists status columns; must state the allowed vocabularies after this change | Documentation Impact |
+| `scripts/agent/workflow/state_store.py` | Recovery writes `failed` to attempts (`recover_stale_attempts` UPDATE at L225-226, WHERE-guarded on `status='running'`) — must remain vocabulary-valid | `REQ-004` |
+| `scripts/agent/workflow/idempotency_ops.py` | `begin_stage_if_new` writes `running` on attempt insert (L63-80); no compensation status writes exist in this module (corrected at revalidation — `completed`/`failed` attempt writes live in `workflow_engine.py` `finish_attempt` call sites) | `REQ-004` |
+| `docs/41_db/db_02_architecture_and_schema-schema-reference.md` | Workflow table reference; carries NO status-vocabulary text today (corrected at revalidation) — the Documentation Impact step adds the allowed status values per column, so the doc becomes a Modify target row below | Documentation Impact |
 
 ## Acceptance Criteria
-- `REQ-001`: The three frozensets exist in `models.py` and are imported by all three ops modules and the DDL builder.
+- `REQ-001`: The three frozensets exist in `models.py` and are imported by all three ops modules. `REQ-003`'s equality test (not a DDL import — see Design, contract `db-only-uses-shared`) connects them to the SQL CHECKs.
 - `REQ-002`: `update_task_status(task, "done")`, `finish_attempt(id, "done")`, `finalize_tool_call(key, "done")` each raise `ValueError` and write nothing (test asserts row unchanged).
 - `REQ-003`: Inserting an out-of-vocabulary status directly via SQL into a fresh database fails with a CHECK constraint error; the equality test proves DDL sets == Python sets.
 - `REQ-004`: Consistency test passes: every status literal written in `scripts/agent/workflow*/` is in the corresponding frozenset.
@@ -73,7 +74,7 @@ Declare once, validate at every writer, constrain fresh DDL: Python frozensets i
 
 ## Documentation Impact
 - `docs/41_db/db_02_architecture_and_schema-schema-reference.md` — state allowed status values per column.
-- Check `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` for status descriptions (archived wfreview007 precedent: docs-vs-adapter halt mismatch) and align if a table exists.
+- Check `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` for status descriptions — confirmed at revalidation: it carries no `status` column text (only the `tool_call_state` row's state list, already matching the vocabulary); no edit needed.
 - Run docs checkers for domains db/agent per `routing.md`.
 
 ## Assumptions
@@ -96,7 +97,7 @@ Declare once, validate at every writer, constrain fresh DDL: Python frozensets i
 | `tests/agent/workflow/` | Modify | tests only | N/A | N/A | not applicable (rsynced) |
 
 ## Design
-**Single declaration (`models.py`).** Frozensets live next to the existing dataclasses so ops modules import them without a new module. The DDL builder imports the constants and formats them into the CHECK clause — SQL and Python can never drift.
+**Single declaration (`models.py`), contract-safe pinning.** Frozensets live next to the existing dataclasses so ops modules import them without a new module. The DDL builder CANNOT import them: the import-linter contract `db-only-uses-shared` forbids `db` importing `agent` (`.importlinter`, corrected at revalidation). `schema_sql.py` writes the CHECK literals with a comment naming the `models.py` constants, and a `tests/db/` equality test pins the SQL sets to the Python frozensets — the drift guard required by `REQ-003` lives in the test, not in an import edge.
 
 **Validate at the writer, not the caller.** The three helpers are the chokepoints every production status write already flows through (engine, adapter, recovery, idempotency compensation all call them). A `ValueError` naming the table and offending value is consistent with project typed-error convention; `execute_turn`'s best-effort status write (`_record_exit_status`, L262-275) already swallows exceptions in its own try, so a vocabulary bug there degrades observably instead of aborting a turn.
 
@@ -125,19 +126,21 @@ Declare once, validate at every writer, constrain fresh DDL: Python frozensets i
 
 ## Execution Status
 ### Execution Status
-| Work Item | Status | Owner | Started | Completed | Notes |
-|---|---|---|---|---|---|
-| Phase 1: vocabulary + writer validation | Planned | engineer | | | |
-| Phase 2: DDL CHECKs | Planned | engineer | | | |
-| Phase 3: consistency + docs | Planned | engineer | | | |
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Phase 1: vocabulary + writer validation (`REQ-001`, `REQ-002`) | Pending | — | — | |
+| 2 | Phase 2: DDL CHECKs (`REQ-003`) | Pending | — | — | |
+| 3 | Phase 3: consistency + docs (`REQ-004`) | Pending | — | — | Production probe (`UNK-01`) recorded here at deploy validation |
 
 ### Blocker Log
-| Date | Blocker | Status | Resolution |
-|---|---|---|---|
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
 
 ### Work Items Created
-| Work Item | Type | Link | Created |
-|---|---|---|---|
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -159,3 +162,6 @@ Declare once, validate at every writer, constrain fresh DDL: Python frozensets i
 ## Notes
 - Source verified against HEAD `926dbc109`; evidence in the issue's `## Adversarial Validation`.
 - Downstream: `wfaudit001`/`wfaudit007` reconciliation writes must use `ATTEMPT_STATUSES`/`TASK_STATUSES` values only.
+- Adversarial re-verification 2026-11-08 (memo2 batch) against HEAD `50b5ac2c6`: all code claims re-confirmed — `tasks.status` DEFAULT 'pending' with no CHECK (`schema_sql.py` L184), `attempts.status` DEFAULT 'running' with no CHECK (L194), `tool_call_state.state` CHECK pattern (L237), raw-string writers `update_task_status` (`task_ops.py` L68-74), `finish_attempt` (`attempt_ops.py` L81-94), `finalize_tool_call` (`tool_call_state_ops.py` L74-80), engine writes `running`/`halted`/`failed`/`completed` (`workflow_engine.py` L213-224) and `failed`/`completed` attempt finishes (L331-371), adapter writes only `halted` (`_status_for_exit` L49-62, writes at L230/L273, best-effort try in `_record_exit_status` L262-278), halted guard at adapter L315, recovery UPDATE `status='failed'` at `state_store.py` L225-226 (Background's L216-224 citation is approximate; the write is inside `recover_stale_attempts` L190-248). One correction applied: the `idempotency_ops.py` Reference Files row claimed compensation `completed`/`failed` writes — that module has only `is_event_processed` and `begin_stage_if_new` (writes `running` only); the claim now points at the real `workflow_engine.py` call sites. The four Plan Freeze criteria pass for every row — all rows `Verified`; the section was therefore marked `Frozen` (Draft at intake; freeze performed in this verification pass per the owner's memo2 instruction). Third correction (architecture): the Design's "DDL builder imports the constants" violates the import-linter contract `db-only-uses-shared` (`db` must not import `agent`); the plan now pins SQL/Python equality via a `tests/db/` test instead of an import edge, and a `docs/41_db/db_02` Modify target row was added because the Documentation Impact step had no target row (the doc carries no `status` text today; `agent_04_03` was confirmed to need no edit).
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261108-093720 -->
