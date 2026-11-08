@@ -90,6 +90,7 @@ class Orchestrator:
         ctx.diagnostics = self._diagnostic_store
         self._state_store = StateStore()
         self._state_store.recover_stale_attempts()
+        self._state_store.purge_finished_workflow_events()
 
         # ── Component initialization (new constructor signatures) ────────────
         self._bg_task_monitor = BgTaskMonitor(

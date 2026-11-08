@@ -17,6 +17,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from agent.workflow.models import TASK_STATUSES
 from agent.workflow.state_store import StateStore
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
@@ -283,3 +284,235 @@ class TestDoubleClose:
         # Second close is a no-op: no raise, conn stays None.
         store.close()
         assert conn.conn is None
+
+
+def _seed_event(db_path: Path, event_id: str, task_id: str, stage_id: str) -> None:
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute(
+            "INSERT INTO processed_events (event_id, task_id, stage_id) VALUES (?, ?, ?)",
+            (event_id, task_id, stage_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _event_count(db_path: Path, task_id: str, stage_id: str) -> int:
+    conn = sqlite3.connect(str(db_path))
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM processed_events WHERE task_id=? AND stage_id=?",
+            (task_id, stage_id),
+        ).fetchone()
+    finally:
+        conn.close()
+    return int(row[0])
+
+
+def _seed_task(db_path: Path, task_id: str, status: str, *, updated_at: str) -> None:
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute(
+            "INSERT INTO tasks (task_id, session_id, workflow_id, workflow_version, "
+            "status, created_at, updated_at, task_nonce) "
+            "VALUES (?, 'sess1', 'wf-test', '1.0.0', ?, ?, ?, ?)",
+            (task_id, status, updated_at, updated_at, str(uuid.uuid4())),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+class TestRecoveryPrunesProcessedEvents:
+    """Recovered attempts clear their (task_id, stage_id) event rows (REQ-001)."""
+
+    def test_recovered_attempt_event_pair_deleted(
+        self, store, workflow_db: Path
+    ) -> None:
+        _seed_attempt(workflow_db, "att-1", started_at=_iso(7200))
+        _seed_event(workflow_db, "task-att-1:s1:1", "task-att-1", "s1")
+        _seed_event(workflow_db, "task-att-1:s2:1", "task-att-1", "s2")
+        assert store.recover_stale_attempts() == 1
+        assert _event_count(workflow_db, "task-att-1", "s1") == 0
+        # A different stage's rows for the same task survive.
+        assert _event_count(workflow_db, "task-att-1", "s2") == 1
+
+    def test_live_lease_attempt_event_pair_untouched(
+        self, store, workflow_db: Path
+    ) -> None:
+        _seed_attempt(
+            workflow_db,
+            "att-1",
+            started_at=_iso(7200),
+            owner_id="host-a",
+            lease_expires_at=_iso_ahead(300),
+        )
+        _seed_event(workflow_db, "task-att-1:s1:1", "task-att-1", "s1")
+        assert store.recover_stale_attempts() == 0
+        assert _event_count(workflow_db, "task-att-1", "s1") == 1
+
+    def test_resumed_stage_reexecutes_after_recovery(
+        self, store, workflow_db: Path
+    ) -> None:
+        # REQ-002: after the pair is pruned, begin_stage_if_new accepts the
+        # same event ID again instead of skipping the stage forever.
+        from agent.workflow.idempotency_ops import begin_stage_if_new
+
+        _seed_attempt(workflow_db, "att-1", started_at=_iso(7200))
+        _seed_event(workflow_db, "task-att-1:s1:1", "task-att-1", "s1")
+        assert store.recover_stale_attempts() == 1
+        rec = begin_stage_if_new(
+            store.get_connection(), "task-att-1:s1:1", "task-att-1", "s1"
+        )
+        assert rec is not None
+
+
+class TestPurgeFinishedWorkflowEvents:
+    """Startup retention purge boundaries (REQ-003)."""
+
+    def test_terminal_task_past_horizon_is_purged(
+        self, store, workflow_db: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        old = _iso(40 * 24 * 3600)
+        _seed_task(workflow_db, "task-old", "completed", updated_at=old)
+        _seed_event(workflow_db, "task-old:s1:1", "task-old", "s1")
+        with caplog.at_level(logging.INFO, logger="agent.workflow.state_store"):
+            deleted = store.purge_finished_workflow_events()
+        assert deleted == 1
+        assert _event_count(workflow_db, "task-old", "s1") == 0
+        assert any(
+            "purge_finished_workflow_events" in rec.getMessage()
+            for rec in caplog.records
+        )
+
+    def test_recent_terminal_and_running_tasks_are_kept(
+        self, store, workflow_db: Path
+    ) -> None:
+        recent = _iso(10 * 24 * 3600)
+        _seed_task(workflow_db, "task-recent", "failed", updated_at=recent)
+        _seed_event(workflow_db, "task-recent:s1:1", "task-recent", "s1")
+        _seed_task(workflow_db, "task-run", "running", updated_at=_iso(40 * 24 * 3600))
+        _seed_event(workflow_db, "task-run:s1:1", "task-run", "s1")
+        assert store.purge_finished_workflow_events() == 0
+        assert _event_count(workflow_db, "task-recent", "s1") == 1
+        assert _event_count(workflow_db, "task-run", "s1") == 1
+
+    def test_all_terminal_statuses_are_purged(self, store, workflow_db: Path) -> None:
+        old = _iso(40 * 24 * 3600)
+        for status in ("completed", "failed", "halted"):
+            _seed_task(workflow_db, f"task-{status}", status, updated_at=old)
+            _seed_event(workflow_db, f"task-{status}:s1:1", f"task-{status}", "s1")
+        assert store.purge_finished_workflow_events() == 3
+
+
+def _seed_running_attempt_on(
+    db_path: Path,
+    task_id: str,
+    attempt_id: str,
+    *,
+    started_at: str,
+    owner_id: str | None = None,
+    lease_expires_at: str | None = None,
+) -> None:
+    """Attach a running attempt to an existing task row (multi-attempt cases)."""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute(
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, "
+            "owner_id, lease_expires_at) VALUES (?, ?, 's1', 'running', ?, ?, ?)",
+            (attempt_id, task_id, started_at, owner_id, lease_expires_at),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _task_status(db_path: Path, task_id: str) -> str:
+    conn = sqlite3.connect(str(db_path))
+    try:
+        row = conn.execute(
+            "SELECT status FROM tasks WHERE task_id=?", (task_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return str(row[0])
+
+
+class TestRecoveryReconcilesTaskStatus:
+    """Recovered tasks move running -> failed in the same transaction (wfaudit007 REQ-001/REQ-002)."""
+
+    def test_stale_only_task_becomes_failed(
+        self, store, workflow_db: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        _seed_attempt(workflow_db, "att-1", started_at=_iso(7200))
+        with caplog.at_level(logging.INFO, logger="agent.workflow.state_store"):
+            recovered = store.recover_stale_attempts()
+        assert recovered == 1
+        assert _task_status(workflow_db, "task-att-1") == "failed"
+        assert store.last_recovery_report.tasks_reconciled == 1
+        # REQ-003: the written value is a TASK_STATUSES member, not a new literal.
+        assert "failed" in TASK_STATUSES
+        # REQ-004: reconciled count is logged distinct from the attempt count.
+        assert any(
+            "recovered=1" in rec.getMessage() and "tasks_reconciled=1" in rec.getMessage()
+            for rec in caplog.records
+        )
+
+    def test_live_lease_task_stays_running(self, store, workflow_db: Path) -> None:
+        _seed_attempt(
+            workflow_db,
+            "att-1",
+            started_at=_iso(7200),
+            owner_id="host-a",
+            lease_expires_at=_iso_ahead(300),
+        )
+        assert store.recover_stale_attempts() == 0
+        assert _task_status(workflow_db, "task-att-1") == "running"
+        assert store.last_recovery_report.tasks_reconciled == 0
+
+    def test_multi_attempt_task_with_live_attempt_stays_running(
+        self, store, workflow_db: Path
+    ) -> None:
+        _seed_task(workflow_db, "task-multi", "running", updated_at=_iso(7200))
+        _seed_running_attempt_on(workflow_db, "task-multi", "att-1", started_at=_iso(7200))
+        _seed_running_attempt_on(
+            workflow_db,
+            "task-multi",
+            "att-2",
+            started_at=_iso(60),
+            owner_id="host-a",
+            lease_expires_at=_iso_ahead(300),
+        )
+        assert store.recover_stale_attempts() == 1
+        assert _task_status(workflow_db, "task-multi") == "running"
+        assert store.last_recovery_report.tasks_reconciled == 0
+
+    def test_terminal_status_tasks_are_never_reconciled(
+        self, store, workflow_db: Path
+    ) -> None:
+        for status in ("halted", "completed", "failed"):
+            _seed_task(workflow_db, f"task-{status}", status, updated_at=_iso(7200))
+            _seed_running_attempt_on(
+                workflow_db, f"task-{status}", f"att-{status}", started_at=_iso(7200)
+            )
+        assert store.recover_stale_attempts() == 3
+        for status in ("halted", "completed", "failed"):
+            assert _task_status(workflow_db, f"task-{status}") == status
+        assert store.last_recovery_report.tasks_reconciled == 0
+
+    def test_two_stale_attempts_reconcile_one_task_once(
+        self, store, workflow_db: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        _seed_task(workflow_db, "task-two", "running", updated_at=_iso(7200))
+        _seed_running_attempt_on(workflow_db, "task-two", "att-1", started_at=_iso(7200))
+        _seed_running_attempt_on(workflow_db, "task-two", "att-2", started_at=_iso(7200))
+        with caplog.at_level(logging.INFO, logger="agent.workflow.state_store"):
+            recovered = store.recover_stale_attempts()
+        assert recovered == 2
+        assert _task_status(workflow_db, "task-two") == "failed"
+        assert store.last_recovery_report.tasks_reconciled == 1
+        assert any(
+            "recovered=2" in rec.getMessage() and "tasks_reconciled=1" in rec.getMessage()
+            for rec in caplog.records
+        )

@@ -418,3 +418,36 @@ class TestToolLevelStatusClassification:
         with pytest.raises(TransportError, match="retry suppressed"):
             await transport.call("write_file", {})
         assert mock_post.call_count == 1
+
+
+class TestWireKeyHeadPin:
+    """wfaudit002 REQ-002: the wire X-Idempotency-Key is the unscoped transport key.
+
+    Pinned literal = derive_idempotency_key computed at HEAD (pre task-scoping)
+    for the same call; the state-row scoping change must not move this value.
+    """
+
+    PINNED_CALL = ("call_tool", "write_file", {"path": "/p"}, "sess-pin")
+    HEAD_KEY = "d4a7b22ad823d7d57dfebf89f15754eaf6505d30ac3d4a6e1e2ad5907c589d39"
+
+    @pytest.mark.asyncio
+    async def test_outgoing_header_equals_head_value(self) -> None:
+        transport = HttpTransport(
+            http=MagicMock(spec=httpx.AsyncClient),
+            base_url="http://127.0.0.1:8000",
+            server_key="srv",
+            cfg=_http_cfg(),
+        )
+        mock_post = AsyncMock()
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.content = b'{"result":"ok","is_error":false}'
+        resp.raise_for_status = MagicMock()
+        resp.headers = {}
+        mock_post.return_value = resp
+        setattr(transport._http, "post", mock_post)
+        transport.set_session_id("sess-pin")
+        await transport.call("write_file", {"path": "/p"})
+        sent = mock_post.call_args.kwargs["headers"]["X-Idempotency-Key"]
+        assert sent == self.HEAD_KEY
+        assert derive_idempotency_key(*self.PINNED_CALL) == self.HEAD_KEY

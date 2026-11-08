@@ -55,6 +55,15 @@ REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
     ],
     "processed_events": ["event_id", "task_id"],
     "artifacts": ["artifact_id", "task_id"],
+    "tool_call_state": [
+        "idempotency_key",
+        "task_id",
+        "tool",
+        "state",
+        "retry_class",
+        "created_at",
+        "updated_at",
+    ],
 }
 
 # Legacy migration bookkeeping tables. Their presence in a database means it

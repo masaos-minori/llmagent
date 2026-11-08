@@ -842,6 +842,37 @@ class TestToolCallStateOps:
         row = tool_call_state_ops.get_tool_call_state(store._db, "key-f")
         assert row is not None and row.state == "failed"
 
+    def test_finalize_scoped_key_leaves_other_task_row_pending(self, store) -> None:
+        """wfaudit002 REQ-001/REQ-003: task-scoped keys keep per-task rows apart.
+
+        Identical content recorded under both task-suffixed keys: finalizing
+        task A's key leaves task B's row pending, and classify_stale_pending
+        for A never lists B's row.
+        """
+        ta = create_task(store._db, "sessA", 1, "1.0.0", "wf-test")
+        tb = create_task(store._db, "sessB", 2, "1.0.0", "wf-test")
+        key_a = "base-key:" + ta.task_id
+        key_b = "base-key:" + tb.task_id
+        store.record_tool_call(ta.task_id, key_a, "calculator__calculate", "retryable")
+        store.record_tool_call(tb.task_id, key_b, "calculator__calculate", "retryable")
+        store.finalize_tool_call(key_a, "completed")
+        assert tool_call_state_ops.pending_tool_calls(store._db, ta.task_id) == []
+        assert [
+            c.idempotency_key
+            for c in tool_call_state_ops.pending_tool_calls(store._db, tb.task_id)
+        ] == [key_b]
+        # Backdate both rows; classifying A must not touch B's pending row.
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=?", (time.time() - 120,)
+        )
+        store._db.commit()
+        stale = store.classify_stale_pending(ta.task_id, 60.0)
+        assert [c.idempotency_key for c in stale] == []
+        assert [
+            c.idempotency_key
+            for c in tool_call_state_ops.pending_tool_calls(store._db, tb.task_id)
+        ] == [key_b]
+
     def test_pending_ordered_by_created_at(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         for i in range(3):

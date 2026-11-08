@@ -2234,6 +2234,37 @@ class TestInitWorkflowTaskResumeReuse:
                 )
             store.create_task.assert_not_called()
 
+    def test_reconciled_failed_task_is_not_halt_blocked(self) -> None:
+        """wfaudit007 REQ-005: a recovery-reconciled 'failed' task stays reusable.
+
+        The halt guard trips only on 'halted'; a task reconciled to 'failed'
+        by startup recovery must not be treated as resumable-halted.
+        """
+        from unittest.mock import MagicMock, patch
+
+        failed_task = MagicMock()
+        failed_task.task_id = "failed-task-id"
+        failed_task.workflow_id = "failed-wf-id"
+        failed_task.status = "failed"
+
+        store = MagicMock()
+        store.get_task_by_id.return_value = failed_task
+
+        ctx = _make_ctx()
+
+        with (
+            patch("agent.orchestrator.StateStore"),
+            patch("agent.workflow_engine_adapter.audit_workflow_start"),
+        ):
+            orch = Orchestrator(ctx)
+            orch._workflow_def = MagicMock(version="test-v1")
+            workflow_id, task = orch._workflow_adapter._init_workflow_task(
+                ctx, "test-session", existing_task_id="failed-task-id", store=store
+            )
+            assert workflow_id == "failed-wf-id"
+            assert task.task_id == "failed-task-id"
+            store.create_task.assert_not_called()
+
 
 class TestEphemeralMessageLifecycle:
     """Regression coverage for requires/20260716_15_require.md /
@@ -4027,3 +4058,37 @@ class TestOrchestratorStartupRecoveryRouting:
         store_instance = state_store_cls.return_value
         store_instance.recover_stale_attempts.assert_called_once_with()
         store_instance.get_connection.assert_not_called()
+class TestStartupRetentionPurge:
+    """wfaudit001 (134201_03): construction prunes recovery pairs and purges finished events."""
+
+    def test_purge_runs_once_after_recovery_during_construction(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from agent.workflow.state_store import RecoveryReport, StateStore
+
+        calls: list[str] = []
+
+        class SpyStateStore(StateStore):
+            """Real method surface, but no DB: construction order is all we assert."""
+
+            def __init__(self) -> None:
+                self.last_recovery_report = RecoveryReport()
+
+            def get_connection(self) -> None:  # type: ignore[override]
+                return None
+
+            def recover_stale_attempts(self) -> int:
+                calls.append("recover")
+                return 0
+
+            def purge_finished_workflow_events(self) -> int:
+                calls.append("purge")
+                return 0
+
+        # The autouse _patch_workflow_loader fixture swaps StateStore for a
+        # MagicMock; restore a real subclass so the construction call order is
+        # observable (same bypass pattern as the temp-DB tests above).
+        monkeypatch.setattr("agent.orchestrator.StateStore", SpyStateStore)
+        _make_orchestrator(_make_ctx())
+
+        assert calls == ["recover", "purge"]

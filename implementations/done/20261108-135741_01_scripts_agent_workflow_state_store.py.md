@@ -67,10 +67,10 @@ Reconcile parent `tasks` rows after recovery: a task whose last live attempt was
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs rows 3-4 own the doc updates |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-064151 | 20261109-064151 | reconcile block inside if stale before commit; RecoveryReport.tasks_reconciled; summary log |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-064151 | 20261109-064151 | TestRecoveryReconcilesTaskStatus (5 tests) + halt-guard regression test in test_orchestrator.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-064151 | 20261109-064151 | gates exit 0; targeted suites 310 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-064151 | 20261109-064151 | docs rows 3-4 own the doc updates N/A: doc updates owned by procedure docs 03/04 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

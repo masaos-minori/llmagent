@@ -118,8 +118,8 @@ Extend the recovery transaction with a parent-row reconciliation step: for each 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Reconciliation (state_store.py + task_ops.py + tests) | In Progress | — | — |  |
-| 2 | Phase 2: Regression + docs (halt-guard test; docs/23_agent + docs/41_db updates) | In Progress | — | — |  |
+| 1 | Phase 1: Reconciliation (state_store.py + task_ops.py + tests) | Completed | 20261109-064151 | 20261109-064151 |  |
+| 2 | Phase 2: Regression + docs (halt-guard test; docs/23_agent + docs/41_db updates) | Completed | 20261109-064151 | 20261109-064151 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

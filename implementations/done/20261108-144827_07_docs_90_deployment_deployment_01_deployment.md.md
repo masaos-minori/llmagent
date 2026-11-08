@@ -93,10 +93,10 @@ with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs checkers |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document is the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-072224 | 20261109-072224 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-072224 | 20261109-072224 | N/A: documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-072224 | 20261109-072224 | Docs checkers |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-072224 | 20261109-072224 | This document is the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

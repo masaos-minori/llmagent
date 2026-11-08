@@ -53,8 +53,8 @@ Document: after `recover_stale_attempts()` fails lease-expired attempts and prun
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the task-reconciliation step and `tasks_reconciled` (new) count to the recovery narrative per Procedure/Method | Pending | — | — | |
-| 2 | Run the documentation checkers (`routing.md` Tools) | Pending | — | — | |
+| 1 | Add the task-reconciliation step and `tasks_reconciled` (new) count to the recovery narrative per Procedure/Method | Completed | 20261109-064151 | 20261109-064151 | reconciliation sentence added to the 9.7 logical-recovery paragraph |
+| 2 | Run the documentation checkers (`routing.md` Tools) | Completed | 20261109-064151 | 20261109-064151 | docs quality/structure/consistency(db) all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -9,7 +9,9 @@ Restate the `tool_call_state` key semantics in the state-and-persistence doc to 
 
 ## Assumptions
 - `141525_01` (the `tool_runner.py` composition procedure) lands with this document; the doc describes the post-change state, matching this repository's documentation policy.
-- `135741_03` (wfaudit007's procedure for the same file) appends a recovery-reconciliation sentence to the same `tool_call_state` table row; that procedure has the lower seq and lands first, and this document's edit rewrites only the key-description phrase in the same row — the two edits touch disjoint sentences.
+- `135741_03` (wfaudit007's procedure for the same file) appends its recovery-reconciliation narrative to the `StateStore`/`begin_stage_if_new` operational bullets (verification
+  2026-11-09: those bullets are at L101+ in the current doc, not the `tool_call_state` table row); that procedure has the lower seq and lands first, and this document's edits touch
+  only the key-conflation paragraph (L72) and the key-description phrase in the table row (L78) — the two edits touch disjoint regions.
 
 ## Design decisions
 - Keep the doc describing behavior, not the composition expression's code — state the composed shape and the per-task effect in prose, matching the row's existing descriptive style.
@@ -56,8 +58,8 @@ Rewrite the two key descriptions to the composed form.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the key-conflation paragraph (L72) and the `tool_call_state` table row (L78) | Pending | — | — | |
-| 2 | Run docs checkers | Pending | — | — | |
+| 1 | Edit the key-conflation paragraph (L72) and the `tool_call_state` table row (L78) | Completed | 20261109-070023 | 20261109-070023 | composed-key prose in both locations |
+| 2 | Run docs checkers | Completed | 20261109-070023 | 20261109-070023 | quality/structure/consistency --domain agent all exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

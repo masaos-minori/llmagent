@@ -42,7 +42,7 @@ Recreating `session.sqlite` physically removes both sessions and memories, but t
 
 ### 8a. Startup Validation for `workflow.sqlite`
 
-`workflow.sqlite` is accepted only when the current required tables (`tasks`, `attempts`, `processed_events`, `artifacts`) and their required columns are present. `check_workflow_schema()` (agent startup) enforces this shape. A database that carries `schema_migrations` or `workflow_schema_version` is a legacy migration-era database: `check_workflow_schema()` and the deploy pre-flight (`deploy/init_db.sh`) refuse it with the fixed message, and the file is left untouched for manual archive-and-recreate. The workflow domain has no version identifier and no migration path.
+`workflow.sqlite` is accepted only when the current required tables (`tasks`, `attempts`, `processed_events`, `artifacts`, `tool_call_state`) and their required columns are present. `check_workflow_schema()` (agent startup) enforces this shape. A database that carries `schema_migrations` or `workflow_schema_version` is a legacy migration-era database: `check_workflow_schema()` and the deploy pre-flight (`deploy/init_db.sh`) refuse it with the fixed message, and the file is left untouched for manual archive-and-recreate. The workflow domain has no version identifier and no migration path.
 
 ### 8b. Startup Validation for `eventbus.sqlite`
 

@@ -9,7 +9,8 @@ Make `recover_stale_attempts` delete the `processed_events` rows of the attempts
 
 ## Assumptions
 - Pair-scoped deletion is the correct superset: `attempts` has no attempt-number column (verified at HEAD, `scripts/db/schema_sql.py:191-204`), so the event key cannot be rebuilt; resume restarts the stage at attempt 1 and needs the whole (`task_id`, `stage_id`) pair cleared (Plan Design/Assumptions).
-- Retention horizon: named module constant `_EVENT_RETENTION_SEC` (new) = 30 * 24 * 3600 (30 days, mirroring dedup retention; Plan `UNK-01`, constants-before-configuration precedent).
+- Retention horizon: named module constant `_EVENT_RETENTION_SEC` (new) = 30 * 24 * 3600 (30 days, the Plan `UNK-01` candidate value; the dedup precedent
+  `scripts/shared/mcp_dedup.py` models the retention-purge mechanism with a 14-day value, verified 2026-11-09 — the 30-day horizon is the Plan's choice, not dedup's; constants-before-configuration precedent).
 - Purge target: `processed_events` rows only; terminal `tasks`/`attempts` rows are not deleted in this plan (Plan `UNK-02` resolved events-only; the `ON DELETE CASCADE` FK path remains available for a future decision).
 
 ## Design decisions
@@ -66,10 +67,10 @@ Make `recover_stale_attempts` delete the `processed_events` rows of the attempts
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs rows 4-5 own the doc updates |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-062329 | 20261109-062329 | pair-DELETE in CAS branch + purge_finished_workflow_events() + constants in state_store.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-062329 | 20261109-062329 | TestRecoveryPrunesProcessedEvents (3 tests) + TestPurgeFinishedWorkflowEvents (3 tests) in tests/agent/workflow/test_state_store.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-062329 | 20261109-062329 | run_validation_gates.py exit 0; targeted suites green |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-062329 | 20261109-062329 | docs rows 4-5 own the doc updates N/A: doc updates owned by procedure docs 04/05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

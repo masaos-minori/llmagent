@@ -52,8 +52,8 @@ Keep the first two bullets (processed means STARTED; a running attempt's event I
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the false comment block per Procedure/Method | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md` + REQ-004 grep) | Pending | — | — | |
+| 1 | Replace the false comment block per Procedure/Method | Completed | 20261109-062329 | 20261109-062329 | false bullet replaced with accurate pair-delete comment |
+| 2 | Run the validation sequence (`rules/toolchain.md` + REQ-004 grep) | Completed | 20261109-062329 | 20261109-062329 | REQ-004 grep clean (no 'removes their event IDs'); gates green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

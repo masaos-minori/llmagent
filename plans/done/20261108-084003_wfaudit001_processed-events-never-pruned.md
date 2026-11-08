@@ -123,9 +123,9 @@ Keep recovery's compare-and-swap structure intact and extend its transaction: wh
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Recovery prune (state_store.py + idempotency_ops.py + tests) | In Progress | — | — |  |
-| 2 | Phase 2: Startup purge (state_store.py purge + orchestrator.py wiring + tests) | In Progress | — | — |  |
-| 3 | Phase 3: Documentation (docs/41_db db_02, db_07) | In Progress | — | — |  |
+| 1 | Phase 1: Recovery prune (state_store.py + idempotency_ops.py + tests) | Completed | 20261109-062329 | 20261109-062329 |  |
+| 2 | Phase 2: Startup purge (state_store.py purge + orchestrator.py wiring + tests) | Completed | 20261109-062329 | 20261109-062329 |  |
+| 3 | Phase 3: Documentation (docs/41_db db_02, db_07) | Completed | 20261109-062329 | 20261109-062329 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

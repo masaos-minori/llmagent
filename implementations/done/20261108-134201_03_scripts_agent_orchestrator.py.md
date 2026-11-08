@@ -52,9 +52,9 @@ After `self._state_store.recover_stale_attempts(self._state_store.get_connection
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the purge call after the recovery call (L92 region) | Pending | — | — | |
-| 2 | Add the wiring test per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the purge call after the recovery call (L92 region) | Completed | 20261109-062329 | 20261109-062329 | purge call added after recover_stale_attempts in Orchestrator.__init__ |
+| 2 | Add the wiring test per Validation plan | Completed | 20261109-062329 | 20261109-062329 | TestStartupRetentionPurge spy test asserts recover-then-purge order |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-062329 | 20261109-062329 | targeted suites 149 passed; mypy/ruff clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

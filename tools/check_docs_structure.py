@@ -154,7 +154,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # /opt/llm/DEPLOYED_REV is written only after a binary-gated deploy); the file sat exactly at
     # the 25861 ceiling, so this raises it to the new accepted size. Any further growth fails.
     # Re-recorded 2026-11-07 (compatrm001): 26347 -> 26761.
-    "deployment_01_deployment.md": 26761,
+    # Re-recorded 2026-11-09 (wfaudit003, procedures 144827_04-07): the §2 gate bullet and
+    # the §3.1 init_db.sh responsibilities bullet grew 36 bytes total replacing the stale
+    # four-table lists with the five-table required set (tool_call_state added); the ceiling
+    # equals the accepted size, so any further growth fails.
+    "deployment_01_deployment.md": 26797,
     # adr_01_index.md sat at 24576 (the default MAX_SIZE) until dbmig001 annotated the
     # ADR-008 row status cell as "Accepted (amended 2026-10-30: ...)" and appended a dated
     # amendment note for ADR-008 below the ADR List table (2026-10-30). The ceiling equals

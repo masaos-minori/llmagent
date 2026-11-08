@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
@@ -36,6 +36,13 @@ logger = logging.getLogger(__name__)
 # once older than this many seconds (Plan REQ-008 interim safety net).
 _LEGACY_STALE_AGE_SEC = 3600
 
+# Retention horizon for processed_events rows of terminal tasks (wfaudit001
+# REQ-003; the 30-day value is the plan UNK-01 choice, not the dedup default).
+_EVENT_RETENTION_SEC = 30 * 24 * 3600
+# Terminal subset of TASK_STATUSES whose processed_events rows are purged;
+# keep in sync with agent.workflow.models.TASK_STATUSES.
+_TERMINAL_TASK_STATUSES = ("completed", "failed", "halted")
+
 
 @dataclass(frozen=True)
 class RecoveryReport:
@@ -45,6 +52,7 @@ class RecoveryReport:
     still_live: int = 0
     legacy_recovered: int = 0
     unparseable: int = 0
+    tasks_reconciled: int = 0
 
 
 class StateStore:
@@ -234,7 +242,14 @@ class StateStore:
         Takeover is a conditional compare-and-swap UPDATE pinned to the exact
         ``owner_id``/``lease_expires_at`` values seen by the classify pass
         (REQ-007): ``rowcount == 0`` means another recoverer won the race and
-        the row is skipped. The four-way classification counts land in
+        the row is skipped. Every claimed attempt also deletes the
+        ``processed_events`` rows of its (``task_id``, ``stage_id``) pair in the
+        same transaction, so a resumed stage re-executes instead of being
+        permanently skipped (REQ-001). After the loop, every claimed task with
+        no remaining live attempt is reconciled from ``running`` to ``failed``
+        through the validated ops helper (still one transaction); tasks that
+        keep a live-leased or terminal-status attempt are never touched
+        (REQ-002). The classification and reconciliation counts land in
         ``last_recovery_report``; the return value stays the recovered count.
         """
         db = self._db
@@ -244,6 +259,7 @@ class StateStore:
         stale = [r for r in classified if r["classification"] == "stale"]
         recovered = 0
         legacy_recovered = 0
+        reconciled_candidates: set[str] = set()
         for item in stale:
             attempt_id = item["attempt_id"]
             logger.warning(
@@ -272,6 +288,14 @@ class StateStore:
                 recovered += 1
                 if item["lease_expires_at"] is None:
                     legacy_recovered += 1
+                reconciled_candidates.add(item["task_id"])
+                # A claimed (orphaned) attempt's stage must be re-executable on
+                # resume: clear the whole (task_id, stage_id) event pair in the
+                # same transaction as the attempt failover (REQ-001).
+                db.execute(
+                    "DELETE FROM processed_events WHERE task_id=? AND stage_id=?",
+                    (item["task_id"], item["stage_id"]),
+                )
                 logger.info("Successfully marked attempt %s as failed", attempt_id)
             else:
                 logger.info(
@@ -279,15 +303,77 @@ class StateStore:
                     attempt_id,
                 )
 
+        tasks_reconciled = 0
         if stale:
+            # Parent-task reconciliation (wfaudit007 REQ-001): a claimed task
+            # whose attempts are now all terminal moves running -> failed in
+            # this same transaction. The status check mirrors a guarded UPDATE
+            # (only a still-running task is written); tasks with a live
+            # attempt are skipped outright (REQ-002).
+            for task_id in reconciled_candidates:
+                live = db.fetchall(
+                    "SELECT 1 FROM attempts WHERE task_id=? AND status='running' LIMIT 1",
+                    (task_id,),
+                )
+                if live:
+                    continue
+                current = db.fetchall(
+                    "SELECT status FROM tasks WHERE task_id=?", (task_id,)
+                )
+                if not current or current[0]["status"] != "running":
+                    continue
+                update_task_status(db, task_id, "failed", commit=False)
+                tasks_reconciled += 1
+            logger.info(
+                "startup recovery: recovered=%s still_live=%s legacy_recovered=%s "
+                "unparseable=%s tasks_reconciled=%s",
+                recovered,
+                still_live,
+                legacy_recovered,
+                unparseable,
+                tasks_reconciled,
+            )
             db.commit()
         self.last_recovery_report = RecoveryReport(
             recovered=recovered,
             still_live=still_live,
             legacy_recovered=legacy_recovered,
             unparseable=unparseable,
+            tasks_reconciled=tasks_reconciled,
         )
         return recovered
+
+    def purge_finished_workflow_events(self) -> int:
+        """Delete ``processed_events`` rows of terminal tasks past the retention horizon.
+
+        Always operates on the store's own connection; callers pass no arguments.
+
+        Startup-only retention purge (REQ-003): tasks whose status is terminal
+        (``_TERMINAL_TASK_STATUSES``) with ``updated_at`` older than
+        ``_EVENT_RETENTION_SEC`` lose their event rows; running/pending tasks
+        and the ``tasks``/``attempts`` rows themselves are never touched. The
+        cutoff is computed in the same UTC ISO Z form the tasks table stores,
+        so the ``updated_at <`` comparison is same-format lexicographic.
+        Returns the number of deleted rows.
+        """
+        db = self._db
+        cutoff = (datetime.now(UTC) - timedelta(seconds=_EVENT_RETENTION_SEC)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        cursor = db.execute(
+            "DELETE FROM processed_events WHERE task_id IN "
+            "(SELECT task_id FROM tasks WHERE status IN (?, ?, ?) AND updated_at < ?)",
+            (*_TERMINAL_TASK_STATUSES, cutoff),
+        )
+        db.commit()
+        deleted = cursor.rowcount
+        if deleted:
+            logger.info(
+                "purge_finished_workflow_events: deleted %s processed_events rows (cutoff=%s)",
+                deleted,
+                cutoff,
+            )
+        return deleted
 
 
 def _classify_running_attempts(db: SQLiteHelper) -> list[dict]:
@@ -302,7 +388,7 @@ def _classify_running_attempts(db: SQLiteHelper) -> list[dict]:
     skipped (REQ-003 / AC-3).
     """
     rows = db.fetchall(
-        "SELECT attempt_id, started_at, owner_id, lease_expires_at "
+        "SELECT attempt_id, task_id, stage_id, started_at, owner_id, lease_expires_at "
         "FROM attempts WHERE status='running'"
     )
     now_utc = datetime.now(UTC)
@@ -313,6 +399,8 @@ def _classify_running_attempts(db: SQLiteHelper) -> list[dict]:
         lease_expires_at = row["lease_expires_at"]
         entry = {
             "attempt_id": attempt_id,
+            "task_id": row["task_id"],
+            "stage_id": row["stage_id"],
             "started_at": started_at,
             "owner_id": row["owner_id"],
             "lease_expires_at": lease_expires_at,

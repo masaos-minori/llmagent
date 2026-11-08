@@ -43,7 +43,9 @@ def begin_stage_if_new(
     # - Contains event IDs for attempts that have been STARTED (not necessarily completed)
     # - A running attempt's event ID will be in processed_events even though the attempt
     #   is still in progress
-    # - Recovery logic marks stale running attempts as failed and removes their event IDs
+    # - Startup recovery marks stale running attempts as failed and deletes the
+    #   processed_events rows for their (task_id, stage_id) pair, so a resumed
+    #   stage runs again
     attempt_id = str(uuid.uuid4())
     now = _now()
     owner_id: str | None = None

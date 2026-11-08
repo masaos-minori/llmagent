@@ -11,7 +11,8 @@ Document crash-recovery task-status reconciliation in the agent platform-databas
 - `failed` is the terminal value used (vocabulary member from `wfaudit005`); no new status value appears in the doc.
 
 ## Design decisions
-- Extend the existing stale-recovery narrative (which already covers attempts and the `processed_events` prune via `implementations/20261108-134201_05_...`) one step to the parent `tasks` row; no new top-level section.
+- Add the reconciliation narrative to the existing `StateStore`/`begin_stage_if_new` operational bullets (verification finding 2026-11-09: this doc has no stale-recovery
+  narrative yet — the recovery narrative is in `docs/41_db/db_07` via `implementations/20261108-134201_05_...`, landed earlier); no new top-level section.
 
 ## Alternatives considered
 - N/A: documentation-only change.
@@ -53,8 +54,8 @@ Document: after recovery fails lease-expired attempts (and prunes their `process
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the task-reconciliation narrative and `tasks_reconciled` (new) count per Procedure/Method | Pending | — | — | |
-| 2 | Run the documentation checkers (`routing.md` Tools) | Pending | — | — | |
+| 1 | Add the task-reconciliation narrative and `tasks_reconciled` (new) count per Procedure/Method | Completed | 20261109-064151 | 20261109-064151 | reconciliation bullet added after begin_stage_if_new bullet (Operational Notes) |
+| 2 | Run the documentation checkers (`routing.md` Tools) | Completed | 20261109-064151 | 20261109-064151 | docs quality/structure/consistency(db,agent) all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

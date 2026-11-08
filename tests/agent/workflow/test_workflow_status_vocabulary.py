@@ -134,3 +134,47 @@ class TestHelperRejection:
         row = tool_call_state_ops.get_tool_call_state(store._db, "key-v")
         assert row is not None
         assert row.state == "completed"
+
+
+class TestUpdateTaskStatusCommitFlag:
+    """wfaudit007 (135741_02): commit=False defers the commit to the caller."""
+
+    def test_commit_false_skips_commit_but_writes_in_transaction(self, store) -> None:
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        commits: list[int] = []
+        real_commit = store._db.commit
+        store._db.commit = lambda: (commits.append(1), real_commit())[1]
+        try:
+            update_task_status(store._db, task.task_id, "failed", commit=False)
+        finally:
+            store._db.commit = real_commit
+        assert commits == []
+        # Visible on the same (open) connection before any commit.
+        found = get_task_by_id(store._db, task.task_id)
+        assert found is not None
+        assert found.status == "failed"
+        store._db.commit()
+
+    def test_default_still_commits(self, store) -> None:
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        update_task_status(store._db, task.task_id, "running")
+        # A fresh connection sees the committed row.
+        import sqlite3
+
+        conn = sqlite3.connect(str(store._db._db_path))
+        try:
+            row = conn.execute(
+                "SELECT status FROM tasks WHERE task_id=?", (task.task_id,)
+            ).fetchone()
+        finally:
+            conn.close()
+        assert row is not None
+        assert row[0] == "running"
+
+    def test_commit_false_still_rejects_out_of_vocabulary(self, store) -> None:
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        with pytest.raises(ValueError, match="invalid tasks.status 'done'"):
+            update_task_status(store._db, task.task_id, "done", commit=False)
+        found = get_task_by_id(store._db, task.task_id)
+        assert found is not None
+        assert found.status == "pending"

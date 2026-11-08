@@ -6,7 +6,10 @@ row names all five current tables including `tool_call_state` (`REQ-004`).
 **Release unit**: wfaudit003-full (Phase 2)
 
 - Covers Plan `plans/20261108-084006_wfaudit003_schema-gate-table-gap.md` row 4 only:
-  `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`, the baseline bullet at L143.
+  `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`, the baseline bullet at L143 and
+  the section 11a read-only inventory code-block comment at L126 ("the four task tables must be
+  present" — verification finding 2026-11-09: same stale four-table claim, inside a fenced block
+  the acceptance grep does not match).
 - Documentation-only change; no code or test edits.
 
 ## Assumptions
@@ -31,10 +34,12 @@ row names all five current tables including `tool_call_state` (`REQ-004`).
 
 ## Implementation
 ### Target file
-`docs/41_db/db_07_api_and_operations-recovery-and-reference.md` — baseline bullet (L143).
+`docs/41_db/db_07_api_and_operations-recovery-and-reference.md` — baseline bullet (L143) and
+section 11a inventory comment (L126).
 
 ### Procedure
-Extend the table list in the `workflow.sqlite` baseline bullet.
+Extend the table list in the `workflow.sqlite` baseline bullet, and correct the table-inventory
+comment in the section 11a code block.
 
 ### Method
 Replace:
@@ -49,9 +54,17 @@ with:
 >   present, and no `schema_migrations` or `workflow_schema_version` table; a legacy marker table
 >   or a shape difference fails startup.
 
+Replace (L126, inside the read-only inventory bash fence):
+
+> # workflow.sqlite: table inventory — the four task tables must be present
+
+with:
+
+> # workflow.sqlite: table inventory — the five task tables must be present
+
 ### Details
-- Single list extension inside one bullet; the `eventbus.sqlite` and `mdq.sqlite` bullets below it
-  stay untouched.
+- Single list extension inside one bullet plus a one-line comment fix inside one code fence; the
+  `eventbus.sqlite` and `mdq.sqlite` bullets and inventory blocks stay untouched.
 
 ## Compatibility considerations
 - N/A: documentation-only change. The doc's DB-recreation procedure (section 11) already recreates
@@ -74,8 +87,8 @@ with:
   shows only five-table forms after procedures 04-07 land.
 
 ## Completion criteria
-- The baseline bullet lists five tables; docs checkers exit 0; no four-table form remains in
-  `docs/41_db`.
+- The baseline bullet lists five tables; the section 11a inventory comment reads "the five task
+  tables must be present"; docs checkers exit 0; no four-table form remains in `docs/41_db`.
 
 ## Out of Scope
 - Recovery-narrative regions owned by sibling procedures `134201_05` and `135741_04`, and the
@@ -86,10 +99,10 @@ with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs checkers |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document is the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-072224 | 20261109-072224 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-072224 | 20261109-072224 | N/A: documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-072224 | 20261109-072224 | Docs checkers |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-072224 | 20261109-072224 | This document is the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

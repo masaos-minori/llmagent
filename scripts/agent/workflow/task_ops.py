@@ -65,8 +65,13 @@ def create_task(
     )
 
 
-def update_task_status(db: SQLiteHelper, task_id: str, status: str) -> None:
+def update_task_status(
+    db: SQLiteHelper, task_id: str, status: str, *, commit: bool = True
+) -> None:
     """Update the status of a task record in the database.
+
+    ``commit=False`` leaves the write in the caller's open transaction; the
+    recovery path uses this to keep one begin-immediate transaction intact.
 
     Raises:
         ValueError: if `status` is not in the `tasks.status` vocabulary.
@@ -79,7 +84,8 @@ def update_task_status(db: SQLiteHelper, task_id: str, status: str) -> None:
         "UPDATE tasks SET status=?, updated_at=? WHERE task_id=?",
         (status, _now(), task_id),
     )
-    db.commit()
+    if commit:
+        db.commit()
 
 
 def _row_to_task(r: sqlite3.Row) -> TaskRecord:

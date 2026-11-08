@@ -147,15 +147,18 @@ def _idempotency_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
 
 
 def _state_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
-    """Derive the tool_call_state row key, byte-identical to the transport key.
+    """Derive the tool_call_state row key: the transport key scoped to the task.
 
-    Same function and uid the MCP transport sends as X-Idempotency-Key
-    (REQ-003, plan D3). The audit-only _idempotency_key above stays separate
-    (REQ-009).
+    Same function and uid the MCP transport sends as X-Idempotency-Key, with
+    the current ``task_id`` appended so identical call content in different
+    tasks gets its own lifecycle row (wfaudit002 REQ-001). The wire key the
+    transport sends stays the unscoped transport key (REQ-002); the audit-only
+    _idempotency_key above stays separate (REQ-009).
     """
-    return derive_idempotency_key(
+    transport_key = derive_idempotency_key(
         "call_tool", pc.name, pc.args, str(ctx.session.session_id)
     )
+    return f"{transport_key}:{ctx.workflow.current_task_id}"
 
 
 def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None:

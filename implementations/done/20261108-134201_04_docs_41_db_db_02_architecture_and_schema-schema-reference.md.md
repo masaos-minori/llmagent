@@ -51,8 +51,8 @@ State: recovery deletes the event rows of the (`task_id`, `stage_id`) pair of ev
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the `processed_events` retention narrative per Procedure/Method | Pending | — | — | |
-| 2 | Run the documentation checkers (`routing.md` Tools) | Pending | — | — | |
+| 1 | Update the `processed_events` retention narrative per Procedure/Method | Completed | 20261109-062329 | 20261109-062329 | retention paragraph added after task_nonce paragraph (section 7) |
+| 2 | Run the documentation checkers (`routing.md` Tools) | Completed | 20261109-062329 | 20261109-062329 | check_docs_quality/structure/consistency --domain db all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

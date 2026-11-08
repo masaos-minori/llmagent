@@ -2274,8 +2274,9 @@ class TestToolCallStateProducer:
         assert recorded[1] == "task-1"
         assert recorded[3] == "read_text_file"
         assert recorded[5] == "pending"
-        assert recorded[2] == derive_idempotency_key(
-            "call_tool", "read_text_file", pc.args, "sess-42"
+        assert recorded[2] == (
+            derive_idempotency_key("call_tool", "read_text_file", pc.args, "sess-42")
+            + ":task-1"
         )
 
     @pytest.mark.asyncio
@@ -2291,8 +2292,9 @@ class TestToolCallStateProducer:
 
         assert results[0][4] is False
         (finalized,) = recorder.finalizes()
-        assert finalized[2] == derive_idempotency_key(
-            "call_tool", "read_text_file", pc.args, "sess-42"
+        assert finalized[2] == (
+            derive_idempotency_key("call_tool", "read_text_file", pc.args, "sess-42")
+            + ":task-1"
         )
         assert finalized[5] == "completed"
 
@@ -2313,8 +2315,9 @@ class TestToolCallStateProducer:
 
         assert results[0][4] is True
         (finalized,) = recorder.finalizes()
-        assert finalized[2] == derive_idempotency_key(
-            "call_tool", "read_text_file", pc.args, "sess-42"
+        assert finalized[2] == (
+            derive_idempotency_key("call_tool", "read_text_file", pc.args, "sess-42")
+            + ":task-1"
         )
         assert finalized[5] == "failed"
 
@@ -2427,8 +2430,9 @@ class TestToolCallStateProducer:
 
     @pytest.mark.asyncio
     async def test_key_matches_transport_derivation(self) -> None:
-        """REQ-003 / AC-3: the recorded key is byte-identical to the key the MCP
-        transport would send for the same call (same function, same uid branch).
+        """REQ-003 / AC-3 (wfaudit002-updated): the recorded key is the transport
+        derivation scoped by the current task; the wire key the transport sends
+        is the unscoped derivation (same function, same uid branch).
 
         Replicates the transport uid selection (shared/http_transport.py L194-197:
         _session_id, falling back to the auth-token hash) on a real HttpTransport
@@ -2466,13 +2470,48 @@ class TestToolCallStateProducer:
             transport_uid == "sess-42"
         )  # session-id branch selected, not the token hash
 
-        assert recorded_key == derive_idempotency_key(
-            "call_tool", pc.name, pc.args, transport_uid
+        # wfaudit002: the state key is the transport key scoped by task; the
+        # wire key the transport itself sends remains the unscoped derivation.
+        assert recorded_key == (
+            derive_idempotency_key("call_tool", pc.name, pc.args, transport_uid)
+            + ":task-1"
         )
         fallback_uid = hashlib.sha256(cfg.auth_token.encode("utf-8")).hexdigest()
         assert recorded_key != derive_idempotency_key(
             "call_tool", pc.name, pc.args, fallback_uid
         )
+
+
+    @pytest.mark.asyncio
+    async def test_cross_task_identical_call_distinct_keys(self) -> None:
+        """wfaudit002 REQ-001: identical call content in two tasks gets two rows."""
+        recorder = FakeRecorder()
+        pc = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
+        for task_id in ("task-A", "task-B"):
+            ctx = _state_ctx(recorder)
+            ctx.workflow.current_task_id = task_id
+            await _execute_with_dag(
+                ctx, [pc], guard=ToolLoopGuard(ctx), collected={}
+            )
+        base = derive_idempotency_key(
+            "call_tool", "read_text_file", pc.args, "sess-42"
+        )
+        key_a, key_b = (r[2] for r in recorder.records())
+        assert key_a == base + ":task-A"
+        assert key_b == base + ":task-B"
+        assert key_a != key_b
+
+    @pytest.mark.asyncio
+    async def test_intra_task_retry_maps_to_same_key(self) -> None:
+        """wfaudit002 REQ-003: identical content retried in one task -> one key."""
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        pc1 = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
+        pc2 = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c2")
+        await _execute_with_dag(ctx, [pc1], guard=ToolLoopGuard(ctx), collected={})
+        await _execute_with_dag(ctx, [pc2], guard=ToolLoopGuard(ctx), collected={})
+        key1, key2 = (r[2] for r in recorder.records())
+        assert key1 == key2
 
 
 class TestAttemptSideEffectFlag:

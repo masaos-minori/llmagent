@@ -162,7 +162,7 @@ MCP servers (ports defined per server in `config/agent.toml`) auto-start as agen
 
 **Workflow pre-flight responsibilities (setup_services.sh):**
 - Re-checks that the deployed workflow definition (`config/workflows/default.json` under the production install root) exists and re-validates it
-- Re-checks that `workflow.sqlite` exists with all required tables (`tasks`, `attempts`, `processed_events`, `artifacts`); it performs no schema-version comparison
+- Re-checks that `workflow.sqlite` exists with all required tables (`tasks`, `attempts`, `processed_events`, `artifacts`, `tool_call_state`); it performs no schema-version comparison
 - The Event Bus is started **only if** all workflow checks pass — a failure here aborts before any service is spawned
 - The Event Bus credential is checked against the variables its configuration references; a missing or empty one aborts with a `[FATAL]` list before the process is spawned
 
@@ -297,7 +297,7 @@ bash deploy/init_db.sh
 
 **Responsibilities of init_db.sh:**
 - Runs `db/create_schema.py` to initialize the rag, session, workflow, and eventbus databases
-- Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts)
+- Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts, tool_call_state)
 - Creates `eventbus.sqlite` from `scripts/eventbus/schema.sql` with `PRAGMA user_version`; every database is create-only, none is migrated
 - Refuses an `eventbus.sqlite` stamped with another version or unstamped
 - Checks required `workflow.sqlite` tables for presence; this is the only table-presence check

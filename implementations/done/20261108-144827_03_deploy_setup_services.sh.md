@@ -93,10 +93,10 @@ REQUIRED_WORKFLOW_TABLES="tasks attempts processed_events artifacts tool_call_st
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Fixture extension in test_setup_services_eventbus.py |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs are covered by procedures 04-07 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-072224 | 20261109-072224 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-072224 | 20261109-072224 | Fixture extension in test_setup_services_eventbus.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-072224 | 20261109-072224 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-072224 | 20261109-072224 | Docs are covered by procedures 04-07 N/A: docs updates owned by procedures 144827_04-07 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

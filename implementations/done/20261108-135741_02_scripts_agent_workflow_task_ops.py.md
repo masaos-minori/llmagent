@@ -53,9 +53,9 @@ Signature becomes `update_task_status(db: SQLiteHelper, task_id: str, status: st
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the keyword-only `commit` parameter per Procedure/Method | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the keyword-only `commit` parameter per Procedure/Method | Completed | 20261109-064151 | 20261109-064151 | keyword-only commit=True param added; docstring states commit=False semantics |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-064151 | 20261109-064151 | TestUpdateTaskStatusCommitFlag (3 tests) in test_workflow_status_vocabulary.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-064151 | 20261109-064151 | targeted suites green; gates exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

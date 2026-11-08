@@ -87,6 +87,8 @@ Recovery policy differs by data ownership; `recover_corruption()` supports multi
 
 Failure to recover required workflow or event-delivery state MUST NOT be silently hidden by automatic reinitialization; neither domain has an automatic reinitialization path, so this invariant holds by design enforcement (`recover_corruption()` returns `no_recovery_allowed` for `workflow`/`eventbus` targets).
 
+This physical policy is distinct from the automatic **logical** recovery of stale workflow attempts at agent startup, which touches no file-level restore: `StateStore.recover_stale_attempts()` (invoked from `agent/orchestrator.py` construction) marks lease-expired running attempts — and lease-less rows past the legacy age threshold — `failed` via a compare-and-swap UPDATE and deletes the `processed_events` rows of their (`task_id`, `stage_id`) pair in the same transaction, so a resumed stage re-executes instead of being permanently skipped; attempts with a live lease are left running. In the same transaction, every task whose last live attempt was just failed — still `running` with no remaining live attempt — is reconciled to `failed` through the validated task-ops helper; the recovery report counts gain a reconciled-task count `tasks_reconciled` (new) alongside the attempt-recovery counts, and `halted` or `completed` tasks are never reconciled. `StateStore.purge_finished_workflow_events()` then deletes `processed_events` rows whose task is terminal (`completed`/`failed`/`halted`) with `updated_at` past a fixed 30-day horizon and logs the deleted count; `tasks`/`attempts` rows are never pruned (schema-level retention narrative: [db_02 section 7](db_02_architecture_and_schema-schema-reference.md#7-workflowsqlite-schema)).
+
 ### 9.8 Operational considerations
 
 - `recover_corruption()` is never invoked automatically; it is a manual, operator-triggered CLI action. There is no bounded retry loop or retry-count concept in the implementation.
@@ -123,7 +125,7 @@ Schema changes require DB recreation — a migration feature does not exist. Aut
 To see which schema a database has without changing it, open the file read-only (`mode=ro`). Replace each placeholder with the path from the configuration (`mdq.sqlite`: `db_path` in `config/mdq_mcp_server.toml`). The supported baseline is defined in [DB migration and scaling](db_03_architecture_and_schema-migration-and-scaling.md) (section 8e).
 
 ```bash
-# workflow.sqlite: table inventory — the four task tables must be present
+# workflow.sqlite: table inventory — the five task tables must be present
 sqlite3 "file:<workflow_db_path>?mode=ro" \
   "SELECT group_concat(name) FROM sqlite_master WHERE type='table';"
 
@@ -140,7 +142,7 @@ sqlite3 "file:<mdq_db_path>?mode=ro" \
 
 A database at the supported baseline shows:
 
-- `workflow.sqlite`: `tasks`, `attempts`, `processed_events`, `artifacts` present, and no `schema_migrations` or `workflow_schema_version` table; a legacy marker table or a shape difference fails startup.
+- `workflow.sqlite`: `tasks`, `attempts`, `processed_events`, `artifacts`, `tool_call_state` present, and no `schema_migrations` or `workflow_schema_version` table; a legacy marker table or a shape difference fails startup.
 - `eventbus.sqlite`: `events` without `retry_count`; `consumer_delivery` with `acked` and without `acked_at`; `consumer_offsets` with `offset`.
 - `mdq.sqlite`: `chunk_id` as the first `chunks` column.
 

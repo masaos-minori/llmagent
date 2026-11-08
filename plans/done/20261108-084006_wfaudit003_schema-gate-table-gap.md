@@ -127,9 +127,9 @@ Amended 2026-11-08 (fallout): added docs/41_db/db_03_architecture_and_schema-mig
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Gate + scripts (workflow_schema.py gate, init_db.sh and setup_services.sh mirrors, gate matrix + parity tests) | In Progress | 20261108-145725 |  | procedures 144827_01-03 generated 2026-11-08 |
-| 2 | Phase 2: Docs (db_02, db_03, db_07, deployment_01; docs checkers) | In Progress | 20261108-145725 |  | procedures 144827_04-07 generated 2026-11-08 |
-| 3 | Phase 3: Production probe (UNK-01 census on deploy host before rollout) | Planned |  |  |  |
+| 1 | Phase 1: Gate + scripts (workflow_schema.py gate, init_db.sh and setup_services.sh mirrors, gate matrix + parity tests) | Completed | 20261109-072224 | 20261109-072224 | procedures 144827_01-03 generated 2026-11-08 |
+| 2 | Phase 2: Docs (db_02, db_03, db_07, deployment_01; docs checkers) | Completed | 20261109-072224 | 20261109-072224 | procedures 144827_04-07 generated 2026-11-08 |
+| 3 | Phase 3: Production probe (UNK-01 census on deploy host before rollout) | Completed | 20261109-072224 | 20261109-072224 |  |
 
 ### Blocker Log
 | Date | Blocker | Status | Resolution |

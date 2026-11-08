@@ -118,9 +118,9 @@ Compose the state key as `{transport_key}:{task_id}` at the single derivation po
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Key composition (tool_runner.py edit + cross-task/intra-task tests) | In Progress | — | — |  |
-| 2 | Phase 2: Transport regression (wire-key fixture test; stale-classification isolation test) | In Progress | — | — |  |
-| 3 | Phase 3: Documentation (agent_04_03 key description; docs checkers) | In Progress | — | — |  |
+| 1 | Phase 1: Key composition (tool_runner.py edit + cross-task/intra-task tests) | Completed | 20261109-070023 | 20261109-070023 |  |
+| 2 | Phase 2: Transport regression (wire-key fixture test; stale-classification isolation test) | Completed | 20261109-070023 | 20261109-070023 |  |
+| 3 | Phase 3: Documentation (agent_04_03 key description; docs checkers) | Completed | 20261109-070023 | 20261109-070023 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

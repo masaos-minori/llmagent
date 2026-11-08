@@ -26,6 +26,7 @@ from agent.services.workflow_schema import (
     check_workflow_schema,
 )
 from db.config import DbConfig
+from db.schema_sql import build_workflow_schema_sql
 
 
 def _async_result(value: object) -> AsyncMock:
@@ -547,6 +548,10 @@ def _create_workflow_db(
             "CREATE TABLE processed_events (event_id TEXT, task_id TEXT)"
         ),
         "artifacts": "CREATE TABLE artifacts (artifact_id TEXT, task_id TEXT)",
+        "tool_call_state": (
+            "CREATE TABLE tool_call_state (idempotency_key TEXT, task_id TEXT, tool TEXT, "
+            "state TEXT, retry_class TEXT, created_at TEXT, updated_at TEXT)"
+        ),
     }
     for table, ddl in schemas.items():
         if table == exclude_table:
@@ -613,6 +618,32 @@ class TestCheckWorkflowSchema:
         result = check_workflow_schema(db_path=db_path)
         assert result.valid is False
         assert result.error is not None and "attempts.owner_id" in result.error
+
+    def test_missing_tool_call_state_table_fails(self, tmp_path: Any) -> None:
+        # wfaudit003: a workflow DB lacking tool_call_state is refused at startup.
+        db_path = _create_workflow_db(tmp_path, exclude_table="tool_call_state")
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "tool_call_state" in result.error
+
+    def test_missing_tool_call_state_column_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(
+            tmp_path, missing_column=("tool_call_state", "retry_class")
+        )
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "tool_call_state.retry_class" in result.error
+
+    def test_fresh_schema_created_database_passes(self, tmp_path: Any) -> None:
+        # REQ-003 round-trip: a database built from the canonical DDL passes
+        # the gate (pins the post-wfaudit010 five-table shape).
+        db_path = str(tmp_path / "workflow_fresh.sqlite")
+        conn = sqlite3.connect(db_path)
+        conn.executescript(build_workflow_schema_sql())
+        conn.commit()
+        conn.close()
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is True, result.error
 
     def test_marker_free_database_passes(self, tmp_path: Any) -> None:
         # AC-006: a marker-free current-shape database is accepted with no

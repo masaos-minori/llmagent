@@ -125,6 +125,7 @@ def _seed_workflow_db(sb: pathlib.Path) -> None:
         CREATE TABLE attempts (id INTEGER PRIMARY KEY);
         CREATE TABLE processed_events (id INTEGER PRIMARY KEY);
         CREATE TABLE artifacts (id INTEGER PRIMARY KEY);
+        CREATE TABLE tool_call_state (idempotency_key TEXT PRIMARY KEY);
         """
     )
     conn.commit()
