@@ -245,26 +245,33 @@ _UUID_RE = re.compile(
 )
 
 
-def _make_test_app(token: str = "") -> TestClient:
-    """Build a minimal FastAPI app with auth middleware and return a TestClient."""
+def _make_test_app(
+    token: str = "", *, accept_all_for_tests: bool = False
+) -> TestClient:
+    """Build a minimal FastAPI app with auth middleware and return a TestClient.
+
+    The empty-token accept-all fallback is now an explicit opt-in on
+    ``attach_auth_middleware``; tests that exercise it must pass
+    ``accept_all_for_tests=True`` so the default stays fail-closed.
+    """
     app = FastAPI()
 
     @app.get("/ping")
     async def ping() -> dict[str, str]:
         return {"pong": "ok"}
 
-    attach_auth_middleware(app, token)
+    attach_auth_middleware(app, token, accept_all_for_tests=accept_all_for_tests)
     return TestClient(app, raise_server_exceptions=True)
 
 
 class TestAttachAuthMiddleware:
     def test_no_token_allows_any_request(self) -> None:
-        client = _make_test_app("")
+        client = _make_test_app("", accept_all_for_tests=True)
         resp = client.get("/ping")
         assert resp.status_code == 200
 
     def test_no_token_response_contains_request_id(self) -> None:
-        client = _make_test_app("")
+        client = _make_test_app("", accept_all_for_tests=True)
         resp = client.get("/ping")
         req_id = resp.headers.get("x-request-id", "")
         assert _UUID_RE.match(req_id), f"Expected UUID4, got {req_id!r}"
@@ -299,7 +306,7 @@ class TestAttachAuthMiddleware:
         assert _UUID_RE.match(req_id), f"Expected UUID4, got {req_id!r}"
 
     def test_each_request_gets_unique_id(self) -> None:
-        client = _make_test_app("")
+        client = _make_test_app("", accept_all_for_tests=True)
         ids = {client.get("/ping").headers.get("x-request-id") for _ in range(5)}
         assert len(ids) == 5
 
@@ -308,8 +315,10 @@ class TestAttachAuthMiddleware:
         retained at this middleware level for unit testability, but is
         unreachable in a real Agent-managed startup: startup_validation.py
         rejects any MCP server configuration with an empty auth_token
-        before attach_auth_middleware() would ever run with one."""
-        client = _make_test_app("")
+        before attach_auth_middleware() would ever run with one.
+        The accept-all path is now an explicit opt-in argument rather than
+        an implicit module-level default."""
+        client = _make_test_app("", accept_all_for_tests=True)
         resp = client.get("/ping")
         assert resp.status_code == 200
 
@@ -668,6 +677,44 @@ class TestStartupOverride:
             "Application startup failed. Exiting." in message for message in captured
         ), "uvicorn's own startup-failure diagnostic must surface, not AttributeError"
         assert "AttributeError" not in "\n".join(captured)
+
+    def test_systemexit_from_server_run_reraised_with_new_message(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """REQ-004: a SystemExit originating in server.run() is re-raised with its
+        exit code intact and logged with the non-posture-gate wording."""
+        import logging
+
+        import uvicorn
+
+        class _RunServer(MCPServer):
+            server_name = "run-exit-mcp"
+            server_version = "1.0"
+            http_host = "127.0.0.1"
+            http_port = 9992
+            app_module = "tests.mcp_servers.lifespan_fixtures:healthy_lifespan_app"
+            own_config_file = "healthy_lifespan_mcp_server.toml"
+            mcp_tools = []
+
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
+                raise NotImplementedError
+
+        def _raises_system_exit(srv: object) -> None:
+            raise SystemExit(3)
+
+        monkeypatch.setattr(uvicorn.Server, "run", _raises_system_exit)
+        self._patch_restrict_to(monkeypatch)
+
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(SystemExit) as excinfo:
+                _RunServer().run_http()
+
+        assert excinfo.value.code == 3
+        joined = "\n".join(caplog.messages)
+        assert "server.run() exited with SystemExit" in joined
+        assert "Posture-gate" not in joined
 
     def test_normal_loopback_start_verifies_bound_socket(
         self, monkeypatch: pytest.MonkeyPatch

@@ -59,6 +59,7 @@ from mcp_servers.server import (
     attach_auth_middleware,
     build_tools_response,
     extract_request_context,
+    require_auth_token,
 )
 
 logger = Logger(__name__, "/opt/llm/logs/mdq-mcp.log")
@@ -480,11 +481,7 @@ class MdqMCPServer(MCPServer):
 
 # Attach the common Bearer authentication middleware. allowed_dirs path authorization
 # is applied afterwards, inside the service, and does not replace authentication.
-if not _AUTH_TOKEN:
-    raise RuntimeError(
-        "mdq-mcp: auth_token is empty; set MCP_MDQ_AUTH_TOKEN to a non-empty "
-        "value (the server does not start without Bearer authentication)"
-    )
+require_auth_token("mdq-mcp", "MCP_MDQ_AUTH_TOKEN", _AUTH_TOKEN)
 attach_auth_middleware(cast(_FastAPIApp, app), _AUTH_TOKEN)
 
 

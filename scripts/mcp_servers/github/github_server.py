@@ -65,6 +65,7 @@ from mcp_servers.server import (
     attach_auth_middleware,
     build_tools_response,
     extract_request_context,
+    require_auth_token,
 )
 
 # Log path is owned here; service module uses logging.getLogger(__name__)
@@ -137,11 +138,7 @@ app = FastAPI(
     description="MCP server equivalent to @modelcontextprotocol/server-github",
 )
 
-if not _cfg.auth_token:
-    raise RuntimeError(
-        "github-mcp: auth_token is empty; set MCP_GITHUB_AUTH_TOKEN to a non-empty "
-        "value (the server does not start without Bearer authentication)"
-    )
+require_auth_token("github-mcp", "MCP_GITHUB_AUTH_TOKEN", _cfg.auth_token)
 attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token)
 
 

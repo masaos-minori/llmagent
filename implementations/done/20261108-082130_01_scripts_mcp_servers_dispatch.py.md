@@ -98,10 +98,10 @@ Under approach (b), instead raise inside `_dedup_context()` where `_dedup_disabl
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-162642 | 20261108-162642 | Implemented else branch at dispatch_tool L413: init-failure (None,None) reconciled with lookup-failure asymmetry (REQ-001/002/003). Files: scripts/mcp_servers/dispatch.py, tests/mcp_servers/test_mcp_dispatch.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261108-162648 | 20261108-162648 | Added test_init_failure_fail_closed_and_degrade (TestDurableDedup): forces (None,None) init-failure, asserts REQ-001 non-retryable fail-closed and REQ-002 retryable degrade. Also added isolated_dedup fixture to tests/mcp_servers/conftest.py and wired into cicd/shell endpoint tests. REQ-004 confirmed: fails pre-fix, passes post-fix. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-162654 | 20261108-162654 | ruff format+check clean; bandit -ll clean; radon helpers A; lint-imports 6 kept/0 broken. pytest tests/mcp_servers: 2574 passed, 5 skipped (2 prior endpoint failures fixed by isolated_dedup fixture). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261108-162659 | 20261108-162659 | N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/dispatch.py; no docs/*.md edits required. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

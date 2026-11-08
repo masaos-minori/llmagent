@@ -39,6 +39,7 @@ from mcp_servers.server import (
     attach_auth_middleware,
     build_tools_response,
     extract_request_context,
+    require_auth_token,
 )
 from mcp_servers.shell.shell_models import (
     ShellAuthorizationError,
@@ -117,11 +118,7 @@ app = FastAPI(
     description="MCP server for sandboxed shell command execution",
 )
 
-if not _cfg.auth_token:
-    raise RuntimeError(
-        "shell-mcp: auth_token is empty; set MCP_SHELL_AUTH_TOKEN to a non-empty "
-        "value (the server does not start without Bearer authentication)"
-    )
+require_auth_token("shell-mcp", "MCP_SHELL_AUTH_TOKEN", _cfg.auth_token)
 attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token)
 
 

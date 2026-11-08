@@ -125,11 +125,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the `SystemExit` log message | In Progress | — | — | `run_http`; procedure generated |
-| 2 | Update the `_LoopbackVerifyingServer.startup` docstring | In Progress | — | — | post-bind timing/skip; procedure generated |
-| 3 | Remove the redundant `import logging` | In Progress | — | — | L277; procedure generated |
-| 4 | Repair the tests | In Progress | — | — | `test_mcp_server_base.py` (companion of step 1) |
-| 5 | Deployment & verification | Pending | — | — | run validation commands |
+| 1 | Correct the `SystemExit` log message | Completed | 20261108-170747 | 20261108-170747 | `run_http` `except SystemExit` now logs `"server.run() exited with SystemExit: %s"`; exit code re-raised intact. |
+| 2 | Update the `_LoopbackVerifyingServer.startup` docstring | Completed | 20261108-170747 | 20261108-170747 | Docstring states post-bind timing and returns early when `self.should_exit` set or `self.servers` empty. |
+| 3 | Remove the redundant `import logging` | Completed | 20261108-170747 | 20261108-170747 | Only module-level `import logging` remains; no function-local copy. |
+| 4 | Repair the tests | Completed | 20261108-170747 | 20261108-170747 | Added `test_systemexit_from_server_run_reraised_with_new_message` asserting new wording + intact exit code. |
+| 5 | Deployment & verification | Completed | 20261108-170747 | 20261108-170747 | ruff/bandit/radon/lint-imports clean; pytest 2586 passed, 5 skipped. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -139,7 +139,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261108-085934_01_scripts_mcp_servers_server.py.md | 1, 2, 3, 4 | Procedure | Pending | — | — |
+| implementations/20261108-085934_01_scripts_mcp_servers_server.py.md | 1, 2, 3, 4 | Procedure | Completed | 20261108-170747 | 20261108-170747 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

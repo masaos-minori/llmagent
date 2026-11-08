@@ -58,6 +58,7 @@ from mcp_servers.server import (
     attach_auth_middleware,
     build_tools_response,
     extract_request_context,
+    require_auth_token,
 )
 
 logger = Logger(__name__, "/opt/llm/logs/file-delete-mcp.log")
@@ -115,11 +116,7 @@ app = FastAPI(
     description="MCP server for delete filesystem operations",
 )
 
-if not _cfg.auth_token:
-    raise RuntimeError(
-        "file-delete-mcp: auth_token is empty; set MCP_FILE_DELETE_AUTH_TOKEN to a non-empty "
-        "value (the server does not start without Bearer authentication)"
-    )
+require_auth_token("file-delete-mcp", "MCP_FILE_DELETE_AUTH_TOKEN", _cfg.auth_token)
 attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token)
 
 app.add_exception_handler(FileAuthorizationError, _on_auth_error)

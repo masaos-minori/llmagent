@@ -159,12 +159,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Choose the consolidation mechanism (a helper-only / b structural gate) | Pending | — | — | Open design decision in Design section |
-| 2 | Consolidate the six inline guards | In Progress | — | — | shell/github/mdq/read/write/delete; procedures generated |
-| 3 | Make the test-only accept-all intent explicit | In Progress | — | — | `attach_auth_middleware` API (server.py row) |
-| 4 | Add the structural enforcement test | In Progress | — | — | `test_require_auth_token.py` procedure generated |
-| 5 | Repair per-server auth tests | In Progress | — | — | shell/mdq per-server tests are companions of rows 2/4 |
-| 6 | Deployment & verification | Pending | — | — | run validation commands |
+| 1 | Choose the consolidation mechanism (a helper-only / b structural gate) | Completed | 20261108-170747 | 20261108-170747 | Approach (a): shared `require_auth_token()` plus an AST structural gate. All ten `*_server.py` modules route their token through it. |
+| 2 | Consolidate the six inline guards | Completed | 20261108-170747 | 20261108-170747 | shell/github/mdq/read/write/delete inline `if not *_cfg.auth_token` guards replaced by `require_auth_token()` calls; import-time refusal preserved. |
+| 3 | Make the test-only accept-all intent explicit | Completed | 20261108-170747 | 20261108-170747 | `attach_auth_middleware` gained `accept_all_for_tests: bool = False`; default stays fail-closed. |
+| 4 | Add the structural enforcement test | Completed | 20261108-170747 | 20261108-170747 | `test_require_auth_token.py` AST scanner asserts every `*_server.py` routes through `require_auth_token()` and flags the unguarded synthetic. |
+| 5 | Repair per-server auth tests | Completed | 20261108-170747 | 20261108-170747 | `TestAttachAuthMiddleware` now passes `accept_all_for_tests=True`; shell/mdq per-server tests green. |
+| 6 | Deployment & verification | Completed | 20261108-170747 | 20261108-170747 | ruff format+check clean; bandit only pre-existing Low; lint-imports 6 kept/0 broken; pytest 2586 passed, 5 skipped. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -174,14 +174,14 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261108-083903_01_scripts_mcp_servers_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261108-083903_02_scripts_mcp_servers_shell_shell_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-083903_03_scripts_mcp_servers_github_github_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-083903_04_scripts_mcp_servers_mdq_mdq_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-083903_05_scripts_mcp_servers_file_read_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-083903_06_scripts_mcp_servers_file_write_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-083903_07_scripts_mcp_servers_file_delete_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-083903_08_tests_mcp_servers_test_require_auth_token.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261108-083903_01_scripts_mcp_servers_server.py.md | 3 | Procedure | Completed | 20261108-170747 | 20261108-170747 |
+| implementations/20261108-083903_02_scripts_mcp_servers_shell_shell_server.py.md | 2 | Procedure | Completed | 20261108-170747 | 20261108-170747 |
+| implementations/20261108-083903_03_scripts_mcp_servers_github_github_server.py.md | 2 | Procedure | Completed | 20261108-170747 | 20261108-170747 |
+| implementations/20261108-083903_04_scripts_mcp_servers_mdq_mdq_server.py.md | 2 | Procedure | Completed | 20261108-170747 | 20261108-170747 |
+| implementations/20261108-083903_05_scripts_mcp_servers_file_read_server.py.md | 2 | Procedure | Completed | 20261108-170747 | 20261108-170747 |
+| implementations/20261108-083903_06_scripts_mcp_servers_file_write_server.py.md | 2 | Procedure | Completed | 20261108-170747 | 20261108-170747 |
+| implementations/20261108-083903_07_scripts_mcp_servers_file_delete_server.py.md | 2 | Procedure | Completed | 20261108-170747 | 20261108-170747 |
+| implementations/20261108-083903_08_tests_mcp_servers_test_require_auth_token.py.md | 4 | Procedure | Completed | 20261108-170747 | 20261108-170747 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

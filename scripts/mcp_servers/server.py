@@ -96,27 +96,32 @@ def _truncate_with_meta(
 def attach_auth_middleware(
     app: _FastAPIApp,
     token: str,
+    *,
+    accept_all_for_tests: bool = False,
 ) -> None:
     """Register Bearer-token auth + X-Request-Id middleware on a FastAPI app.
 
     When token is non-empty, requests without a matching Authorization header
     receive a 401 response.  When token is empty, auth is skipped and the
-    middleware only injects the X-Request-Id response header.
+    middleware only injects the X-Request-Id response header — but only when
+    ``accept_all_for_tests`` is explicitly True.
 
     An empty token is not a supported production configuration: Agent
     startup (scripts/agent/startup_validation.py) rejects any MCP server
     configuration with an empty auth_token before this middleware would ever
-    run for a real Agent-managed server. The accept-all fallback above
-    exists for this function's own standalone testability, not as a
-    supported deployment mode.
+    run for a real Agent-managed server. The accept-all fallback above exists
+    solely for this function's own standalone testability and is now an explicit
+    opt-in argument rather than an implicit module-level default. Every
+    production server routes a non-empty token through ``require_auth_token()``
+    before calling this helper, so the default stays fail-closed.
     """
     from fastapi import Request  # noqa: F401 — used in closure type annotations below
     from fastapi.responses import JSONResponse
 
     def _is_authorized(request: Request, token: str) -> bool:
-        """Return True when no token is required or the Bearer header matches."""
+        """Return True when accept-all is opted in or the Bearer header matches."""
         if not token:
-            return True
+            return accept_all_for_tests
         presented = request.headers.get("Authorization", "")
         return hmac.compare_digest(
             presented.encode("utf-8"), f"Bearer {token}".encode()

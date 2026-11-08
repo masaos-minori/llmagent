@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+import glob
 import os
 import subprocess  # nosec B404 — fresh-interpreter import checks use a fixed argv
 import sys
@@ -77,3 +79,37 @@ def test_empty_token_prevents_every_server_from_importing(
 def test_non_empty_tokens_let_a_server_import(tmp_path: Path) -> None:
     result = _import_in_fresh_interpreter("mcp_servers.git.git_server", None, tmp_path)
     assert result.returncode == 0, result.stderr
+
+
+def _routes_through_enforcement_point(source: str) -> bool:
+    """True iff the module calls ``require_auth_token()`` somewhere in its AST.
+
+    AST-based (not a substring scan) so comments or string literals named
+    ``require_auth_token`` do not produce a false positive.
+    """
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "require_auth_token"
+        ):
+            return True
+    return False
+
+
+_SERVER_SOURCE_GLOB = str(_SCRIPTS / "mcp_servers" / "*" / "*_server.py")
+
+
+@pytest.mark.parametrize("path", sorted(glob.glob(_SERVER_SOURCE_GLOB)))
+def test_every_server_routes_through_shared_enforcement_point(path: str) -> None:
+    with open(path, encoding="utf-8") as handle:
+        assert _routes_through_enforcement_point(handle.read()) is True
+
+
+def test_attach_middleware_without_enforcement_point_is_flagged() -> None:
+    synthetic = (
+        "from mcp_servers.server import attach_auth_middleware\n"
+        "attach_auth_middleware(app, '')\n"
+    )
+    assert _routes_through_enforcement_point(synthetic) is False
