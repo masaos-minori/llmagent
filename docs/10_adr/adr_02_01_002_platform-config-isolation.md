@@ -52,6 +52,7 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 - Expected scale: limited concurrency
 - Trust boundary: privileges are granted only within each process
 - External dependencies: none (configuration files are local files)
+- Confining each process's Secrets also depends on deployment controls outside the loader (operating-system file permissions and service-user separation); the repository does not establish them
 - Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, integration with an external configuration store
 
 ## Decision
@@ -63,11 +64,10 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 3. The crawler reads only `config/crawler.toml`.
 4. chunk_splitter reads only `config/chunk_splitter.toml`.
 5. The ingester reads only `config/ingester.toml`.
-6. The EventBus reads only `config/eventbus.toml`.
+6. The EventBus is configured by `config/eventbus.toml`; the operator can override the path through `EVENTBUS_CONFIG_PATH` (see Exceptions).
 7. The Agent does not interpret MCP-server-internal configuration.
 8. MCP servers do not reference `agent.toml`.
-9. Using a shared Config Loader is permitted, but the permitted files are restricted per process, and reading a non-permitted file is a Runtime Error.
-    *Note: EventBus is an exception — it loads its own config through the shared loader without `restrict_to()`; isolation is enforced by a local invariant instead (see Implementation Notes).*
+9. Using a shared Config Loader is permitted. A process that calls `ConfigLoader.restrict_to()` is limited by the loader to its permitted files by file name, and loading any other file raises `ConfigPermissionError`. EventBus is the exception: it loads through the shared loader without `restrict_to()` and relies on its local path handling (see Exceptions and Implementation Notes).
 10. No new shared configuration file is created.
 11. Duplication of values such as DB paths, URLs, and Timeouts across multiple configurations is permitted as explicit dependency declarations of independent processes.
 12. Even when a key with the same name exists in multiple files, each is treated as a separate configuration contract.
@@ -78,7 +78,7 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 
 ### Per-Process Required Files and Keys
 
-Each process restricts itself to its OWN configuration file via `ConfigLoader.restrict_to()`. "Required Keys" lists only keys that the process's loader or validator fails on when absent; keys with built-in defaults are not listed. "Empty-Allowed Keys" lists keys whose empty value is preserved rather than replaced by a default.
+File isolation and key validation are separate. File isolation: every process except EventBus restricts itself to its OWN configuration file via `ConfigLoader.restrict_to()`; EventBus uses its local path handling (see Exceptions). Key validation: "Required Keys" lists only keys that the process's loader or validator fails on when absent; keys with built-in defaults are not listed. "Empty-Allowed Keys" lists keys whose empty value is preserved rather than replaced by a default.
 
 | Process | Required Config File | Required Keys | Empty-Allowed Keys |
 |---|---|---|---|
@@ -87,7 +87,7 @@ Each process restricts itself to its OWN configuration file via `ConfigLoader.re
 | Crawler | `config/crawler.toml` | `rag_src_dir`, `crawl_delay`, `max_depth`, `min_chunk`, `fetch_retry`, `target_urls` | — |
 | Chunk Splitter | `config/chunk_splitter.toml` | `rag_src_dir`, `min_chunk`, `max_chunk`, `en_stopwords`, `ja_stop_pos` | — |
 | Ingester | `config/ingester.toml` | `rag_src_dir`, `embed_url`, `embed_retry` | — |
-| EventBus | `config/eventbus.toml` (loaded through `ConfigLoader` without `restrict_to()`; see Exceptions) | `port`, `db_path`, `storage_dir`, `deadletter_dir`, `max_retry`, `auth_token` (enforced by `load_config()` in `scripts/eventbus/config.py`) | — |
+| EventBus | `config/eventbus.toml` by default, overridable through `EVENTBUS_CONFIG_PATH` (loaded through `ConfigLoader` without `restrict_to()`; see Exceptions) | `port`, `db_path`, `storage_dir`, `deadletter_dir`, `max_retry`, `auth_token` (enforced by `load_config()` in `scripts/eventbus/config.py`) | — |
 
 (Explicit in code — `scripts/agent/config_builders.py`, `scripts/agent/production_config_validator.py`, `scripts/mcp_servers/server.py`, `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`, `scripts/eventbus/config.py`)
 
@@ -111,7 +111,7 @@ Each process restricts itself to its OWN configuration file via `ConfigLoader.re
 
 ### 1. Primary Reason for Adoption — Security
 
-Minimal exposure of Secrets prevents configuration leakage across process boundaries; access to other processes' Secrets is physically blocked.
+Minimal exposure of Secrets prevents configuration leakage across process boundaries. The loader rejects a restricted process's attempt to load another process's configuration file, which guards against accidental cross-reading; it does not stop a process from reading other files by other means.
 
 ### 2. Second Reason for Adoption — Operability
 
@@ -171,6 +171,7 @@ Because each process's configuration is managed independently, data corruption f
 - Trust boundary: an MCP server's security settings are read and validated only by that server, and the Agent consumes the posture that server publishes instead of holding a copy of the settings
 - Authentication and authorization: permission decisions based on configuration files
 - Secret handling: follow the principle of minimal exposure
+- The loader check is an application-level guard, not an operating-system boundary
 - Audit Log: `ConfigLoader` emits no configuration-loading audit event
 
 ## Invariants
@@ -182,9 +183,9 @@ Because each process's configuration is managed independently, data corruption f
 
 ## Exceptions
 
-- EventBus does not call `ConfigLoader.restrict_to()`; its isolation is a local invariant described in Implementation Notes.
+- EventBus does not call `ConfigLoader.restrict_to()`; it reads `config/eventbus.toml` by default, the operator can override the path through `EVENTBUS_CONFIG_PATH`, and its path handling is described in Implementation Notes.
 
-The restriction is otherwise unconditional: every other process entry point calls `ConfigLoader.restrict_to()` with its own configuration file (the Agent with `agent.toml`, an MCP server with its `own_config_file`, the crawler, chunk_splitter, and ingester with their own files); no environment variable disables the restriction, and reading a non-permitted file is rejected.
+For every other process entry point the loader enforces the restriction: each calls `ConfigLoader.restrict_to()` with its own configuration file (the Agent with `agent.toml`, an MCP server with its `own_config_file`, the crawler, chunk_splitter, and ingester with their own files), no environment variable disables the restriction, and reading a non-permitted file is rejected.
 
 ## Failure Policy
 
@@ -254,7 +255,7 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ## Implementation Notes
 
-- EventBus does not call `ConfigLoader.restrict_to()`. Its isolation is a local invariant: `load_config()` in `scripts/eventbus/config.py` accepts only the path returned by `get_config_path()`, and `tests/eventbus/test_eventbus_config.py` locks both call sites in `scripts/eventbus/app.py` to that invariant.
+- EventBus does not call `ConfigLoader.restrict_to()`, so no `ConfigLoader` permission check runs for it. `get_config_path()` in `scripts/eventbus/config.py` returns the `EVENTBUS_CONFIG_PATH` operator override when set and the default path otherwise; `load_config()` does not itself restrict the path, and `tests/eventbus/test_eventbus_config.py` locks both call sites in `scripts/eventbus/app.py` to pass `get_config_path()`.
 - The Agent calls `ConfigLoader.restrict_to("agent.toml")` in `AgentContext.__init__` (`scripts/agent/context.py`).
 - The required-file/required-key table in the Per-Process Required Files and Keys subsection of Decision lets operators audit configuration completeness without reading dataclass definitions.
 

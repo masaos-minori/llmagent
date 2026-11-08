@@ -63,7 +63,8 @@ Plans and checkers increasingly depend on ADR-governed contracts (DB migration w
 5. **Assumption registry**: shared architecture assumptions are registered as `[[assumption]]` entries (ID `ARCH-NNN`, name, current value, applicable ADRs, validation method `config-check` or `manual-review`, owner, review triggers). A `config-check` assumption whose recorded value no longer matches live configuration is an `ASSUMPTION_DRIFT` finding and fails CI.
 6. **Generated index sections**: the ADR index Reference Graph, Authority Graph, and Intentional Circular References sections are generated artifacts produced only by `tools/generate_adr_authority.py` between guard comments, following the ADR-015 INV-01 discipline; hand edits inside the guards are prohibited and drift is detected by `--check` (exit 1).
 7. **Front matter/model consistency**: every ADR front matter `related` entry naming another ADR file must exist in the model as an edge; every non-`Reference` model edge must appear in the owning ADR's front matter. A model-only `Reference` edge is permitted (the model is the superset the generated graph renders). Divergence in either direction is a `FRONTMATTER_DIVERGENCE` finding detected by `tools/check_adr_reference.py`.
-8. **Registration duty**: adding an ADR, changing its front matter `related`, or changing a governed target's authority requires a matching `config/adr_authority.toml` change in the same change set; dangling ADR IDs are a `DANGLING_ADR` finding and fail CI.
+8. **Registration duty**: adding an ADR, changing its front matter `related`, or changing a governed target's authority requires a matching `config/adr_authority.toml` change in the same change set; dangling ADR IDs are a `DANGLING_ADR` finding and fail CI. The uniqueness rules are items 1 and 2; the coverage statement is item 9.
+9. **Coverage**: the registry is selective in practice. It was derived from the ownership statements of the ADR index, it names a primary ADR only for the decision targets it lists, and some ADRs are the primary of no listed target. It does not claim to cover every decision of every ADR, and no per-ADR inventory is kept in this ADR; `config/adr_authority.toml` is the inventory.
 
 ### Scope
 
@@ -128,6 +129,8 @@ TOML registry (like `documentation_canonical_sources.toml`), guarded generated b
 - **Test**: `uv run python tools/check_adr_authority.py` validates the model against INV-01, INV-02, and INV-05 (finding codes `DUP_PRIMARY`, `DANGLING_ADR`, `AUTHORITY_CYCLE`, `ASSUMPTION_DRIFT`, `EDGE_UNKNOWN_TYPE`) and runs in the CI `lint` job. — **Verifies**: INV-01, INV-02, INV-05 — **Type**: Static Check — **Blocking**: Yes
 - **Test**: `uv run python tools/generate_adr_authority.py --check` regenerates the guarded graph sections in memory and exits 1 when a section is missing or differs from the generator output, so a hand edit or an unregenerated model change is detected. It runs in the CI `lint` job. — **Verifies**: INV-03 — **Type**: Static Check — **Blocking**: Yes
 - **Test**: `uv run python tools/check_adr_reference.py` cross-checks ADR front matter `related` edges against the model (`FRONTMATTER_DIVERGENCE`) and runs as the `adr-reference-scoped` pre-commit hook. — **Verifies**: INV-04 — **Type**: Static Check — **Blocking**: Yes
+
+- **Coverage**: no checker verifies coverage. The checkers above verify uniqueness (INV-01), acyclicity (INV-02), generated-section drift (INV-03) and front matter consistency (INV-04); whether a decision target is registered is a review matter.
 
 ## Implementation Notes
 

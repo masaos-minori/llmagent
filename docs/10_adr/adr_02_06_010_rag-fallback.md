@@ -57,7 +57,7 @@ This problem applies only to a process that delegates over HTTP. No production p
 - Expected scale: limited concurrency
 - Trust boundary: the external RAG service authenticates callers with a token; the local mode needs no network access
 - External dependencies: the external RAG service is reachable over HTTP; it is the dependency whose failure triggers the fallback
-- The external and the in-process mode read their corpus from separately configured database paths (`rag_db_path`), which are identical by configuration convention only
+- The external and the in-process mode are expected to read one canonical `rag.sqlite`: every configuration file sets the same `rag_db_path`. This sharing is a deployment arrangement by convention; it is not enforced and the repository records no requirement for it
 - Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, the external RAG service using a corpus other than the local one
 
 ## Decision
@@ -72,14 +72,33 @@ This problem applies only to a process that delegates over HTTP. No production p
 6. Only technical failures are fallback conditions: timeouts and connection errors, HTTP 5xx after the bounded retries are exhausted, HTTP 4xx other than 401/403, and an HTTP 200 response carrying `is_error=true`. Authentication errors (401/403) do not fall back.
 7. On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
 8. The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
-9. Parse errors are logged and treated as empty results.
+9. Parse errors (an unparsable body or a non-string `result`) are logged and treated as empty results without fallback; the caller can tell this from a valid empty answer only through the log (Needs confirmation: whether a parse failure should instead be an error).
 10. Local DB access uses only `rag.sqlite`.
-11. Result consistency between the external RAG and the local RAG is detected on every fallback: the remote and local corpus identities are compared before a fallback result is accepted (doc 08), and a mismatch or an unverifiable identity is enforced per `rag_identity_mismatch_policy` (doc 14, `reject` default). This detects a divergence; it is not corpus synchronization. The two modes still read from their own configured database paths, and the availability-first fallback is unchanged.
+11. Result consistency between the external RAG and the local RAG is detected on every fallback: the remote and local corpus identities are compared before a fallback result is accepted (`rag_05_07-rag-index-consistency-checks.md`), and a mismatch between two present identities is enforced per `rag_identity_mismatch_policy` (`rag_05_01-configuration-reference.md`, `reject` default), while an unverifiable identity (either side absent) proceeds and is recorded. This detects a divergence; it is not corpus synchronization. Equal identities mean the same corpus identity, not identical search results. The two modes still read from their own configured database paths, and the availability-first fallback is unchanged.
 12. The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `auth_error` (internal to `HttpAugment`), and the public enums `ResultSource` and `HttpResultKind` (`SUCCESS`, `EMPTY`, `ERROR`, `NOT_USED`, `AUTH_ERROR`).
+13. The failure outcomes of the HTTP delegation path are fixed by the table below; each cause has exactly one outcome.
+
+    | Cause | Outcome |
+    | --- | --- |
+    | Valid empty result (HTTP 200, `result` absent or `""`) | Empty result `""`; no fallback |
+    | HTTP 401 or 403 | `auth_error`; fail closed with `RagPipelineError`; no fallback |
+    | HTTP 4xx other than 401/403 | `transient_failure` without retry; falls back (Needs confirmation: whether a contract error should fall back) |
+    | HTTP 5xx or transport error after the bounded retries | `transient_failure`; falls back |
+    | HTTP 200 with `is_error=true` | `transient_failure`; falls back (Needs confirmation: the response carries no cause, so any failure reported this way falls back) |
+    | Unparsable body or non-string `result` | Empty result; no fallback (Needs confirmation, see item 9) |
+    | Identity mismatch (both identities present and unequal) | Fallback rejected under the default `reject` policy; tolerated and marked degraded under `degraded` |
+    | Identity unverifiable (either identity absent) | Fallback proceeds and the unverifiable state is recorded |
+    | Local `rag.sqlite` cannot be opened during fallback | `RagPipelineError`; no further fallback |
+
+14. Identity sources: the remote identity is parsed from the `corpus_identity` object of a successful response and is absent after a failed call, so it is always absent on the fallback path; the local identity is read from the local corpus metadata at fallback time. Both are evaluated per request, never cached, and the remote value is self-reported by the authenticated service and not independently verified.
 
 ### Amendment (ragcorpus001, 2026-10-31)
 
-This ADR previously stated in Decision Details item 11 that result consistency between the external and local RAG "is not guaranteed" and recorded no mechanism to detect a divergence. The RAGCORPUS001 identity-contract plan adopted an identity-contract amendment: a fallback result is accepted only after the remote and local corpus identities are compared (doc 08), and a mismatch or an unverifiable identity is enforced per `rag_identity_mismatch_policy` (doc 14, `reject` default). This records that detection contract as Decision Details item 11; it is a detection contract, not corpus synchronization. The availability-first trade-off, the "Corpus synchronization protocol" Out of Scope line, and the Alternative C rejection (separate local corpus, rejected to prioritize Availability) are unchanged. This adoption is made under the task-level approval decision referenced in this Approval Record and links `20261030-013620_ragcorpus001_rag-corpus-identity.md`.
+Decision Details item 11 previously stated that result consistency between the external and local RAG "is not guaranteed" and recorded no mechanism to detect a divergence. The RAGCORPUS001 identity-contract plan replaced that with the detection contract now recorded as item 11: a fallback result is accepted only after the remote and local corpus identities are compared (`rag_05_07-rag-index-consistency-checks.md`); a mismatch between two present identities is enforced per `rag_identity_mismatch_policy` (`rag_05_01-configuration-reference.md`, `reject` default), while an unverifiable identity proceeds and is recorded. It is a detection contract, not corpus synchronization. The availability-first trade-off and the Alternative C rejection are unchanged. The adoption is made under the task-level approval decision referenced in this Approval Record and links `20261030-013620_ragcorpus001_rag-corpus-identity.md`.
+
+### Amendment (adrrag002, 2026-11-08)
+
+This amendment rewords INV-01, INV-04, INV-07, INV-09 and the pipeline-models Implementation Reference. No decision changed: INV-01 and the reference use the current key `rag_query_service_url`; INV-04 and INV-07 carry the item 13 fallback conditions (including `is_error=true` and a non-string `result`); INV-09 separates database sharing (a convention, not enforced), corpus identity (compared at fallback) and search-result equivalence (never promised). The earlier "not guaranteed, no detection" wording is historical, superseded by the identity-contract amendment above.
 
 ### Scope
 
@@ -105,11 +124,11 @@ If the search function stops when the external RAG service fails, the user exper
 
 ### 2. Second Reason for Adoption — Error Classification
 
-Distinguishing empty results from technical failures prevents unnecessary fallback. The meanings differ: an empty result means "searched but nothing matched", while a technical failure means "could not search".
+Distinguishing empty results from technical failures prevents unnecessary fallback: an empty result means "searched but nothing matched", a technical failure "could not search".
 
 ### 3. Third Reason for Adoption — Observability
 
-Tracking the result source makes it possible to know which path produced the result, which helps debugging and operations.
+Tracking the result source shows which path produced the result, which helps debugging and operations.
 
 ## Alternatives Considered
 
@@ -146,14 +165,14 @@ Tracking the result source makes it possible to know which path produced the res
 ### Negative Consequences
 
 - Performance may degrade during fallback
-- Result consistency is not guaranteed
-- Both modes must be configured with the same `rag_db_path`; a divergent configuration is not detected
-- Complex error classification is required
+- Search-result equivalence between the two modes is not guaranteed
+- Both modes are expected to use the same `rag_db_path` by convention; a divergence is not prevented and is detected only at fallback time, by the corpus identity comparison
+- Error classification is complex
 
 ### Operational Consequences
 
 - A fallback is visible through `ResultSource`, `HttpResultKind`, and the fallback reason in the pipeline diagnostics and logs
-- A recurring fallback points to a failing or misconfigured external RAG service, which must be repaired outside this process
+- A recurring fallback points to a failing or misconfigured external RAG service, to be repaired outside this process
 
 ### Security Consequences
 
@@ -162,15 +181,15 @@ Tracking the result source makes it possible to know which path produced the res
 
 ## Invariants
 
-- INV-01: The execution mode is switched by whether `rag_service_url` is set.
+- INV-01: The execution mode is switched by whether `rag_query_service_url` is set.
 - INV-02: Each HTTP call attempt is bounded by a configured timeout.
 - INV-03: An empty result is treated as a valid result and does not trigger fallback.
-- INV-04: Only technical failures (timeouts, connection errors, HTTP 5xx after retries, HTTP 4xx other than 401/403) are fallback conditions; authentication errors 401/403 do not fall back.
+- INV-04: Only technical failures (timeouts, connection errors, HTTP 5xx after retries, HTTP 4xx other than 401/403, and an HTTP 200 response carrying `is_error=true`) are fallback conditions; authentication errors 401/403 do not fall back.
 - INV-05: On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
 - INV-06: The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
-- INV-07: Parse errors are logged and treated as empty results.
+- INV-07: Parse errors (an unparsable body or a non-string `result`) are logged and treated as empty results.
 - INV-08: Local DB access uses only `rag.sqlite`.
-- INV-09: Result consistency between the external RAG and the local RAG is not guaranteed, because each mode reads the corpus from its own configured database path.
+- INV-09: Search-result equivalence between the external RAG and the local RAG is not guaranteed. Database sharing is a deployment convention that is not enforced, and a corpus divergence is detected only by the identity comparison at fallback (Decision Details item 11), which is a detection and not a synchronization.
 - INV-10: The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `auth_error`, `ResultSource`, and `HttpResultKind` (including `AUTH_ERROR`).
 
 ## Failure Policy
@@ -192,14 +211,14 @@ Tracking the result source makes it possible to know which path produced the res
 
 ### Fallback Policy
 
-- Fallback targets: a technical failure of the external RAG HTTP call (see Decision item 6)
+- Fallback targets: a technical failure of the external RAG HTTP call (see Decision Details item 6 and the item 13 decision table)
 - Fallback destination: the in-process local RAG (the whole pipeline is re-executed)
-- Conditions that prohibit Fallback: an empty result (`""`) from the external RAG, a response parse error (treated as an empty result), authentication errors 401/403, and any safety or integrity failure (ADR-004: a safety/integrity failure must not trigger an availability Fallback)
+- Conditions that prohibit Fallback: an empty result (`""`) from the external RAG, a response parse error (an unparsable body or a non-string `result`, treated as an empty result), authentication errors 401/403, and any safety or integrity failure (ADR-004: a safety/integrity failure must not trigger an availability Fallback)
 - Where Fallback reasons are recorded: the fallback reason in the stage result and search diagnostics (`ResultSource.FALLBACK`, `HttpResultKind`) and the application log
 
 ## Data Ownership and Persistence
 
-- **System of Record**: `rag.sqlite` (shared by both the local and remote RAG modes)
+- **System of Record**: `rag.sqlite` (expected to be shared by both the local and remote RAG modes by convention; the sharing is not enforced)
 - **Derived Data**: the FTS5 and Vector indexes of `rag.sqlite` (defined by ADR-005)
 - **Ownership**: RAG layer (owner of the canonical data)
 - **Persistence**: file system (the configured DB directory); the fallback itself persists nothing
@@ -216,7 +235,7 @@ Tracking the result source makes it possible to know which path produced the res
 | Falls back to the in-process local RAG when the external RAG service fails | INV-04 | Integration | Yes | `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_rag_pipeline_service.py::TestResponseParsing::test_5xx_retries_and_returns_transient_failure`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_400_still_triggers_fallback` |
 | An empty result is treated as a valid result | INV-03 | Regression | Yes | `tests/rag/test_rag_http_mode.py::test_remote_empty_does_not_trigger_in_process` |
 | The result source is tracked correctly | INV-06 | Integration | Yes | `tests/rag/test_rag_http_mode.py::test_remote_empty_sets_result_source_remote`, `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_pipeline_http_result_kind.py` |
-| The pipeline is re-executed idempotently on fallback | INV-05 | Integration | Yes | `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback` (the in-process `run` is stubbed; no test asserts the full stage sequence) |
+| The in-process pipeline re-runs its stages in order on fallback | INV-05 | Integration | Yes | `tests/rag/test_rag_http_mode.py::test_in_process_fallback_runs_stages_in_order`, `tests/rag/test_stage_lifecycle.py::TestStageExecutionOrder::test_stage_order_with_mocked_stages` (each stage's `run` is replaced by a recorder, so real stage behavior is not covered) |
 | The mode is selected by whether `rag_query_service_url` is set | INV-01 | Integration | Yes | `tests/rag/test_pipeline_http_result_kind.py::test_no_http_mode` |
 | A response parse error is treated as an empty result | INV-07 | Unit | Yes | `tests/rag/test_rag_pipeline_service.py::TestFallbackReasonCallback::test_json_parse_error_does_not_call_set_fallback_reason` |
 | The external call is tagged `auth_error` for 401/403 and records an authentication reason; `augment()` raises `RagPipelineError` and never enters the in-process pipeline | INV-04 | Unit | Yes | `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_403_no_fallback`, `tests/rag/test_pipeline_http_result_kind.py::test_auth_error_fails_closed_without_in_process_fallback` |
@@ -238,7 +257,7 @@ Tracking the result source makes it possible to know which path produced the res
 ### Manual Review
 
 - Verification of the RAG service URL and token configuration before deployment
-- INV-02, INV-05 (full re-execution), INV-08, INV-09, INV-10 have no dedicated automated test
+- INV-02, INV-08, INV-09, INV-10 have no dedicated automated test; INV-05 is verified for stage order only
 
 ## Implementation Notes
 
@@ -265,7 +284,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
 - The external RAG service and the in-process RAG must return consistent results
-- The `rag_identity_mismatch_policy` is changed below `reject`, or the remote/local identity-comparison gate (doc 08) is extended to a fallback path other than the HTTP delegation path
+- The `rag_identity_mismatch_policy` is changed below `reject`, or the remote/local identity-comparison gate (`rag_05_07-rag-index-consistency-checks.md`) is extended to a fallback path other than the HTTP delegation path
 - The set of failures that trigger the fallback (including the 401/403 handling) changes
 - Fallback to a destination other than the in-process RAG is proposed
 
@@ -301,7 +320,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/rag/pipeline_service.py` — `call_rag_service()`
 - `scripts/rag/models_result.py` — `ResultSource`, `HttpResultKind`
 - `scripts/rag/stages/augment.py` — `AugmentStage.run()`, `_format_chunks()`
-- `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py` — pipeline configuration with an empty `rag_service_url`
+- `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py` — pipeline configuration with an empty `rag_query_service_url`
 - Tests — `tests/rag/test_rag_http_mode.py`, `tests/rag/test_rag_pipeline_service.py`, `tests/rag/test_pipeline_http_result_kind.py`
 
 ## Completion Checklist

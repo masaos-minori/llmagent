@@ -23,7 +23,7 @@ On every agent startup, a read-only RAG consistency check runs via `check_rag_co
 
 - **Degraded findings** (FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency) print a console warning per finding with its repair action; startup proceeds.
 - **Fatal findings** (duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema, unverifiable corpus generation) register a `rag_consistency` fatal finding and abort startup, with the repair action in the message. No config path may downgrade a fatal finding (AC-4).
-- **A failed or timed-out check** prints an identity-unverified warning and lets startup continue; the augment gate then refuses fallback while the identity is unverified.
+- **A failed or timed-out check** prints an identity-unverified warning and lets startup continue. At fallback time the augment gate rejects (or, under the `degraded` policy, tolerates) a fallback only when both the remote and local identities are present and unequal; when either is absent it proceeds and records the unverifiable state. The remote identity comes from a successful response and is absent after a failed call; the local identity is read from the local corpus metadata per request.
 
 ```text
 [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Affected doc_ids: [1, 2, 3]. Run '/session rag-rebuild-fts' to repair. Repair action: rebuild_fts

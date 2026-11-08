@@ -131,7 +131,57 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 ### Active Items
 
-No active Needs Confirmation items remain.
+#### NC-42
+- **ID:** NC-42
+- **Source File:** `adr_02_06_010_rag-fallback.md`
+- **Section:** Decision Details, item 13 decision table, HTTP 4xx row
+- **Line Number:** 85
+- **Question:** Whether an HTTP 4xx response other than 401/403 (for example a request or contract error) should fall back to the in-process pipeline
+- **Evidence:** `call_rag_service()` returns `transient_failure` for any other 4xx without retry, and `TestAuthErrorHandling::test_400_still_triggers_fallback` locks this; ADR-004 Decision Group 10 item 27 forbids turning a safety or integrity failure into a fallback
+- **Impact:** A contract or integrity failure reported as 4xx falls back to the local corpus; the HTTP path is inactive in production, so no current runtime exposure
+- **Required Action:** Record an owner decision on 4xx classification; if it changes, a follow-up plan edits `call_rag_service()`, the locking test and the ADR-010 invariant
+- **Status:** open
+- **Assigned To:** Unknown
+- **Last Reviewed:** 2026-11-08
+- **Priority:** Medium
+- **Related NC:** None
+- **Resolution Target:** Owner decision on 4xx classification; the ADR-010 table and the code agree
+- **Blocking:** None
+
+#### NC-43
+- **ID:** NC-43
+- **Source File:** `adr_02_06_010_rag-fallback.md`
+- **Section:** Decision Details, item 13 decision table, `is_error=true` row
+- **Line Number:** 87
+- **Question:** Whether an HTTP 200 response with `is_error=true` should be classified by its underlying cause before falling back
+- **Evidence:** The wire body carries only the flag and no cause; `call_rag_service()` treats it as `transient_failure`
+- **Impact:** A contract or integrity failure reported through `is_error` falls back to the local corpus
+- **Required Action:** Record an owner decision and define a remote error-payload contract if cause-based handling is wanted
+- **Status:** open
+- **Assigned To:** Unknown
+- **Last Reviewed:** 2026-11-08
+- **Priority:** Medium
+- **Related NC:** None
+- **Resolution Target:** Owner decision plus an error-payload contract, or an explicit decision to keep the current behavior
+- **Blocking:** None
+
+#### NC-44
+- **ID:** NC-44
+- **Source File:** `adr_02_06_010_rag-fallback.md`
+- **Section:** Decision Details, item 9, parse failure
+- **Line Number:** 75
+- **Question:** Whether an unparsable response body or a non-string `result` should be an error instead of an empty result
+- **Evidence:** `call_rag_service()` returns an empty result for both and the log is the only distinguishing signal; `TestFallbackReasonCallback::test_json_parse_error_does_not_call_set_fallback_reason` locks the behavior
+- **Impact:** A malformed response is indistinguishable from a valid empty answer for the caller and does not fall back
+- **Required Action:** Record an owner decision; if it changes, a follow-up plan changes the return contract and its tests
+- **Status:** open
+- **Assigned To:** Unknown
+- **Last Reviewed:** 2026-11-08
+- **Priority:** Medium
+- **Related NC:** None
+- **Resolution Target:** Owner decision on parse-failure semantics; the ADR-010 table and the code agree
+- **Blocking:** None
+
 
 ## Part 3: Canonical Source Conflict
 

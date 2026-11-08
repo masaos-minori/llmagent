@@ -288,7 +288,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 - INV-15/INV-16 cross-cutting audit (no ADR-004-scope fallback outside ADR-010):
   - **Why not automated**: "fallback" appears throughout production code in defensive patterns (default-value substitution, best-effort cleanup) not Destination substitution; pattern-based detector would produce unmanageable false positives. Only ADR-010 marker uniqueness automated (`TestFallbackMarkerLockGuard`).
   - **Procedure**: search production sources for fallback paths, classify as (a) ADR-010 fallback or (b) ADR-004-scope fallback requiring Accepted ADR (Decision #26); file follow-up issue for paths fitting neither.
-  - **Baseline**: ADR-010 sole Accepted ADR defining fallback. Treats HTTP errors other than authentication errors (401/403 do not fall back), timeouts, connection errors as fallback conditions; empty results and parse errors as non-fallback.
+  - **Baseline**: ADR-010 is the sole Accepted ADR defining fallback; its failure decision table (Decision Details item 13) is the single statement of which causes fall back, fail closed, or yield an empty result.
   - **Classification of known paths**:
     - **Orchestrator workflow loading** (`orchestrator.py`): no fallback exists. A workflow definition that fails to load aborts Orchestrator construction, consistent with INV-03.
     - **Vector-to-FTS degradation** (`retriever.py`): accepted current behavior. Rationale: vector→FTS is a within-database mode switch (both modes read the same `memories` table), not a Destination substitution; therefore outside ADR-004 scope.

@@ -39,7 +39,7 @@ Accepted
 
 This ADR canonicalizes the separation of data into four SQLite DBs (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`) with per-DB responsibilities, no cross-DB Transactions, a limited sqlite-vec scope, and a Backup, Recovery, and retention policy per DB. It also canonicalizes the safety boundary for recovery from physical corruption (see Decision Details #14 to #20).
 
-mdq.sqlite, owned by mdq-mcp, is a separate derived store outside the four platform persistence domains of this ADR; its policy is recorded under "Out of Scope" and "Derived Stores Outside the Four Domains".
+mdq.sqlite, owned by mdq-mcp, is a derived store outside the four domains; see "Derived Stores Outside the Four Domains".
 
 ## Context
 
@@ -47,7 +47,7 @@ mdq.sqlite, owned by mdq-mcp, is a separate derived store outside the four platf
 
 The RAG index, session state, workflow state, and event bus state differ in update frequency, lock contention, failure scope, retention period, and recovery method. Single-DB management causes WAL contention, failure propagation, and complex backups.
 
-With multiple SQLite files, a recovery mechanism without an explicit safety contract is dangerous: one that cannot distinguish physical corruption from temporary lock contention may run against a DB that is not actually broken, which is worse than no recovery at all, and restoring from an unverified backup or by non-atomic overwrite turns a single-file corruption into loss of both original and backup.
+Without an explicit safety contract, recovery across several SQLite files is dangerous: a mechanism that cannot tell physical corruption from temporary lock contention may act on a healthy DB, and restoring from an unverified backup or by non-atomic overwrite can lose both original and backup.
 
 ### Constraints
 
@@ -57,7 +57,7 @@ With multiple SQLite files, a recovery mechanism without an explicit safety cont
 - Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
 - A persistence failure in Workflow or EventBus is not treated as success with only a log entry
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
-- `rag.sqlite` and `session.sqlite` are recreated on a schema change (recreate policy). `workflow.sqlite` and `eventbus.sqlite` follow the same current-only policy: the startup gate accepts only the current canonical schema, refuses any file carrying the legacy migration marker tables (the marker machinery was removed by the compatrm001 plan), and a refused file is archived and recreated by the operator (see `db_03_architecture_and_schema-migration-and-scaling.md` section 8). Migration design is out of scope for this ADR.
+- `rag.sqlite` and `session.sqlite` are recreated on a schema change (recreate policy). `workflow.sqlite` and `eventbus.sqlite` follow the same current-only policy: the startup gate accepts only the current canonical schema, refuses any file carrying the legacy migration marker tables, and a refused file is archived and recreated by the operator (see `db_03_architecture_and_schema-migration-and-scaling.md` section 8). Migration mechanism design and schema-version mappings are out of scope for this ADR; no migration mechanism exists.
 
 ## Assumptions
 
@@ -72,18 +72,16 @@ With multiple SQLite files, a recovery mechanism without an explicit safety cont
 
 ### Amendment (dbmig001, 2026-10-30)
 
-Superseded 2026-11-07 (source compatrm001): the forward-only migration machinery described in this Amendment was removed from the codebase. Current policy: every database must match the current canonical schema at startup; mismatched files are archived and recreated. The paragraph below is retained as historical record only.
-
-This ADR previously stated in Context > Constraints that all four databases "have no migration mechanism and are recreated on a schema change." That statement no longer covers `workflow.sqlite` and `eventbus.sqlite`, which now evolve through registered forward-only migrations recorded in `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` sections 8a and 8b. The separation decision, the per-DB responsibilities, and the `rag.sqlite`/`session.sqlite` recreate policy are unchanged; only the migration sub-decision for the two ledger-bearing domains was adopted by Plan `plans/20261029-214108_dbmig001_forward-only-db-migrations.md`. This adoption is made under the task-level approval decision referenced in this Approval Record.
+Historical, superseded 2026-11-07 (source compatrm001): plan dbmig001 had extended `workflow.sqlite` and `eventbus.sqlite` with forward-only migrations; that machinery was removed. Current policy: every database must match the current canonical schema at startup; mismatched files are archived and recreated (see Context > Constraints). The separation decision, the per-DB responsibilities and the `rag.sqlite`/`session.sqlite` recreate policy are unchanged.
 
 ### Recovery Category Glossary
 
 - **initialization**: Creating a fresh, empty database or required schema when no valid database exists (`scripts/db/create_schema.py`; section 11 "DB Recreation Procedure").
-- **schema-repair**: Correcting a missing or incompatible schema by archiving the refused file and recreating it from the current canonical DDL (section 11 "DB Recreation Procedure"); the former migration path was removed by the compatrm001 plan, so recreation is the only repair path.
+- **schema-repair**: Correcting a missing or incompatible schema by archiving the refused file and recreating it from the current canonical DDL (section 11 "DB Recreation Procedure"); recreation is the only repair path.
 - **logical-repair**: Correcting application-level inconsistencies while the SQLite file remains physically valid (`RagMaintenanceService.consistency()` in `scripts/agent/services/rag_maintenance_service.py`).
-- **derived-data-rebuild**: Recreating indexes or other data that can be derived from an authoritative source (`RagMaintenanceService.rebuild_fts()` / `rebuild_vec()` in `scripts/agent/services/rag_maintenance_service.py`; `rag.sqlite`-only per Decision Detail #20).
-- **physical-recovery**: Restoring usability after SQLite file corruption (`DbCondition.CORRUPTION` path in `scripts/db/recovery.py`; DbCondition StrEnum members: HEALTHY/CORRUPTION/LOCK_CONTENTION/PERMISSION_FAILURE/INVALID_FORMAT/UNKNOWN).
-- **operator-restore**: Restoring a validated backup through an explicit operator-controlled procedure (Decision Detail #14/#17; Invariant INV-18).
+- **derived-data-rebuild**: Recreating data derived from an authoritative source (`RagMaintenanceService.rebuild_fts()` / `rebuild_vec()` in `scripts/agent/services/rag_maintenance_service.py`; `rag.sqlite`-only per Decision Detail #20).
+- **physical-recovery**: Restoring usability after SQLite file corruption (`DbCondition.CORRUPTION` path in `scripts/db/recovery.py`; the `DbCondition` states are listed in Decision Detail #14).
+- **operator-restore**: Restoring a validated backup through an operator-controlled procedure (Decision Detail #14/#17; Invariant INV-18).
 
 ### Recovery Policy Matrix
 
@@ -91,12 +89,12 @@ This ADR previously stated in Context > Constraints that all four databases "hav
 |---|---|---|---|---|
 | Persistence-domain identifier | rag | session | workflow | eventbus |
 | Database file | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite |
-| System of record | documents, chunks, FTS5, Vector Index | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, processed events | events, offsets, deliveries, DLQ state |
+| System of record | documents, chunks (canonical); FTS5, Vector Index (derived from chunks) | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, processed events | events, offsets, deliveries, DLQ state |
 | Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_vec (from memories) | none | none |
 | Owning component | RAG layer | Agent layer | Workflow engine (Agent layer) | EventBus service |
 | Required service stop scope | Agent process, rag-pipeline-mcp, and any running ingester | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process |
-| Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | none through `recover_corruption()` (returns `no_recovery_allowed` before any check) | none through `recover_corruption()` (returns `no_recovery_allowed` before any check) |
-| Supported recovery source | verified backup from operator for `documents`/`chunks`; FTS5 and Vector Index rebuilt from `chunks` (Decision Detail #20) | verified backup from operator | none (auto-restore prohibited per Decision Detail #20) | none (auto-restore prohibited per Decision Detail #20) |
+| Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | no automated diagnosis through `recover_corruption()` (returns `no_recovery_allowed` before any check) | no automated diagnosis through `recover_corruption()` (returns `no_recovery_allowed` before any check) |
+| Supported recovery source | verified backup from operator for `documents`/`chunks`; FTS5 and Vector Index rebuilt from `chunks` (Decision Detail #20) | verified backup from operator | no automated recovery source (auto-restore prohibited per Decision Detail #20; manual operator handling) | no automated recovery source (auto-restore prohibited per Decision Detail #20; manual operator handling) |
 | Automatic restore allowed or prohibited | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | prohibited (INV-18) | prohibited (INV-18) |
 | Manual restore allowed or prohibited | allowed | allowed | operator intervention only | operator intervention only |
 | Operator approval requirement | required for manual restore | required for manual restore | required (manual operation only) | required (manual operation only) |
@@ -113,7 +111,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 
 ### Decision Details
 
-1. `rag.sqlite`: canonical store for documents, chunks, FTS5, and the Vector Index. Owned by the RAG layer.
+1. `rag.sqlite`: the authoritative database file of the RAG corpus. It holds the canonical `documents` and `chunks` tables and the derived FTS5 and Vector Index, which are rebuilt from `chunks`. Owned by the RAG layer.
 2. `session.sqlite`: canonical store for Agent Sessions, Messages, and conversation state. Owned by the Agent layer.
 3. `workflow.sqlite`: canonical store for Tasks, Attempts, Artifacts, and processed Events. Owned by the workflow engine in the Agent layer.
 4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, and the DLQ. Owned by the EventBus service.
@@ -153,7 +151,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 - Detailed WAL Checkpoint parameters
 - Implementation of Backup tools and scripts
 - Automatic (unattended) triggering of operator-restore (currently operator-initiated only; automation requires a separate decision)
-- Migration and Schema versioning strategy
+- Migration mechanism design and schema-version mappings (the current-only schema policy is in scope)
 - Continuous backup verification and replication design
 - Monitoring and metrics design (handled by a separate ADR)
 - mdq.sqlite (a rebuildable derived index; see Derived Stores Outside the Four Domains)
@@ -162,7 +160,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 
 ### 1. Primary Reason for Adoption — Operability
 
-Because each DB can be initialized, connected, Checkpointed, and Recovered independently, the failure scope is localized. Corruption of one DB does not require initialization or recovery of the other DBs.
+Each DB can be initialized, connected, Checkpointed, and Recovered independently, so the failure scope is localized (INV-11).
 
 ### 2. Second Reason for Adoption — Performance
 
@@ -170,11 +168,11 @@ When data with different update frequencies is in the same DB, WAL contention de
 
 ### 3. Third Reason for Adoption — Data Integrity
 
-Each DB can define its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period, accommodating the differences listed in Decision Details #10 and #11. Because an unverified or non-Atomic restore risks losing both the corrupted original and a good backup (see Context), independent verification of the candidate and Atomic replacement are required.
+Each DB can define its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period, accommodating the differences listed in Decision Details #10 and #11. Independent candidate verification and Atomic replacement protect against losing both the corrupted original and a good backup (see Context).
 
 ### 4. Fourth Reason for Adoption — Correctness (Recovery Safety)
 
-A recovery mechanism that cannot distinguish corruption from a temporary lock is more dangerous than none (see Context). If the recovery policy for the `workflow`/`eventbus` domains were left undefined, operators would have no action to take when a failure occurs there, so this ADR defines that policy explicitly.
+Leaving the `workflow`/`eventbus` recovery policy undefined would give operators no action on failure, so this ADR defines it.
 
 ## Alternatives Considered
 
@@ -202,7 +200,7 @@ A recovery mechanism that cannot distinguish corruption from a temporary lock is
 ### Alternative D: Treat every DB-open failure as corruption and always restore from backup
 
 - **Advantages:** Simple, with a single code path
-- **Disadvantages:** A restore runs needlessly even for temporary Lock/Permission failures; if the state was actually temporary, there is a risk of losing recent writes
+- **Disadvantages:** A restore runs needlessly even for temporary Lock/Permission failures, risking recent writes
 - **Reason for Rejection:** Rejected because it violates the classification invariant (Lock Contention and Permission Failure are not treated as Corruption).
 - **Reconsideration Conditions:** Not applicable
 
@@ -210,7 +208,7 @@ A recovery mechanism that cannot distinguish corruption from a temporary lock is
 
 - **Advantages:** No implementation work required
 - **Disadvantages:** It becomes an unannounced permanent gap, and operators may mistakenly believe they can recover it like `rag`/`session`
-- **Reason for Rejection:** Whether to make them unrecoverable or to provide a manual operator recovery procedure should be an explicit decision; this ADR adopts the latter (manual operator recovery), so this alternative was rejected.
+- **Reason for Rejection:** Unrecoverability versus a manual operator procedure must be an explicit decision; this ADR adopts manual operator recovery.
 - **Reconsideration Conditions:** Not applicable
 
 ## Consequences
@@ -223,7 +221,7 @@ A recovery mechanism that cannot distinguish corruption from a temporary lock is
 - Retention periods can be managed individually
 - The scope of sqlite-vec is limited to the two databases that own a vec0 table
 - physical-recovery operations become auditable against an explicitly documented safety contract
-- Backup corruption or a partial restore is detected before it replaces a live DB (even a corrupted one)
+- Backup corruption or a partial restore is detected before it replaces a live DB
 
 ### Negative Consequences
 
@@ -236,7 +234,7 @@ A recovery mechanism that cannot distinguish corruption from a temporary lock is
 ### Operational Consequences
 
 - Configuration changes require restarting the owning process
-- Incident response requires a recovery procedure per DB
+- Incident response needs a recovery procedure per DB
 - Operators handle `workflow.sqlite`/`eventbus.sqlite` recovery and the deletion of set-aside corrupted DB copies manually (Decision Details #19 and #20)
 
 ### Security Consequences
@@ -247,7 +245,7 @@ A recovery mechanism that cannot distinguish corruption from a temporary lock is
 
 ## Invariants
 
-- INV-01: `rag.sqlite` is the canonical store for documents, chunks, FTS5, and the Vector Index.
+- INV-01: `rag.sqlite` is the authoritative database file of the RAG corpus: canonical `documents` and `chunks` tables plus the FTS5 and Vector Index derived from `chunks`.
 - INV-02: `session.sqlite` is the canonical store for Agent Sessions, Messages, and conversation state.
 - INV-03: `workflow.sqlite` is the canonical store for Tasks, Attempts, Artifacts, and processed Events.
 - INV-04: `eventbus.sqlite` is the canonical store for Events, Offsets, Delivery, and the DLQ.
@@ -306,11 +304,11 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 
 | Test | Verifies | Type | Blocking | Implementation |
 |---|---|---|---|---|
-| Each DB has its own schema creation and its own recovery target path | INV-01, INV-02, INV-03, INV-04 | Integration | Yes | `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_four_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_uses_correct_db_path` |
+| Each DB has its own schema creation and its own recovery target path (supporting the per-database ownership of INV-01 to INV-04; the static check below is the primary verification, and INV-01's derived-index clause is verified under ADR-005) | INV-01, INV-02, INV-03, INV-04 | Integration | Yes | `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_four_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_uses_correct_db_path` |
 | The four-database boundary holds: each table is created only in its owning database, no DDL foreign key crosses databases, the four database paths are distinct files, and no `ATTACH` or schema-qualified `FROM`/`JOIN` exists in `scripts/` SQL | INV-01, INV-02, INV-03, INV-04, INV-05 | Static check | Yes | `tools/check_db_separation.py` (CI `lint` job and the deploy pre-deploy check), `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations`, `tests/tools/test_check_db_separation.py::test_detects_table_in_wrong_database`, `tests/tools/test_check_db_separation.py::test_detects_cross_db_foreign_key`, `tests/tools/test_check_db_separation.py::test_detects_shared_physical_path`, `tests/tools/test_check_db_separation.py::test_detects_attach_and_qualified_access` |
 | sqlite-vec is loaded by default only for `rag` and `session`, never for `workflow` or `eventbus` | INV-08 | Regression | Yes | `tests/db/test_sqlite_helper.py::TestSQLiteHelperVecDefault::test_default_load_vec_per_target`, `tests/tools/test_check_db_separation.py::test_default_load_vec_rule_rejects_extra_target`, `tests/agent/memory/test_memory_vec_session.py::test_session_default_connection_loads_vec` |
 | Lock Contention and Permission Failure are not classified as physical corruption | INV-13 | Regression | Yes | `tests/db/test_db_recovery.py::test_recover_lock_contention`, `tests/db/test_db_recovery.py::test_recover_permission_failure`, `tests/db/test_db_recovery.py::test_classify_error_lock_contention_via_sqlite_errorcode` |
-| Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results | INV-16 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_eventbus_prohibited` (no test asserts byte-identity of a corrupt DB under Dry Run) |
+| Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results | INV-16 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_eventbus_prohibited` `tests/db/test_db_recovery.py::test_recover_dry_run_corrupt_file_unchanged` (bytes and directory of a corrupt WAL-mode database unchanged; a rollback-journal file is switched to WAL when opened and is not covered) |
 | A `recover_corruption()` call specifying `workflow`/`eventbus` does not perform an automatic restore | INV-18 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_corrupt_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_healthy_eventbus_prohibited` |
 | A restore candidate with a corrupt or wrong-domain backup is rejected and the target DB is left untouched | INV-14, INV-15 | Unit | Yes | `tests/db/test_db_recovery.py::test_recover_bad_backup`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_rejected`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_leaves_db_untouched` |
 | An unclassifiable integrity-check failure preserves the target DB and requires operator intervention | INV-17 | Unit | Yes | `tests/db/test_db_recovery.py::test_recover_unknown_preserved_operator_intervention_required` |
@@ -362,7 +360,7 @@ Not applicable
 - sqlite-vec is needed in a database other than `rag.sqlite` and `session.sqlite`
 - A store that is a system of record is added outside the four domains, mdq.sqlite starts holding data that cannot be rebuilt, or two domains are merged (a recovery policy must then be defined for it)
 - Persistent storage moves to something other than files
-- A migration mechanism is proposed again (the previous forward-only machinery was removed by the compatrm001 plan; reintroducing one requires re-evaluating this ADR) or a replicated storage foundation is introduced
+- A migration mechanism is proposed again (the forward-only machinery was removed by compatrm001) or replicated storage is introduced
 - The backup strategy changes from periodic file copies to another method
 - An operator-restore trigger is proposed
 - The recovery policy for `workflow.sqlite`/`eventbus.sqlite` changes from manual handling to an automated path
@@ -383,6 +381,7 @@ Not applicable
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-19, including the amendment of the sqlite-vec scope to `rag.sqlite` and `session.sqlite`; individual reviewer names are not recorded.
+- **Amendment Approval Mapping**: the dbmig001 Amendment (2026-10-30, plan dbmig001; no separate approval named) and its supersession (2026-11-07, plan compatrm001, which required an approval record, now the ADR index entry) both postdate the 2026-10-19 coverage above; no per-amendment approval record exists beyond the index entry and the task-level decision.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

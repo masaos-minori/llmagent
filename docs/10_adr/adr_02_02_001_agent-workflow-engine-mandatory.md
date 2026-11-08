@@ -57,7 +57,7 @@ This system executes tasks planned by the LLM. Some tools have side effects, som
 
 ### Amendment (wflease001, 2026-11-01)
 
-INV-07's "interrupted Attempts" is now defined by lease expiry, not by wall-clock age. Each attempt row carries `owner_id` and `lease_expires_at`, stamped at attempt start from the stage `timeout_sec` plus a 30 s margin (`workflow_engine._LEASE_MARGIN_SEC`); `recover_stale_attempts()` recovers only lease-expired rows (or lease-less pre-migration rows older than 3600 s) and never recovers an attempt whose lease is still live. Rationale: the previous elapsed-time rule compared host-local timestamps (a timezone defect) and could steal a legitimately long-running attempt from a live owner. The recover-as-`failed` outcome and the never-repairs-task-status guarantee of INV-07 are unchanged; only the definition of "interrupted" was refined, by Plan `plans/20261030-114516_wflease001_stale-attempt-lease.md`.
+In force: this Amendment records the rationale of Decision Details item 11. The previous elapsed-time rule compared host-local timestamps (a timezone defect) and could steal a legitimately long-running attempt from a live owner, so "interrupted" was refined to lease expiry. The recover-as-`failed` outcome and the never-repairs-task-status guarantee of INV-07 are unchanged. It was adopted by plan wflease001.
 
 ### Decision Details
 
@@ -71,6 +71,7 @@ INV-07's "interrupted Attempts" is now defined by lease expiry, not by wall-cloc
 8. The Workflow Engine's own precondition checks, such as Health Checks and pre-startup validation, are out of scope.
 9. Workflow state (Task, Attempt, processed Event, Artifact) is persisted in `workflow.sqlite`. When a Task is deleted, its related Attempts, processed Events, and Artifacts are deleted by Cascade.
 10. Every tool-level approval decision (approved or denied) is written to the audit log as a `tool_approval` event carrying the `workflow_id` and a `task_id` field that holds the turn ID. No separate approval table is kept.
+11. An Attempt is "interrupted" (INV-07) when its lease has expired, not by wall-clock age. Each attempt row carries `owner_id` and `lease_expires_at`, stamped at attempt start from the stage `timeout_sec` plus a 30 s margin (`workflow_engine._LEASE_MARGIN_SEC`). `recover_stale_attempts()` recovers only lease-expired rows, or lease-less legacy rows older than 3600 s, and never recovers an attempt whose lease is still live.
 
 ### Scope
 
