@@ -10,7 +10,7 @@ Medium
   - `scripts/agent/workflow/tool_call_state_ops.py` — drop `snapshot_id` from `ToolCallState`, `_to_row`, and `record_tool_call`.
   - `scripts/agent/workflow/state_store.py` — drop the `snapshot_id` parameter from `record_tool_call`.
   - `scripts/agent/context.py` — drop the `snapshot_id` field/parameter on the tool-call request path (L297).
-  - Docs: `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` (L72, L79 stale claims), `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md`, `docs/41_db/db_02_architecture_and_schema-schema-reference.md`.
+  - Docs: `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` (L72, L79 stale claims), `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md`. (`db_02` removed from scope: revalidation shows it never carried an `execution_snapshots` row — see Notes.)
   - Tests: retire/adjust snapshot assertions in `tests/agent/workflow/`.
 - **Out-of-Scope**:
   - Dropping the column from an existing production `workflow.sqlite` (no migration path exists; see Design "existing databases").
@@ -37,17 +37,16 @@ Retire the snapshot schema surface completely rather than keep it dormant: remov
 - `REQ-005`: Tests that referenced snapshots are removed or retargeted; full workflow test suite green.
 
 ## Implementation Target Files
-**Freeze status**: Draft
+**Freeze status**: Frozen (revalidated 20261108 against HEAD `367e583d2` — see Notes; one row removed, one symbol name corrected)
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/db/schema_sql.py` | Modify | Remove `execution_snapshots` DDL (L227-232) and `snapshot_id TEXT REFERENCES ...` from `tool_call_state` (L239) | `REQ-001` | Table/column defined, never written (grep) | `tests/db/` schema tests | `Verified` |
-| `scripts/agent/workflow/tool_call_state_ops.py` | Modify | Drop `snapshot_id` from dataclass (L30), `_to_row` (L43), `record_tool_call` signature and INSERT column list (L55,67-69) | `REQ-002`/`REQ-003` | Verified in Step 2 validation | `tests/agent/workflow/test_workflow_state_store.py` | `Verified` |
+| `scripts/agent/workflow/tool_call_state_ops.py` | Modify | Drop `snapshot_id` from dataclass (L30), `_row_to_state` (L35, reads `row["snapshot_id"]` at L43), `record_tool_call` signature and INSERT column list (L55,67-69) | `REQ-002`/`REQ-003` | Verified in Step 2 validation; symbol name corrected to `_row_to_state` at revalidation | `tests/agent/workflow/test_workflow_state_store.py` | `Verified` |
 | `scripts/agent/workflow/state_store.py` | Modify | Drop `snapshot_id` parameter from facade `record_tool_call` (L112-116) | `REQ-002` | Pass-through default None | `tests/agent/workflow/` | `Verified` |
 | `scripts/agent/context.py` | Modify | Drop `snapshot_id` from the tool-call request dataclass/parameters (L297) | `REQ-002` | No caller sets it (grep) | `tests/agent/` request-path tests | `Verified` |
 | `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` | Modify | Remove/replace stale claims at L72 and table-map row L79 | `REQ-004` | Stale claim verified verbatim | docs checkers | `Verified` |
-| `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` | Modify | Update the execution-snapshot section to "retired" status | `REQ-004` | Doc documents the two lifecycle tables | docs checkers | `Verified` |
-| `docs/41_db/db_02_architecture_and_schema-schema-reference.md` | Modify | Remove the `execution_snapshots` row from the workflow table reference | `REQ-004` | Table map lists it | docs checkers | `Verified` |
+| `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` | Modify | Update the execution-snapshot section to "retired" status | `REQ-004` | Doc documents the two lifecycle tables (L73 section, L82-86 schema listing, L154) | docs checkers | `Verified` |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -55,13 +54,13 @@ Retire the snapshot schema surface completely rather than keep it dormant: remov
 | `scripts/agent/tool_runner.py` | Sole production `record_tool_call` caller (L174) — confirms no value is passed | `REQ-002` |
 | `scripts/shared/execution_snapshot.py` | A separate, live execution-snapshot feature (config fingerprinting) exists in the shared domain; do not confuse it with the retired `execution_snapshots` table — verify the plan does not touch it | Out-of-scope guard |
 | `tests/agent/workflow/test_workflow_state_store.py` | Tests that construct/read `ToolCallState` rows; must compile after the field removal | `REQ-005` |
-| `docs/90_deployment/deployment_01_deployment.md` | Deployment docs may list the table in database shape descriptions — check and update if present | `REQ-004` |
+| `docs/90_deployment/deployment_01_deployment.md` | Checked at revalidation: does not list `execution_snapshots` (grep across `docs/` matches only agent_04_03 and db_03_07) — no edit needed | `REQ-004` |
 
 ## Acceptance Criteria
 - `REQ-001`: `create_workflow_schema()` on a fresh database produces no `execution_snapshots` table and no `snapshot_id` column in `tool_call_state`.
 - `REQ-002`: `grep -rn "snapshot_id" scripts/agent/` returns nothing outside the retirement note; dataclass has 7 fields, none named `snapshot_id`.
 - `REQ-003`: Workflow tool-call tests against a freshly created (post-retirement) database pass; a test fixture simulating a pre-retirement database (column present) also passes record/finalize/classify.
-- `REQ-004`: The three docs no longer describe `execution_snapshots` as written; docs checkers pass.
+- `REQ-004`: The two docs no longer describe `execution_snapshots` as written; docs checkers pass.
 - `REQ-005`: `uv run pytest tests/agent/workflow/ tests/db/ -q` green.
 
 ## Tests
@@ -72,7 +71,6 @@ Retire the snapshot schema surface completely rather than keep it dormant: remov
 ## Documentation Impact
 - `docs/23_agent/agent_04_03_state-and-persistence-platform-databases.md` — replace the L72 lifecycle claim; drop or mark-retired the L79 table-map row.
 - `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` — retitle the snapshot section to retirement status with a pointer to this decision.
-- `docs/41_db/db_02_architecture_and_schema-schema-reference.md` — remove the table row.
 - Run docs checkers for domains agent and db per `routing.md` Tools.
 
 ## Assumptions
@@ -92,7 +90,7 @@ Retire the snapshot schema surface completely rather than keep it dormant: remov
 | `scripts/agent/workflow/tool_call_state_ops.py` | Modify | tool-call lifecycle reads/writes | 2 | N/A | not applicable (rsynced) |
 | `scripts/agent/workflow/state_store.py` | Modify | facade signature | 6 | N/A | not applicable (rsynced) |
 | `scripts/agent/context.py` | Modify | tool-call request dataclass | N/A | N/A | not applicable (rsynced) |
-| docs (3 files) | Modify | docs only | N/A | N/A | not applicable |
+| docs (2 files) | Modify | docs only | N/A | N/A | not applicable |
 
 ## Design
 **Decision: retire.** The table has had zero writers since introduction; `tool_call_state` rows always carry null `snapshot_id`; the FK target is permanently empty. Keeping it forces `wfaudit003` to gate an empty table and `wfaudit002` to design around a dead FK.
@@ -124,19 +122,21 @@ Retire the snapshot schema surface completely rather than keep it dormant: remov
 
 ## Execution Status
 ### Execution Status
-| Work Item | Status | Owner | Started | Completed | Notes |
-|---|---|---|---|---|---|
-| Phase 1: code retirement | Planned | engineer | | | |
-| Phase 2: tests | Planned | engineer | | | |
-| Phase 3: documentation | Planned | engineer | | | |
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Phase 1: code retirement (`REQ-001`, `REQ-002`; four source files) | Pending | — | — | |
+| 2 | Phase 2: tests (`REQ-003`, `REQ-005`; retarget + legacy-shape fixture) | Pending | — | — | |
+| 3 | Phase 3: documentation (`REQ-004`; two docs) | Pending | — | — | |
 
 ### Blocker Log
-| Date | Blocker | Status | Resolution |
-|---|---|---|---|
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
 
 ### Work Items Created
-| Work Item | Type | Link | Created |
-|---|---|---|---|
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -152,9 +152,12 @@ Retire the snapshot schema surface completely rather than keep it dormant: remov
 | `REQ-001` | Issue Problem + validation | `scripts/db/schema_sql.py` | Fresh DB has no table/column | schema test |
 | `REQ-002` | Issue Required Changes | ops/state_store/context | No `snapshot_id` in API | grep + compile |
 | `REQ-003` | Plan Design (legacy compatibility) | ops layer | Legacy-shape DB works | compatibility fixture test |
-| `REQ-004` | Issue Problem (stale doc claims) | 3 docs | Retirement stated | docs checkers |
+| `REQ-004` | Issue Problem (stale doc claims) | 2 docs | Retirement stated | docs checkers |
 | `REQ-005` | Issue Testing Expectations | workflow/db tests | Suite green | pytest |
 
 ## Notes
 - Validation evidence lives in the issue's `## Adversarial Validation` section (live checker/grep runs at HEAD `926dbc109`).
 - This plan is the gate for `wfaudit003` (gate table list) and `wfaudit002` (tool_call_state key design must not resurrect the FK).
+- Adversarial re-verification 2026-11-08 (memo2 batch) against HEAD `367e583d2`: all `snapshot_id`/`execution_snapshots` code claims re-confirmed — DDL (`schema_sql.py` L227-232 table, L239 FK column), `tool_call_state_ops.py` dataclass L30 / `_row_to_state` read L43 / `record_tool_call` L55 + INSERT column list L67-69, `state_store.py` L112/L116, `context.py` L297, `tool_runner.py` call site passes no value, zero `INSERT INTO execution_snapshots` in `scripts/`, `scripts/shared/execution_snapshot.py` (live shared-domain feature) untouched by this plan's targets, and `tests/agent/workflow/test_workflow_state_store.py:711` is the only snapshot-specific assertion. Two corrections applied: (1) the `db_02_architecture_and_schema-schema-reference.md` target row was removed — `grep` and `git log -S 'execution_snapshots'` show that doc never carried the claimed table row (the edit would have been a no-op; the only docs carrying claims are agent_04_03 and db_03_07, and `docs/90_deployment/` carries none); (2) the ops-layer symbol was corrected from `_to_row` to the actual `_row_to_state`. The four Plan Freeze criteria pass for every remaining row — all rows `Verified`; the section was therefore marked `Frozen` (Draft at intake; freeze performed in this verification pass per the owner's memo2 instruction).
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261108-092904 -->
