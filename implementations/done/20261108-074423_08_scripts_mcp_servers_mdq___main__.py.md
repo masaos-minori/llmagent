@@ -56,15 +56,20 @@ Under approach (b) this is already correct — no change. Under approach (a) lea
 - The `server.py` gate/diagnostic edits and the approach choice — covered by `plans/20261107-213404_mcpstartup001_python-m-double-execution.md` and implemented by `implementations/20261108-074423_01_scripts_mcp_servers_server.py.md`.
 - The `mdq_server.py` `__main__` block — covered by `implementations/20261108-074423_09_scripts_mcp_servers_mdq_mdq_server.py.md`.
 
+## Verification
+
+- **Approach (a): no change to this entry file.** The single-execution fix lives entirely in `scripts/mcp_servers/server.py` (the gate resolves the already-running instance via `sys.modules.get(module_name)`); the eleven entry files were left untouched by design.
+- **Single execution verified for this module.** `test_a_server_module_executes_once_under_python_m[mcp_servers.mdq]` runs the real `run_http()` and asserts `second_imports==0` (executes once) plus a single config load; passes on the fixed `server.py`.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-130640 | 20261108-130640 | Approach (a): no change to this entry file; fix lives in server.py. Single execution verified (second_imports==0). See Verification section. |
+| 2 | Add or update tests per Validation plan | Completed | 20261108-130640 | 20261108-130640 | Approach (a): no change to this entry file; fix lives in server.py. Single execution verified (second_imports==0). See Verification section. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-130640 | 20261108-130640 | Approach (a): no change to this entry file; fix lives in server.py. Single execution verified (second_imports==0). See Verification section. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261108-130640 | 20261108-130640 | Approach (a): no change to this entry file; fix lives in server.py. Single execution verified (second_imports==0). See Verification section. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

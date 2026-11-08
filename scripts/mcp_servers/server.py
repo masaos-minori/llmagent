@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import dataclasses
 import hmac
-import importlib
 import logging
+import sys
 import uuid
 from collections.abc import Callable, Sequence
 from typing import Any, Protocol
@@ -246,21 +246,33 @@ class MCPServer:
     def _enforce_startup_posture_gate(self) -> None:
         """Refuse to start when the server module's security posture is not validated.
 
-        Resolves `_enforce_posture_gate` from the module named in `app_module`, so every
-        launch path (binary launchers, mcp_launcher, python -m) that reaches run_http()
-        is gated. Only modules in the `mcp_servers.` namespace are gated, and one that
-        defines no gate fails closed.
+        Resolves `_enforce_posture_gate` from the module named in `app_module` without
+        importing a second copy. Under `python -m` and `runpy.run_module(...,
+        run_name="__main__")` the running instance is registered as `__main__` rather
+        than `mcp_servers.<pkg>.<server>`, so fall back to that instance and register it
+        under its real name so uvicorn serves the same single copy. Only modules in the
+        `mcp_servers.` namespace are gated, and one that defines no gate fails closed.
         """
         module_name = self.app_module.partition(":")[0]
         if not module_name.startswith("mcp_servers."):
             return
-        gate = getattr(
-            importlib.import_module(module_name), "_enforce_posture_gate", None
-        )
+        module = sys.modules.get(module_name)
+        if module is None:
+            # Running as `python -m` / `runpy.run_module(run_name="__main__")`: the
+            # body is registered as __main__, not under its real name. Reuse it so the
+            # gate and uvicorn serve one copy instead of re-importing a second.
+            module = sys.modules.get("__main__")
+        if module is None:
+            raise RuntimeError(
+                f"{module_name} is not loaded under its real name or as __main__; "
+                "cannot enforce the posture gate"
+            )
+        gate = getattr(module, "_enforce_posture_gate", None)
         if gate is None:
             raise RuntimeError(
                 f"{module_name} defines no _enforce_posture_gate; refusing to start"
             )
+        sys.modules.setdefault(module_name, module)
         gate()
 
     def run_http(self) -> None:
@@ -274,9 +286,6 @@ class MCPServer:
         uncaught out of ``run_http()`` (fail-fast: the process terminates via the uncaught
         ``SystemExit(1)`` before any socket is created).
         """
-        import logging
-        import sys
-
         import uvicorn
 
         if self.http_host not in ("127.0.0.1", "::1"):
@@ -300,9 +309,11 @@ class MCPServer:
         self._enforce_startup_posture_gate()
 
         class _LoopbackVerifyingServer(uvicorn.Server):
-            """Verifies the actual bound socket address is loopback right
-            after startup, confirming the OS-level bind matches the
-            already-validated `http_host` rather than trusting it blindly."""
+            """Post-start verification that runs after ``super().startup()`` has
+            created the listening sockets; it returns early when
+            ``self.should_exit`` is set or ``self.servers`` is empty. This is
+            defense-in-depth only: the pre-bind ``http_host`` allow-list above is
+            the authoritative guard that loopback binding was validated against."""
 
             async def startup(self, sockets: list[Any] | None = None) -> None:
                 await super().startup(sockets=sockets)
@@ -328,7 +339,7 @@ class MCPServer:
             server.run()
         except SystemExit as e:  # noqa: BLE001 — SystemExit originating from server.run() itself; logged and re-raised, with the sys.exit(1) follow-up below
             logging.getLogger(type(self).__name__).error(
-                "Posture-gate failure during startup: %s", e
+                "server.run() exited with SystemExit: %s", e
             )
             raise
         except KeyboardInterrupt:  # pragma: no cover — interactive-only path

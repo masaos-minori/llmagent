@@ -95,3 +95,29 @@ def test_running_the_mdq_entry_module_goes_through_run_http() -> None:
         sys.modules.pop("mcp_servers.mdq.__main__", None)
         runpy.run_module("mcp_servers.mdq", run_name="__main__")
     assert run_http.call_count == 1
+
+
+def test_running_the_mdq_entry_module_goes_through_real_run_http(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The mdq entry point runs the REAL run_http() (not stubbed): with a validated
+    posture the gate passes and run_http() reaches uvicorn.Config, proving the gate
+    gates the served instance on the ``python -m mcp_servers.mdq`` path (REQ-001,
+    REQ-002). mdq_server is re-imported fresh so the forced-valid posture applies.
+    """
+    monkeypatch.setattr(
+        "shared.security.startup_flow.run_startup_validation",
+        lambda *a, **k: _OK,
+    )
+    saved = sys.modules.pop("mcp_servers.mdq.mdq_server", None)
+    try:
+        with (
+            patch("shared.config_loader.ConfigLoader.restrict_to"),
+            patch("uvicorn.Config", side_effect=_Reached),
+            pytest.raises(_Reached),
+        ):
+            sys.modules.pop("mcp_servers.mdq.__main__", None)
+            runpy.run_module("mcp_servers.mdq", run_name="__main__")
+    finally:
+        if saved is not None:
+            sys.modules["mcp_servers.mdq.mdq_server"] = saved

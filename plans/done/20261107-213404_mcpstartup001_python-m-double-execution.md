@@ -146,10 +146,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Choose the single-execution mechanism (a centralized / b per-module) | Pending | — | — | Open design decision in Design section |
-| 2 | Apply the chosen single-execution fix | In Progress | — | — | `server.py` and/or the eleven entry files |
-| 3 | Correct the `SystemExit` diagnostic mislabel | In Progress | — | — | `run_http` message + `_LoopbackVerifyingServer` docstring |
-| 4 | Repair the regression and mdq entry-point tests | In Progress | — | — | `test_config_isolation_import.py`, `test_posture_gate_start_path.py` |
+| 1 | Choose the single-execution mechanism (a centralized / b per-module) | Completed | — | 20261108-130853 | Open design decision in Design section |
+| 2 | Apply the chosen single-execution fix | Completed | — | 20261108-130853 | `server.py` and/or the eleven entry files |
+| 3 | Correct the `SystemExit` diagnostic mislabel | Completed | — | 20261108-130853 | `run_http` message + `_LoopbackVerifyingServer` docstring |
+| 4 | Repair the regression and mdq entry-point tests | Completed | — | 20261108-130853 | `test_config_isolation_import.py`, `test_posture_gate_start_path.py` |
 | 5 | Deployment & verification | Pending | — | — | run validation commands; regression test fails pre-fix |
 
 ### Blocker Log
@@ -160,20 +160,20 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261108-074423_01_scripts_mcp_servers_server.py.md | 2, 3 | Procedure | Pending | — | — |
-| implementations/20261108-074423_02_scripts_mcp_servers_cicd_cicd_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_03_scripts_mcp_servers_file_delete_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_04_scripts_mcp_servers_file_read_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_05_scripts_mcp_servers_file_write_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_06_scripts_mcp_servers_git_git_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_07_scripts_mcp_servers_github_github_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_08_scripts_mcp_servers_mdq___main__.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_09_scripts_mcp_servers_mdq_mdq_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_10_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_11_scripts_mcp_servers_shell_shell_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_12_scripts_mcp_servers_web_search_web_search_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-074423_13_tests_mcp_servers_test_config_isolation_import.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261108-074423_14_tests_mcp_servers_test_posture_gate_start_path.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261108-074423_01_scripts_mcp_servers_server.py.md | 2, 3 | Procedure | Completed | — | — |
+| implementations/20261108-074423_02_scripts_mcp_servers_cicd_cicd_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_03_scripts_mcp_servers_file_delete_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_04_scripts_mcp_servers_file_read_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_05_scripts_mcp_servers_file_write_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_06_scripts_mcp_servers_git_git_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_07_scripts_mcp_servers_github_github_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_08_scripts_mcp_servers_mdq___main__.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_09_scripts_mcp_servers_mdq_mdq_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_10_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_11_scripts_mcp_servers_shell_shell_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_12_scripts_mcp_servers_web_search_web_search_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261108-074423_13_tests_mcp_servers_test_config_isolation_import.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261108-074423_14_tests_mcp_servers_test_posture_gate_start_path.py.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -63,15 +63,23 @@ Edit `_enforce_startup_posture_gate` (current L257-259) and `run_http` (current 
 - Changing the loopback allow-list values, the config-isolation ordering, or any exit code.
 - Any change to `_enforce_startup_posture_gate` fail-closed semantics beyond the approach-(a) import guard.
 
+## Verification
+
+- **Plan premise resolved by experiment, not inference.** The open single-execution decision was settled with a decisive OLD-vs-NEW probe (`/tmp/record_once.py` + `/tmp/run_once.sh`). Measurement = real-name re-import count: `importlib.import_module` re-imports of the target module after `runpy.run_module(..., run_name="__main__")` runs ENTRY as `__main__`; 0 = executes once, ≥1 = gate re-imported.
+- **Result:** OLD `server.py` → `second_imports=1` for all ten servers + `mcp_servers.mdq` (double execution). NEW `server.py` → `second_imports=0` for all ten servers + `mdq` (single execution). The gate now resolves the running instance via `sys.modules.get(module_name)`, falls back to `__main__`, and registers it under its real name so uvicorn serves one copy.
+- **REQ-001 met:** body executes exactly once per launch path for all ten servers + `python -m mcp_servers.mdq`.
+- **REQ-002/REQ-003 diagnostics:** `except SystemExit` reworded, `_LoopbackVerifyingServer` docstring corrected, redundant `import logging` removed — startup behavior, exit codes, and pre-bind ordering unchanged.
+- **Static gates:** ruff format/check clean; lint-imports 6 kept/0 broken; bandit `-ll` no issues identified; ast-grep no bare except; mypy `--no-namespace-packages scripts/ tests/eventbus tools` clean (added `if module is None: raise RuntimeError(...)` guard at L265-269 for the narrowed `Module | None`).
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
+| 2 | Add or update tests per Validation plan | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

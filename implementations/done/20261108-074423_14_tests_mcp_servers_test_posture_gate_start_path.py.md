@@ -51,15 +51,21 @@ Append a new test function; reuse the `_OK`/`_FAILED` posture namespaces already
 - The `server.py` gate/diagnostic edits and the approach choice — covered by `implementations/20261108-074423_01_scripts_mcp_servers_server.py.md`.
 - The config-isolation regression rewrite — covered by `implementations/20261108-074423_13_tests_mcp_servers_test_config_isolation_import.py.md`.
 
+## Verification
+
+- **New real-`run_http()` test added and passing.** `test_running_the_mdq_entry_module_goes_through_real_run_http` runs the REAL `run_http()` for `mcp_servers.mdq` (patched `run_startup_validation`→validated namespace, `uvicorn.Config` stubbed to reach without binding), asserting the posture gate passes and `run_http()` reaches `uvicorn.Config` — proving the gate gates the served instance on the `python -m mcp_servers.mdq` path (REQ-001/REQ-002). `mdq_server` re-imported fresh so the forced-valid posture applies; popped/restored from `sys.modules` afterward.
+- `uv run pytest tests/mcp_servers/test_posture_gate_start_path.py` — all pass, including the new real-run_http test and the existing patched-run_http tests.
+- `uv run pytest tests/` — full suite green.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
+| 2 | Add or update tests per Validation plan | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

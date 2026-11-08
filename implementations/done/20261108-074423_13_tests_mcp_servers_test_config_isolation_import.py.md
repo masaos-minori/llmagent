@@ -52,15 +52,21 @@ Edit `test_a_server_module_executes_once_under_python_m` (current L128-142); the
 - The `server.py` gate/diagnostic edits and the approach choice — covered by `implementations/20261108-074423_01_scripts_mcp_servers_server.py.md`.
 - The mdq entry-point assertions — covered by `implementations/20261108-074423_14_tests_mcp_servers_test_posture_gate_start_path.py.md`.
 
+## Verification
+
+- **REQ-004 empirically verified this session.** Rewrote `test_a_server_module_executes_once_under_python_m` to run the REAL `run_http()` (stub only `uvicorn.Config`; patch `shared.security.startup_flow.run_startup_validation` to pass) and assert single execution via real-name re-import count (`second_imports==0`) plus a single config load; parametrized over all ten servers + `mdq`.
+- **Fails pre-fix, passes post-fix:** OLD `server.py` (reverted via `git stash`) → all ten FAILED (`second_imports=1`); NEW → all ten PASS. The regression is a true guard, not a tautology.
+- `uv run pytest tests/mcp_servers/test_config_isolation_import.py` — all pass; `uv run pytest tests/` — full suite green.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
+| 2 | Add or update tests per Validation plan | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261108-130441 | 20261108-130441 | Approach (a) applied; decisive OLD-vs-NEW experiment confirms single execution (second_imports 1->0 for all 10 servers + mdq); 55 pytest pass; static gates clean. See Verification section. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
