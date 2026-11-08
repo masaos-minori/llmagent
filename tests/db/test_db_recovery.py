@@ -258,6 +258,40 @@ def test_recover_dry_run_healthy(mock_db_cfg, mock_sqlite_helper):
         assert result.dry_run is True
 
 
+def test_recover_dry_run_corrupt_file_unchanged(tmp_path):
+    """Dry Run on a real corrupt database leaves its bytes and its directory unchanged (INV-16).
+
+    The database is created in WAL mode, the mode every deployed database uses; opening a
+    rollback-journal file would first switch it to WAL, which is outside this invariant.
+    """
+    db_file = tmp_path / "rag.db"
+    conn = sqlite3.connect(db_file)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("CREATE TABLE t (a TEXT)")
+    conn.executemany(
+        "INSERT INTO t VALUES (?)", [("x" * 200 + str(i),) for i in range(2000)]
+    )
+    conn.commit()
+    conn.close()
+    corrupt = bytearray(db_file.read_bytes())
+    corrupt[8192 : 8192 + 4096] = b"\xff" * 4096
+    db_file.write_bytes(bytes(corrupt))
+    before_bytes = db_file.read_bytes()
+    before_listing = sorted(p.name for p in tmp_path.iterdir())
+
+    with patch("db.recovery.build_db_config") as mock_cfg:
+        mock_instance = MagicMock(spec=DbConfig)
+        mock_instance.rag_db_path = db_file
+        mock_cfg.return_value = mock_instance
+        result = recover_corruption(target="rag", dry_run=True)
+
+    assert result.dry_run is True
+    assert result.success is False
+    assert "corruption" in (result.detail or "")
+    assert db_file.read_bytes() == before_bytes
+    assert sorted(p.name for p in tmp_path.iterdir()) == before_listing
+
+
 def test_recover_unsupported_target(mock_db_cfg, mock_sqlite_helper):
     with patch("db.recovery._run_integrity_check") as mock_integrity:
         result = recover_corruption(target="bogus")

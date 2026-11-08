@@ -7,6 +7,7 @@ test_pipeline_http_result_kind.py (which asserts on stage_results).
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -16,6 +17,11 @@ from rag.exceptions import RagPipelineError
 from rag.models_result import HttpResultKind, ResultSource, SearchDiagnostics
 from rag.pipeline import RagPipeline
 from rag.pipeline_service import CallRagResult
+from rag.stages.augment import AugmentStage
+from rag.stages.fusion import FusionStage
+from rag.stages.mqe import MqeStage
+from rag.stages.rerank import RerankStage
+from rag.stages.search import SearchStage
 from rag.types import PipelineRunResult
 
 
@@ -119,6 +125,47 @@ async def test_in_process_fallback_sets_result_source_fallback(monkeypatch) -> N
     assert any(
         r.get("fallback_reason") is not None for r in pipeline.last_stage_results
     )
+
+
+@pytest.mark.asyncio
+async def test_in_process_fallback_runs_stages_in_order() -> None:
+    """HTTP transient failure -> in-process stages run MQE, search, fusion, rerank, then augment.
+
+    Unlike the neighboring fallback test, ``run`` is not stubbed: the real stage
+    lifecycle executes and only each stage's own ``run`` is replaced by a recorder.
+    """
+    pipeline = _make_pipeline()
+    order: list[str] = []
+
+    def _recorder(name: str):
+        async def _run(self, ctx, **kwargs) -> None:
+            order.append(name)
+
+        return _run
+
+    async def mock_call_rag_service(*args, **kwargs):
+        return CallRagResult("transient_failure", None, 503, 100.0)
+
+    mock_db = MagicMock()
+    mock_connection = MagicMock()
+    mock_connection.__enter__ = MagicMock(return_value=mock_db)
+    mock_connection.__exit__ = MagicMock(return_value=False)
+    stages = (MqeStage, SearchStage, FusionStage, RerankStage, AugmentStage)
+    with ExitStack() as stack:
+        stack.enter_context(
+            patch("rag.http_augment.call_rag_service", mock_call_rag_service)
+        )
+        stack.enter_context(
+            patch("rag.pipeline.RagDatabaseConnection", return_value=mock_connection)
+        )
+        stack.enter_context(
+            patch("rag.pipeline.compute_local_identity", return_value=MagicMock())
+        )
+        for stage in stages:
+            stack.enter_context(patch.object(stage, "run", _recorder(stage.__name__)))
+        await pipeline.augment("query")
+
+    assert order == [stage.__name__ for stage in stages]
 
 
 @pytest.mark.asyncio

@@ -85,6 +85,10 @@ class TestStageExecutionOrder:
             mock_run_stage.return_value = None
             result = await lifecycle.run(query="test query", db=MagicMock())
             assert isinstance(result, PipelineRunResult)
+            # Augment runs outside _run_stage, so only the four pre-augment stages appear.
+            assert [
+                type(call.args[0]).__name__ for call in mock_run_stage.call_args_list
+            ] == ["MqeStage", "SearchStage", "FusionStage", "RerankStage"]
 
     @pytest.mark.asyncio
     async def test_last_stage_results_populated(self, lifecycle, mock_cfg):
