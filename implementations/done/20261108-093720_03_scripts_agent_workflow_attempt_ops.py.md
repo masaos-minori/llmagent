@@ -10,7 +10,7 @@ Reject out-of-vocabulary attempt statuses with a typed `ValueError` before any S
 
 ## Assumptions
 - All current callers pass `completed` or `failed` (verified: `workflow_engine.py` L331-371 failure/completion paths, recovery-adjacent flows) — guard is a no-op for existing behavior (`REQ-005`).
-- The direct-SQL attempt writes that bypass this helper (`idempotency_ops.py` INSERT `running` L63-80; recovery UPDATE `status='failed'` in `state_store.py` L225-226) are vocabulary-valid by construction and are covered by the sibling seq 06 consistency test (`REQ-004`), not by this guard.
+- The direct-SQL attempt writes that bypass this helper (`idempotency_ops.py` INSERT `running` L63-80; recovery UPDATE `status='failed'` in `state_store.py` L224-225 at HEAD `11c20696a`, was L225-226 at `50b5ac2c6`) are vocabulary-valid by construction and are covered by the sibling seq 06 consistency test (`REQ-004`), not by this guard.
 
 ## Design decisions
 - Guard at the writer helper (Plan Design "Validate at the writer"): `finish_attempt` is the single chokepoint for attempt terminal writes through the facade.
@@ -62,8 +62,8 @@ Reject out-of-vocabulary attempt statuses with a typed `ValueError` before any S
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocks wfaudit001 and wfaudit007: land this plan's batch first |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | No companion test file: rejection tests owned by sibling seq 06 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-125415 | 20261108-125415 | Blocks wfaudit001 and wfaudit007: land this plan's batch first memo3 adversarial verification pass at HEAD 11c20696a: stale check clean; recovery UPDATE citation L225-226->L224-225; engine callers pass failed/completed only guard-first ValueError added at finish_attempt; ATTEMPT_STATUSES import |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-125415 | 20261108-125415 | No companion test file: rejection tests owned by sibling seq 06 ruff+format+mypy+lint-imports pass; pytest tests/agent/workflow 155 passed; stale_detector clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

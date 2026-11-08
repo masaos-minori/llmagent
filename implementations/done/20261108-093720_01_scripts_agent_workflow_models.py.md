@@ -9,8 +9,10 @@ Declare the three status vocabularies as module-level frozensets in `models.py` 
 - Add `TASK_STATUSES` (new), `ATTEMPT_STATUSES` (new), `TOOL_CALL_STATES` (new) frozensets to `scripts/agent/workflow/models.py`.
 
 ## Assumptions
-- Vocabularies per `REQ-001`: `TASK_STATUSES` (new) `= frozenset({"pending", "running", "completed", "failed", "halted"})`, `ATTEMPT_STATUSES` (new) `= frozenset({"running", "completed", "failed"})`, `TOOL_CALL_STATES` (new) `= frozenset({"pending", "completed", "failed", "interrupted"})` — the last mirrors the existing `tool_call_state.state` SQL CHECK (`schema_sql.py` L237).
-- Completeness of the observed sets was re-validated at HEAD `50b5ac2c6`: engine writes `running`/`halted`/`failed`/`completed` + DDL default `pending`; attempt writes `running` (DDL default, `begin_stage_if_new`), `completed`/`failed` (`finish_attempt`, recovery); tool-call writes are the CHECK set. No other status literal exists in `scripts/` writer call sites.
+- Vocabularies per `REQ-001`: `TASK_STATUSES` (new) `= frozenset({"pending", "running", "completed", "failed", "halted"})`, `ATTEMPT_STATUSES` (new) `= frozenset({"running", "completed", "failed"})`, `TOOL_CALL_STATES` (new) `= frozenset({"pending", "completed", "failed", "interrupted"})` — the last mirrors the existing `tool_call_state.state` SQL CHECK (`schema_sql.py` L231).
+- Completeness of the observed sets was re-validated at HEAD `50b5ac2c6` and re-confirmed at
+  HEAD `11c20696a` (after `4e46f5958` retired `execution_snapshots`: the CHECK citation moved
+  L237 -> L231; writer literals unchanged): engine writes `running`/`halted`/`failed`/`completed` + DDL default `pending`; attempt writes `running` (DDL default, `begin_stage_if_new`), `completed`/`failed` (`finish_attempt`, recovery); tool-call writes are the CHECK set. No other status literal exists in `scripts/` writer call sites.
 
 ## Design decisions
 - Module-level frozensets next to the existing dataclasses (Plan Design "Single declaration"): every ops module already lives in `agent/workflow/`, so no new module and no cross-layer import.
@@ -58,8 +60,8 @@ Declare the three status vocabularies as module-level frozensets in `models.py` 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocks wfaudit001 and wfaudit007: land this plan's batch first |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | No companion test file: tests owned by sibling seq 06 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-124746 | 20261108-124746 | Blocks wfaudit001 and wfaudit007: land this plan's batch first memo3 adversarial verification pass at HEAD 11c20696a: stale check clean; corrected CHECK citation L237->L231; vocabulary completeness re-confirmed verification notes: citations cross-checked at HEAD 11c20696a (CHECK pattern L231 correction applied) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-124752 | 20261108-125140 | No companion test file: tests owned by sibling seq 06 adding TASK_STATUSES/ATTEMPT_STATUSES/TOOL_CALL_STATES frozensets ruff+format+mypy pass; lint-imports 6 kept 0 broken; pytest tests/agent/workflow 155 passed; stale_detector clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

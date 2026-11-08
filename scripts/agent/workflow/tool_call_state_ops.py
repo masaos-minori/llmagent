@@ -17,6 +17,8 @@ from dataclasses import dataclass
 
 from db.helper import SQLiteHelper
 
+from agent.workflow.models import TOOL_CALL_STATES
+
 
 @dataclass
 class ToolCallState:
@@ -69,7 +71,15 @@ def record_tool_call(
 
 
 def finalize_tool_call(db: SQLiteHelper, idempotency_key: str, state: str) -> None:
-    """Move a tool-call row to its final state, bumping updated_at."""
+    """Move a tool-call row to its final state, bumping updated_at.
+
+    Raises:
+        ValueError: if `state` is not in the `tool_call_state.state` vocabulary.
+    """
+    if state not in TOOL_CALL_STATES:
+        raise ValueError(
+            f"invalid tool_call_state.state {state!r} (allowed: {sorted(TOOL_CALL_STATES)})"
+        )
     db.execute(
         "UPDATE tool_call_state SET state=?, updated_at=? WHERE idempotency_key=?",
         (state, time.time(), idempotency_key),

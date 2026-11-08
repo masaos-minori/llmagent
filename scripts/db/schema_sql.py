@@ -181,7 +181,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     workflow_id      TEXT,
     turn_number      INTEGER,
     workflow_version TEXT NOT NULL,
-    status           TEXT NOT NULL DEFAULT 'pending',
+    -- status vocabulary mirrors agent/workflow/models.py TASK_STATUSES (tests/db pins equality)
+    status           TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'halted')),
     task_nonce       TEXT UNIQUE NOT NULL,
     created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -191,7 +192,8 @@ CREATE TABLE IF NOT EXISTS attempts (
     attempt_id   TEXT PRIMARY KEY,
     task_id      TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     stage_id     TEXT NOT NULL,
-    status       TEXT NOT NULL DEFAULT 'running',
+    -- status vocabulary mirrors agent/workflow/models.py ATTEMPT_STATUSES (tests/db pins equality)
+    status       TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed')),
     started_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     ended_at     TEXT,
     error_msg    TEXT,

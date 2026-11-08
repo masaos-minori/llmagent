@@ -139,6 +139,12 @@ class TestUpdateTaskStatus:
         found = get_task_by_id(store._db, task.task_id)
         assert found is not None
         assert found.status == "running"
+        # wfaudit005 REQ-002: out-of-vocabulary status raises and writes nothing.
+        with pytest.raises(ValueError, match="invalid tasks.status 'done'"):
+            update_task_status(store._db, task.task_id, "done")
+        found = get_task_by_id(store._db, task.task_id)
+        assert found is not None
+        assert found.status == "running"
 
 
 class TestAttempts:
@@ -159,6 +165,13 @@ class TestAttempts:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         attempt = start_attempt(store._db, task.task_id, "plan")
         finish_attempt(store._db, attempt.attempt_id, "completed")
+        rows = store._db.fetchall(
+            "SELECT status FROM attempts WHERE attempt_id=?", (attempt.attempt_id,)
+        )
+        assert rows[0][0] == "completed"
+        # wfaudit005 REQ-002: out-of-vocabulary status raises and writes nothing.
+        with pytest.raises(ValueError, match="invalid attempts.status 'done'"):
+            finish_attempt(store._db, attempt.attempt_id, "done")
         rows = store._db.fetchall(
             "SELECT status FROM attempts WHERE attempt_id=?", (attempt.attempt_id,)
         )
@@ -760,6 +773,11 @@ class TestToolCallStateOps:
         assert row is not None and row.state == "failed"
         assert row.updated_at >= before.updated_at
         assert store.pending_tool_calls(task.task_id) == []
+        # wfaudit005 REQ-002: out-of-vocabulary state raises and writes nothing.
+        with pytest.raises(ValueError, match="invalid tool_call_state.state 'done'"):
+            store.finalize_tool_call("key-f", "done")
+        row = tool_call_state_ops.get_tool_call_state(store._db, "key-f")
+        assert row is not None and row.state == "failed"
 
     def test_pending_ordered_by_created_at(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")

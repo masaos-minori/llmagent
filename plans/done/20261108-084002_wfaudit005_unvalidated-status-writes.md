@@ -128,9 +128,9 @@ Declare once, validate at every writer, constrain fresh DDL: Python frozensets i
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: vocabulary + writer validation (`REQ-001`, `REQ-002`) | Pending | — | — | |
-| 2 | Phase 2: DDL CHECKs (`REQ-003`) | Pending | — | — | |
-| 3 | Phase 3: consistency + docs (`REQ-004`) | Pending | — | — | Production probe (`UNK-01`) recorded here at deploy validation |
+| 1 | Phase 1: vocabulary + writer validation (`REQ-001`, `REQ-002`) | Completed | 20261108-125000 | 20261108-125519 | procedures 01-04 landed: TASK_STATUSES/ATTEMPT_STATUSES/TOOL_CALL_STATES + guard-first ValueError in update_task_status/finish_attempt/finalize_tool_call |
+| 2 | Phase 2: DDL CHECKs (`REQ-003`) | Completed | 20261108-125600 | 20261108-130138 | procedure 05 landed: CHECK on tasks.status/attempts.status + TestWorkflowStatusCheckConstraints (rejection + DDL-vs-python equality) |
+| 3 | Phase 3: consistency + docs (`REQ-004`) | Completed | 20261108-130200 | 20261108-131819 | Production probe (`UNK-01`) recorded here at deploy validation procedures 06-07 landed: test_workflow_status_vocabulary.py + lifecycle rejection asserts + schema-reference prose; fail-on-HEAD proven (3 rejection tests failed pre-change); UNK-01 production probe: read-only SELECT DISTINCT on /opt/llm/db/workflow.sqlite returned 0 rows in tasks/attempts/tool_call_state (no retained rows violate the vocabularies); full suite 11847 passed 7 skipped; diff-cover 100% >= 90 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

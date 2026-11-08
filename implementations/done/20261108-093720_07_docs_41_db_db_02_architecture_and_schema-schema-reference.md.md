@@ -56,8 +56,8 @@ Record the enforced status vocabulary per workflow status column in the schema r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the prose addition described in Implementation > Procedure/Method/Details | Pending | — | — | Land after Plan Phases 1-2 |
-| 2 | Run the docs checkers named in the Validation plan | Pending | — | — | |
+| 1 | Apply the prose addition described in Implementation > Procedure/Method/Details | Completed | 20261108-130652 | 20261108-130652 | Land after Plan Phases 1-2 memo3 adversarial verification pass at HEAD 11c20696a: stale check clean; doc has no status/tool_call_state text and L46 anchor confirmed; agent_04_03 confirmed no-edit-needed; no document correction required vocabulary + enforcement sentence added after the task-tables sentence in section 7 |
+| 2 | Run the docs checkers named in the Validation plan | Completed | 20261108-130652 | 20261108-130652 | check_docs_structure, check_docs_content_policy, check_docs_consistency --domain db --domain agent all clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -10,6 +10,7 @@ No migration helpers exist.
 """
 
 import logging
+import re
 import sqlite3
 from collections.abc import Generator
 from pathlib import Path
@@ -686,6 +687,93 @@ def _create_workflow_db(db_file: Path) -> None:
         ),
     ):
         cs.create_workflow_schema()
+
+
+class TestWorkflowStatusCheckConstraints:
+    """CHECK constraints on tasks.status and attempts.status (REQ-003).
+
+    Fresh databases built from the real canonical DDL reject out-of-vocabulary
+    status writes; the equality test pins the DDL sets to the Python
+    vocabularies in agent/workflow/models.py without a db->agent import edge.
+    """
+
+    _NOW = "2026-01-01T00:00:00+00:00"
+
+    def _fresh_conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(build_workflow_schema_sql())
+        conn.execute("PRAGMA foreign_keys=ON")
+        return conn
+
+    def _insert_task(self, conn: sqlite3.Connection, status: str) -> None:
+        conn.execute(
+            "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?)",
+            ("t1", "s1", None, 1, "1.0.0", status, "n1", self._NOW, self._NOW),
+        )
+
+    def _insert_attempt(self, conn: sqlite3.Connection, status: str) -> None:
+        self._insert_task(conn, "pending")
+        conn.execute(
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status,"
+            " started_at, ended_at, error_msg) VALUES (?,?,?,?,?,?,?)",
+            ("a1", "t1", "plan", status, self._NOW, None, None),
+        )
+
+    def test_tasks_rejects_out_of_vocabulary_insert(self) -> None:
+        conn = self._fresh_conn()
+        with pytest.raises(sqlite3.IntegrityError):
+            self._insert_task(conn, "done")
+
+    def test_tasks_rejects_out_of_vocabulary_update(self) -> None:
+        conn = self._fresh_conn()
+        self._insert_task(conn, "pending")
+        conn.commit()
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("UPDATE tasks SET status='halted_x' WHERE task_id='t1'")
+        rows = conn.execute("SELECT status FROM tasks WHERE task_id='t1'").fetchall()
+        assert rows == [("pending",)]
+        conn.close()
+
+    def test_attempts_rejects_out_of_vocabulary_insert(self) -> None:
+        conn = self._fresh_conn()
+        with pytest.raises(sqlite3.IntegrityError):
+            self._insert_attempt(conn, "halted")
+
+    def test_attempts_rejects_out_of_vocabulary_update(self) -> None:
+        conn = self._fresh_conn()
+        self._insert_attempt(conn, "running")
+        conn.commit()
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("UPDATE attempts SET status='halted' WHERE attempt_id='a1'")
+        rows = conn.execute(
+            "SELECT status FROM attempts WHERE attempt_id='a1'"
+        ).fetchall()
+        assert rows == [("running",)]
+        conn.close()
+
+    @staticmethod
+    def _ddl_check_set(table: str, column: str) -> set[str]:
+        ddl = build_workflow_schema_sql()
+        block = re.search(
+            rf"CREATE TABLE IF NOT EXISTS {table} \((.*?)\n\);", ddl, re.S
+        )
+        assert block is not None, f"table {table} not found in canonical DDL"
+        check = re.search(
+            rf"{column}\s+TEXT NOT NULL[^,]*?CHECK\s*\(\s*{column}\s+IN\s*\((.*?)\)\s*\)",
+            block.group(1),
+        )
+        assert check is not None, f"CHECK on {table}.{column} not found"
+        return {part.strip().strip("'") for part in check.group(1).split(",")}
+
+    def test_tasks_status_check_equals_python_vocabulary(self) -> None:
+        from agent.workflow.models import TASK_STATUSES
+
+        assert self._ddl_check_set("tasks", "status") == set(TASK_STATUSES)
+
+    def test_attempts_status_check_equals_python_vocabulary(self) -> None:
+        from agent.workflow.models import ATTEMPT_STATUSES
+
+        assert self._ddl_check_set("attempts", "status") == set(ATTEMPT_STATUSES)
 
 
 class TestWorkflowSchemaNoMarkers:

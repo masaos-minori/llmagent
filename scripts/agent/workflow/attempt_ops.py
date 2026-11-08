@@ -11,7 +11,7 @@ from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 from shared.json_utils import parse_iso_utc
 
-from agent.workflow.models import AttemptRecord
+from agent.workflow.models import ATTEMPT_STATUSES, AttemptRecord
 
 _owner_id_cache: str | None = None
 
@@ -85,7 +85,15 @@ def finish_attempt(
     error_kind: str | None = None,
     error_detail: str | None = None,
 ) -> None:
-    """Mark an attempt as completed with the given status and optional error details."""
+    """Mark an attempt as completed with the given status and optional error details.
+
+    Raises:
+        ValueError: if `status` is not in the `attempts.status` vocabulary.
+    """
+    if status not in ATTEMPT_STATUSES:
+        raise ValueError(
+            f"invalid attempts.status {status!r} (allowed: {sorted(ATTEMPT_STATUSES)})"
+        )
     db.execute(
         "UPDATE attempts SET status=?, ended_at=?, error_msg=?, error_kind=?, error_detail=? WHERE attempt_id=?",
         (status, _now(), error_msg, error_kind, error_detail, attempt_id),

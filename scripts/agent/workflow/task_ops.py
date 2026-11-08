@@ -7,7 +7,7 @@ import uuid
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 
-from agent.workflow.models import TaskRecord
+from agent.workflow.models import TASK_STATUSES, TaskRecord
 
 
 def create_task(
@@ -66,7 +66,15 @@ def create_task(
 
 
 def update_task_status(db: SQLiteHelper, task_id: str, status: str) -> None:
-    """Update the status of a task record in the database."""
+    """Update the status of a task record in the database.
+
+    Raises:
+        ValueError: if `status` is not in the `tasks.status` vocabulary.
+    """
+    if status not in TASK_STATUSES:
+        raise ValueError(
+            f"invalid tasks.status {status!r} (allowed: {sorted(TASK_STATUSES)})"
+        )
     db.execute(
         "UPDATE tasks SET status=?, updated_at=? WHERE task_id=?",
         (status, _now(), task_id),

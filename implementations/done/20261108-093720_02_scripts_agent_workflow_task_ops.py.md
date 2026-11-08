@@ -36,7 +36,7 @@ Reject out-of-vocabulary task statuses with a typed `ValueError` before any SQL 
 
 ## Compatibility considerations
 - `ValueError` propagates to every caller except `_record_exit_status`, whose own try already swallows status-write failures observably (adapter L262-278) — a vocabulary bug there degrades instead of aborting a turn (Plan Design).
-- Blast radius before landing (rules/toolchain.md): `rg -l '\bupdate_task_status\b' tests/ | wc -l` — known test writers are `tests/agent/test_orchestrator.py` (6) and `tests/agent/workflow/test_workflow_state_store.py` (4); they pass valid statuses today, so expect green (`REQ-005`).
+- Blast radius before landing (rules/toolchain.md): `rg -l '\bupdate_task_status\b' tests/ | wc -l` = 2 — known test writers are `tests/agent/test_orchestrator.py` (15) and `tests/agent/workflow/test_workflow_state_store.py` (2) at HEAD `11c20696a`; they pass only vocabulary-valid statuses (`halted`, `running`) or subclass overrides, so expect green (`REQ-005`).
 - Rejection tests are owned by sibling document `20261108-093720_06_tests_agent_workflow_.md` (the plan's tests target row); this document has no companion of its own.
 
 ## Security considerations
@@ -64,8 +64,8 @@ Reject out-of-vocabulary task statuses with a typed `ValueError` before any SQL 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocks wfaudit001 and wfaudit007: land this plan's batch first |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | No companion test file: rejection tests owned by sibling seq 06 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-125308 | 20261108-125308 | Blocks wfaudit001 and wfaudit007: land this plan's batch first memo3 adversarial verification pass at HEAD 11c20696a: stale check clean; blast-radius counts updated 15/2 at HEAD 11c20696a; adapter halted-only + guard behavior confirmed guard-first ValueError added at update_task_status; TASK_STATUSES import; ruff format applied |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-125308 | 20261108-125308 | No companion test file: rejection tests owned by sibling seq 06 ruff+format+mypy pass; lint-imports 6 kept; pytest tests/agent/workflow+test_orchestrator 285 passed; stale_detector clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

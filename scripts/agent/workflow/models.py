@@ -8,6 +8,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# Status vocabularies for the workflow state tables, mirroring the CHECK
+# constraints in the DDL (db/schema_sql.py). The writers in task_ops,
+# attempt_ops, and tool_call_state_ops validate against these before writing;
+# tests/db/test_create_schema.py pins the DDL to these sets.
+# tasks.status
+TASK_STATUSES = frozenset({"pending", "running", "completed", "failed", "halted"})
+# attempts.status
+ATTEMPT_STATUSES = frozenset({"running", "completed", "failed"})
+# tool_call_state.state
+TOOL_CALL_STATES = frozenset({"pending", "completed", "failed", "interrupted"})
+
 
 @dataclass
 class TaskRecord:

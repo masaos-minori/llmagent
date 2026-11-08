@@ -32,12 +32,12 @@ Constrain fresh-database status columns with CHECK clauses whose allowed sets eq
 - Two column-definition edits; defaults stay; `tool_call_state.state` CHECK pattern is the formatting model.
 
 ### Details
-- Current state (verified at HEAD `50b5ac2c6`): `tasks.status` (L184) and `attempts.status` (L194) have `DEFAULT` but no CHECK; `tool_call_state.state` (L237) shows the pattern.
-- Cross-batch interaction: the sibling `wfaudit010` batch (`implementations/20261108-092904_01_scripts_db_schema_sql.py.md`) removes the `execution_snapshots` table and `snapshot_id` column from the same file and lands first per its sequencing note; these edits touch different statements and do not overlap.
+- Current state (verified at HEAD `11c20696a`): `tasks.status` (L184) and `attempts.status` (L194) have `DEFAULT` but no CHECK (line citations unchanged); `tool_call_state.state` (L231, was L237) shows the pattern.
+- Cross-batch interaction: the sibling `wfaudit010` batch (`implementations/20261108-092904_01_scripts_db_schema_sql.py.md`) removed the `execution_snapshots` table and `snapshot_id` column from the same file and landed first (commit `4e46f5958`); these edits touch different statements and do not overlap.
 
 ### Companion test files
 - `tests/db/test_create_schema.py`
-  - Procedure: add tests that (a) inserting/updating a fresh database with an out-of-vocabulary status raises `sqlite3.IntegrityError` (CHECK) for both tables; (b) an equality test parses the allowed status names from the DDL SQL string and asserts set equality with `TASK_STATUSES` / `ATTEMPT_STATUSES` imported from `agent.workflow.models`; run the full `tests/db/` + `tests/agent/` suites and fix any direct-insert fixture writing an out-of-vocabulary status (revalidation found direct fixtures at `tests/db/test_create_schema.py` L537-572, `tests/agent/workflow/test_state_store.py` L84-89, `tests/agent/workflow/test_workflow_state_store.py` L112/282/549 — all currently write vocabulary-valid values, verify rather than assume).
+  - Procedure: add tests that (a) inserting/updating a fresh database with an out-of-vocabulary status raises `sqlite3.IntegrityError` (CHECK) for both tables; (b) an equality test parses the allowed status names from the DDL SQL string and asserts set equality with `TASK_STATUSES` / `ATTEMPT_STATUSES` imported from `agent.workflow.models`; run the full `tests/db/` + `tests/agent/` suites and fix any direct-insert fixture writing an out-of-vocabulary status (direct fixtures re-verified at HEAD `11c20696a`: `tests/db/test_create_schema.py` L552-590 (was L537-572 before `4e46f5958`), `tests/agent/workflow/test_state_store.py` L84-89, `tests/agent/workflow/test_workflow_state_store.py` L112/282/549 — all currently write vocabulary-valid values `pending`/`running`/`failed`).
   - Validation: `uv run pytest tests/db/test_create_schema.py -q` — CHECK tests fail on pre-change HEAD (insert silently succeeds) and pass after the change.
 
 ## Compatibility considerations
@@ -69,9 +69,9 @@ Constrain fresh-database status columns with CHECK clauses whose allowed sets eq
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocks wfaudit001 and wfaudit007; wfaudit010 batch on the same file lands first |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-130138 | 20261108-130138 | Blocks wfaudit001 and wfaudit007; wfaudit010 batch on the same file lands first memo3 adversarial verification pass at HEAD 11c20696a: stale check clean; L184/L194 unchanged; pattern citation L231; fixture citations L552-590 re-verified vocabulary-valid CHECK clauses added to tasks.status/attempts.status with models.py pin comments |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | 20261108-130138 | 20261108-130138 | TestWorkflowStatusCheckConstraints added: 4 CHECK rejection tests + 2 DDL-vs-python equality tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-130138 | 20261108-130138 | ruff+format+mypy+lint-imports+check_db_separation pass; tests/db+tests/agent 4552 passed 3 skipped (REQ-005 no fixture fallout); stale_detector clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

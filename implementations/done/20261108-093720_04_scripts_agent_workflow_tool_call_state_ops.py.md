@@ -6,14 +6,14 @@ Mirror the existing `tool_call_state.state` SQL CHECK in Python so `finalize_too
 ## Scope
 **Release unit**: wfaudit005-full
 
-- One validation guard at the top of `finalize_tool_call` (L74-80) plus the `models.py` import.
+- One validation guard at the top of `finalize_tool_call` (L71-76 at HEAD `11c20696a`; was L74-80 before `4e46f5958`) plus the `models.py` import.
 
 ## Assumptions
 - Current callers pass only `completed` / `failed` / `interrupted` (facade callers in `tool_runner.py`/adapter paths and the recovery classify helper) — guard is a no-op for existing behavior (`REQ-005`).
 - Boundary verified in the Plan Risks row 3: the dispatcher-side dedup store (`scripts/shared/mcp_dedup.py`) has its own state space and is NOT touched by this validation.
 
 ## Design decisions
-- Code-side check mirrors the SQL CHECK (Plan Background: `tool_call_state.state` L237 CHECK is the pattern to mirror): for legacy databases the CHECK already exists, but code-side validation gives the same typed `ValueError` contract on every database (`REQ-002`).
+- Code-side check mirrors the SQL CHECK (Plan Background: `tool_call_state.state` CHECK is the pattern to mirror; now `schema_sql.py` L231, was L237): for legacy databases the CHECK already exists, but code-side validation gives the same typed `ValueError` contract on every database (`REQ-002`).
 - Message names the table and value: `raise ValueError(f"invalid tool_call_state.state {state!r}")`.
 
 ## Alternatives considered
@@ -33,7 +33,7 @@ Mirror the existing `tool_call_state.state` SQL CHECK in Python so `finalize_too
 
 ### Details
 - Current state (verified at HEAD `50b5ac2c6`): `finalize_tool_call(db, idempotency_key, state)` writes any string; only the DDL CHECK constrains it.
-- Cross-batch interaction: this file is also modified by `wfaudit010`'s batch (`implementations/20261108-092904_02_scripts_agent_workflow_tool_call_state_ops.py.md`, `record_tool_call`/dataclass edits). `wfaudit010` lands first per its own sequencing note; these edits touch different functions and do not overlap.
+- Cross-batch interaction: this file is also modified by `wfaudit010`'s batch (`implementations/20261108-092904_02_scripts_agent_workflow_tool_call_state_ops.py.md`, `record_tool_call`/dataclass edits). `wfaudit010` landed first (commit `4e46f5958`, batch `20261108-092904` archived); its edits touched `record_tool_call`/dataclass plumbing, not `finalize_tool_call`'s body — no overlap (re-verified at HEAD `11c20696a`).
 
 ## Compatibility considerations
 - Rejection tests are owned by sibling document `20261108-093720_06_tests_agent_workflow_.md`; no companion here.
@@ -63,8 +63,8 @@ Mirror the existing `tool_call_state.state` SQL CHECK in Python so `finalize_too
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocks wfaudit001 and wfaudit007; wfaudit010 batch on the same file lands first |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | No companion test file: rejection tests owned by sibling seq 06 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261108-125519 | 20261108-125519 | Blocks wfaudit001 and wfaudit007; wfaudit010 batch on the same file lands first memo3 adversarial verification pass at HEAD 11c20696a: stale check clean; finalize_tool_call now L71-76 (4e46f5958); wfaudit010 batch confirmed landed first; mcp_dedup boundary separate guard-first ValueError added at finalize_tool_call; TOOL_CALL_STATES import |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261108-125519 | 20261108-125519 | No companion test file: rejection tests owned by sibling seq 06 ruff+format+mypy+lint-imports pass; pytest tests/agent/workflow 155 passed; stale_detector clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
