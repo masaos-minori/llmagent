@@ -126,9 +126,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Facts and structure | Pending | — | — | |
-| 2 | Decision text | Pending | — | — | |
-| 3 | Verification | Pending | — | — | |
+| 1 | Facts and structure | In Progress | — | — |  |
+| 2 | Decision text | In Progress | — | — |  |
+| 3 | Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -138,7 +138,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261108-111727_01_docs_10_adr_adr_02_07_016_adr-authority-model.md.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

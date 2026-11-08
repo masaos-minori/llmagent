@@ -7,7 +7,7 @@ High
 ## Scope
 - **In-Scope**: a decision table in ADR-010 that maps each failure cause to one outcome; correction of the contradictory identity wording (ADR-010 item 11 and the Amendment, `rag_05_07`); documentation of how the remote and local corpus identities are obtained, how fresh they are, and the trust assumption; documentation of the parse-failure versus valid-empty behavior as the current contract; ADR-004 and `rag_05_04` wording aligned to the table; registration of the open decisions as Needs confirmation items.
 - **Out-of-Scope**: general RAG redesign; additional fallback providers; unrelated transport or authentication changes; ADR-010 wording cleanup unrelated to the failure policy (tracked by `issues/20261107-050702_adrrag002_reconcile-adr-010-contract.md`); any runtime or test change (requires an owner decision, see UNK-01 to UNK-03).
-- **Dependencies**: this Plan blocks `issues/20261107-050702_adrrag002_reconcile-adr-010-contract.md` (its final failure-policy wording depends on this Plan) and the final mapping step of `issues/20261107-050705_adrver001_align-invariant-verification-claims.md`. Fix this Plan first; the sequencing against `plans/20261108-091719_adrrag002_reconcile-adr-010-contract.md` (same ADR, judged compatible in Step 8b of that cycle) is recorded in that Plan's `Depends on`. No dependency of this Plan on another Plan or Issue.
+- **Dependencies**: none on another open Plan. Ordering note: this Plan is implemented first; the adrrag002 reconcile Plan and the final mapping step of the adrver001 verification Plan take their failure-policy wording from this Plan's Phase 1 (they record the dependency on their side).
 
 ## Background
 ADR-010 Decision Details item 6 lists the fallback conditions: timeouts and connection errors, HTTP 5xx after retries, HTTP 4xx other than 401/403, and HTTP 200 with `is_error=true`. The Fallback Policy section lists a response parse error as a non-fallback condition (treated as an empty result). ADR-004 (Decision Group 10 items 25-27) allows fallback only where an Accepted ADR defines it, names ADR-010 as the sole exception, and forbids converting a safety/integrity failure into a fallback.
@@ -163,11 +163,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | ADR-010 decision table and corrections | Pending | — | — | |
-| 2 | ADR-004 wording | Pending | — | — | |
-| 3 | RAG specifications (`rag_05_04`, `rag_05_07`) | Pending | — | — | |
-| 4 | Register Needs confirmation items | Pending | — | — | |
-| 5 | Verification | Pending | — | — | |
+| 1 | ADR-010 decision table and corrections | In Progress | — | — |  |
+| 2 | ADR-004 wording | In Progress | — | — |  |
+| 3 | RAG specifications (`rag_05_04`, `rag_05_07`) | In Progress | — | — |  |
+| 4 | Register Needs confirmation items | In Progress | — | — |  |
+| 5 | Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -177,7 +177,11 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261108-111044_01_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261108-111044_02_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-111044_03_docs_21_rag_rag_05_04-error-handling-reference.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261108-111044_04_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261108-111044_05_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

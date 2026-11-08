@@ -128,10 +128,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rule and exception wording | Pending | — | — | |
-| 2 | File isolation versus key validation | Pending | — | — | |
-| 3 | EventBus controls and security claims | Pending | — | — | |
-| 4 | Verification | Pending | — | — | |
+| 1 | Rule and exception wording | In Progress | — | — |  |
+| 2 | File isolation versus key validation | In Progress | — | — |  |
+| 3 | EventBus controls and security claims | In Progress | — | — |  |
+| 4 | Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -141,7 +141,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261108-111529_01_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
