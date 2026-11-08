@@ -16,7 +16,7 @@ related:
 
 ## Purpose
 
-This directory contains all Architecture Decision Records (ADRs). Each ADR captures a significant architectural decision with its context, options considered, and rationale.
+This directory contains all Architecture Decision Records (ADRs). Each ADR captures a significant architectural decision with its context, options considered, and rationale. What an ADR holds and how its Amendments are marked are defined in `governance_01_documentation-policy.md` (ADR Responsibilities and Historical Content).
 
 ## Known Deviations
 
