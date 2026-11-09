@@ -33,12 +33,14 @@ Define the rule once: validators prove "unchanged" only when at least one valida
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-09 (fallout): added tests/rag/ingestion/test_ingester.py — test_skips_already_registered_url ingests the default _ChunkSpec (etag and last_modified both None) twice and relies on the None/None skip; give that test non-null validators so it keeps proving the skip path
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/rag/ingestion/document_manager.py` | Modify | Shared absence helper; HTTP branch no longer treats `None`/`None` as equal | `REQ-001`..`REQ-004` / AC-1..AC-4 | HTTP equality at L97-98; file guard at L105-114 (checked in Step 3) | `tests/rag/ingestion/test_ingestion_freshness.py` | Verified |
 | `tests/rag/ingestion/test_ingestion_freshness.py` | Modify | HTTP-branch tests against the real `DocumentManager` using the file's existing `_make_freshness_db` / `_seed_document` helpers; `None`/`None`, one-sided, equal non-null, partial-validator cases | `REQ-001`..`REQ-004` / AC-1..AC-4 | Helpers at L331-370 and the HTTP calls at L393-450, no absent-validator case (checked in Step 3) | self | Verified |
 | `docs/21_rag/rag_02_05_ingestion_pipeline-document-manager.md` | Modify | Correct the "other sources" freshness bullet (L36) and state the absence rule | `REQ-005` / AC-5 | L36 says a skip needs both validators equal, silent on absence (checked in Step 3) | docs gates | Verified |
+| `tests/rag/ingestion/test_ingester.py` | Modify | test_skips_already_registered_url ingests the default _ChunkSpec (etag and last_modified both None) twice and relies on the None/None skip; give that test non-null validators so it keeps proving the skip path | REQ-004 / AC-4 | _ChunkSpec defaults etag=None, last_modified=None (test_ingester.py:128-129); test_skips_already_registered_url at L551-586 (checked in Step 3a) | self | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -81,6 +83,7 @@ Yes (`REQ-005`): `docs/21_rag/rag_02_05_ingestion_pipeline-document-manager.md` 
 | `scripts/rag/ingestion/document_manager.py` | Modify | Medium (decides skip or re-ingest for every existing document; one caller) | 2 | N/A | not applicable (rsynced) |
 | `tests/rag/ingestion/test_ingestion_freshness.py` | Modify | Low | N/A | N/A | not applicable (rsynced) |
 | `docs/21_rag/rag_02_05_ingestion_pipeline-document-manager.md` | Modify | Low | N/A | N/A | not applicable (rsynced) |
+| `tests/rag/ingestion/test_ingester.py` | Modify | Not assessed (amendment 2026-11-09) | N/A | N/A | Not assessed (amendment 2026-11-09) |
 
 ## Design
 Path A (3 target files, no interface or schema change; `handle_existing_document` keeps its signature and return meaning). Complexity: `handle_existing_document` B (8) and `_is_file_unchanged` A (3); the shared helper keeps both at or below B.
@@ -92,6 +95,7 @@ Validation baseline: `radon cc` recorded above; `vulture`/`bandit` pre-existing 
 ## Implementation steps
 1. **Phase 1: Tests first**
    - [ ] HTTP-branch matrix with the real `DocumentManager` (`REQ-001`..`REQ-004`; `tests/rag/ingestion/test_ingestion_freshness.py`)
+   - [ ] Modify (REQ-004; `tests/rag/ingestion/test_ingester.py`) — amendment 2026-11-09
 2. **Phase 2: Shared absence rule**
    - [ ] Helper plus HTTP branch and `_is_file_unchanged` rewiring (`REQ-001`..`REQ-004`; `scripts/rag/ingestion/document_manager.py`)
 3. **Phase 3: Documentation**
@@ -120,10 +124,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: shared absence rule | Pending | — | — | |
-| 3 | Phase 3: documentation | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: shared absence rule | In Progress | — | — |  |
+| 3 | Phase 3: documentation | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -133,7 +137,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-142759_01_scripts_rag_ingestion_document_manager.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261109-142759_03_docs_21_rag_rag_02_05_ingestion_pipeline-document-manager.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-142759_04_tests_rag_ingestion_test_ingester.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -142,7 +148,7 @@ N/A: no release unit
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261108-165741
-- **Related target files**: `scripts/rag/ingestion/document_manager.py`, `tests/rag/ingestion/test_ingestion_freshness.py`, `docs/21_rag/rag_02_05_ingestion_pipeline-document-manager.md`
+- **Related target files**: `scripts/rag/ingestion/document_manager.py`, `tests/rag/ingestion/test_ingestion_freshness.py`, `docs/21_rag/rag_02_05_ingestion_pipeline-document-manager.md`, `tests/rag/ingestion/test_ingester.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -155,3 +161,6 @@ N/A: no release unit
 | REQ-004 | Constraints | `scripts/rag/ingestion/document_manager.py` | Phase 2 | AC-4 | atomicity and force tests | Explicit in issue |
 | REQ-004 | Constraints | `tests/rag/ingestion/test_ingestion_freshness.py` | Phase 1 | AC-4 | atomicity and force tests | Explicit in issue |
 | REQ-005 | Documentation Impact; doc L36 | `docs/21_rag/rag_02_05_ingestion_pipeline-document-manager.md` | Phase 3 | AC-5 | docs gates | Confirmed by repository evidence |
+| REQ-004 | Amendment 2026-11-09: test_skips_already_registered_url ingests the default _ChunkSpec (etag and last_modified both None) twice and relies on the None/None skip; give that test non-null validators so it keeps proving the skip path | tests/rag/ingestion/test_ingester.py | Phase 1 | AC-4 | self | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-142759 -->

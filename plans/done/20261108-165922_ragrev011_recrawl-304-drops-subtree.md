@@ -11,7 +11,7 @@ High
   - A crawl-level test with a 304 start page and a new child, and updates of the existing fetch tests; the crawler documentation.
 - **Out-of-Scope**:
   - Redirect handling (sibling `issues/20261108-131127_ragrev012_crawler-redirect-trust-boundary.md`), robots policy, adding a stored link table or persisting HTML, and the other early returns before `enqueue_links` (see Unknowns).
-- **Dependencies**: Related, no required order: the ragrev012 work (same fetch path in `http_fetcher.py` and the orchestrator; coordinate when both are implemented).
+- **Dependencies**: N/A: none for this Plan. The ragrev012 Plan declares `Depends on` this Plan (phase 2), so this Plan lands first (same fetch path in `http_fetcher.py` and the orchestrator).
 
 ## Background
 Review finding F-005. In `_process_crawl_url_async` (`scripts/rag/ingestion/orchestrator.py:216-265`) `if result is None: return` precedes `enqueue_links`; `fetch_html` returns `None` for a 304 and for retry exhaustion (`scripts/rag/ingestion/http_fetcher.py:42-70`); `get_conditional_headers` sends `If-None-Match` / `If-Modified-Since` for stored pages (L72-122), so on the second crawl the start page answers 304 and the crawl ends after one page. Corrections found while verifying (checked in Step 3): (1) the Issue's "enqueue links from the stored page content" is not possible with what is persisted: the crawl JSON written by `CrawlPersister.save_http` carries only extracted text and code blocks (`content_extractor.extract_content` returns `(title, text, code_blocks)`), `documents` stores only `etag`, `last_modified`, `fetched_at`, and chunks hold text, so no stored artifact contains the page's anchors; (2) two further early returns precede `enqueue_links` and also hide a subtree: empty extracted content (L243-246) and an unsupported language (L248-252). Existing tests assert the tuple/`None` shape (`tests/rag/ingestion/test_crawler_integration.py:55-152` call `fetch_html` directly; L615-620 mocks it with `None`).
@@ -72,6 +72,8 @@ Yes (`REQ-006`): `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` (located 
 - An unconditional second GET of an unchanged page above the depth limit is acceptable (bandwidth only; no re-embedding): the alternative that avoids it needs a persisted link list or HTML, a schema or storage change that belongs in its own Plan (UNK-01).
 - The unconditional discovery fetch uses the same crawl delay and concurrency semaphore as any fetch and counts toward the scheduled-URL bound only through the links it enqueues, not as a new page.
 - The typed result changes the signature of a public method of `HttpFetcher`; callers are the orchestrator and tests only (rg of `fetch_html` in `scripts/` and `tests/`, checked in Step 3).
+- Procedure-generation check (2026-11-09, Step 3a): all line citations above still hold; `fetch_html` has no caller outside `orchestrator.py:236` and `tests/rag/ingestion/test_crawler_integration.py` (direct calls at L55-152, `AsyncMock(return_value=None)` at L615, the only mock that must become `FetchFailed`, not `NotModified`, because that test asserts a single awaited call). The existing `test_max_pages_warning_logged` (304 children at depth 1 with `max_depth = 1`) stays valid unmodified: at `depth >= max_depth` no extra request is made.
+- Overlap judgments (Step 2): `plans/20261108-170101_ragrev012_crawler-redirect-trust-boundary.md` declares `Depends on` this Plan phase 2, so this Plan lands first (sequencing dependency, no conflict; ragrev012 writes its redirect loop against the typed result). `plans/20261108-170226_ragrev013_crawl-orphaned-tasks-budget.md` edits `crawl_site` only and `plans/20261109-102846_ragrev018_save_http-returns-a-path-to-a-file-it-never-wrote-when-it-skips.md` the tail of `_process_crawl_url_async` after `save_http`; compatible. `plans/20261108-170335_ragrev014_robots-policy-gaps.md` adds a robots check before the request in `_process_crawl_url_async`; compatible (the discovery fetch repeats a URL that already passed that check). The shared test file and the crawler document are edited in different classes and paragraphs by each Plan.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -130,11 +132,11 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: typed fetch result | Pending | — | — | |
-| 3 | Phase 3: orchestrator discovery for not-modified pages | Pending | — | — | |
-| 4 | Phase 4: documentation | Pending | — | — | |
-| 5 | Phase 5: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: typed fetch result | In Progress | — | — |  |
+| 3 | Phase 3: orchestrator discovery for not-modified pages | In Progress | — | — |  |
+| 4 | Phase 4: documentation | In Progress | — | — |  |
+| 5 | Phase 5: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -144,7 +146,10 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-143141_01_scripts_rag_ingestion_http_fetcher.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-143141_02_scripts_rag_ingestion_orchestrator.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-143141_03_tests_rag_ingestion_test_crawler_integration.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-143141_04_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -169,3 +174,5 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 | REQ-004 | Acceptance Criteria 2 | `tests/rag/ingestion/test_crawler_integration.py` | Phase 1 | AC-4 | failed-vs-304 test | Explicit in issue |
 | REQ-005 | Acceptance Criteria 1 | `tests/rag/ingestion/test_crawler_integration.py` | Phase 1 | AC-5 | 304-parent crawl test | Explicit in issue |
 | REQ-006 | Documentation Impact; doc L42, L72 | `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` | Phase 4 | AC-6 | docs gates | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-143141 -->
