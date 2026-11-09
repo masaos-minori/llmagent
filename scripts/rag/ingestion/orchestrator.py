@@ -44,6 +44,9 @@ from rag.ingestion.language_resolver import (
 from rag.ingestion.link_discovery import (
     LinkDiscovery,  # noqa: E402 — local import for circular dependency avoidance
 )
+from rag.ingestion.robots import (  # noqa: E402 — local import for circular dependency avoidance
+    RobotsCache,
+)
 
 # Scheduling bound as a multiple of the persisted-page budget (raging009): non-persisted
 # fetches (304, empty content, rejected language, failures) consume scheduling only.
@@ -112,7 +115,7 @@ class CrawlOrchestrator:
         async with httpx.AsyncClient(
             headers=self._HEADERS,
             timeout=self._fetch_timeout,
-            follow_redirects=True,
+            follow_redirects=False,
         ) as client:
             # One SQLite connection per crawl_site session (crawl004): opened here,
             # reused by every conditional-header lookup, closed on any exit path.
@@ -125,12 +128,14 @@ class CrawlOrchestrator:
                     sqlite_timeout=self._sqlite_timeout,
                     sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
                 ).open(reuse_connection=True, row_factory=True)
+            # The crawl start origin (scheme://netloc) is the hop-policy anchor for
+            # every fetch; robots enforcement is layered on top when configured.
+            parsed_start = urlparse(normalize_url(start_url))
+            origin = f"{parsed_start.scheme}://{parsed_start.netloc}"
             # crawl005: eagerly load robots.txt for the start host so the policy
             # is enforced before the first page request. No-op when disabled.
             robots_cache = getattr(self._link_discovery, "_robots_cache", None)
             if robots_cache is not None:
-                parsed_start = urlparse(normalize_url(start_url))
-                origin = f"{parsed_start.scheme}://{parsed_start.netloc}"
                 await robots_cache.fetch_host(origin, client)
             try:
                 while not queue.empty() or pending:
@@ -159,6 +164,8 @@ class CrawlOrchestrator:
                         sem,
                         session_db,
                         budget,
+                        origin,
+                        robots_cache,
                     )
                     if not pending:
                         break
@@ -189,6 +196,8 @@ class CrawlOrchestrator:
         sem: asyncio.Semaphore,
         session_db: SQLiteHelper | None,
         budget: _CrawlBudget,
+        origin: str,
+        robots_cache: RobotsCache | None,
     ) -> set[asyncio.Task]:
         """Dequeue all pending URLs and create fetch tasks for unvisited ones, stopping as soon as the scheduling bound is reached."""
         tasks: set[asyncio.Task] = set()
@@ -211,6 +220,9 @@ class CrawlOrchestrator:
                         sem,
                         session_db,
                         budget,
+                        visited,
+                        origin,
+                        robots_cache,
                     ),
                 ),
             )
@@ -227,10 +239,13 @@ class CrawlOrchestrator:
         sem: asyncio.Semaphore,
         session_db: SQLiteHelper | None,
         budget: _CrawlBudget,
+        visited: set[str],
+        origin: str,
+        robots_cache: RobotsCache | None,
     ) -> None:
         """Fetch, extract, save one URL and enqueue its outbound links; counts the saved page against the persisted budget.
 
-        A not-modified page is re-fetched for link discovery only: it is not extracted, saved, or counted. A failed fetch enqueues nothing.
+        A not-modified page is re-fetched for link discovery only: it is not extracted, saved, or counted. A failed fetch enqueues nothing. The page is persisted and discovered under its final accepted URL (REQ-004).
         """
         async with sem:
             logger.info("[depth=%s] %s", depth, url)
@@ -239,17 +254,24 @@ class CrawlOrchestrator:
             extra_headers = self._http_fetcher.get_conditional_headers(
                 url, db=session_db
             )
-            result = await self._http_fetcher.fetch_html(url, client, extra_headers)
+            result = await self._http_fetcher.fetch_html(
+                url, client, extra_headers, origin, robots_cache
+            )
             if isinstance(result, NotModified):
                 logger.info("not modified: %s", url)
                 await self._discover_links_of_unchanged_page(
-                    url, depth, start_url, queue, client
+                    url, depth, start_url, queue, client, origin, robots_cache
                 )
                 return
             if isinstance(result, FetchFailed):
                 logger.warning("fetch failed, subtree not discovered: %s", url)
                 return
-            html, etag, last_modified = result.html, result.etag, result.last_modified
+            html, etag, last_modified = (
+                result.html,
+                result.etag,
+                result.last_modified,
+            )
+            final_url = result.final_url
 
             title, text, code_blocks = self._content_extractor.extract_content(
                 html, url
@@ -265,7 +287,7 @@ class CrawlOrchestrator:
 
             fetched_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
             self._persister.save_http(
-                url,
+                final_url,
                 title,
                 resolved_lang,
                 text,
@@ -275,7 +297,8 @@ class CrawlOrchestrator:
                 fetched_at,
             )
             budget.persisted += 1
-            self._link_discovery.enqueue_links(html, url, start_url, depth, queue)
+            visited.add(final_url)
+            self._link_discovery.enqueue_links(html, final_url, start_url, depth, queue)
 
     async def _discover_links_of_unchanged_page(
         self,
@@ -284,12 +307,16 @@ class CrawlOrchestrator:
         start_url: str,
         queue: asyncio.Queue[tuple[str, int]],
         client: httpx.AsyncClient,
+        origin: str,
+        robots_cache: RobotsCache | None,
     ) -> None:
         """Re-fetch a not-modified page without conditional headers and enqueue its links; nothing is extracted, saved, or counted."""
         if depth >= self._max_depth:
             return
         await asyncio.sleep(self._crawl_delay)
-        result = await self._http_fetcher.fetch_html(url, client)
+        result = await self._http_fetcher.fetch_html(
+            url, client, None, origin, robots_cache
+        )
         if isinstance(result, Fetched):
             self._link_discovery.enqueue_links(
                 result.html, url, start_url, depth, queue

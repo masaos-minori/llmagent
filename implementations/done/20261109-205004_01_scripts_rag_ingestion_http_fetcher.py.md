@@ -93,8 +93,8 @@ Rewrite the `fetch_html` redirect handling so that every hop is validated before
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the `fetch_html` hop loop with the per-hop policy and carry the final URL in the result | Pending | — | — | Sequencing dependency: ragrev011's typed result lands first |
-| 2 | Run the validation sequence together with documents `03`, `04`, and `05` | Pending | — | — | |
+| 1 | Rewrite the `fetch_html` hop loop with the per-hop policy and carry the final URL in the result | Completed | 20261109-234525 | 20261109-234525 | Sequencing dependency: ragrev011's typed result lands first Adversarial verification found REQ-003 per-hop robots check unimplemented; added robots_cache.is_allowed() to _hop_policy per Procedure step 3. |
+| 2 | Run the validation sequence together with documents `03`, `04`, and `05` | Completed | 20261109-234525 | 20261109-234525 | Full rag ingestion suite green (314); diff-cover 96%; ruff/mypy/lint-imports/bandit/module-size/compat-shims clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

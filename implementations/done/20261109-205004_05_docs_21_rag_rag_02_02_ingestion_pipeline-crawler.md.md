@@ -74,9 +74,9 @@ State the crawler redirect trust boundary in the crawler document (`REQ-007`): r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Edit the crawler document |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs gates named above |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document is the change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-234525 | 20261109-234525 | Edit the crawler document |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-234525 | 20261109-234525 | Docs gates named above |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-234525 | 20261109-234525 | This document is the change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

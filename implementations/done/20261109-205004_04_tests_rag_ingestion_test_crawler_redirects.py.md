@@ -81,10 +81,10 @@ Create `tests/rag/ingestion/test_crawler_redirects.py` (new): mock-transport red
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | New file |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation is document `05` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-234525 | 20261109-234525 | New file |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-234525 | 20261109-234525 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-234525 | 20261109-234525 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-234525 | 20261109-234525 | Documentation is document `05` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

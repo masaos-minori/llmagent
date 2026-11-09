@@ -83,10 +83,10 @@ Add the two hop-policy helpers that `fetch_html` calls before requesting each re
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Precedes the fetch loop (document `01`) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Policy unit tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation is document `05` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-234525 | 20261109-234525 | Precedes the fetch loop (document `01`) |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-234525 | 20261109-234525 | Policy unit tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-234525 | 20261109-234525 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-234525 | 20261109-234525 | Documentation is document `05` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

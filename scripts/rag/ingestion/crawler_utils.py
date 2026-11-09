@@ -2,14 +2,19 @@
 """scripts/rag/ingestion/crawler_utils.py
 
 Pure-function utilities for WebCrawler: URL helpers, content extraction,
-language detection, and target URL parsing.
+language detection, target URL parsing, and the redirect trust-boundary policy
+helpers (REQ-002).
 
 Extracted from web_crawler.py to keep WebCrawler under 400 lines.
 """
 
 from __future__ import annotations
 
+import asyncio
+import ipaddress
+import logging
 import re
+import socket
 import tomllib
 from pathlib import Path
 from urllib.parse import urldefrag, urlparse
@@ -17,6 +22,8 @@ from urllib.parse import urldefrag, urlparse
 import trafilatura
 from bs4 import BeautifulSoup
 from rag.utils import MIN_TEXT_LENGTH_FOR_DETECTION, validate_url
+
+logger = logging.getLogger(__name__)
 
 # Supported language codes for resolved (output) lang values
 _SUPPORTED_LANGS: frozenset[str] = frozenset({"en", "ja"})
@@ -108,6 +115,75 @@ def same_origin(url: str, base: str) -> bool:
     """Return True if url and base share the same origin (scheme + hostname)."""
     p1, p2 = urlparse(url), urlparse(base)
     return p1.scheme == p2.scheme and p1.netloc == p2.netloc
+
+
+def redirect_allowed(origin: str, target: str) -> bool:
+    """Return True when a redirect hop may be followed from the crawl origin.
+
+    Compares the hop ``target`` against the crawl ``origin`` by hostname, so a
+    same-host redirect is allowed; a single http-to-https scheme upgrade is
+    permitted while a downgrade (https to http) is refused. Default ports are
+    normalized away via ``urlparse.hostname``, so ``http://example.com`` and
+    ``https://example.com`` compare equal. A different host is refused here and
+    falls through to the non-public-address check in ``host_is_public``.
+    """
+    p_origin = urlparse(origin)
+    p_target = urlparse(target)
+    if p_origin.hostname != p_target.hostname:
+        return False
+    o_scheme, t_scheme = p_origin.scheme, p_target.scheme
+    if o_scheme != t_scheme:
+        return o_scheme == "http" and t_scheme == "https"
+    return True
+
+
+def _ip_is_public(ip: str) -> bool:
+    """Return True when a single resolved address is a global (public) address.
+
+    Fails closed: an unparseable address is treated as non-public. An address is
+    public only when it is not private, loopback, link-local, reserved,
+    multicast, or unspecified.
+    """
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return (
+        not address.is_private
+        and not address.is_loopback
+        and not address.is_link_local
+        and not address.is_reserved
+        and not address.is_multicast
+        and not address.is_unspecified
+    )
+
+
+async def host_is_public(host: str) -> bool:
+    """Return True when every address ``host`` resolves to is public.
+
+    Resolves once with the running event loop's asynchronous resolver (so it
+    never blocks the loop on a synchronous getaddrinfo) and applies
+    :func:`_ip_is_public` to each result. A resolution failure or an empty
+    result fails closed and returns False. Name resolution here is before the
+    request and is not pinned to the connection, so a DNS-rebinding attacker is
+    not fully excluded.
+    """
+    try:
+        addr_infos = await asyncio.get_event_loop().getaddrinfo(host, None)
+    except (socket.gaierror, OSError, RuntimeError) as e:
+        logger.debug("resolve %s failed: %s", host, e)
+        return False
+    # No addresses returned: the host could not be established as public, so
+    # fail closed rather than treating an empty result as vacuously public.
+    if not addr_infos:
+        return False
+    for info in addr_infos:
+        ip = info[4][0]
+        if "%" in ip:
+            ip = ip.split("%", 1)[0]
+        if not _ip_is_public(ip):
+            return False
+    return True
 
 
 def extract_text(soup: BeautifulSoup) -> str:
