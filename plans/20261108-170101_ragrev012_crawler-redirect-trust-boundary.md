@@ -143,11 +143,11 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: policy helpers | Pending | — | — | |
-| 3 | Phase 3: fetch and orchestrator | Pending | — | — | |
-| 4 | Phase 4: documentation | Pending | — | — | |
-| 5 | Phase 5: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: policy helpers | In Progress | — | — |  |
+| 3 | Phase 3: fetch and orchestrator | In Progress | — | — |  |
+| 4 | Phase 4: documentation | In Progress | — | — |  |
+| 5 | Phase 5: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -157,7 +157,11 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-205004_04_tests_rag_ingestion_test_crawler_redirects.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-205004_03_scripts_rag_ingestion_crawler_utils.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-205004_01_scripts_rag_ingestion_http_fetcher.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-205004_02_scripts_rag_ingestion_orchestrator.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-205004_05_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -184,3 +188,5 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 | REQ-005 | Constraints; Acceptance Criteria 3 | `scripts/rag/ingestion/http_fetcher.py` | Phase 3 | AC-5 | existing crawl suites | Explicit in issue |
 | REQ-006 | Required Changes 4; Testing Expectations | `tests/rag/ingestion/test_crawler_redirects.py` | Phase 1 | AC-6 | new redirect tests | Explicit in issue |
 | REQ-007 | Documentation Impact | `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` | Phase 4 | AC-7 | docs gates | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-205004 -->
