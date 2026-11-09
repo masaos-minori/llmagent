@@ -890,6 +890,17 @@ entries:
   summary: WAL checkpoint and backup manager.
 - file: scripts/agent/workflow_engine_adapter.py
   kind: class
+  name: WorkflowEngineWiringError
+  signature: class WorkflowEngineWiringError
+  summary: 'Constructor wiring bug: the adapter was built without a WorkflowEngine.'
+- file: scripts/agent/workflow_engine_adapter.py
+  kind: class
+  name: TurnBoundaryMissingError
+  signature: class TurnBoundaryMissingError
+  summary: 'Turn-protocol violation: a persist-as-assistant turn has no persistence
+    boundary.'
+- file: scripts/agent/workflow_engine_adapter.py
+  kind: class
   name: WorkflowEngineAdapter
   signature: class WorkflowEngineAdapter
   summary: Wires workflow engine lifecycle around an LLM turn.

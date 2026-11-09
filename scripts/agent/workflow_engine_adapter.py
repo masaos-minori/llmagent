@@ -42,6 +42,16 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from agent.context import AgentContext
     from agent.diagnostic_store import DiagnosticStore
+# ── Typed guard errors ───────────────────────────────────────────────────────
+
+
+class WorkflowEngineWiringError(Exception):
+    """Constructor wiring bug: the adapter was built without a WorkflowEngine."""
+
+
+class TurnBoundaryMissingError(Exception):
+    """Turn-protocol violation: a persist-as-assistant turn has no persistence boundary."""
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
@@ -120,6 +130,10 @@ class WorkflowEngineAdapter:
         task: TaskRecord | None = None
 
         try:
+            if self._workflow_engine is None:
+                raise WorkflowEngineWiringError(
+                    "WorkflowEngine must be injected via constructor"
+                )
             (
                 workflow_id,
                 task,
@@ -127,9 +141,6 @@ class WorkflowEngineAdapter:
                 self._ctx, session_id, existing_task_id, self._state_store
             )
             self._activate_workflow(self._ctx, task)
-            assert self._workflow_engine is not None, (
-                "WorkflowEngine must be injected via constructor"
-            )
             engine = self._workflow_engine
             exit_reason = "engine-started"
 
@@ -363,7 +374,11 @@ class WorkflowEngineAdapter:
             # instead of a standalone commit; a later failure compensates it with
             # every other turn write (AC-001, AC-002).
             boundary = ctx.turn.persistence_boundary
-            assert boundary is not None, "persistence boundary not set for this turn"  # noqa: B101 — boundary required inside a turn; None means writes bypass the atomic boundary
+            if boundary is None:
+                raise TurnBoundaryMissingError(
+                    "persistence boundary not set for this turn; "
+                    "None means writes bypass the atomic boundary"
+                )
             await boundary.save("assistant", answer)
 
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)

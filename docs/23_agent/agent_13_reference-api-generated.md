@@ -206,5 +206,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `TurnPersistence` | `class TurnPersistence` | Owns all session-DB writes of one agent turn (all-or-nothing). |
 | `scripts/agent/turn_result.py` | `TurnResult` | `class TurnResult` | Typed result of one LLM turn. |
 | `scripts/agent/wal_checkpoint_manager.py` | `WalCheckpointManager` | `class WalCheckpointManager` | WAL checkpoint and backup manager. |
-| `scripts/agent/workflow_engine_adapter.py` | `WorkflowEngineAdapter` | `class WorkflowEngineAdapter` | Wires workflow engine lifecycle around an LLM turn. |
+| `scripts/agent/workflow_engine_adapter.py` | `WorkflowEngineWiringError` | `class WorkflowEngineWiringError` | Constructor wiring bug: the adapter was built without a WorkflowEngine. |
+|  | `TurnBoundaryMissingError` | `class TurnBoundaryMissingError` | Turn-protocol violation: a persist-as-assistant turn has no persistence boundary. |
+|  | `WorkflowEngineAdapter` | `class WorkflowEngineAdapter` | Wires workflow engine lifecycle around an LLM turn. |
 <!-- END AUTO-GENERATED -->
