@@ -14,7 +14,7 @@ Medium
 - **Dependencies**: Related, no required order: the ragrev004 work (the search stage; no shared code file, both edit different parts of the RAG docs).
 
 ## Background
-Review finding F-007. `_build_fts_query` (`scripts/rag/repository.py:87-120`) returns `" ".join(f'"{t}"' ...)`; FTS5 evaluates space-separated terms as an implicit AND, so every term must occur in one chunk. For text with no kana or CJK ideographs the token source is `re.findall(r"[a-zA-Z0-9]+", text)` (L93), so Hangul, Cyrillic, and accented words yield an empty query and `fts_search` returns `[]` silently (L198-201). The index uses `tokenize = 'unicode61'` (`scripts/db/schema_sql.py:67`), which tokenizes all Unicode word characters, so the query side is the narrower half. Existing tests (`tests/rag/test_rag_repository.py:473-520`, `tests/rag/test_fts_japanese.py`) cover quoting, the cap, and Japanese; none covers recall semantics or non-ASCII Latin. The doc claims differ from code in two places (checked in Step 3): `docs/21_rag/rag_03_06_query_pipeline-helpers-and-cache.md:46` says an empty query is `'""'` while the code returns `""` and short-circuits, and says truncation is silent while the code logs it.
+Review finding F-007. `_build_fts_query` (`scripts/rag/repository.py:87-120`) returns `" ".join(f'"{t}"' ...)`; FTS5 evaluates space-separated terms as an implicit AND, so every term must occur in one chunk. For text with no kana or CJK ideographs the token source is `re.findall(r"[a-zA-Z0-9]+", text)` (L93), so Hangul, Cyrillic, and accented words yield an empty query and `fts_search` returns `[]` silently (L198-201). The index uses `tokenize = 'unicode61'` (`scripts/db/schema_sql.py:67`), which tokenizes all Unicode word characters, so the query side is the narrower half. Existing tests (`tests/rag/test_rag_repository.py:473-520`, `tests/rag/test_fts_japanese.py`) cover quoting, the cap, and Japanese; none covers recall semantics or non-ASCII Latin. Found by adversarial verification at procedure time: `tests/rag/test_fts_japanese.py::TestBuildFtsQuery` asserts the exact AND-joined strings `'"食べ物" "美味しい"'` (Japanese tokens) and `'"hello" "world" "123"'` (English), so the OR join breaks those two tests; the other existing assertions use `in`, counts, or a single token and are unaffected (`tests/rag/test_rag_repository.py::TestBuildFtsQuery`, `TestBuildFtsQueryLogging`, the `fts_search` integration tests including the multi-word `test_english_multi_word_query` in `tests/rag/test_fts_fallback.py`, which assert at least one hit). The doc claims differ from code in two places (checked in Step 3): `docs/21_rag/rag_03_06_query_pipeline-helpers-and-cache.md:46` says an empty query is `'""'` while the code returns `""` and short-circuits, and says truncation is silent while the code logs it.
 
 ## Problem
 BM25 recall collapses as the query grows, and non-ASCII Latin, Cyrillic, and Hangul queries get no lexical results at all, silently.
@@ -23,13 +23,13 @@ BM25 recall collapses as the query grows, and non-ASCII Latin, Cyrillic, and Han
 The hybrid design relies on BM25 to complement the vector leg; an over-strict query makes that leg dead weight for exactly the long paraphrases MQE generates.
 
 ## Implementation Intent
-Prefer OR across quoted tokens because `ORDER BY bm25(chunks_fts)` already ranks chunks by how many and how rare the matched terms are, so widening the match set is safe for ordering; FTS5 has no native minimum-should-match, so a threshold would need custom ranking and is not planned. Replace `[a-zA-Z0-9]+` with a Unicode word pattern for the non-Japanese branch. Keep per-token quote stripping, wrapping every token in double quotes (so `AND`/`OR`/`NOT`/`NEAR` become literals), and the 20-token cap. The OR-versus-AND decision is validated on a deterministic fixture corpus in the tests and recorded in the doc; real-corpus recall remains an owner-side check (Unknowns).
+Prefer OR across quoted tokens because `ORDER BY bm25(chunks_fts)` already ranks chunks by how many and how rare the matched terms are, so widening the match set is safe for ordering; FTS5 has no native minimum-should-match, so a threshold would need custom ranking and is not planned. Replace `[a-zA-Z0-9]+` with a Unicode word pattern for the non-Japanese branch. Use the pattern `[^\W_]+` for the non-Japanese branch: it equals `[a-zA-Z0-9]+` on ASCII (an underscore still splits tokens, as `unicode61` does), so ASCII tokenization and the token cap are unchanged. Keep per-token quote stripping, wrapping every token in double quotes (so `AND`/`OR`/`NOT`/`NEAR` become literals), and the 20-token cap. The OR-versus-AND decision is validated on a deterministic fixture corpus in the tests and recorded in the doc; real-corpus recall remains an owner-side check (Unknowns).
 
 ## Requirements
 - `REQ-001`: Terms are combined with `OR`; a ten-word query returns chunks that contain any subset of the words, ranked by BM25.
 - `REQ-002`: The non-Japanese branch tokenizes Unicode word characters; a Latin-with-accents, Cyrillic, or Hangul query yields a non-empty FTS query.
 - `REQ-003`: Every token stays double-quoted with embedded quotes removed; `AND`/`OR`/`NOT`/`NEAR` in the user text act as literals, never operators; the 20-token cap and its info log stay.
-- `REQ-004`: Japanese tokenization (Sudachi POS filter) and the empty-query short-circuit are unchanged.
+- `REQ-004`: Japanese tokenization (Sudachi POS filter) and the empty-query short-circuit are unchanged; only the join of the resulting tokens changes (the OR join applies to both branches).
 - `REQ-005`: Tests cover long, accented, Hangul/Cyrillic, and operator-like queries at `_build_fts_query` and against an in-memory FTS5 table using the real schema, including an AND-versus-OR fixture comparison.
 - `REQ-006`: The RAG docs state the matching rule, the tokenization boundary, and correct the two doc/code mismatches (empty query value, truncation logging).
 
@@ -38,9 +38,9 @@ Prefer OR across quoted tokens because `ORDER BY bm25(chunks_fts)` already ranks
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/rag/repository.py` | Modify | OR join and Unicode token pattern in `_build_fts_query` (L87-120) | `REQ-001`..`REQ-004` / AC-1..AC-4 | Join at L120, ASCII regex at L93, `_SQL_FTS` L139-147 orders by `bm25` (checked in Step 3) | `tests/rag/test_rag_repository.py`, `tests/rag/test_fts_japanese.py` | Verified |
 | `tests/rag/test_rag_repository.py` | Modify | Unit tests for rule, Unicode tokens, operator-like text, cap | `REQ-001`..`REQ-003`, `REQ-005` / AC-1..AC-3, AC-5 | `TestBuildFtsQuery` at L473-520 (checked in Step 3) | self | Verified |
-| `tests/rag/test_fts_japanese.py` | Modify | In-memory FTS5 integration with real schema (L26-83): long, accented, Hangul/Cyrillic, AND-vs-OR fixture | `REQ-001`, `REQ-002`, `REQ-005` / AC-1, AC-2, AC-5 | File builds the real schema with `unicode61` (checked in Step 3) | self | Verified |
+| `tests/rag/test_fts_japanese.py` | Modify | Update the two exact-string assertions of `TestBuildFtsQuery` (Japanese and English) from the AND join to the OR join; add in-memory FTS5 integration with the real schema (L26-83): long, accented, Hangul/Cyrillic, AND-vs-OR fixture | `REQ-001`, `REQ-002`, `REQ-005` / AC-1, AC-2, AC-5 | File builds the real schema with `unicode61` (checked in Step 3) | self | Verified |
+| `scripts/rag/repository.py` | Modify | OR join and Unicode token pattern in `_build_fts_query` (L87-120) | `REQ-001`..`REQ-004` / AC-1..AC-4 | Join at L120, ASCII regex at L93, `_SQL_FTS` L139-147 orders by `bm25` (checked in Step 3) | `tests/rag/test_rag_repository.py`, `tests/rag/test_fts_japanese.py` | Verified |
 | `docs/21_rag/rag_03_06_query_pipeline-helpers-and-cache.md` | Modify | Matching rule, tokenization boundary, and the two corrections in the "Japanese FTS5 Tokenization" paragraph (L46) | `REQ-006` / AC-6 | L46 states `[a-zA-Z0-9]+`, `'""'`, silent truncation (checked in Step 3) | docs gates | Verified |
 
 ## Reference Files
@@ -55,7 +55,7 @@ Prefer OR across quoted tokens because `ORDER BY bm25(chunks_fts)` already ranks
 - AC-1 (`REQ-001`): a ten-word query against the fixture corpus returns chunks containing a subset of the words, best BM25 first; the AND variant returns none for the same fixture.
 - AC-2 (`REQ-002`): `_build_fts_query("café résumé")`, a Cyrillic query, and a Hangul query each return a non-empty string.
 - AC-3 (`REQ-003`): `_build_fts_query('a AND b OR NOT NEAR')` yields only quoted tokens; running it through FTS5 raises no syntax error; 100 words yield at most 20 tokens.
-- AC-4 (`REQ-004`): the existing Japanese and empty-query tests pass unmodified.
+- AC-4 (`REQ-004`): the existing Japanese and empty-query tests pass unmodified, except the two exact-string `TestBuildFtsQuery` assertions in `tests/rag/test_fts_japanese.py`, which are updated to the OR form in Phase 1 (same tokens, joined with ` OR `).
 - AC-5 (`REQ-005`): the new tests fail on HEAD where they target the changed behavior.
 - AC-6 (`REQ-006`): the doc names the OR rule, the Unicode boundary, the real empty-query value, and the logged truncation; docs checkers pass.
 
@@ -63,13 +63,14 @@ Prefer OR across quoted tokens because `ORDER BY bm25(chunks_fts)` already ranks
 - `REQ-001`: unit (joined with ` OR `) and fixture-corpus integration (AND returns nothing, OR returns ranked subset).
 - `REQ-002`: parametrized accented, Cyrillic, Hangul queries (unit and in-memory FTS5 hit).
 - `REQ-003`: operator-like text through the real FTS5 engine.
-- `REQ-004`: existing tests unmodified.
+- `REQ-004`: existing tests unmodified apart from the two join-form assertions named in AC-4.
 - `REQ-005`: the above on the real schema.
 
 ## Documentation Impact
 Yes (`REQ-006`): `docs/21_rag/rag_03_06_query_pipeline-helpers-and-cache.md` (located via `docs/00_index.md` RAG rows), intent and failure behavior only. Run `check_docs_quality`, `check_docs_structure`, `check_docs_content_policy`, `check_docs_consistency --domain rag`, `check_docs_japanese`.
 
 ## Assumptions
+- Overlap judgment (Step 2, `tools/check_plan_target_overlaps.py`): `plans/20261108-165114_ragrev006_rrf-merge-drops-signals.md` shares `scripts/rag/repository.py` and `tests/rag/test_rag_repository.py`; it changes `rrf_merge`, `_dedup_hits`, and the signal assignment inside `vector_search` / `fts_search`, while this Plan changes only `_build_fts_query` and its tests; the designs are compatible with no required order (ragrev006 lists no dependency on this Plan). Both edit `repository.py`, so line numbers shift: the procedures cite symbols. `plans/20261108-164823_ragrev004_search-bm25-coupling.md` touches `scripts/rag/stages/search.py` and a different doc; compatible.
 - OR with BM25 ordering is the proposed default; it is a retrieval-behavior change and the owner may prefer to confirm it before implementation (UNK-01). RRF fusion consumes the ranked list, so a larger FTS candidate set changes fusion inputs only through ranking.
 - `unicode61` tokenizes Hangul and Cyrillic as word runs, so Unicode query tokens can match the index (the standard `unicode61` behavior; the in-memory integration test proves it for the tested scripts).
 
@@ -128,10 +129,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: query construction | Pending | — | — | |
-| 3 | Phase 3: documentation | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: query construction | In Progress | — | — |  |
+| 3 | Phase 3: documentation | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -141,7 +142,10 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-121825_01_tests_rag_test_rag_repository.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-121825_02_tests_rag_test_fts_japanese.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-121825_03_scripts_rag_repository.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-121825_04_docs_21_rag_rag_03_06_query_pipeline-helpers-and-cache.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -167,3 +171,5 @@ N/A: no release unit
 | REQ-005 | Testing Expectations | `tests/rag/test_rag_repository.py` | Phase 1 | AC-5 | new tests fail on HEAD | Explicit in issue |
 | REQ-005 | Testing Expectations | `tests/rag/test_fts_japanese.py` | Phase 1 | AC-5 | new tests fail on HEAD | Explicit in issue |
 | REQ-006 | Required Changes 1; Documentation Impact; doc L46 | `docs/21_rag/rag_03_06_query_pipeline-helpers-and-cache.md` | Phase 3 | AC-6 | docs gates | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-121825 -->

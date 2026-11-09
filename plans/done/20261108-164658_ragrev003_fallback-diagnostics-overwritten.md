@@ -15,7 +15,7 @@ High
 - **Dependencies**: N/A: none.
 
 ## Background
-Review finding F-003. `RagPipeline.augment()` copies the refiner's diagnostics and stage list into `self.last_search_diagnostics` / `self.last_stage_results` (`scripts/rag/pipeline.py:264-265`), then calls `self.run()`, whose lifecycle result unconditionally replaces both (`pipeline.py:201-204`). The existing test `test_in_process_fallback_sets_result_source_fallback` stubs `RagPipeline.run` (`tests/rag/test_rag_http_mode.py:87-127`), so it cannot see the overwrite; ADR-010 INV-06 cites that test as its evidence. Two further facts found while verifying (checked in Step 3): (1) `AugmentRefiner._search_diagnostics` and `_last_stage_results` are initialized once in `__init__` and never reset (`scripts/rag/augment.py:64-66`; the only appends are `augment.py:112` and `augment.py:188`), so a long-lived pipeline accumulates records and a naive "preserve" would carry a previous request's state forward; (2) `SearchDiagnostics.fallback_reason` is never populated on the HTTP path: `AugmentRefiner.run_http_augment` replaces only `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms` (`augment.py:103-109`), and the pipeline does not wire `set_fallback_reason`; the reason lives only in the `HttpAugment` stage record (`scripts/rag/http_augment.py:146-153`).
+Review finding F-003. `RagPipeline.augment()` copies the refiner's diagnostics and stage list into `self.last_search_diagnostics` / `self.last_stage_results` (`scripts/rag/pipeline.py:264-265`), then calls `self.run()`, whose lifecycle result unconditionally replaces both (`pipeline.py:201-204`). The existing test `test_in_process_fallback_sets_result_source_fallback` stubs `RagPipeline.run` (`tests/rag/test_rag_http_mode.py:87-127`), so it cannot see the overwrite; ADR-010 INV-06 cites that test as its evidence. Two further facts found while verifying (checked in Step 3): (1) `AugmentRefiner._search_diagnostics` and `_last_stage_results` are initialized once in `__init__` and never reset (`scripts/rag/augment.py:64-66`; the only appends are `augment.py:112` and `augment.py:188`), so a long-lived pipeline accumulates records and a naive "preserve" would carry a previous request's state forward; (2) `SearchDiagnostics.fallback_reason` is never populated on the HTTP path: `AugmentRefiner.run_http_augment` replaces only `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms` (`augment.py:103-109`), and the pipeline does not wire `set_fallback_reason`; the reason lives only in the `HttpAugment` stage record (`scripts/rag/http_augment.py:146-153`). Further facts found by adversarial verification at procedure time: (3) a second existing test, `test_fallback_reason_propagated_to_diagnostics` (`tests/rag/test_rag_http_mode.py:172`), also stubs `RagPipeline.run`, and `run()` is the only place that replaces `self.last_stage_results`, so a merge that re-reads `self.last_*` after a stubbed `run()` would duplicate the `HttpAugment` record (the stub leaves the pre-run copy in place); the `PipelineRunResult` returned by `run()` carries `stage_results` and `diagnostics` and does not have this problem; (4) `augment()` appends an `IdentityGate` stage record to `self.last_stage_results` before calling `run()` only on the reject path, which returns before `run()`, so the merge does not need to preserve it; (5) `AugmentRefiner.run_refiner` appends `Refiner` records to the same refiner list (`augment.py:188`) in every request, including requests with no `rag_query_service_url`, so a reset limited to the HTTP branch would leave that list growing in no-HTTP deployments.
 
 ## Problem
 After an HTTP delegation failure and a successful in-process fallback, the diagnostics report `result_source=local`, `http_result_kind=not_used`, no remote status or latency, and no `HttpAugment` stage record. Operators lose the only trace that a request was served by the fallback and why.
@@ -24,7 +24,7 @@ After an HTTP delegation failure and a successful in-process fallback, the diagn
 The observability contract of the fallback (ADR-010 INV-06) is broken on the exact path it exists for, and its cited test does not execute the overwrite.
 
 ## Implementation Intent
-Do the merge in `augment()` (not in `run()`, which direct callers use without HTTP state) with a per-request reset at the start of the HTTP section: reset the refiner's per-request state, run HTTP, snapshot its diagnostics and stage records, run the in-process pipeline, then rebuild `last_search_diagnostics` from the run's counters plus the snapshot's HTTP fields, and `last_stage_results` as the snapshot's `HttpAugment` records followed by the run's stage records. Populate `SearchDiagnostics.fallback_reason` from the `HttpAugment` fallback record's reason during the merge so the Issue's "fallback reason" criterion has a source.
+Do the merge in `augment()` (not in `run()`, which direct callers use without HTTP state) with a per-request reset at the start of the HTTP section: reset the refiner's per-request state, run HTTP, snapshot its diagnostics and stage records, run the in-process pipeline, then rebuild `last_search_diagnostics` from the run's counters plus the snapshot's HTTP fields, and `last_stage_results` as the snapshot's `HttpAugment` records followed by the run's stage records. Populate `SearchDiagnostics.fallback_reason` from the `HttpAugment` fallback record's reason during the merge so the Issue's "fallback reason" criterion has a source. The merge takes the in-process side from the `PipelineRunResult` that `run()` returns (its `diagnostics` and `stage_results`), not from `self.last_*`, and the refiner reset runs once at the top of `augment()` after the `use_search` guard (every path, not only the HTTP branch).
 
 ## Requirements
 - `REQ-001`: After a transient HTTP failure and an in-process fallback run, `last_search_diagnostics` has `result_source=FALLBACK`, `http_result_kind=ERROR`, and the remote status and latency; its embed/FTS counters are the in-process run's.
@@ -40,9 +40,9 @@ Do the merge in `augment()` (not in `run()`, which direct callers use without HT
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/rag/pipeline.py` | Modify | Merge HTTP-derived diagnostics and the `HttpAugment` record into the post-`run()` state inside `augment()`; reset refiner request state before the HTTP section | `REQ-001`..`REQ-006` / AC-1..AC-6 | Overwrite at L201-204 in `run()`; copy at L264-265 in `augment()` (checked in Step 3) | `tests/rag/test_rag_http_mode.py` | Verified |
-| `scripts/rag/augment.py` | Modify | Add a per-request reset of `AugmentRefiner` diagnostics/stage list and expose a way to read this request's `HttpAugment` records | `REQ-003`, `REQ-005` / AC-3, AC-5 | `__init__` L64-66 initializes once, no reset; append sites L112, L188 (checked in Step 3) | `tests/rag/test_rag_http_mode.py` | Verified |
-| `tests/rag/test_rag_http_mode.py` | Modify | Replace the `run`-stubbing fallback test with a real-lifecycle test; add no-HTTP and two-request tests | `REQ-001`..`REQ-005`, `REQ-007` / AC-1..AC-5, AC-7 | Existing test stubs `run` (L87-127); fallback stage-order test at L130 shows the stage-recording pattern (checked in Step 3) | self | Verified |
+| `tests/rag/test_rag_http_mode.py` | Modify | Replace the `run`-stubbing fallback test (`test_in_process_fallback_sets_result_source_fallback`) with a real-lifecycle test; keep `test_fallback_reason_propagated_to_diagnostics` passing (or convert it); add no-HTTP and two-request tests | `REQ-001`..`REQ-005`, `REQ-007` / AC-1..AC-5, AC-7 | Existing test stubs `run` (L87-127); fallback stage-order test at L130 shows the stage-recording pattern (checked in Step 3) | self | Verified |
+| `scripts/rag/augment.py` | Modify | Add a per-request reset of `AugmentRefiner` diagnostics/stage list (called at the top of `augment()` on every path) and expose a way to read this request's `HttpAugment` records | `REQ-003`, `REQ-005` / AC-3, AC-5 | `__init__` L64-66 initializes once, no reset; append sites L112, L188 (checked in Step 3) | `tests/rag/test_rag_http_mode.py` | Verified |
+| `scripts/rag/pipeline.py` | Modify | Merge HTTP-derived diagnostics and the `HttpAugment` record into the post-`run()` state inside `augment()`, taking the in-process side from the returned `PipelineRunResult`; reset refiner request state at the top of `augment()` | `REQ-001`..`REQ-006` / AC-1..AC-6 | Overwrite at L201-204 in `run()`; copy at L264-265 in `augment()` (checked in Step 3) | `tests/rag/test_rag_http_mode.py` | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -60,7 +60,7 @@ Do the merge in `augment()` (not in `run()`, which direct callers use without HT
 - AC-3 (`REQ-003`): `last_search_diagnostics.fallback_reason` equals the `HttpAugment` record's reason.
 - AC-4 (`REQ-004`): no-HTTP run keeps `LOCAL` / `NOT_USED` and a stage list without `HttpAugment`.
 - AC-5 (`REQ-005`): a fallback request followed by a second request yields only that second request's records.
-- AC-6 (`REQ-006`): existing `tests/rag/test_diagnostics.py`, `test_pipeline_http_result_kind.py`, `test_pipeline_refiner_fallback*.py` pass unmodified.
+- AC-6 (`REQ-006`): existing `tests/rag/test_diagnostics.py`, `test_pipeline_http_result_kind.py`, `test_pipeline_refiner_fallback*.py` pass unmodified, and `test_fallback_reason_propagated_to_diagnostics` (which stubs `run`) still passes, with no duplicated `HttpAugment` record.
 - AC-7 (`REQ-007`): the fallback test patches stage `run` methods, not `RagPipeline.run`, and fails on current HEAD.
 
 ## Tests
@@ -74,6 +74,8 @@ N/A: no doc update planned; ADR-010 and the RAG error-handling reference are con
 
 ## Assumptions
 - `RagPipeline.run()` stays unchanged: direct callers (no HTTP state) must keep their current semantics, so the merge belongs in `augment()`.
+- Overlap judgment (Step 2, `tools/check_plan_target_overlaps.py`): `plans/20261108-165604_ragrev009_dead-pipeline-stage-runner.md` also targets `scripts/rag/pipeline.py`, but it deletes `_get_stage_status` and `_run_stage` while this Plan changes `augment()`; the designs are compatible and need no required order (ragrev009 states the same). ragrev009's deletion shifts line numbers in `pipeline.py`, so this Plan's procedures cite symbols, not line numbers.
+- Overlap judgment (sibling issue, not a Plan): `issues/20261109-112608_adrrev003_rag-http-delegation.md` plans to remove `HttpAugment`, `call_rag_service()`, and the HTTP branch of `augment()`. If that issue lands first, `REQ-001`..`REQ-005` become moot and only the request-scoped refiner reset (refiner `Refiner` records) remains relevant; if this Plan lands first, adrrev003 deletes the merge code. This is a sequencing conflict the owner should decide before implementation; it does not block procedure generation.
 - The state reset happens inside the single `augment()` call path; concurrent `augment()` calls on one pipeline instance are not supported today (shared instance attributes) and are not made worse (Unknowns UNK-03).
 
 ## Unknowns
@@ -121,6 +123,7 @@ Validation baseline: `vulture`/`bandit` over `scripts/` have pre-existing unrela
 ## Risks
 - **Risk**: resetting refiner state per request drops state that some reader relies on across requests → **Mitigation**: readers found are `pipeline.py` lines 264-265, 287-312 and tests; the suites in the Validation plan run unmodified (AC-6).
 - **Risk**: raising `augment()` complexity (already C 13) → **Mitigation**: merge isolated in a private helper; re-run `radon cc` at implementation.
+- **Risk**: `adrrev003` removes the code this Plan repairs → **Mitigation**: the owner decides the order before `code-implementation` runs; the Assumptions record both outcomes.
 - **Risk**: ADR-010 INV-06 cites the old test by name → **Mitigation**: keep the test name or update the ADR matrix and run `tools/check_adr_invariant_matrix.py`.
 
 ## Execution Status
@@ -128,10 +131,10 @@ Validation baseline: `vulture`/`bandit` over `scripts/` have pre-existing unrela
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: real-lifecycle tests first | Pending | — | — | |
-| 2 | Phase 2: request-scoped refiner state | Pending | — | — | |
-| 3 | Phase 3: merge in augment() | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: real-lifecycle tests first | In Progress | — | — |  |
+| 2 | Phase 2: request-scoped refiner state | In Progress | — | — |  |
+| 3 | Phase 3: merge in augment() | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -141,7 +144,9 @@ Validation baseline: `vulture`/`bandit` over `scripts/` have pre-existing unrela
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-121200_01_tests_rag_test_rag_http_mode.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-121200_02_scripts_rag_augment.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-121200_03_scripts_rag_pipeline.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -168,3 +173,5 @@ Validation baseline: `vulture`/`bandit` over `scripts/` have pre-existing unrela
 | REQ-005 | Step 3 finding | `tests/rag/test_rag_http_mode.py` | Phase 1 | AC-5 | two-request test | Confirmed by repository evidence |
 | REQ-006 | Constraints | `scripts/rag/pipeline.py` | Phase 3 | AC-6 | existing diagnostics suites | Explicit in issue |
 | REQ-007 | Implementation Intent; Testing Expectations | `tests/rag/test_rag_http_mode.py` | Phase 1 | AC-7 | the new real-lifecycle test | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-121200 -->

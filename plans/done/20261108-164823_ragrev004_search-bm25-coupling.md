@@ -15,7 +15,7 @@ Medium
 - **Dependencies**: Related, no required order: the ragrev005 work (FTS query construction, same retrieval leg; lands in `scripts/rag/repository.py`, not in this plan's files).
 
 ## Background
-Review finding F-006. In `_search_all_queries` (`scripts/rag/stages/search.py:27-84`) a failed or non-list embedding takes a `continue` branch before `repo.fts_search` (L51-58), and `repo.vector_search` and `repo.fts_search` share one `try` (L60-75), so a vector-search exception skips FTS for that query and increments `fts_errors`. `SearchStage.get_status` reports `fallback` only when `ctx.search_results` is empty (L101-107), which already matches the Issue's "fallback only when both paths are empty" once FTS contributes. Pinned elsewhere (checked in Step 3): `test_run_pack_failure_degrades` asserts a vector-leg `ValueError` is counted in `fts_errors` (`tests/rag/test_rag_stages.py:289-315`); `test_run_embedding_not_list` (L244-259) and `test_run_search_exception` (L262-286) assert `search_results == []` with a `MagicMock` repository whose default `fts_search` return is a truthy `MagicMock`, so they currently pass only because the FTS call is skipped. The docs state the coupling as intended behavior: "returns empty if embedding or DB error occurs" (`docs/21_rag/rag_03_04_query_pipeline-search-stages.md:40`).
+Review finding F-006. In `_search_all_queries` (`scripts/rag/stages/search.py:27-84`) a failed or non-list embedding takes a `continue` branch before `repo.fts_search` (L51-58), and `repo.vector_search` and `repo.fts_search` share one `try` (L60-75), so a vector-search exception skips FTS for that query and increments `fts_errors`. `SearchStage.get_status` reports `fallback` only when `ctx.search_results` is empty (L101-107), which already matches the Issue's "fallback only when both paths are empty" once FTS contributes. Pinned elsewhere (checked in Step 3): `test_run_pack_failure_degrades` asserts a vector-leg `ValueError` is counted in `fts_errors` (`tests/rag/test_rag_stages.py:289-315`); `test_run_search_exception` (L262-286) asserts `search_results == []` with a patched `RagRepository` whose default `fts_search` return is a truthy `MagicMock`, so it currently passes only because the FTS call is skipped. Corrected at procedure time (adversarial verification): `test_run_embedding_not_list` (L244-259) does not patch `RagRepository`; with the split, the real `RagRepository.fts_search` runs against the `mock_db` fixture and returns `[]` (verified by running it against a `MagicMock` database), so that test passes unchanged and needs no edit. Two more tests use the patched repository with a vector error and the default truthy `fts_search` stub: `test_fts_error_counts` (L~410) and `test_warning_emitted_on_fts_error` (L~480); they assert only the `fts_errors` counter and the log text, so they keep passing, and get an explicit empty FTS stub for clarity. `tests/rag/test_rag_quality_regression.py` (`run(..., db=MagicMock())` with failing embeddings, asserting `reranked == []`) is unaffected for the same reason (real `fts_search` over a mock database returns `[]`). The docs state the coupling as intended behavior: "returns empty if embedding or DB error occurs" (`docs/21_rag/rag_03_04_query_pipeline-search-stages.md:40`).
 
 ## Problem
 When the embedding service is down or a vector query fails, retrieval returns nothing although the lexical index could answer, and the diagnostics blame FTS.
@@ -32,7 +32,7 @@ Restructure the per-query loop into two legs: an embedding-dependent vector leg 
 - `REQ-003`: Each failed retrieval leg increments `fts_errors` once (vector leg and FTS leg counted separately per query); `degraded` is true when any embedding or leg failed; field names and `SearchDiagnostics` shape are unchanged.
 - `REQ-004`: The stage status is `fallback` / `no search results` only when no leg returned hits.
 - `REQ-005`: Embedding fetch stays concurrent and DB access stays sequential on one connection.
-- `REQ-006`: Existing tests that encode the coupling are updated explicitly (not deleted) and the pinned `test_run_pack_failure_degrades` passes unmodified.
+- `REQ-006`: Existing tests that encode the coupling (`test_run_search_exception`, plus the clarity updates to `test_fts_error_counts` and `test_warning_emitted_on_fts_error`) are updated explicitly (not deleted) and the pinned `test_run_pack_failure_degrades` passes unmodified.
 - `REQ-007`: The search-stage doc describes independent legs and the combined `fts_errors` meaning.
 
 ## Implementation Target Files
@@ -40,8 +40,8 @@ Restructure the per-query loop into two legs: an embedding-dependent vector leg 
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
+| `tests/rag/test_rag_stages.py` | Modify | New tests (all-embeddings-fail, vector error with FTS hits); set `fts_search.return_value = []` in `test_run_search_exception` (required) and in `test_fts_error_counts` / `test_warning_emitted_on_fts_error` (clarity); `test_run_embedding_not_list` stays unchanged | `REQ-001`, `REQ-002`, `REQ-003`, `REQ-006` / AC-1, AC-2, AC-3, AC-6 | `test_run_search_exception` (L262-286) passes only via the skipped FTS call; `test_run_embedding_not_list` (L244-259) uses the real repository over `mock_db` and is unaffected; L289-315 pinned (checked in Step 3 and re-verified at procedure time) | self | Verified |
 | `scripts/rag/stages/search.py` | Modify | Split vector and FTS legs into independent guarded blocks; run FTS after embedding failure | `REQ-001`..`REQ-005` / AC-1..AC-5 | `continue` at L51-58, shared `try` L60-75 (checked in Step 3) | `tests/rag/test_rag_stages.py` | Verified |
-| `tests/rag/test_rag_stages.py` | Modify | New tests (all-embeddings-fail, vector error with FTS hits); set `fts_search.return_value = []` in the two coupling-encoding tests | `REQ-001`, `REQ-002`, `REQ-003`, `REQ-006` / AC-1, AC-2, AC-3, AC-6 | Tests at L244-259 and L262-286 pass only via the skipped FTS call; L289-315 pinned (checked in Step 3) | self | Verified |
 | `docs/21_rag/rag_03_04_query_pipeline-search-stages.md` | Modify | Replace the "returns empty if embedding or DB error occurs" statement and the per-query error-handling note | `REQ-007` / AC-7 | L40 and L46 state the coupled behavior (checked in Step 3) | docs gates | Verified |
 
 ## Reference Files
@@ -60,7 +60,7 @@ Restructure the per-query loop into two legs: an embedding-dependent vector leg 
 - AC-3 (`REQ-003`): a query whose vector and FTS legs both fail adds 2 to `fts_errors`; the pinned test keeps `fts_errors == 1` for its single vector failure; `SearchDiagnostics` fields unchanged.
 - AC-4 (`REQ-004`): empty-DB run still reports `fallback` / `no search results`.
 - AC-5 (`REQ-005`): the embedding `gather` call and the single `RagRepository(db)` use are unchanged.
-- AC-6 (`REQ-006`): `test_run_pack_failure_degrades` and `test_diagnostics.py` pass unmodified; the two updated tests still assert their original intent (no crash, results reflect FTS stub).
+- AC-6 (`REQ-006`): `test_run_pack_failure_degrades` and `test_diagnostics.py` pass unmodified; the updated tests still assert their original intent (no crash, results reflect the FTS stub), and `test_run_embedding_not_list` and `tests/rag/test_rag_quality_regression.py` pass unmodified.
 - AC-7 (`REQ-007`): the doc names independent legs and the combined counter; docs checkers pass.
 
 ## Tests
@@ -68,12 +68,13 @@ Restructure the per-query loop into two legs: an embedding-dependent vector leg 
 - `REQ-002`: vector stub raising `sqlite3.OperationalError`; FTS stub returns hits.
 - `REQ-003`: both legs raising; counter equals 2; single vector failure equals 1 (existing pinned test).
 - `REQ-004`: existing observability test unmodified.
-- `REQ-006`: the two existing coupling tests updated with an explicit empty FTS stub.
+- `REQ-006`: `test_run_search_exception` (and, for clarity, `test_fts_error_counts` and `test_warning_emitted_on_fts_error`) updated with an explicit empty FTS stub.
 
 ## Documentation Impact
 Yes (`REQ-007`): `docs/21_rag/rag_03_04_query_pipeline-search-stages.md` (located via `docs/00_index.md` RAG rows). Run `check_docs_quality`, `check_docs_structure`, `check_docs_content_policy`, `check_docs_consistency --domain rag`, `check_docs_japanese`. The `SearchDiagnostics` description in `docs/21_rag/rag_04_dto-models-types.md` stays accurate under the combined-counter choice and is not edited.
 
 ## Assumptions
+- Overlap judgments (Step 2, `tools/check_plan_target_overlaps.py`): `plans/20261108-165229_ragrev007_mqe-queries-uncapped-duplicated.md` shares `scripts/rag/stages/search.py`, `tests/rag/test_rag_stages.py`, and `docs/21_rag/rag_03_04_query_pipeline-search-stages.md`; it is a sequencing dependency, not a conflict: ragrev007 declares `Depends on` this Plan's phase 2 (it wraps the embedding `gather` after this leg split lands), edits the MQE paragraph (L34) of the doc while this Plan edits the SearchStage paragraph (L40, L46), and adds its own tests. `plans/20261108-164946_ragrev005_fts-query-and-semantics.md` targets `scripts/rag/repository.py` (FTS query construction), not this Plan's files; compatible, no required order.
 - Keeping the combined `fts_errors` counter is acceptable to consumers; `stat_search_fts_errors` and `get_diagnostics()` keys stay as they are.
 - A dimension mismatch reported by sqlite-vec surfaces as an exception from `vector_search` caught by the existing tuple; the repository shows no explicit dimension check, and the exact exception type was not reproduced (Unknowns).
 
@@ -129,10 +130,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: independent legs | Pending | — | — | |
-| 3 | Phase 3: documentation | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: independent legs | In Progress | — | — |  |
+| 3 | Phase 3: documentation | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -142,7 +143,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-121538_01_tests_rag_test_rag_stages.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-121538_02_scripts_rag_stages_search.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-121538_03_docs_21_rag_rag_03_04_query_pipeline-search-stages.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -166,3 +169,5 @@ N/A: no release unit
 | REQ-005 | Constraints | `scripts/rag/stages/search.py` | Phase 2 | AC-5 | code review of the unchanged gather and single repository | Explicit in issue |
 | REQ-006 | Step 3 finding: coupling-encoding tests | `tests/rag/test_rag_stages.py` | Phase 1 | AC-6 | updated tests, pinned test | Confirmed by repository evidence |
 | REQ-007 | Documentation Impact; doc L40, L46 | `docs/21_rag/rag_03_04_query_pipeline-search-stages.md` | Phase 3 | AC-7 | docs gates | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-121538 -->
