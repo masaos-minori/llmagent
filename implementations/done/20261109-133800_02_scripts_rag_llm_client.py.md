@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Pass the configured count in `expand_queries` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Pass the configured count in `expand_queries` | Completed | 20261109-151852 | 20261109-155642 | changed: scripts/rag/llm_client.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-151852 | 20261109-155642 | ruff/mypy/bandit/lint-imports/radon/check_module_size pass; targeted pytest 85 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

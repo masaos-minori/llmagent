@@ -31,11 +31,11 @@ related:
 
 - `use_mqe=False`: Sets `ctx.queries = [ctx.query]` (single query, no expansion).
 - `use_mqe=True`: Calls `RagLLM.expand_queries(query)` and stores results in `ctx.queries` (context is applied via prompt templates in `cfg`, not as a direct parameter). If expansion fails with `RagExpansionError`, the stage catches it, sets `ctx.queries = [ctx.query]` (the original query) and records the fallback reason `mqe_exception`; the error does not propagate.
-- The number of variants is controlled by the `mqe_n_queries` setting.
+- The expanded list holds the original query first, then at most `mqe_n_queries` distinct paraphrases: entries are trimmed, whitespace-only entries are dropped, and case-insensitive duplicates (including duplicates of the original query) are removed.
 
 ### 5.2 SearchStage
 
-- Generates embeddings in parallel for all queries in `ctx.queries`.
+- Generates embeddings for all queries in `ctx.queries` in parallel, with a bounded number of concurrent requests.
 - Database searches are executed sequentially (one connection per query to avoid contention).
 - Each query adds 0–2 `list[RawHit]` items to `ctx.search_results` (KNN + BM25). The vector leg runs only when an embedding is available and the BM25 leg always runs, so an embedding failure or a vector-search error does not suppress the BM25 hits for that query.
 - KNN: Uses `vector_search(embedding, top_k)` via `sqlite-vec`.

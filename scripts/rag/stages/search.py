@@ -23,6 +23,9 @@ from rag.models_result import SearchDiagnostics
 
 logger = Logger(__name__, "/opt/llm/logs/search.log")
 
+# Bounds in-flight embedding requests per search run.
+_EMBED_CONCURRENCY = 8
+
 
 async def _search_all_queries(
     queries: list[str],
@@ -35,8 +38,9 @@ async def _search_all_queries(
 
     For each query the vector leg runs only when an embedding is available; the
     BM25 (FTS) leg always runs. A failure in one leg no longer suppresses the
-    other, and `fts_errors` counts one per failed retrieval leg. Sequential DB
-    access avoids shared-connection conflicts.
+    other, and `fts_errors` counts one per failed retrieval leg. Embeddings are
+    fetched concurrently up to `_EMBED_CONCURRENCY`. Sequential DB access avoids
+    shared-connection conflicts.
     """
     import httpx as _httpx  # lazy: avoids circular import at module level
 
@@ -78,8 +82,14 @@ async def _search_all_queries(
             logger.warning("FTS search failed for '%s': %s", query, e)
             return [], True
 
+    sem = asyncio.Semaphore(_EMBED_CONCURRENCY)
+
+    async def _embed_limited(q: str) -> list[float]:
+        async with sem:
+            return await get_embedding(q, cast(_httpx.AsyncClient, http), embed_url)
+
     raw = await asyncio.gather(
-        *(get_embedding(q, cast(_httpx.AsyncClient, http), embed_url) for q in queries),
+        *(_embed_limited(q) for q in queries),
         return_exceptions=True,
     )
     all_results: list[list[RawHit]] = []

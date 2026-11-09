@@ -132,11 +132,50 @@ def _mqe_prompt(query: str, context: str, cfg: RagConfig) -> str:
     return str(prompt)
 
 
-def _parse_mqe_response(raw: str, original_query: str) -> MqeParseResult:
+def _normalize_paraphrases(
+    candidates: list[object],
+    original_query: str,
+    max_paraphrases: int | None,
+) -> list[str]:
+    """Strip, deduplicate, and cap paraphrase candidates against the original query.
+
+    Keeps the first spelling of each candidate that is a non-empty string after
+    stripping, skipping any whose casefolded text was already seen — including the
+    original query itself. ``max_paraphrases`` caps how many candidates are kept;
+    ``None`` means unbounded and a limit of zero or below keeps none.
+    """
+    seen: set[str] = {original_query.strip().casefold()}
+    kept: list[str] = []
+    limit = None if max_paraphrases is None else max(0, max_paraphrases)
+    for candidate in candidates:
+        if limit is not None and len(kept) >= limit:
+            break
+        if not isinstance(candidate, str):
+            continue
+        stripped = candidate.strip()
+        if not stripped:
+            continue
+        key = stripped.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(stripped)
+    return kept
+
+
+def _parse_mqe_response(
+    raw: str,
+    original_query: str,
+    max_paraphrases: int | None = None,
+) -> MqeParseResult:
     """Extract and validate a JSON array of paraphrases from raw LLM output.
 
     Matches only the innermost bracket pair (non-greedy); does not span across
     multiple ``[...]`` fragments.
+
+    Paraphrases are stripped, deduplicated case-insensitively against each other
+    and the original query, and capped at ``max_paraphrases`` when a limit is
+    given; the original query is always first in the result.
 
     Raises MqeParseError when the response cannot be parsed as a string list.
     """
@@ -151,7 +190,7 @@ def _parse_mqe_response(raw: str, original_query: str) -> MqeParseResult:
         raise MqeParseError(
             f"MQE response JSON is not a list: {type(expanded).__name__}"
         )
-    valid = [q for q in expanded if isinstance(q, str) and q.strip()]
+    valid = _normalize_paraphrases(expanded, original_query, max_paraphrases)
     logger.info("MQE: %s queries expanded from original", len(valid))
     return MqeParseResult(queries=[original_query] + valid)
 

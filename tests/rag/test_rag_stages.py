@@ -7,6 +7,8 @@ of each RAG stage. Tests cover:
 - Error handling and fallbacks
 """
 
+import asyncio
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -114,6 +116,40 @@ class TestSearchStage:
                 [{"chunk_id": 2, "content": "fts_result"}],
             ]
             assert mock_context.search_results == expected_results
+
+    @pytest.mark.asyncio
+    async def test_search_embedding_concurrency_is_bounded(self):
+        """Embedding fan-out in SearchStage never exceeds _EMBED_CONCURRENCY in flight."""
+        from rag.stages.search import _EMBED_CONCURRENCY
+
+        n_queries = _EMBED_CONCURRENCY + 5
+        queries = [f"q{i}" for i in range(n_queries)]
+        results = [
+            [{"id": i, "content": f"c{i}", "score": 1.0}] for i in range(n_queries)
+        ]
+
+        in_flight = 0
+        peak = 0
+
+        async def fake_get_embedding(query, client, url):
+            nonlocal in_flight, peak
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await asyncio.sleep(0.01)
+            in_flight -= 1
+            return results[queries.index(query)]
+
+        with (
+            patch("rag.llm_client.get_embedding", new=fake_get_embedding),
+            patch("rag.stages.search.RagRepository") as mock_repo,
+        ):
+            mock_repo.return_value.vector_search.return_value = []
+            mock_repo.return_value.fts_search.return_value = []
+            stage = SearchStage(SimpleNamespace(top_k_search=10))
+            ctx = PipelineContext(query="q0", queries=queries)
+            await stage.run(ctx, db=AsyncMock())
+
+        assert peak == _EMBED_CONCURRENCY
 
     @pytest.mark.asyncio
     async def test_run_db_none(self, mock_context):
@@ -692,6 +728,75 @@ class TestSearchDiagnostics:
             assert mock_context.search_diagnostics.fts_errors == 0
 
 
+class TestParseMqeResponseNormalization:
+    """Tests for paraphrase dedup and cap in _parse_mqe_response."""
+
+    def test_dedup_exact_duplicates(self):
+        """Exact duplicate paraphrases are collapsed, order preserved."""
+        from rag.llm_prompts import _parse_mqe_response
+
+        raw = json.dumps(
+            {
+                "paraphrases": [
+                    "alpha query",
+                    "beta query",
+                    "alpha query",
+                    "beta query",
+                    "gamma query",
+                ]
+            }
+        )
+        result = _parse_mqe_response(raw, "original")
+        assert result.queries == [
+            "original",
+            "alpha query",
+            "beta query",
+            "gamma query",
+        ]
+
+    def test_whitespace_and_non_strings_dropped(self):
+        """Whitespace-only paraphrases are dropped; whitespace-padded strings normalize."""
+        from rag.llm_prompts import _parse_mqe_response
+
+        raw = json.dumps(
+            {
+                "paraphrases": [
+                    "  alpha  ",
+                    "   ",
+                    123,
+                    None,
+                    "alpha",
+                ]
+            }
+        )
+        result = _parse_mqe_response(raw, "original")
+        assert result.queries == ["original", "alpha"]
+
+    def test_max_paraphrases_truncates(self):
+        """max_paraphrases caps the paraphrase count; original is always kept."""
+        from rag.llm_prompts import _parse_mqe_response
+
+        raw = json.dumps({"paraphrases": ["a", "b", "c", "d", "e", "f"]})
+        result = _parse_mqe_response(raw, "original", max_paraphrases=3)
+        assert result.queries == ["original", "a", "b", "c"]
+
+    def test_max_paraphrases_zero_keeps_original_only(self):
+        """max_paraphrases=0 returns the original query only."""
+        from rag.llm_prompts import _parse_mqe_response
+
+        raw = json.dumps({"paraphrases": ["a", "b"]})
+        result = _parse_mqe_response(raw, "original", max_paraphrases=0)
+        assert result.queries == ["original"]
+
+    def test_legacy_call_unlimited(self):
+        """Calling without max_paraphrases keeps the previous uncapped behaviour."""
+        from rag.llm_prompts import _parse_mqe_response
+
+        raw = json.dumps({"paraphrases": [f"p{i}" for i in range(20)]})
+        result = _parse_mqe_response(raw, "original")
+        assert len(result.queries) == 21
+
+
 class TestMqeStage:
     """Tests for MqeStage."""
 
@@ -714,6 +819,28 @@ class TestMqeStage:
         await stage.run(mock_context)
 
         assert mock_context.queries == ["mqe_query_1", "mqe_query_2"]
+
+    @pytest.mark.asyncio
+    async def test_expand_queries_caps_and_dedups_with_config(self):
+        """expand_queries caps paraphrases at mqe_n_queries and dedups them."""
+        from rag.llm_client import RagLLM
+
+        cfg = SimpleNamespace(
+            mqe_n_queries=3,
+            mqe_prompt_template="Generate {n_queries} variants of: {query}",
+        )
+        raw = json.dumps(
+            {"paraphrases": ["a", "b", "c", "d", "e", "a", "  ", 123, None]}
+        )
+        client = RagLLM(MagicMock(), "http://localhost:1234", cfg)
+        with patch(
+            "rag.llm_client.RagLLM._call_llm",
+            new_callable=AsyncMock,
+            return_value=raw,
+        ):
+            queries = await client.expand_queries("original")
+
+        assert queries == ["original", "a", "b", "c"]
 
     @pytest.mark.asyncio
     async def test_run_mqe_disabled(self, mock_context, mock_llm):

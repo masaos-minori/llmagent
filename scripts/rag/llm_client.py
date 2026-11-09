@@ -142,7 +142,9 @@ class RagLLM:
         Raises RagExpansionError on HTTP failure, connection error, or malformed
         response (null content, empty choices, invalid JSON body). Prompt
         construction failures (a bad ``mqe_prompt_template``) raise TypeError or
-        ValueError unconverted, so a configuration defect stays loud.
+        ValueError unconverted, so a configuration defect stays loud. The result
+        holds the original query first and at most ``mqe_n_queries`` distinct
+        paraphrases.
         """
         # Built outside the try: a config defect must not be disguised as an
         # LLM failure (ragrev001 REQ-002).
@@ -158,7 +160,9 @@ class RagLLM:
                 _MQE_TEMPERATURE,
                 _MQE_MAX_TOKENS,
             )
-            result = _parse_mqe_response(raw, query)
+            result = _parse_mqe_response(
+                raw, query, max_paraphrases=cast(RagConfig, self._cfg).mqe_n_queries
+            )
             queries: list[str] = result.queries
             return queries
         except (

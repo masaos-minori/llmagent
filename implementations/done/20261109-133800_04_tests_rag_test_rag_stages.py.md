@@ -75,9 +75,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add parse tests and the `expand_queries` wiring test | Pending | — | — | |
-| 2 | Add the embedding concurrency-count test | Pending | — | — | |
-| 3 | Confirm the new tests fail on HEAD, then run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add parse tests and the `expand_queries` wiring test | Completed | 20261109-151852 | 20261109-155642 | TestParseMqeResponseNormalization (5 tests) + expand_queries wiring test added |
+| 2 | Add the embedding concurrency-count test | Completed | 20261109-151852 | 20261109-155642 | test_search_embedding_concurrency_is_bounded added |
+| 3 | Confirm the new tests fail on HEAD, then run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-151852 | 20261109-155642 | 6 new tests confirmed failing on HEAD for intended reasons (concurrency test via ImportError on _EMBED_CONCURRENCY); gates + full suite 12029 passed; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

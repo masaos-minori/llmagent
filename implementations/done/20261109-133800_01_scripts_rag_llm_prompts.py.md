@@ -75,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_normalize_paraphrases` (new) and the optional limit to `_parse_mqe_response` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `_normalize_paraphrases` (new) and the optional limit to `_parse_mqe_response` | Completed | 20261109-151852 | 20261109-155642 | changed: scripts/rag/llm_prompts.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-151852 | 20261109-155642 | ruff/mypy/bandit/lint-imports/radon/check_module_size pass; full suite 12029 passed; diff-cover 100% measured at batch end after tests procedure landed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

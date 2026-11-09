@@ -75,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_EMBED_CONCURRENCY` (new) and the semaphore-bounded fetch in `_search_all_queries` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) and `uv run pytest tests/rag -q` | Pending | — | — | |
+| 1 | Add `_EMBED_CONCURRENCY` (new) and the semaphore-bounded fetch in `_search_all_queries` | Completed | 20261109-151852 | 20261109-155642 | changed: scripts/rag/stages/search.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) and `uv run pytest tests/rag -q` | Completed | 20261109-151852 | 20261109-155642 | static gates pass; targeted pytest 85 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

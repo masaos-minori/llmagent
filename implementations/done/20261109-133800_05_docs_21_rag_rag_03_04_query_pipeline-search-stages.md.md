@@ -72,8 +72,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit sections 5.1 and 5.2 of the search-stages document | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Edit sections 5.1 and 5.2 of the search-stages document | Completed | 20261109-151852 | 20261109-155642 | changed: docs/21_rag/rag_03_04_query_pipeline-search-stages.md sections 5.1/5.2 bullets |
+| 2 | Run the documentation checkers named in Validation plan | Completed | 20261109-151852 | 20261109-155642 | all five docs checkers report no findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
