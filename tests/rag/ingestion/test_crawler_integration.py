@@ -39,7 +39,7 @@ class TestHttpRetryOnTransientFailure:
     async def test_fetch_retry_on_http_error(self, mock_config):
         """HTTP errors trigger retries up to fetch_retry count."""
         import httpx
-        from rag.ingestion.http_fetcher import HttpFetcher
+        from rag.ingestion.http_fetcher import FetchFailed, HttpFetcher
 
         client = MagicMock()
         resp_mock = MagicMock()
@@ -56,14 +56,14 @@ class TestHttpRetryOnTransientFailure:
             "http://example.com/page", client, extra_headers=None
         )
 
-        assert result is None  # Exhausted retries
+        assert result == FetchFailed()  # Exhausted retries
         assert client.get.call_count == 3
 
     @pytest.mark.asyncio
     async def test_success_after_retry(self, mock_config):
         """Successful response after initial failure returns content."""
         import httpx
-        from rag.ingestion.http_fetcher import HttpFetcher
+        from rag.ingestion.http_fetcher import Fetched, HttpFetcher
 
         client = MagicMock()
         resp_mock = MagicMock()
@@ -94,9 +94,8 @@ class TestHttpRetryOnTransientFailure:
             "http://example.com/page", client, extra_headers=None
         )
 
-        assert result is not None
-        html, etag, last_modified = result
-        assert "Hello" in html
+        assert isinstance(result, Fetched)
+        assert "Hello" in result.html
         assert client.get.call_count == 2
 
 
@@ -105,8 +104,8 @@ class TestResponseSkippingContentFetch:
 
     @pytest.mark.asyncio
     async def test_304_skips_content_fetch(self, mock_config):
-        """304 Not Modified returns None, no content extraction."""
-        from rag.ingestion.http_fetcher import HttpFetcher
+        """304 Not Modified returns NotModified, no content extraction."""
+        from rag.ingestion.http_fetcher import HttpFetcher, NotModified
 
         client = MagicMock()
         resp_mock = MagicMock()
@@ -120,13 +119,13 @@ class TestResponseSkippingContentFetch:
             "http://example.com/page", client, extra_headers=None
         )
 
-        assert result is None
+        assert result == NotModified()
         assert client.get.call_count == 1
 
     @pytest.mark.asyncio
     async def test_conditional_headers_sent_with_request(self, mock_config):
         """Conditional headers are sent when available from DB lookup."""
-        from rag.ingestion.http_fetcher import HttpFetcher
+        from rag.ingestion.http_fetcher import Fetched, HttpFetcher
 
         client = MagicMock()
         resp_mock = MagicMock()
@@ -155,9 +154,8 @@ class TestResponseSkippingContentFetch:
                 extra_headers={"If-None-Match": "old-etag"},
             )
 
-        assert result is not None
-        html, etag, last_modified = result
-        assert etag == "abc123"
+        assert isinstance(result, Fetched)
+        assert result.etag == "abc123"
 
 
 class TestMaxPagesBoundaryCondition:
@@ -608,11 +606,15 @@ class TestSessionConnectionLifecycle:
         self, mock_config, tmp_path, monkeypatch
     ):
         """Conditional headers come from the session connection, with no per-call open (REQ-003)."""
+        from rag.ingestion.http_fetcher import FetchFailed
+
         self._seed_documents(str(tmp_path / "rag.db"))
         opens, closes = self._spy_connections(monkeypatch)
         crawler = WebCrawler(config=self._rag_config(mock_config, tmp_path))
         fetcher = crawler.orchestrator._http_fetcher
-        fetcher.fetch_html = AsyncMock(return_value=None)
+        # FetchFailed, not NotModified: a 304 below the depth limit would trigger the
+        # discovery fetch and break the single-await assertion below.
+        fetcher.fetch_html = AsyncMock(return_value=FetchFailed())
 
         await crawler.crawl_site("http://example.com/page", "en")
 
@@ -627,3 +629,143 @@ class TestSessionConnectionLifecycle:
         }
         assert len(opens) == 1
         assert len(closes) == 1
+
+
+class TestNotModifiedLinkDiscovery:
+    """Verify a not-modified page still reaches its subtree (ragrev011, REQ-002/003/004/005)."""
+
+    START = "http://example.com/page"
+    CHILD = "http://example.com/child"
+    FOREIGN = "http://other.example.com/out"
+
+    @staticmethod
+    def _page(text: str, links: tuple[str, ...] = ()) -> str:
+        """Return a minimal HTML page whose body text is long enough to persist."""
+        anchors = "".join(f'<a href="{href}">{href.strip("/")}</a>' for href in links)
+        return (
+            f"<html><body><h1>{text}</h1>"
+            f"<p>{text} body content long enough to be persisted by the crawler.</p>"
+            f"{anchors}</body></html>"
+        )
+
+    @staticmethod
+    def _config(mock_config: dict, tmp_path: Path, max_depth: int) -> dict:
+        """Point rag_db_path and rag_src_dir at tmp_path with an explicit depth limit."""
+        config = dict(mock_config)
+        config["rag_db_path"] = str(tmp_path / "rag.db")
+        config["rag_src_dir"] = str(tmp_path / "rag-src")
+        config["max_depth"] = max_depth
+        config["skip_external"] = True
+        return config
+
+    @staticmethod
+    def _saved_urls(rag_src_dir: str) -> list[str]:
+        """Return the url field of every crawl JSON written under rag_src_dir."""
+        import json
+
+        return [
+            json.loads(path.read_bytes())["url"]
+            for path in Path(rag_src_dir).glob("*.json")
+        ]
+
+    def _start_route(self, links: tuple[str, ...]):
+        """Return a respx side effect: 304 for a conditional request, a linked page otherwise."""
+        import httpx
+
+        def handler(request: httpx.Request) -> Response:
+            if request.headers.get("if-none-match"):
+                return Response(status_code=304)
+            return Response(200, text=self._page("Index", links))
+
+        return handler
+
+    @pytest.mark.asyncio
+    async def test_304_start_page_discovers_changed_child(
+        self, mock_config: dict, tmp_path: Path
+    ) -> None:
+        """A 304 start page is re-fetched without validators and its changed child is persisted (REQ-002, REQ-003, REQ-005)."""
+        TestSessionConnectionLifecycle._seed_documents(str(tmp_path / "rag.db"))
+        config = self._config(mock_config, tmp_path, max_depth=1)
+
+        with respx.mock:
+            respx.get(self.START).mock(
+                side_effect=self._start_route(("/child", self.FOREIGN))
+            )
+            respx.get(self.CHILD).mock(
+                return_value=Response(200, text=self._page("Child"))
+            )
+            respx.get(self.FOREIGN).mock(
+                return_value=Response(200, text=self._page("Foreign"))
+            )
+            crawler = WebCrawler(config=config)
+            await crawler.crawl_site(self.START, "en")
+
+            requested = [str(call.request.url) for call in respx.calls]
+            assert requested == [self.START, self.START, self.CHILD]
+            assert respx.calls[0].request.headers.get("if-none-match") == "etag-1"
+            assert "if-none-match" not in respx.calls[1].request.headers
+            assert not respx.get(self.FOREIGN).called
+
+        assert self._saved_urls(config["rag_src_dir"]) == [self.CHILD]
+
+    @pytest.mark.asyncio
+    async def test_304_at_depth_limit_makes_no_extra_request(
+        self, mock_config: dict, tmp_path: Path
+    ) -> None:
+        """A not-modified page at the depth limit makes no discovery fetch (REQ-002)."""
+        TestSessionConnectionLifecycle._seed_documents(str(tmp_path / "rag.db"))
+        config = self._config(mock_config, tmp_path, max_depth=0)
+
+        with respx.mock:
+            respx.get(self.START).mock(side_effect=self._start_route(("/child",)))
+            respx.get(self.CHILD).mock(
+                return_value=Response(200, text=self._page("Child"))
+            )
+            crawler = WebCrawler(config=config)
+            await crawler.crawl_site(self.START, "en")
+
+            assert len(respx.calls) == 1
+            assert not respx.get(self.CHILD).called
+
+        assert self._saved_urls(config["rag_src_dir"]) == []
+
+    @pytest.mark.asyncio
+    async def test_failed_fetch_and_304_log_distinctly(
+        self, mock_config: dict, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A failed fetch logs a warning and a 304 logs info, and neither enqueues links without a body (REQ-004)."""
+        import httpx
+
+        config = self._config(mock_config, tmp_path, max_depth=1)
+        config["fetch_retry"] = 1
+
+        def fail(request: httpx.Request) -> Response:
+            raise httpx.ConnectError("boom")
+
+        with respx.mock:
+            respx.get(self.START).mock(side_effect=fail)
+            respx.get(self.CHILD).mock(
+                return_value=Response(200, text=self._page("Child"))
+            )
+            with caplog.at_level(logging.INFO, logger="rag.ingestion.orchestrator"):
+                await WebCrawler(config=config).crawl_site(self.START, "en")
+            failed_log = [r.getMessage() for r in caplog.records]
+            assert not respx.get(self.CHILD).called
+
+        caplog.clear()
+        with respx.mock:
+            respx.get(self.START).mock(return_value=Response(status_code=304))
+            respx.get(self.CHILD).mock(
+                return_value=Response(200, text=self._page("Child"))
+            )
+            with caplog.at_level(logging.INFO, logger="rag.ingestion.orchestrator"):
+                await WebCrawler(config=config).crawl_site(self.START, "en")
+            not_modified_log = [r.getMessage() for r in caplog.records]
+            assert not respx.get(self.CHILD).called
+
+        assert any("fetch failed, subtree not discovered" in m for m in failed_log)
+        assert not any("not modified" in m for m in failed_log)
+        assert any("not modified" in m for m in not_modified_log)
+        assert not any(
+            "fetch failed, subtree not discovered" in m for m in not_modified_log
+        )

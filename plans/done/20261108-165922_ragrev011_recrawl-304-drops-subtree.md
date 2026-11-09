@@ -132,24 +132,24 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | In Progress | — | — |  |
-| 2 | Phase 2: typed fetch result | In Progress | — | — |  |
-| 3 | Phase 3: orchestrator discovery for not-modified pages | In Progress | — | — |  |
-| 4 | Phase 4: documentation | In Progress | — | — |  |
-| 5 | Phase 5: deployment and verification | Pending | — | — |  |
+| 1 | Phase 1: tests first | Completed | 20261109 | 20261109 | test_crawler_integration.py: typed fetch assertions + TestNotModifiedLinkDiscovery |
+| 2 | Phase 2: typed fetch result | Completed | 20261109 | 20261109 | Fetched/NotModified/FetchFailed + FetchResult in http_fetcher.py |
+| 3 | Phase 3: orchestrator discovery for not-modified pages | Completed | 20261109 | 20261109 | isinstance branching + _discover_links_of_unchanged_page, delay and depth guard |
+| 4 | Phase 4: documentation | Completed | 20261109 | 20261109 | docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md: Conditional GET bullet + 2.1.1 sentence |
+| 5 | Phase 5: deployment and verification | Pending | — | — | deploy.sh sync + init_db.sh + service restart + end-to-end verification per plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | `tests/rag/ingestion/test_crawler_retry_boundary.py::test_persisted_budget_survives_304_pages` asserted zero requests for 304 pages, conflicting with Plan step 4 discovery fetch; file outside the Plan's frozen target table | Yes | 20261109 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261109-143141_01_scripts_rag_ingestion_http_fetcher.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261109-143141_02_scripts_rag_ingestion_orchestrator.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261109-143141_03_tests_rag_ingestion_test_crawler_integration.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261109-143141_04_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md | 4 | Procedure | Pending | — | — |
+| implementations/done/20261109-143141_01_scripts_rag_ingestion_http_fetcher.py.md | 2 | Procedure | Completed | — | — |
+| implementations/done/20261109-143141_02_scripts_rag_ingestion_orchestrator.py.md | 3 | Procedure | Completed | — | — |
+| implementations/done/20261109-143141_03_tests_rag_ingestion_test_crawler_integration.py.md | 1 | Procedure | Completed | — | — |
+| implementations/done/20261109-143141_04_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

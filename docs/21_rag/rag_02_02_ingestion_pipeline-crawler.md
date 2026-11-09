@@ -42,7 +42,9 @@ number of pages **persisted** by the crawl for the site: the BFS persists until
 `max_pages` pages are written to `rag-src/` and then stops. Because 304 /
 empty-content / language-rejected / failed fetches do not persist, the BFS
 schedules up to `2 * max_pages` URLs per `crawl_site` call (fixed internal
-scheduling headroom), and logs a `BFS stop: scheduled=%d persisted=%d
+scheduling headroom). A not-modified page below `max_depth` costs one extra
+request for link discovery, and that request consumes scheduling headroom only,
+never the persisted budget. The BFS logs a `BFS stop: scheduled=%d persisted=%d
 max_pages=%d` summary line when the crawl stops. See
 [Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md)
 for the current operational values. No historical rationale for the
@@ -69,7 +71,7 @@ request is issued and crawling behavior is unchanged when the flag is off. See
 - **Text Extraction:** Body text via `crawler_utils.extract_text()`; code blocks from BeautifulSoup4 `<pre>` elements.
 - **Language Detection:** If the CJK ratio (Hiragana + Katakana + CJK Unified Ideographs) is at or above the threshold → `ja`; otherwise `en`. Pages shorter than the minimum detection length use the hint language. `--lang auto` always performs automatic detection, with `en` as fallback.
 - **Idempotency:** A `visited` set prevents duplicate fetching of the same URL within a single execution.
-- **Conditional GET:** Reads `documents.etag` / `documents.last_modified` from SQLite and sends `If-None-Match` / `If-Modified-Since`. If a 304 response is received, saving the file is skipped.
+- **Conditional GET:** Reads `documents.etag` / `documents.last_modified` from SQLite and sends `If-None-Match` / `If-Modified-Since`. A 304 response is neither extracted nor persisted. When the page's depth is below `max_depth`, the page is fetched once more without validators so that its links are still discovered, which costs one extra request per unchanged page; at the depth limit no second request is made. A failed fetch is logged separately and discovers nothing.
 - **Robots.txt Policy:** Opt-in via `respect_robots`. When enabled, the start host's `robots.txt` is fetched once before the crawl and disallowed paths are filtered at enqueue time, so external crawls respect the target site's robots policy.
 
 #### Local File Injection

@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
+from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,26 @@ if TYPE_CHECKING:
     from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class Fetched:
+    html: str
+    etag: str | None
+    last_modified: str | None
+
+
+@dataclass(frozen=True)
+class NotModified:
+    pass
+
+
+@dataclass(frozen=True)
+class FetchFailed:
+    pass
+
+
+FetchResult = Fetched | NotModified | FetchFailed
 
 
 class HttpFetcher:
@@ -44,32 +65,32 @@ class HttpFetcher:
         url: str,
         client: httpx.AsyncClient,
         extra_headers: dict[str, str] | None = None,
-    ) -> tuple[str, str | None, str | None] | None:
-        """Fetch HTML with optional conditional request headers; returns (html, etag, last_modified) on 200, None on 304 or retry exhaustion."""
+    ) -> FetchResult:
+        """Fetch HTML with optional conditional request headers; returns Fetched on 200, NotModified on 304, FetchFailed on retry exhaustion."""
         req_headers = dict(extra_headers or {})
         for i in range(self._fetch_retry):
             try:
                 resp = await client.get(url, headers=req_headers)
                 if resp.status_code == HTTPStatus.NOT_MODIFIED:
                     logger.info(
-                        "%s Not Modified, skipping: %s",
+                        "%s Not Modified: %s",
                         HTTPStatus.NOT_MODIFIED,
                         url,
                     )
-                    return None
+                    return NotModified()
                 resp.raise_for_status()
                 etag = resp.headers.get("ETag") or resp.headers.get("etag")
                 last_modified = resp.headers.get("Last-Modified") or resp.headers.get(
                     "last-modified",
                 )
-                return resp.text, etag, last_modified
+                return Fetched(resp.text, etag, last_modified)
             except httpx.HTTPError as e:
                 logger.warning(
                     "fetch failed (%s/%s) %s: %s", i + 1, self._fetch_retry, url, e
                 )
                 if i < self._fetch_retry - 1:
                     await asyncio.sleep(min(2**i, 10))
-        return None
+        return FetchFailed()
 
     def get_conditional_headers(
         self,

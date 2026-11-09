@@ -78,13 +78,13 @@ N/A: no trust-boundary change; the same requests are made and no new input is pa
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the result types and change the `fetch_html` returns, docstring, and 304 log wording | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) together with documents `02` and `03` | Pending | — | — | |
+| 1 | Add the result types and change the `fetch_html` returns, docstring, and 304 log wording | Completed | 20261109-204453 | 20261109-204453 | Applied against HEAD b81d74bb6. Step 3a: log literal verified as "%s Not Modified, skipping: %s" (http_fetcher.py:54-58); dataclasses not previously imported. Types written as 'str | None' to match the module's existing PEP 604 style (the module does not import typing.Optional). |
+| 2 | Run the validation sequence (`rules/toolchain.md`) together with documents `02` and `03` | Completed | 20261109-204453 | 20261109-210500 | Unit-end gates: ruff, mypy (557 files), lint-imports, check_module_size, check_compat_shims, check_mock_patch_targets all pass; targeted tests pass; full suite 29 failed / 12060 passed with all 29 failures pre-existing at HEAD (owner-excluded, see Blocker Log); diff-cover 100% on this unit's changed lines. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | End-of-unit run not green: see document `03` Blocker Log step 3 (out-of-scope `test_crawler_retry_boundary.py` count assertion, plus 29 pre-existing suite failures at HEAD `b81d74bb6`). This document's own file passes ruff, mypy, the import-linter contracts, and the module-size and compat-shim gates. | Yes — 20261109: the out-of-scope assertion was fixed with owner approval; the full suite then showed the same 29 pre-existing failures only (owner-excluded from this unit); diff-cover 100%. | 20261109 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

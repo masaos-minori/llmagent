@@ -74,8 +74,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the `Conditional GET` bullet and the `2.1.1` sentence | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Edit the `Conditional GET` bullet and the `2.1.1` sentence | Completed | 20261109-205309 | 20261109-205309 | Step 3a confirmed both cited places unchanged. Conditional GET bullet rewritten to the re-fetch-for-discovery behavior; 2.1.1 sentence extended with the extra discovery request consuming scheduling headroom only. Line 98's 'Skipping Mechanism | 304 Not Modified' table row left untouched (out of scope). |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261109-205309 | 20261109-205309 | check_docs_quality, check_docs_structure (file-scoped), check_docs_content_policy, check_docs_consistency --domain rag, check_docs_japanese: all clean. No Needs-Confirmation marker added or removed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

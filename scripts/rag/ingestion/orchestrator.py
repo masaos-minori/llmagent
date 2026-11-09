@@ -33,7 +33,10 @@ from rag.ingestion.crawler_utils import (
     normalize_url,  # noqa: E402 — local import for circular dependency avoidance
 )
 from rag.ingestion.http_fetcher import (
+    Fetched,  # noqa: E402 — local import for circular dependency avoidance
+    FetchFailed,  # noqa: E402 — local import for circular dependency avoidance
     HttpFetcher,  # noqa: E402 — local import for circular dependency avoidance
+    NotModified,  # noqa: E402 — local import for circular dependency avoidance
 )
 from rag.ingestion.language_resolver import (
     LanguageResolver,  # noqa: E402 — local import for circular dependency avoidance
@@ -225,7 +228,10 @@ class CrawlOrchestrator:
         session_db: SQLiteHelper | None,
         budget: _CrawlBudget,
     ) -> None:
-        """Fetch, extract, save one URL and enqueue its outbound links; counts the saved page against the persisted budget."""
+        """Fetch, extract, save one URL and enqueue its outbound links; counts the saved page against the persisted budget.
+
+        A not-modified page is re-fetched for link discovery only: it is not extracted, saved, or counted. A failed fetch enqueues nothing.
+        """
         async with sem:
             logger.info("[depth=%s] %s", depth, url)
             await asyncio.sleep(self._crawl_delay)
@@ -234,9 +240,16 @@ class CrawlOrchestrator:
                 url, db=session_db
             )
             result = await self._http_fetcher.fetch_html(url, client, extra_headers)
-            if result is None:
+            if isinstance(result, NotModified):
+                logger.info("not modified: %s", url)
+                await self._discover_links_of_unchanged_page(
+                    url, depth, start_url, queue, client
+                )
                 return
-            html, etag, last_modified = result
+            if isinstance(result, FetchFailed):
+                logger.warning("fetch failed, subtree not discovered: %s", url)
+                return
+            html, etag, last_modified = result.html, result.etag, result.last_modified
 
             title, text, code_blocks = self._content_extractor.extract_content(
                 html, url
@@ -263,3 +276,23 @@ class CrawlOrchestrator:
             )
             budget.persisted += 1
             self._link_discovery.enqueue_links(html, url, start_url, depth, queue)
+
+    async def _discover_links_of_unchanged_page(
+        self,
+        url: str,
+        depth: int,
+        start_url: str,
+        queue: asyncio.Queue[tuple[str, int]],
+        client: httpx.AsyncClient,
+    ) -> None:
+        """Re-fetch a not-modified page without conditional headers and enqueue its links; nothing is extracted, saved, or counted."""
+        if depth >= self._max_depth:
+            return
+        await asyncio.sleep(self._crawl_delay)
+        result = await self._http_fetcher.fetch_html(url, client)
+        if isinstance(result, Fetched):
+            self._link_discovery.enqueue_links(
+                result.html, url, start_url, depth, queue
+            )
+            return
+        logger.warning("discovery fetch did not return a body: %s", url)

@@ -135,7 +135,10 @@ async def test_persisted_budget_survives_304_pages(tmp_path: Path) -> None:
         await crawler.crawl_site("http://example.com", "en")
 
         assert len(_persisted_files(tmp_path)) == 3
-        assert len(respx.calls) == 4
+        # ragrev011: the 304 page is fetched once more without conditional headers for link
+        # discovery, so the run makes 5 requests for 4 URLs and still persists only 3 pages.
+        assert len(respx.calls) == 5
+        assert respx.get("http://example.com/a").call_count == 2
 
 
 @pytest.mark.asyncio

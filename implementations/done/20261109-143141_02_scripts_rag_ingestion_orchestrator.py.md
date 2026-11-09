@@ -80,14 +80,14 @@ N/A: the discovery fetch requests a URL that already passed the same origin and 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import the result types and branch on the outcome in `_process_crawl_url_async` | Pending | — | — | |
-| 2 | Add `_discover_links_of_unchanged_page` (new) and update the docstring | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) together with documents `01` and `03` | Pending | — | — | |
+| 1 | Import the result types and branch on the outcome in `_process_crawl_url_async` | Completed | 20261109-204453 | 20261109-204453 | Step 3a verified: 'if result is None: return' before tuple unpack at orchestrator.py:237-239, enqueue_links last at :268. Import order fixed by ruff isort (Fetched before FetchFailed). |
+| 2 | Add `_discover_links_of_unchanged_page` (new) and update the docstring | Completed | 20261109-204453 | 20261109-204453 | _discover_links_of_unchanged_page added with the depth guard, one crawl_delay sleep, one fetch, one branch; docstring updated. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) together with documents `01` and `03` | Completed | 20261109-204453 | 20261109-210500 | Per-member gates pass; end-of-unit full suite 29 failed / 12060 passed, all 29 pre-existing at HEAD (owner-excluded); diff-cover 100% on this unit's changed lines. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | End-of-unit run not green: see document `03` Blocker Log step 3 (out-of-scope `test_crawler_retry_boundary.py` count assertion, plus 29 pre-existing suite failures at HEAD `b81d74bb6`). Per-member gates (ruff, mypy, lint-imports, module size, compat shims, mock patch targets) and the targeted `tests/rag/ingestion/test_crawler_integration.py` + `tests/rag/ingestion/test_robots.py` run pass. | Yes — 20261109: the out-of-scope assertion was fixed with owner approval; the full suite then showed the same 29 pre-existing failures only (owner-excluded from this unit); diff-cover 100%. | 20261109 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

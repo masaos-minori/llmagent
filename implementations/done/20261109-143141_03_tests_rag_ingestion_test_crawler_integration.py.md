@@ -80,14 +80,14 @@ N/A: revert the commit (together with documents `01` and `02`, since the old-sha
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the four direct `fetch_html` tests and the `None` mock to the typed result | Pending | — | — | |
-| 2 | Add `TestNotModifiedLinkDiscovery` (new) (304 parent, depth limit, failed versus 304) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) together with documents `01` and `02` | Pending | — | — | |
+| 1 | Update the four direct `fetch_html` tests and the `None` mock to the typed result | Completed | 20261109-204453 | 20261109-204453 | Four direct fetch_html tests now assert FetchFailed()/NotModified()/Fetched attributes; AsyncMock(return_value=FetchFailed()) with the reason recorded in a comment. |
+| 2 | Add `TestNotModifiedLinkDiscovery` (new) (304 parent, depth limit, failed versus 304) | Completed | 20261109-204453 | 20261109-204453 | TestNotModifiedLinkDiscovery added: 304-parent (conditional GET, discovery GET, child GET, foreign link not requested, one persisted JSON whose url is the child), depth limit (1 call, no persisted file), failed-vs-304 log distinction. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) together with documents `01` and `02` | Completed | 20261109-204453 | 20261109-210500 | Targeted run tests/rag/ingestion: 293 passed after the owner-approved fix to test_crawler_retry_boundary.py; full suite 29 failed / 12060 passed, all 29 pre-existing at HEAD (owner-excluded); diff-cover 100%. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | Blocked: file outside procedure scope — `tests/rag/ingestion/test_crawler_retry_boundary.py::test_persisted_budget_survives_304_pages` asserted `len(respx.calls) == 4` and observed 5: the 304 page `http://example.com/a` at `depth 1 < max_depth 2` triggers the intended one extra unconditional discovery GET. The file is not named by any row of this Plan. Secondary finding: the full suite already had 29 failures at HEAD `b81d74bb6` without this unit's changes (`ValueError: RAG config requires non-empty rag_db_path when use_search=True` in `tests/rag/test_rag_http_mode.py`, `tests/rag/test_pipeline_http_result_kind.py`, `tests/mcp_servers/rag_pipeline/`, `tests/agent/test_rag_get_cfg.py`), unrelated to this unit. | Yes — 20261109: the owner chose direct editing of that test over a Plan amendment. `len(respx.calls) == 5` plus `respx.get("http://example.com/a").call_count == 2` now pin the discovery fetch; the persisted-count assertion (3) is unchanged. The 29 pre-existing failures were ruled out of this commit by the owner. | 20261109 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
