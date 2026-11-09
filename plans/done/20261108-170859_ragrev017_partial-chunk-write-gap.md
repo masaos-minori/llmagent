@@ -125,10 +125,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: atomic publish | Pending | — | — | |
-| 3 | Phase 3: documentation | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: atomic publish | In Progress | — | — |  |
+| 3 | Phase 3: documentation | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -138,7 +138,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-234702_1_scripts_rag_ingestion_chunk_splitter.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261109-234702_3_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -163,3 +164,5 @@ N/A: no release unit
 | REQ-005 | Constraints | `scripts/rag/ingestion/chunk_splitter.py` | Phase 2 | AC-5 | existing chunk splitter suites | Explicit in issue |
 | REQ-005 | Constraints | `tests/rag/ingestion/test_chunk_splitter.py` | Phase 1 | AC-5 | existing chunk splitter suites | Explicit in issue |
 | REQ-006 | Documentation Impact (corrected: doc L33 describes the sentinel) | `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` | Phase 3 | AC-6 | docs gates | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-234702 -->

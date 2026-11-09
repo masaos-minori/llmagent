@@ -42,7 +42,7 @@ Validate early (read time for `chunk_type`, embed time for the vector size) so d
 | `scripts/rag/ingestion/embedding.py` | Modify | Validate the embedding BLOB size with `validate_embedding_blob` and return a failure reason on mismatch | `REQ-001` / AC-1 | `embed_and_store` L71-112 builds the BLOB unchecked; `validate_embedding_blob` exists (checked in Step 3) | `tests/rag/ingestion/test_ingester.py` | Verified |
 | `scripts/rag/ingestion/pipeline_utils.py` | Modify | Restrict `chunk_type` to `text` / `code` in `read_chunk_json` | `REQ-002` / AC-2 | `_validate_str_or_empty(data, "chunk_type", "chunk")` at L199 (checked in Step 3) | `tests/rag/ingestion/test_pipeline_utils_strict.py` | Verified |
 | `scripts/rag/ingestion/ingester.py` | Modify | Catch `sqlite3.IntegrityError` around the commit in `ingest_url_group` and route the group to `failed/` | `REQ-003`..`REQ-005` / AC-3..AC-5 | `tx_mgr.commit` at L331 with no local handler; outer handler only in `_process_url_groups` (checked in Step 3) | `tests/rag/ingestion/test_ingester.py` | Verified |
-| `tests/rag/ingestion/test_ingester.py` | Modify | Wrong-size embedding, integrity-error quarantine, transient-error retention tests | `REQ-001`, `REQ-003`, `REQ-004` / AC-1, AC-3, AC-4 | Existing ingester tests with stub embedding clients (checked in Step 3) | self | Verified |
+| `tests/rag/ingestion/test_ingester.py` | Modify | Wrong-size embedding, integrity-error quarantine, transient-error retention tests; update the existing `TestIntegrityErrorPropagation` group-level test to the new routing behavior | `REQ-001`, `REQ-003`, `REQ-004` / AC-1, AC-3, AC-4 | Existing ingester tests with stub embedding clients (checked in Step 3) | self | Verified |
 | `tests/rag/ingestion/test_pipeline_utils_strict.py` | Modify | Empty and unknown `chunk_type` rejection tests; fix fixtures that rely on lenient values | `REQ-002` / AC-2 | Existing strict-reader tests; `CHUNK_PAYLOAD["chunk_type"] == "text"` (checked in Step 3) | self | Verified |
 | `docs/21_rag/rag_02_04_ingestion_pipeline-ingester.md` | Modify | Describe deterministic-failure routing near L104-110 | `REQ-006` / AC-6 | L104-110 list the `failed/` routing cases without these (checked in Step 3) | docs gates | Verified |
 
@@ -61,7 +61,7 @@ Validate early (read time for `chunk_type`, embed time for the vector size) so d
 - AC-2 (`REQ-002`): `read_chunk_json` raises `ChunkFormatError` for `chunk_type` `""`, `"chunk"`, and `"foo"` and accepts `"text"` and `"code"`.
 - AC-3 (`REQ-003`): a forced `sqlite3.IntegrityError` from `commit` routes every file of the group to `failed/` with `STORAGE_FAILED`, the database has no partial rows for that URL, and the run continues with the next group.
 - AC-4 (`REQ-004`): a forced `sqlite3.OperationalError` leaves the files in `chunk/` and the result is the existing `unexpected_failure`.
-- AC-5 (`REQ-005`): existing atomicity, retry, and routing tests pass unmodified.
+- AC-5 (`REQ-005`): existing atomicity, retry, and routing tests pass unmodified, with two fixture/test updates found in Step 3a of plan-to-implementation-procedure: (1) `test_integrity_error_routes_to_failed_via_ingest_url_group` in `tests/rag/ingestion/test_ingester.py` (L1289) asserts the legacy `IntegrityError`-propagation behavior with `pytest.raises` and must be updated to assert the new `failed/` routing; (2) `test_dimension_mismatch_on_retry` (L433) asserts success for an 8-dim vector and must be updated to expect `VALIDATION_FAILED`, and the `_DIM = 384` fake-embedding fixtures must be aligned to the `get_embedding_dims()` constant because `embed_and_store` now validates every stub vector.
 - AC-6 (`REQ-006`): the doc names the deterministic cases; docs checkers pass.
 
 ## Tests
@@ -140,11 +140,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: early validation | Pending | — | — | |
-| 3 | Phase 3: commit-time quarantine | Pending | — | — | |
-| 4 | Phase 4: documentation | Pending | — | — | |
-| 5 | Phase 5: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: early validation | In Progress | — | — |  |
+| 3 | Phase 3: commit-time quarantine | In Progress | — | — |  |
+| 4 | Phase 4: documentation | In Progress | — | — |  |
+| 5 | Phase 5: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -154,7 +154,11 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-232810_4_tests_rag_ingestion_test_ingester.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-232810_1_scripts_rag_ingestion_embedding.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-232810_2_scripts_rag_ingestion_pipeline_utils.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-232810_3_scripts_rag_ingestion_ingester.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-232810_6_docs_21_rag_rag_02_04_ingestion_pipeline-ingester.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -178,3 +182,5 @@ N/A: no release unit
 | REQ-004 | Acceptance Criteria 2 | `tests/rag/ingestion/test_ingester.py` | Phase 1 | AC-4 | transient-error retention test | Explicit in issue |
 | REQ-005 | Constraints | `scripts/rag/ingestion/ingester.py` | Phase 3 | AC-5 | existing atomicity and routing tests | Explicit in issue |
 | REQ-006 | Documentation Impact | `docs/21_rag/rag_02_04_ingestion_pipeline-ingester.md` | Phase 4 | AC-6 | docs gates | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-232810 -->

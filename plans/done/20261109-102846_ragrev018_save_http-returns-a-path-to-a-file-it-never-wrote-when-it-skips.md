@@ -170,9 +170,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Persister contract change (optional `Path` return, `None` on skips, docstring) with per-branch unit tests | Pending | — | — | |
-| 2 | Orchestrator handles `None` (no budget increment, no enqueue) with caller-side test | Pending | — | — | |
-| 3 | Deployment hand-off and verification | Pending | — | — | |
+| 1 | Persister contract change (optional `Path` return, `None` on skips, docstring) with per-branch unit tests | In Progress | — | — |  |
+| 2 | Orchestrator handles `None` (no budget increment, no enqueue) with caller-side test | In Progress | — | — |  |
+| 3 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -182,7 +182,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-235704_01_scripts_rag_ingestion_crawl_persister.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-235704_02_scripts_rag_ingestion_orchestrator.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-235704_03_tests_rag_ingestion_test_crawl_persister_lang.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-235704_04_tests_rag_ingestion_test_crawler_integration.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -203,3 +206,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Issue Required Changes (caller handling); orchestrator pre-validation returns (Step 2) | `scripts/rag/ingestion/orchestrator.py` | Phase 2 | AC-3 | Caller-side test; existing `TestMaxPagesBoundaryCondition` tests | Derived from confirmed evidence |
 | REQ-004 | Issue Testing Expectations; test location corrected by Step 3 | `tests/rag/ingestion/test_crawl_persister_lang.py` | Phase 1 | AC-4 | `uv run pytest tests/rag/ingestion/test_crawl_persister_lang.py -v` | Confirmed by repository evidence |
 | REQ-005 | Issue Acceptance Criteria (no caller counts `None`); `TestMaxPagesBoundaryCondition` setup (Step 3) | `tests/rag/ingestion/test_crawler_integration.py` | Phase 2 | AC-5 | `uv run pytest tests/rag/ingestion/test_crawler_integration.py -v` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-235704 -->

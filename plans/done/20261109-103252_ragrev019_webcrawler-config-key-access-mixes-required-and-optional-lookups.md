@@ -166,8 +166,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Required-key validation pass in `WebCrawler.__init__` with the new test module (tests first) | Pending | — | — | |
-| 2 | Deployment hand-off and verification | Pending | — | — | |
+| 1 | Required-key validation pass in `WebCrawler.__init__` with the new test module (tests first) | In Progress | — | — |  |
+| 2 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -177,7 +177,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261110-000238_01_scripts_rag_ingestion_crawler.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261110-000238_02_tests_rag_ingestion_test_crawler_config_validation.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -197,3 +198,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-002 | Issue Constraints, Acceptance Criteria (values unchanged) | `scripts/rag/ingestion/crawler.py` | Phase 1 | AC-2 | `uv run pytest tests/rag/ingestion -q` | Explicit in issue |
 | REQ-003 | Issue Testing Expectations | `tests/rag/ingestion/test_crawler_config_validation.py` | Phase 1 | AC-3 | `uv run pytest tests/rag/ingestion/test_crawler_config_validation.py -v` | Explicit in issue |
 | REQ-004 | Issue Constraints and Acceptance Criteria (shipped values unchanged); `config/crawler.toml` defines all six keys (Step 2) | `tests/rag/ingestion/test_crawler_config_validation.py` | Phase 1 | AC-4 | Shipped-file drift-guard test | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261110-000238 -->

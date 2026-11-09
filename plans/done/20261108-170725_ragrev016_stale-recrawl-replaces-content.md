@@ -137,11 +137,11 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: staleness query and commit rule | Pending | — | — | |
-| 3 | Phase 3: ingester handling | Pending | — | — | |
-| 4 | Phase 4: documentation | Pending | — | — | |
-| 5 | Phase 5: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: staleness query and commit rule | In Progress | — | — |  |
+| 3 | Phase 3: ingester handling | In Progress | — | — |  |
+| 4 | Phase 4: documentation | In Progress | — | — |  |
+| 5 | Phase 5: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -151,7 +151,11 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-234108_4_tests_rag_ingestion_test_ingestion_freshness.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-234108_1_scripts_rag_ingestion_etag_manager.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-234108_2_scripts_rag_ingestion_transaction_commit.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-234108_3_scripts_rag_ingestion_ingester.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-234108_6_docs_21_rag_rag_02_06_ingestion_pipeline-supporting-components.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -176,3 +180,5 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 | REQ-004 | Constraints | `scripts/rag/ingestion/transaction_commit.py` | Phase 2 | AC-4 | existing freshness and guard suites | Explicit in issue |
 | REQ-004 | Constraints | `tests/rag/ingestion/test_ingestion_freshness.py` | Phase 1 | AC-4 | existing freshness and guard suites | Explicit in issue |
 | REQ-005 | Documentation Impact | `docs/21_rag/rag_02_06_ingestion_pipeline-supporting-components.md` | Phase 4 | AC-5 | docs gates | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-234108 -->
