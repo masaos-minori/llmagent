@@ -42,8 +42,8 @@ KNOWN_WRITER_STATUSES: dict[str, set[str]] = {
 
 def _make_cfg(db_path: str) -> DbConfig:
     return DbConfig(
-        rag_db_path="/tmp/opencode/wfaudit005_rag.sqlite",
-        session_db_path="/tmp/opencode/wfaudit005_session.sqlite",
+        rag_db_path=str(Path(db_path).parent / "rag.sqlite"),
+        session_db_path=str(Path(db_path).parent / "session.sqlite"),
         workflow_db_path=db_path,
     )
 
