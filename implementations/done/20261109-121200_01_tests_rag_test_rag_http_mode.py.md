@@ -67,9 +67,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the stubbing fallback test; add the no-HTTP and two-request tests | Pending | — | — | |
-| 2 | Run the new tests on the pre-change HEAD and record that they fail (AC-7) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and `check_adr_invariant_matrix.py` | Pending | — | — | |
+| 1 | Replace the stubbing fallback test; add the no-HTTP and two-request tests | Complete | 2026-11-09 | 2026-11-09 | Real-lifecycle tests written; fail on pre-change HEAD (AC-7). |
+| 2 | Run the new tests on the pre-change HEAD and record that they fail (AC-7) | Complete | 2026-11-09 | 2026-11-09 | 3 failures recorded: FALLBACK→LOCAL, remote_status None→502, accumulate 1→2. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and `check_adr_invariant_matrix.py` | Complete | 2026-11-09 | 2026-11-09 | Passes after both production procedures landed (see procedure 03). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

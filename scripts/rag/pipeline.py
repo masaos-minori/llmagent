@@ -21,6 +21,7 @@ Module layout:
    rag/pipeline.py          — RagPipeline core orchestration (this file)
 """
 
+import dataclasses
 import logging
 import sqlite3
 import time
@@ -252,6 +253,13 @@ class RagPipeline:
         """
         if not self._cfg.use_search:
             return ""
+        # Reset per-request refiner state on every path so a long-lived pipeline
+        # never accumulates HttpAugment records or carries stale diagnostics.
+        self._augment_refiner.reset_request_state()
+        # HTTP-derived state captured only on the fallback path (see below); kept
+        # for the post-run merge that preserves it after an in-process fallback.
+        http_diag: SearchDiagnostics | None = None
+        http_records: list[StageResult] = []
         # HTTP mode: delegate to external RAG service when rag_query_service_url is configured
         result = None
         if rag_url := self._cfg.rag_query_service_url:
@@ -268,6 +276,11 @@ class RagPipeline:
                 if fetch_result is not None:
                     self.last_fetch_result = cast(TwoStageFetchResult, fetch_result)
                 return result
+            else:
+                # Fallback path: this request's HTTP diagnostics and its
+                # HttpAugment record survive into the post-run merge below.
+                http_diag = self._augment_refiner.search_diagnostics
+                http_records = self._augment_refiner.http_stage_results
         try:
             with RagDatabaseConnection(
                 rag_db_path=self._rag_db_path,
@@ -324,6 +337,7 @@ class RagPipeline:
         except RuntimeError as e:
             raise RagPipelineError(f"DB open failed (RAG unavailable): {e}") from e
         # run() already calls on_clear() in its finally block
+        self._merge_http_state(http_diag, http_records, pipeline_result)
         if debug_fn is not None:
             debug_fn(
                 pipeline_result.queries,
@@ -347,6 +361,47 @@ class RagPipeline:
                 return refined_text
         context_block: str = _augment_format_chunks(pipeline_result.reranked)
         return context_block
+
+    def _merge_http_state(
+        self,
+        http_diag: SearchDiagnostics | None,
+        http_records: list[StageResult],
+        run_result: PipelineRunResult,
+    ) -> None:
+        """Fold this request's HTTP diagnostics and HttpAugment record into the
+        post-run state after an in-process fallback (REQ-001..REQ-005).
+
+        ``http_diag`` is ``None`` on the no-HTTP path (no ``rag_query_service_url``);
+        the merge is skipped and ``run()``'s own state stands (REQ-004). Otherwise
+        rebuilds ``last_search_diagnostics`` from the run's own diagnostics via
+        ``dataclasses.replace``, overlaying only the HTTP-derived fields
+        (``result_source``, ``http_result_kind``, ``remote_status_code``,
+        ``remote_latency_ms``) from ``http_diag`` and ``fallback_reason`` from the
+        first ``http_records`` entry that carries one. The embed/FTS counters and
+        every other field stay with the run's diagnostics. ``last_stage_results``
+        becomes the HttpAugment record first, then the in-process stages. Leaves
+        timings, fetch result, the cumulative search counters, and the identity
+        markers untouched.
+        """
+        if http_diag is None:
+            return
+        fallback_reason = next(
+            (
+                record["fallback_reason"]
+                for record in http_records
+                if record["fallback_reason"] is not None
+            ),
+            None,
+        )
+        self.last_search_diagnostics = dataclasses.replace(
+            run_result.diagnostics,
+            result_source=http_diag.result_source,
+            http_result_kind=http_diag.http_result_kind,
+            remote_status_code=http_diag.remote_status_code,
+            remote_latency_ms=http_diag.remote_latency_ms,
+            fallback_reason=fallback_reason,
+        )
+        self.last_stage_results = [*http_records, *run_result.stage_results]
 
     def get_diagnostics(self) -> dict:
         """Return structured diagnostics for the last pipeline execution.

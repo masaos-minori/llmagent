@@ -74,9 +74,9 @@ Keep the HTTP-derived diagnostics and the `HttpAugment` stage record after an in
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the reset call, the HTTP-state capture, and `_merge_http_state` (new) to `RagPipeline.augment()` | Pending | — | — | |
-| 2 | Run the new real-lifecycle tests and the unmodified diagnostics and refiner suites | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`), `radon cc`, and the ADR and RAG documentation checks | Pending | — | — | |
+| 1 | Add the reset call, the HTTP-state capture, and `_merge_http_state` (new) to `RagPipeline.augment()` | Complete | 2026-11-09 | 2026-11-09 | Guard moved into helper to keep augment() at C(13). |
+| 2 | Run the new real-lifecycle tests and the unmodified diagnostics and refiner suites | Complete | 2026-11-09 | 2026-11-09 | All 760 tests/rag pass; AC-1..AC-7 verified. |
+| 3 | Run the validation sequence (`rules/toolchain.md`), `radon cc`, and the ADR and RAG documentation checks | Complete | 2026-11-09 | 2026-11-09 | ruff/mypy/lint-imports/radon(C13)/module-size/ADR/docs all green. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

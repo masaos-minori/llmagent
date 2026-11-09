@@ -7,6 +7,7 @@ test_pipeline_http_result_kind.py (which asserts on stage_results).
 
 from __future__ import annotations
 
+import dataclasses
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -17,6 +18,7 @@ from rag.exceptions import RagPipelineError
 from rag.models_result import HttpResultKind, ResultSource, SearchDiagnostics
 from rag.pipeline import RagPipeline
 from rag.pipeline_service import CallRagResult
+from rag.stage import PipelineContext
 from rag.stages.augment import AugmentStage
 from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
@@ -83,38 +85,73 @@ async def test_remote_empty_does_not_trigger_in_process(monkeypatch) -> None:
 # ── In-process fallback behavior (rag/pipeline.py) ─────────────────────────────
 
 
-@pytest.mark.asyncio
-async def test_in_process_fallback_sets_result_source_fallback(monkeypatch) -> None:
-    """In-process fallback -> last_search_diagnostics.result_source == FALLBACK."""
-    pipeline = _make_pipeline()
-    mock_db = MagicMock()
-    mock_db.__enter__ = MagicMock(return_value=mock_db)
-    mock_db.__exit__ = MagicMock(return_value=False)
+def _patched_fallback_env(
+    call_rag_service_mock: object,
+    *,
+    search_counters: tuple[int, int, int] = (7, 3, 5),
+) -> ExitStack:
+    """Return an ExitStack that runs the real ``RagPipelineStageLifecycle``.
 
-    async def mock_call_rag_service(*args, **kwargs):
+    Patches only the stage bodies (via their ``run``) and the DB / identity
+    collaborators, so ``RagPipeline.run`` executes for real and only each stage's
+    own ``run`` is replaced by a recorder. The ``SearchStage`` recorder sets
+    non-default embed/FTS counters on the context so the counter-survival
+    assertion cannot pass on an accidental default. ``RagPipeline.run`` is never
+    patched (AC-7).
+    """
+
+    def _mock_connection() -> MagicMock:
+        connection = MagicMock()
+        connection.__enter__ = MagicMock(return_value=connection)
+        connection.__exit__ = MagicMock(return_value=False)
+        return connection
+
+    def _recorder(name: str):
+        async def _run(self, ctx: PipelineContext, **kwargs: object) -> None:
+            if name == "SearchStage":
+                embed_ok, embed_failed, fts_errors = search_counters
+                ctx.search_diagnostics = dataclasses.replace(
+                    ctx.search_diagnostics,
+                    embed_ok=embed_ok,
+                    embed_failed=embed_failed,
+                    fts_errors=fts_errors,
+                )
+
+        return _run
+
+    stack = ExitStack()
+    stack.enter_context(
+        patch("rag.http_augment.call_rag_service", call_rag_service_mock)
+    )
+    stack.enter_context(
+        patch("rag.pipeline.RagDatabaseConnection", return_value=_mock_connection())
+    )
+    stack.enter_context(
+        patch("rag.pipeline.compute_local_identity", return_value=MagicMock())
+    )
+    for stage in (MqeStage, SearchStage, FusionStage, RerankStage, AugmentStage):
+        stack.enter_context(patch.object(stage, "run", _recorder(stage.__name__)))
+    return stack
+
+
+@pytest.mark.asyncio
+async def test_in_process_fallback_sets_result_source_fallback() -> None:
+    """Real-lifecycle fallback -> HTTP diagnostics and record survive the run().
+
+    Unlike the pre-change stubbing test, ``RagPipeline.run`` is not patched: the
+    real stage lifecycle executes and only each stage body is recorded. After a
+    transient HTTP failure the merge keeps the HTTP diagnostics and puts the
+    ``HttpAugment`` record first in ``last_stage_results`` (AC-1..AC-3).
+    """
+    pipeline = _make_pipeline()
+    reason = "connection refused"
+
+    async def mock_call_rag_service(*args: object, **kwargs: object) -> object:
+        if kwargs.get("set_fallback_reason"):
+            kwargs["set_fallback_reason"](reason)
         return CallRagResult("transient_failure", None, 503, 100.0)
 
-    monkeypatch.setattr(
-        pipeline,
-        "run",
-        AsyncMock(
-            return_value=PipelineRunResult(
-                queries=["query"],
-                search_results=[],
-                merged=[],
-                reranked=[],
-                stage_results=[],
-                diagnostics=SearchDiagnostics(),
-            )
-        ),
-    )
-    with (
-        patch("rag.http_augment.call_rag_service", mock_call_rag_service),
-        patch(
-            "rag.pipeline.SQLiteHelper",
-            return_value=MagicMock(open=MagicMock(return_value=mock_db)),
-        ),
-    ):
+    with _patched_fallback_env(mock_call_rag_service):
         await pipeline.augment("query")
 
     assert pipeline.last_search_diagnostics.result_source == ResultSource.FALLBACK
@@ -122,9 +159,94 @@ async def test_in_process_fallback_sets_result_source_fallback(monkeypatch) -> N
     assert sd.http_result_kind == HttpResultKind.ERROR
     assert sd.remote_status_code == 503
     assert sd.remote_latency_ms == 100.0
-    assert any(
-        r.get("fallback_reason") is not None for r in pipeline.last_stage_results
+    # In-process counters come from the run, not the HTTP snapshot (AC-1).
+    assert sd.embed_ok == 7
+    assert sd.embed_failed == 3
+    assert sd.fts_errors == 5
+    # The reason source is the HttpAugment record (AC-3).
+    assert sd.fallback_reason == reason
+    names = [r["stage_name"] for r in pipeline.last_stage_results]
+    assert names[0] == "HttpAugment"
+    assert names[1:] == [
+        "MqeStage",
+        "SearchStage",
+        "FusionStage",
+        "RerankStage",
+        "AugmentStage",
+    ]
+    assert pipeline.last_stage_results[0]["fallback_reason"] == reason
+
+
+@pytest.mark.asyncio
+async def test_no_http_keeps_local_and_not_used() -> None:
+    """No ``rag_query_service_url`` -> LOCAL / NOT_USED; no HttpAugment record (AC-4)."""
+    pipeline = _make_pipeline("")
+
+    async def mock_call_rag_service(*args: object, **kwargs: object) -> object:
+        # Never reached without a URL; kept so the shared env builds unchanged.
+        return CallRagResult("success", "result", 200, 10.0)
+
+    with _patched_fallback_env(mock_call_rag_service):
+        await pipeline.augment("query")
+
+    sd = pipeline.last_search_diagnostics
+    assert sd.result_source == ResultSource.LOCAL
+    assert sd.http_result_kind == HttpResultKind.NOT_USED
+    assert sd.fallback_reason is None
+    assert not any(
+        r["stage_name"] == "HttpAugment" for r in pipeline.last_stage_results
     )
+
+
+@pytest.mark.asyncio
+async def test_two_requests_do_not_accumulate_http_state() -> None:
+    """Two fallback requests keep only the latest request's HttpAugment record (AC-5)."""
+    pipeline = _make_pipeline()
+
+    async def first_call(*args: object, **kwargs: object) -> object:
+        return CallRagResult("transient_failure", None, 503, 100.0)
+
+    async def second_call(*args: object, **kwargs: object) -> object:
+        return CallRagResult("transient_failure", None, 502, 250.0)
+
+    with _patched_fallback_env(first_call):
+        await pipeline.augment("query")
+    with _patched_fallback_env(second_call):
+        await pipeline.augment("query")
+
+    assert pipeline.last_search_diagnostics.remote_status_code == 502
+    assert pipeline.last_search_diagnostics.remote_latency_ms == 250.0
+    http_records = [
+        r for r in pipeline.last_stage_results if r["stage_name"] == "HttpAugment"
+    ]
+    assert len(http_records) == 1
+    assert http_records[0]["status"] == "fallback"
+
+
+@pytest.mark.asyncio
+async def test_two_requests_do_not_accumulate_http_state_success_second() -> None:
+    """Fallback then success: only the second request's HttpAugment record remains (AC-5)."""
+    pipeline = _make_pipeline()
+
+    async def first_call(*args: object, **kwargs: object) -> object:
+        return CallRagResult("transient_failure", None, 503, 100.0)
+
+    async def second_call(*args: object, **kwargs: object) -> object:
+        return CallRagResult("success", "result", 200, 10.0)
+
+    with _patched_fallback_env(first_call):
+        await pipeline.augment("query")
+    with _patched_fallback_env(second_call):
+        result = await pipeline.augment("query")
+
+    assert result == "result"
+    assert pipeline.last_search_diagnostics.result_source == ResultSource.REMOTE
+    assert pipeline.last_search_diagnostics.remote_status_code == 200
+    http_records = [
+        r for r in pipeline.last_stage_results if r["stage_name"] == "HttpAugment"
+    ]
+    assert len(http_records) == 1
+    assert http_records[0]["status"] == "success"
 
 
 @pytest.mark.asyncio

@@ -64,9 +64,9 @@ N/A: revert the commit (the `pipeline.py` procedure must be reverted with it, si
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `reset_request_state` (new) and `http_stage_results` (new) to `AugmentRefiner` | Pending | — | — | |
-| 2 | Confirm existing refiner tests still pass unmodified | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `reset_request_state` (new) and `http_stage_results` (new) to `AugmentRefiner` | Complete | 2026-11-09 | 2026-11-09 | Added; no existing member changed. |
+| 2 | Confirm existing refiner tests still pass unmodified | Complete | 2026-11-09 | 2026-11-09 | 28 passed unmodified. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-11-09 | 2026-11-09 | ruff/mypy/lint-imports/module-size green. Fails only until procedure 03 lands. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

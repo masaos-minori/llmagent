@@ -142,6 +142,32 @@ class AugmentRefiner:
     def last_stage_results(self, value: list[StageResult]) -> None:
         self._last_stage_results = value
 
+    def reset_request_state(self) -> None:
+        """Reset per-request refiner state to the frozen defaults.
+
+        Called once at the top of every ``RagPipeline.augment()`` (on every path) so
+        a long-lived pipeline does not accumulate ``HttpAugment`` records or carry
+        stale diagnostics across requests. Assigns fresh objects rather than
+        clearing the existing list, so a list previously handed to
+        ``RagPipeline.last_stage_results`` is never mutated in place.
+        """
+        self._search_diagnostics = SearchDiagnostics()
+        self._last_stage_results = []
+
+    @property
+    def http_stage_results(self) -> list[StageResult]:
+        """Return this request's ``HttpAugment`` stage records.
+
+        Filtered from ``last_stage_results`` by ``stage_name == "HttpAugment"`` so
+        the pipeline takes only HTTP records into the post-fallback merge,
+        independent of any ``Refiner`` record. Returns a new list.
+        """
+        return [
+            entry
+            for entry in self.last_stage_results
+            if entry["stage_name"] == "HttpAugment"
+        ]
+
     @property
     def last_remote_identity(self) -> CorpusIdentity | None:
         """Return the remote corpus identity forwarded by the last HTTP augment.
