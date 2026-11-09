@@ -36,6 +36,7 @@ def _make_cfg(**kwargs: object) -> SimpleNamespace:
         "refiner_max_tokens": 512,
         "refiner_max_chars_per_chunk": 300,
         "refiner_timeout": 30.0,
+        "rag_db_path": ":memory:",
     }
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
