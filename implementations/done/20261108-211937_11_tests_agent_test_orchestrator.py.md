@@ -13,7 +13,7 @@ Rename every `backoff_sec` fixture and helper reference in `tests/agent/test_orc
 
 ## Design decisions
 - The two behavioral sites keep their roles after the rename: L3819 `await asyncio.sleep(policy.backoff_sec)` inside `class _RetryThenHaltEngine` becomes `policy.retry_wait_sec` (the fake engine mirrors the real engine's constant wait), and L3929's comment "force backoff_sec=0 so the retries are instant" renames with it.
-- New test `test_record_exit_status_reduced_signature` (new) is signature-level pinning, not behavior pinning: `inspect.signature(WorkflowEngineAdapter._record_exit_status)` must name exactly `exit_reason` and `task` (no `error_kind` parameter). `import inspect` is not currently in the file and must be added to the top-level import block.
+- New test `test_record_exit_status_reduced_signature` (new) is signature-level pinning, not behavior pinning: `inspect.signature(WorkflowEngineAdapter._record_exit_status)` must name exactly `exit_reason` and `task` (no `error_kind` parameter). A second new test `test_status_for_exit_single_parameter_mapping` (new) pins `_status_for_exit` as one-parameter with the `cancelled` -> `halted` and `completed` -> `None` mappings (the plan's `REQ-001` acceptance and the Validation plan of procedure 01). Neither `inspect` nor `agent.workflow_engine_adapter` is imported by the file at HEAD `e4b47f11e` (it only patches `agent.workflow_engine_adapter.*` by string), so both imports are added to the top-level import block.
 - New test placement: end of `class TestTaskStatusPerTurnOutcome` (HEAD L3192), the class that already exercises the real adapter/engine status paths.
 
 ## Alternatives considered
@@ -29,13 +29,14 @@ File-wide key rename per the census, then add one signature test.
 
 ### Method
 1. Rename all 12 occurrences: the `RetryPolicy(max_attempts=..., backoff_sec=...)` fixtures (L204, L414, L512, L613, L853, L961, L1055, L3171, L3934, L3982), the fake-engine attribute read at L3819, and the comment at L3929 — each `backoff_sec` -> `retry_wait_sec`.
-2. Add `import inspect` to the top-level imports (alphabetical position in the stdlib block).
+2. Add `import inspect` to the top-level stdlib imports (alphabetical position) and `from agent.workflow_engine_adapter import WorkflowEngineAdapter, _status_for_exit` to the first-party block (ruff isort places it after the `agent.workflow...` imports).
 3. Append to `class TestTaskStatusPerTurnOutcome`:
    - `test_record_exit_status_reduced_signature` (new): `params = inspect.signature(WorkflowEngineAdapter._record_exit_status).parameters; assert "error_kind" not in params; assert list(params) == ["self", "exit_reason", "task"]`.
+   - `test_status_for_exit_single_parameter_mapping` (new): `assert list(inspect.signature(_status_for_exit).parameters) == ["exit_reason"]; assert _status_for_exit("cancelled") == "halted"; assert _status_for_exit("completed") is None`.
 
 ### Details
 - After the edit, `grep -n backoff_sec tests/agent/test_orchestrator.py` returns nothing.
-- `WorkflowEngineAdapter` is already imported in the file; no new import beyond `inspect`.
+- New imports: `inspect` and `WorkflowEngineAdapter`/`_status_for_exit` from `agent.workflow_engine_adapter` (no import cycle: the module is already loaded by `agent.orchestrator`).
 
 ## Compatibility considerations
 - Running this file before rows 1 and 3 land fails (old signature, old kwarg); the plan's Phase 1/3 chains land them together.
@@ -61,10 +62,10 @@ File-wide key rename per the census, then add one signature test.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-092921 | 20261109-092921 | Changed: test_orchestrator.py; imports corrected, _status_for_exit pin test added |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-092921 | 20261109-092921 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-092921 | 20261109-092921 | Full suite 11904 passed; 3 pre-existing env errors in test_workflow_status_vocabulary.py (/tmp/opencode missing); diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-092921 | 20261109-092921 | N/A: docs covered by procedures 13-14 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

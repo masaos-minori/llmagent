@@ -55,6 +55,7 @@ Delete what is dead, rename what is misleading, convert what is unreachable into
 | `tests/agent/test_repl_health.py` | Modify | 3 workflow-JSON fixture strings (L473, L500, L514) carry `"backoff_sec": 1` and must carry the new key or the loader refuses them (row added 2026-11-08) | `REQ-003` | `grep -n backoff_sec` sites verified at HEAD | self | `Verified` |
 | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Modify | Retry Mechanism bullets (L131-132, L135) and the numeric loader-validation bullet (L153) name the key and the fixed-wait semantics | `REQ-003` | Key text located by grep (original `docs/23_agent/` group row split per file 2026-11-08) | docs checkers | `Verified` |
 | `docs/23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md` | Modify | Invalid Retry Policy symptom text (L79) quotes the validator message with the old key | `REQ-003` | `grep -n backoff_sec docs/` hit at L79 (row added 2026-11-08) | docs checkers | `Verified` |
+| `tests/agent/workflow/test_adapter_store_ownership.py` | Modify | `RetryPolicy(max_attempts=1, backoff_sec=0)` fixture (L36) renamed to the new key; the file landed with wfaudit008 after this Plan froze and would raise `TypeError` once `RetryPolicy` is renamed (fallout amendment, row added 2026-11-09) | `REQ-003` | `rg -n backoff_sec tests/agent/workflow/test_adapter_store_ownership.py` hit at L36 at HEAD `e4b47f11e`; `git log` shows the file added by `634724f3d` | self | `Verified` |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -138,10 +139,10 @@ Delete what is dead, rename what is misleading, convert what is unreachable into
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: dead-parameter removal (REQ-001) | In Progress | — | — |  |
-| 2 | Phase 2: fallback removal (REQ-002) | In Progress | — | — |  |
-| 3 | Phase 3: key rename (REQ-003, REQ-004) | In Progress | — | — |  |
-| 4 | Phase 4: documentation (REQ-003 propagation) | In Progress | — | — |  |
+| 1 | Phase 1: dead-parameter removal (REQ-001) | Completed | — | 20261109-092947 |  |
+| 2 | Phase 2: fallback removal (REQ-002) | Completed | — | 20261109-092947 |  |
+| 3 | Phase 3: key rename (REQ-003, REQ-004) | Completed | — | 20261109-092947 |  |
+| 4 | Phase 4: documentation (REQ-003 propagation) | Completed | — | 20261109-092947 |  |
 
 ### Blocker Log
 | Date | Blocker | Status | Resolution |
@@ -150,20 +151,21 @@ Delete what is dead, rename what is misleading, convert what is unreachable into
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261108-211937_01_scripts_agent_workflow_engine_adapter.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_02_scripts_agent_workflow_workflow_engine.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_03_scripts_agent_workflow_models.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_04_scripts_agent_workflow_workflow_loader.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_05_scripts_shared_events.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_06_config_workflows_default.json.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_07_tests_agent_workflow_test_workflow_loader.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_08_tests_agent_workflow_test_workflow_engine.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_09_tests_agent_workflow_test_workflow_models.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_10_tests_agent_workflow_test_session_diagnostics_wiring.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_11_tests_agent_test_orchestrator.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_12_tests_agent_test_repl_health.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_13_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261108-211937_14_docs_23_agent_agent_10_04_operations-and-observability-validation-and-troubleshooting.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261108-211937_01_scripts_agent_workflow_engine_adapter.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_02_scripts_agent_workflow_workflow_engine.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_03_scripts_agent_workflow_models.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_04_scripts_agent_workflow_workflow_loader.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_05_scripts_shared_events.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_06_config_workflows_default.json.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_07_tests_agent_workflow_test_workflow_loader.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_08_tests_agent_workflow_test_workflow_engine.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_09_tests_agent_workflow_test_workflow_models.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_10_tests_agent_workflow_test_session_diagnostics_wiring.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_11_tests_agent_test_orchestrator.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_12_tests_agent_test_repl_health.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_13_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_14_docs_23_agent_agent_10_04_operations-and-observability-validation-and-troubleshooting.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261108-211937_15_tests_agent_workflow_test_adapter_store_ownership.py.md` | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -178,7 +180,7 @@ Delete what is dead, rename what is misleading, convert what is unreachable into
 |---|---|---|---|---|
 | `REQ-001` | Issue Problem (unread parameter) | `scripts/agent/workflow_engine_adapter.py` | one-parameter helpers | grep + adapter test |
 | `REQ-002` | Issue Problem (unreachable fallback) | `scripts/agent/workflow/workflow_engine.py` | typed missing-stage error | engine test |
-| `REQ-003` | Issue Problem (misleading name) | models + loader + config | key renamed everywhere | grep + loader tests |
+| `REQ-003` | Issue Problem (misleading name) | models + loader + config + `tests/agent/workflow/test_adapter_store_ownership.py` | key renamed everywhere | grep + loader tests |
 | `REQ-004` | Plan Design (name-only rename) | engine retry loop | identical wait values | retry timing test |
 | `REQ-005` | Issue Testing Expectations | tests | fail on HEAD | pytest |
 
@@ -210,5 +212,6 @@ Delete what is dead, rename what is misleading, convert what is unreachable into
   - Every factual claim in this plan was adversarially re-checked line-by-line against HEAD: adapter L49/L56/L255/L262-280, engine L271/L289/L291-297/L310/L319/L328, models L79/L90-91, loader L22/L27/L53/L132/L170-173, `scripts/shared/events.py:47`, `config/workflows/default.json` L21-25, docs `agent_03_03` L131-135/L153 and `agent_10_04` L79, and all test fixture line citations (12 sites in `test_orchestrator.py`, 3 in `test_repl_health.py`, loader/engine/models/wiring sites). No claim was stale; no plan text correction was needed.
   - The `tests/agent/workflow/` directory row was split into four rows, one per named test file (`test_workflow_loader.py`, `test_workflow_engine.py`, `test_workflow_models.py`, `test_session_diagnostics_wiring.py`), so every row names exactly one file and receives its own procedure document; the table now has 14 rows. The `170505_06`/`175155_07` Related Documents row covers `test_workflow_engine.py` alongside the new engine-test row.
   - The broken untracked skeletons of the failed first pass (`implementations/20261108-205038_7_tests_agent_workflow_.md`, `_8_tests_agent_test_orchestrator.py.md`, `_9_tests_agent_test_repl_health.py.md`, 1857 B each) were deleted and the stale pass-timestamp marker was removed from this plan before regenerating the full procedure set.
+- Fallout amendment 2026-11-09 (class: fallout; approved by the user because the Plan is archived and `tools/amend_plan.py` refuses it): row 15 `tests/agent/workflow/test_adapter_store_ownership.py` added by hand. Reason: wfaudit008 commit `634724f3d` added the file after this Plan froze, and its `RetryPolicy(max_attempts=1, backoff_sec=0)` fixture would raise `TypeError` after the `RetryPolicy` rename and fail the REQ-003 grep gate. Procedure: `implementations/20261108-211937_15_tests_agent_workflow_test_adapter_store_ownership.py.md`.
 
 <!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261108-211937 -->
