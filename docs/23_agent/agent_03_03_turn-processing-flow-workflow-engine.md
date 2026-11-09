@@ -128,11 +128,11 @@ and workflow teardown moved out of the adapter into the Orchestrator's `_execute
 All `plan`/`execute`/`verify` stages go through the same retry loop function. Stages where `retryable` is `false` (default: `plan` and `verify`) are executed once and raise an exception immediately upon failure. For stages where `retryable` is `true` (default: `execute`), retry behavior is determined by the retry policy:
 
 - `max_attempts`: Maximum number of attempts
-- Backoff strategy is currently implemented as "fixed" only
-- `backoff_sec`: Delay between retries
+- Backoff strategy is currently implemented as "fixed" only: the retry wait is the same delay on every attempt
+- `retry_wait_sec`: Delay between retries
 - `retry_on`: the list of failure kinds that are eligible for retry, drawn from `exception`,
   `timeout`, and `llm_failure` (shipped default: `["exception"]`). A failure whose kind is not in
-  `retry_on` is terminal at once — no backoff wait and no further attempt.
+  `retry_on` is terminal at once — no retry wait and no further attempt.
 - Every failed attempt consumes one `max_attempts` unit, regardless of its kind.
 - A stage deadline expiry is classified by the deadline's own expired state and persisted with kind
   `timeout`; a `TimeoutError` raised by the stage callback itself is kind `exception`, not relabeled
@@ -150,7 +150,7 @@ All `plan`/`execute`/`verify` stages go through the same retry loop function. St
 When loading workflow definitions from `config/workflows/*.json`:
 
 - A definition must have a non-empty list of uniquely identified stages, which must include `plan`, `execute`, and `verify`; each stage must be a JSON object and declares `timeout_sec` and `retryable`, with `timeout_sec` an integer of at least 1 and `retryable` a boolean (not a string, number, or null)
-- `retry_policy.max_attempts` and `retry_policy.backoff_sec` must both be integers, not booleans, floats, or strings, with `max_attempts` at least 1 and `backoff_sec` at least 0
+- `retry_policy.max_attempts` and `retry_policy.retry_wait_sec` must both be integers, not booleans, floats, or strings, with `max_attempts` at least 1 and `retry_wait_sec` at least 0
 - Each stage must be an object and `retry_policy`, when present, must itself be an object; a stage or `retry_policy` of any other JSON type stops loading with a workflow load error that names the field
 - A value that fails this validation stops loading with a workflow load error that names the field and the offending value, so every caller observes the same error type, including the startup preflight `check_workflow_definition`, which reports the refusal as a `RuntimeError` whose `__cause__` is the workflow load error
 - `retry_policy.retry_on`, when present, must be a list of strings drawn from `exception`, `timeout`,

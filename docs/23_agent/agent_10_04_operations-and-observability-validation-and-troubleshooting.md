@@ -76,7 +76,7 @@ sqlite3 <workflow_db_path> ".tables"
 
 #### Invalid Retry Policy
 
-**Symptom:** The validator reports `retry_policy.max_attempts must be >= 1` or `retry_policy.backoff_sec must be >= 0`.
+**Symptom:** The validator reports `retry_policy.max_attempts must be >= 1` or `retry_policy.retry_wait_sec must be >= 0`.
 
 **Response:** Fix the reported fields and re-validate.
 
