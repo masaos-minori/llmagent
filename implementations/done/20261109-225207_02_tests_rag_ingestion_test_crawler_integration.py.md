@@ -224,10 +224,10 @@ Remove the two test methods (and the `gc` import if unused elsewhere). No produc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | test-first: write before the seq 01 source change |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this document is the test work |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | no documentation change in this plan |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261110-075116 | 20261110-075116 | test-first: write before the seq 01 source change |
+| 2 | Add or update tests per Validation plan | Completed | 20261110-075116 | 20261110-075116 | this document is the test work |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-075116 | 20261110-075116 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261110-075116 | 20261110-075116 | no documentation change in this plan N/A: no documentation change in this plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

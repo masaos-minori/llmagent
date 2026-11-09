@@ -147,10 +147,10 @@ config change; no migration.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion seq 02 document carries the tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | no documentation change in this plan |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261110-075116 | 20261110-075116 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261110-075116 | 20261110-075116 | companion seq 02 document carries the tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-075116 | 20261110-075116 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261110-075116 | 20261110-075116 | no documentation change in this plan N/A: no documentation change in this plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

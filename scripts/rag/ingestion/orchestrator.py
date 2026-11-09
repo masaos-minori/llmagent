@@ -183,8 +183,24 @@ class CrawlOrchestrator:
                     budget.max_persist,
                 )
             finally:
+                await self._cancel_and_drain_pending(pending)
                 if session_db is not None:
                     session_db.close()
+
+    async def _cancel_and_drain_pending(self, pending: set[asyncio.Task]) -> None:
+        """Cancel not-yet-done tasks, await all with gathered results, and log a non-cancellation error once; never raises.
+
+        `Task.exception()` raises `CancelledError` for cancelled tasks, so results are collected with `gather(..., return_exceptions=True)` instead (ragrev013).
+        """
+        for t in pending:
+            if not t.done():
+                t.cancel()
+        results = await asyncio.gather(*pending, return_exceptions=True)
+        for result in results:
+            if isinstance(result, BaseException) and not isinstance(
+                result, asyncio.CancelledError
+            ):
+                logger.error("Crawl cleanup error: %s", result)
 
     def _drain_queue_to_tasks(
         self,

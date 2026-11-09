@@ -171,6 +171,25 @@ class TestMaxPagesBoundaryCondition:
             f"{anchors}</body></html>"
         )
 
+    @staticmethod
+    async def _drain_crawl_tasks(before: set[asyncio.Task]) -> None:
+        """Cancel and await crawl tasks still live after crawl_site returns.
+
+        On HEAD a budget stop leaves a fetch task in flight; cancelling and gathering
+        it here (while the respx mock is still active) removes the orphan deterministically
+        so the test neither leaks a live task into the next test nor warns on an
+        unretrieved exception.
+        """
+        orphans = {
+            t
+            for t in asyncio.all_tasks()
+            if t is not asyncio.current_task() and t not in before
+        }
+        for t in orphans:
+            t.cancel()
+        if orphans:
+            await asyncio.gather(*orphans, return_exceptions=True)
+
     @pytest.mark.asyncio
     async def test_stops_at_max_pages(
         self,
@@ -229,6 +248,97 @@ class TestMaxPagesBoundaryCondition:
             assert len(respx.calls) <= 2 * mock_config["max_pages"]
 
         assert "scheduling budget reached" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_no_orphaned_tasks_after_budget_stop(
+        self,
+        mock_config: dict,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """AC-1/AC-4: a budget stop with a slow request in flight leaves no live task, no never-retrieved warning, and writes no file after return."""
+        import httpx
+
+        mock_config["max_pages"] = 2
+        mock_config["max_depth"] = 2
+        mock_config["rag_src_dir"] = str(tmp_path)
+        release = asyncio.Event()
+
+        async def slow_handler(request: httpx.Request) -> Response:
+            await release.wait()
+            return Response(200, text=self._page("Slow"))
+
+        with respx.mock:
+            respx.get("http://example.com/start").mock(
+                return_value=Response(200, text=self._page("Alpha", ("/fast", "/slow")))
+            )
+            respx.get("http://example.com/fast").mock(
+                return_value=Response(200, text=self._page("Fast"))
+            )
+            respx.get("http://example.com/slow").mock(side_effect=slow_handler)
+            crawler = WebCrawler(config=mock_config)
+            before = asyncio.all_tasks()
+            files_after_return: list[Path] = []
+            try:
+                with caplog.at_level(
+                    logging.WARNING,
+                    logger="rag.ingestion.orchestrator",
+                ):
+                    await crawler.crawl_site("http://example.com/start", "en")
+                files_after_return = sorted(tmp_path.glob("*-*.json"))
+                assert asyncio.all_tasks() <= before
+                assert len(files_after_return) == 2
+            finally:
+                release.set()
+                await self._drain_crawl_tasks(before)
+
+        assert sorted(tmp_path.glob("*-*.json")) == files_after_return
+        assert "never retrieved" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_cleanup_exception_logged_once(
+        self,
+        mock_config: dict,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """AC-2: a non-cancellation exception during cleanup is logged once and does not make crawl_site raise; cancelled tasks are silent."""
+        import httpx
+
+        mock_config["max_pages"] = 2
+        mock_config["max_depth"] = 2
+        mock_config["rag_src_dir"] = str(tmp_path)
+        release = asyncio.Event()
+
+        async def boom_handler(request: httpx.Request) -> Response:
+            try:
+                await release.wait()
+            except asyncio.CancelledError:
+                raise RuntimeError("cleanup boom") from None
+            return Response(200, text=self._page("Boom"))
+
+        with respx.mock:
+            respx.get("http://example.com/start").mock(
+                return_value=Response(200, text=self._page("Alpha", ("/fast", "/boom")))
+            )
+            respx.get("http://example.com/fast").mock(
+                return_value=Response(200, text=self._page("Fast"))
+            )
+            respx.get("http://example.com/boom").mock(side_effect=boom_handler)
+            crawler = WebCrawler(config=mock_config)
+            before = asyncio.all_tasks()
+            try:
+                with caplog.at_level(
+                    logging.ERROR,
+                    logger="rag.ingestion.orchestrator",
+                ):
+                    await crawler.crawl_site("http://example.com/start", "en")
+            finally:
+                await self._drain_crawl_tasks(before)
+
+        boom_logs = [r for r in caplog.records if "cleanup boom" in r.getMessage()]
+        assert len(boom_logs) == 1
+        assert "never retrieved" not in caplog.text
 
     def test_max_pages_fallback_default(self, mock_config):
         """Both consumers default max_pages to 200 (matching deployed config) when absent."""
