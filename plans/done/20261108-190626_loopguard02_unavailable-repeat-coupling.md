@@ -149,9 +149,9 @@ N/A: no release unit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Core Logic Implementation (config field, builder wiring, guard repoint) | In Progress | — | — | Procedures generated 2026-11-08: implementations/20261108-195023_1_, _2_, _3_ |
-| 2 | Phase 2: Tests (independence matrix, default-off, additive load; repoint existing tests) | In Progress | — | — | Procedures generated: _4_, _5_, _8_ (fallout row) |
-| 3 | Phase 3: Documentation & Verification | In Progress | — | — | Doc procedures generated: _6_, _7_; the final suite run is carried out by code-implementation |
+| 1 | Phase 1: Core Logic Implementation (config field, builder wiring, guard repoint) | Completed | 2026-11-09 | 2026-11-09 | Procedures _1_, _2_, _3_ executed and archived to implementations/done/ |
+| 2 | Phase 2: Tests (independence matrix, default-off, additive load; repoint existing tests) | Completed | 2026-11-09 | 2026-11-09 | Procedures _4_, _5_, _8_ archived; execution-time fallout: extra MagicMock-ctx pins in test_llm_turn_runner.py fixtures and the shared ctx helpers of test_orchestrator.py / test_orchestrator_integration.py (recorded in procedure 8 Details) |
+| 3 | Phase 3: Documentation & Verification | Completed | 2026-11-09 | 2026-11-09 | Procedures _6_, _7_ archived; docs checkers (quality, structure, content-policy --strict, consistency --domain agent, japanese) all pass; full suite: 11982 passed, 9 skipped; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -161,14 +161,14 @@ N/A: no release unit.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261108-195023_1_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261108-195023_2_scripts_agent_config_section_builders.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261108-195023_3_scripts_agent_tool_loop_guard.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261108-195023_4_tests_agent_test_tool_loop_guard.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-195023_5_tests_agent_test_tool_loop_guard_wiring.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261108-195023_6_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261108-195023_7_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261108-195023_8_tests_agent_test_llm_turn_runner.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261108-195023_1_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Completed | 2026-11-09 | — |
+| implementations/20261108-195023_2_scripts_agent_config_section_builders.py.md | 1 | Procedure | Completed | 2026-11-09 | — |
+| implementations/20261108-195023_3_scripts_agent_tool_loop_guard.py.md | 1 | Procedure | Completed | 2026-11-09 | — |
+| implementations/20261108-195023_4_tests_agent_test_tool_loop_guard.py.md | 2 | Procedure | Completed | 2026-11-09 | — |
+| implementations/20261108-195023_5_tests_agent_test_tool_loop_guard_wiring.py.md | 2 | Procedure | Completed | 2026-11-09 | — |
+| implementations/20261108-195023_6_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 3 | Procedure | Completed | 2026-11-09 | — |
+| implementations/20261108-195023_7_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 3 | Procedure | Completed | 2026-11-09 | — |
+| implementations/20261108-195023_8_tests_agent_test_llm_turn_runner.py.md | 2 | Procedure | Completed | 2026-11-09 | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

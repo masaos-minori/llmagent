@@ -50,8 +50,8 @@ Other docs; code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the coupling sentence | Pending | — | — |  |
-| 2 | Run the documentation checkers (`routing.md` Tools) | Pending | — | — |  |
+| 1 | Rewrite the coupling sentence | Completed | 2026-11-09 | 2026-11-09 |  |
+| 2 | Run the documentation checkers (`routing.md` Tools) | Completed | 2026-11-09 | 2026-11-09 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

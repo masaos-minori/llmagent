@@ -15,7 +15,8 @@ from agent.llm_turn_runner import LLMTurnRunner
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.tool_runner import execute_all_tool_calls
 from shared.llm_types import LLMResponse
-from shared.transport_dto import ToolCallResult
+from shared.mcp_health import McpServerHealthState
+from shared.transport_dto import DynamicAvailabilityHint, ToolCallResult
 
 from tests.agent.test_tool_runner import _cfg, _make_ctx
 
@@ -64,6 +65,24 @@ def _batch(n: int) -> list[dict]:
 
 def _empty() -> ToolCallResult:
     return ToolCallResult(output="", is_error=False, request_id="r", server_key="")
+
+
+def _hinted_result(server_key: str = "srv") -> ToolCallResult:
+    """Hinted unavailable result; minimal local copy of the same-named helper
+    in test_tool_loop_guard.py (no cross-test-module imports)."""
+    return ToolCallResult(
+        output="",
+        is_error=True,
+        request_id="",
+        server_key=server_key,
+        source="mcp",
+        error_type="transport",
+        availability_hint=DynamicAvailabilityHint(
+            reason="server_unavailable",
+            circuit_state=McpServerHealthState.UNAVAILABLE,
+            retry_after_seconds=5,
+        ),
+    )
 
 
 def _approve_all():
@@ -188,3 +207,14 @@ class TestTurnLevelAcceptance:
             await runner.run("http://llm", **WF_CTX)
 
         assert mock_exec.call_args.kwargs["guard"] is guard
+
+    def test_old_knob_alone_does_not_arm_unavailable_repeat(self) -> None:
+        """REQ-005/REQ-006: tool_empty_result_max_repeats alone never arms the
+        unavailable-repeat guard; only tool_unavailable_repeat_max_repeats does."""
+        ctx = _ctx(3)  # old knob armed; new knob stays at its 0 default
+        guard = ToolLoopGuard(ctx)
+        for _ in range(3):
+            guard.observe_availability(_hinted_result())
+
+        assert guard.scan_unavailable_repeat() is None
+        assert guard.check_unavailable_repeat() is None

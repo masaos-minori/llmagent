@@ -421,6 +421,7 @@ class TestReportEffectiveState:
         cfg = ToolConfig()
         assert cfg.tool_error_retry_max == 1
         assert cfg.tool_empty_result_max_repeats == 0
+        assert cfg.tool_unavailable_repeat_max_repeats == 0
 
 
 class TestNonRecordingScanIsEquivalentToTheCheck:
@@ -524,7 +525,7 @@ class TestUnavailableRepeat:
     @staticmethod
     def _guard(limit: int) -> tuple[ToolLoopGuard, MagicMock]:
         ctx = _make_ctx()
-        ctx.cfg.tool.tool_empty_result_max_repeats = limit
+        ctx.cfg.tool.tool_unavailable_repeat_max_repeats = limit
         ctx.diagnostics = MagicMock()
         return ToolLoopGuard(ctx), ctx
 
@@ -588,6 +589,45 @@ class TestUnavailableRepeat:
         guard.observe_availability(_hinted_result("srv"))
         hit = guard.scan_unavailable_repeat()
         assert hit == ("srv", 2)
+
+
+class TestGuardsToggleIndependently:
+    """REQ-005: each repeat guard is armed only by its own threshold knob."""
+
+    @staticmethod
+    def _guard(empty_limit: int, unavail_limit: int) -> tuple[ToolLoopGuard, MagicMock]:
+        ctx = _make_ctx()
+        ctx.cfg.tool.tool_empty_result_max_repeats = empty_limit
+        ctx.cfg.tool.tool_unavailable_repeat_max_repeats = unavail_limit
+        ctx.diagnostics = MagicMock()
+        return ToolLoopGuard(ctx), ctx
+
+    @pytest.mark.parametrize(
+        ("empty_limit", "unavail_limit"),
+        [(0, 0), (0, 2), (2, 0), (2, 2)],
+    )
+    def test_empty_and_unavailable_guards_toggle_independently(
+        self, empty_limit: int, unavail_limit: int
+    ) -> None:
+        guard, _ = self._guard(empty_limit, unavail_limit)
+        guard.record_tool_result("tool_a", "")
+        guard.record_tool_result("tool_a", "")
+        guard.observe_availability(_hinted_result("srv"))
+        guard.observe_availability(_hinted_result("srv"))
+
+        armed_empty = guard.scan_empty_result_repeat() is not None
+        armed_unavailable = guard.scan_unavailable_repeat() is not None
+        assert armed_empty is (empty_limit > 0)
+        assert armed_unavailable is (unavail_limit > 0)
+
+
+class TestUnavailableRepeatKnobWiring:
+    """REQ-006: the new knob defaults to 0 and loads additively via the builder."""
+
+    def test_new_knob_defaults_to_zero_and_accepts_override(self) -> None:
+        assert _cfg().tool.tool_unavailable_repeat_max_repeats == 0
+        cfg = _cfg(tool_unavailable_repeat_max_repeats=3)
+        assert cfg.tool.tool_unavailable_repeat_max_repeats == 3
 
 
 class TestStaticFieldImmutability:

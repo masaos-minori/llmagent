@@ -176,6 +176,10 @@ class ToolConfig:
     # Max consecutive empty tool results within a turn; > 0 enables
     # empty-result repeat detection, <= 0 disables it. Default 0 (disabled).
     tool_empty_result_max_repeats: int = 0
+    # Max consecutive server-unavailable hints for one server within a turn;
+    # > 0 enables unavailable-repeat detection, <= 0 disables it. Default 0
+    # (disabled). Independent of tool_empty_result_max_repeats.
+    tool_unavailable_repeat_max_repeats: int = 0
     # Per-server concurrent call limit; empty = unlimited
     tool_concurrency_limits: dict[str, int] = field(default_factory=dict)
     # Argument fields to redact in console output

@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the two-knob paragraph | Pending | — | — |  |
-| 2 | Run the documentation checkers (`routing.md` Tools) | Pending | — | — |  |
+| 1 | Add the two-knob paragraph | Completed | 2026-11-09 | 2026-11-09 |  |
+| 2 | Run the documentation checkers (`routing.md` Tools) | Completed | 2026-11-09 | 2026-11-09 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -198,6 +198,9 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
             cfg, "tool_error_max_consecutive", _get_int, 3
         ),
         tool_error_retry_max=_get_or_default(cfg, "tool_error_retry_max", _get_int, 1),
+        tool_unavailable_repeat_max_repeats=_get_or_default(
+            cfg, "tool_unavailable_repeat_max_repeats", _get_int, 0
+        ),
         tool_concurrency_limits=_get_or_default(
             cfg, "tool_concurrency_limits", _get_dict, {}
         ),

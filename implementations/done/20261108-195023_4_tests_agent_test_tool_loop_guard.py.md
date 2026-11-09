@@ -55,9 +55,9 @@ Production code, docs, `test_llm_turn_runner.py` (own procedure).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Repoint `TestUnavailableRepeat._guard` and extend the default test | Pending | — | — |  |
-| 2 | Add the independence matrix test and the builder test | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Repoint `TestUnavailableRepeat._guard` and extend the default test | Completed | 2026-11-09 | 2026-11-09 |  |
+| 2 | Add the independence matrix test and the builder test | Completed | 2026-11-09 | 2026-11-09 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-09 | 2026-11-09 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

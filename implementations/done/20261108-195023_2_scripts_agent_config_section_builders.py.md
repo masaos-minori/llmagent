@@ -9,6 +9,7 @@ Wire `tool_unavailable_repeat_max_repeats` (new) through `_build_tool_config` so
 - The existing `tool_empty_result_max_repeats` is not wired in this builder (stays 0); that pre-existing condition is out of scope (Plan Risks) and is not changed here.
 - `_get_or_default(cfg, key, _get_int, 0)` returns 0 when the key is absent, so absent keys load unchanged.
 - Depends on the `config_dataclasses.py` procedure (seq 1) having added the field.
+- Adversarial verification finding (2026-11-09): the original Step-2 note delegated builder coverage to the `test_tool_loop_guard.py` procedure, but that procedure's tests construct `ToolConfig` directly via `_cfg(...)` and never call `_build_tool_config`, leaving the completion criterion untested. Also, the Plan target table names `tests/agent/services/test_config_reload.py`, but `TestBuildToolConfig` actually lives in `tests/agent/test_config_builders.py` (line 170). Correction: extend `tests/agent/test_config_builders.py::TestBuildToolConfig` — add the new key to `_TOOL_DEFAULTS` and to the overrides in `test_every_field_override_is_independently_reflected`.
 
 ## Design decisions
 - Use the sibling pattern `_get_or_default(cfg, "…", _get_int, 0)` next to `tool_error_retry_max`.
@@ -22,6 +23,7 @@ N/A: follows the existing builder pattern.
 
 ### Procedure
 1. In `_build_tool_config`, after the `tool_error_retry_max=` argument, add `tool_unavailable_repeat_max_repeats=_get_or_default(cfg, "tool_unavailable_repeat_max_repeats", _get_int, 0),`.
+2. Extend `tests/agent/test_config_builders.py::TestBuildToolConfig` so the wiring is exercised end-to-end: add `"tool_unavailable_repeat_max_repeats": 0` to `_TOOL_DEFAULTS` and `"tool_unavailable_repeat_max_repeats": 9` to the overrides dict in `test_every_field_override_is_independently_reflected`.
 
 ### Method
 Single added keyword argument in the `_build_model(ToolConfig, ...)` call; keep argument order otherwise unchanged.
@@ -53,9 +55,9 @@ Wiring `tool_empty_result_max_repeats`; validators; registry entry.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the builder argument | Pending | — | — |  |
-| 2 | Builder-level tests (done by the `test_tool_loop_guard.py` procedure) | Pending | — | — | Uses `_cfg(tool_unavailable_repeat_max_repeats=…)` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Add the builder argument | Completed | 2026-11-09 | 2026-11-09 |  |
+| 2 | Builder-level tests (done by the `test_tool_loop_guard.py` procedure) | Completed | 2026-11-09 | 2026-11-09 | Uses `_cfg(tool_unavailable_repeat_max_repeats=…)` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-09 | 2026-11-09 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -38,6 +38,8 @@ Documents the structure and constraints of tool and memory configurations.
 
 Loop limits (`max_tool_turns`, cycle-detection window, consecutive-error and per-`(name, args)` retry limits) and context-bloat caps (`tool_result_max_llm_chars` per result, `tool_results_turn_max_chars` per turn) are plain bounds defined by `ToolConfig`. `serial_tool_calls = true` serializes all tool execution and bypasses the conflict graph (`force_serial`).
 
+Two repeat guards have independent thresholds, both default 0 (disabled): `tool_empty_result_max_repeats` (consecutive empty results of one tool) and `tool_unavailable_repeat_max_repeats` (consecutive server-unavailable hints for one server). A value above 0 enables only its own guard.
+
 #### Parallel Execution
 
 `tool_concurrency_limits` maps a server key to its maximum concurrent calls. Every configured server is capped at its configured positive limit, or at the process-wide default concurrency ceiling when it has no entry; an explicit `0` (or negative) value opts out and stays unlimited (no per-server semaphore is created).

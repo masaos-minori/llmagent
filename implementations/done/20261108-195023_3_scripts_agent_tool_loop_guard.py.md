@@ -57,9 +57,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Repoint `scan_unavailable_repeat` and update the docstring | Pending | — | — |  |
-| 2 | Update dependent tests (`test_tool_loop_guard.py`, `test_llm_turn_runner.py` procedures) | Pending | — | — | Must land together with step 1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Repoint `scan_unavailable_repeat` and update the docstring | Completed | 2026-11-09 | 2026-11-09 |  |
+| 2 | Update dependent tests (`test_tool_loop_guard.py`, `test_llm_turn_runner.py` procedures) | Completed | 2026-11-09 | 2026-11-09 | Must land together with step 1 Landed together in cycle B via procedures 4 and 8 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-09 | 2026-11-09 | Cycle B full-suite run: 11982 passed, diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

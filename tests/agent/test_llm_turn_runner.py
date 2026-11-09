@@ -700,6 +700,7 @@ class TestAllFailingRoundGuardReachable:
         # does not otherwise configure.
         ctx.cfg.tool.progress_stagnation_window = 0
         ctx.cfg.tool.tool_empty_result_max_repeats = 0
+        ctx.cfg.tool.tool_unavailable_repeat_max_repeats = 0
         guard = ToolLoopGuard(ctx)
         return LLMTurnRunner(ctx, guard), ctx
 
@@ -967,12 +968,15 @@ class TestUnavailableRepeatBoundIntegration:
         self, limit: int, responses: list[LLMResponse]
     ) -> tuple[LLMTurnRunner, MagicMock, MagicMock]:
         ctx = _make_ctx()
-        ctx.cfg.tool.tool_empty_result_max_repeats = limit
+        ctx.cfg.tool.tool_unavailable_repeat_max_repeats = limit
         # Distinct tool names per round already avoid dedup; raise the window so
         # only the unavailable-repeat bound can end this turn. Pin the stagnation
         # dial the real guard compares with `<= 0`.
         ctx.cfg.tool.tool_dedup_max_repeats = 100
         ctx.cfg.tool.progress_stagnation_window = 0
+        # The empty-result guard keeps its own knob; pin it off (unset MagicMock
+        # attributes raise TypeError on `<= 0` comparison).
+        ctx.cfg.tool.tool_empty_result_max_repeats = 0
         guard = ToolLoopGuard(ctx)
         registry = MagicMock()
         registry.llm_tool_definitions.return_value = [dict(d) for d in self._TOOL_DEFS]
@@ -1050,7 +1054,7 @@ class TestUnavailableRepeatBoundIntegration:
 
     @pytest.mark.asyncio
     async def test_default_off_runs_unbounded_scenario_as_today(self) -> None:
-        # tool_empty_result_max_repeats=0 (repo default): identical hinted
+        # tool_unavailable_repeat_max_repeats=0 (repo default): identical hinted
         # results never end the turn (characterization of default-off).
         stop = LLMResponse(
             message={"role": "assistant", "content": "Done"}, finish_reason="stop"

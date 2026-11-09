@@ -44,6 +44,7 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.tool.tool_error_max_consecutive = 3
     ctx.cfg.tool.progress_stagnation_window = 3
     ctx.cfg.tool.tool_empty_result_max_repeats = 0
+    ctx.cfg.tool.tool_unavailable_repeat_max_repeats = 0
     ctx.conv = ConversationState(llm_url="http://llm-test")
     ctx.stats.stat_turns = 1
     ctx.stats.stat_latency = {}

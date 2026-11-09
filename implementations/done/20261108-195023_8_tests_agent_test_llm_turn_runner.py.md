@@ -29,6 +29,10 @@ Two edits in the class; assertions stay unchanged.
 ### Details
 - Other `tool_empty_result_max_repeats` assignments in this file (the `= 0` line in an unrelated test) are for the empty-result guard and stay.
 - Mock-guard tests (`check_unavailable_repeat.return_value = None`) are unaffected.
+- Execution-time fallout found (2026-11-09), two MagicMock-ctx pins needed beyond the original two edits:
+  - `TestUnavailableRepeatBoundIntegration._real_guard_runner`: after the repoint the old knob stays an auto-created MagicMock and `check_all`'s empty-result scan raised `TypeError: '<=' not supported between MagicMock and int`; pin `tool_empty_result_max_repeats = 0` explicitly.
+  - `TestAllFailingRoundGuardReachable._guarded_runner` (real guard, not named by the original procedure): its "pin the thresholds" block must also pin `tool_unavailable_repeat_max_repeats = 0`, otherwise `check_unavailable_repeat` compares a MagicMock with 0.
+  - Same fixture-level fallout outside this file: the shared ctx helpers `tests/agent/test_orchestrator.py` (line 124) and `tests/integration/test_orchestrator_integration.py` (line 46) each pin the old knob to 0 and needed `tool_unavailable_repeat_max_repeats = 0` added alongside.
 
 ## Compatibility considerations
 Tests only.
@@ -53,8 +57,8 @@ Production code; other test files.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Repoint `_real_guard_runner` and fix the comment | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Repoint `_real_guard_runner` and fix the comment | Completed | 2026-11-09 | 2026-11-09 | Plus execution-time fallout pins (see Details) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-09 | 2026-11-09 | Cycle B full-suite run: 11982 passed, diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

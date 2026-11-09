@@ -274,7 +274,7 @@ class ToolLoopGuard:
 
     def scan_unavailable_repeat(self) -> tuple[str, int] | None:
         """Return the first (server_key, count) at the repeat threshold; record nothing."""
-        limit = self._ctx.cfg.tool.tool_empty_result_max_repeats
+        limit = self._ctx.cfg.tool.tool_unavailable_repeat_max_repeats
         if limit <= 0:
             return None
         return next(
@@ -284,8 +284,9 @@ class ToolLoopGuard:
     def check_unavailable_repeat(self) -> str | None:
         """Check if any server has exceeded the unavailable repeat threshold.
 
-        Reuses the empty-result repeat bound (``tool_empty_result_max_repeats``);
-        limit <= 0 disables the check entirely (default-off).
+        Uses its own bound (``tool_unavailable_repeat_max_repeats``), independent
+        of ``tool_empty_result_max_repeats``; limit <= 0 disables the check
+        entirely (default-off).
         """
         if (hit := self.scan_unavailable_repeat()) is None:
             return None

@@ -151,6 +151,7 @@ _TOOL_DEFAULTS = {
     "tool_cycle_detect_window": 2,
     "tool_error_max_consecutive": 3,
     "tool_error_retry_max": 1,
+    "tool_unavailable_repeat_max_repeats": 0,
     "tool_concurrency_limits": {},
     "masked_fields": ["content", "old_text", "new_text"],
     "plan_blocked_tools": [
@@ -188,6 +189,7 @@ class TestBuildToolConfig:
             "tool_cycle_detect_window": 9,
             "tool_error_max_consecutive": 9,
             "tool_error_retry_max": 9,
+            "tool_unavailable_repeat_max_repeats": 9,
             "tool_concurrency_limits": {"srv": 2},
             "masked_fields": ["custom_field"],
             "plan_blocked_tools": ["custom_tool"],

@@ -55,9 +55,9 @@ Wiring in the builder, guard repointing, tests, docs, any startup-diagnostic cha
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the field to `ToolConfig` | Pending | — | — |  |
-| 2 | Cover the default in tests (done by the `test_tool_loop_guard.py` procedure) | Pending | — | — | No test edit in this file's procedure |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Add the field to `ToolConfig` | Completed | 2026-11-09 | 2026-11-09 |  |
+| 2 | Cover the default in tests (done by the `test_tool_loop_guard.py` procedure) | Completed | — | — | No test edit in this file's procedure Delegated: default covered by procedure 4 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-09 | 2026-11-09 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

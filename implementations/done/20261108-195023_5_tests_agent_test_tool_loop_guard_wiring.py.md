@@ -51,8 +51,8 @@ Builder-level checks (`test_tool_loop_guard.py`), production code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the runner-level independence test | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Add the runner-level independence test | Completed | 2026-11-09 | 2026-11-09 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-09 | 2026-11-09 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

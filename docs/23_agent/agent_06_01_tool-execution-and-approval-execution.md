@@ -84,7 +84,7 @@ The row key is derived by `shared/http_transport.py::derive_idempotency_key("cal
 
 A tool result from MCP transport that signals server unavailability may carry a dynamic availability hint: a normalized reason code, the circuit breaker state, and an optional retry-after time in seconds (the same vocabulary as [Health Reasons and Error Kinds](../22_mcp/mcp_06_10_health-reasons-and-error-kinds.md)). The hint is advisory metadata, never a routing input: it changes neither tool registration nor LLM tool visibility nor static availability, and it never changes the tool definitions presented to the LLM (ADR-003 Decision 17). The hint is constructed only from runtime health state; server-supplied free text is not part of the bounded-hint signal.
 
-Repeated selection of tools returning the same server-unavailable hint within one turn is bounded by the existing empty-result repeat configuration (`tool_empty_result_max_repeats`); the bound is off when that configuration is 0 (the repository default). At the bound the turn ends with an observable system hint. A result that does not carry a server-unavailable hint — including a successful call to that server — clears the accumulated count, so recovery requires no explicit removal.
+Repeated selection of tools returning the same server-unavailable hint within one turn is bounded by its own configuration (`tool_unavailable_repeat_max_repeats`), independent of `tool_empty_result_max_repeats`; the bound is off when it is 0 (the repository default). At the bound the turn ends with an observable system hint. A result that does not carry a server-unavailable hint — including a successful call to that server — clears the accumulated count, so recovery requires no explicit removal.
 
 ## Responsibility Boundary
 
