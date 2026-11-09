@@ -23,12 +23,12 @@ from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 class _RetryPolicyJson(TypedDict, total=False):
     """JSON representation of a workflow retry policy.
 
-    max_attempts and backoff_sec are required at runtime, enforced by
+    max_attempts and retry_wait_sec are required at runtime, enforced by
     _REQUIRED_POLICY_KEYS in _validate; retry_on is optional (REQ-001).
     """
 
     max_attempts: int
-    backoff_sec: int
+    retry_wait_sec: int
     retry_on: list[str]
 
 
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 # config/workflows/ is four parent levels up from this file:
 WORKFLOWS_DIR = resolve_config_dir() / "workflows"
 _REQUIRED_STAGE_KEYS = {"id", "timeout_sec", "retryable"}
-_REQUIRED_POLICY_KEYS = {"max_attempts", "backoff_sec"}
+_REQUIRED_POLICY_KEYS = {"max_attempts", "retry_wait_sec"}
 _REQUIRED_STAGES = {"plan", "execute", "verify"}
 
 
@@ -154,7 +154,7 @@ def _validate(data: _WorkflowJson) -> None:
         raise WorkflowLoadError(f"retry_policy missing keys: {missing_p}")
     policy = retry_policy_data
     _require_int(policy["max_attempts"], "retry_policy.max_attempts", 1)
-    _require_int(policy["backoff_sec"], "retry_policy.backoff_sec", 0)
+    _require_int(policy["retry_wait_sec"], "retry_policy.retry_wait_sec", 0)
     _validate_retry_on(policy)
     if "require_approval" in data:
         raise WorkflowLoadError(
@@ -194,7 +194,7 @@ class WorkflowLoader:
         policy_data = data.get("retry_policy", {})
         policy = RetryPolicy(
             max_attempts=policy_data["max_attempts"],
-            backoff_sec=policy_data["backoff_sec"],
+            retry_wait_sec=policy_data["retry_wait_sec"],
             retry_on=_validate_retry_on(policy_data),
         )
         wdef = WorkflowDef(

@@ -44,6 +44,6 @@ class RetryEvent(TypedDict):
     attempt_number: int
     max_attempts: int
     error_type: str
-    backoff_sec: float
+    retry_wait_sec: float
     session_id: str
     timestamp: str  # ISO-8601 UTC

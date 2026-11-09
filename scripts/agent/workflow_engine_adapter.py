@@ -46,15 +46,15 @@ if TYPE_CHECKING:
 # ── Private helpers ───────────────────────────────────────────────────────────
 
 
-def _status_for_exit(exit_reason: str, error_kind: str | None) -> str | None:
+def _status_for_exit(exit_reason: str) -> str | None:
     """Return a status the adapter must write, or None when the engine already wrote it.
 
     `exit_reason` is one of "not-started" (the engine call was never reached),
     "engine-started" (engine.run raised or is still unwound), "halted", "cancelled" or
     "completed". `None` covers every exit the workflow engine already recorded: the
     engine writes the task status exactly once per turn (REQ-008), so a completed
-    exit with a failure `error_kind` no longer triggers a second write here — the
-    engine wrote `failed` for the terminal stage failure itself.
+    exit does not trigger a second write here — the engine already wrote the
+    terminal stage failure status itself.
     """
     if exit_reason == "cancelled":
         return "halted"
@@ -210,21 +210,19 @@ class WorkflowEngineAdapter:
             exit_reason = "cancelled"
             raise
         finally:
-            self._record_exit_status(exit_reason, error_kind, task)
+            self._record_exit_status(exit_reason, task)
             if self._owns_state_store:
                 self._state_store.close()
             self._owns_state_store = False
 
         return answer, error_kind, is_partial
 
-    def _record_exit_status(
-        self, exit_reason: str, error_kind: str | None, task: TaskRecord | None
-    ) -> None:
+    def _record_exit_status(self, exit_reason: str, task: TaskRecord | None) -> None:
         """Best-effort write of the status the adapter owns for this exit.
 
         Writes nothing when the workflow engine already recorded the outcome.
         """
-        intended_status = _status_for_exit(exit_reason, error_kind)
+        intended_status = _status_for_exit(exit_reason)
         if intended_status is None or task is None or not task.task_id:
             return
         try:

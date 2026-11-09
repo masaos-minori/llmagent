@@ -113,6 +113,10 @@ class WorkflowStageFailure(Exception):
         self.is_partial = is_partial
 
 
+class WorkflowStageNotFoundError(Exception):
+    """Raised when a requested stage_id has no StageDefinition in the loaded workflow."""
+
+
 class WorkflowEngine:
     """Runs a workflow definition against a set of stage callbacks.
 
@@ -266,7 +270,7 @@ class WorkflowEngine:
                     raise WorkflowHaltError(
                         f"{stage_id} stage halted after {attempt} attempts"
                     ) from exc
-                wait = policy.backoff_sec
+                wait = policy.retry_wait_sec
                 logger.warning(
                     "Task %s: %s attempt %d failed, retrying in %ds: %s",
                     task.task_id,
@@ -305,7 +309,11 @@ class WorkflowEngine:
             span.set_attribute("workflow.attempt", attempt)
             span.set_attribute("workflow.workflow_id", task.workflow_id or "")
             stage_def = self._wdef.get_stage(stage_id)
-            timeout = stage_def.timeout_sec if stage_def else 60
+            if stage_def is None:
+                raise WorkflowStageNotFoundError(
+                    f"Workflow '{self._wdef.name}' has no stage '{stage_id}'"
+                )
+            timeout = stage_def.timeout_sec
             event_id = f"{task.task_id}:{stage_id}:{attempt}"
 
             attempt_rec = self._store.begin_stage_if_new(
