@@ -2,9 +2,10 @@
 
 Keyed by the sha256 idempotency key derived from (method, tool_name, args, uid).
 State machine: pending -> completed, pending -> failed, pending -> interrupted.
-Terminal states never regress. The store owns its own SQLite file (default
-/opt/llm/db/mcp_dedup.sqlite, overridable via config/mcp_dedup.toml) and never
-touches mdq.sqlite or rag.sqlite.
+Terminal states never regress. The config file is located through the shared
+config-directory resolver (resolve_config_dir) and parsed once per process. The
+store owns its own SQLite file (default /opt/llm/db/mcp_dedup.sqlite, overridable
+via the config file) and never touches mdq.sqlite or rag.sqlite.
 """
 
 from __future__ import annotations
@@ -23,13 +24,17 @@ from typing import Any
 
 from shared.config_errors import ConfigMissingError, ConfigParseError
 from shared.execution_snapshot import snapshot_json
+from shared.runtime_paths import resolve_config_dir
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CONFIG_PATH = Path("config/mcp_dedup.toml")
+# Same fallback-literal shape as the workflow_db_path/eventbus_db_path defaults in
+# scripts/db/config.py; the shared-leaf contract forbids importing scripts/db here.
 DEFAULT_DB_PATH = "/opt/llm/db/mcp_dedup.sqlite"
 DEFAULT_RETENTION_DAYS = 14
 DEFAULT_PENDING_TIMEOUT_MINUTES = 10
+
+_DEDUP_CONFIG_CACHE: dict[Path, DedupConfig] = {}
 
 TERMINAL_STATES = frozenset({"completed", "failed", "interrupted"})
 
@@ -66,11 +71,33 @@ class DedupConfig:
     retry_class: dict[str, str] = field(default_factory=dict)
 
 
-def load_dedup_config(path: str | Path = DEFAULT_CONFIG_PATH) -> DedupConfig:
-    """Load config/mcp_dedup.toml. Missing file and bad values raise typed ConfigErrors."""
-    filename = Path(path).name
+def _default_config_path() -> Path:
+    """Resolve config/mcp_dedup.toml through the shared config-directory resolver.
+
+    Precedence follows resolve_config_dir(): LLMAGENT_CONFIG_DIR override first;
+    resolution happens at call time so test and deploy overrides take effect.
+    """
+    return resolve_config_dir() / "mcp_dedup.toml"
+
+
+def load_dedup_config(path: str | Path | None = None) -> DedupConfig:
+    """Load the dedup config once per process, keyed by resolved absolute path.
+
+    With path=None the file is located by _default_config_path(). The first
+    successful load parses and caches the config; later loads serve the cache
+    with no filesystem access until the process restarts. Missing file and bad
+    values raise typed ConfigErrors and are never cached.
+    """
+    key = (
+        (_default_config_path() if path is None else Path(path)).expanduser().resolve()
+    )
+    cached = _DEDUP_CONFIG_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    filename = key.name
     try:
-        raw = Path(path).read_bytes()
+        raw = key.read_bytes()
     except FileNotFoundError as exc:
         raise ConfigMissingError(filename) from exc
 
@@ -94,19 +121,20 @@ def load_dedup_config(path: str | Path = DEFAULT_CONFIG_PATH) -> DedupConfig:
             filename, ValueError("[retry_class] section must be a table")
         )
 
-    for key, value in (
+    for field_name, value in (
         ("db_path", db_path),
         ("retention_days", retention_days),
         ("pending_timeout_minutes", pending_timeout),
     ):
-        if key == "db_path":
+        if field_name == "db_path":
             if not isinstance(value, str) or not value:
                 raise ConfigParseError(
-                    filename, ValueError(f"dedup.{key} must be a non-empty string")
+                    filename,
+                    ValueError(f"dedup.{field_name} must be a non-empty string"),
                 )
         elif not isinstance(value, int) or isinstance(value, bool):
             raise ConfigParseError(
-                filename, ValueError(f"dedup.{key} must be an integer")
+                filename, ValueError(f"dedup.{field_name} must be an integer")
             )
 
     retry_class: dict[str, str] = {}
@@ -117,12 +145,22 @@ def load_dedup_config(path: str | Path = DEFAULT_CONFIG_PATH) -> DedupConfig:
             )
         retry_class[str(tool_name)] = cls
 
-    return DedupConfig(
+    config = DedupConfig(
         db_path=str(db_path),
         retention_days=int(retention_days),
         pending_timeout_minutes=int(pending_timeout),
         retry_class=retry_class,
     )
+    _DEDUP_CONFIG_CACHE[key] = config
+    return config
+
+
+def clear_dedup_config_cache() -> None:
+    """Drop every cached dedup config.
+
+    Test and tooling seam; production reload happens at service restart.
+    """
+    _DEDUP_CONFIG_CACHE.clear()
 
 
 def retry_class(tool_name: str, config: DedupConfig | None = None) -> str:

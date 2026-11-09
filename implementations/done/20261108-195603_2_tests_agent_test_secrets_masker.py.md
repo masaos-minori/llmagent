@@ -56,9 +56,9 @@ Production code, docs, `test_diagnostic_store_security.py`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the bare-form, username-only and negative-case tests | Pending | — | — |  |
-| 2 | Extend the idempotence samples | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Add the bare-form, username-only and negative-case tests | Completed | 20261109-101933 | 20261109-101933 |  |
+| 2 | Extend the idempotence samples | Completed | 20261109-101933 | 20261109-101933 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-101933 | 20261109-101933 | targeted tests 112+254 pass; full suite after 195603_3 docs cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

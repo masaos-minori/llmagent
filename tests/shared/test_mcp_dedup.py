@@ -13,8 +13,10 @@ from pathlib import Path
 import pytest
 from shared.config_errors import ConfigMissingError, ConfigParseError
 from shared.mcp_dedup import (
+    DEFAULT_DB_PATH,
     DedupStore,
     classify_interrupted,
+    clear_dedup_config_cache,
     load_dedup_config,
     open_dedup_store,
     retry_class,
@@ -273,3 +275,66 @@ class TestConfigValidation:
         assert store.lookup("k1").status == "pending"
         store.close()
         assert (tmp_path / "from_cfg.sqlite").exists()
+
+
+class TestConfigResolutionAndCache:
+    @pytest.fixture(autouse=True)
+    def _reset_config_cache(self):
+        clear_dedup_config_cache()
+        yield
+        clear_dedup_config_cache()
+
+    def test_default_path_honors_llmagent_config_dir(self, tmp_path, monkeypatch):
+        cfg_dir = tmp_path / "cfg"
+        cfg_dir.mkdir()
+        (cfg_dir / "mcp_dedup.toml").write_text(
+            "[dedup]\nretention_days = 21\n", encoding="utf-8"
+        )
+        monkeypatch.setenv("LLMAGENT_CONFIG_DIR", str(cfg_dir))
+        cfg = load_dedup_config()
+        assert cfg.retention_days == 21
+
+    def test_explicit_path_still_loads(self, tmp_path):
+        cfg_file = tmp_path / "mcp_dedup.toml"
+        cfg_file.write_text("[dedup]\nretention_days = 7\n", encoding="utf-8")
+        cfg = load_dedup_config(cfg_file)
+        assert cfg.retention_days == 7
+
+    def test_second_load_serves_cache_without_file(self, tmp_path):
+        cfg_file = tmp_path / "mcp_dedup.toml"
+        cfg_file.write_text("[dedup]\nretention_days = 7\n", encoding="utf-8")
+        first = load_dedup_config(cfg_file)
+        cfg_file.unlink()
+        assert load_dedup_config(cfg_file) is first
+
+    def test_cache_clear_forces_reload(self, tmp_path):
+        cfg_file = tmp_path / "mcp_dedup.toml"
+        cfg_file.write_text("[dedup]\nretention_days = 7\n", encoding="utf-8")
+        assert load_dedup_config(cfg_file).retention_days == 7
+        cfg_file.write_text("[dedup]\nretention_days = 30\n", encoding="utf-8")
+        clear_dedup_config_cache()
+        assert load_dedup_config(cfg_file).retention_days == 30
+
+    def test_missing_file_error_not_cached(self, tmp_path):
+        missing = tmp_path / "absent.toml"
+        with pytest.raises(ConfigMissingError):
+            load_dedup_config(missing)
+        with pytest.raises(ConfigMissingError):
+            load_dedup_config(missing)
+
+    def test_db_path_fallback_matches_convention(self, tmp_path):
+        import dataclasses
+
+        from db.config import DbConfig
+
+        cfg_file = tmp_path / "mcp_dedup.toml"
+        cfg_file.write_text("[dedup]\nretention_days = 14\n", encoding="utf-8")
+        cfg = load_dedup_config(cfg_file)
+        assert cfg.db_path == DEFAULT_DB_PATH == "/opt/llm/db/mcp_dedup.sqlite"
+        own_parent = Path(DEFAULT_DB_PATH).parent
+        fallbacks = [
+            f.default
+            for f in dataclasses.fields(DbConfig)
+            if f.name in ("workflow_db_path", "eventbus_db_path")
+        ]
+        assert fallbacks and all(Path(v).parent == own_parent for v in fallbacks)

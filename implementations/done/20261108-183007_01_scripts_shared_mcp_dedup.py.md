@@ -17,7 +17,7 @@ Route the `mcp_dedup` config default through the shared config-directory resolve
 
 ## Design decisions
 - Resolve lazily at call time via `_default_config_path` (new) instead of an import-time constant: import-time resolution would freeze `LLMAGENT_CONFIG_DIR` before per-test `monkeypatch` and bypass the compiled-binary guard timing (plan "resolve once" is satisfied by the cache, not by import-time evaluation).
-- Cache every successful load in `_DEDUP_CONFIG_CACHE` (new), keyed by the resolved absolute path; failures are never cached, so a first-load error keeps propagating to the engine catch (`workflow_engine.py:164-173`) and the dispatcher fail-open (`dispatch.py` `_dedup_context`) exactly as today (`REQ-004`).
+- Cache every successful load in `_DEDUP_CONFIG_CACHE` (new), keyed by the resolved absolute path; failures are never cached, so a first-load error keeps propagating to the engine catch (`workflow_engine.py:162-171`) and the dispatcher fail-open (`dispatch.py` `_dedup_context`) exactly as today (`REQ-004`).
 - Invalidation seam: a `clear_dedup_config_cache` (new) function (plan Design choice over mtime checks: simpler, and restart-based reload matches project convention).
 - `DEFAULT_DB_PATH` stays the literal `/opt/llm/db/mcp_dedup.sqlite` — the same fallback-literal shape `scripts/db/config.py` uses for the other databases; no config wiring (`UNK-01` resolved: no `[paths]` section exists in this project).
 
@@ -44,7 +44,7 @@ Replace the CWD-relative default constant with a resolver-based lazy default, ad
 
 ### Details
 - Update the module docstring (L5-7): the config file is located through the shared config-directory resolver and parsed once per process; the DB-file default wording stays valid.
-- Callers unchanged and cache-transparent: `workflow_engine.py:165` (per turn), `dispatch.py:183` (startup, already memoized in `_dedup_context`), `tool_runner.py:174` (`retry_class` with no config, per tool call). All are confirmed no-change rows of the plan.
+- Callers unchanged and cache-transparent: `workflow_engine.py:163` (per turn), `dispatch.py:183` (startup, already memoized in `_dedup_context`), `tool_runner.py:177` (`retry_class` with no config, per tool call). All are confirmed no-change rows of the plan.
 - Cache thread-safety: plain dict, written only on successful loads; a benign concurrent duplicate cold read is acceptable under the GIL and self-heals via the last write — no lock needed, matching the dispatcher's existing module-global memo pattern.
 - `REQ-003` code delta is comment-only; the guarantee is enforced by the equality test in the Validation plan.
 
@@ -68,7 +68,8 @@ Replace the CWD-relative default constant with a resolver-based lazy default, ad
   - `test_cache_clear_forces_reload` (new): load, rewrite the file with a different `retention_days`, call `clear_dedup_config_cache` (new), load again — the new value appears (`REQ-005`).
   - `test_missing_file_error_not_cached` (new): two calls against a missing file both raise `ConfigMissingError` (`REQ-004`).
   - `test_db_path_fallback_matches_convention` (new): a config without `db_path` yields `DedupConfig.db_path == DEFAULT_DB_PATH == "/opt/llm/db/mcp_dedup.sqlite"`, and its parent directory equals the parent of the `scripts/db/config.py` fallbacks (`REQ-003` equality test).
-- Regression, unchanged: existing `TestConfigValidation` tests (`tests/shared/test_mcp_dedup.py` L215-272), the fail-open turn-control tests in `tests/agent/workflow/test_workflow_engine.py` (`build_turn_control_message` call sites, L701-753 region), and `tests/mcp_servers/test_mcp_dispatch.py`.
+- Regression, unchanged: existing `TestConfigValidation` tests (`tests/shared/test_mcp_dedup.py` L215-272), the fail-open turn-control tests in `tests/agent/workflow/test_workflow_engine.py` (`build_turn_control_message` call sites, L707-765 region), and `tests/mcp_servers/test_mcp_dispatch.py`.
+  - Amended 20261109 (first run): the resolver-based default made the conftest isolation config (a copy of `config/` with `/opt/llm/db` paths rewritten into the isolation root) loadable inside the test process, so `dispatch._dedup_context` enabled the durable store for `TestDispatchIdempotencyCache` and its four fixed-key overlay-only cases failed as durable store hits. Fix applied in the test file: that class's autouse fixture now explicitly sets `_dedup_store=None`, `_dedup_config=None`, `_dedup_disabled=True` via monkeypatch, keeping the overlay-only contract the class docstring and the plan Risks row require. Production behavior is unaffected: the change is test-fixture isolation, not a dispatch edit.
 - Run `uv run pytest tests/shared/test_mcp_dedup.py tests/agent/workflow/ tests/mcp_servers/test_mcp_dispatch.py -q` after each phase; full `uv run pytest tests/ -q` before completion; lint/type gates per `rules/toolchain.md`.
 - Post-deploy (plan Validation plan, executed at deploy time, not in this procedure): after restart, the agent log shows no dedup config errors and the dispatcher service starts cleanly.
 
@@ -86,10 +87,10 @@ Replace the CWD-relative default constant with a resolver-based lazy default, ad
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs update is plan row 2's scope (`183007_02`) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-100136 | 20261109-100136 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-100136 | 20261109-100136 | TestConfigResolutionAndCache added; TestDispatchIdempotencyCache fixture amended (see Validation plan amendment) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-100136 | 20261109-100136 | lint/type/import/bandit/gates + targeted tests pass; full suite at end of release unit full suite 11947 passed; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-100136 | 20261109-100136 | docs update is plan row 2's scope (`183007_02`) docs update delivered by 183007_02 (plan row 2); docs checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -40,8 +40,11 @@ writes into `mdq.sqlite` or `rag.sqlite`.
 
 Contract details (all owned by `scripts/shared/mcp_dedup.py`):
 
-- File location: `dedup.db_path` in `config/mcp_dedup.toml`, default `/opt/llm/db/mcp_dedup.sqlite`.
-  A missing config file raises `ConfigMissingError`; bad values raise `ConfigParseError`.
+- File location: the config file is resolved through `resolve_config_dir()` (overridable with
+  `LLMAGENT_CONFIG_DIR`), like every other config consumer. The store database is `dedup.db_path` in
+  `config/mcp_dedup.toml`, default `/opt/llm/db/mcp_dedup.sqlite` — the same fallback-literal shape the
+  other platform databases use. A missing config file raises `ConfigMissingError`; bad values raise
+  `ConfigParseError`.
 - Bootstrap: the store creates its own table and indexes on open (`CREATE TABLE IF NOT EXISTS`),
   stamps `PRAGMA user_version = 1` as its current schema-shape marker. There is no migration
   registry: the former migration machinery was removed by the compatrm001 plan, so a future
@@ -68,7 +71,9 @@ Contract details (all owned by `scripts/shared/mcp_dedup.py`):
 
 Config keys (all in `config/mcp_dedup.toml`): `dedup.db_path`, `dedup.retention_days` (14),
 `dedup.pending_timeout_minutes` (10), and the `[retry_class]` map. The same timeout value is
-the source for the agent-side stale-pending classification in `workflow.sqlite`.
+the source for the agent-side stale-pending classification in `workflow.sqlite`. The config file is
+read once per process: after the first successful load the parsed config is cached until the service
+restarts, and a failed load is not cached.
 
 ## `tool_call_state` (workflow.sqlite); `execution_snapshots` retired
 

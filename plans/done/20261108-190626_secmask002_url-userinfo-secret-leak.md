@@ -128,9 +128,9 @@ N/A: no release unit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Core Logic Implementation (optional-username URL regex) | In Progress | — | — | Procedure generated 2026-11-08: implementations/20261108-195603_1_ |
-| 2 | Phase 2: Tests (bare, username-only, negative, idempotence) | In Progress | — | — | Procedure generated: _2_ |
-| 3 | Phase 3: Documentation & Verification | In Progress | — | — | Doc procedure generated: _3_; the final suite and caller sweep are carried out by code-implementation |
+| 1 | Phase 1: Core Logic Implementation (optional-username URL regex) | Completed | 20261109-101933 | 20261109-101933 | Procedure generated 2026-11-08: implementations/20261108-195603_1_ |
+| 2 | Phase 2: Tests (bare, username-only, negative, idempotence) | Completed | 20261109-101933 | 20261109-101933 | Procedure generated: _2_ |
+| 3 | Phase 3: Documentation & Verification | Completed | 20261109-101933 | 20261109-101933 | Doc procedure generated: _3_; the final suite and caller sweep are carried out by code-implementation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

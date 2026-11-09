@@ -51,8 +51,8 @@ Code, other docs.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the URL-credential clause | Pending | — | — |  |
-| 2 | Run the documentation checkers (`routing.md` Tools) | Pending | — | — |  |
+| 1 | Rewrite the URL-credential clause | Completed | 20261109-101933 | 20261109-101933 |  |
+| 2 | Run the documentation checkers (`routing.md` Tools) | Completed | 20261109-101933 | 20261109-101933 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

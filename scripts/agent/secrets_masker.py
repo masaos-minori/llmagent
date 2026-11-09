@@ -35,7 +35,7 @@ SECRET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(
         r"(?i)()(?<![\w.-])eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
     ),
-    re.compile(r"(?i)([a-z][a-z0-9+.-]*://[^/\s:@]+:)([^/\s@]+)(?=@)"),
+    re.compile(r"(?i)([a-z][a-z0-9+.-]*://(?:[^/\s:@]+:)?)([^/\s@]+)(?=@)"),
 ]
 
 

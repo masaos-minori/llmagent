@@ -57,9 +57,9 @@ Signature and call sites, the other 13 patterns, the pre-existing quadratic scan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the URL userinfo regex literal | Pending | — | — |  |
-| 2 | Add or extend tests (`test_secrets_masker.py` procedure) | Pending | — | — | Must land with step 1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Replace the URL userinfo regex literal | Completed | 20261109-101933 | 20261109-101933 |  |
+| 2 | Add or extend tests (`test_secrets_masker.py` procedure) | Completed | 20261109-101933 | 20261109-101933 | Must land with step 1 delivered by 195603_2; landed with step 1 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-101933 | 20261109-101933 | targeted+gates pass; full suite after 195603_3 docs cycle full suite 11955 passed; diff-cover gate pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

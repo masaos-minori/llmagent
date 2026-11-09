@@ -67,8 +67,8 @@ Rewrite the "File location" bullet and append one caching sentence to the Config
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the "File location" bullet (L43-44) and append the caching sentence to the Config keys paragraph (L69-71) | Pending | — | — | |
-| 2 | Run docs checkers (quality, structure, content policy, consistency --domain db) | Pending | — | — | |
+| 1 | Rewrite the "File location" bullet (L43-44) and append the caching sentence to the Config keys paragraph (L69-71) | Completed | 20261109-100136 | 20261109-100136 |  |
+| 2 | Run docs checkers (quality, structure, content policy, consistency --domain db) | Completed | 20261109-100136 | 20261109-100136 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -108,8 +108,16 @@ class TestDispatchIdempotencyCache:
     """
 
     @pytest.fixture(autouse=True)
-    def _clear_idem_cache(self) -> Iterator[None]:
+    def _clear_idem_cache(self, monkeypatch: Any) -> Iterator[None]:
+        # Overlay-only isolation: with the resolver-based config default the conftest
+        # isolation config makes the durable store openable in-process, which would
+        # turn these fixed-key cases into store hits. Disable it explicitly here.
+        import mcp_servers.dispatch as dispatch_mod
+
         _duplicate_cache.clear()
+        monkeypatch.setattr(dispatch_mod, "_dedup_store", None)
+        monkeypatch.setattr(dispatch_mod, "_dedup_config", None)
+        monkeypatch.setattr(dispatch_mod, "_dedup_disabled", True)
         yield
         _duplicate_cache.clear()
 

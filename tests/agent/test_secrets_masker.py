@@ -264,6 +264,45 @@ class TestExtendedShapeMasking:
         plain = "https://example.com/api/items"
         assert _mask_secrets(plain) == plain
 
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("x=https://LONECRED@h/p", "x=https://***MASKED***@h/p"),
+            (
+                "raw=https://RAWJWTTOKENEXAMPLEABC123@svc.io/x",
+                "raw=https://***MASKED***@svc.io/x",
+            ),
+            ("redis://:pw@host:6379/0", "redis://***MASKED***@host:6379/0"),
+        ],
+    )
+    def test_bare_password_url_masked(self, raw: str, expected: str) -> None:
+        """A bare-password userinfo (scheme://token@host) is masked like the
+        colon form (secmask002 REQ-001)."""
+        result = _mask_secrets(raw)
+        assert result == expected
+
+    def test_username_only_userinfo_is_masked(self) -> None:
+        """Accepted over-mask: username-only userinfo is masked too, matching
+        _redact_remote_url in mcp_servers/git/repository_state.py."""
+        assert (
+            _mask_secrets("ssh://git@github.com/o/r.git")
+            == "ssh://***MASKED***@github.com/o/r.git"
+        )
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "https://example.com/api/items",
+            "https://example.com:8080/a?e=a@b.co",
+            "mail a@b.com",
+            "a_b@domain.org",
+        ],
+    )
+    def test_userinfo_negative_cases(self, text: str) -> None:
+        """Plain URLs (host:port, query with @) and bare emails are unchanged
+        (secmask002 REQ-003)."""
+        assert _mask_secrets(text) == text
+
     def test_scheme_preserved_with_authorization_key(self) -> None:
         """The extended authorization key names must not mask the scheme keyword
         the pre-existing Authorization pattern already handles (secmask001 AC-4)."""
@@ -284,6 +323,7 @@ class TestExtendedShapeMasking:
             "api_key => topsecretxyz",
             "the token is eyJhbGciOiJIUzI1NiJ9.c2VjcmV0cGF5bG9hZA.qS3pR8xYvZ0aB1cD2eF3gH4i",
             "postgres://admin:s3cr3tpw@db:5432/x",
+            "https://LONECRED@h/p",
             '{"credential": "hunter2"}',
             "authorization: abcdefghijkl",
             '{"private_key": "abc"}',
