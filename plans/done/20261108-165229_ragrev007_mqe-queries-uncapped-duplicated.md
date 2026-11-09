@@ -41,7 +41,7 @@ Add an optional `max_paraphrases` argument to `_parse_mqe_response` (default unb
 |---|---|---|---|---|---|---|
 | `scripts/rag/llm_prompts.py` | Modify | Normalize, dedup, and cap in `_parse_mqe_response` (new optional `max_paraphrases`) | `REQ-001`, `REQ-002`, `REQ-004` / AC-1, AC-2, AC-4 | L135-157 keeps every non-empty string, no cap or dedup (checked in Step 3) | `tests/rag/test_rag_stages.py` | Verified |
 | `scripts/rag/llm_client.py` | Modify | Pass `cfg.mqe_n_queries` into the parse call in `expand_queries` | `REQ-002` / AC-2 | Parse call at L157, `self._cfg` available (checked in Step 3) | `tests/rag/test_rag_stages.py`, `tests/rag/test_llm_client_timeout.py` | Verified |
-| `scripts/rag/stages/search.py` | Modify | Semaphore-bounded embedding fetch inside the existing `gather` | `REQ-003` / AC-3 | Unbounded `gather` at L41-44 (checked in Step 3) | `tests/rag/test_rag_stages.py` | Verified |
+| `scripts/rag/stages/search.py` | Modify | Semaphore-bounded embedding fetch inside the existing `gather` | `REQ-003` / AC-3 | Unbounded `asyncio.gather` over `get_embedding` in `_search_all_queries` (checked in Step 3; re-verified in Step 3a, symbol-based because ragrev004 also edits this function) | `tests/rag/test_rag_stages.py` | Verified |
 | `tests/rag/test_rag_stages.py` | Modify | Parse tests (duplicate, oversized, whitespace-only, original-first) and an async concurrency-count test | `REQ-001`..`REQ-004` / AC-1..AC-4 | Holds the MQE and `SearchStage` tests (checked in Step 3) | self | Verified |
 | `docs/21_rag/rag_03_04_query_pipeline-search-stages.md` | Modify | Correct the MQE variant-count statement (L34); state the cap, dedup, and bounded embedding concurrency | `REQ-005` / AC-5 | L34 says the count is controlled by `mqe_n_queries` (checked in Step 3) | docs gates | Verified |
 
@@ -74,6 +74,8 @@ Yes (`REQ-005`): `docs/21_rag/rag_03_04_query_pipeline-search-stages.md` (locate
 - `mqe_n_queries` means the number of paraphrases (the prompt asks for that many), so the total cap is `mqe_n_queries + 1`; the Issue states the same cap.
 - The embedding concurrency limit is a module constant rather than a new configuration key, to avoid widening the config surface (`config/*.toml`, reference table); the Issue's "configured limit" is read as "a configured constant" (UNK-01).
 - Overlap judgment (Step 8b): `scripts/rag/llm_client.py` (with `plans/20261108-164302_ragrev001_mqe-malformed-response-abort.md` and `plans/20261108-164455_ragrev002_rag-context-boundary-injection.md`), `scripts/rag/stages/search.py`, `tests/rag/test_rag_stages.py`, and `docs/21_rag/rag_03_04_query_pipeline-search-stages.md` (with `plans/20261108-164823_ragrev004_search-bm25-coupling.md`) are shared; judged sequencing dependencies, recorded under Scope Dependencies: ragrev001 and ragrev004 land first, ragrev002 touches a different method.
+- Step 3a correction (plan-to-implementation-procedure): `tests/rag/test_llm_client_timeout.py` is not an `Implementation Target Files` row, so the `expand_queries` wiring test for `REQ-002` lives in `tests/rag/test_rag_stages.py` (a `RagLLM` built with a `SimpleNamespace` config, `_call_llm` patched); `mqe_n_queries <= 0` is clamped to zero paraphrases so the cap never becomes a negative slice (edge case of `REQ-002`, no new requirement).
+- Step 3a correction: sibling Plans ragrev001 and ragrev004 are already converted to procedures (`implementations/20261109-104259_01_scripts_rag_llm_client.py.md`, `implementations/20261109-121538_02_scripts_rag_stages_search.py.md`) but not yet executed, so the code still has the pre-change shape; procedures locate code by symbol, not by line number.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -133,10 +135,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: normalize, cap, bound | Pending | — | — | |
-| 3 | Phase 3: documentation | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: normalize, cap, bound | In Progress | — | — |  |
+| 3 | Phase 3: documentation | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -146,7 +148,11 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-133800_01_scripts_rag_llm_prompts.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-133800_02_scripts_rag_llm_client.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-133800_03_scripts_rag_stages_search.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-133800_04_tests_rag_test_rag_stages.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-133800_05_docs_21_rag_rag_03_04_query_pipeline-search-stages.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -170,3 +176,5 @@ N/A: no release unit
 | REQ-004 | Constraints (helper compatibility) | `scripts/rag/llm_prompts.py` | Phase 2 | AC-4 | legacy-signature test | Derived from confirmed evidence |
 | REQ-004 | Constraints | `tests/rag/test_rag_stages.py` | Phase 1 | AC-4 | legacy-signature test | Derived from confirmed evidence |
 | REQ-005 | Documentation Impact; doc L34 | `docs/21_rag/rag_03_04_query_pipeline-search-stages.md` | Phase 3 | AC-5 | docs gates | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-133800 -->

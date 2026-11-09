@@ -135,10 +135,10 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: type change and merge | Pending | — | — | |
-| 3 | Phase 3: documentation | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: type change and merge | In Progress | — | — |  |
+| 3 | Phase 3: documentation | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -148,7 +148,10 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-133509_01_scripts_shared_types.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-133509_02_scripts_rag_repository.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-133509_03_tests_rag_test_rag_repository.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-133509_04_docs_40_shared_shared_02_01_types_and_protocols-core-types.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -175,3 +178,5 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 | REQ-006 | Required Changes 2; Constraints | `scripts/shared/types.py` | Phase 2 | AC-6 | mypy and regression suites | Explicit in issue |
 | REQ-006 | Required Changes 2 | `scripts/rag/repository.py` | Phase 2 | AC-6 | mypy and regression suites | Explicit in issue |
 | REQ-007 | Documentation Impact (corrected: shared types doc applies) | `docs/40_shared/shared_02_01_types_and_protocols-core-types.md` | Phase 3 | AC-7 | docs gates | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-133509 -->
