@@ -72,8 +72,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Give the two specs non-null validators and assert the retained content | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Give the two specs non-null validators and assert the retained content | Completed | 20261109-182406 | 20261109-182406 | skip path verified via negative etag case (e2 -> replace -> assertion fails) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-182406 | 20261109-182406 | skip path verified via negative etag case (e2 -> replace -> assertion fails) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

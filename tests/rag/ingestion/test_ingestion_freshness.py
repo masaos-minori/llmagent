@@ -614,3 +614,97 @@ class TestResolveIncomingGuard:
         mgr = self._mgr(conn, db, doc_id)
         with pytest.raises(InvalidStoredTimestampError):
             mgr.resolve_incoming("etag", "lm", "2024-06-20T00:00:00Z")
+
+
+# ── handle_existing_document() HTTP branch validator-absence rule ────────────
+#
+# ragrev010 REQ-001..REQ-004: an HTTP page whose stored and incoming validator
+# pairs are both absent must be re-ingested, while pages with equal non-null
+# validators still skip. One shared absence helper (_has_validator) governs both
+# the HTTP and file branches.
+
+
+class TestHandleExistingDocumentHttpValidators:
+    """HTTP branch: validators prove "unchanged" only when present and equal."""
+
+    @pytest.mark.parametrize(
+        "stored_etag,stored_lm,incoming_etag,incoming_lm,expected",
+        [
+            (None, None, None, None, (False, True)),  # REQ-001: absent pair re-ingests
+            ("e", "lm", "e", "lm", (True, False)),  # REQ-002: equal non-null skips
+            ("e", None, "e", None, (True, False)),  # one-sided present, equal
+            (None, "lm", None, "lm", (True, False)),  # one-sided present, equal
+            ("e", "lm", "e2", "lm", (False, True)),  # differing etag
+            ("e", "lm", "e", "lm2", (False, True)),  # differing last_modified
+            ("e", "lm", None, None, (False, True)),  # incoming absent
+            (None, None, "e", "lm", (False, True)),  # stored absent
+            ("e", None, "e", "lm", (False, True)),  # last_modified differs
+        ],
+    )
+    def test_http_validator_matrix(
+        self,
+        stored_etag: str | None,
+        stored_lm: str | None,
+        incoming_etag: str | None,
+        incoming_lm: str | None,
+        expected: tuple[bool, bool],
+    ) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn, etag=stored_etag, last_modified=stored_lm)
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+
+        _id, skip, replace = doc_mgr.handle_existing_document(
+            "https://example.com/doc",
+            doc_id,
+            False,
+            incoming_etag,
+            incoming_lm,
+            "2024-06-20T00:00:00Z",
+            lambda u: False,
+        )
+        assert (skip, replace) == expected
+        # No freshness write happens on the handle_existing_document path.
+        assert _freshness_row(conn) == (
+            (stored_etag, stored_lm, "2024-06-10T00:00:00Z"),
+        )
+
+    def test_http_force_true_with_absent_validators(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(conn, etag=None, last_modified=None)
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+
+        _id, skip, replace = doc_mgr.handle_existing_document(
+            "https://example.com/doc",
+            doc_id,
+            True,
+            None,
+            None,
+            "2024-06-20T00:00:00Z",
+            lambda u: False,
+        )
+        assert (skip, replace) == (False, True)
+
+    def test_http_missing_stored_row(self) -> None:
+        conn, db = _make_freshness_db()
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+
+        result = doc_mgr.handle_existing_document(
+            "https://example.com/doc",
+            999,
+            False,
+            None,
+            None,
+            "2024-06-20T00:00:00Z",
+            lambda u: False,
+        )
+        assert result == (999, False, False)
+
+    def test_has_validator_returns_presence(self) -> None:
+        assert DocumentManager._has_validator(None, None) is False
+        assert DocumentManager._has_validator(None, "x") is True
+        assert DocumentManager._has_validator("e", None) is True
+
+    def test_is_file_unchanged_still_guards_none_etag(self) -> None:
+        assert not DocumentManager._is_file_unchanged(None, "lm", "e", "lm")
+        assert not DocumentManager._is_file_unchanged("e", "lm", None, "lm")
+        assert DocumentManager._is_file_unchanged("e", "lm", "e", "lm")

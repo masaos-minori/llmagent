@@ -124,9 +124,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | In Progress | — | — |  |
-| 2 | Phase 2: shared absence rule | In Progress | — | — |  |
-| 3 | Phase 3: documentation | In Progress | — | — |  |
+| 1 | Phase 1: tests first | Completed | — | 20261109-182406 | Proc 01 (test_ingestion_freshness.py) and proc 04 (test_ingester.py) archived; skip path adversarially verified |
+| 2 | Phase 2: shared absence rule | Completed | — | 20261109-182406 | Proc 01 (document_manager.py) archived; ruff/mypy/lint-imports/bandit clean |
+| 3 | Phase 3: documentation | Completed | — | 20261109-182406 | Proc 03 (rag_02_05-ingestion_pipeline-document-manager.md) archived; docs gates pass |
 | 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -137,9 +137,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261109-142759_01_scripts_rag_ingestion_document_manager.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261109-142759_03_docs_21_rag_rag_02_05_ingestion_pipeline-document-manager.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261109-142759_04_tests_rag_ingestion_test_ingester.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-142759_01_scripts_rag_ingestion_document_manager.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261109-142759_03_docs_21_rag_rag_02_05_ingestion_pipeline-document-manager.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261109-142759_04_tests_rag_ingestion_test_ingester.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

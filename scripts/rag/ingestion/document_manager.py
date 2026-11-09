@@ -59,7 +59,7 @@ class DocumentManager:
         Returns:
             Tuple of (existing_doc_id, skip_flag, replace_chunks_flag)
             - When force=True: (existing_doc_id, False, True) — caller should delete then proceed
-            - When force=False and file unchanged: (existing_doc_id, True, False) — skip
+            - When force=False and validators present and equal: (existing_doc_id, True, False) — skip
             - When force=False and file changed: (existing_doc_id, False, True) — caller should delete then proceed
         """
         if force:
@@ -94,12 +94,22 @@ class DocumentManager:
         if stored is None:
             return existing_doc_id, False, False
 
-        if stored["etag"] == etag and stored["last_modified"] == last_modified:
+        if (
+            self._has_validator(stored["etag"], stored["last_modified"])
+            and self._has_validator(etag, last_modified)
+            and stored["etag"] == etag
+            and stored["last_modified"] == last_modified
+        ):
             return existing_doc_id, True, False
 
         # No freshness write here: freshness lands atomically in
         # TransactionManager.commit's replace branch (raging002 REQ-001/003).
         return existing_doc_id, False, True
+
+    @staticmethod
+    def _has_validator(*validators: str | None) -> bool:
+        """Return True when at least one validator in the pair is present."""
+        return any(v is not None for v in validators)
 
     @staticmethod
     def _is_file_unchanged(
@@ -109,7 +119,7 @@ class DocumentManager:
         new_last_modified: str | None,
     ) -> bool:
         """Return True when the file SHA-256 hash is unchanged."""
-        if existing_etag is None or new_etag is None:
+        if not DocumentManager._has_validator(existing_etag, new_etag):
             return False
         return existing_etag == new_etag
 

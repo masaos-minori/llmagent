@@ -73,8 +73,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the `For other sources` bullet to state the absence rule | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Edit the `For other sources` bullet to state the absence rule | Completed | 20261109-180917 | 20261109-180917 |  |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261109-180917 | 20261109-180917 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

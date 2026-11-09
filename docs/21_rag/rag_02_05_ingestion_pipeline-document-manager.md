@@ -33,7 +33,7 @@ related:
 
 - With `--force`, the document is never skipped and its chunks are replaced.
 - For `file://` sources, the stored and new content hashes (kept in the `etag` column) are compared: a match skips the document, a mismatch triggers automatic re-ingestion, and a missing hash on either side counts as changed.
-- For other sources, a skip happens only when both the stored ETag and Last-Modified equal the new values; otherwise the chunks are replaced and the freshness fields (`etag`, `last_modified`, `fetched_at`) are written by the document re-insert inside the same transaction, under the `ETagManager` guard: a stale incoming payload keeps the stored values, and a failed re-ingestion leaves chunks and freshness unchanged.
+- For other sources, a skip happens only when the stored and new validators are both present in at least one of ETag and Last-Modified and equal; a page whose stored or new validators are both absent has no change signal, so it is re-ingested on every run. Otherwise the chunks are replaced and the freshness fields (`etag`, `last_modified`, `fetched_at`) are written by the document re-insert inside the same transaction, under the `ETagManager` guard: a stale incoming payload keeps the stored values, and a failed re-ingestion leaves chunks and freshness unchanged.
 - When no stored row is found, the document is neither skipped nor replaced.
 
 **Deletion:** `delete_existing_document()` and the module-level `delete_document_chain()` delete the `chunks_vec` rows of the document first and then the `documents` row; the cascade removes `chunks`. This order is the invariant defined by [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md).

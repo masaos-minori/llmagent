@@ -551,7 +551,8 @@ class TestIngestUrlGroup:
     def test_skips_already_registered_url(self, tmp_path: Path) -> None:
         conn, fake_db, ingester = self._setup(tmp_path)
         chunk_dir = tmp_path / "chunk"
-        path = _write_chunk(chunk_dir, "c.json")
+        first = _ChunkSpec(etag='"e1"', last_modified="lm1")
+        path = _write_chunk(chunk_dir, "c.json", first)
 
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -566,7 +567,8 @@ class TestIngestUrlGroup:
                 force=False,
             )
 
-        path2 = _write_chunk(chunk_dir, "c2.json")
+        second = _ChunkSpec(etag='"e1"', last_modified="lm1", content="别本文")
+        path2 = _write_chunk(chunk_dir, "c2.json", second)
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
@@ -584,6 +586,10 @@ class TestIngestUrlGroup:
         chunk_count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         assert doc_count == 1
         assert chunk_count == 1  # only from first ingest
+        stored_content = conn.execute(
+            "SELECT content FROM chunks ORDER BY chunk_index"
+        ).fetchone()[0]
+        assert stored_content == "本文"  # second ingest skipped, first retained
 
     def test_force_reinsertion_removes_old_chunks(self, tmp_path: Path) -> None:
         conn, fake_db, ingester = self._setup(tmp_path)

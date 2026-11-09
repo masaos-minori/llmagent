@@ -85,9 +85,9 @@ N/A: no input parsing, trust boundary, or persistence change; the helper only in
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the HTTP-branch matrix tests and confirm the absent-validator cases fail on HEAD | Pending | — | — | |
-| 2 | Add `_has_validator` (new), rewire the HTTP branch and `_is_file_unchanged`, update the docstring | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the HTTP-branch matrix tests and confirm the absent-validator cases fail on HEAD | Completed | 20261109-180713 | 20261109-180713 |  |
+| 2 | Add `_has_validator` (new), rewire the HTTP branch and `_is_file_unchanged`, update the docstring | Completed | 20261109-180713 | 20261109-180713 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-180713 | 20261109-180713 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
