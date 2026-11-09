@@ -14,7 +14,7 @@ Medium
 - **Dependencies**: Related, no required order: the ragrev012 plan (same fetch path; its per-hop robots check can call `ensure_host` once this plan lands).
 
 ## Background
-Review finding F-014. `RobotsCache.fetch_host` (`scripts/rag/ingestion/robots.py:30-48`) parses an empty rule list (allow all) for every status other than 200 and installs an allow-all parser on `httpx.RequestError` or `ValueError`; `is_allowed` returns `True` when the host has no parser (L50-56); the orchestrator preloads only the start host (`orchestrator.py:127-131`); `LinkDiscovery.should_enqueue_link` consults `is_allowed` synchronously at enqueue time (`link_discovery.py:63-84`) and nothing fetches robots for other hosts or checks the start URL itself. The code parses the body with `RobotFileParser.parse()` instead of `read()`, so the standard library's 401/403 handling is not in effect. Facts found while verifying (checked in Step 3): (1) the existing tests pin the current fail-open behavior for a transport error (`tests/rag/ingestion/test_robots.py:65`, `test_fetch_host_transport_error_falls_back_allow_all`), so changing it is a deliberate policy change of an existing contract; (2) `enqueue_links` is synchronous, so a robots fetch cannot happen there, and the authoritative check has to sit at fetch time in the async orchestrator; (3) `RobotsCache` lives on `WebCrawler` and its `_parsers` dict never expires, so a fail-closed outcome cached for a transient error lasts for the crawler instance; (4) the sibling redirect plan turns the shared client's `follow_redirects` off, so the robots fetch must set `follow_redirects=True` itself per request to keep the standard behavior of following robots redirects.
+Review finding F-014. `RobotsCache.fetch_host` (`scripts/rag/ingestion/robots.py:30-48`) parses an empty rule list (allow all) for every status other than 200 and installs an allow-all parser on `httpx.RequestError` or `ValueError`; `is_allowed` returns `True` when the host has no parser (L50-56); the orchestrator preloads only the start host (`orchestrator.py:128-134`); `LinkDiscovery.should_enqueue_link` consults `is_allowed` synchronously at enqueue time (`link_discovery.py:65-84`) and nothing fetches robots for other hosts or checks the start URL itself. The code parses the body with `RobotFileParser.parse()` instead of `read()`, so the standard library's 401/403 handling is not in effect. Facts found while verifying (checked in Step 3): (1) the existing tests pin the current fail-open behavior for a transport error (`tests/rag/ingestion/test_robots.py:65`, `test_fetch_host_transport_error_falls_back_allow_all`), so changing it is a deliberate policy change of an existing contract; (2) `enqueue_links` is synchronous, so a robots fetch cannot happen there, and the authoritative check has to sit at fetch time in the async orchestrator; (3) `RobotsCache` lives on `WebCrawler` and its `_parsers` dict never expires, so a fail-closed outcome cached for a transient error lasts for the crawler instance; (4) the sibling redirect plan turns the shared client's `follow_redirects` off, so the robots fetch must set `follow_redirects=True` itself per request to keep the standard behavior of following robots redirects.
 
 ## Problem
 A host answering 401, 403, or 5xx for robots.txt is crawled as if everything were allowed, and hosts reached through external links are crawled without any robots check although the policy is switched on.
@@ -39,9 +39,9 @@ Keep `is_allowed` synchronous for link filtering and add `ensure_host(origin, cl
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/rag/ingestion/robots.py` | Modify | Outcome table, `ensure_host`, per-request redirect setting, fail-closed parsers | `REQ-001`, `REQ-002`, `REQ-004` / AC-1, AC-2, AC-4 | Non-200 and errors allow all (L30-48); unknown host returns `True` (L50-56) (checked in Step 3) | `tests/rag/ingestion/test_robots.py` | Verified |
-| `scripts/rag/ingestion/orchestrator.py` | Modify | Ensure the host's robots and refuse a disallowed URL before the request in `_process_crawl_url_async` | `REQ-002`, `REQ-003`, `REQ-005` / AC-2, AC-3, AC-5 | Preload only at L127-131; no per-URL robots check in `_process_crawl_url_async` (checked in Step 3) | `tests/rag/ingestion/test_robots.py` | Verified |
+| `scripts/rag/ingestion/orchestrator.py` | Modify | Ensure the host's robots and refuse a disallowed URL before the request in `_process_crawl_url_async` | `REQ-002`, `REQ-003`, `REQ-005` / AC-2, AC-3, AC-5 | Preload only at L128-134 (revalidated 20261109: shifted from L127-131 by the landed ragrev011 commit); no per-URL robots check in `_process_crawl_url_async` (checked in Step 3) | `tests/rag/ingestion/test_robots.py` | Verified |
 | `tests/rag/ingestion/test_robots.py` | Modify | Tests for 200, 401, 403, 404, 500, and connection error; external-host orchestrator test; start-URL refusal; update the transport-error test | `REQ-001`..`REQ-005` / AC-1..AC-5 | `TestRobotsCache` pins allow-all on 404 and transport error (L53-72); `TestOrchestratorEagerFetch` at L127 (checked in Step 3) | self | Verified |
-| `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` | Modify | Robots paragraph (L54-59) and the "Robots.txt Policy" bullet (L73): per-outcome policy and fetch-time enforcement | `REQ-006` / AC-6 | L54-59 describes only the start-host preload and enqueue-time skipping (checked in Step 3) | docs gates | Verified |
+| `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` | Modify | Robots paragraph (L56-61) and the "Robots.txt Policy" bullet (L75): per-outcome policy and fetch-time enforcement | `REQ-006` / AC-6 | L56-61 describes only the start-host preload and enqueue-time skipping (revalidated 20261109: shifted from L54-59/L73 by the landed ragrev011 commit) | docs gates | Verified |
 | `docs/21_rag/rag_05_01-configuration-reference.md` | Modify | `respect_robots` description (L35) | `REQ-006` / AC-6 | L35 states start host only (checked in Step 3) | docs gates | Verified |
 
 ## Reference Files
@@ -70,7 +70,7 @@ Yes (`REQ-006`): `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` (also edi
 ## Assumptions
 - The outcome table follows RFC 9309 section 2.3.1 (unreachable or server-error robots.txt means disallow; client-error other than auth means no restrictions) and the Issue's examples; the owner's open question about other 4xx is resolved here to "allow" (the common convention) and can be overridden by plan amendment (UNK-01).
 - Fail-closed on a network error is a deliberate change from the current pinned fail-open behavior (`test_fetch_host_transport_error_falls_back_allow_all` is renamed and inverted in the same change); the consequence is that a transient robots.txt outage skips that host for the crawler instance's lifetime.
-- Overlap judgment (Step 8b): `scripts/rag/ingestion/orchestrator.py` (with the ragrev011, ragrev012, and ragrev013 plans) and `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` (with the ragrev011 and ragrev012 plans) are shared; judged compatible with no required order: this plan edits the per-URL guard at the start of `_process_crawl_url_async` and docs paragraph L54-59/L73, the others edit the fetch result handling, the client construction, the loop exit, and other doc paragraphs. If ragrev012 lands first, its per-hop robots check should then call `ensure_host`.
+- Overlap judgment (Step 8b, revalidated 20261109): `scripts/rag/ingestion/orchestrator.py` (now with the ragrev012, ragrev013, and ragrev018 plans — the ragrev011 overlap closed when ragrev011 landed at commit b2726cf75) and `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` (with the ragrev012 plan) are shared; judged compatible with no required order: this plan edits the per-URL guard at the start of `_process_crawl_url_async` and docs paragraph L56-61/L75, the others edit the fetch result handling, the `save_http` result handling, the client construction, the `crawl_site` loop exit, and other doc paragraphs. If ragrev012 lands first, its per-hop robots check should then call `ensure_host`.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -88,7 +88,7 @@ Yes (`REQ-006`): `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` (also edi
 | `docs/21_rag/rag_05_01-configuration-reference.md` | Modify | Low | N/A | N/A | not applicable (rsynced) |
 
 ## Design
-Path B (more than 3 target files; crawl policy change). Architecture: `robots.py` imports only `httpx` and the standard library; the orchestrator already holds the cache through `LinkDiscovery`; `lint-imports` 6 contracts kept at plan time, no new import edges (the orchestrator reads the cache the way it already does via `getattr(self._link_discovery, "_robots_cache", None)` at `orchestrator.py:121`). Dependency graph: `RobotsCache` callers are `crawler.py` (construction), `link_discovery.py` (`is_allowed`), and `orchestrator.py` (`fetch_host`); tests in `test_robots.py`. Complexity: `fetch_host` A (4), `is_allowed` A (2); the outcome table lives in one small mapping function so the methods stay at A.
+Path B (more than 3 target files; crawl policy change). Architecture: `robots.py` imports only `httpx` and the standard library; the orchestrator already holds the cache through `LinkDiscovery`; `lint-imports` 6 contracts kept at plan time, no new import edges (the orchestrator reads the cache the way it already does via `getattr(self._link_discovery, "_robots_cache", None)` at `orchestrator.py:130`). Dependency graph: `RobotsCache` callers are `crawler.py` (construction), `link_discovery.py` (`is_allowed`), and `orchestrator.py` (`fetch_host`); tests in `test_robots.py`. Complexity: `fetch_host` A (4), `is_allowed` A (2); the outcome table lives in one small mapping function so the methods stay at A.
 
 Alternatives: (a) make `is_allowed` async and fetch on demand, rejected (`enqueue_links` is synchronous and its tests would change); (b) return `False` for unknown hosts at enqueue time, rejected (it would drop every external link before its robots can be fetched). Chosen: synchronous filter plus an authoritative async guard at fetch time.
 
@@ -130,11 +130,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: policy in the cache | Pending | — | — | |
-| 3 | Phase 3: fetch-time enforcement | Pending | — | — | |
-| 4 | Phase 4: documentation | Pending | — | — | |
-| 5 | Phase 5: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | 20261109-211956 | — |  |
+| 2 | Phase 2: policy in the cache | In Progress | 20261109-211956 | — |  |
+| 3 | Phase 3: fetch-time enforcement | In Progress | 20261109-211956 | — |  |
+| 4 | Phase 4: documentation | In Progress | 20261109-211956 | — |  |
+| 5 | Phase 5: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -144,7 +144,11 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-211956_01_tests_rag_ingestion_test_robots.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-211956_02_scripts_rag_ingestion_robots.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-211956_03_scripts_rag_ingestion_orchestrator.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-211956_04_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261109-211956_05_docs_21_rag_rag_05_01-configuration-reference.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -161,7 +165,7 @@ N/A: no release unit
 | REQ-001 | Required Changes 1; `robots.py:30-48` | `scripts/rag/ingestion/robots.py` | Phase 2 | AC-1 | outcome-table tests | Confirmed by repository evidence |
 | REQ-001 | Testing Expectations | `tests/rag/ingestion/test_robots.py` | Phase 1 | AC-1 | outcome-table tests | Explicit in issue |
 | REQ-002 | Required Changes 2 | `scripts/rag/ingestion/robots.py` | Phase 2 | AC-2 | idempotence and external-host tests | Explicit in issue |
-| REQ-002 | Required Changes 2; `orchestrator.py:127-131` | `scripts/rag/ingestion/orchestrator.py` | Phase 3 | AC-2 | external-host orchestrator test | Confirmed by repository evidence |
+| REQ-002 | Required Changes 2; `orchestrator.py:128-134` | `scripts/rag/ingestion/orchestrator.py` | Phase 3 | AC-2 | external-host orchestrator test | Confirmed by repository evidence |
 | REQ-002 | Testing Expectations | `tests/rag/ingestion/test_robots.py` | Phase 1 | AC-2 | idempotence and external-host tests | Explicit in issue |
 | REQ-003 | Required Changes 3; Acceptance Criteria 3 | `scripts/rag/ingestion/orchestrator.py` | Phase 3 | AC-3 | start-URL refusal test | Explicit in issue |
 | REQ-003 | Testing Expectations | `tests/rag/ingestion/test_robots.py` | Phase 1 | AC-3 | start-URL refusal test | Explicit in issue |
@@ -171,3 +175,5 @@ N/A: no release unit
 | REQ-005 | Constraints | `tests/rag/ingestion/test_robots.py` | Phase 1 | AC-5 | existing link-filter and eager-fetch tests | Explicit in issue |
 | REQ-006 | Documentation Impact | `docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md` | Phase 4 | AC-6 | docs gates | Explicit in issue |
 | REQ-006 | Documentation Impact | `docs/21_rag/rag_05_01-configuration-reference.md` | Phase 4 | AC-6 | docs gates | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-211956 -->
