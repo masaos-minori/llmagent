@@ -69,6 +69,8 @@ Yes (`REQ-005`): `docs/21_rag/rag_03_05_query_pipeline-augment-stages.md` L37 (l
 ## Assumptions
 - The deleted methods have no caller outside the listed tests: a repository-wide search (Step 3) found only `tests/rag/test_rag_pipeline_stage.py`, the lifecycle's own use, and unrelated same-named functions in `startup_flow.py` and `workflow_engine.py`. The Issue's "confirm with a search" is done here and re-run at implementation.
 - Overlap judgment (Step 8b): `scripts/rag/pipeline.py` is also a target of `plans/20261108-164658_ragrev003_fallback-diagnostics-overwritten.md` (compatible: that plan edits `augment()`, this one deletes two unrelated methods) and `docs/21_rag/rag_03_05_query_pipeline-augment-stages.md` of `plans/20261108-164455_ragrev002_rag-context-boundary-injection.md` (compatible: different paragraph). Either order works; deleting the methods first reduces the diff noise for the ragrev003 implementer. `tests/rag/test_stage_lifecycle.py` is also a target of `plans/20261108-164302_ragrev001_mqe-malformed-response-abort.md` (compatible: that plan adds one pipeline-continues test through `run()`, this plan adds direct `_run_stage` tests; both append new tests and touch no shared test).
+- Step 3a correction (plan-to-implementation-procedure): UNK-01 is answered by static reading of `scripts/rag/pipeline.py`: after deleting the two methods, `import time`, `import sqlite3`, `Literal` (from `typing`; `cast` stays), and `PipelineContext` and `PipelineStage` (from `rag.stage`; `StageResult` stays) have no remaining use in the module; no module or test re-exports or patches them (`rg` over `scripts/` and `tests/`; the module defines no `__all__`). `ruff check` confirms at implementation.
+- Step 3a correction: sibling Plan ragrev001 has since landed `TestMqeMalformedResponseFallback` in `tests/rag/test_stage_lifecycle.py` (one lifecycle-level test that exercises the real `_run_stage` indirectly through `run()` for an MQE failure); the Background statement that no test runs the real `_run_stage` stays true for direct coverage of the absorbed exception list, propagation, status mapping, and timing, so `REQ-002` is unchanged. Procedures locate tests by class and name, not line number (the cited line numbers of this file have drifted).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -125,10 +127,10 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add the missing lifecycle coverage | Pending | — | — | |
-| 2 | Phase 2: retarget the existing tests | Pending | — | — | |
-| 3 | Phase 3: delete the dead copy and fix the doc | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: add the missing lifecycle coverage | In Progress | — | — |  |
+| 2 | Phase 2: retarget the existing tests | In Progress | — | — |  |
+| 3 | Phase 3: delete the dead copy and fix the doc | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -138,7 +140,8 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-135456_01_scripts_rag_pipeline.py.md | 1, 2, 3 | Procedure | Pending | — | — |
+| implementations/20261109-135456_04_docs_21_rag_rag_03_05_query_pipeline-augment-stages.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -157,3 +160,5 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 | REQ-003 | Required Changes 3 (corrected: 10 call sites) | `tests/rag/test_rag_pipeline_stage.py` | Phase 2 | AC-3 | the 10 retargeted tests | Confirmed by repository evidence |
 | REQ-004 | Constraints; Acceptance Criteria 3 | `scripts/rag/pipeline.py` | Phase 3 | AC-4 | `tests/rag` run, lint, mock-patch check | Explicit in issue |
 | REQ-005 | Step 3 finding: doc L37 names the dead copy | `docs/21_rag/rag_03_05_query_pipeline-augment-stages.md` | Phase 3 | AC-5 | docs gates | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-135456 -->

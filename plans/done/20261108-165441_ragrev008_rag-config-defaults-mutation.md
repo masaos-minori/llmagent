@@ -36,12 +36,14 @@ Resolve in this order for dict/object `cfg`: the caller's values, then `module_c
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-09 (fallout): added tests/agent/commands/test_agent_rag.py — Fixture _make_cfg builds a SimpleNamespace with use_search=True and no rag_db_path, so RagPipeline construction would raise once rag_db_path is required; set the path explicitly (fallout, no behavior test weakened)
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/rag/config_resolution.py` | Modify | Non-mutating resolution, `module_cfg` layering for dict/object `cfg`, `rag_db_path` default `""`, helper extraction | `REQ-001`..`REQ-005` / AC-1..AC-5 | Mutation at L113-141, default at L75, check at L152-164, `module_cfg` only on the `None` branch L134 (checked in Step 3) | `tests/rag/test_config_resolution.py` | Verified |
 | `tests/rag/test_config_resolution.py` | Modify | Non-mutation, missing-path error, layering, MCP-adapter-shape, and `None`-branch-unchanged tests | `REQ-001`..`REQ-005` / AC-1..AC-5 | Existing resolver tests at L90-190 incl. `test_module_cfg_fallback_when_no_loader_and_no_exception` (checked in Step 3) | self | Verified |
 | `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md` | Modify | State the resolution order and the required `rag_db_path` when search is enabled (L30 area) | `REQ-007` / AC-7 | L30 describes construction from a flat `module_cfg` (checked in Step 3) | docs gates | Verified |
+| `tests/agent/commands/test_agent_rag.py` | Modify | Fixture _make_cfg builds a SimpleNamespace with use_search=True and no rag_db_path, so RagPipeline construction would raise once rag_db_path is required; set the path explicitly (fallout, no behavior test weakened) | REQ-006 / AC-6 | tests/agent/commands/test_agent_rag.py _make_cfg defaults (use_search True, no rag_db_path) feed RagPipeline(http, cfg) at five call sites (checked in Step 3a) | tests/agent/commands/test_agent_rag.py | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -76,6 +78,7 @@ Yes (`REQ-007`): `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md` (l
 ## Assumptions
 - Layering `module_cfg` under a dict/object `cfg` keeps the documented priority order (the caller's values are highest) and only changes the case where `module_cfg` was ignored entirely; this is the reading of the Issue constraint "keep the priority order".
 - No in-tree production caller other than the MCP service constructs `RagPipeline` (grep of `scripts/` found only `rag_pipeline_service.py`); in-tree tests that omit `rag_db_path` with `use_search=True` are found by the Phase 1 census, not guessed here (the Issue's open question).
+- Step 3a correction (plan-to-implementation-procedure): a static census of `tests/` (files with `use_search` true or `RagPipeline(`, minus those that set `rag_db_path`) found one fallout file that reaches `resolve_rag_config` without a path, `tests/agent/commands/test_agent_rag.py` (added as a fallout row); the other candidates (`tests/agent/test_tool_result_formatter.py`, `tests/integration/test_agent_integration.py`, `tests/rag/test_rag_stages.py`) never pass their config to the resolver. The Phase 1 full-suite baseline remains the authoritative census (UNK-02).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -90,6 +93,7 @@ Yes (`REQ-007`): `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md` (l
 | `scripts/rag/config_resolution.py` | Modify | High (config entry for every `RagPipeline`; `radon`: `resolve_rag_config` D (24)) | 2 | N/A | not applicable (rsynced) |
 | `tests/rag/test_config_resolution.py` | Modify | Low | N/A | N/A | not applicable (rsynced) |
 | `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md` | Modify | Low | N/A | N/A | not applicable (rsynced) |
+| `tests/agent/commands/test_agent_rag.py` | Modify | Not assessed (amendment 2026-11-09) | N/A | N/A | Not assessed (amendment 2026-11-09) |
 
 ## Design
 Path B (runtime-facing config contract change). Architecture: `resolve_rag_config` is a leaf in `rag/`; the only production caller is `RagPipeline.__init__`; `lint-imports` 6 contracts kept at plan time, no import changes planned. Consumer scan for `resolve_rag_config` (checked in Step 3): 9 script candidates (the caller and docstring/comment mentions), 15 test candidates; production validators only mention it in comments. Complexity: D (24) today; extraction of `_select_raw_cfg`, `_layer_config`, and `_require_search_fields` keeps each helper at A or B.
@@ -109,6 +113,7 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 3. **Phase 3: Fallout and documentation**
    - [ ] Fix tests that relied on the implicit default, each as a Plan Amendment of class fallout (`REQ-006`; files named by the census)
    - [ ] Document the resolution order and required path (`REQ-007`; `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md`)
+   - [ ] Modify (REQ-006; `tests/agent/commands/test_agent_rag.py`) — amendment 2026-11-09
 4. **Phase 4: Deployment & Verification**
    - [ ] Full suite and gates; deploy hand-off to `skills/deploy/SKILL.md` after commit and push, at the user's decision, with an owner check of the deployed DB path (all requirements; `scripts/rag/config_resolution.py`)
 
@@ -134,10 +139,10 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first and census | Pending | — | — | |
-| 2 | Phase 2: resolution change | Pending | — | — | |
-| 3 | Phase 3: fallout and documentation | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first and census | In Progress | — | — |  |
+| 2 | Phase 2: resolution change | In Progress | — | — |  |
+| 3 | Phase 3: fallout and documentation | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -147,7 +152,9 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-135232_01_scripts_rag_config_resolution.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261109-135232_03_docs_21_rag_rag_03_02_query_pipeline-rag-pipeline-class.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-135232_04_tests_agent_commands_test_agent_rag.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -156,7 +163,7 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261108-165441
-- **Related target files**: `scripts/rag/config_resolution.py`, `tests/rag/test_config_resolution.py`, `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md`
+- **Related target files**: `scripts/rag/config_resolution.py`, `tests/rag/test_config_resolution.py`, `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md`, `tests/agent/commands/test_agent_rag.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -170,5 +177,8 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 | REQ-004 | Constraints | `scripts/rag/config_resolution.py` | Phase 2 | AC-4 | existing resolver tests | Explicit in issue |
 | REQ-005 | Step 3 reproduction; service L80-115 | `scripts/rag/config_resolution.py` | Phase 2 | AC-5 | service-shaped test | Confirmed by repository evidence |
 | REQ-005 | Step 3 reproduction | `tests/rag/test_config_resolution.py` | Phase 1 | AC-5 | service-shaped test | Confirmed by repository evidence |
-| REQ-006 | Unresolved Questions; Out of Scope | `tests/rag/test_config_resolution.py` | Phase 3 | AC-6 | full-suite census | Needs confirmation |
+| REQ-006 | Unresolved Questions; Out of Scope | `tests/rag/test_config_resolution.py` | Phase 3 | AC-6 | full-suite census | Confirmed by repository evidence (Step 3a static census: one fallout file, `tests/agent/commands/test_agent_rag.py`, added by amendment; the full-suite run in Phase 1 can still add files, each as a fallout amendment) |
 | REQ-007 | Documentation Impact | `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md` | Phase 3 | AC-7 | docs gates | Explicit in issue |
+| REQ-006 | Amendment 2026-11-09: Fixture _make_cfg builds a SimpleNamespace with use_search=True and no rag_db_path, so RagPipeline construction would raise once rag_db_path is required; set the path explicitly (fallout, no behavior test weakened) | tests/agent/commands/test_agent_rag.py | Phase 3 | AC-6 | tests/agent/commands/test_agent_rag.py | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-135232 -->
