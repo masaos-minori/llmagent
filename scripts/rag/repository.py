@@ -85,12 +85,12 @@ def _build_fts_tokens_ja(text: str) -> list[str]:
 
 
 def _build_fts_query(text: str) -> str:
-    """Convert text to FTS5 query; Japanese uses Sudachi POS filter, tokens are quoted to escape AND/OR/NOT."""
+    """Convert text to FTS5 query; Japanese uses Sudachi POS filter, the non-Japanese branch tokenizes Unicode word runs. Tokens are double-quoted so AND/OR/NOT/NEAR in user text stay literals, and the quoted tokens are joined with OR so a chunk matching any subset of terms is returned and ranked by BM25."""
     has_japanese = bool(re.search(r"[぀-ヿ一-鿿]", text))
     if has_japanese:
         tokens = _build_fts_tokens_ja(text)
     else:
-        tokens = re.findall(r"[a-zA-Z0-9]+", text)
+        tokens = re.findall(r"[^\W_]+", text)
     if not tokens:
         return ""
 
@@ -117,7 +117,7 @@ def _build_fts_query(text: str) -> str:
 
     if not sanitized:
         return ""
-    return " ".join(f'"{t}"' for t in sanitized)
+    return " OR ".join(f'"{t}"' for t in sanitized)
 
 
 class RagRepository:

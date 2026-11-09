@@ -184,11 +184,11 @@ class TestBuildFtsQuery:
             return_value=["食べ物", "美味しい"],
         ):
             result = _build_fts_query("食べ物は美味しい")
-        assert result == '"食べ物" "美味しい"'
+        assert result == '"食べ物" OR "美味しい"'
 
     def test_build_fts_query_en_uses_ascii_extraction(self) -> None:
         result = _build_fts_query("hello world 123")
-        assert result == '"hello" "world" "123"'
+        assert result == '"hello" OR "world" OR "123"'
 
     def test_build_fts_query_escapes_fts_metacharacters(self) -> None:
         with patch(
@@ -197,6 +197,69 @@ class TestBuildFtsQuery:
         ):
             result = _build_fts_query("test日本語")
         assert result == '"test"'
+
+
+class TestFtsRecallAndUnicode:
+    def test_long_query_matches_subset_ranked_by_bm25(
+        self, db: _FakeSQLiteHelper
+    ) -> None:
+        conn = db._conn
+        doc_id = _insert_doc(conn)
+        words = [
+            "alpha",
+            "beta",
+            "gamma",
+            "delta",
+            "epsilon",
+            "zeta",
+            "eta",
+            "theta",
+            "iota",
+            "kappa",
+        ]
+        content_a = "x x alpha beta gamma delta epsilon zeta x x"
+        content_b = "x x x x eta theta x x"
+        content_c = "x x x x x x x x"
+        chunk_a = _insert_chunk(conn, doc_id, content_a)
+        chunk_b = _insert_chunk(conn, doc_id, content_b)
+        _insert_chunk(conn, doc_id, content_c)
+        hits = fts_search(" ".join(words), top_k=5, db=db)
+        assert len(hits) == 2
+        assert [hit.chunk_id for hit in hits] == [chunk_a, chunk_b]
+        and_query = " ".join(f'"{w}"' for w in words)
+        assert _fts_rowids(conn, and_query) == []
+
+    def test_accented_query_hits_indexed_chunk(self, db: _FakeSQLiteHelper) -> None:
+        conn = db._conn
+        doc_id = _insert_doc(conn)
+        _insert_chunk(conn, doc_id, "Café résumé guide")
+        hits = fts_search("café résumé", top_k=5, db=db)
+        assert len(hits) == 1
+
+    @pytest.mark.parametrize(
+        ("content", "query"),
+        [
+            ("Привет мир", "Привет мир"),
+            ("안녕하세요 세계", "안녕하세요 세계"),
+        ],
+    )
+    def test_cyrillic_and_hangul_queries_hit_indexed_chunks(
+        self, db: _FakeSQLiteHelper, content: str, query: str
+    ) -> None:
+        conn = db._conn
+        doc_id = _insert_doc(conn)
+        _insert_chunk(conn, doc_id, content)
+        hits = fts_search(query, top_k=5, db=db)
+        assert len(hits) == 1
+
+    def test_operator_like_text_is_literal_in_real_fts5(
+        self, db: _FakeSQLiteHelper
+    ) -> None:
+        conn = db._conn
+        doc_id = _insert_doc(conn)
+        _insert_chunk(conn, doc_id, "searchable alpha content")
+        hits = fts_search("alpha AND beta OR NOT NEAR", top_k=5, db=db)
+        assert len(hits) == 1
 
 
 # ── fts_search() quality ──────────────────────────────────────────────────────

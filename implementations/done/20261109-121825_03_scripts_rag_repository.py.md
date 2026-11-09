@@ -58,14 +58,19 @@ N/A: revert the commit (the OR rule lives in one function; no data or index chan
 ## Out of Scope
 - Replacing FTS5 or Sudachi, index-side tokenization, the memory module's `scripts/agent/memory/fts_query.py` (Plan UNK-02), the token cap, a configurable rule, ragrev006's signal changes, and deployment (a user decision after commit and push).
 
+## Deviations from plan
+- **Existing tests beyond the two named assertions were affected.** The Plan's adversarial verification claimed only the two exact-string `TestBuildFtsQuery` assertions would break. At procedure time three `TestFtsTriggerConcurrency` tests in `tests/rag/test_rag_repository.py` were found to fail deterministically after the OR join: their count assertions query underscore-joined phrases (`new_content`, `updated_content`, `brand_new_content`, `original_content`, `pre_content`, `old_content`) whose tokens share the stem `content`, so the OR join matches every chunk containing that stem. This is the intended REQ-001 behavior, not a bug.
+- **Correction (intent preserved).** Each concurrent group is now discriminated by its own unique marker word (`old`, `new`, `pre`, `brand_new`, `updated`, `original`) instead of the shared-stem phrase. The assertions still verify exact trigger consistency under concurrent INSERT/UPDATE/DELETE; only the discriminating query term changed. Assertions were not weakened.
+- **Plan amendment.** `plans/done/20261108-164946_ragrev005_fts-query-and-semantics.md` Freeze status lifted, Background corrected, the `tests/rag/test_rag_repository.py` target-file row and AC-4 updated to record the three corrected assertions. The design, requirements, and chosen OR rule are unchanged.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Change the token pattern, the join, and the docstring of `_build_fts_query` | Pending | — | — | |
-| 2 | Run the new and updated tests, then `tests/rag` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and `radon cc` | Pending | — | — | |
+| 1 | Change the token pattern, the join, and the docstring of `_build_fts_query` | Completed | 20261109-152921 | 20261109-155149 | Pattern `[a-zA-Z0-9]+`→`[^\W_]+`, join `" "`→`" OR "`, docstring updated. |
+| 2 | Run the new and updated tests, then `tests/rag` | Completed | 20261109-154909 | 20261109-155149 | 786 passed, 0 failed. Three `TestFtsTriggerConcurrency` count assertions required correction for the OR join (see Deviations); corrected by discriminating each concurrent group with a unique marker word. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and `radon cc` | Completed | 20261109-154909 | 20261109-155149 | ruff clean, mypy success (557 files), lint-imports 6/6 kept, `_build_fts_query` stays B (9), module size OK. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

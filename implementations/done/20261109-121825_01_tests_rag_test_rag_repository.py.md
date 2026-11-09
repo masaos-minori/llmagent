@@ -64,9 +64,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the six `_build_fts_query` unit tests | Pending | — | — | |
-| 2 | Run them on the pre-change HEAD and record that they fail (AC-5) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the six `_build_fts_query` unit tests | Completed | 20261109-151940 | 20261109-152136 |  |
+| 2 | Run them on the pre-change HEAD and record that they fail (AC-5) | Completed | — | 20261109-152136 | AC-5: 7 new test instances fail on HEAD (space join instead of OR; [a-zA-Z0-9]+ drops accented/Cyrillic/Hangul -> empty query); existing BuildFtsQuery tests pass unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261109-152136 | ruff format/check clean; full-suite green run deferred to repository.py procedure (03) which changes production code |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

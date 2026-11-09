@@ -64,9 +64,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the two join-form assertions and add the four integration tests | Pending | — | — | |
-| 2 | Run them on the pre-change HEAD and record that they fail (AC-5) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the two join-form assertions and add the four integration tests | Completed | 20261109-152648 | 20261109-152818 |  |
+| 2 | Run them on the pre-change HEAD and record that they fail (AC-5) | Completed | — | 20261109-152818 | AC-5: 7 fail on HEAD — 2 edited join assertions (space vs OR) + long-query/accented/Cyrillic/Hangul/operator integration tests (ASCII-only regex drops Unicode -> empty; AND join needs all terms); existing tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261109-152818 | ruff format/check clean; full-suite green run deferred to repository.py procedure (03) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

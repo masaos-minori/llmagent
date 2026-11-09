@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the "Japanese FTS5 Tokenization" paragraph | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Update the "Japanese FTS5 Tokenization" paragraph | Completed | 20261109-155621 | 20261109-155621 | — |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261109-155621 | 20261109-155621 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

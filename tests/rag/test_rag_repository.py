@@ -515,6 +515,47 @@ class TestBuildFtsQuery:
         result = _build_fts_query("   ")
         assert result == ""
 
+    def test_terms_joined_with_or(self) -> None:
+        result = _build_fts_query("alpha beta gamma")
+        assert result == '"alpha" OR "beta" OR "gamma"'
+
+    def test_single_token_has_no_or(self) -> None:
+        result = _build_fts_query("alpha")
+        assert result == '"alpha"'
+
+    @pytest.mark.parametrize(
+        ("query", "expected"),
+        [
+            ("café résumé", '"café" OR "résumé"'),
+            ("привет мир", '"привет" OR "мир"'),
+            ("안녕하세요 세계", '"안녕하세요" OR "세계"'),
+        ],
+    )
+    def test_non_ascii_queries_yield_tokens(self, query: str, expected: str) -> None:
+        result = _build_fts_query(query)
+        assert result
+        assert result == expected
+
+    def test_operator_like_words_stay_quoted_literals(self) -> None:
+        result = _build_fts_query("a AND b OR NOT NEAR")
+        assert result.split(" OR ") == [
+            '"a"',
+            '"AND"',
+            '"b"',
+            '"OR"',
+            '"NOT"',
+            '"NEAR"',
+        ]
+
+    def test_token_cap_holds_with_or_join(self) -> None:
+        words = " ".join(f"word{i}" for i in range(100))
+        result = _build_fts_query(words)
+        assert len(result.split(" OR ")) == 20
+
+    def test_underscore_still_splits_ascii_tokens(self) -> None:
+        result = _build_fts_query("foo_bar")
+        assert result == '"foo" OR "bar"'
+
 
 # ── FTS Trigger Concurrency ───────────────────────────────────────────────────
 
@@ -682,7 +723,7 @@ class TestFtsTriggerConcurrency:
                 return list(conn.execute(sql, params).fetchall())
 
         repo = RagRepository(_TestHelper())
-        results_before = repo.fts_search("old_content", top_k=10)
+        results_before = repo.fts_search("old", top_k=10)
         assert len(results_before) == 5
 
         updated_chunk_ids = {2, 3}
@@ -703,10 +744,10 @@ class TestFtsTriggerConcurrency:
             for f in concurrent.futures.as_completed(futures):
                 f.result()
 
-        results_after_new = repo.fts_search("new_content", top_k=10)
+        results_after_new = repo.fts_search("new", top_k=10)
         assert len(results_after_new) == 2
 
-        results_after_old = repo.fts_search("old_content", top_k=10)
+        results_after_old = repo.fts_search("old", top_k=10)
         old_ids = {r.chunk_id for r in results_after_old}
         assert old_ids.isdisjoint(updated_chunk_ids)
 
@@ -760,10 +801,10 @@ class TestFtsTriggerConcurrency:
                 return list(conn.execute(sql, params).fetchall())
 
         repo = RagRepository(_TestHelper())
-        new_results = repo.fts_search("new_content", top_k=10)
+        new_results = repo.fts_search("new", top_k=10)
         assert len(new_results) == 5
 
-        old_results = repo.fts_search("pre_content", top_k=10)
+        old_results = repo.fts_search("pre", top_k=10)
         old_ids = {r.chunk_id for r in old_results}
         assert old_ids.isdisjoint(delete_ids)
 
@@ -833,13 +874,13 @@ class TestFtsTriggerConcurrency:
 
         repo = RagRepository(_TestHelper())
 
-        new_results = repo.fts_search("brand_new_content", top_k=10)
+        new_results = repo.fts_search("brand_new", top_k=10)
         assert len(new_results) == 3
 
-        upd_results = repo.fts_search("updated_content", top_k=10)
+        upd_results = repo.fts_search("updated", top_k=10)
         assert len(upd_results) == 3
 
-        after_del = repo.fts_search("original_content", top_k=10)
+        after_del = repo.fts_search("original", top_k=10)
         del_result_ids = {r.chunk_id for r in after_del}
         assert del_result_ids.isdisjoint(delete_ids)
 
