@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/mcp_servers/github/github_models.py
 
-Re-export stub for github-mcp server models.
+Aggregation module for github-mcp server models.
 
 Split layout (single-responsibility modules):
   github_models_config.py — GitHubConfig dataclass, domain exceptions, DEFAULT_PER_PAGE

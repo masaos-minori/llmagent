@@ -51,7 +51,7 @@ class LlmTurnExecutor:
         self._on_llm_wait_start = on_llm_wait_start
         self._on_llm_wait_end = on_llm_wait_end
 
-    # ── Backward-compatible helper methods ────────────────────────────────────
+    # ── Callback invocation helpers ───────────────────────────────────────────
 
     def call_on_llm_wait_end(self) -> None:
         """Invoke on_llm_wait_end if configured."""

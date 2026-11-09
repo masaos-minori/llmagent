@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/mcp_servers/cicd/cicd_service.py
 
-Re-export stub for mcp/cicd/service modules.
+Aggregation module for the split cicd service modules.
 
 Split layout:
   service_defs.py           — Constants, CiBackend protocol

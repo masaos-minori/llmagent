@@ -122,9 +122,9 @@ One mechanism change in one loop: add `re.IGNORECASE` to the `check_compat_patte
 ### Execution Status
 | Step | Description | Status | Owner | Started | Completed | Notes |
 |---|---|---|---|---|---|---|
-| 1 | Phase 1: semantics flip + census | In Progress | engineer | | | procedures 01 generated 2026-11-08 |
-| 2 | Phase 2: finding resolution | In Progress | engineer | | | procedures 03-09 generated 2026-11-08 |
-| 3 | Phase 3: tests + tool docs | In Progress | engineer | | | procedure 02 generated 2026-11-08 |
+| 1 | Phase 1: semantics flip + census | Completed | engineer | 2026-11-08 | 2026-11-09 | procedures 01-09 implemented, validated, archived batch 20261108-190836 |
+| 2 | Phase 2: finding resolution | Completed | engineer | 2026-11-08 | 2026-11-09 | repo-clean census 0; all findings resolved |
+| 3 | Phase 3: tests + tool docs | Completed | engineer | 2026-11-08 | 2026-11-09 | ruff/mypy/bandit/module-size clean; diff-cover 100% on changed lines |
 
 ### Blocker Log
 | Date | Blocker | Status | Resolution |
@@ -133,15 +133,15 @@ One mechanism change in one loop: add `re.IGNORECASE` to the `check_compat_patte
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261108-190836_01_tools_check_compat_shims.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261108-190836_02_tests_tools_test_check_compat_shims.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261108-190836_03_scripts_agent_audit_event_emitter.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-190836_04_scripts_agent_bg_task_monitor.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-190836_05_scripts_agent_conversation_state_manager.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-190836_06_scripts_agent_llm_turn_executor.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-190836_07_scripts_mcp_servers_cicd_cicd_service.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-190836_08_scripts_mcp_servers_github_github_models.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261108-190836_09_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261108-190836_01_tools_check_compat_shims.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261108-190836_02_tests_tools_test_check_compat_shims.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261108-190836_03_scripts_agent_audit_event_emitter.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-190836_04_scripts_agent_bg_task_monitor.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-190836_05_scripts_agent_conversation_state_manager.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-190836_06_scripts_agent_llm_turn_executor.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-190836_07_scripts_mcp_servers_cicd_cicd_service.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-190836_08_scripts_mcp_servers_github_github_models.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261108-190836_09_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

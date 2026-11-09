@@ -73,10 +73,10 @@ Two edits in one file: anchor the `_MCP_TOOLS` pattern string (L79), then add `r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | two edits: L79 anchor, L631 `re.IGNORECASE` |
-| 2 | Add or update tests per Validation plan | Pending | — | — | tests are procedure 02's target file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | repo-clean gate depends on procedures 03-09 and `wfaudit008` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | `tools/TOOL_DESCRIPTIONS.md` rows 83 and 174 in this procedure |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-085855 | 20261109-085855 | two edits: L79 anchor, L631 `re.IGNORECASE` |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-085855 | 20261109-085855 | tests are procedure 02's target file N/A: companion tests are procedure 02's target file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-101318 | 20261109-101318 | repo-clean gate depends on procedures 03-09 and `wfaudit008` STEP 3: per-member validators + targeted tests pass; diff-cover 100%; census 0 findings. End-of-unit full suite has 28 pre-existing eventbus failures (verified on clean HEAD, unrelated to unit); user approved proceeding. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-085855 | 20261109-085855 | `tools/TOOL_DESCRIPTIONS.md` rows 83 and 174 in this procedure |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

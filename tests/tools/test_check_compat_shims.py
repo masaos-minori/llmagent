@@ -131,6 +131,79 @@ class TestPatternDetection:
         issues = check_compat_patterns(dirty.read_text(), dirty, {dirty})
         assert issues == []
 
+    @pytest.mark.parametrize(
+        ("line", "pattern_name"),
+        [
+            (
+                "Backward-compatible alias for _notify_threshold_breach.",
+                "backward-compatible keyword",
+            ),
+            (
+                "backward-compatible alias",
+                "backward-compatible keyword",
+            ),
+            (
+                "BACKWARD-COMPATIBLE",
+                "backward-compatible keyword",
+            ),
+            (
+                "Re-export stub for models.",
+                "re-export stub phrase",
+            ),
+            (
+                "RE-EXPORT STUB",
+                "re-export stub phrase",
+            ),
+            (
+                "Backward Compatibility Layer",
+                "backward compatibility layer",
+            ),
+            (
+                "Workflow MODE=disabled",
+                "Workflow mode=disabled log",
+            ),
+        ],
+    )
+    def test_case_variant_forms_flagged(self, line: str, pattern_name: str) -> None:
+        content = line + "\n"
+        issues = check_compat_patterns(content, Path("scripts/sample.py"), set())
+        assert len(issues) == 1
+        assert pattern_name in issues[0]
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "_MCP_TOOLS = []",
+            'hasattr(m, "_MCP_TOOLS")',
+            'assert not hasattr(mod, "_MCP_TOOLS")',
+            '"_mcp_tools"',
+        ],
+    )
+    def test_mcp_tools_token_form_flagged(self, line: str) -> None:
+        content = line + "\n"
+        issues = check_compat_patterns(content, Path("scripts/sample.py"), set())
+        assert len(issues) == 1
+        assert "_MCP_TOOLS" in issues[0]
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "async def _cmd_mcp_tools(self) -> None:",
+            "await self._cmd_mcp_tools()",
+            '"_cmd_mcp_tools",',
+            "See also tests/test_mcp_tools_validation.py (requirement 14) for a broader-server,",
+            "def test_empty_mcp_tools_attribute_missing_returns_empty_list(self) -> None:",
+        ],
+    )
+    def test_mcp_tools_identifier_substrings_not_flagged(self, line: str) -> None:
+        content = line + "\n"
+        issues = check_compat_patterns(content, Path("scripts/sample.py"), set())
+        assert issues == []
+
+    def test_compat_pattern_inventory_pinned(self) -> None:
+        assert len(COMPAT_PATTERNS) == 84
+        assert COMPAT_PATTERNS["_MCP_TOOLS"] == r"\b_MCP_TOOLS\b"
+
 
 class TestAdrProhibitedPatterns:
     """The ADR-scoped check (REQ-002) fires on a seeded pattern and is

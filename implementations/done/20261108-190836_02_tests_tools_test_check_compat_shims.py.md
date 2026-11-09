@@ -68,10 +68,10 @@ Add four test methods to `TestPatternDetection` after `test_allowlisted_file_ski
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | four new methods in `TestPatternDetection` |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this document is the test procedure |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | green only with procedures 03-09 and `wfaudit008` landed |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | no doc edit in scope; `tools/TOOL_DESCRIPTIONS.md` is procedure 01 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-090314 | 20261109-090314 | four new methods in `TestPatternDetection` |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-090314 | 20261109-090314 | this document is the test procedure |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-101318 | 20261109-101318 | green only with procedures 03-09 and `wfaudit008` landed STEP 3: per-member validators + targeted tests pass; diff-cover 100%; census 0 findings. End-of-unit full suite has 28 pre-existing eventbus failures (verified on clean HEAD, unrelated to unit); user approved proceeding. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-090314 | 20261109-090314 | no doc edit in scope; `tools/TOOL_DESCRIPTIONS.md` is procedure 01 N/A: no doc edit in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

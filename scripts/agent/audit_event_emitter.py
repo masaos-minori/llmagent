@@ -28,9 +28,6 @@ def format_session_id(session_id: int | None) -> str:
     return str(session_id) if session_id is not None else ""
 
 
-# Backward-compatible alias for existing callers that import _format_session_id
-_format_session_id = format_session_id
-
 # ── AuditEventEmitter class ────────────────────────────────────────────────────
 
 

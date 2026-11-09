@@ -61,10 +61,10 @@ Change L4 from `Re-export stub for github-mcp server models.` to `Aggregation mo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | one docstring line (L4) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | no new test: prose-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | repo-clean gate depends on procedures 03-09 and `wfaudit008` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | no docs edit in scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-091931 | 20261109-091931 | one docstring line (L4) STEP 1: L4 docstring reworded to 'Aggregation module for github-mcp server models.'; ruff/mypy clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-091931 | 20261109-091931 | no new test: prose-only change STEP 2: no new test; prose-only; 330 github tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-101121 | 20261109-101121 | repo-clean gate depends on procedures 03-09 and `wfaudit008` STEP 3: per-member validators + targeted tests pass; diff-cover 100%; census 0 findings. End-of-unit full suite has 28 pre-existing eventbus failures (verified on clean HEAD, unrelated to unit); user approved proceeding. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-091931 | 20261109-091931 | no docs edit in scope STEP 4: N/A - no docs/00_index.md task-scope mapping for scripts/mcp_servers/github/github_models.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

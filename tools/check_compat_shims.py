@@ -76,7 +76,7 @@ COMPAT_PATTERNS = {
     "/reject command": r"(?<![\w/.-])/reject(?![\w./-])",
     "auto_inject_notes": r"auto_inject_notes",
     "notes table": r"notes[ _]table",
-    "_MCP_TOOLS": r"_MCP_TOOLS",
+    "_MCP_TOOLS": r"\b_MCP_TOOLS\b",
     # Shared/DB schema cleanup — stale references after plan 54 (workflow_schema.py removal)
     "db.workflow_schema import": r"from\s+db\.workflow_schema\s+import",
     "import db.workflow_schema": r"import\s+db\.workflow_schema\b",
@@ -628,7 +628,7 @@ def check_compat_patterns(
     for i, line in enumerate(lines, 1):
         stripped = line.strip()
         for pattern_name, pattern in COMPAT_PATTERNS.items():
-            if re.search(pattern, stripped):
+            if re.search(pattern, stripped, re.IGNORECASE):
                 issues.append(
                     f"{filepath}:{i}: backward compatibility leftover — '{pattern_name}': {stripped}"
                 )

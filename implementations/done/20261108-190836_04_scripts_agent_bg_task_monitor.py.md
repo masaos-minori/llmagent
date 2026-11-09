@@ -67,10 +67,10 @@ Delete the wrapper method, rename the real method to the public name, and update
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | delete L147-152, rename L154, update L138 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | no new test: existing characterization suite plus the grep gate |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | repo-clean gate depends on procedures 03-09 and `wfaudit008` |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | no doc edit in scope; docs already name the public method |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261109-101329 | 20261109-101329 | delete L147-152, rename L154, update L138 STEP 1: wrapper pair collapsed, _notify_threshold_breach renamed to public notify_bg_failure_threshold, internal caller updated |
+| 2 | Add or update tests per Validation plan | Completed | 20261109-101329 | 20261109-101329 | no new test: existing characterization suite plus the grep gate STEP 2: no new test; existing characterization suite + grep gate; module tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-101109 | 20261109-101109 | repo-clean gate depends on procedures 03-09 and `wfaudit008` STEP 3: per-member validators + targeted tests pass; diff-cover 100%; census 0 findings. End-of-unit full suite has 28 pre-existing eventbus failures (verified on clean HEAD, unrelated to unit); user approved proceeding. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261109-101329 | 20261109-101329 | no doc edit in scope; docs already name the public method STEP 4: N/A - no docs/00_index.md task-scope mapping for scripts/agent/bg_task_monitor.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

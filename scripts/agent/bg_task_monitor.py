@@ -135,7 +135,7 @@ class BgTaskMonitor:
                 exc,
             )
             if count == BG_FAILURE_THRESHOLD:
-                self._notify_threshold_breach(task_name, count)
+                self.notify_bg_failure_threshold(task_name, count)
         else:
             logger.warning(
                 "Background task failure #%d (%s): %s",
@@ -145,13 +145,6 @@ class BgTaskMonitor:
             )
 
     def notify_bg_failure_threshold(self, task_name: str, count: int) -> None:
-        """Guarantee the user is notified when a background task hits the failure threshold.
-
-        Backward-compatible alias for _notify_threshold_breach.
-        """
-        self._notify_threshold_breach(task_name, count)
-
-    def _notify_threshold_breach(self, task_name: str, count: int) -> None:
         """Guarantee the user is notified when a background task hits the failure threshold."""
         message = RuntimeError(
             f"Background task '{task_name}' has failed {count} consecutive times "
