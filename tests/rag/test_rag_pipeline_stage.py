@@ -11,6 +11,7 @@ import httpx
 import pytest
 from rag.models_config import RagConfigImpl
 from rag.stage import PipelineContext
+from rag.stage_lifecycle import RagPipelineStageLifecycle
 from rag.stages.augment import AugmentStage
 from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
@@ -95,6 +96,14 @@ class TestPipelineContextFields:
         assert ctx.search_results == []
         assert ctx.merged == []
         assert ctx.reranked == []
+
+
+def _make_lifecycle(cfg: RagConfigImpl) -> RagPipelineStageLifecycle:
+    """Build a RagPipelineStageLifecycle with stub llm/http for direct _run_stage calls."""
+
+    return RagPipelineStageLifecycle(
+        cfg, MagicMock(), MagicMock(spec=httpx.AsyncClient), None
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -422,7 +431,7 @@ class TestRagPipelineLastTimings:
 
 
 # ---------------------------------------------------------------------------
-# RagPipeline._run_stage — pipeline-level failure absorption (rag/pipeline.py)
+# RagPipelineStageLifecycle._run_stage — pipeline-level failure absorption (rag/stage_lifecycle.py)
 # ---------------------------------------------------------------------------
 
 
@@ -432,14 +441,11 @@ class TestRagPipelineRunStage:
         """_run_stage() must absorb RagRerankError, record status='failure', not re-raise."""
         from unittest.mock import AsyncMock, MagicMock
 
-        import httpx
         from rag.exceptions import RagRerankError
-        from rag.pipeline import RagPipeline
         from rag.stage import PipelineContext
         from rag.stages.rerank import RerankStage
 
-        http = MagicMock(spec=httpx.AsyncClient)
-        pipeline = RagPipeline(http, _make_rag_cfg(use_rerank=True))
+        cfg = _make_rag_cfg(use_rerank=True)
 
         # Construct a RerankStage whose run() raises RagRerankError
         llm = MagicMock()
@@ -451,7 +457,7 @@ class TestRagPipelineRunStage:
         ctx = PipelineContext(query="q")
 
         # Must not raise; _run_stage() absorbs the error
-        await pipeline._run_stage(stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(stage, ctx, db=MagicMock())
 
         assert len(ctx.stage_results) == 1
         assert ctx.stage_results[0]["status"] == "fallback"
@@ -470,11 +476,9 @@ class TestMqeFallbackIntegration:
     async def test_mqe_exception_uses_original_query(self) -> None:
         """When MQE raises an exception, ctx.queries should contain the original query."""
         from rag.exceptions import RagExpansionError
-        from rag.pipeline import RagPipeline
         from rag.stages.mqe import MqeStage
 
-        http = MagicMock(spec=httpx.AsyncClient)
-        pipeline = RagPipeline(http, _make_rag_cfg(use_mqe=True))
+        cfg = _make_rag_cfg(use_mqe=True)
 
         llm = MagicMock()
         llm.expand_queries = AsyncMock(side_effect=RagExpansionError("MQE failed"))
@@ -482,7 +486,7 @@ class TestMqeFallbackIntegration:
 
         ctx = PipelineContext(query="original query")
 
-        await pipeline._run_stage(stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(stage, ctx, db=MagicMock())
 
         assert ctx.queries == ["original query"]
         assert ctx._fallback_reason == "mqe_exception"
@@ -491,11 +495,9 @@ class TestMqeFallbackIntegration:
     async def test_mqe_exception_fallback_status_recorded(self) -> None:
         """When MQE raises an exception, StageResult should indicate fallback."""
         from rag.exceptions import RagExpansionError
-        from rag.pipeline import RagPipeline
         from rag.stages.mqe import MqeStage
 
-        http = MagicMock(spec=httpx.AsyncClient)
-        pipeline = RagPipeline(http, _make_rag_cfg(use_mqe=True))
+        cfg = _make_rag_cfg(use_mqe=True)
 
         llm = MagicMock()
         llm.expand_queries = AsyncMock(side_effect=RagExpansionError("MQE failed"))
@@ -503,7 +505,7 @@ class TestMqeFallbackIntegration:
 
         ctx = PipelineContext(query="original query")
 
-        await pipeline._run_stage(stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(stage, ctx, db=MagicMock())
 
         assert len(ctx.stage_results) == 1
         assert ctx.stage_results[0]["status"] == "fallback"
@@ -513,12 +515,10 @@ class TestMqeFallbackIntegration:
     async def test_mqe_exception_search_still_runs(self) -> None:
         """When MQE raises an exception, SearchStage should still execute with the original query."""
         from rag.exceptions import RagExpansionError
-        from rag.pipeline import RagPipeline
         from rag.stages.mqe import MqeStage
         from rag.stages.search import SearchStage
 
-        http = MagicMock(spec=httpx.AsyncClient)
-        pipeline = RagPipeline(http, _make_rag_cfg(use_mqe=True, top_k_search=5))
+        cfg = _make_rag_cfg(use_mqe=True, top_k_search=5)
 
         llm = MagicMock()
         llm.expand_queries = AsyncMock(side_effect=RagExpansionError("MQE failed"))
@@ -526,7 +526,7 @@ class TestMqeFallbackIntegration:
 
         ctx = PipelineContext(query="original query")
 
-        await pipeline._run_stage(mqe_stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(mqe_stage, ctx, db=MagicMock())
 
         search_stage = SearchStage(_make_rag_cfg(top_k_search=5))
         await search_stage.run(ctx, db=MagicMock())
@@ -541,11 +541,9 @@ class TestRerankFallbackIntegration:
     async def test_rerank_exception_uses_rrf_fallback(self) -> None:
         """When rerank raises an exception, ctx.reranked should contain deduplicated merged results."""
         from rag.exceptions import RagRerankError
-        from rag.pipeline import RagPipeline
         from rag.repository import deduplicate_chunks
         from rag.stages.rerank import RerankStage
 
-        http = MagicMock(spec=httpx.AsyncClient)
         cfg = _make_rag_cfg(
             use_rerank=True,
             rag_top_k=2,
@@ -553,7 +551,6 @@ class TestRerankFallbackIntegration:
             top_k_rerank=10,
             rag_min_score=0.0,
         )
-        pipeline = RagPipeline(http, cfg)
 
         llm = MagicMock()
         llm.cross_encoder_rerank = AsyncMock(
@@ -567,7 +564,7 @@ class TestRerankFallbackIntegration:
         ctx = PipelineContext(query="q")
         ctx.merged = hits  # type: ignore[assignment]
 
-        await pipeline._run_stage(stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(stage, ctx, db=MagicMock())
 
         expected = deduplicate_chunks(hits[: cfg.rag_top_k], cfg.max_chunks_per_doc)  # type: ignore[arg-type]
         assert len(ctx.reranked) == len(expected)
@@ -578,11 +575,9 @@ class TestRerankFallbackIntegration:
     async def test_rerank_exception_augment_produces_output(self) -> None:
         """When rerank raises an exception, AugmentStage should produce valid output from fallback hits."""
         from rag.exceptions import RagRerankError
-        from rag.pipeline import RagPipeline
         from rag.stages.augment import AugmentStage
         from rag.stages.rerank import RerankStage
 
-        http = MagicMock(spec=httpx.AsyncClient)
         cfg = _make_rag_cfg(
             use_rerank=True,
             rag_top_k=2,
@@ -590,7 +585,6 @@ class TestRerankFallbackIntegration:
             top_k_rerank=10,
             rag_min_score=0.0,
         )
-        pipeline = RagPipeline(http, cfg)
 
         llm = MagicMock()
         llm.cross_encoder_rerank = AsyncMock(
@@ -604,7 +598,7 @@ class TestRerankFallbackIntegration:
         ctx = PipelineContext(query="q")
         ctx.merged = hits  # type: ignore[assignment]
 
-        await pipeline._run_stage(rerank_stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(rerank_stage, ctx, db=MagicMock())
 
         augment_stage = AugmentStage()
         await augment_stage.run(ctx)
@@ -619,11 +613,9 @@ class TestNormalPathUnaffected:
     @pytest.mark.asyncio
     async def test_normal_path_mqe_success(self) -> None:
         """The normal path without MQE exceptions should behave identically to before."""
-        from rag.pipeline import RagPipeline
         from rag.stages.mqe import MqeStage
 
-        http = MagicMock(spec=httpx.AsyncClient)
-        pipeline = RagPipeline(http, _make_rag_cfg(use_mqe=True))
+        cfg = _make_rag_cfg(use_mqe=True)
 
         llm = MagicMock()
         llm.expand_queries = AsyncMock(return_value=["expanded1", "expanded2"])
@@ -631,7 +623,7 @@ class TestNormalPathUnaffected:
 
         ctx = PipelineContext(query="original query")
 
-        await pipeline._run_stage(stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(stage, ctx, db=MagicMock())
 
         assert ctx.queries == ["expanded1", "expanded2"]
         assert ctx._fallback_reason is None
@@ -639,10 +631,8 @@ class TestNormalPathUnaffected:
     @pytest.mark.asyncio
     async def test_normal_path_rerank_success(self) -> None:
         """The normal path without rerank exceptions should behave identically to before."""
-        from rag.pipeline import RagPipeline
         from rag.stages.rerank import RerankStage
 
-        http = MagicMock(spec=httpx.AsyncClient)
         cfg = _make_rag_cfg(
             use_rerank=True,
             rag_top_k=2,
@@ -650,7 +640,6 @@ class TestNormalPathUnaffected:
             top_k_rerank=10,
             rag_min_score=0.0,
         )
-        pipeline = RagPipeline(http, cfg)
 
         llm = MagicMock()
         from shared.types import MergedHit
@@ -662,7 +651,7 @@ class TestNormalPathUnaffected:
         ctx = PipelineContext(query="q")
         ctx.merged = [MergedHit(chunk_id=1, content="c1", url="u")]
 
-        await pipeline._run_stage(stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(stage, ctx, db=MagicMock())
 
         assert len(ctx.reranked) == 1
         assert ctx._fallback_reason is None
@@ -675,10 +664,8 @@ class TestDiagnosticsFallbackVsDisabled:
     async def test_diagnostics_distinguishes_disabled_from_fallback(self) -> None:
         """Diagnostics should distinguish between disabled features and failed fallback features."""
         from rag.exceptions import RagRerankError
-        from rag.pipeline import RagPipeline
         from rag.stages.rerank import RerankStage
 
-        http = MagicMock(spec=httpx.AsyncClient)
         cfg = _make_rag_cfg(
             use_mqe=False,
             use_rerank=True,
@@ -687,12 +674,11 @@ class TestDiagnosticsFallbackVsDisabled:
             top_k_rerank=10,
             rag_min_score=0.0,
         )
-        pipeline = RagPipeline(http, cfg)
 
         # MQE disabled → should show as disabled, not fallback
         mqe_stage = MqeStage(_make_rag_cfg(use_mqe=False), MagicMock())
         ctx = PipelineContext(query="q")
-        await pipeline._run_stage(mqe_stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(mqe_stage, ctx, db=MagicMock())
         assert ctx.stage_results[-1]["status"] == "fallback"
         assert "use_mqe=False" in (ctx.stage_results[-1].get("fallback_reason") or "")
 
@@ -703,7 +689,7 @@ class TestDiagnosticsFallbackVsDisabled:
         )
         rerank_stage = RerankStage(cfg, llm)
         ctx.merged = []
-        await pipeline._run_stage(rerank_stage, ctx, db=MagicMock())
+        await _make_lifecycle(cfg)._run_stage(rerank_stage, ctx, db=MagicMock())
         assert ctx.stage_results[-1]["status"] == "fallback"
         assert "rerank_exception" in (
             ctx.stage_results[-1].get("fallback_reason") or ""

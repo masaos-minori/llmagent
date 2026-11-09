@@ -71,8 +71,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the catch-location sentence | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Correct the catch-location sentence | Completed | — | — |  |
+| 2 | Run the documentation checkers named in Validation plan | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

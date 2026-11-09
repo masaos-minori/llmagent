@@ -88,10 +88,10 @@ N/A: revert the commit (the companion tests and the doc procedure ship in Releas
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the direct `RagPipelineStageLifecycle._run_stage` tests to the companion `tests/rag/test_stage_lifecycle.py` | Pending | — | — | |
-| 2 | Retarget the 10 call sites in the companion `tests/rag/test_rag_pipeline_stage.py` through `_make_lifecycle` (new) | Pending | — | — | |
-| 3 | Delete `_get_stage_status`, `_run_stage`, and the unused imports in `scripts/rag/pipeline.py` | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`), `check_mock_patch_targets`, and `uv run pytest tests/rag -q` | Pending | — | — | |
+| 1 | Add the direct `RagPipelineStageLifecycle._run_stage` tests to the companion `tests/rag/test_stage_lifecycle.py` | Completed | — | — |  |
+| 2 | Retarget the 10 call sites in the companion `tests/rag/test_rag_pipeline_stage.py` through `_make_lifecycle` (new) | Completed | — | — |  |
+| 3 | Delete `_get_stage_status`, `_run_stage`, and the unused imports in `scripts/rag/pipeline.py` | Completed | — | — |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`), `check_mock_patch_targets`, and `uv run pytest tests/rag -q` | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

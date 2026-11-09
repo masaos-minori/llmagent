@@ -23,10 +23,8 @@ Module layout:
 
 import dataclasses
 import logging
-import sqlite3
-import time
 from collections.abc import Callable
-from typing import Literal, cast
+from typing import cast
 
 import httpx
 from db.helper import SQLiteHelper
@@ -44,7 +42,7 @@ from rag.llm_client import RagLLM
 from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
 from rag.models_result import HttpResultKind, SearchDiagnostics
-from rag.stage import PipelineContext, PipelineStage, StageResult
+from rag.stage import StageResult
 from rag.stage_lifecycle import RagPipelineStageLifecycle
 from rag.stages.augment import (
     _format_chunks as _augment_format_chunks,
@@ -137,51 +135,6 @@ class RagPipeline:
                 "use_rrf=False: RRF fusion disabled — retrieval quality degraded; "
                 "use only for diagnostics or single-query testing"
             )
-
-    def _get_stage_status(
-        self, stage: PipelineStage, ctx: PipelineContext
-    ) -> tuple[Literal["success", "fallback", "failure"], str | None]:
-        """Return the execution status of a pipeline stage with an optional reason string."""
-        if hasattr(stage, "get_status"):
-            return cast(
-                tuple[Literal["success", "fallback", "failure"], str | None],
-                stage.get_status(ctx),
-            )
-        return "success", None
-
-    async def _run_stage(
-        self, stage: PipelineStage, ctx: PipelineContext, db: SQLiteHelper
-    ) -> None:
-        """Run a single pipeline stage and record its result."""
-        t0 = time.perf_counter()
-        exc_msg: str | None = None
-        try:
-            await stage.run(ctx, db=db)
-        except (
-            RuntimeError,
-            sqlite3.OperationalError,
-            httpx.HTTPStatusError,
-            httpx.RequestError,
-            TimeoutError,
-        ) as e:
-            exc_msg = str(e)
-            logger.warning("Stage %s failed: %s", stage.__class__.__name__, e)
-        elapsed = time.perf_counter() - t0
-        self.last_timings[stage.__class__.__name__] = elapsed
-        stage_status: Literal["success", "fallback", "failure"]
-        stage_reason: str | None
-        if exc_msg is not None:
-            stage_status, stage_reason = "failure", exc_msg
-        else:
-            stage_status, stage_reason = self._get_stage_status(stage, ctx)
-        ctx.stage_results.append(
-            StageResult(
-                stage_name=stage.__class__.__name__,
-                status=stage_status,
-                elapsed_seconds=elapsed,
-                fallback_reason=stage_reason,
-            )
-        )
 
     async def run(
         self,

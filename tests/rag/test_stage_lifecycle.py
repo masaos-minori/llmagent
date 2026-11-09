@@ -10,6 +10,7 @@ Covers:
 - MQE malformed-response fallback (ragrev001): stage-level and lifecycle-level
 """
 
+import sqlite3
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -450,3 +451,94 @@ class TestMqeMalformedResponseFallback:
         assert len(mqe_results) == 1
         assert mqe_results[0]["status"] == "fallback"
         assert mqe_results[0]["fallback_reason"] == "mqe_exception"
+
+
+# ── Direct _run_stage coverage (ragrev009): absorption, status mapping, timing ─────────
+
+
+class _RaisingStage:
+    """Fake stage whose run() raises a caller-supplied exception."""
+
+    def __init__(self, exc: BaseException) -> None:
+        self._exc = exc
+
+    async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
+        raise self._exc
+
+
+class _SucceedingStage:
+    """Fake stage that runs clean with no get_status method."""
+
+    async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
+        return None
+
+
+class _FallbackStage:
+    """Fake stage that runs clean but reports a fallback via get_status."""
+
+    async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
+        return None
+
+    def get_status(self, ctx: PipelineContext) -> tuple[str, str]:
+        return ("fallback", "r")
+
+
+class TestRunStageDirect:
+    """Direct coverage of RagPipelineStageLifecycle._run_stage (no patching)."""
+
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            RuntimeError("boom"),
+            sqlite3.OperationalError("locked"),
+            httpx.HTTPStatusError("error", request=MagicMock(), response=MagicMock()),
+            httpx.RequestError("failed"),
+            TimeoutError("timeout"),
+        ],
+    )
+    async def test_absorbed_exceptions_record_failure(
+        self, lifecycle, exc: BaseException
+    ) -> None:
+        """REQ-002: each listed exception becomes a failure result carrying its message."""
+        stage = _RaisingStage(exc)
+        ctx = PipelineContext(query="q")
+        await lifecycle._run_stage(stage, ctx, db=MagicMock())
+
+        assert ctx.stage_results[-1]["status"] == "failure"
+        assert ctx.stage_results[-1]["fallback_reason"] == str(exc)
+        assert lifecycle.last_timings[type(stage).__name__] >= 0
+
+    async def test_unlisted_exception_propagates_without_result(
+        self, lifecycle
+    ) -> None:
+        """REQ-002: an exception outside the absorbed list propagates and records nothing."""
+        ctx = PipelineContext(query="q")
+        with pytest.raises(ValueError):
+            await lifecycle._run_stage(
+                _RaisingStage(ValueError("nope")), ctx, db=MagicMock()
+            )
+        assert ctx.stage_results == []
+        assert "RaisingStage" not in lifecycle.last_timings
+
+    async def test_get_status_fallback_maps_to_fallback(self, lifecycle) -> None:
+        """REQ-002: a get_status yielding fallback produces a fallback result."""
+        ctx = PipelineContext(query="q")
+        await lifecycle._run_stage(_FallbackStage(), ctx, db=MagicMock())
+
+        assert ctx.stage_results[-1]["status"] == "fallback"
+        assert ctx.stage_results[-1]["fallback_reason"] == "r"
+
+    async def test_no_get_status_maps_to_success(self, lifecycle) -> None:
+        """REQ-002: a stage without get_status produces a success result with None reason."""
+        ctx = PipelineContext(query="q")
+        await lifecycle._run_stage(_SucceedingStage(), ctx, db=MagicMock())
+
+        assert ctx.stage_results[-1]["status"] == "success"
+        assert ctx.stage_results[-1]["fallback_reason"] is None
+
+    async def test_timing_recorded_for_stage(self, lifecycle) -> None:
+        """REQ-002: the stage's class name is recorded with a non-negative timing."""
+        ctx = PipelineContext(query="q")
+        await lifecycle._run_stage(_SucceedingStage(), ctx, db=MagicMock())
+
+        assert lifecycle.last_timings["_SucceedingStage"] >= 0
