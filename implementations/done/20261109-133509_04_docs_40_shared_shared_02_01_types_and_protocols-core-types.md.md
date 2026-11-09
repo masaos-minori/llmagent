@@ -72,8 +72,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit section 5 of the shared-types document | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Edit section 5 of the shared-types document | Completed | 20261109-164805 | 20261109-164854 | section 5 reworded: rerank_score-only-None clause removed; new paragraph states float-or-None semantics, 0.0 distinct from None, merged minimum semantics; Import line unchanged |
+| 2 | Run the documentation checkers named in Validation plan | Completed | — | 20261109-164854 | check_docs_quality, check_docs_structure (target file), check_docs_content_policy, check_docs_consistency --domain shared, check_docs_japanese: all clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -10,7 +10,7 @@ Make merged hits keep both retrieval signals regardless of list order: `RagScore
 
 ## Assumptions
 
-- Re-verified at generation time: `rrf_merge` writes `meta[cid] = item` at `scripts/rag/repository.py:243`; `_dedup_hits` keeps only the first occurrence (`repository.py:336-355`); `vector_search` sets `distance=float(r["distance"] or 0.0)` (L181) and `fts_search` sets `bm25_score=float(r["bm25_score"] or 0.0)` (L212).
+- Re-verified this cycle (after the ragrev005 repository procedure landed): `rrf_merge` (L231) writes `meta[cid] = item` at `scripts/rag/repository.py:241`; `_dedup_hits` keeps only the first occurrence (`repository.py:336-355`); `vector_search` sets `distance=float(r["distance"] or 0.0)` (L181) and `fts_search` sets `bm25_score=float(r["bm25_score"] or 0.0)` (L212).
 - Minimum is the combination rule (smaller L2 distance and more negative BM25 are better); this is a design decision recorded in the Plan, not an Issue statement.
 - Requires `..._01_scripts_shared_types.py.md` first: the `None` defaults on `RawHit` are what lets the search functions omit the other signal.
 - Overlap with `plans/20261108-164946_ragrev005_fts-query-and-semantics.md` (procedure `implementations/20261109-121825_03_scripts_rag_repository.py.md`): compatible. That procedure edits `_build_fts_query`; this one edits `rrf_merge`, `_dedup_hits`, and the two search methods. Line numbers cited here may shift if that procedure runs first; locate code by symbol name.
@@ -83,9 +83,9 @@ N/A: revert the commit (ships with the types procedure in Release unit `ragrev00
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_min_signal` (new) and update `rrf_merge` and `_dedup_hits` | Pending | — | — | |
-| 2 | Make `vector_search` / `fts_search` set only their own signal | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and the Plan's regression suites | Pending | — | — | |
+| 1 | Add `_min_signal` (new) and update `rrf_merge` and `_dedup_hits` | Completed | 20261109-163321 | 20261109-163438 | _min_signal added above _dedup_hits; rrf_merge per-chunk distances/bm25s dicts; _dedup_hits stores dict[int, MergedHit] and combines on re-encounter; scores/meta/sort/rrf_score untouched |
+| 2 | Make `vector_search` / `fts_search` set only their own signal | Completed | — | 20261109-163438 | vector_search/fts_search: own signal via 'float(...) if ... is not None else None', other signal omitted (None by default); fetch_full_document untouched (no signals, correct) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and the Plan's regression suites | Completed | 20261109-163438 | 20261109-164557 | targeted pytest 77 passed; ruff check/format clean after one format pass; mypy clean; lint-imports 6 kept; bandit clean; check_module_size ALL OK; check_docstrings no new violations; radon: no grade C+; Plan regression suites deferred to unit-end full run unit-end run: Plan regression suites green (full suite 12055 passed, diff-cover 100%) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

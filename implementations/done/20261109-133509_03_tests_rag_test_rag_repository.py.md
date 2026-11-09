@@ -10,7 +10,7 @@ Add tests that pin the new signal-combination behavior of `RagScorer.rrf_merge` 
 
 ## Assumptions
 
-- Re-verified at generation time: `TestRagScorer` (`tests/rag/test_rag_repository.py:312`), `TestDedupHits` (L401), `TestRagRepository` (L425) and the `_hit` helper exist; `test_vector_search_delegates_to_db` (L437) and `test_fts_search_delegates_to_db` (L454) build rows with only one signal.
+- Re-verified this cycle (after the ragrev005 test procedure landed): `TestRagScorer` (`tests/rag/test_rag_repository.py:312`), `TestDedupHits` (L401), `TestRagRepository` (L428) and the `_hit` helper (L260, builds `RawHit` without the two signal fields) exist; `test_vector_search_delegates_to_db` (L429) and `test_fts_search_delegates_to_db` (L446) build rows with only one signal (L437, L454) and assert neither signal field today. No test outside this file asserts the `0.0` defaults (`rg` over `tests/` shows only real-value comparisons, e.g. `test_fts_fallback.py:166`).
 - Overlap with `implementations/20261109-121825_01_tests_rag_test_rag_repository.py.md` (ragrev005): compatible. That procedure edits `TestBuildFtsQuery`; this one edits the merge, dedup, and repository search test classes. Locate by class name, not line number.
 - `tests/rag/test_fts_fallback.py:166` compares two real `bm25_score` values from FTS rows, which stay numeric; it needs no change.
 - The `_hit` helper may build hits with `distance` / `bm25_score` keywords; if it hard-codes numeric defaults, extend it with optional keyword arguments instead of adding a second helper.
@@ -78,9 +78,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `rrf_merge` tests (both orders, single list, minimum, snapshot) | Pending | — | — | |
-| 2 | Add `_dedup_hits` equivalents and the search-method `None` assertions | Pending | — | — | |
-| 3 | Confirm the new tests fail on HEAD, then run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `rrf_merge` tests (both orders, single list, minimum, snapshot) | Completed | 20261109-161609 | 20261109-162847 | rrf_merge tests added: parametrized both orders, single-list absence x2, multi-list minimum x2, hand-computed order/score snapshot |
+| 2 | Add `_dedup_hits` equivalents and the search-method `None` assertions | Completed | — | 20261109-162847 | _dedup_hits equivalents x5 added; both delegate tests extended with is None / real-value assertions |
+| 3 | Confirm the new tests fail on HEAD, then run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-162847 | 20261109-164557 | red-on-HEAD confirmed: 15 failed / 54 passed, all failures are new or extended assertions (0.0 vs None, lost signal); ruff format+check clean; targeted green and full suite deferred to unit-end run per batch attribution unit-end run: targeted tests green (77 passed in targeted run), full suite 12055 passed / 9 skipped, diff-cover 100% >= 90 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

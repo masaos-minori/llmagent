@@ -178,7 +178,7 @@ class RagRepository:
                 content=str(r["content"]),
                 url=str(r["url"]) if r["url"] else "",
                 title=str(r["title"]) if r["title"] else "",
-                distance=float(r["distance"] or 0.0),
+                distance=float(r["distance"]) if r["distance"] is not None else None,
             )
             for r in rows
         ]
@@ -209,7 +209,9 @@ class RagRepository:
                 content=r["content"],
                 url=r["url"] or "",
                 title=r["title"] or "",
-                bm25_score=float(r["bm25_score"] or 0.0),
+                bm25_score=float(r["bm25_score"])
+                if r["bm25_score"] is not None
+                else None,
             )
             for r in rows
         ]
@@ -234,11 +236,15 @@ class RagScorer:
         """Merge ranked lists via RRF: score(d)=Σ 1/(rrf_k+rank_i(d)); returns descending by score."""
         scores: dict[int, float] = {}
         meta: dict[int, RagHit] = {}
+        distances: dict[int, float | None] = {}
+        bm25s: dict[int, float | None] = {}
         for results in results_list:
             for rank, item in enumerate(results, start=1):
                 cid = item.chunk_id
                 scores[cid] = scores.get(cid, 0.0) + 1.0 / (rrf_k + rank)
                 meta[cid] = item
+                distances[cid] = _min_signal(distances.get(cid), item.distance)
+                bm25s[cid] = _min_signal(bm25s.get(cid), item.bm25_score)
         merged_list = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return [
             MergedHit(
@@ -246,8 +252,8 @@ class RagScorer:
                 content=meta[cid].content,
                 url=meta[cid].url,
                 title=meta[cid].title,
-                distance=meta[cid].distance,
-                bm25_score=meta[cid].bm25_score,
+                distance=distances[cid],
+                bm25_score=bm25s[cid],
                 rrf_score=score,
             )
             for cid, score in merged_list
@@ -333,23 +339,32 @@ def deduplicate_chunks(hits: list[RagHit], max_per_doc: int) -> list[RagHit]:
     return result
 
 
+def _min_signal(a: float | None, b: float | None) -> float | None:
+    """Return the smaller of two optional signal values; None means the signal is absent."""
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return min(a, b)
+
+
 def _dedup_hits(all_results: list[list[RawHit]] | list[list[RagHit]]) -> list[RagHit]:
-    """Deduplicate hits by chunk_id, keeping the first occurrence per chunk."""
-    seen: set[int] = set()
-    merged: list[RagHit] = []
+    """Deduplicate hits by chunk_id, keeping first-occurrence order and combining signals via _min_signal."""
+    seen: dict[int, MergedHit] = {}
     for results in all_results:
         for item in results:
-            if item.chunk_id not in seen:
-                seen.add(item.chunk_id)
-                merged.append(
-                    MergedHit(
-                        chunk_id=item.chunk_id,
-                        content=item.content,
-                        url=item.url,
-                        title=item.title,
-                        distance=item.distance,
-                        bm25_score=item.bm25_score,
-                        rrf_score=0.0,
-                    )
+            if item.chunk_id in seen:
+                hit = seen[item.chunk_id]
+                hit.distance = _min_signal(hit.distance, item.distance)
+                hit.bm25_score = _min_signal(hit.bm25_score, item.bm25_score)
+            else:
+                seen[item.chunk_id] = MergedHit(
+                    chunk_id=item.chunk_id,
+                    content=item.content,
+                    url=item.url,
+                    title=item.title,
+                    distance=item.distance,
+                    bm25_score=item.bm25_score,
+                    rrf_score=0.0,
                 )
-    return merged
+    return list(seen.values())

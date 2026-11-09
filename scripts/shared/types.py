@@ -123,39 +123,39 @@ class RagConfig(Protocol):
 
 @dataclasses.dataclass
 class RawHit:
-    """Search result from vector_search or fts_search."""
+    """Search result from vector_search or fts_search; a `None` signal means that search did not produce it."""
 
     chunk_id: int
     content: str
     url: str = ""
     title: str = ""
-    distance: float = 0.0
-    bm25_score: float = 0.0
+    distance: float | None = None
+    bm25_score: float | None = None
 
 
 @dataclasses.dataclass
 class MergedHit:
-    """RawHit after RRF merge; carries aggregated rrf_score."""
+    """RawHit after RRF merge; carries aggregated rrf_score. `None` for distance/bm25_score means no list produced that signal."""
 
     chunk_id: int
     content: str
     url: str = ""
     title: str = ""
-    distance: float = 0.0
-    bm25_score: float = 0.0
+    distance: float | None = None
+    bm25_score: float | None = None
     rrf_score: float = 0.0
 
 
 @dataclasses.dataclass
 class RankedHit:
-    """MergedHit after cross-encoder rerank; carries rerank_score."""
+    """MergedHit after cross-encoder rerank; carries rerank_score. `None` for distance/bm25_score means no list produced that signal."""
 
     chunk_id: int
     content: str
     url: str = ""
     title: str = ""
-    distance: float = 0.0
-    bm25_score: float = 0.0
+    distance: float | None = None
+    bm25_score: float | None = None
     rrf_score: float = 0.0
     rerank_score: float | None = None
 

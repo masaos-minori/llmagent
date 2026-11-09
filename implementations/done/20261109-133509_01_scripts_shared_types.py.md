@@ -11,7 +11,7 @@ Make `distance` and `bm25_score` on the three RAG hit dataclasses (`RawHit`, `Me
 ## Assumptions
 
 - The current declarations are `distance: float = 0.0` and `bm25_score: float = 0.0` at `scripts/shared/types.py:132-133`, `144-145`, `157-158` (re-verified at generation time).
-- Production readers of the two fields are `_apply_rerank_scores` in `scripts/rag/llm_prompts.py:213-214` (copy only) and `dataclasses.asdict` in `_hit_to_dict` of `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` (serialization only); `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py:201-202` already types both `float | None`. No production code under `scripts/` compares or formats them (`rg "\.distance|\.bm25_score" scripts/` outside `repository.py` shows only the memory retriever, which uses its own types).
+- Production readers of the two fields are `_apply_rerank_scores` in `scripts/rag/llm_prompts.py` (definition L214; the field copy is at L252-253, copy only) and `dataclasses.asdict` in `_hit_to_dict` (`rag_pipeline_service.py:51-57`) of `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` (serialization only); `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py:201-202` already types both `float | None`. No production code under `scripts/` compares or formats them (`rg "\.distance|\.bm25_score" scripts/` outside `repository.py` shows only the memory retriever, which uses its own types; re-verified this cycle).
 - `tests/rag/test_rag_repository.py` is also the Related Test of row 2 (`scripts/rag/repository.py`), so it keeps its own procedure (`..._03_tests_rag_test_rag_repository.py.md`) instead of being a companion here.
 - This change must land together with `..._02_scripts_rag_repository.py.md`; the `None` defaults are only meaningful once `vector_search` / `fts_search` stop filling the other signal (Release unit `ragrev006-core`).
 
@@ -77,8 +77,8 @@ N/A: revert the commit (the sibling repository procedure ships in the same Relea
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Change the six field declarations in `scripts/shared/types.py` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`): ruff, mypy, lint-imports, regression suites | Pending | — | — | |
+| 1 | Change the six field declarations in `scripts/shared/types.py` | Completed | 20261109-163144 | 20261109-163228 | six declarations now optional float defaulting to None; one docstring clause per class; blast radius recorded: 9 test files reference RawHit/MergedHit/RankedHit |
+| 2 | Run the validation sequence (`rules/toolchain.md`): ruff, mypy, lint-imports, regression suites | Completed | 20261109-163228 | 20261109-164557 | mypy/ruff/lint-imports clean (mypy: no findings, expected repository.py findings did not materialize); regression pytest deferred to ragrev006-core unit-end run (15 red tests are procedure 03's); unit-end run: regression suites green (full suite 12055 passed), no unintended 0.0-assumption adjustments needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

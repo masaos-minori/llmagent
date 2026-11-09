@@ -346,6 +346,77 @@ class TestRagScorer:
         result = RagScorer.rrf_merge([hits_a, hits_b])
         assert [h.chunk_id for h in result].count(1) == 1
 
+    @pytest.mark.parametrize(
+        "lists",
+        [
+            (
+                [_RawHit(chunk_id=1, content="vec", distance=0.1)],
+                [_RawHit(chunk_id=1, content="fts", bm25_score=-3.0)],
+            ),
+            (
+                [_RawHit(chunk_id=1, content="fts", bm25_score=-3.0)],
+                [_RawHit(chunk_id=1, content="vec", distance=0.1)],
+            ),
+        ],
+    )
+    def test_vector_and_fts_lists_keep_both_signals_in_either_order(
+        self, lists: list[list[_RawHit]]
+    ) -> None:
+        result = RagScorer.rrf_merge(lists)
+        assert len(result) == 1
+        assert result[0].distance == pytest.approx(0.1)
+        assert result[0].bm25_score == pytest.approx(-3.0)
+
+    def test_vector_only_chunk_has_no_bm25_signal(self) -> None:
+        result = RagScorer.rrf_merge(
+            [[_RawHit(chunk_id=1, content="vec", distance=0.1)]]
+        )
+        assert result[0].distance == pytest.approx(0.1)
+        assert result[0].bm25_score is None
+
+    def test_fts_only_chunk_has_no_distance_signal(self) -> None:
+        result = RagScorer.rrf_merge(
+            [[_RawHit(chunk_id=1, content="fts", bm25_score=-3.0)]]
+        )
+        assert result[0].bm25_score == pytest.approx(-3.0)
+        assert result[0].distance is None
+
+    def test_two_vector_lists_merge_to_minimum_distance(self) -> None:
+        # Last list carries the worse value so a last-list-wins merge fails.
+        result = RagScorer.rrf_merge(
+            [
+                [_RawHit(chunk_id=1, content="a", distance=0.1)],
+                [_RawHit(chunk_id=1, content="b", distance=0.3)],
+            ]
+        )
+        assert result[0].distance == pytest.approx(0.1)
+
+    def test_two_fts_lists_merge_to_minimum_bm25_score(self) -> None:
+        result = RagScorer.rrf_merge(
+            [
+                [_RawHit(chunk_id=1, content="a", bm25_score=-2.0)],
+                [_RawHit(chunk_id=1, content="b", bm25_score=-1.0)],
+            ]
+        )
+        assert result[0].bm25_score == pytest.approx(-2.0)
+
+    def test_rrf_order_and_scores_match_hand_computed_snapshot(self) -> None:
+        vector_list = [
+            _RawHit(chunk_id=1, content="v1", distance=0.4),
+            _RawHit(chunk_id=2, content="v2", distance=0.2),
+        ]
+        fts_list = [_RawHit(chunk_id=2, content="f2", bm25_score=-5.0)]
+        result = RagScorer.rrf_merge([vector_list, fts_list], rrf_k=10)
+        # Hand-computed from 1 / (rrf_k + rank) with rrf_k=10:
+        # chunk 2: 1/12 + 1/11; chunk 1: 1/11.
+        assert [h.chunk_id for h in result] == [2, 1]
+        assert result[0].rrf_score == pytest.approx(0.1742424242424242)
+        assert result[1].rrf_score == pytest.approx(0.09090909090909091)
+        assert result[0].distance == pytest.approx(0.2)
+        assert result[0].bm25_score == pytest.approx(-5.0)
+        assert result[1].distance == pytest.approx(0.4)
+        assert result[1].bm25_score is None
+
 
 # ── deduplicate_chunks ────────────────────────────────────────────────────────
 
@@ -421,6 +492,53 @@ class TestDedupHits:
         result = _dedup_hits([hits])
         assert result[0].rrf_score == 0.0
 
+    @pytest.mark.parametrize(
+        "lists",
+        [
+            (
+                [_RawHit(chunk_id=1, content="vec", distance=0.1)],
+                [_RawHit(chunk_id=1, content="fts", bm25_score=-3.0)],
+            ),
+            (
+                [_RawHit(chunk_id=1, content="fts", bm25_score=-3.0)],
+                [_RawHit(chunk_id=1, content="vec", distance=0.1)],
+            ),
+        ],
+    )
+    def test_both_orders_combine_signals(self, lists: list[list[_RawHit]]) -> None:
+        result = _dedup_hits(lists)
+        assert len(result) == 1
+        assert result[0].distance == pytest.approx(0.1)
+        assert result[0].bm25_score == pytest.approx(-3.0)
+
+    def test_vector_only_chunk_has_no_bm25_signal(self) -> None:
+        result = _dedup_hits([[_RawHit(chunk_id=1, content="vec", distance=0.1)]])
+        assert result[0].distance == pytest.approx(0.1)
+        assert result[0].bm25_score is None
+
+    def test_fts_only_chunk_has_no_distance_signal(self) -> None:
+        result = _dedup_hits([[_RawHit(chunk_id=1, content="fts", bm25_score=-3.0)]])
+        assert result[0].bm25_score == pytest.approx(-3.0)
+        assert result[0].distance is None
+
+    def test_minimum_distance_across_lists(self) -> None:
+        result = _dedup_hits(
+            [
+                [_RawHit(chunk_id=1, content="a", distance=0.3)],
+                [_RawHit(chunk_id=1, content="b", distance=0.1)],
+            ]
+        )
+        assert result[0].distance == pytest.approx(0.1)
+
+    def test_minimum_bm25_score_across_lists(self) -> None:
+        result = _dedup_hits(
+            [
+                [_RawHit(chunk_id=1, content="a", bm25_score=-1.0)],
+                [_RawHit(chunk_id=1, content="b", bm25_score=-2.0)],
+            ]
+        )
+        assert result[0].bm25_score == pytest.approx(-2.0)
+
 
 # ── RagRepository ─────────────────────────────────────────────────────────────
 
@@ -441,6 +559,8 @@ class TestRagRepository:
         result = repo.vector_search([0.1, 0.2, 0.3], top_k=5)
         assert len(result) == 1
         assert result[0].chunk_id == 1
+        assert result[0].distance == pytest.approx(0.5)
+        assert result[0].bm25_score is None
         mock_db.fetchall.assert_called_once()
 
     def test_fts_search_delegates_to_db(self) -> None:
@@ -458,6 +578,8 @@ class TestRagRepository:
         result = repo.fts_search("test query", top_k=10)
         assert len(result) == 1
         assert result[0].chunk_id == 2
+        assert result[0].bm25_score == pytest.approx(-0.3)
+        assert result[0].distance is None
 
     def test_fts_search_operational_error_propagates(self) -> None:
         """fts_search propagates OperationalError (fail-fast); callers must handle."""

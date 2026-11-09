@@ -53,7 +53,9 @@ A structural contract covering search, re-ranking and refinement parameters and 
 
 ## 5. `RawHit`, `MergedHit`, `RankedHit`, `RagHit` (`shared/types.py`)
 
-`RawHit` → `MergedHit` (adds `rrf_score`) → `RankedHit` (adds `rerank_score`, which alone may be `None`) are the canonical hit types, with fields added incrementally at each pipeline stage; later stages retain the earlier stages' score fields.
+`RawHit` → `MergedHit` (adds `rrf_score`) → `RankedHit` (adds `rerank_score`) are the canonical hit types, with fields added incrementally at each pipeline stage; later stages retain the earlier stages' score fields.
+
+`distance` and `bm25_score` are `float | None` on all three types. `None` means no retrieval list produced that signal for the chunk; a value of `0.0` is a real measurement (a perfect vector match) and is distinct from `None`. A merged hit carries the best available value (the minimum) of each signal across the merged lists. `rerank_score` is `None` until the rerank stage produces it.
 
 **Import:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`. Do NOT re-export these names from `scripts/rag/types.py`; always import directly from `shared.types`.
 
