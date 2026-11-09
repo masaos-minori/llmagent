@@ -68,9 +68,9 @@ N/A: revert the commit (the test procedure's new tests would fail after a revert
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_vector_leg` (new) and `_fts_leg` (new) and restructure the per-query loop of `_search_all_queries` | Pending | — | — | |
-| 2 | Run the new tests and the unmodified diagnostics, observability, and regression suites | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) and `radon cc` | Pending | — | — | |
+| 1 | Add `_vector_leg` (new) and `_fts_leg` (new) and restructure the per-query loop of `_search_all_queries` | Completed | 20261109-145634 | 20261109-145634 | Validated: 4 new tests red on HEAD then green; gates clean (ruff/mypy/lint-imports/bandit/radon B/module-size/mock-targets/ast-grep); diff-cover 100%; doc checkers pass. |
+| 2 | Run the new tests and the unmodified diagnostics, observability, and regression suites | Completed | 20261109-145634 | 20261109-145634 | Validated: 4 new tests red on HEAD then green; gates clean (ruff/mypy/lint-imports/bandit/radon B/module-size/mock-targets/ast-grep); diff-cover 100%; doc checkers pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) and `radon cc` | Completed | 20261109-145634 | 20261109-145634 | Validated: 4 new tests red on HEAD then green; gates clean (ruff/mypy/lint-imports/bandit/radon B/module-size/mock-targets/ast-grep); diff-cover 100%; doc checkers pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

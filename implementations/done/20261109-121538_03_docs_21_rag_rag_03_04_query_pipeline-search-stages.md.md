@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the SearchStage bullets and the error-handling note | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Update the SearchStage bullets and the error-handling note | Completed | 20261109-145634 | 20261109-145634 | Validated: 4 new tests red on HEAD then green; gates clean (ruff/mypy/lint-imports/bandit/radon B/module-size/mock-targets/ast-grep); diff-cover 100%; doc checkers pass. |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261109-145634 | 20261109-145634 | Validated: 4 new tests red on HEAD then green; gates clean (ruff/mypy/lint-imports/bandit/radon B/module-size/mock-targets/ast-grep); diff-cover 100%; doc checkers pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

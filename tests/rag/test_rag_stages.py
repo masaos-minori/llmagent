@@ -277,6 +277,7 @@ class TestSearchStage:
             mock_repo_instance.vector_search.side_effect = sqlite3.OperationalError(
                 "DB error"
             )
+            mock_repo_instance.fts_search.return_value = []
 
             cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg)
@@ -360,6 +361,130 @@ class TestSearchStage:
             assert diag.degraded is True
             assert len(mock_context.search_results) == 2
 
+    @pytest.mark.asyncio
+    async def test_all_embeddings_fail_returns_fts_hits(self, mock_context, mock_db):
+        """REQ-001: embedding outage still returns FTS hits; the vector leg is not run."""
+        mock_context.queries = ["q1", "q2"]
+
+        with (
+            patch(
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+        ):
+            mock_get_embedding.side_effect = [
+                Exception("Embedding failed"),
+                Exception("Embedding failed"),
+            ]
+            fts_hits = [{"chunk_id": 11, "content": "fts_hit"}]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.fts_search.return_value = fts_hits
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert mock_context.search_results == [fts_hits, fts_hits]
+            assert mock_context.search_diagnostics.embed_failed == 2
+            assert mock_context.search_diagnostics.embed_ok == 0
+            assert mock_context.search_diagnostics.degraded is True
+            assert mock_context.search_diagnostics.fts_errors == 0
+            mock_repo_instance.vector_search.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_vector_error_still_returns_fts_hits(self, mock_context, mock_db):
+        """REQ-002: a vector-search error does not suppress the FTS hits for that query."""
+        import sqlite3
+
+        mock_context.queries = ["test query"]
+
+        with (
+            patch(
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+        ):
+            mock_get_embedding.return_value = [0.1, 0.2, 0.3]
+            fts_hits = [{"chunk_id": 12, "content": "fts_hit"}]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.side_effect = sqlite3.OperationalError(
+                "DB error"
+            )
+            mock_repo_instance.fts_search.return_value = fts_hits
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert mock_context.search_results == [fts_hits]
+            assert mock_context.search_diagnostics.fts_errors == 1
+
+    @pytest.mark.asyncio
+    async def test_both_legs_fail_counts_two_errors(self, mock_context, mock_db):
+        """REQ-003: a query whose vector and FTS legs both fail adds 2 to fts_errors."""
+        import sqlite3
+
+        mock_context.queries = ["test query"]
+
+        with (
+            patch(
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+        ):
+            mock_get_embedding.return_value = [0.1, 0.2, 0.3]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.side_effect = ValueError(
+                "floats_to_blob: element 1 is out of float32 range (1e+300)"
+            )
+            mock_repo_instance.fts_search.side_effect = sqlite3.OperationalError(
+                "DB error"
+            )
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert mock_context.search_results == []
+            assert mock_context.search_diagnostics.fts_errors == 2
+            assert mock_context.search_diagnostics.degraded is True
+
+    @pytest.mark.asyncio
+    async def test_fts_error_keeps_vector_hits(self, mock_context, mock_db):
+        """REQ-003: an FTS error keeps the vector hits for that query."""
+        import sqlite3
+
+        mock_context.queries = ["test query"]
+
+        with (
+            patch(
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+        ):
+            mock_get_embedding.return_value = [0.1, 0.2, 0.3]
+            vec_hits = [{"chunk_id": 13, "content": "vec_hit"}]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.return_value = vec_hits
+            mock_repo_instance.fts_search.side_effect = sqlite3.OperationalError(
+                "DB error"
+            )
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert mock_context.search_results == [vec_hits]
+            assert mock_context.search_diagnostics.fts_errors == 1
+
 
 class TestSearchDiagnostics:
     """Tests for search diagnostics tracking."""
@@ -424,6 +549,7 @@ class TestSearchDiagnostics:
             mock_repo_instance.vector_search.side_effect = sqlite3.OperationalError(
                 "DB error"
             )
+            mock_repo_instance.fts_search.return_value = []
 
             cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg)
@@ -498,6 +624,7 @@ class TestSearchDiagnostics:
             mock_repo_instance.vector_search.side_effect = sqlite3.OperationalError(
                 "DB error"
             )
+            mock_repo_instance.fts_search.return_value = []
 
             cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg)

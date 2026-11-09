@@ -31,12 +31,52 @@ async def _search_all_queries(
     http: httpx.AsyncClient | None,
     embed_url: str,
 ) -> tuple[list[list[RawHit]], SearchDiagnostics]:
-    """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
+    """Run concurrent embedding fetches then independent per-leg DB searches.
+
+    For each query the vector leg runs only when an embedding is available; the
+    BM25 (FTS) leg always runs. A failure in one leg no longer suppresses the
+    other, and `fts_errors` counts one per failed retrieval leg. Sequential DB
+    access avoids shared-connection conflicts.
+    """
     import httpx as _httpx  # lazy: avoids circular import at module level
 
     from rag.llm_client import (
         get_embedding,  # lazy: avoids circular import at module level
     )
+
+    async def _vector_leg(
+        repo: RagRepository, embedding: list[float], top_k: int, query: str
+    ) -> tuple[list[RawHit], bool]:
+        """Return (hits, failed) for the vector leg; never raises past its leg."""
+        try:
+            hits = cast("list[RawHit]", repo.vector_search(embedding, top_k))
+            return hits, False
+        except (
+            sqlite3.OperationalError,
+            RuntimeError,
+            ValueError,
+            OverflowError,
+            struct.error,
+        ) as e:
+            logger.warning("Vector search failed for '%s': %s", query, e)
+            return [], True
+
+    async def _fts_leg(
+        repo: RagRepository, query: str, top_k: int
+    ) -> tuple[list[RawHit], bool]:
+        """Return (hits, failed) for the BM25 (FTS) leg; never raises past its leg."""
+        try:
+            hits = cast("list[RawHit]", repo.fts_search(query, top_k))
+            return hits, False
+        except (
+            sqlite3.OperationalError,
+            RuntimeError,
+            ValueError,
+            OverflowError,
+            struct.error,
+        ) as e:
+            logger.warning("FTS search failed for '%s': %s", query, e)
+            return [], True
 
     raw = await asyncio.gather(
         *(get_embedding(q, cast(_httpx.AsyncClient, http), embed_url) for q in queries),
@@ -51,28 +91,21 @@ async def _search_all_queries(
         if isinstance(result, Exception):
             logger.warning("Embedding failed for '%s': %s", q, result)
             embed_failed += 1
-            continue
-        if not isinstance(result, list):
+        elif not isinstance(result, list):
             logger.warning("Unexpected embedding type for '%s': %s", q, type(result))
             embed_failed += 1
-            continue
-        embed_ok += 1
-        try:
-            vec_res = cast("list[RawHit]", repo.vector_search(result, cfg.top_k_search))
-            fts_res = cast("list[RawHit]", repo.fts_search(q, cfg.top_k_search))
-            if vec_res:
-                all_results.append(vec_res)
-            if fts_res:
-                all_results.append(fts_res)
-        except (
-            sqlite3.OperationalError,
-            RuntimeError,
-            ValueError,
-            OverflowError,
-            struct.error,
-        ) as e:
-            logger.warning("Search failed for '%s': %s", q, e)
-            fts_errors += 1
+        else:
+            embed_ok += 1
+            vec_hits, vec_failed = await _vector_leg(repo, result, cfg.top_k_search, q)
+            fts_errors += int(vec_failed)
+            if vec_hits:
+                all_results.append(vec_hits)
+        # The FTS leg always runs, even when the embedding failed, so an embedding
+        # outage still yields lexical hits for the query.
+        fts_hits, fts_failed = await _fts_leg(repo, q, cfg.top_k_search)
+        fts_errors += int(fts_failed)
+        if fts_hits:
+            all_results.append(fts_hits)
     # degraded reflects whether any embedding or FTS error occurred during this run.
     # This matches the calculation in rag.diagnostics.SearchDiagnostics.from_run_result().
     degraded = embed_failed > 0 or fts_errors > 0

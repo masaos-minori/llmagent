@@ -68,9 +68,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the four new tests and the explicit empty FTS stubs | Pending | — | — | |
-| 2 | Run the new tests on the pre-change HEAD and record that they fail | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the four new tests and the explicit empty FTS stubs | Completed | 20261109-145634 | 20261109-145634 | Validated: 4 new tests red on HEAD then green; gates clean (ruff/mypy/lint-imports/bandit/radon B/module-size/mock-targets/ast-grep); diff-cover 100%; doc checkers pass. |
+| 2 | Run the new tests on the pre-change HEAD and record that they fail | Completed | 20261109-145634 | 20261109-145634 | Validated: 4 new tests red on HEAD then green; gates clean (ruff/mypy/lint-imports/bandit/radon B/module-size/mock-targets/ast-grep); diff-cover 100%; doc checkers pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-145634 | 20261109-145634 | Validated: 4 new tests red on HEAD then green; gates clean (ruff/mypy/lint-imports/bandit/radon B/module-size/mock-targets/ast-grep); diff-cover 100%; doc checkers pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

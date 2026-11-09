@@ -37,13 +37,13 @@ related:
 
 - Generates embeddings in parallel for all queries in `ctx.queries`.
 - Database searches are executed sequentially (one connection per query to avoid contention).
-- Each query adds 0–2 `list[RawHit]` items to `ctx.search_results` (KNN + BM25); returns empty if embedding or DB error occurs.
+- Each query adds 0–2 `list[RawHit]` items to `ctx.search_results` (KNN + BM25). The vector leg runs only when an embedding is available and the BM25 leg always runs, so an embedding failure or a vector-search error does not suppress the BM25 hits for that query.
 - KNN: Uses `vector_search(embedding, top_k)` via `sqlite-vec`.
 - BM25: Uses `fts_search(query, top_k)` via FTS5.
-- Logs to the search log file: warnings for embedding failures and search degradation (count of `embed_failed` and FTS errors).
+- Logs to the search log file: warnings for embedding failures and search degradation (count of `embed_failed` and retrieval-leg errors `fts_errors`).
 - If `db=None`, it processes with an empty result and a warning.
 
-> **Error handling**: `sqlite3.OperationalError` / `RuntimeError` raised by `vector_search`/`fts_search` are caught within `SearchStage` and merely increment the `fts_errors` counter per query; packing failures (`ValueError`, `OverflowError`, `struct.error`) surfacing from the search path are caught the same way and counted in `fts_errors`; they are NOT propagated as exceptions to the caller. A failure in one query does not stop processing of remaining queries. Embedding acquisition failures are likewise swallowed individually (`return_exceptions=True`) and reflected only in the `SearchDiagnostics` counters; out-of-range or non-finite embedding elements are rejected at `get_embedding` and land in `embed_failed`.
+> **Error handling**: Errors raised by the vector or BM25 retrieval legs — `sqlite3.OperationalError` / `RuntimeError`, plus packing failures (`ValueError`, `OverflowError`, `struct.error`) surfacing from the search path — are caught per leg within `SearchStage` and never propagated as exceptions to the caller. `fts_errors` counts failed retrieval legs (vector or BM25), once per failed leg per query; `embed_failed` counts embedding failures. The diagnostics report `degraded` when either counter is positive, and the stage reports `fallback` only when no leg returned any hit. A failure in one query does not stop processing of remaining queries. Embedding acquisition failures are likewise swallowed individually (`return_exceptions=True`) and reflected only in the `SearchDiagnostics` counters; out-of-range or non-finite embedding elements are rejected at `get_embedding` and land in `embed_failed`.
 
 
 ### 5.3 FusionStage
