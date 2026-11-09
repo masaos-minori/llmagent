@@ -264,6 +264,17 @@ class CrawlOrchestrator:
         A not-modified page is re-fetched for link discovery only: it is not extracted, saved, or counted. A failed fetch enqueues nothing. The page is persisted and discovered under its final accepted URL (REQ-004).
         """
         async with sem:
+            # ragrev014: fetch-time robots guard. ensure_host is idempotent per
+            # host, so this covers hosts reached through external links with
+            # one robots.txt fetch each, and refuses disallowed URLs (including
+            # the start URL) before any HTTP request is issued.
+            if robots_cache is not None:
+                parsed_url = urlparse(url)
+                url_origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                await robots_cache.ensure_host(url_origin, client)
+                if not robots_cache.is_allowed(url):
+                    logger.info("robots disallowed: url=%s host=%s", url, url_origin)
+                    return
             logger.info("[depth=%s] %s", depth, url)
             await asyncio.sleep(self._crawl_delay)
 

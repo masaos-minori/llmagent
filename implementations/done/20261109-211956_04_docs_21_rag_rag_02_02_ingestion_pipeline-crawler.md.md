@@ -57,10 +57,10 @@ In-place prose edit keeping the file's existing list/heading style; terminology 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 2026-11-10 | robots paragraph + Robots.txt Policy bullet rewritten per outcome table and fetch-time enforcement |
+| 2 | Add or update tests per Validation plan | Completed | — | 2026-11-10 | docs gates: all five checkers clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-10 | check_docs_quality/structure/content_policy/consistency --domain rag/japanese: no findings; targeted pytest green |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-10 | N/A: this procedure IS the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

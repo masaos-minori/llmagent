@@ -15,8 +15,8 @@ Row 1 of the frozen target table.
 ## Design decisions
 - Outcome table lives in one small mapping function (Plan Design complexity note) so `fetch_host` (A 4) and `is_allowed` (A 2) stay at grade A; mapping: 200 → parse body; 401/403 → disallow-all; 404 and other 4xx → allow-all; 5xx and `httpx.RequestError` (timeouts included) → disallow-all; each outcome logged with its class.
 - Disallow-all is expressed as a `RobotFileParser` parsed from `["User-agent: *", "Disallow: /"]` (via a new private helper `_disallow_all_parser` (new)), so `is_allowed` remains the single synchronous query API unchanged.
-- `ensure_host` (new) — confirmed absent from scripts/ — is the new async entry: `(self, origin: str, client: httpx.AsyncClient) -> None`, idempotent per host (cache hit returns before any request), usable for any host, applies the outcome table. `fetch_host` (L30-48) keeps its signature and delegates to `ensure_host` (new) so existing callers (orchestrator preload L134, tests) are untouched (REQ-005: eager preload keeps working).
-- The robots request becomes `client.get(robots_url, timeout=..., follow_redirects=True)` per request (REQ-004), independent of the shared client's `follow_redirects` setting (Plan Background fact 4: the sibling ragrev012 plan turns the client-level setting off).
+- `ensure_host` (new) — confirmed absent from scripts/ — is the new async entry: `(self, origin: str, client: httpx.AsyncClient) -> None`, idempotent per host (cache hit returns before any request), usable for any host, applies the outcome table. `fetch_host` (L30-48) keeps its signature and delegates to `ensure_host` (new) so existing callers (orchestrator preload call at `orchestrator.py` L139, block L135-139; tests) are untouched (REQ-005: eager preload keeps working). Line references re-adversarially-verified 20261110 against the ragrev012-landed file.
+- The robots request becomes `client.get(robots_url, follow_redirects=True)` per request (REQ-004), independent of the shared client's `follow_redirects` setting (Plan Background fact 4: the sibling ragrev012 plan turns the client-level setting off; verified supported by httpx 0.28.1). No per-request `timeout` parameter is added — REQ-004 names only `follow_redirects`, and the shared client already carries the fetch timeout (verification correction 20261110).
 - No retry logic and no cache expiry in this cycle (Out-of-Scope: cache expiry; UNK-02).
 
 ## Alternatives considered
@@ -42,7 +42,7 @@ In-place edit; no new import edges (`httpx` and stdlib only — Plan Design: `li
 - 401/403 distinction from other 4xx happens before the allow-all branch (RFC 9309 mapping, Plan Assumptions).
 
 ## Compatibility considerations
-- Callers keep their shape: `orchestrator.py` preload (L128-134), `link_discovery.py` `is_allowed` (L80-82), `crawler.py` construction (L84) — the orchestrator guard change lands in procedure 03.
+- Callers keep their shape: `orchestrator.py` preload (L135-139, shifted from L128-134 by the landed ragrev012 commit 91a807739), `link_discovery.py` `is_allowed` (L80-82), `crawler.py` construction (L84) — the orchestrator guard change lands in procedure 03.
 - Related Tests (from the Plan row): `tests/rag/ingestion/test_robots.py` — owned by procedure 01 (outcome tests, `ensure_host` idempotence, redirect flag, inverted transport-error test; `test_fetch_host_404_falls_back_allow_all` stays unmodified).
 
 ## Security considerations
@@ -70,10 +70,10 @@ In-place edit; no new import edges (`httpx` and stdlib only — Plan Design: `li
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 2026-11-10 | ensure_host (new) + _disallow_all_parser (new); fetch_host delegates; per-request follow_redirects=True; fail-closed table; module docstring fixed to em-dash convention (baseline entry removed via --update-baseline) |
+| 2 | Add or update tests per Validation plan | Completed | — | 2026-11-10 | covered by procedure 01 tests in tests/rag/ingestion/test_robots.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-10 | full suite 12121 passed; diff-cover 100% on changed lines; ruff/mypy/lint-imports/bandit/module-size/docstrings green |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-10 | N/A: docs covered by procedures 04/05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

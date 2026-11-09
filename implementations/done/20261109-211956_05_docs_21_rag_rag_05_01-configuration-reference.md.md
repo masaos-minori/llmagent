@@ -57,10 +57,10 @@ In-place prose edit of one bullet, matching the file's bullet style.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 2026-11-10 | respect_robots bullet rewritten: per-host lazy ensure_host + outcome table + fetch-time refusal; default-disabled unchanged |
+| 2 | Add or update tests per Validation plan | Completed | — | 2026-11-10 | docs gates: all five checkers clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-10 | docs checkers clean; targeted pytest green |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-10 | N/A: this procedure IS the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

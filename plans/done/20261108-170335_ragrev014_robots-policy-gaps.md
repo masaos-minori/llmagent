@@ -130,10 +130,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | In Progress | 20261109-211956 | — |  |
-| 2 | Phase 2: policy in the cache | In Progress | 20261109-211956 | — |  |
-| 3 | Phase 3: fetch-time enforcement | In Progress | 20261109-211956 | — |  |
-| 4 | Phase 4: documentation | In Progress | 20261109-211956 | — |  |
+| 1 | Phase 1: tests first | Completed | 20261109-211956 | 20261110-080114 |  |
+| 2 | Phase 2: policy in the cache | Completed | 20261109-211956 | 20261110-080114 |  |
+| 3 | Phase 3: fetch-time enforcement | Completed | 20261109-211956 | 20261110-080114 |  |
+| 4 | Phase 4: documentation | Completed | 20261109-211956 | 20261110-080114 |  |
 | 5 | Phase 5: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -144,11 +144,11 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261109-211956_01_tests_rag_ingestion_test_robots.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261109-211956_02_scripts_rag_ingestion_robots.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261109-211956_03_scripts_rag_ingestion_orchestrator.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261109-211956_04_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261109-211956_05_docs_21_rag_rag_05_01-configuration-reference.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261109-211956_01_tests_rag_ingestion_test_robots.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261109-211956_02_scripts_rag_ingestion_robots.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261109-211956_03_scripts_rag_ingestion_orchestrator.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261109-211956_04_docs_21_rag_rag_02_02_ingestion_pipeline-crawler.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261109-211956_05_docs_21_rag_rag_05_01-configuration-reference.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

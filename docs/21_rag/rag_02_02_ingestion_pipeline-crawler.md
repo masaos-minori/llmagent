@@ -54,9 +54,16 @@ own inline comment states these are unvalidated heuristics.
 the BFS queue.
 
 `respect_robots` opts into a per-host robots.txt policy. When enabled, the
-start host's `robots.txt` is fetched and parsed once before the crawl begins,
-and `LinkDiscovery` skips any URL whose path is `Disallow`ned for the crawler
-user agent before it is enqueued. It defaults to disabled, so no `robots.txt`
+start host's `robots.txt` is fetched eagerly before the crawl begins, and for
+every other host `RobotsCache.ensure_host()` fetches it lazily once per host
+(before that host's first page request; the fetch is idempotent per host).
+Fetch outcomes map to policy decisions: `200` parses the body; `404` and other
+4xx except 401/403 allow all; `401`, `403`, 5xx and network errors (timeouts
+included) disallow all, each logged with its failure class. Before requesting
+any URL, the orchestrator ensures the host's rules and skips a disallowed URL
+(the start URL included) with a distinct log; `LinkDiscovery` additionally
+skips any URL whose path is `Disallow`ned for the crawler user agent at
+enqueue time as a pre-filter. It defaults to disabled, so no `robots.txt`
 request is issued and crawling behavior is unchanged when the flag is off. See
 [Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md).
 
@@ -72,7 +79,7 @@ request is issued and crawling behavior is unchanged when the flag is off. See
 - **Language Detection:** If the CJK ratio (Hiragana + Katakana + CJK Unified Ideographs) is at or above the threshold → `ja`; otherwise `en`. Pages shorter than the minimum detection length use the hint language. `--lang auto` always performs automatic detection, with `en` as fallback.
 - **Idempotency:** A `visited` set prevents duplicate fetching of the same URL within a single execution.
 - **Conditional GET:** Reads `documents.etag` / `documents.last_modified` from SQLite and sends `If-None-Match` / `If-Modified-Since`. A 304 response is neither extracted nor persisted. When the page's depth is below `max_depth`, the page is fetched once more without validators so that its links are still discovered, which costs one extra request per unchanged page; at the depth limit no second request is made. A failed fetch is logged separately and discovers nothing.
-- **Robots.txt Policy:** Opt-in via `respect_robots`. When enabled, the start host's `robots.txt` is fetched once before the crawl and disallowed paths are filtered at enqueue time, so external crawls respect the target site's robots policy.
+- **Robots.txt Policy:** Opt-in via `respect_robots`. When enabled, `robots.txt` is fetched once per host — eagerly for the start host and lazily via `ensure_host()` before any other host's first page request — and a disallowed URL is refused at fetch time, before any request for it, with a distinct log; enqueue-time filtering remains as a pre-filter. A `robots.txt` fetch that returns 401/403 or 5xx, or fails with a network error, disallows the entire host (fail-closed), so an unresponsive start host blocks its whole subtree; `404` and other 4xx except 401/403 allow all.
 - **Redirect Handling:** Automatic redirect following is off (`httpx.AsyncClient` is built with `follow_redirects=False`); `fetch_html` follows redirects hop by hop, allowing only the start host (plus a single http-to-https upgrade) when `skip_external` is on and otherwise requiring every non-start host to resolve to a public address. A refused hop (cross-origin, loopback, link-local, reserved, multicast, unspecified, or a downgrade) is logged distinctly and enqueues nothing. An accepted page is persisted under its final URL and marked visited, so a redirected page is looked up under the requested URL on the next run and re-fetched by the freshness check. The address check resolves the host before the request but the resolution is not pinned to the connection, so a DNS-rebinding attacker is not fully excluded.
 
 #### Local File Injection

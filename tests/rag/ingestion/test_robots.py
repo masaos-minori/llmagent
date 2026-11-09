@@ -5,6 +5,7 @@ Covers the four runtime surfaces: the new ``RobotsCache`` module, the
 the ``crawler.py`` config wiring.
 """
 
+import logging
 from unittest.mock import AsyncMock, MagicMock
 from urllib.robotparser import RobotFileParser
 
@@ -12,6 +13,7 @@ import httpx
 import pytest
 from bs4 import BeautifulSoup
 from rag.ingestion.crawler import WebCrawler
+from rag.ingestion.http_fetcher import Fetched
 from rag.ingestion.link_discovery import LinkDiscovery
 from rag.ingestion.orchestrator import CrawlOrchestrator
 from rag.ingestion.robots import RobotsCache
@@ -21,6 +23,13 @@ def _parser_with_disallow() -> RobotFileParser:
     parser = RobotFileParser()
     parser.parse(["User-agent: *", "Disallow: /private/"])
     return parser
+
+
+def _status_response(status: int, text: str = "") -> MagicMock:
+    resp = MagicMock()
+    resp.status_code = status
+    resp.text = text
+    return resp
 
 
 class TestRobotsCache:
@@ -62,13 +71,92 @@ class TestRobotsCache:
         assert cache.is_allowed("http://example.com/private/x") is True
 
     @pytest.mark.asyncio
-    async def test_fetch_host_transport_error_falls_back_allow_all(self):
-        """Transport error falls back to allow-all without raising."""
+    async def test_fetch_host_401_falls_back_disallow_all(self):
+        """401 is fail-closed: every URL on the host is disallowed."""
+        client = MagicMock()
+        client.get = AsyncMock(return_value=_status_response(401))
+        cache = RobotsCache("test-agent")
+        await cache.fetch_host("http://example.com/", client)
+        assert cache.is_allowed("http://example.com/anything") is False
+
+    @pytest.mark.asyncio
+    async def test_fetch_host_403_falls_back_disallow_all(self):
+        """403 is fail-closed: every URL on the host is disallowed."""
+        client = MagicMock()
+        client.get = AsyncMock(return_value=_status_response(403))
+        cache = RobotsCache("test-agent")
+        await cache.fetch_host("http://example.com/", client)
+        assert cache.is_allowed("http://example.com/anything") is False
+
+    @pytest.mark.asyncio
+    async def test_fetch_host_500_falls_back_disallow_all(self):
+        """5xx is fail-closed: every URL on the host is disallowed."""
+        client = MagicMock()
+        client.get = AsyncMock(return_value=_status_response(500))
+        cache = RobotsCache("test-agent")
+        await cache.fetch_host("http://example.com/", client)
+        assert cache.is_allowed("http://example.com/anything") is False
+
+    @pytest.mark.asyncio
+    async def test_fetch_host_410_falls_back_allow_all(self):
+        """4xx other than 401/403 stays allow-all (404 test covers 404)."""
+        client = MagicMock()
+        client.get = AsyncMock(return_value=_status_response(410))
+        cache = RobotsCache("test-agent")
+        await cache.fetch_host("http://example.com/", client)
+        assert cache.is_allowed("http://example.com/private/x") is True
+
+    @pytest.mark.asyncio
+    async def test_fetch_host_parse_error_falls_back_allow_all(self):
+        """A malformed robots.txt body (ValueError) keeps the allow-all fallback."""
+        resp = _status_response(200)
+        resp.text = MagicMock()
+        resp.text.splitlines.side_effect = ValueError("malformed body")
+        client = MagicMock()
+        client.get = AsyncMock(return_value=resp)
+        cache = RobotsCache("test-agent")
+        await cache.fetch_host("http://example.com/", client)
+        assert cache.is_allowed("http://example.com/anything") is True
+
+    @pytest.mark.asyncio
+    async def test_ensure_host_200_disallows_only_matching_path(self):
+        """A 200 body is parsed normally: only Disallowed paths are denied."""
+        client = MagicMock()
+        client.get = AsyncMock(
+            return_value=_status_response(200, "User-agent: *\nDisallow: /private")
+        )
+        cache = RobotsCache("test-agent")
+        await cache.ensure_host("http://example.com", client)
+        assert cache.is_allowed("http://example.com/private/x") is False
+        assert cache.is_allowed("http://example.com/public") is True
+
+    @pytest.mark.asyncio
+    async def test_ensure_host_idempotent_once_per_host(self):
+        """A second ensure_host for the same host issues no further request."""
+        client = MagicMock()
+        client.get = AsyncMock(return_value=_status_response(200, "User-agent: *"))
+        cache = RobotsCache("test-agent")
+        await cache.ensure_host("http://example.com", client)
+        await cache.ensure_host("http://example.com", client)
+        assert client.get.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_robots_request_sets_follow_redirects(self):
+        """The robots request carries follow_redirects=True per request (REQ-004)."""
+        client = MagicMock()
+        client.get = AsyncMock(return_value=_status_response(200, "User-agent: *"))
+        cache = RobotsCache("test-agent")
+        await cache.ensure_host("http://example.com", client)
+        assert client.get.call_args.kwargs["follow_redirects"] is True
+
+    @pytest.mark.asyncio
+    async def test_fetch_host_transport_error_falls_back_disallow_all(self):
+        """Transport error is fail-closed (renamed and inverted from allow-all)."""
         client = MagicMock()
         client.get = AsyncMock(side_effect=httpx.ConnectError("boom"))
         cache = RobotsCache("test-agent")
         await cache.fetch_host("http://example.com/", client)
-        assert cache.is_allowed("http://example.com/anything") is True
+        assert cache.is_allowed("http://example.com/anything") is False
 
 
 class TestLinkDiscoveryRobots:
@@ -169,6 +257,107 @@ class TestOrchestratorEagerFetch:
         orch, disc = self._orchestrator(None)
         await orch.crawl_site("http://example.com/start", "en")
         assert disc._robots_cache is None
+
+
+class TestOrchestratorRobotsGuard:
+    """Fetch-time robots guard in ``_process_crawl_url_async`` (ragrev014).
+
+    These cases exercise the real ``_process_crawl_url_async`` body, so they
+    cannot reuse ``TestOrchestratorEagerFetch._orchestrator`` (which stubs the
+    method with an ``AsyncMock``). Only fetch/persist dependencies are mocked;
+    the cache's ``ensure_host`` is stubbed so the real ``httpx.AsyncClient``
+    built by ``crawl_site`` never issues network requests.
+    """
+
+    HTML_WITH_EXT_LINK = (
+        '<html><body><a href="http://other.example/page">x</a></body></html>'
+    )
+
+    @staticmethod
+    def _orchestrator(robots_cache: RobotsCache | None, max_depth: int = 2):
+        disc = LinkDiscovery(
+            skip_nofollow=False,
+            skip_external=False,
+            max_depth=max_depth,
+            robots_cache=robots_cache,
+        )
+        extractor = MagicMock()
+        extractor.extract_content.return_value = ("title", "text", [])
+        lang_resolver = MagicMock()
+        lang_resolver.resolve_lang.return_value = "en"
+        orch = CrawlOrchestrator(
+            http_fetcher=MagicMock(),
+            content_extractor=extractor,
+            link_discovery=disc,
+            language_resolver=lang_resolver,
+            persister=MagicMock(),
+            config={
+                "fetch_timeout": 5,
+                "crawl_delay": 0,
+                "crawl_concurrency": 1,
+                "max_pages": 50,
+                "max_depth": max_depth,
+            },
+        )
+        orch._http_fetcher.get_conditional_headers = MagicMock(return_value=None)
+        return orch
+
+    @pytest.mark.asyncio
+    async def test_start_url_disallowed_is_never_requested(self, caplog):
+        """A disallowed start URL is refused before any page fetch (AC-3)."""
+        cache = RobotsCache("agent")
+        cache.ensure_host = AsyncMock()
+        cache.is_allowed = MagicMock(return_value=False)
+        orch = self._orchestrator(cache)
+        orch._http_fetcher.fetch_html = AsyncMock()
+        with caplog.at_level(logging.INFO):
+            await orch.crawl_site("http://example.com/private/page", "en")
+        assert orch._http_fetcher.fetch_html.await_count == 0
+        assert (
+            "robots disallowed: url=http://example.com/private/page "
+            "host=http://example.com" in caplog.text
+        )
+
+    @pytest.mark.asyncio
+    async def test_external_host_robots_ensured_once_before_url(self):
+        """A link to a second host triggers exactly one robots fetch for it
+        before that URL is requested (AC-2)."""
+        cache = RobotsCache("agent")
+        ensured: list[str] = []
+
+        async def spy_ensure(origin: str, client: object) -> None:
+            ensured.append(origin)
+
+        cache.ensure_host = spy_ensure
+        orch = self._orchestrator(cache)
+        orch._http_fetcher.fetch_html = AsyncMock(
+            side_effect=[
+                Fetched(
+                    self.HTML_WITH_EXT_LINK, None, None, "http://example.com/start"
+                ),
+                Fetched("", None, None, "http://other.example/page"),
+            ]
+        )
+        await orch.crawl_site("http://example.com/start", "en")
+        # preload (start host), guard (start URL), guard (external host): one
+        # ensure per URL, idempotent per host inside ensure_host.
+        assert ensured == [
+            "http://example.com",
+            "http://example.com",
+            "http://other.example",
+        ]
+        assert orch._http_fetcher.fetch_html.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_policy_off_takes_no_robots_action(self):
+        """With robots_cache=None behavior is identical to today (AC-5)."""
+        orch = self._orchestrator(None)
+        orch._http_fetcher.fetch_html = AsyncMock(
+            return_value=Fetched("", None, None, "http://example.com/start")
+        )
+        await orch.crawl_site("http://example.com/start", "en")
+        assert orch._http_fetcher.fetch_html.await_count == 1
+        assert orch._http_fetcher.fetch_html.await_args.args[4] is None
 
 
 class TestCrawlerWiring:

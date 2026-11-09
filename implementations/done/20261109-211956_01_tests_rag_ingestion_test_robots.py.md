@@ -8,7 +8,9 @@ Add the test coverage the Plan requires before the production change (Plan Phase
 Row 3 of the frozen target table. `Related Tests` column is `self`. Not treated as a companion document: `tests/rag/ingestion/test_robots.py` is named in `Related Tests` of two target rows (robots.py and orchestrator.py), so it gets its own procedure.
 
 ## Assumptions
-- Line numbers revalidated 20261109: `test_fetch_host_404_falls_back_allow_all` def at L53, `test_fetch_host_transport_error_falls_back_allow_all` def at L65, `TestOrchestratorEagerFetch` class at L127 — all match the current file.
+- Line numbers revalidated 20261109 and re-adversarially-verified 20261110: `test_fetch_host_404_falls_back_allow_all` def at L53, `test_fetch_host_transport_error_falls_back_allow_all` def at L65, `TestOrchestratorEagerFetch` class at L127 — all match the current file.
+- The orchestrator class is `CrawlOrchestrator` (`orchestrator.py` L65), not "IngestionOrchestrator" (correction from the 20261110 verification pass).
+- ragrev012 has landed (commit 91a807739): `_process_crawl_url_async` already takes `origin` and `robots_cache` parameters; the guard tests must exercise the real `_process_crawl_url_async` body, so they cannot reuse `TestOrchestratorEagerFetch._orchestrator`, which stubs that method with an `AsyncMock`. The new harness mocks `http_fetcher`/`content_extractor`/`persister`/`language_resolver` and leaves `_process_crawl_url_async` real.
 - The 404 test stays unmodified: the Plan's outcome table keeps allow-all for 404 and other 4xx except 401/403. Only the transport-error test is renamed and inverted (Plan Assumptions).
 - Plan Phase 1 is tests-first: the new outcome/denial tests are expected to fail on HEAD and pass after Phases 2-3 (Validation plan row 2).
 
@@ -35,7 +37,7 @@ Row 3 of the frozen target table. `Related Tests` column is `self`. Not treated 
 6. Keep `TestOrchestratorEagerFetch` (L127+) and `TestLinkDiscoveryRobots` (L74+) unmodified (AC-5: existing link-filter and eager-fetch tests pass unchanged).
 
 ### Method
-pytest additions in the existing file style; mock transport reused for status/outcome control; orchestrator cases drive `IngestionOrchestrator.crawl_site`/`_process_crawl_url_async` with mocked fetch/persist dependencies as `TestOrchestratorEagerFetch` already does.
+pytest additions in the existing file style; mock transport reused for status/outcome control; orchestrator cases drive `CrawlOrchestrator.crawl_site` with the real `_process_crawl_url_async` and mocked fetch/persist dependencies (not the `TestOrchestratorEagerFetch._orchestrator` helper, which stubs `_process_crawl_url_async`; stub the cache's `ensure_host`/`fetch_host` to keep the real `httpx.AsyncClient` from issuing network requests, as the eager-fetch spy does).
 
 ### Details
 - Disallow-all assertions use `is_allowed(url) is False` for representative paths; allow-all assertions use `is_allowed(url) is True`.
@@ -68,10 +70,10 @@ pytest additions in the existing file style; mock transport reused for status/ou
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-10 | 2026-11-10 | tests-first per Plan Phase 1; red on HEAD by design outcome/idempotence/redirect-flag/guard tests written; transport-error test renamed+inverted |
+| 2 | Add or update tests per Validation plan | Completed | — | 2026-11-10 | tests-first per Plan Phase 1: red on HEAD (9 predicted failures), green after procedures 02-03 (50 targeted / 324 ingestion pass) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-10 | full suite 12121 passed; diff-cover 100% on changed lines; ruff/mypy/lint-imports/bandit/module-size/docstrings green |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-10 | N/A: no documentation in scope for this procedure |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
