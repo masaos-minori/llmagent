@@ -40,7 +40,7 @@ N/A: the rejected alternatives (broadening `MqeStage.run` to `Exception`, adding
 ### Companion test files
 - `tests/rag/test_llm_client_timeout.py`
   - Procedure: add a parametrized async test over three response bodies built with `_make_fake_client` (content null, empty `choices`, non-JSON bytes) asserting `RagExpansionError` and that `__cause__` is a `ValueError`; add tests that a `TypeError` from a monkeypatched `rag.llm_client._mqe_prompt` and a `ValueError` from a malformed `mqe_prompt_template` (an unmatched brace passed through `_make_cfg`) both propagate unchanged and are not converted.
-  - Validation: `uv run pytest tests/rag/test_llm_client_timeout.py -q`; the new tests fail before the change and pass after, and the existing timeout tests pass unmodified.
+  - Validation: `uv run pytest tests/rag/test_llm_client_timeout.py -q`; the three malformed-shape tests fail before the change and pass after; the two prompt-error tests pass both before and after (verified in Step 3a: before the change nothing converts a `TypeError`/format `ValueError`, so they guard the converted region against swallowing config defects); the existing timeout tests pass unmodified.
 
 ## Compatibility considerations
 `expand_queries` already documents `RagExpansionError` as its failure type; the change makes the code honor that. Its only caller is `MqeStage` (via `_run_mqe`), which already catches `RagExpansionError`. No caller was found that relied on a `ValueError` escaping.
@@ -70,9 +70,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the companion tests first and confirm the malformed-shape tests fail on the current code | Pending | — | — | |
-| 2 | Move the prompt build out of the `try` and add `ValueError` to the conversion in `RagLLM.expand_queries` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the companion tests first and confirm the malformed-shape tests fail on the current code | Completed | 20261109-125342 | 20261109-125926 | 3b: corrected companion Validation wording; stale check clean red state confirmed: 3 malformed-shape tests fail (plain ValueError escapes), 2 prompt-error guard tests pass before change |
+| 2 | Move the prompt build out of the `try` and add `ValueError` to the conversion in `RagLLM.expand_queries` | Completed | 20261109-125926 | 20261109-130042 | tests added; now editing expand_queries green: 74 passed incl. pinned test_run_llm_exception; ruff/mypy/lint-imports clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261109-132200 | full suite 11987 passed/9 skipped; diff-cover 100% >= 90; docs N/A verified |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

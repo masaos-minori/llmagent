@@ -139,16 +139,20 @@ class RagLLM:
     async def expand_queries(self, query: str, context: str = "") -> list[str]:
         """Expand query to MQE paraphrases via LLM.
 
-        Raises RagExpansionError on HTTP failure, connection error, or parse failure.
+        Raises RagExpansionError on HTTP failure, connection error, or malformed
+        response (null content, empty choices, invalid JSON body). Prompt
+        construction failures (a bad ``mqe_prompt_template``) raise TypeError or
+        ValueError unconverted, so a configuration defect stays loud.
         """
+        # Built outside the try: a config defect must not be disguised as an
+        # LLM failure (ragrev001 REQ-002).
+        prompt = _mqe_prompt(query, context, cast(RagConfig, self._cfg))
         try:
             raw = await self._call_llm(
                 [
                     {
                         "role": "user",
-                        "content": _mqe_prompt(
-                            query, context, cast(RagConfig, self._cfg)
-                        ),
+                        "content": prompt,
                     }
                 ],
                 _MQE_TEMPERATURE,
@@ -162,6 +166,7 @@ class RagLLM:
             httpx.RequestError,
             orjson.JSONDecodeError,
             MqeParseError,
+            ValueError,
         ) as e:
             raise RagExpansionError(f"MQE expansion failed: {e}") from e
 

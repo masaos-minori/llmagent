@@ -7,13 +7,19 @@ Covers:
 - Timing recording accuracy
 - Fallback detection correctness
 - Edge cases: empty stage list, single-stage execution, all-fail scenario
+- MQE malformed-response fallback (ragrev001): stage-level and lifecycle-level
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
+import orjson
 import pytest
+from rag.llm_client import RagLLM
 from rag.models_config import RagConfigImpl
+from rag.stage import PipelineContext
 from rag.stage_lifecycle import RagPipelineStageLifecycle
+from rag.stages.mqe import MqeStage
 from rag.types import PipelineRunResult
 
 
@@ -355,3 +361,92 @@ class TestStageExecutionOrder:
             mock_run_stage.return_value = None
             result = await lifecycle.run(query=long_query, db=MagicMock())
             assert isinstance(result, PipelineRunResult)
+
+
+# ── MQE malformed-response fallback (ragrev001) ─────────────────────────────────
+
+# One body per REQ-001 shape: content null, empty choices, non-JSON body.
+_MALFORMED_BODIES: list[bytes] = [
+    orjson.dumps({"choices": [{"message": {"content": None}}]}),
+    orjson.dumps({"choices": []}),
+    b"not json",
+]
+
+
+def _make_malformed_llm(cfg: RagConfigImpl, body: bytes) -> RagLLM:
+    """Real RagLLM whose fake client answers HTTP 200 with a malformed body.
+
+    Mirrors the fake-client pattern in tests/rag/test_llm_client_timeout.py:
+    parse_http_json reads .content, so the stub carries only timeout, post,
+    a no-op raise_for_status, and the body bytes.
+    """
+    client = MagicMock(spec=httpx.AsyncClient)
+    client.timeout = 7.5
+    resp = MagicMock()
+    resp.raise_for_status = MagicMock()
+    resp.content = body
+    client.post = AsyncMock(return_value=resp)
+    return RagLLM(
+        client=client,
+        llm_url="http://localhost:8000/v1/chat/completions",
+        cfg=cfg,
+    )
+
+
+class TestMqeMalformedResponseFallback:
+    """Regression: a malformed MQE response degrades to the original query."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("body", _MALFORMED_BODIES)
+    async def test_stage_falls_back_to_original_query(
+        self, mock_cfg: RagConfigImpl, body: bytes
+    ) -> None:
+        """REQ-003: no exception, queries stay [query], status is fallback/mqe_exception."""
+        stage = MqeStage(mock_cfg, _make_malformed_llm(mock_cfg, body))
+        ctx = PipelineContext(query="test query")
+
+        await stage.run(ctx, db=MagicMock())
+
+        assert ctx.queries == ["test query"]
+        assert stage.get_status(ctx) == ("fallback", "mqe_exception")
+
+    @pytest.mark.asyncio
+    async def test_lifecycle_continues_past_malformed_mqe(
+        self, mock_cfg: RagConfigImpl, mock_http_client: MagicMock
+    ) -> None:
+        """REQ-004: the run completes and reports the MQE fallback in stage_results.
+
+        Only SearchStage is replaced (patched where the lifecycle looks the class
+        up) with a recording stub; MQE runs for real so the RagLLM conversion is
+        exercised end to end. Fusion/Rerank/Augment stay real: with use_rerank=False
+        and no search results they touch neither the database nor the network.
+        """
+        recorded: list[list[str]] = []
+
+        class _RecordingSearchStage:
+            """Stub search stage that records ctx.queries at its turn."""
+
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                pass
+
+            async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
+                recorded.append(list(ctx.queries))
+
+        llm = _make_malformed_llm(mock_cfg, _MALFORMED_BODIES[0])
+        lc = RagPipelineStageLifecycle(
+            cfg=mock_cfg,
+            llm=llm,
+            http_client=mock_http_client,
+            embed_url="",
+        )
+
+        with patch("rag.stage_lifecycle.SearchStage", _RecordingSearchStage):
+            result = await lc.run(query="test query", db=MagicMock())
+
+        assert isinstance(result, PipelineRunResult)
+        assert result.queries == ["test query"]
+        assert recorded == [["test query"]]
+        mqe_results = [r for r in result.stage_results if r["stage_name"] == "MqeStage"]
+        assert len(mqe_results) == 1
+        assert mqe_results[0]["status"] == "fallback"
+        assert mqe_results[0]["fallback_reason"] == "mqe_exception"

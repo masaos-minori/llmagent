@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import orjson
 import pytest
+from rag.exceptions import RagExpansionError
 from rag.llm_client import RagLLM, get_embedding
 from rag.models_config import RagConfigImpl
 from shared.types import RagConfig
@@ -164,3 +165,58 @@ async def test_get_embedding_returns_valid_embedding_unchanged() -> None:
     client = _make_fake_client(7.5, _EMBED_BODY)
     result = await get_embedding("text", client, "http://localhost:8000/embeddings")
     assert result == [0.1, 0.2]
+
+
+# ── MQE malformed-response conversion (ragrev001) ───────────────────────────────
+
+# One body per REQ-001 shape: content null, empty choices, non-JSON body.
+_MALFORMED_BODIES: list[bytes] = [
+    orjson.dumps({"choices": [{"message": {"content": None}}]}),
+    orjson.dumps({"choices": []}),
+    b"not json",
+]
+
+
+def _make_llm(client: MagicMock, cfg: RagConfig) -> RagLLM:
+    """Build a RagLLM around a fake client, matching the timeout tests above."""
+    return RagLLM(
+        client=client,
+        llm_url="http://localhost:8000/v1/chat/completions",
+        cfg=cfg,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("body", _MALFORMED_BODIES)
+async def test_expand_queries_malformed_response_converts(body: bytes) -> None:
+    """REQ-001: every malformed-response shape aborts with RagExpansionError."""
+    rag_llm = _make_llm(_make_fake_client(7.5, body), _make_cfg())
+    with pytest.raises(RagExpansionError) as exc_info:
+        await rag_llm.expand_queries("query")
+    assert isinstance(exc_info.value.__cause__, ValueError)
+
+
+@pytest.mark.asyncio
+async def test_expand_queries_prompt_typeerror_propagates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REQ-002 guard: a TypeError raised while building the prompt is not converted."""
+
+    def _broken_prompt(query: str, context: str, cfg: RagConfig) -> str:
+        raise TypeError("prompt construction defect")
+
+    monkeypatch.setattr("rag.llm_client._mqe_prompt", _broken_prompt)
+    rag_llm = _make_llm(_make_fake_client(7.5, _CHAT_BODY), _make_cfg())
+    with pytest.raises(TypeError, match="prompt construction defect"):
+        await rag_llm.expand_queries("query")
+
+
+@pytest.mark.asyncio
+async def test_expand_queries_bad_template_valueerror_propagates() -> None:
+    """REQ-002 guard: a format ValueError from a malformed template is not converted."""
+    rag_llm = _make_llm(
+        _make_fake_client(7.5, _CHAT_BODY),
+        _make_cfg(mqe_prompt_template="Expand query: {query"),
+    )
+    with pytest.raises(ValueError, match="expected .* before end of string"):
+        await rag_llm.expand_queries("query")

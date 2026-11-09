@@ -9,7 +9,7 @@ Add regression tests proving that a malformed MQE response degrades gracefully: 
 
 ## Assumptions
 - Overlap judgment (`tools/check_plan_target_overlaps.py`, Step 2): `plans/20261108-165604_ragrev009_dead-pipeline-stage-runner.md` also adds tests to this file (direct `_run_stage` tests). Compatible: both add independent test classes; either order works.
-- Every existing test in this file patches `_run_stage`, which would hide the catch list; the lifecycle test here therefore runs the real `_run_stage` and replaces only the later stages with a recording stub, patched where the lifecycle looks the class up (`rag.stage_lifecycle`), since it imports `SearchStage` at module level.
+- Every existing test in this file patches `_run_stage`, which would hide the catch list; the lifecycle test here therefore runs the real `_run_stage` and replaces only `SearchStage` with a recording stub, patched where the lifecycle looks the class up (`rag.stage_lifecycle`), since it imports `SearchStage` at module level; `FusionStage`, `RerankStage`, and `AugmentStage` run unchanged.
 - With `use_rerank=False` and no search results, `FusionStage`, `RerankStage`, and `AugmentStage` do not touch the database or the network, so a `MagicMock` database is enough.
 - The malformed responses are produced by a small local fake client defined in this module (a `MagicMock` of `httpx.AsyncClient` with `timeout` and an `AsyncMock` `post` whose response carries the body), mirroring the pattern in `tests/rag/test_llm_client_timeout.py`; test modules do not import each other's private helpers.
 
@@ -65,8 +65,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the malformed-response `RagLLM` helper and the stage-level and lifecycle-level tests | Pending | — | — | Fails until the `scripts/rag/llm_client.py` procedure (`seq` 01) lands |
-| 2 | Run the validation sequence (`rules/toolchain.md`) and the targeted test modules | Pending | — | — | |
+| 1 | Add the malformed-response `RagLLM` helper and the stage-level and lifecycle-level tests | Completed | 20261109-132251 | 20261109-132345 | Fails until the `scripts/rag/llm_client.py` procedure (`seq` 01) lands stale re-check clean; procedure 01 production change already in tree red confirmed by temporarily reverting llm_client.py (4 new tests fail), restored; green after production change |
+| 2 | Run the validation sequence (`rules/toolchain.md`) and the targeted test modules | Completed | 20261109-132345 | 20261109-133549 | 95 passed targeted; ruff/mock-patch-target clean; full suite 11991 passed; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
