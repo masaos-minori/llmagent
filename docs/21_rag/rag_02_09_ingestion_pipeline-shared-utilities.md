@@ -40,8 +40,9 @@ This module provides stateless helpers shared by ingestion and query code.
 
 **Prompt injection sanitization**
 
-- `sanitize_document()` replaces text matching the known injection patterns (for example "ignore instructions", "system:", "new instructions:") with a `[REMOVED]` marker and leaves clean text unchanged.
-- `sanitize_document_full()` does the same and also returns a `SanitizeResult` recording whether sanitization happened and which patterns matched.
+- `sanitize_document()` replaces text matching the known injection patterns (for example "ignore instructions", "system:", "new instructions:") with a `[REMOVED]` marker and leaves clean text unchanged. It also replaces the boundary marker strings of the RAG context block, matched case-insensitively with optional whitespace inside the brackets, with the same `[REMOVED]` placeholder, so retrieved text cannot close or reopen the block; the phrase list is best-effort and this marker handling is the structural control.
+- `sanitize_document_full()` does the same and also returns a `SanitizeResult` recording whether sanitization happened and which patterns matched, where a boundary marker match counts as sanitization in that audit trail.
+- `sanitize_field()` is the variant for single-line fields such as a chunk title or url: it collapses line breaks and control characters before applying the same sanitization, so a field cannot start a new line that mimics a header or a boundary marker.
 
 **URL validation**
 

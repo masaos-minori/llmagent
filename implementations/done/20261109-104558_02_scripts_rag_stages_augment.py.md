@@ -64,9 +64,9 @@ Revert the commit together with the other procedures of release unit ragrev002-c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import the marker constants and sanitize the header fields in `_format_chunks` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (written in the `tests/rag/test_rag_pipeline.py` procedure) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import the marker constants and sanitize the header fields in `_format_chunks` | Completed | 20261109-143405 | 20261109-150615 | Implemented and verified; full suite and diff-cover 100% pass |
+| 2 | Add or update tests per Validation plan (written in the `tests/rag/test_rag_pipeline.py` procedure) | Completed | 20261109-143405 | 20261109-150615 | Implemented and verified; full suite and diff-cover 100% pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-143405 | 20261109-150615 | Implemented and verified; full suite and diff-cover 100% pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

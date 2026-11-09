@@ -64,8 +64,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the sanitizer, `sanitize_document_full`, `_format_chunks`, rerank preview, and marker-name tests | Pending | — | — | Fails until the `seq` 01 and 02 procedures land |
-| 2 | Run the validation sequence (`rules/toolchain.md`) and the targeted test modules | Pending | — | — | |
+| 1 | Add the sanitizer, `sanitize_document_full`, `_format_chunks`, rerank preview, and marker-name tests | Completed | 20261109-143405 | 20261109-150615 | Fails until the `seq` 01 and 02 procedures land Tests added; 12018 passed full suite, diff-cover 100% |
+| 2 | Run the validation sequence (`rules/toolchain.md`) and the targeted test modules | Completed | 20261109-143405 | 20261109-150615 | Tests added; 12018 passed full suite, diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

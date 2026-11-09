@@ -6,20 +6,33 @@ from typing import Literal
 
 from rag.repository import RagHit
 from rag.stage import PipelineContext, PipelineStage
-from rag.utils import sanitize_document
+from rag.utils import (
+    RAG_BLOCK_END,
+    RAG_BLOCK_START,
+    sanitize_document,
+    sanitize_field,
+)
 
-_RAG_BLOCK_START = "[RAG_CONTEXT_START]"
-_RAG_BLOCK_END = "[RAG_CONTEXT_END]"
+# Private aliases of the rag.utils marker constants: importable from this module
+# (existing imports depend on them) while a single definition lives in rag.utils.
+_RAG_BLOCK_START = RAG_BLOCK_START
+_RAG_BLOCK_END = RAG_BLOCK_END
 
 
 def _format_chunks(reranked: list[RagHit]) -> str:
-    """Format reranked hits with sanitization and boundary markers."""
+    """Format reranked hits with sanitization and boundary markers.
+
+    Title and url are sanitized to a single line so a crawled title cannot
+    start a new line that mimics a header or a boundary marker.
+    """
     if not reranked:
         return f"{_RAG_BLOCK_START}\n\n{_RAG_BLOCK_END}"
-    blocks = [
-        f"[Source: {c.title if c.title else c.url} | {c.url}]\n{sanitize_document(c.content)}"
-        for c in reranked
-    ]
+    blocks = []
+    for c in reranked:
+        title = sanitize_field(c.title or "")
+        url = sanitize_field(c.url or "")
+        label = title or url
+        blocks.append(f"[Source: {label} | {url}]\n{sanitize_document(c.content)}")
     content = "\n\n---\n\n".join(blocks)
     return f"{_RAG_BLOCK_START}\n{content}\n{_RAG_BLOCK_END}"
 

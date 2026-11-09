@@ -52,7 +52,7 @@ from rag.llm_prompts import (
     _mqe_prompt,
     _parse_mqe_response,
 )
-from rag.utils import sanitize_document
+from rag.utils import sanitize_document, sanitize_field
 
 logger = logging.getLogger(__name__)
 
@@ -249,9 +249,10 @@ class RagLLM:
         """Compress chunks to query-relevant key points via a single LLM call; raises on error so callers can fall back."""
         items = []
         for i, c in enumerate(chunks, 1):
-            title = c.title if c.title else c.url
+            title = sanitize_field(c.title or "")
+            label = title or sanitize_field(c.url or "")
             text = sanitize_document(c.content)[:per_chunk_chars]
-            items.append(f"[{i}] {title}\n{text}")
+            items.append(f"[{i}] {label}\n{text}")
         items_text = "\n\n".join(items)
         prompt = _REFINER_PROMPT_TEMPLATE.format(query=query, items_text=items_text)
         resp = await self._client.post(

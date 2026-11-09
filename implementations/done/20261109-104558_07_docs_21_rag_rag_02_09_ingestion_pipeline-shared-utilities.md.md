@@ -58,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the sanitization bullets and add the field sanitizer bullet | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Update the sanitization bullets and add the field sanitizer bullet | Completed | 20261109-151024 | 20261109-151024 | Docs updated; five documentation checkers pass |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261109-151024 | 20261109-151024 | Docs updated; five documentation checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

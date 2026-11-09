@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the AugmentStage bullets, the `sanitize_document()` Contract paragraph, and the Limitations paragraph | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Update the AugmentStage bullets, the `sanitize_document()` Contract paragraph, and the Limitations paragraph | Completed | 20261109-150915 | 20261109-150915 | Docs updated; five documentation checkers pass |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261109-150915 | 20261109-150915 | Docs updated; five documentation checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

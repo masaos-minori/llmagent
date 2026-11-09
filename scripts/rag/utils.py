@@ -41,6 +41,24 @@ _INJECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"(?i)(new\s+instructions?:)", re.MULTILINE),
 ]
 
+# Boundary markers for the RAG context block. Defined once in the lowest layer
+# of the rag package so every formatting site imports the same strings.
+RAG_BLOCK_START = "[RAG_CONTEXT_START]"
+RAG_BLOCK_END = "[RAG_CONTEXT_END]"
+
+# Neutralizes the boundary markers inside untrusted text so crawled content
+# cannot close or reopen the block. Case-insensitive, tolerant of whitespace
+# inside the brackets; the alternation is derived from the two constants so a
+# single definition drives both.
+_MARKER_PATTERN = re.compile(
+    r"(?i)\[\s*"
+    + re.escape(RAG_BLOCK_START[1:-1])
+    + r"\s*\]|\[\s*"
+    + re.escape(RAG_BLOCK_END[1:-1])
+    + r"\s*\]",
+    re.MULTILINE,
+)
+
 
 def cosine_sim(a: list[float], b: list[float]) -> float:
     """Compute cosine similarity between two float vectors; returns 0.0 when either has zero magnitude."""
@@ -53,20 +71,38 @@ def cosine_sim(a: list[float], b: list[float]) -> float:
 
 
 def sanitize_document(text: str) -> str:
-    """Remove known prompt injection patterns; return sanitized text."""
-    # Contract: returns 0.0 equivalent — no error on clean text.
+    """Remove known prompt injection patterns and boundary markers; return sanitized text."""
+    # Contract: returns clean text unchanged — no error on clean text.
     for pattern in _INJECTION_PATTERNS:
         text = pattern.sub("[REMOVED]", text)
+    # Neutralize any boundary marker left in untrusted content so it cannot
+    # close or reopen the RAG context block. Runs after phrase substitution.
+    text = _MARKER_PATTERN.sub("[REMOVED]", text)
     return text
 
 
+def sanitize_field(value: str) -> str:
+    """Sanitize a single-line field (a chunk title or url).
+
+    Collapses control characters and Unicode line/paragraph separators to
+    single spaces, then applies :func:`sanitize_document`, then strips. Used
+    for header fields so a title cannot start a new line that mimics a header
+    or a boundary marker. Content keeps its line structure and never uses this.
+    """
+    collapsed = re.sub(r"[\s\u0000-\u001f\u007f\u2028\u2029]+", " ", value)
+    return sanitize_document(collapsed).strip()
+
+
 def sanitize_document_full(text: str) -> SanitizeResult:
-    """Remove injection patterns; return SanitizeResult with audit trail."""
+    """Remove injection patterns and boundary markers; return SanitizeResult with audit trail."""
     detected: list[str] = []
     for pattern in _INJECTION_PATTERNS:
         if pattern.search(text):
             detected.append(pattern.pattern)
             text = pattern.sub("[REMOVED]", text)
+    if _MARKER_PATTERN.search(text):
+        detected.append(_MARKER_PATTERN.pattern)
+        text = _MARKER_PATTERN.sub("[REMOVED]", text)
     return SanitizeResult(
         text=text, was_sanitized=bool(detected), patterns_detected=detected
     )

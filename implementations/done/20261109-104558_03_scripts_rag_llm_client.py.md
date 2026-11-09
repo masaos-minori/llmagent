@@ -66,9 +66,9 @@ Revert the commit together with the other procedures of release unit ragrev002-c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Sanitize the chunk title in `RagLLM.refine_context` | Pending | — | — | |
-| 2 | Add the companion refiner tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Sanitize the chunk title in `RagLLM.refine_context` | Completed | 20261109-143405 | 20261109-150615 | Implemented and verified; companion refiner tests added |
+| 2 | Add the companion refiner tests per Validation plan | Completed | 20261109-143405 | 20261109-150615 | Implemented and verified; companion refiner tests added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261109-143405 | 20261109-150615 | Implemented and verified; companion refiner tests added |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
