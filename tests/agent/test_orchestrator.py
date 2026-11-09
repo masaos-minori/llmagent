@@ -6,6 +6,7 @@ Unit tests for Orchestrator: LLMTransportError handling in handle_turn() and _ru
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import sqlite3
 import time
@@ -33,6 +34,7 @@ from agent.workflow import (
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 from agent.workflow.state_store import StateStore
 from agent.workflow.workflow_engine import WorkflowEngine
+from agent.workflow_engine_adapter import WorkflowEngineAdapter, _status_for_exit
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
 from db.helper import SQLiteHelper
@@ -201,7 +203,7 @@ def _patch_workflow_loader():
                 StageDefinition(id="execute", timeout_sec=60, retryable=True),
                 StageDefinition(id="verify", timeout_sec=60, retryable=False),
             ],
-            retry_policy=RetryPolicy(max_attempts=3, backoff_sec=1),
+            retry_policy=RetryPolicy(max_attempts=3, retry_wait_sec=1),
         )
         mock_loader.return_value.load.return_value = _default_wdef
         state_store_cls.return_value.create_task.return_value = mock_task
@@ -411,7 +413,7 @@ class TestHandleTurnInvokesWorkflowEngine:
             StageDefinition(id="execute", timeout_sec=0.01, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=1, backoff_sec=0)
+        policy = RetryPolicy(max_attempts=1, retry_wait_sec=0)
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -509,7 +511,7 @@ class TestHandleTurnInvokesWorkflowEngine:
             StageDefinition(id="execute", timeout_sec=0.01, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=1, backoff_sec=0)
+        policy = RetryPolicy(max_attempts=1, retry_wait_sec=0)
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -610,7 +612,7 @@ class TestExecuteStageRetryRunsTurnEntryOnce:
             StageDefinition(id="execute", timeout_sec=60, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -850,7 +852,7 @@ class TestEntryWorkFailureIsNotRetried:
             StageDefinition(id="execute", timeout_sec=60, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -958,7 +960,7 @@ class TestEntryWorkOutsideStageTimeout:
             StageDefinition(id="execute", timeout_sec=0.1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -1052,7 +1054,7 @@ class TestEntryWorkOutsideStageTimeout:
             StageDefinition(id="execute", timeout_sec=0.1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -3199,7 +3201,7 @@ def _status_harness(
         ),
         StageDefinition(id="verify", timeout_sec=5, retryable=False),
     ]
-    policy = RetryPolicy(max_attempts=max_attempts, backoff_sec=0)
+    policy = RetryPolicy(max_attempts=max_attempts, retry_wait_sec=0)
     wdef = WorkflowDef(
         name="default", version="1.0.0", stages=stages, retry_policy=policy
     )
@@ -3426,6 +3428,18 @@ class TestTaskStatusPerTurnOutcome:
         assert store.task_status() == "running"
         assert store.calls == ["running"]
         on_error.assert_not_called()
+
+    def test_record_exit_status_reduced_signature(self) -> None:
+        """REQ-001: _record_exit_status takes no error_kind parameter."""
+        params = inspect.signature(WorkflowEngineAdapter._record_exit_status).parameters
+        assert "error_kind" not in params
+        assert list(params) == ["self", "exit_reason", "task"]
+
+    def test_status_for_exit_single_parameter_mapping(self) -> None:
+        """REQ-001: _status_for_exit maps on exit_reason alone."""
+        assert list(inspect.signature(_status_for_exit).parameters) == ["exit_reason"]
+        assert _status_for_exit("cancelled") == "halted"
+        assert _status_for_exit("completed") is None
 
 
 class TestTurnFailureKinds:
@@ -3847,7 +3861,7 @@ class _RetryThenHaltEngine:
                     raise WorkflowHaltError(
                         f"execute stage halted after {attempt} attempts"
                     ) from exc
-                await asyncio.sleep(policy.backoff_sec)
+                await asyncio.sleep(policy.retry_wait_sec)
         await verify_fn()
 
 
@@ -3957,12 +3971,12 @@ class TestTurnLevelPersistenceFailureRealFlow:
         db = _RealTurnDB()
 
         # Real engine retries execute-stage failures up to max_attempts before
-        # halting; force backoff_sec=0 so the retries are instant.
+        # halting; force retry_wait_sec=0 so the retries are instant.
         orch, conv = self._wire(
             db, monkeypatch, [{"role": "user", "content": "before"}], MagicMock()
         )
         on_error = orch._on_error
-        orch._workflow_def.retry_policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        orch._workflow_def.retry_policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
         monkeypatch.setattr(
             orch._workflow_adapter,
             "_workflow_engine",
@@ -4010,7 +4024,7 @@ class TestTurnLevelPersistenceFailureRealFlow:
             db, monkeypatch, [{"role": "user", "content": "before"}], MagicMock()
         )
         on_error = orch._on_error
-        orch._workflow_def.retry_policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        orch._workflow_def.retry_policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
         monkeypatch.setattr(
             orch._workflow_adapter,
             "_workflow_engine",

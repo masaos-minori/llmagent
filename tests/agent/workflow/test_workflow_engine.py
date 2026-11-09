@@ -23,6 +23,7 @@ from agent.workflow.workflow_engine import (
     WorkflowEngine,
     WorkflowHaltError,
     WorkflowStageFailure,
+    WorkflowStageNotFoundError,
     WorkflowTimeoutError,
 )
 from agent.workflow.workflow_loader import WorkflowLoader
@@ -40,13 +41,13 @@ def _make_cfg(db_path: str) -> DbConfig:
     )
 
 
-def _make_wdef(max_attempts: int = 3, backoff_sec: int = 0) -> WorkflowDef:
+def _make_wdef(max_attempts: int = 3, retry_wait_sec: int = 0) -> WorkflowDef:
     stages = [
         StageDefinition(id="plan", timeout_sec=5, retryable=False),
         StageDefinition(id="execute", timeout_sec=5, retryable=True),
         StageDefinition(id="verify", timeout_sec=5, retryable=False),
     ]
-    policy = RetryPolicy(max_attempts=max_attempts, backoff_sec=backoff_sec)
+    policy = RetryPolicy(max_attempts=max_attempts, retry_wait_sec=retry_wait_sec)
     return WorkflowDef(
         name="default",
         version="1.0.0",
@@ -174,7 +175,7 @@ class TestWorkflowEngineRetry:
     async def test_retry_succeeds_on_second_attempt(
         self, store, workflow_db: Path
     ) -> None:
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -202,7 +203,7 @@ class TestWorkflowEngineRetry:
 
     @pytest.mark.asyncio
     async def test_halt_after_max_attempts(self, store) -> None:
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -218,7 +219,7 @@ class TestWorkflowEngineRetry:
 
     @pytest.mark.asyncio
     async def test_attempt_count_matches_max_attempts(self, store) -> None:
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -229,6 +230,38 @@ class TestWorkflowEngineRetry:
             await engine.run(task, _noop, always_fail, _noop)
 
         assert _attempt_count(store._db, task.task_id, "execute") == 3
+
+    @pytest.mark.asyncio
+    async def test_unknown_stage_raises_workflow_stage_not_found_error(
+        self, store
+    ) -> None:
+        """REQ-002: a stage_id absent from the definition raises a typed error and
+        creates no attempt row (no silent 60-second timeout fallback)."""
+        wdef = _make_wdef()
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        with pytest.raises(WorkflowStageNotFoundError, match="nonexistent"):
+            await engine._run_stage_with_retry(task, "nonexistent", _noop)
+
+        assert _attempt_count(store._db, task.task_id, "nonexistent") == 0
+
+    @pytest.mark.asyncio
+    async def test_retry_wait_constant_across_attempts(self, store) -> None:
+        """REQ-004: the wait between retries is the configured value every time
+        (no growth): max_attempts=3 sleeps exactly twice, [2, 2] not [2, 4]."""
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=2)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        async def always_fail() -> str | None:
+            raise RuntimeError("always fails")
+
+        with patch("agent.workflow.workflow_engine.asyncio.sleep") as mock_sleep:
+            with pytest.raises(WorkflowHaltError):
+                await engine.run(task, _noop, always_fail, _noop)
+
+        assert [c.args[0] for c in mock_sleep.await_args_list] == [2, 2]
 
 
 class TestWorkflowEngineTimeout:
@@ -241,7 +274,7 @@ class TestWorkflowEngineTimeout:
             StageDefinition(id="execute", timeout_sec=1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=1, backoff_sec=0)
+        policy = RetryPolicy(max_attempts=1, retry_wait_sec=0)
         wdef = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -277,7 +310,7 @@ class TestWorkflowEngineRetryKinds:
         """AC-2: an inner TimeoutError raised by the callback (well before its
         5 s stage deadline) persists kind exception and is retried when
         `exception` is in retry_on, instead of being relabeled WorkflowTimeoutError."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)  # shipped default retry_on
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)  # shipped default retry_on
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -316,7 +349,7 @@ class TestWorkflowEngineRetryKinds:
             version="1.0.0",
             stages=stages,
             retry_policy=RetryPolicy(
-                max_attempts=3, backoff_sec=0, retry_on=("exception", "timeout")
+                max_attempts=3, retry_wait_sec=0, retry_on=("exception", "timeout")
             ),
         )
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
@@ -348,7 +381,7 @@ class TestWorkflowEngineRetryKinds:
         """AC-3 / owner decision (Plan UNK-01): under the shipped retry_on
         ("exception",) a deadline expiry is terminal at once — one attempt row,
         no retry, WorkflowTimeoutError propagates, task halted."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         wdef.stages[1] = StageDefinition(id="execute", timeout_sec=1, retryable=True)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
@@ -375,7 +408,7 @@ class TestWorkflowEngineRetryKinds:
     ) -> None:
         """REQ-003: exception exhaustion halts only after consuming the full
         budget — attempt-row count equals max_attempts, all kind exception."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -400,7 +433,7 @@ class TestWorkflowEngineRetryKinds:
     ) -> None:
         """REQ-003: a kind not in retry_on is terminal at once — no backoff
         sleep and exactly one attempt row despite max_attempts=3."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=1)  # retry_on ("exception",)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=1)  # retry_on ("exception",)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -421,7 +454,7 @@ class TestWorkflowEngineRetryKinds:
         """REQ-005 / REQ-007 / owner decision (Plan UNK-02): a WorkflowStageFailure
         persists kind llm_failure on the attempt row and is terminal under the
         shipped retry_on, leaving the task failed and propagating unchanged."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -452,9 +485,9 @@ class TestWorkflowEngineRetryKinds:
     ) -> None:
         """AC-6 (engine half): a WorkflowHaltError raised by the stage callback
         is terminal even when retry_on includes exception — one attempt only."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         wdef.retry_policy = RetryPolicy(
-            max_attempts=3, backoff_sec=0, retry_on=("exception", "timeout")
+            max_attempts=3, retry_wait_sec=0, retry_on=("exception", "timeout")
         )
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
@@ -615,7 +648,7 @@ class TestRunStageWithRetryGeneralization:
         self, store
     ) -> None:
         """A retryable=false stage (plan) must fail on the first attempt, no retry loop."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -636,7 +669,7 @@ class TestRunStageWithRetryGeneralization:
         self, store
     ) -> None:
         """A retryable=false stage (verify) must fail on the first attempt, no retry loop."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -657,7 +690,7 @@ class TestRunStageWithRetryGeneralization:
         self, store
     ) -> None:
         """INV-03: execute success then verify failure must leave task status as 'failed', not 'completed'."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -676,7 +709,7 @@ class TestRunStageWithRetryGeneralization:
         self, store
     ) -> None:
         """execute (retryable=true) still retries up to max_attempts via the shared wrapper."""
-        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        wdef = _make_wdef(max_attempts=3, retry_wait_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
@@ -770,19 +803,25 @@ class TestEngineFacadeRouting:
     interaction goes through the StateStore facade (document 02).
     """
 
-    def _single_stage_plan_wdef(self) -> WorkflowDef:
+    def _routing_wdef(self) -> WorkflowDef:
+        # run() iterates plan -> execute -> verify; a missing stage is a typed
+        # error (REQ-002), so every stage the engine visits must be defined.
         return WorkflowDef(
             name="default",
             version="1.0.0",
-            stages=[StageDefinition(id="plan", timeout_sec=5, retryable=False)],
-            retry_policy=RetryPolicy(max_attempts=3, backoff_sec=0),
+            stages=[
+                StageDefinition(id="plan", timeout_sec=5, retryable=False),
+                StageDefinition(id="execute", timeout_sec=5, retryable=False),
+                StageDefinition(id="verify", timeout_sec=5, retryable=False),
+            ],
+            retry_policy=RetryPolicy(max_attempts=3, retry_wait_sec=0),
         )
 
     @pytest.mark.asyncio
     async def test_engine_stage_start_routes_through_facade(self, store) -> None:
         """Patching StateStore.begin_stage_if_new intercepts the engine's stage
         start; the engine composes the `{task_id}:plan:1` event id (REQ-005)."""
-        wdef = self._single_stage_plan_wdef()
+        wdef = self._routing_wdef()
         task = create_task(store._db, "s-routing", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
         with patch(
@@ -805,7 +844,7 @@ class TestEngineFacadeRouting:
     async def test_engine_never_fetches_raw_connection(self, store) -> None:
         """A full engine run completes while StateStore.get_connection raises;
         the attempt row still exists, proving the facade path is used (REQ-003)."""
-        wdef = self._single_stage_plan_wdef()
+        wdef = self._routing_wdef()
         task = create_task(store._db, "s-routing2", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
         with patch(

@@ -74,7 +74,7 @@ class TestWorkflowDef:
             StageDefinition(id="execute", timeout_sec=120, retryable=True),
             StageDefinition(id="verify", timeout_sec=10, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, backoff_sec=1)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=1)
         return WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -93,7 +93,7 @@ class TestWorkflowDef:
     def test_default_retry_policy(self) -> None:
         wdef = WorkflowDef(name="x", version="1.0.0")
         assert wdef.retry_policy.max_attempts == 3
-        assert wdef.retry_policy.backoff_sec == 1
+        assert wdef.retry_policy.retry_wait_sec == 1
 
     def test_stages_default_empty(self) -> None:
         wdef = WorkflowDef(name="x", version="1.0.0")

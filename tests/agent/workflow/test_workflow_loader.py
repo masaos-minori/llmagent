@@ -26,7 +26,7 @@ _VALID = {
         {"id": "execute", "timeout_sec": 120, "retryable": True},
         {"id": "verify", "timeout_sec": 10, "retryable": False},
     ],
-    "retry_policy": {"max_attempts": 3, "backoff_sec": 1},
+    "retry_policy": {"max_attempts": 3, "retry_wait_sec": 1},
 }
 
 
@@ -53,7 +53,7 @@ class TestWorkflowLoaderLoad:
         loader = WorkflowLoader(workflows_dir=tmp_path)
         wdef = loader.load()
         assert wdef.retry_policy.max_attempts == 3
-        assert wdef.retry_policy.backoff_sec == 1
+        assert wdef.retry_policy.retry_wait_sec == 1
 
     def test_load_custom_name(self, tmp_path: Path) -> None:
         data = dict(_VALID, name="custom")
@@ -172,21 +172,21 @@ class TestWorkflowLoaderLoad:
 
     def test_invalid_retry_policy_rejected(self, tmp_path: Path) -> None:
         data = dict(_VALID)
-        data["retry_policy"] = {"max_attempts": 0, "backoff_sec": 1}
+        data["retry_policy"] = {"max_attempts": 0, "retry_wait_sec": 1}
         _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
         with pytest.raises(WorkflowLoadError, match="max_attempts must be >= 1"):
             loader.load()
 
-    def test_negative_backoff_sec_rejected(self, tmp_path: Path) -> None:
+    def test_negative_retry_wait_sec_rejected(self, tmp_path: Path) -> None:
         data = dict(_VALID)
         data["retry_policy"] = {
             "max_attempts": 3,
-            "backoff_sec": -1,
+            "retry_wait_sec": -1,
         }
         _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
-        with pytest.raises(WorkflowLoadError, match="backoff_sec must be >= 0"):
+        with pytest.raises(WorkflowLoadError, match="retry_wait_sec must be >= 0"):
             loader.load()
 
     def test_default_json_has_no_retry_stage(self) -> None:
@@ -251,7 +251,7 @@ class TestWorkflowLoaderNumericValidation:
         with pytest.raises(WorkflowLoadError, match="timeout_sec must be >= 1"):
             loader.load()
 
-    @pytest.mark.parametrize("field", ["max_attempts", "backoff_sec"])
+    @pytest.mark.parametrize("field", ["max_attempts", "retry_wait_sec"])
     @pytest.mark.parametrize("bad", [True, "3", 2.5, None])
     def test_non_int_policy_number_rejected(
         self, tmp_path: Path, field: str, bad: object
@@ -271,7 +271,7 @@ class TestRetryOn:
         data = dict(_VALID)
         data["retry_policy"] = {
             "max_attempts": 3,
-            "backoff_sec": 1,
+            "retry_wait_sec": 1,
             "retry_on": ["exception", "timeout", "llm_failure"],
         }
         _write_json(tmp_path, "default", data)
@@ -301,7 +301,7 @@ class TestRetryOn:
         data = dict(_VALID)
         data["retry_policy"] = {
             "max_attempts": 3,
-            "backoff_sec": 1,
+            "retry_wait_sec": 1,
             "retry_on": ["halt"],
         }
         _write_json(tmp_path, "default", data)
@@ -313,7 +313,7 @@ class TestRetryOn:
         data = dict(_VALID)
         data["retry_policy"] = {
             "max_attempts": 3,
-            "backoff_sec": 1,
+            "retry_wait_sec": 1,
             "retry_on": "exception",
         }
         _write_json(tmp_path, "default", data)
@@ -325,7 +325,7 @@ class TestRetryOn:
         data = dict(_VALID)
         data["retry_policy"] = {
             "max_attempts": 3,
-            "backoff_sec": 1,
+            "retry_wait_sec": 1,
             "retry_on": [3],
         }
         _write_json(tmp_path, "default", data)

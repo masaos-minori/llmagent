@@ -33,7 +33,7 @@ def _definition() -> WorkflowDef:
             StageDefinition(id="execute", timeout_sec=5, retryable=False),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ],
-        retry_policy=RetryPolicy(max_attempts=1, backoff_sec=0),
+        retry_policy=RetryPolicy(max_attempts=1, retry_wait_sec=0),
     )
 
 

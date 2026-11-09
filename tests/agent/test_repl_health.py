@@ -471,7 +471,7 @@ class TestCheckWorkflowDefinition:
             '{"id": "execute", "timeout_sec": 120, "retryable": true}, '
             '{"id": "verify", "timeout_sec": 10, "retryable": false}'
             "], "
-            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}'
+            '"retry_policy": {"max_attempts": 3, "retry_wait_sec": 1}'
             "}"
         )
         check_workflow_definition(workflows_dir=tmp_path)  # must not raise
@@ -498,7 +498,7 @@ class TestCheckWorkflowDefinition:
             '{"id": "execute", "timeout_sec": 120, "retryable": true}, '
             '{"id": "verify", "timeout_sec": 10, "retryable": false}'
             "], "
-            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}}'
+            '"retry_policy": {"max_attempts": 3, "retry_wait_sec": 1}}'
         )
         with pytest.raises(RuntimeError) as exc_info:
             check_workflow_definition(workflows_dir=tmp_path)
@@ -512,7 +512,7 @@ class TestCheckWorkflowDefinition:
             '{"id": "plan", "timeout_sec": 30, "retryable": false}, '
             '{"id": "execute", "timeout_sec": 120, "retryable": true}'
             "], "
-            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}}'
+            '"retry_policy": {"max_attempts": 3, "retry_wait_sec": 1}}'
         )
         with pytest.raises(RuntimeError) as exc_info:
             check_workflow_definition(workflows_dir=tmp_path)
