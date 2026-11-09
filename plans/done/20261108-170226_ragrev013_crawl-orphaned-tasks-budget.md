@@ -13,7 +13,7 @@ Medium
 - **Dependencies**: N/A: none. Same-file note: `scripts/rag/ingestion/orchestrator.py` is also edited by the ragrev011 and ragrev012 plans, which change `_process_crawl_url_async`; this plan changes `crawl_site` only (compatible, any order).
 
 ## Background
-Review finding F-013. In `crawl_site` (`scripts/rag/ingestion/orchestrator.py:97-177`) the two budget checks execute `break` inside `while not queue.empty() or pending` while `pending` may hold running tasks; the `finally` closes only `session_db`, and the surrounding `async with httpx.AsyncClient` exits right after, so tasks still in `pending` can use a closed client or connection. Impact is real in production: `WebCrawler.crawl` calls `orchestrator.crawl_site` for each target in sequence inside one event loop (`scripts/rag/ingestion/crawler.py:121`), so orphaned tasks of one site keep running while the next site's crawl starts. Two facts found while verifying (checked in Step 3): (1) the Issue's open question about cancellation mid-`save_http` is resolved by code reading: after `fetch_html` returns, `_process_crawl_url_async` runs `extract_content`, `resolve_lang`, `save_http` (a synchronous `path.write_bytes`, `crawl_persister.py`), and `enqueue_links` with no `await`, so a task can only be cancelled at the sleep or fetch awaits, never in the middle of a write; (2) the in-loop `t.exception()` raises `CancelledError` for a cancelled task, so the cleanup must collect results with `gather(..., return_exceptions=True)` and must not reuse that call. Existing budget tests (`tests/rag/ingestion/test_crawler_integration.py:163-232`) use `respx` and run the crawl to its budget stop.
+Review finding F-013. In `crawl_site` (`scripts/rag/ingestion/orchestrator.py:100-181`, revalidated 20261109 after ragrev011/ragrev012 landed; line numbers shifted, behavior unchanged) the two budget checks execute `break` inside `while not queue.empty() or pending` while `pending` may hold running tasks; the `finally` closes only `session_db`, and the surrounding `async with httpx.AsyncClient` exits right after, so tasks still in `pending` can use a closed client or connection. Impact is real in production: `WebCrawler.crawl` calls `orchestrator.crawl_site` for each target in sequence inside one event loop (`scripts/rag/ingestion/crawler.py:121`), so orphaned tasks of one site keep running while the next site's crawl starts. Two facts found while verifying (checked in Step 3): (1) the Issue's open question about cancellation mid-`save_http` is resolved by code reading: after `fetch_html` returns, `_process_crawl_url_async` runs `extract_content`, `resolve_lang`, `save_http` (a synchronous `path.write_bytes`, `crawl_persister.py`), and `enqueue_links` with no `await`, so a task can only be cancelled at the sleep or fetch awaits, never in the middle of a write; (2) the in-loop `t.exception()` raises `CancelledError` for a cancelled task, so the cleanup must collect results with `gather(..., return_exceptions=True)` and must not reuse that call. Existing budget tests (`tests/rag/ingestion/test_crawler_integration.py:161-244`, `TestMaxPagesBoundaryCondition`) use `respx` and run the crawl to its budget stop.
 
 ## Problem
 Orphaned tasks can fail with a closed client or connection, log "Task exception was never retrieved", or write one more document after the crawl was declared finished (and, with several target sites, interfere with the next site).
@@ -22,7 +22,7 @@ Orphaned tasks can fail with a closed client or connection, log "Task exception 
 Reaching `max_pages` is the normal way a bounded crawl ends, so the race is hit routinely.
 
 ## Implementation Intent
-Create `pending` before the `try`, and in `finally` call a helper that cancels every not-yet-done task, awaits them with `asyncio.gather(*tasks, return_exceptions=True)`, and logs a non-cancellation exception once; only then close `session_db`. The `async with` client then exits with nothing in flight.
+`pending` is already declared before the `try` (revalidated 20261109: `orchestrator.py:105`, so no move is needed); in `finally` call a helper that cancels every not-yet-done task, awaits them with `asyncio.gather(*tasks, return_exceptions=True)`, and logs a non-cancellation exception once; only then close `session_db`. The `async with` client then exits with nothing in flight.
 
 ## Requirements
 - `REQ-001`: After `crawl_site` returns or raises, no task created by it is still running.
@@ -35,8 +35,8 @@ Create `pending` before the `try`, and in `finally` call a helper that cancels e
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/rag/ingestion/orchestrator.py` | Modify | Cancel and gather pending tasks in the `finally` path of `crawl_site` via a private helper | `REQ-001`..`REQ-003` / AC-1..AC-3 | `break` at the budget checks (L141, L149) and the empty-pending exit (L161), `finally` closes only `session_db` (L175-177), `pending` assigned at L102 (checked in Step 3) | `tests/rag/ingestion/test_crawler_integration.py` | Verified |
-| `tests/rag/ingestion/test_crawler_integration.py` | Modify | Add the in-flight budget-stop test next to `TestMaxPagesBoundaryCondition` | `REQ-001`..`REQ-004` / AC-1..AC-4 | `TestMaxPagesBoundaryCondition` at L163-232 uses `respx` and `caplog` (checked in Step 3) | self | Verified |
+| `scripts/rag/ingestion/orchestrator.py` | Modify | Cancel and gather pending tasks in the `finally` path of `crawl_site` via a private helper | `REQ-001`..`REQ-003` / AC-1..AC-3 | `break` at the budget checks (L144, L152) and the empty-pending exit (L163-164), `finally` closes only `session_db` (L178-180), `pending` assigned at L105 before the `try` (revalidated 20261109) | `tests/rag/ingestion/test_crawler_integration.py` | Verified |
+| `tests/rag/ingestion/test_crawler_integration.py` | Modify | Add the in-flight budget-stop test next to `TestMaxPagesBoundaryCondition` | `REQ-001`..`REQ-004` / AC-1..AC-4 | `TestMaxPagesBoundaryCondition` at L161-244 uses `respx` and `caplog` (revalidated 20261109) | self | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -110,9 +110,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: test first | Pending | — | — | |
-| 2 | Phase 2: cleanup path | Pending | — | — | |
-| 3 | Phase 3: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: test first | In Progress | 20261109-225207 | — |  |
+| 2 | Phase 2: cleanup path | In Progress | 20261109-225207 | — |  |
+| 3 | Phase 3: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -122,7 +122,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-225207_01_scripts_rag_ingestion_orchestrator.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-225207_02_tests_rag_ingestion_test_crawler_integration.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -142,3 +143,5 @@ N/A: no release unit
 | REQ-002 | Required Changes 2 | `tests/rag/ingestion/test_crawler_integration.py` | Phase 1 | AC-2 | cleanup-exception test | Explicit in issue |
 | REQ-003 | Constraints; Unresolved Questions (resolved: no await in the write path) | `scripts/rag/ingestion/orchestrator.py` | Phase 2 | AC-3 | existing budget tests | Confirmed by repository evidence |
 | REQ-004 | Acceptance Criteria 2; Testing Expectations | `tests/rag/ingestion/test_crawler_integration.py` | Phase 1 | AC-4 | budget-stop in-flight test | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-225207 -->
