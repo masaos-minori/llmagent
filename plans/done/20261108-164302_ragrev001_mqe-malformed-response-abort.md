@@ -60,16 +60,17 @@ Convert at the `RagLLM` boundary, using the same `RagExpansionError` the other f
 
 ## Tests
 - `REQ-001`: parametrized `httpx.MockTransport` test (the file currently uses its own fake client, so reuse that pattern or add a transport; null content, empty `choices`, non-JSON body) asserting `RagExpansionError`.
-- `REQ-002`: monkeypatched `_mqe_prompt` raising `TypeError` asserting propagation.
+- `REQ-002`: monkeypatched `_mqe_prompt` raising `TypeError` asserting propagation, plus a malformed `mqe_prompt_template` (for example an unmatched brace) whose `str.format` raises a plain `ValueError`: that is the case the widened conversion would swallow if the prompt build stayed inside the `try` region, so it must propagate unchanged (added in Step 3a of `plan-to-implementation-procedure`).
 - `REQ-003`: stage-level test over the same three shapes.
-- `REQ-004`: one lifecycle-level test with a real `RagLLM` over a malformed transport.
+- `REQ-004`: one lifecycle-level test with a real `RagLLM` over a malformed transport. Every existing test in `tests/rag/test_stage_lifecycle.py` patches `_run_stage`, which would hide the catch list, so this test runs the real `_run_stage` and replaces only the later stages (for example `patch("rag.stage_lifecycle.SearchStage", ...)`, the lookup target because the lifecycle imports the class at module level) with a stub that records the queries it received.
 - `REQ-005`: run the existing stage and timeout test modules unmodified.
 
 ## Documentation Impact
-N/A: no doc change required; if the RAG error-handling reference lists MQE failure causes, the implementation phase adds the malformed-response cause there (locate via `docs/00_index.md` "Document References by Task", RAG row, before deciding).
+N/A: no doc change required. Checked in Step 3a of `plan-to-implementation-procedure`: `docs/21_rag/rag_05_04-error-handling-reference.md` lists no MQE failure causes (it only states that `RagExpansionError` derives from `RagLayerError` and that `MqeParseError` is a `ValueError`), and `docs/21_rag/rag_03_04_query_pipeline-search-stages.md` and `docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md` describe the fallback only as "`RagExpansionError` caught", which stays accurate once malformed responses are converted to that error.
 
 ## Assumptions
 - `orjson.JSONDecodeError` and `MqeParseError` are `ValueError` subclasses (`scripts/rag/llm_prompts.py:48`; `parse_http_json` wraps decode errors as `ValueError`), so one `ValueError` entry covers them all; the explicit entries may remain for readability.
+- `_mqe_prompt` builds the prompt with `str.format`, so a bad `mqe_prompt_template` can raise `KeyError`, `IndexError`, or a plain `ValueError`, not only `TypeError`; widening the conversion to `ValueError` therefore makes keeping the prompt build outside the converted region a correctness requirement, not a style choice (checked in Step 3a).
 - The archived `exc001` issue asked for a broad stage catch; current source and the pinned test show it was archived without that change (MQE stage still catches only `RagExpansionError`, the last commit touching `mqe.py` is `6ed5d10bd`, a refactor of the exception base class). This plan intentionally takes the narrower boundary-conversion route that the Issue chose.
 
 ## Unknowns
@@ -119,9 +120,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: regression tests first | Pending | — | — | |
-| 2 | Phase 2: boundary conversion | Pending | — | — | |
-| 3 | Phase 3: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: regression tests first | In Progress | — | — |  |
+| 2 | Phase 2: boundary conversion | In Progress | — | — |  |
+| 3 | Phase 3: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -131,7 +132,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-104259_01_scripts_rag_llm_client.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261109-104259_03_tests_rag_test_stage_lifecycle.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -152,3 +154,5 @@ N/A: no release unit
 | REQ-003 | Required Changes 3; Acceptance Criteria 1-2 | `tests/rag/test_stage_lifecycle.py` | Phase 1 | AC-3 | stage/lifecycle test | Explicit in issue |
 | REQ-004 | Acceptance Criteria 3; Testing Expectations | `tests/rag/test_stage_lifecycle.py` | Phase 1 | AC-4 | lifecycle test | Explicit in issue |
 | REQ-005 | Constraints; `test_rag_stages.py:602-611` | `scripts/rag/llm_client.py` | Phase 2 | AC-5 | existing stage and timeout tests | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-104259 -->

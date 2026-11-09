@@ -68,6 +68,7 @@ Define the marker strings once in `rag/utils.py` (lowest layer) and import them 
 - `REQ-001`/`REQ-002`: parametrized `_format_chunks` tests (content, title, url forged; case and spacing variants; empty title falling back to url).
 - `REQ-003`: refiner prompt capture test with forged title and content.
 - `REQ-004`: rerank prompt test with marker in content.
+- `REQ-001`: a `sanitize_document_full` test that a marker-only text is reported as sanitized with the marker pattern in its audit trail (the function has no production caller and no existing test, found in Step 3a of `plan-to-implementation-procedure`, so this is the only coverage of its marker handling).
 - `REQ-005`: existing tests unmodified.
 - Static: `uv run ruff check`, `uv run mypy`, `uv run bandit -r scripts/rag -c pyproject.toml -ll`.
 
@@ -83,7 +84,7 @@ Yes (`REQ-006`): the RAG query-pipeline augment-stages doc and the shared-utilit
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | The refined-text path (refiner output) returns LLM text with no boundary markers at all; whether that is intended is unknown | Product intent for the refiner result | Report to owner at implementation; not changed here (Out-of-Scope) | False |
-| UNK-02 | Exact replacement spelling for neutralized markers | Consumer preference | Decide in the implementation procedure; AC-1 only requires the raw marker be absent and counts to hold | False |
+| UNK-02 | Exact replacement spelling for neutralized markers | Consumer preference | Resolved in the implementation procedure for `scripts/rag/utils.py`: the existing `[REMOVED]` placeholder is reused, so no new vocabulary reaches consumers; AC-1 only requires the raw marker be absent and counts to hold | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -140,10 +141,10 @@ Validation baseline: `radon cc` is recorded for `scripts/rag/llm_client.py` in t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | |
-| 2 | Phase 2: helpers and call sites | Pending | — | — | |
-| 3 | Phase 3: documentation | Pending | — | — | |
-| 4 | Phase 4: deployment and verification | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — |  |
+| 2 | Phase 2: helpers and call sites | In Progress | — | — |  |
+| 3 | Phase 3: documentation | In Progress | — | — |  |
+| 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -153,7 +154,12 @@ Validation baseline: `radon cc` is recorded for `scripts/rag/llm_client.py` in t
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261109-104558_01_scripts_rag_utils.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-104558_02_scripts_rag_stages_augment.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-104558_03_scripts_rag_llm_client.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261109-104558_04_tests_rag_test_rag_pipeline.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261109-104558_06_docs_21_rag_rag_03_05_query_pipeline-augment-stages.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-104558_07_docs_21_rag_rag_02_09_ingestion_pipeline-shared-utilities.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -182,3 +188,5 @@ Validation baseline: `radon cc` is recorded for `scripts/rag/llm_client.py` in t
 | REQ-005 | Constraints | `tests/rag/test_rag_pipeline.py` | Phase 1 | AC-5 | existing marker tests | Explicit in issue |
 | REQ-006 | Documentation Impact | `docs/21_rag/rag_03_05_query_pipeline-augment-stages.md` | Phase 3 | AC-6 | docs gates | Explicit in issue |
 | REQ-006 | Documentation Impact | `docs/21_rag/rag_02_09_ingestion_pipeline-shared-utilities.md` | Phase 3 | AC-6 | docs gates | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261109-104558 -->
