@@ -94,10 +94,10 @@ N/A: revert the commit together with the fallout procedure (Release unit `ragrev
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the pre-change `uv run pytest tests -q` baseline (no file change) | Pending | — | — | |
-| 2 | Add the failing tests to the companion `tests/rag/test_config_resolution.py` and confirm they fail on HEAD | Pending | — | — | |
-| 3 | Implement the helpers, layering, and `""` default in `scripts/rag/config_resolution.py` | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`), the MCP service tests, and compare the full suite with the baseline | Pending | — | — | |
+| 1 | Record the pre-change `uv run pytest tests -q` baseline (no file change) | Completed | 20261109-202230 | 20261109-202230 | — |
+| 2 | Add the failing tests to the companion `tests/rag/test_config_resolution.py` and confirm they fail on HEAD | Completed | 20261109-202230 | 20261109-202230 | — |
+| 3 | Implement the helpers, layering, and `""` default in `scripts/rag/config_resolution.py` | Completed | 20261109-202230 | 20261109-202230 | — |
+| 4 | Run the validation sequence (`rules/toolchain.md`), the MCP service tests, and compare the full suite with the baseline | Completed | 20261109-202230 | 20261109-202230 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

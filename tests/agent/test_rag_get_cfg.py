@@ -61,7 +61,7 @@ class TestRagPipelineGetCfg:
         assert result.use_search is False
         assert result.llm_url == ""
         assert result.embed_url == ""
-        assert result.rag_db_path == ":memory:"
+        assert result.rag_db_path == ""
 
 
 class TestRagLlmExceptions:

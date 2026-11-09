@@ -516,6 +516,7 @@ class TestServiceStart:
             top_k_rerank=10,
             llm_url="http://llm.local",
             embed_url="http://embed.local",
+            rag_db_path=":memory:",
         )
         monkeypatch.setattr(models_module.RagPipelineConfig, "load", lambda: fake_cfg)
 
@@ -541,6 +542,7 @@ class TestServiceStart:
             top_k_rerank=10,
             llm_url="http://llm.local",
             embed_url="http://embed.local",
+            rag_db_path=":memory:",
         )
         monkeypatch.setattr(models_module.RagPipelineConfig, "load", lambda: fake_cfg)
 

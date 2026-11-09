@@ -21,6 +21,7 @@ def _cfg() -> models_module.RagPipelineConfig:
         top_k_rerank=10,
         llm_url="http://llm.local",
         embed_url="http://embed.local",
+        rag_db_path=":memory:",
     )
 
 

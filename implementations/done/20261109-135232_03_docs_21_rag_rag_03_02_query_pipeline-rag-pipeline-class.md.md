@@ -71,8 +71,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit section 2 of the RagPipeline class document | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Edit section 2 of the RagPipeline class document | Completed | 20261109-202230 | 20261109-202230 | — |
+| 2 | Run the documentation checkers named in Validation plan | Completed | 20261109-202230 | 20261109-202230 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

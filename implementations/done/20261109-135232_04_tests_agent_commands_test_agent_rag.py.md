@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the explicit `rag_db_path` to the `_make_cfg` defaults | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) and the file's tests | Pending | — | — | |
+| 1 | Add the explicit `rag_db_path` to the `_make_cfg` defaults | Completed | 20261109-202230 | 20261109-202230 | — |
+| 2 | Run the validation sequence (`rules/toolchain.md`) and the file's tests | Completed | 20261109-202230 | 20261109-202230 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

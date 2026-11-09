@@ -139,9 +139,9 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first and census | In Progress | — | — |  |
-| 2 | Phase 2: resolution change | In Progress | — | — |  |
-| 3 | Phase 3: fallout and documentation | In Progress | — | — |  |
+| 1 | Phase 1: tests first and census | Completed | — | 20261109-202305 |  |
+| 2 | Phase 2: resolution change | Completed | — | 20261109-202305 |  |
+| 3 | Phase 3: fallout and documentation | Completed | — | 20261109-202305 |  |
 | 4 | Phase 4: deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -152,9 +152,9 @@ Validation baseline: `vulture`/`bandit` pre-existing findings recorded in `plans
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261109-135232_01_scripts_rag_config_resolution.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261109-135232_03_docs_21_rag_rag_03_02_query_pipeline-rag-pipeline-class.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261109-135232_04_tests_agent_commands_test_agent_rag.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261109-135232_01_scripts_rag_config_resolution.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261109-135232_03_docs_21_rag_rag_03_02_query_pipeline-rag-pipeline-class.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261109-135232_04_tests_agent_commands_test_agent_rag.py.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

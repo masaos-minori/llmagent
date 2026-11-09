@@ -53,6 +53,7 @@ def _make_pipeline(rag_query_service_url: str = "http://rag.local") -> RagPipeli
     cfg.rag_query_service_url = rag_query_service_url
     cfg.use_refiner = False
     cfg.use_search = True
+    cfg.rag_db_path = ":memory:"
     cfg.llm_url = "http://llm.local"
     cfg.embed_url = "http://embed.local"
     http_mock = MagicMock(spec=httpx.AsyncClient)
