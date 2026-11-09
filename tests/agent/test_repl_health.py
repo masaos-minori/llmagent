@@ -632,7 +632,9 @@ class TestCheckWorkflowSchema:
         )
         result = check_workflow_schema(db_path=db_path)
         assert result.valid is False
-        assert result.error is not None and "tool_call_state.retry_class" in result.error
+        assert (
+            result.error is not None and "tool_call_state.retry_class" in result.error
+        )
 
     def test_fresh_schema_created_database_passes(self, tmp_path: Any) -> None:
         # REQ-003 round-trip: a database built from the canonical DDL passes

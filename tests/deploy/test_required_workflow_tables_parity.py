@@ -25,7 +25,9 @@ _LIST_RE = re.compile(r'^REQUIRED_WORKFLOW_TABLES="([^"]+)"', re.MULTILINE)
 
 def _parse_shell_list(script: Path) -> list[str]:
     match = _LIST_RE.search(script.read_text(encoding="utf-8"))
-    assert match is not None, f"REQUIRED_WORKFLOW_TABLES assignment not found in {script}"
+    assert match is not None, (
+        f"REQUIRED_WORKFLOW_TABLES assignment not found in {script}"
+    )
     return match.group(1).split()
 
 

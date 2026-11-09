@@ -4072,6 +4072,8 @@ class TestOrchestratorStartupRecoveryRouting:
         store_instance = state_store_cls.return_value
         store_instance.recover_stale_attempts.assert_called_once_with()
         store_instance.get_connection.assert_not_called()
+
+
 class TestStartupRetentionPurge:
     """wfaudit001 (134201_03): construction prunes recovery pairs and purges finished events."""
 

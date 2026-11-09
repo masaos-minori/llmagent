@@ -455,7 +455,8 @@ class TestRecoveryReconcilesTaskStatus:
         assert "failed" in TASK_STATUSES
         # REQ-004: reconciled count is logged distinct from the attempt count.
         assert any(
-            "recovered=1" in rec.getMessage() and "tasks_reconciled=1" in rec.getMessage()
+            "recovered=1" in rec.getMessage()
+            and "tasks_reconciled=1" in rec.getMessage()
             for rec in caplog.records
         )
 
@@ -475,7 +476,9 @@ class TestRecoveryReconcilesTaskStatus:
         self, store, workflow_db: Path
     ) -> None:
         _seed_task(workflow_db, "task-multi", "running", updated_at=_iso(7200))
-        _seed_running_attempt_on(workflow_db, "task-multi", "att-1", started_at=_iso(7200))
+        _seed_running_attempt_on(
+            workflow_db, "task-multi", "att-1", started_at=_iso(7200)
+        )
         _seed_running_attempt_on(
             workflow_db,
             "task-multi",
@@ -505,14 +508,19 @@ class TestRecoveryReconcilesTaskStatus:
         self, store, workflow_db: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         _seed_task(workflow_db, "task-two", "running", updated_at=_iso(7200))
-        _seed_running_attempt_on(workflow_db, "task-two", "att-1", started_at=_iso(7200))
-        _seed_running_attempt_on(workflow_db, "task-two", "att-2", started_at=_iso(7200))
+        _seed_running_attempt_on(
+            workflow_db, "task-two", "att-1", started_at=_iso(7200)
+        )
+        _seed_running_attempt_on(
+            workflow_db, "task-two", "att-2", started_at=_iso(7200)
+        )
         with caplog.at_level(logging.INFO, logger="agent.workflow.state_store"):
             recovered = store.recover_stale_attempts()
         assert recovered == 2
         assert _task_status(workflow_db, "task-two") == "failed"
         assert store.last_recovery_report.tasks_reconciled == 1
         assert any(
-            "recovered=2" in rec.getMessage() and "tasks_reconciled=1" in rec.getMessage()
+            "recovered=2" in rec.getMessage()
+            and "tasks_reconciled=1" in rec.getMessage()
             for rec in caplog.records
         )

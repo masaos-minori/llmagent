@@ -2481,7 +2481,6 @@ class TestToolCallStateProducer:
             "call_tool", pc.name, pc.args, fallback_uid
         )
 
-
     @pytest.mark.asyncio
     async def test_cross_task_identical_call_distinct_keys(self) -> None:
         """wfaudit002 REQ-001: identical call content in two tasks gets two rows."""
@@ -2490,12 +2489,8 @@ class TestToolCallStateProducer:
         for task_id in ("task-A", "task-B"):
             ctx = _state_ctx(recorder)
             ctx.workflow.current_task_id = task_id
-            await _execute_with_dag(
-                ctx, [pc], guard=ToolLoopGuard(ctx), collected={}
-            )
-        base = derive_idempotency_key(
-            "call_tool", "read_text_file", pc.args, "sess-42"
-        )
+            await _execute_with_dag(ctx, [pc], guard=ToolLoopGuard(ctx), collected={})
+        base = derive_idempotency_key("call_tool", "read_text_file", pc.args, "sess-42")
         key_a, key_b = (r[2] for r in recorder.records())
         assert key_a == base + ":task-A"
         assert key_b == base + ":task-B"

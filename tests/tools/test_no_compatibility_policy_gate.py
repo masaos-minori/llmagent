@@ -16,10 +16,9 @@ import sys
 import tomllib
 from pathlib import Path
 
+import check_compat_shims as checker
 import pytest
 import yaml
-
-import check_compat_shims as checker
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = REPO_ROOT / "tools" / "compat_exceptions.toml"
@@ -27,9 +26,7 @@ MANIFEST = REPO_ROOT / "tools" / "compat_exceptions.toml"
 # Derived from the checker (single source of truth): every consolidated name
 # and phrase the policy forbids.
 COMPAT_PATTERNS: dict[str, str] = dict(checker.COMPAT_PATTERNS)
-DOC_CLAIM_PATTERNS: dict[str, re.Pattern[str]] = dict(
-    checker._REMOVED_NAME_PATTERNS
-)
+DOC_CLAIM_PATTERNS: dict[str, re.Pattern[str]] = dict(checker._REMOVED_NAME_PATTERNS)
 
 
 def _scan_flags() -> tuple[list[str], list[str]]:
@@ -136,7 +133,9 @@ class TestCheckerBlocking:
     findings, a sandbox fixture is rejected when its exemption entry is
     deleted, and passes again when the entry is restored."""
 
-    _SENTENCE = "The workflow database migrates forward on startup to the target schema.\n"
+    _SENTENCE = (
+        "The workflow database migrates forward on startup to the target schema.\n"
+    )
 
     def test_repo_root_run_passes(self) -> None:
         result = subprocess.run(
