@@ -165,11 +165,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Consolidate ADR-003 #16 | Pending | — | — | |
-| 2 | Replace ADR-002/007/014 restatements with references to ADR-004 | Pending | — | — | |
-| 3 | Register `security.posture-contract` in `config/adr_authority.toml` | Pending | — | — | |
-| 4 | Restate posture intent in `mcp_06_09`, `agent_10_01`, `mcp_02_02` | Pending | — | — | |
-| 5 | Run documentation and authority checkers | Pending | — | — | |
+| 1 | Consolidate ADR-003 #16 | In Progress | — | — |  |
+| 2 | Replace ADR-002/007/014 restatements with references to ADR-004 | In Progress | — | — |  |
+| 3 | Register `security.posture-contract` in `config/adr_authority.toml` | In Progress | — | — |  |
+| 4 | Restate posture intent in `mcp_06_09`, `agent_10_01`, `mcp_02_02` | In Progress | — | — |  |
+| 5 | Run documentation and authority checkers | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -179,7 +179,14 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|---------|
-| — | — | — | — | — | — |
+| `implementations/20261111-065828_01_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261111-065828_02_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261111-065828_03_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261111-065828_04_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261111-065828_05_config_adr_authority.toml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261111-065828_06_docs_22_mcp_mcp_06_09_startup-validation-behavior-tool_definitions_strict.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261111-065828_07_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261111-065828_08_docs_22_mcp_mcp_02_02_startup-modes-and-health.md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -201,3 +208,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-004 | Required Changes; ADR-014 L138 restatement | `docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md` | 2 | References ADR-004 | `check_docs_consistency.py --domain agent` | Confirmed by repository evidence |
 | REQ-005 | Required Changes; no `security.` token in `config/adr_authority.toml` | `config/adr_authority.toml` | 3 | Registers ADR-004 primary | `check_adr_authority.py` | Confirmed by repository evidence |
 | REQ-006 | Required Changes / Documentation Impact | `docs/22_mcp/mcp_06_09_startup-validation-behavior-tool_definitions_strict.md`, `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`, `docs/22_mcp/mcp_02_02_startup-modes-and-health.md` | 4 | Intent-only description | `check_docs_consistency.py`, `check_docs_japanese.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261111-065828 -->
