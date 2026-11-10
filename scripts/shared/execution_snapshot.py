@@ -51,13 +51,11 @@ _DB_PATH_KEYS: dict[str, str] = {
     "rag": "rag_db_path",
     "session": "session_db_path",
     "workflow": "workflow_db_path",
-    "eventbus": "eventbus_db_path",
 }
 _DB_PATH_DEFAULTS: dict[str, str] = {
     "rag": "",
     "session": "",
     "workflow": "/opt/llm/db/workflow.sqlite",
-    "eventbus": "/opt/llm/db/eventbus.sqlite",
 }
 
 

@@ -144,26 +144,6 @@ entries:
   name: ErrorInjectionService
   signature: class ErrorInjectionService
   summary: Service for handling synthetic error injection in agent turns.
-- file: scripts/agent/eventbus_client.py
-  kind: class
-  name: EventBusPublishErrorKind
-  signature: class EventBusPublishErrorKind
-  summary: Enumeration of publish failure reasons.
-- file: scripts/agent/eventbus_client.py
-  kind: class
-  name: EventBusPublishResult
-  signature: class EventBusPublishResult
-  summary: Result of a publish attempt.
-- file: scripts/agent/eventbus_client.py
-  kind: class
-  name: EventBusClientConfig
-  signature: class EventBusClientConfig
-  summary: Configuration for the Event Bus publish client connection.
-- file: scripts/agent/eventbus_client.py
-  kind: class
-  name: EventBusClient
-  signature: class EventBusClient
-  summary: Async HTTP client for publishing events to Event Bus.
 - file: scripts/agent/eventbus_subscriber.py
   kind: class
   name: EventBusStreamError

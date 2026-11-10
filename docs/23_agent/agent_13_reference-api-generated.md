@@ -62,10 +62,6 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/conversation_state_manager.py` | `ConversationStateManager` | `class ConversationStateManager` | Manages conversation history state across turns. |
 | `scripts/agent/diagnostic_store.py` | `DiagnosticStore` | `class DiagnosticStore` | Dedicated store for diagnostic messages, separate from conversation history. |
 | `scripts/agent/error_injection_service.py` | `ErrorInjectionService` | `class ErrorInjectionService` | Service for handling synthetic error injection in agent turns. |
-| `scripts/agent/eventbus_client.py` | `EventBusPublishErrorKind` | `class EventBusPublishErrorKind` | Enumeration of publish failure reasons. |
-|  | `EventBusPublishResult` | `class EventBusPublishResult` | Result of a publish attempt. |
-|  | `EventBusClientConfig` | `class EventBusClientConfig` | Configuration for the Event Bus publish client connection. |
-|  | `EventBusClient` | `class EventBusClient` | Async HTTP client for publishing events to Event Bus. |
 | `scripts/agent/eventbus_subscriber.py` | `EventBusStreamError` | `class EventBusStreamError` | Raised when the subscribe stream cannot be established or maintained |
 |  | `EventBusSubscriberConfig` | `class EventBusSubscriberConfig` | Configuration for the Event Bus SSE subscribe client connection. |
 |  | `EventBusEvent` | `class EventBusEvent` | One event received from the SSE stream. |

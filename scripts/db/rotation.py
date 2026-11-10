@@ -66,7 +66,7 @@ def _verify_archive(dest: Path, target: str) -> None:
     """Raise RuntimeError unless ``dest`` passes integrity and identity checks.
 
     Integrity runs for every domain; domain identity runs only where a required
-    table is defined (rag/session). Unmapped targets (workflow/eventbus) pass
+    table is defined (rag/session). Unmapped targets (workflow) pass
     identity and are covered by their integrity result.
     """
     condition, integrity_detail = run_integrity_check(dest, target)
@@ -94,24 +94,20 @@ def rotate_workflow_db(archive_dir: str | Path | None = None) -> Path:
     )
 
 
-def rotate_eventbus_db(archive_dir: str | Path | None = None) -> Path:
-    """Archive eventbus.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
-    db_cfg = build_db_config()
-    return _archive_db_file(
-        Path(db_cfg.eventbus_db_path), archive_dir, target="eventbus"
-    )
-
-
 def rotate_all_dbs(
     archive_dir: str | Path | None = None,
-) -> tuple[Path, Path, Path, Path]:
-    """Archive all four databases (rag, session, workflow, eventbus); returns (rag_archive_path, session_archive_path, workflow_archive_path, eventbus_archive_path)."""
+) -> tuple[Path, Path, Path]:
+    """Archive rag, session, and workflow databases.
+
+    Returns (rag_archive_path, session_archive_path, workflow_archive_path).
+    eventbus.sqlite is owned by the EventBus service and is archived by
+    ``python -m eventbus.db_tools rotate``.
+    """
     db_cfg = build_db_config()
     rag_dest = _archive_db_file(Path(db_cfg.rag_db_path), archive_dir, target="rag")
     ses_dest = rotate_session_db(archive_dir)
     wf_dest = rotate_workflow_db(archive_dir)
-    eb_dest = rotate_eventbus_db(archive_dir)
-    return rag_dest, ses_dest, wf_dest, eb_dest
+    return rag_dest, ses_dest, wf_dest
 
 
 def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:

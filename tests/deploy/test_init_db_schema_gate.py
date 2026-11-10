@@ -23,11 +23,9 @@ import sqlite3
 import subprocess
 
 import pytest
-from db.schema_sql import (
-    build_eventbus_schema_sql,
-    build_workflow_schema_sql,
-    eventbus_schema_version,
-)
+from db.schema_sql import build_workflow_schema_sql
+from eventbus.db_tools import schema_sql as eventbus_schema_sql
+from eventbus.db_tools import schema_version as eventbus_schema_version
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _INIT_DB = _REPO_ROOT / "deploy" / "init_db.sh"
@@ -70,7 +68,7 @@ def _provision_canonical_eventbus(path: pathlib.Path) -> None:
     """Create a canonical, stamped eventbus.sqlite (matches the shape gate fingerprint)."""
     conn = sqlite3.connect(str(path))
     try:
-        conn.executescript(build_eventbus_schema_sql())
+        conn.executescript(eventbus_schema_sql())
         conn.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
         conn.commit()
     finally:
@@ -236,6 +234,13 @@ def _write_config(tmp_path: pathlib.Path, db_dir: pathlib.Path) -> pathlib.Path:
     else:
         lines.insert(0, f'workflow_db_path = "{db_dir / "workflow.sqlite"}"')
     agent.write_text("\n".join(lines), encoding="utf-8")
+    # The EventBus tool resolves its database from eventbus.toml, so the sandbox copy
+    # must point db_path into db_dir (otherwise it would address /opt/llm/db).
+    eventbus_toml = cfg_dir / "eventbus.toml"
+    eventbus_toml.write_text(
+        eventbus_toml.read_text(encoding="utf-8").replace("/opt/llm/db/", f"{db_dir}/"),
+        encoding="utf-8",
+    )
     return cfg_dir
 
 
@@ -274,6 +279,7 @@ def _write_driver(
         f'export DEPLOY_SCRIPTS="{scripts_dir}"',
         f'export DEPLOY_DB="{db_dir}"',
         f'export LLMAGENT_CONFIG_DIR="{cfg_dir}"',
+        f'export EVENTBUS_CONFIG_PATH="{cfg_dir / "eventbus.toml"}"',
         f'export LLMAGENT_LOG_DIR="{log_dir}"',
     ]
     for key, value in (extra_env or {}).items():
@@ -378,7 +384,10 @@ def test_recovery_drill_runs_under_flag_and_leaves_fixtures_untouched(
 
     assert result.returncode == 0, result.stderr
     assert "recovery drill passed for all domains" in result.stdout
+    # recovery_drill.py drills the three Agent-side domains; eventbus.sqlite is
+    # verified by the EventBus-owned tool right after it.
+    assert "eventbus.sqlite verified by eventbus.db_tools" in result.stdout
     artifacts = list((db_dir / "archive" / "drills").glob("*.json"))
-    assert len(artifacts) == 4, [p.name for p in artifacts]
+    assert len(artifacts) == 3, [p.name for p in artifacts]
     after = {name: _hash(db_dir / name) for name in _LIVE_FILES}
     assert before == after, "the read-only drill must not mutate live databases"

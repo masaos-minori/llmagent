@@ -20,11 +20,9 @@ import db.create_schema as cs
 import pytest
 from db.config import DbConfig
 from db.helper import SQLiteHelper
-from db.schema_sql import (
-    build_eventbus_schema_sql,
-    build_workflow_schema_sql,
-    eventbus_schema_version,
-)
+from db.schema_sql import build_workflow_schema_sql
+from eventbus.db_tools import schema_sql as eventbus_schema_sql
+from eventbus.db_tools import schema_version as eventbus_schema_version
 from shared.eventbus_schema_fingerprint import (
     apply_schema_in_memory,
     assert_matches,
@@ -128,49 +126,6 @@ _SESSION_SCHEMA_NO_VEC0 = """
     );
 """
 
-_EVENTBUS_SCHEMA_NO_VEC0 = """
-PRAGMA journal_mode=WAL;
-
-CREATE TABLE IF NOT EXISTS events (
-    seq                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id               TEXT    NOT NULL UNIQUE,
-    topic                  TEXT    NOT NULL,
-    payload                TEXT    NOT NULL,
-    producer               TEXT    NOT NULL,
-    published_at           TEXT    NOT NULL,
-    redelivered_from       TEXT,
-    dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
-    dlq_at                 TEXT,
-    consumer_id            TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
-CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
-CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
-CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_events_redelivered_from ON events(redelivered_from) WHERE redelivered_from IS NOT NULL;
-
--- Per-consumer delivery state: tracks ACK state per (consumer_id, event_id)
-CREATE TABLE IF NOT EXISTS consumer_delivery (
-    consumer_id                    TEXT    NOT NULL,
-    event_id                       TEXT    NOT NULL,
-    acked                          INTEGER NOT NULL DEFAULT 0,
-    consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0,
-    consumer_last_nack_attempt     TEXT,
-    PRIMARY KEY (consumer_id, event_id)
-);
-
--- Index for efficient low-water-mark query in get_resume_position()
-CREATE INDEX IF NOT EXISTS idx_consumer_delivery_consumer_ack
-    ON consumer_delivery(consumer_id, acked);
-
--- Per-consumer offset: tracks last-committed sequence offset per consumer
-CREATE TABLE IF NOT EXISTS consumer_offsets (
-    consumer_id          TEXT    PRIMARY KEY,
-    offset               INTEGER NOT NULL DEFAULT 0
-);
-"""
-
 
 def _table_names(conn: sqlite3.Connection) -> set[str]:
     rows = conn.execute(
@@ -190,12 +145,6 @@ def _make_db_config(db_file: Path, target: str) -> DbConfig:
             rag_db_path="/tmp/rag.sqlite",
             session_db_path="/tmp/session.sqlite",
             workflow_db_path=str(db_file),
-        )
-    elif target == "eventbus":
-        return DbConfig(
-            rag_db_path="/tmp/rag.sqlite",
-            session_db_path="/tmp/session.sqlite",
-            eventbus_db_path=str(db_file),
         )
     return DbConfig(
         rag_db_path="/tmp/rag.sqlite",
@@ -809,7 +758,7 @@ class TestWorkflowSchemaNoMarkers:
 
 
 class TestCreatePathMarkerAbsence:
-    """Fresh workflow/eventbus databases carry no marker tables or baseline rows;
+    """Fresh workflow databases carry no marker tables or baseline rows;
     recreate-only rag/session domains carry none either (REQ-002 / AC-002)."""
 
     def test_workflow_fresh_creation_has_no_marker_tables(self, tmp_path: Path) -> None:
@@ -819,23 +768,6 @@ class TestCreatePathMarkerAbsence:
         try:
             assert "schema_migrations" not in _table_names(conn)
             assert "workflow_schema_version" not in _table_names(conn)
-        finally:
-            conn.close()
-
-    def test_eventbus_fresh_creation_has_no_marker_tables(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "ledger_eventbus.sqlite"
-        cfg = _make_db_config(db_file, "eventbus")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
-        try:
-            assert "schema_migrations" not in _table_names(conn)
-            assert "workflow_schema_version" not in _table_names(conn)
-            # The current-schema stamp comes from the canonical schema.sql DDL only.
-            assert (
-                int(conn.execute("PRAGMA user_version").fetchone()[0])
-                == eventbus_schema_version()
-            )
         finally:
             conn.close()
 
@@ -1071,316 +1003,11 @@ class TestTimestampDefaults:
                     )
         conn.close()
 
-    def test_eventbus_schema_timestamps(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "eventbus_ts.sqlite"
-        cfg = _make_db_config(db_file, "eventbus")
-        with (
-            patch("db.helper.build_db_config", return_value=cfg),
-            patch(
-                "db.create_schema.build_eventbus_schema_sql",
-                return_value=_EVENTBUS_SCHEMA_NO_VEC0,
-            ),
-        ):
-            cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
-        info = conn.execute("PRAGMA table_info(events)").fetchall()
-        assert info, "events was not created in the temporary database"
-        for row in info:
-            col_name = row[1]
-            default = row[4]
-            not_null = row[3]
-            if col_name == "published_at":
-                # Publisher-supplied since schema v3: intentionally has no default.
-                continue
-            # Nullable columns such as events.dlq_at carry no default.
-            if col_name.endswith("_at") and not_null:
-                assert default is not None, f"events.{col_name} has no DEFAULT"
-                assert "datetime('now')" not in (default or ""), (
-                    f"events.{col_name} uses datetime('now')"
-                )
-        conn.close()
-
-    def test_create_eventbus_schema_produces_new_tables(self, tmp_path: Path) -> None:
-        """create_eventbus_schema() produces consumer_delivery/consumer_offsets tables (REQ-001, REQ-002; AC-7)."""
-        import unittest.mock as mock
-
-        extra_ddl = """
-CREATE TABLE IF NOT EXISTS consumer_delivery (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    consumer_id     TEXT    NOT NULL,
-    event_id        TEXT    NOT NULL,
-    delivered_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    UNIQUE(consumer_id, event_id)
-);
-
-CREATE TABLE IF NOT EXISTS consumer_offsets (
-    consumer_id     TEXT    PRIMARY KEY,
-    last_offset     INTEGER NOT NULL DEFAULT 0,
-    updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-"""
-
-        db_file = tmp_path / "eventbus_new_tables.sqlite"
-        cfg = _make_db_config(db_file, "eventbus")
-        with (
-            patch("db.helper.build_db_config", return_value=cfg),
-            mock.patch(
-                "db.create_schema.build_eventbus_schema_sql",
-                side_effect=lambda: _EVENTBUS_SCHEMA_NO_VEC0 + extra_ddl,
-            ),
-        ):
-            cs.create_eventbus_schema()
-
-        conn = sqlite3.connect(str(db_file))
-        tables = _table_names(conn)
-        conn.close()
-        assert {"events", "consumer_delivery", "consumer_offsets"} <= tables
-
-
-class TestEventbusSchemaCreation:
-    """create_eventbus_schema() writes the single DDL source; a fresh database ends in
-    the current shape with every table and the boolean acked column present."""
-
-    def test_bootstrap_creates_current_schema_on_a_fresh_database(
-        self, tmp_path: Path
-    ) -> None:
-        """A fresh database must end in the current shape with every table present."""
-        db_file = tmp_path / "eventbus_fresh_ack.sqlite"
-        cfg = _make_db_config(db_file, "eventbus")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
-        cols = {
-            row[1]: (row[2], row[3], row[4])
-            for row in conn.execute("PRAGMA table_info(consumer_delivery)")
-        }
-        tables = _table_names(conn)
-        conn.close()
-        assert {"events", "consumer_delivery", "consumer_offsets"} <= tables
-        assert cols["acked"] == ("INTEGER", 1, "0")
-
-    def test_fresh_database_is_stamped_with_the_schema_version(
-        self, tmp_path: Path
-    ) -> None:
-        db_file = tmp_path / "eventbus_stamped.sqlite"
-        cfg = _make_db_config(db_file, "eventbus")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
-        version = conn.execute("PRAGMA user_version").fetchone()[0]
-        conn.close()
-        assert version == eventbus_schema_version()
-
-    def test_mismatched_version_is_refused_not_migrated(self, tmp_path: Path) -> None:
-        """A database stamped with another version fails explicitly and is left as is."""
-        db_file = tmp_path / "eventbus_other_version.sqlite"
-        raw = sqlite3.connect(str(db_file))
-        raw.execute("CREATE TABLE events (seq INTEGER PRIMARY KEY, event_id TEXT)")
-        raw.execute("PRAGMA user_version = 99")
-        raw.close()
-        cfg = _make_db_config(db_file, "eventbus")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            with pytest.raises(RuntimeError, match="does not match the current schema"):
-                cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
-        columns = [r[1] for r in conn.execute("PRAGMA table_info(events)")]
-        tables = _table_names(conn)
-        conn.close()
-        assert columns == ["seq", "event_id"]
-        assert "consumer_delivery" not in tables
-
-    def test_unstamped_matching_shape_is_refused_without_stamping(
-        self, tmp_path: Path
-    ) -> None:
-        """An unstamped database whose shape matches canonical is refused and stays
-        unstamped: version stamping is not supported (REQ-003)."""
-        db_file = tmp_path / "eventbus_unstamped.sqlite"
-        raw = sqlite3.connect(str(db_file))
-        raw.executescript(build_eventbus_schema_sql())
-        raw.execute("PRAGMA user_version = 0")
-        raw.close()
-        cfg = _make_db_config(db_file, "eventbus")
-        with (
-            patch("db.helper.build_db_config", return_value=cfg),
-            patch.object(SQLiteHelper, "executescript") as ddl_spy,
-        ):
-            with pytest.raises(RuntimeError, match="unstamped \\(user_version 0\\)"):
-                cs.create_eventbus_schema()
-        assert ddl_spy.call_count == 0
-        conn = sqlite3.connect(str(db_file))
-        version = conn.execute("PRAGMA user_version").fetchone()[0]
-        conn.close()
-        assert version == 0
-
-    def test_unstamped_old_shape_fails_explicitly(self, tmp_path: Path) -> None:
-        """An old-shape unstamped database is refused by the version gate, unstamped."""
-        db_file = tmp_path / "eventbus_old_shape.sqlite"
-        raw = sqlite3.connect(str(db_file))
-        raw.execute("CREATE TABLE events (seq INTEGER PRIMARY KEY, event_id TEXT)")
-        raw.close()
-        cfg = _make_db_config(db_file, "eventbus")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            with pytest.raises(RuntimeError, match="unstamped \\(user_version 0\\)"):
-                cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
-        version = conn.execute("PRAGMA user_version").fetchone()[0]
-        conn.close()
-        assert version == 0
-
-    def test_malformed_stamped_database_fails_closed(self, tmp_path: Path) -> None:
-        """A malformed database stamped with the current version is refused before any
-        DDL, and the deviation is left as-is (REQ-002/REQ-003)."""
-        db_file = tmp_path / "eventbus_malformed_stamped.sqlite"
-        raw = sqlite3.connect(str(db_file))
-        raw.executescript(
-            build_eventbus_schema_sql().replace(
-                "    topic                  TEXT    NOT NULL,",
-                "    topic                  TEXT,",
-            )
-        )
-        raw.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
-        raw.commit()
-        raw.close()
-        cfg = _make_db_config(db_file, "eventbus")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            with pytest.raises(RuntimeError, match="columns differ"):
-                cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
-        notnull = {r[1]: r[3] for r in conn.execute("PRAGMA table_info(events)")}
-        version = int(conn.execute("PRAGMA user_version").fetchone()[0])
-        conn.close()
-        assert (
-            notnull["topic"] == 0
-        )  # still malformed: nothing was repaired or committed
-        assert version == eventbus_schema_version()
-
-
-def _schema_snapshot(conn: sqlite3.Connection) -> tuple[object, ...]:
-    """Return sqlite_master rows and user_version: the byte-facts a refusal must not change."""
-    rows = sorted(
-        (str(r[0]), str(r[1]), str(r[2]), str(r[3] or ""))
-        for r in conn.execute("SELECT type, name, tbl_name, sql FROM sqlite_master")
-    )
-    version = int(conn.execute("PRAGMA user_version").fetchone()[0])
-    return (version, *rows)
-
-
-class TestEventbusValidateFirstPaths:
-    """create_eventbus_schema() validates an existing database BEFORE any mutation:
-    DDL runs only on the fresh path; every refusal leaves the database unchanged
-    (REQ-001/REQ-002/REQ-003)."""
-
-    def test_fresh_path_applies_ddl_once(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "eventbus_fresh_ddl.sqlite"
-        cfg = _make_db_config(db_file, "eventbus")
-        real_executescript = SQLiteHelper.executescript
-        calls: list[str] = []
-
-        def ddl_spy(self: SQLiteHelper, sql_script: str) -> object:
-            calls.append(sql_script)
-            return real_executescript(self, sql_script)
-
-        with (
-            patch("db.helper.build_db_config", return_value=cfg),
-            patch.object(SQLiteHelper, "executescript", ddl_spy),
-        ):
-            cs.create_eventbus_schema()
-        assert len(calls) == 1
-        conn = sqlite3.connect(str(db_file))
-        version = conn.execute("PRAGMA user_version").fetchone()[0]
-        assert version == eventbus_schema_version()
-        conn.close()
-
-    def test_current_version_database_is_validated_with_zero_ddl(
-        self, tmp_path: Path
-    ) -> None:
-        """A current-version database is validated, never re-DDL'd, and carries no
-        ledger or baseline row (REQ-002 / AC-002)."""
-        db_file = tmp_path / "eventbus_current.sqlite"
-        raw = sqlite3.connect(str(db_file))
-        raw.executescript(build_eventbus_schema_sql())
-        raw.commit()
-        raw.close()
-        cfg = _make_db_config(db_file, "eventbus")
-        with (
-            patch("db.helper.build_db_config", return_value=cfg),
-            patch.object(SQLiteHelper, "executescript") as ddl_spy,
-        ):
-            cs.create_eventbus_schema()
-            cs.create_eventbus_schema()  # re-running stays a validated no-op
-        assert ddl_spy.call_count == 0
-        conn = sqlite3.connect(str(db_file))
-        tables = _table_names(conn)
-        conn.close()
-        assert "schema_migrations" not in tables
-        assert "workflow_schema_version" not in tables
-
-    def test_refusal_branches_leave_schema_facts_unchanged(
-        self, tmp_path: Path
-    ) -> None:
-        """Every refusal branch leaves sqlite_master and user_version byte-identical."""
-        cases = {
-            "stamped_other_version": (
-                "CREATE TABLE events (seq INTEGER PRIMARY KEY)",
-                3,
-            ),
-            "stamped_future_version": (
-                "CREATE TABLE events (seq INTEGER PRIMARY KEY)",
-                99,
-            ),
-            "unstamped_old_shape": ("CREATE TABLE events (seq INTEGER PRIMARY KEY)", 0),
-        }
-        for name, (ddl, version) in cases.items():
-            db_file = tmp_path / f"eventbus_refuse_{name}.sqlite"
-            raw = sqlite3.connect(str(db_file))
-            raw.execute(ddl)  # nosec B608 — fixed test DDL
-            raw.execute(f"PRAGMA user_version = {version}")  # nosec B608 — fixed test int
-            raw.commit()
-            before = _schema_snapshot(raw)
-            raw.close()
-            cfg = _make_db_config(db_file, "eventbus")
-            with patch("db.helper.build_db_config", return_value=cfg):
-                with pytest.raises(RuntimeError):
-                    cs.create_eventbus_schema()
-            conn = sqlite3.connect(str(db_file))
-            after = _schema_snapshot(conn)
-            conn.close()
-            assert after == before, name
-
-    def test_current_version_malformed_database_is_refused_with_zero_ddl(
-        self, tmp_path: Path
-    ) -> None:
-        """Path (b) refuses a malformed current-version database before any DDL."""
-        db_file = tmp_path / "eventbus_malformed_zero_ddl.sqlite"
-        raw = sqlite3.connect(str(db_file))
-        raw.executescript(
-            build_eventbus_schema_sql().replace(
-                "    topic                  TEXT    NOT NULL,",
-                "    topic                  TEXT,",
-            )
-        )
-        raw.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
-        raw.commit()
-        before = _schema_snapshot(raw)
-        raw.close()
-        cfg = _make_db_config(db_file, "eventbus")
-        with (
-            patch("db.helper.build_db_config", return_value=cfg),
-            patch.object(SQLiteHelper, "executescript") as ddl_spy,
-        ):
-            with pytest.raises(RuntimeError, match="columns differ"):
-                cs.create_eventbus_schema()
-        assert ddl_spy.call_count == 0
-        conn = sqlite3.connect(str(db_file))
-        after = _schema_snapshot(conn)
-        conn.close()
-        assert after == before
-
 
 # ── EventBus schema fingerprint validator (REQ-001: shape gate independent of user_version) ──
 
 
-_CANONICAL_EVENTBUS_DDL = build_eventbus_schema_sql()
+_CANONICAL_EVENTBUS_DDL = eventbus_schema_sql()
 
 
 def _apply_eventbus_ddl(ddl: str) -> sqlite3.Connection:
@@ -1644,16 +1271,12 @@ class TestSchemaDdlErrorPropagation:
                 cs.create_workflow_schema()
         assert "Failed to execute workflow schema DDL" in caplog.text
 
-    # Note: create_eventbus_schema's DDL-error path is intentionally not covered
-    # here — it keeps its own inline try/except instead of the shared
-    # _execute_schema_ddl helper.
-
 
 class TestCreateSchemaWrapper:
-    """Lock create_schema()'s convenience-wrapper behavior: calls all four
+    """Lock create_schema()'s convenience-wrapper behavior: calls all three
     schema-creation functions, in order, exactly once each."""
 
-    def test_calls_all_four_in_order(self) -> None:
+    def test_calls_all_three_in_order(self) -> None:
         calls: list[str] = []
         with (
             patch(
@@ -1668,137 +1291,6 @@ class TestCreateSchemaWrapper:
                 "db.create_schema.create_workflow_schema",
                 side_effect=lambda: calls.append("workflow"),
             ),
-            patch(
-                "db.create_schema.create_eventbus_schema",
-                side_effect=lambda: calls.append("eventbus"),
-            ),
         ):
             cs.create_schema()
-        assert calls == ["rag", "session", "workflow", "eventbus"]
-
-
-def _create_eventbus_schema_at(tmp_path: Path, db_name: str) -> str:
-    """Run create_eventbus_schema() against tmp_path/db_name, capturing the
-    actual path SQLiteHelper wrote to.
-
-    create_eventbus_schema() resolves its own DB path internally via
-    SQLiteHelper("eventbus").open(write_mode=True) — build_db_config() (and
-    thus the real, config-derived eventbus DB path) is not something this
-    test controls, so sqlite3.connect()-ing a bare tmp_path file after the
-    fact (the naive approach) verifies nothing, since create_eventbus_schema()
-    never wrote there. Stubbing SQLiteHelper.__init__ to redirect its target
-    path to tmp_path (mirroring TestEventBusSchemaNewColumns below) captures
-    the path actually used instead.
-    """
-    db_path = str(tmp_path / db_name)
-
-    def capture_init(self, target="rag", **kwargs):
-        self._target = target
-        self._db_path = db_path
-        self._default_load_vec = False
-        self._vec_so = None
-        self._sqlite_timeout = 5000
-        self._busy_timeout_ms = 5000
-        self._check_same_thread = True
-
-    with patch.object(cs.SQLiteHelper, "__init__", capture_init):
-        with patch(
-            "db.create_schema.build_eventbus_schema_sql",
-            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
-        ):
-            cs.create_eventbus_schema()
-    return db_path
-
-
-class TestEventBusTablesExist:
-    """Verify consumer_delivery and consumer_offsets tables exist after schema creation."""
-
-    def test_consumer_delivery_table_exists(self, tmp_path: Path) -> None:
-        db_path = _create_eventbus_schema_at(tmp_path, "eventbus_td.sqlite")
-        conn = sqlite3.connect(db_path)
-        try:
-            cursor = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='consumer_delivery'"
-            )
-            rows = cursor.fetchall()
-            assert len(rows) == 1, "consumer_delivery table should exist"
-        finally:
-            conn.close()
-
-    def test_consumer_offsets_table_exists(self, tmp_path: Path) -> None:
-        db_path = _create_eventbus_schema_at(tmp_path, "eventbus_co.sqlite")
-        conn = sqlite3.connect(db_path)
-        try:
-            cursor = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='consumer_offsets'"
-            )
-            rows = cursor.fetchall()
-            assert len(rows) == 1, "consumer_offsets table should exist"
-        finally:
-            conn.close()
-
-    def test_consumer_delivery_columns(self, tmp_path: Path) -> None:
-        db_path = _create_eventbus_schema_at(tmp_path, "eventbus_cd_cols.sqlite")
-        conn = sqlite3.connect(db_path)
-        try:
-            cursor = conn.execute("PRAGMA table_info(consumer_delivery)")
-            cols = {row[1]: row[2] for row in cursor.fetchall()}
-            assert "consumer_id" in cols, (
-                "consumer_delivery should have consumer_id column"
-            )
-            assert "event_id" in cols, "consumer_delivery should have event_id column"
-            assert "acked" in cols, "consumer_delivery should have acked column"
-        finally:
-            conn.close()
-
-    def test_consumer_offsets_columns(self, tmp_path: Path) -> None:
-        db_path = _create_eventbus_schema_at(tmp_path, "eventbus_co_cols.sqlite")
-        conn = sqlite3.connect(db_path)
-        try:
-            cursor = conn.execute("PRAGMA table_info(consumer_offsets)")
-            cols = {row[1]: row[2] for row in cursor.fetchall()}
-            assert "consumer_id" in cols, (
-                "consumer_offsets should have consumer_id column"
-            )
-            assert "offset" in cols, "consumer_offsets should have offset column"
-        finally:
-            conn.close()
-
-
-class TestEventBusSchemaNewColumns:
-    """Verify create_eventbus_schema() includes redelivered_from columns."""
-
-    def test_events_table_has_redelivered_from_column(self, tmp_path: Path) -> None:
-        import unittest.mock as mock
-
-        captured_path = {}
-
-        def capture_init(self, target="rag", **kwargs):
-            # Set required attributes directly to skip DbConfig validation
-            self._target = target
-            self._db_path = str(tmp_path / "eventbus_rf.sqlite")
-            self._default_load_vec = False
-            self._vec_so = None
-            self._sqlite_timeout = 5000
-            self._busy_timeout_ms = 5000
-            self._check_same_thread = True
-            if target == "eventbus":
-                captured_path["path"] = self._db_path
-
-        with mock.patch.object(cs.SQLiteHelper, "__init__", capture_init):
-            with mock.patch(
-                "db.create_schema.build_eventbus_schema_sql",
-                return_value=_EVENTBUS_SCHEMA_NO_VEC0,
-            ):
-                cs.create_eventbus_schema()
-
-        if "path" in captured_path:
-            conn = sqlite3.connect(captured_path["path"])
-            try:
-                cursor = conn.execute("PRAGMA table_info(events)")
-                cols = {row[1]: row[2] for row in cursor.fetchall()}
-                assert "redelivered_from" in cols, (
-                    "events should have redelivered_from column"
-                )
-            finally:
-                conn.close()
+        assert calls == ["rag", "session", "workflow"]

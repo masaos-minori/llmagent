@@ -196,7 +196,7 @@ Replace `?` with the desired cutoff sequence number. After deletion, run `VACUUM
 
 JSONL archive files are appended to `{storage_dir}/events.jsonl` as a secondary storage. SQLite is the primary store; failures in appending to JSONL do not prevent a 200 response. Do NOT read primary data from JSONL; use SQLite queries instead.
 
-No automated retention, rotation, or cleanup is applied to `events.jsonl`; the file grows until the operator removes or rotates it. The same applies to the dead-letter JSON files in `{deadletter_dir}` and to the `eventbus.sqlite` archives written by `rotate_eventbus_db()`. (No retention logic exists in `scripts/eventbus/` or `scripts/db/rotation.py`.)
+No automated retention, rotation, or cleanup is applied to `events.jsonl`; the file grows until the operator removes or rotates it. The same applies to the dead-letter JSON files in `{deadletter_dir}` and to the `eventbus.sqlite` archives written by `python -m eventbus.db_tools rotate`. (No retention logic exists in `scripts/eventbus/` or `scripts/db/rotation.py`.)
 
 ## Dead Letter Queue (DLQ)
 

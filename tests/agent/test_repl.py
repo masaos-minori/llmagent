@@ -1031,7 +1031,6 @@ class TestRunSqliteErrorMessage:
             rag_db_path=str(tmp_path / "rag.sqlite"),
             session_db_path=str(tmp_path / "session.db"),
             workflow_db_path=str(tmp_path / "workflow.sqlite"),
-            eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
         )
         with (
             patch("db.helper.build_db_config", return_value=valid_cfg),
@@ -1088,7 +1087,6 @@ class TestRunSqliteErrorMessage:
             rag_db_path=str(tmp_path / "rag.sqlite"),
             session_db_path=str(tmp_path / "session.db"),
             workflow_db_path=str(tmp_path / "workflow.sqlite"),
-            eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
         )
         with (
             patch("db.helper.build_db_config", return_value=valid_cfg),
@@ -1117,7 +1115,6 @@ class TestRunStartupInterrupted:
             rag_db_path=str(tmp_path / "rag.sqlite"),
             session_db_path=str(tmp_path / "session.db"),
             workflow_db_path=str(tmp_path / "workflow.sqlite"),
-            eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
         )
 
     @pytest.mark.asyncio

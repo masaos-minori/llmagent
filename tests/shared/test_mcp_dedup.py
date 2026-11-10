@@ -335,6 +335,6 @@ class TestConfigResolutionAndCache:
         fallbacks = [
             f.default
             for f in dataclasses.fields(DbConfig)
-            if f.name in ("workflow_db_path", "eventbus_db_path")
+            if f.name == "workflow_db_path"
         ]
         assert fallbacks and all(Path(v).parent == own_parent for v in fallbacks)

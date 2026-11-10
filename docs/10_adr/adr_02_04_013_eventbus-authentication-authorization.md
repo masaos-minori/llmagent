@@ -269,7 +269,7 @@ Not applicable
 
 ## Review Triggers
 
-- EventBus is exposed to callers other than the single trusted Agent process.
+- A first publisher or consumer client of any kind is added to the EventBus.
 - A legitimate operational need for token rotation is identified (triggers revisiting the static bearer-token mechanism in Decision Details #1).
 - The `.importlinter` `eventbus-is-isolated` contract is relaxed to allow importing from `mcp_servers`.
 - The Consumer token model, or the consumer or topic authorization model, changes.

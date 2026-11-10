@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """scripts/db/recovery_drill.py — Recovery drill harness (dbmig001 row 11).
 
-Drills recovery for all four persistence domains (rag, session, workflow,
-eventbus). For each domain the harness takes a recovery point through the same
+Drills recovery for the three Agent-side persistence domains (rag, session,
+workflow). eventbus.sqlite is owned by the EventBus service and is verified by
+``python -m eventbus.db_tools verify``. For each domain the harness takes a recovery point through the same
 code path as rotation (``rotation._archive_db_file``), restores it into an
 isolated copy under a drill directory, measures restore time and the data-loss
 window, runs per-domain verification through the helpers exposed by
@@ -26,8 +27,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from shared.eventbus_schema_fingerprint import assert_matches
-
 from db.config import build_db_config, format_timestamp
 from db.helper import SQLiteHelper
 from db.rag_consistency import check_rag_consistency
@@ -43,8 +42,8 @@ from db.session_consistency import (
 
 logger = logging.getLogger(__name__)
 
-#: The four persistence domains the drill covers, in canonical order.
-DOMAINS: tuple[str, ...] = ("rag", "session", "workflow", "eventbus")
+#: The persistence domains the drill covers, in canonical order.
+DOMAINS: tuple[str, ...] = ("rag", "session", "workflow")
 
 #: Exit codes (row 11 contract): 0 all domains passed, 1 any domain failed.
 EXIT_OK = 0
@@ -122,23 +121,6 @@ def _verify_workflow(isolated: Path) -> dict:
     return verification
 
 
-def _verify_eventbus(isolated: Path) -> dict:
-    """Per-domain checks for eventbus."""
-    with SQLiteHelper("eventbus", db_path=str(isolated)).open() as db:
-        condition, _ = run_integrity_check(isolated, "eventbus")
-        try:
-            assert_matches(db._require_conn(), label="restored eventbus.sqlite")
-            fingerprint_ok = True
-        except RuntimeError as exc:
-            logger.error("eventbus fingerprint mismatch: %s", exc)
-            fingerprint_ok = False
-        verification = {
-            "integrity": condition == DbCondition.HEALTHY,
-            "fingerprint": fingerprint_ok,
-        }
-    return verification
-
-
 def _drill_one_domain(
     domain: str,
     archive_dir: str,
@@ -154,7 +136,6 @@ def _drill_one_domain(
         "rag": cfg.rag_db_path,
         "session": cfg.session_db_path,
         "workflow": cfg.workflow_db_path,
-        "eventbus": cfg.eventbus_db_path,
     }
     live_path = Path(live_paths[domain])
     drill_start = time.time()
@@ -205,10 +186,8 @@ def _drill_one_domain(
     try:
         if domain in ("rag", "session"):
             verification = _verify_rag_session(domain, isolated)
-        elif domain == "workflow":
-            verification = _verify_workflow(isolated)
         else:
-            verification = _verify_eventbus(isolated)
+            verification = _verify_workflow(isolated)
     except sqlite3.Error as exc:
         logger.error("drill %s: restore read failed: %s", domain, exc)
         verification = {"integrity": False, "restore_error": False}

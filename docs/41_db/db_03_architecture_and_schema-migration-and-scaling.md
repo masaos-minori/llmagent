@@ -28,7 +28,7 @@ related:
 - All statements in create-only DDL use `IF NOT EXISTS` — idempotent and safe to run multiple times.
 - **No automatic migration and no version stamping of existing databases exist for any domain.** A database that does not match the current schema is refused at startup or by a health/deploy gate and is never mutated, archived, or deleted by the software. The operator archives it and recreates it from the current canonical DDL.
 - Refusal wording (identical policy, per-domain wording): "The database does not match the current schema. Automatic migration and version stamping are not supported. Stop the service, archive the existing database if required, remove or rename it, and create a new database using the current schema."
-- `create_schema()` is a wrapper that calls the four per-database initializers in order: `create_rag_schema()` and `create_session_schema()` run create-only DDL; `create_workflow_schema()` runs the create-only DDL without recording any version; `create_eventbus_schema()` runs the create-only DDL read from `scripts/eventbus/schema.sql` (section 8b). Against an existing matching file all four change nothing.
+- `create_schema()` is a wrapper that calls the three per-database initializers in order: `create_rag_schema()` and `create_session_schema()` run create-only DDL; `create_workflow_schema()` runs the create-only DDL without recording any version; eventbus.sqlite is created by the EventBus-owned tool and the service from `scripts/eventbus/schema.sql` (section 8b). Against an existing matching file all three change nothing.
 - The embedding dimension is a fixed code-level constant (`get_embedding_dims()`), not a config key.
 
 ### Recreating `session.sqlite`: Session and Memory Recovery
@@ -46,7 +46,7 @@ Recreating `session.sqlite` physically removes both sessions and memories, but t
 
 ### 8b. Startup Validation for `eventbus.sqlite`
 
-`create_eventbus_schema()` (`db/create_schema.py`) and the EventBus service (`open_db()`) both create the schema from the single DDL definition in `scripts/eventbus/schema.sql`, read through `build_eventbus_schema_sql()`. `schema.sql` ends with `PRAGMA user_version = 6;`: new databases receive that stamp from the canonical DDL itself. Validation gates:
+The EventBus service (`open_db()`) and the EventBus-owned tool (`python -m eventbus.db_tools ensure`) both create the schema from the single DDL definition in `scripts/eventbus/schema.sql`. `schema.sql` ends with `PRAGMA user_version = 6;`: new databases receive that stamp from the canonical DDL itself. Validation gates:
 
 - An existing database is accepted only when `PRAGMA user_version` equals the version stamped by the canonical DDL and its tables, columns, and indexes match the `shared/eventbus_schema_fingerprint.py` fingerprint computed from `schema.sql` at runtime.
 - An unstamped existing database (`user_version 0`) is refused and left unstamped, even when its shape matches.
@@ -80,7 +80,7 @@ Recreation impact when a database is not accepted (full procedure: [db_07 sectio
 | Database | Data loss possible | Backup before recreation | Rollback |
 |---|---|---|---|
 | `workflow.sqlite` | Yes — task history is not carried over | Required: `rotate_all_dbs()` archives it (db_07 section 11, step 1) | Restore the archived file |
-| `eventbus.sqlite` | Yes — events and delivery state are not carried over | Required: `rotate_all_dbs()` archives it (`rotate_eventbus_db()`) | Restore the archived file manually; no automated restoration path exists (db_07 section 9) |
+| `eventbus.sqlite` | Yes — events and delivery state are not carried over | Required: `python -m eventbus.db_tools rotate` archives it | Restore the archived file manually; no automated restoration path exists (db_07 section 9) |
 | `mdq.sqlite` | No lasting loss — derived store, rebuilt from the Markdown files | Not required | Delete the file and re-index (section 8d) |
 
 Archive-and-recreate runbook (operator procedure; details in [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):

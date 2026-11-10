@@ -296,17 +296,17 @@ bash deploy/init_db.sh
 ```
 
 **Responsibilities of init_db.sh:**
-- Runs `db/create_schema.py` to initialize the rag, session, workflow, and eventbus databases
+- Runs `db/create_schema.py` to initialize the rag, session, and workflow databases
 - Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts, tool_call_state)
-- Creates `eventbus.sqlite` from `scripts/eventbus/schema.sql` with `PRAGMA user_version`; every database is create-only, none is migrated
+- Creates `eventbus.sqlite` with the EventBus-owned tool (`python -m eventbus.db_tools ensure`) at the `config/eventbus.toml` `db_path`; every database is create-only, none is migrated
 - Refuses an `eventbus.sqlite` stamped with another version or unstamped
 - Checks required `workflow.sqlite` tables for presence; this is the only table-presence check
 - Rejects any `workflow.sqlite` or `eventbus.sqlite` carrying the legacy migration marker tables `schema_migrations` or `workflow_schema_version`
-- Validates `eventbus.sqlite` against the shared schema fingerprint and aborts on any deviation
+- Verifies `eventbus.sqlite` with `eventbus.db_tools verify` (integrity and the shared schema fingerprint) and aborts on any deviation
 
-The EventBus shape gate is the shared validator `scripts/shared/eventbus_schema_fingerprint.py`. It derives the canonical shape — tables, columns (name/type/nullability/default/pk), indexes, table-level constraints, foreign keys, and triggers (if any) — from `scripts/eventbus/schema.sql` via `PRAGMA` on a fresh in-memory apply, and `assert_matches()` raises on any mismatch against the target connection even when `PRAGMA user_version` matches. `create_eventbus_schema()` runs it after DDL on a database already stamped with the current version, and `init_db.sh` runs the same validator on `eventbus.sqlite`, so a correctly stamped but malformed `eventbus.sqlite` is refused identically at deployment and at runtime startup (`_init_schema()` in `scripts/eventbus/schema.py`).
+The EventBus shape gate is the shared validator `scripts/shared/eventbus_schema_fingerprint.py`. It derives the canonical shape — tables, columns (name/type/nullability/default/pk), indexes, table-level constraints, foreign keys, and triggers (if any) — from `scripts/eventbus/schema.sql` via `PRAGMA` on a fresh in-memory apply, and `assert_matches()` raises on any mismatch against the target connection even when `PRAGMA user_version` matches. the EventBus tool and service startup run it, and `init_db.sh` runs it through `eventbus.db_tools verify`, so a correctly stamped but malformed `eventbus.sqlite` is refused identically at deployment and at runtime startup (`_init_schema()` in `scripts/eventbus/schema.py`).
 
-Run `init_db.sh` before `setup_services.sh`. A workflow or EventBus database older than the current schema — carrying legacy marker tables, or stamped with a different version or unstamped — is refused by the gates and recreated, not migrated: archive it first (`rotate_all_dbs()`), delete it, then run `init_db.sh`; no deployment script records or stamps a version on an existing database. `setup_services.sh` proves Event Bus liveness and readiness with a bounded poll before reporting success: a dead child, a persistent connection failure, or a `/health` body failing the readiness predicate `db == ok` AND `dlq_task == running` is fatal, with child cleanup and last-response logging; an HTTP 503 carrying only capacity-only `degraded_reasons` (`lock_wait_high`, `slow_consumers_detected`, `query_duration_high`, `broker_queue_backlog_high`, `subscribers_at_capacity`) is tolerated. The workflow definition must not contain `require_approval`; the loader rejects the key.
+Run `init_db.sh` before `setup_services.sh`. A workflow or EventBus database older than the current schema — carrying legacy marker tables, or stamped with a different version or unstamped — is refused by the gates and recreated, not migrated: archive it first (`rotate_all_dbs()`, `eventbus.db_tools rotate`), delete it, then run `init_db.sh`; no deployment script records or stamps a version on an existing database. `setup_services.sh` proves Event Bus liveness and readiness with a bounded poll before reporting success: a dead child, a persistent connection failure, or a `/health` body failing the readiness predicate `db == ok` AND `dlq_task == running` is fatal, with child cleanup and last-response logging; an HTTP 503 carrying only capacity-only `degraded_reasons` (`lock_wait_high`, `slow_consumers_detected`, `query_duration_high`, `broker_queue_backlog_high`, `subscribers_at_capacity`) is tolerated. The workflow definition must not contain `require_approval`; the loader rejects the key.
 
 **Recreating `session.sqlite`.** `session.sqlite` has no incremental migration, so a schema change to it (for example the `sessions.undo_floor_message_id` column of the `/undo` compression boundary) requires recreating the file. The recreated file is empty, and the memory tables recover separately.
 
@@ -353,7 +353,6 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 
 | DB | Config key | Set in `agent.toml`? |
 |---|---|---|
-| `eventbus.sqlite` | `eventbus_db_path` | Yes |
 | `rag.sqlite` | `rag_db_path` | Yes |
 | `session.sqlite` | `session_db_path` | Yes |
 | `workflow.sqlite` | `workflow_db_path` | No (Python-level default in `scripts/db/config.py`) |

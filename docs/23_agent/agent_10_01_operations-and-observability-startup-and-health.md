@@ -107,7 +107,7 @@ cp workflow.sqlite workflow.sqlite.corrupted
 cp eventbus.sqlite eventbus.sqlite.corrupted
 ```
 
-**Step 3 — Locate available backups.** `rotate_all_dbs()` (`scripts/db/rotation.py`) archives `workflow.sqlite`/`eventbus.sqlite` alongside `rag.sqlite`/`session.sqlite` via the SQLite online backup API, writing WAL-consistent copies to the configured archive directory (`sqlite_archive_dir` in `agent.toml`) named `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in UTC (e.g. `workflow_20260901_063000.sqlite`):
+**Step 3 — Locate available backups.** `rotate_all_dbs()` (`scripts/db/rotation.py`) archives `rag.sqlite`, `session.sqlite`, and `workflow.sqlite` (and `python -m eventbus.db_tools rotate` archives `eventbus.sqlite`) via the SQLite online backup API, writing WAL-consistent copies to the configured archive directory (`sqlite_archive_dir` in `agent.toml`) named `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in UTC (e.g. `workflow_20260901_063000.sqlite`):
 ```bash
 ARCHIVE_DIR="${SQLITE_ARCHIVE_DIR:?set to the configured sqlite_archive_dir}"
 ls -lt "$ARCHIVE_DIR"/workflow_[0-9]*_[0-9]*.sqlite 2>/dev/null
@@ -115,7 +115,7 @@ ls -lt "$ARCHIVE_DIR"/eventbus_[0-9]*_[0-9]*.sqlite 2>/dev/null
 ```
 List is sorted newest-first (`-t`); if none are listed, skip to Step 6 (No backup available).
 
-**Note on retention**: archives written by `rotate_all_dbs()`/`rotate_workflow_db()`/`rotate_eventbus_db()` have no automatic cleanup — they accumulate indefinitely in the archive directory unless an operator or external job removes them. This is distinct from `scripts/db/maintenance.py`'s `CorruptArchiveRetentionConfig` (`max_files`/`max_age_days`), which governs only the timestamped `*_corrupt_*` pre-restore safety copies `recover_corruption()` creates for `rag`/`session` — it does not apply to these workflow/eventbus rotation archives.
+**Note on retention**: archives written by `rotate_all_dbs()`/`rotate_workflow_db()` and by `python -m eventbus.db_tools rotate` have no automatic cleanup — they accumulate indefinitely in the archive directory unless an operator or external job removes them. This is distinct from `scripts/db/maintenance.py`'s `CorruptArchiveRetentionConfig` (`max_files`/`max_age_days`), which governs only the timestamped `*_corrupt_*` pre-restore safety copies `recover_corruption()` creates for `rag`/`session` — it does not apply to these workflow/eventbus rotation archives.
 
 **Step 4 — Validate a candidate backup**, starting with the most recent and working backward until one passes:
 ```bash
@@ -138,7 +138,8 @@ Both must print `ok` again post-copy before starting the agent. Data committed a
 rm -f workflow.sqlite workflow.sqlite-wal workflow.sqlite-shm
 rm -f eventbus.sqlite eventbus.sqlite-wal eventbus.sqlite-shm
 # From the deployment root, with PYTHONPATH set to the deployed scripts directory
-uv run python -c 'from db.create_schema import create_workflow_schema, create_eventbus_schema; create_workflow_schema(); create_eventbus_schema()'
+uv run python -c 'from db.create_schema import create_workflow_schema; create_workflow_schema()'
+uv run python -m eventbus.db_tools ensure
 ```
 The recreated databases contain schema only: all workflow state (tasks, attempts, processed events, artifacts), and all events, consumer delivery state, and offsets are lost. If the data loss is significant, escalate before proceeding — the removal is irreversible apart from the Step 2 copies.
 

@@ -124,8 +124,10 @@ Not represented as an edge:
 - Agent ↔ RAG: `scripts/agent/` contains no import of `scripts/rag/`; RAG
   functionality is reached only through the generic `Agent → MCP` edge.
 - Agent, RAG or MCP → EventBus: no runtime component calls the Event Bus. The
-  client modules under `scripts/agent/` (`eventbus_client.py` and its siblings) are
+  client modules under `scripts/agent/` (the subscriber and the topic-admin client) are
   imported only by their unit tests, so they create no runtime dependency.
+  eventbus.sqlite is created, archived, and verified by the EventBus service and its
+  own tooling, not by the Agent or the DB layer.
 
 ## Deployment Management Graph
 

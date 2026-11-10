@@ -17,7 +17,6 @@ sqlite_retention_max_age_days = 30
 sqlite_archive_dir = "/opt/llm/db/archive"
 sqlite_corrupt_archive_max_files = 10
 sqlite_corrupt_archive_max_age_days = 30
-eventbus_db_path = "/opt/llm/db/eventbus.sqlite"
 
 # ── LLM endpoints ─────────────────────────────────────────────────────────────
 

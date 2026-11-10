@@ -41,7 +41,6 @@ from db.recovery import recover_corruption
 from db.rotation import (
     rotate_all_dbs,
     rotate_db,
-    rotate_eventbus_db,
     rotate_session_db,
     rotate_workflow_db,
 )
@@ -92,7 +91,6 @@ __all__ = [
     "recover_corruption",
     "rotate_all_dbs",
     "rotate_db",
-    "rotate_eventbus_db",
     "rotate_session_db",
     "rotate_workflow_db",
     "summarize_issues",

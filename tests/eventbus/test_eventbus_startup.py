@@ -15,12 +15,13 @@ import urllib.request
 from pathlib import Path
 
 import pytest
-from db.schema_sql import build_eventbus_schema_sql, eventbus_schema_version
 from eventbus.config import (
     EventBusConfig,
     _is_public_host,
 )
 from eventbus.db_conn import open_db
+from eventbus.db_tools import schema_sql as eventbus_schema_sql
+from eventbus.db_tools import schema_version as eventbus_schema_version
 
 
 def test_is_public_host_0000() -> None:
@@ -295,7 +296,7 @@ def test_unstamped_ddl_only_database_is_refused_and_left_unstamped(
     and stays unstamped: version stamping is not supported (REQ-003)."""
     path = tmp_path / "eventbus_unstamped.sqlite"
     conn = sqlite3.connect(path)
-    conn.executescript(build_eventbus_schema_sql())
+    conn.executescript(eventbus_schema_sql())
     conn.execute("PRAGMA user_version = 0")  # nosec B608 — fixed test int
     conn.commit()
     conn.close()
@@ -310,7 +311,7 @@ def test_unstamped_ddl_only_database_is_refused_and_left_unstamped(
 def test_malformed_stamped_database_missing_index_is_refused(tmp_path: Path) -> None:
     """A database stamped with the current version but missing a required index is
     refused at open_db: the stamp alone does not prove the shape."""
-    ddl = build_eventbus_schema_sql().replace(
+    ddl = eventbus_schema_sql().replace(
         "CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);", ""
     )
     path = _stamped_database(tmp_path, "eventbus_missing_index.sqlite", ddl)
@@ -322,7 +323,7 @@ def test_malformed_stamped_database_changed_nullability_is_refused(
     tmp_path: Path,
 ) -> None:
     """A stamped database whose column nullability deviates from schema.sql is refused."""
-    ddl = build_eventbus_schema_sql().replace(
+    ddl = eventbus_schema_sql().replace(
         "    topic                  TEXT    NOT NULL,",
         "    topic                  TEXT,",
     )
@@ -381,7 +382,7 @@ def test_main_malformed_stamped_db_rejected_at_startup(tmp_path: Path) -> None:
     """A correctly-stamped-but-malformed database must fail the real lifespan:
     the subprocess exits non-zero with the startup-failure output."""
     port = _free_loopback_port()
-    ddl = build_eventbus_schema_sql().replace(
+    ddl = eventbus_schema_sql().replace(
         "CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);", ""
     )
     db_path = _stamped_database(tmp_path, "eventbus_malformed.sqlite", ddl)

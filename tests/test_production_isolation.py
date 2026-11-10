@@ -42,7 +42,6 @@ def test_config_loader_paths_are_redirected() -> None:
         "rag_db_path",
         "session_db_path",
         "workflow_db_path",
-        "eventbus_db_path",
         "sqlite_archive_dir",
     ):
         if key in cfg:
@@ -127,7 +126,7 @@ def test_conftest_imports_on_host_without_production_db_dir() -> None:
         "runpy.run_path('tests/conftest.py', run_name='conftest_probe')\n"
         "from db.config import DbConfig\n"
         "cfg = DbConfig(rag_db_path='/opt/llm/db/rag.sqlite', session_db_path='/tmp/s')\n"
-        "print(cfg.rag_db_path, cfg.workflow_db_path, cfg.eventbus_db_path)\n"
+        "print(cfg.rag_db_path, cfg.workflow_db_path)\n"
     )
     result = subprocess.run(
         [sys.executable, "-I", "-c", code],

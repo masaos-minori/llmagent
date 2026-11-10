@@ -195,7 +195,6 @@ def _get_valid_production_keys() -> frozenset[str]:
     # config/agent.toml but are not part of any AgentConfig sub-dataclass.
     valid_keys.update(
         {
-            "eventbus_db_path",
             "rag_db_path",
             # RAGCORPUS001 (REQ-003): identity-mismatch policy consumed by the fallback
             # gate (scripts/rag/pipeline.py) via resolve_rag_config(); shares agent.toml

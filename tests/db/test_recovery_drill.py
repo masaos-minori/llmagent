@@ -1,9 +1,9 @@
-"""tests/db/test_recovery_drill.py — Recovery drill harness tests (all four domains).
+"""tests/db/test_recovery_drill.py — Recovery drill harness tests (all three domains).
 
 Exercises scripts/db/recovery_drill.py against sandboxed file-based fixtures for
-rag, session, workflow, and eventbus (row 11 drill tooling, REQ-007): artifact
+rag, session, and workflow (row 11 drill tooling, REQ-007): artifact
 emission, measurement fields, per-domain verification, live-database immutability,
-the all-four sweep, and the audited-failure path. No production DB or archive
+the all-domain sweep, and the audited-failure path. No production DB or archive
 paths are opened; every fixture lives under tmp_path.
 """
 
@@ -23,10 +23,6 @@ from db.config import DbConfig
 from db.models import RagConsistencyReport
 from db.recovery_drill import DOMAINS, run_drill
 from db.schema_sql import build_rag_schema_sql, build_session_schema_sql
-
-_EVENTBUS_SCHEMA = (
-    Path(__file__).resolve().parents[2] / "scripts" / "eventbus" / "schema.sql"
-)
 
 # Per-domain fixtures. session/workflow ship vec0/fts5 virtual tables that require
 # the external sqlite-vec extension; the drill's identity+integrity checks for them
@@ -258,23 +254,13 @@ def _build_workflow(path: Path, *, marker: str | None = None) -> None:
         conn.close()
 
 
-def _build_eventbus(path: Path) -> None:
-    conn = _connect(path)
-    try:
-        conn.executescript(_EVENTBUS_SCHEMA.read_text())
-        conn.commit()
-    finally:
-        conn.close()
-
-
 @pytest.fixture()
 def _domain_dbs(tmp_path: Path) -> dict[str, Path]:
-    """Build all four healthy domain DBs under tmp_path; return {domain: path}."""
+    """Build the three healthy domain DBs under tmp_path; return {domain: path}."""
     paths = {domain: tmp_path / f"{domain}.sqlite" for domain in DOMAINS}
     _build_rag(paths["rag"], prod=_VEC_AVAILABLE)
     _build_session(paths["session"], prod=_VEC_AVAILABLE)
     _build_workflow(paths["workflow"])
-    _build_eventbus(paths["eventbus"])
     return paths
 
 
@@ -283,7 +269,6 @@ def _config(paths: dict[str, Path]) -> DbConfig:
         rag_db_path=str(paths["rag"]),
         session_db_path=str(paths["session"]),
         workflow_db_path=str(paths["workflow"]),
-        eventbus_db_path=str(paths["eventbus"]),
     )
 
 
@@ -301,7 +286,6 @@ def _write_cli_config(config_dir: Path, paths: dict[str, Path]) -> None:
         f'rag_db_path = "{config_dir / "rag.sqlite"}"\n'
         f'session_db_path = "{config_dir / "session.sqlite"}"\n'
         f'workflow_db_path = "{paths["workflow"]}"\n'
-        f'eventbus_db_path = "{config_dir / "eventbus.sqlite"}"\n'
         "sqlite_timeout = 30\n"
         "sqlite_busy_timeout_ms = 30000\n",
         encoding="utf-8",
@@ -328,7 +312,7 @@ def _run_cli(config_dir: Path, *args: str) -> subprocess.CompletedProcess:
 # ── Healthy sweep ────────────────────────────────────────────────────────────
 
 
-def test_all_four_domains_drill_passes_and_live_dbs_untouched(
+def test_all_domains_drill_passes_and_live_dbs_untouched(
     _domain_dbs: dict[str, Path],
     tmp_path: Path,
 ) -> None:
@@ -412,11 +396,7 @@ def test_verify_per_domain_reports_expected_verdicts(
         "tasks_table": True,
         "no_legacy_markers": True,
     }
-    assert artifacts["eventbus"]["verification"] == {
-        "integrity": True,
-        "fingerprint": True,
-        "no_legacy_markers": True,
-    }
+    assert "eventbus" not in artifacts
 
 
 # ── Rag fail-closed logical layer (ragverify001 AC-004/AC-005) ──────────────
@@ -660,7 +640,6 @@ def test_legacy_marker_is_an_audited_finding(tmp_path: Path) -> None:
     _build_rag(paths["rag"])
     _build_session(paths["session"])
     _build_workflow(paths["workflow"], marker="schema_migrations")
-    _build_eventbus(paths["eventbus"])
     cfg = _config(paths)
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
@@ -711,7 +690,6 @@ def test_cli_exits_nonzero_on_failure(tmp_path: Path) -> None:
     _build_rag(paths["rag"])
     _build_session(paths["session"])
     _build_workflow(paths["workflow"], marker="workflow_schema_version")
-    _build_eventbus(paths["eventbus"])
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     _write_cli_config(config_dir, paths)

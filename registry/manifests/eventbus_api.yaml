@@ -204,6 +204,42 @@ entries:
   name: check_db
   signature: def check_db(conn) -> bool
   summary: Return True if the DB connection is usable.
+- file: scripts/eventbus/db_tools.py
+  kind: function
+  name: read_db_path
+  signature: def read_db_path() -> Path
+  summary: Return the database path from the EventBus configuration file's ``db_path``.
+- file: scripts/eventbus/db_tools.py
+  kind: function
+  name: schema_sql
+  signature: def schema_sql() -> str
+  summary: Return the canonical DDL text of ``scripts/eventbus/schema.sql``.
+- file: scripts/eventbus/db_tools.py
+  kind: function
+  name: schema_version
+  signature: def schema_version() -> int
+  summary: Return the schema version that ``schema.sql`` stamps.
+- file: scripts/eventbus/db_tools.py
+  kind: function
+  name: ensure
+  signature: def ensure(db_path) -> Path
+  summary: Create the database when absent, or validate it when present.
+- file: scripts/eventbus/db_tools.py
+  kind: function
+  name: verify
+  signature: def verify(db_path) -> Path
+  summary: Verify integrity and canonical shape of the database; return its path.
+- file: scripts/eventbus/db_tools.py
+  kind: function
+  name: rotate
+  signature: def rotate(archive_dir) -> Path
+  summary: Write a verified, WAL-consistent archive of the database and return its
+    path.
+- file: scripts/eventbus/db_tools.py
+  kind: function
+  name: main
+  signature: def main(argv) -> int
+  summary: Command-line entry point; returns the process exit code.
 - file: scripts/eventbus/delivery_repo.py
   kind: class
   name: NackResult

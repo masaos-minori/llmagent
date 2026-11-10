@@ -25,8 +25,8 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from db.schema_sql import eventbus_schema_version
 from eventbus.db_conn import open_db
+from eventbus.db_tools import schema_version as eventbus_schema_version
 from eventbus.schema import _SCHEMA_PATH, _expected_schema_version
 
 

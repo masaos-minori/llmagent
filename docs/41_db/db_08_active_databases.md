@@ -49,8 +49,8 @@ Each database is owned by a single component (see the **Owner** line of each sec
 ## eventbus.sqlite
 
 - **Owner**: the EventBus service (`scripts/eventbus/`)
-- **Config source**: `eventbus_db_path` in `config/agent.toml` and `db_path` in `config/eventbus.toml` (the values must refer to the same database)
-- **Schema source**: `scripts/eventbus/schema.sql` is the only DDL definition; `scripts/db/schema_sql.py` (`build_eventbus_schema_sql()`) reads it
+- **Config source**: `db_path` in `config/eventbus.toml` only; `agent.toml` carries no eventbus path
+- **Schema source**: `scripts/eventbus/schema.sql` is the only DDL definition; the EventBus service and its tool read it
 - **Lifecycle**: Created on first event bus use; persists until deleted
 
 ## mdq.sqlite

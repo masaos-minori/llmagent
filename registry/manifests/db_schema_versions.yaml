@@ -1,8 +1,4 @@
 entries:
-- config_key: eventbus_db_path
-  in_agent_toml: true
-  kind: db_path
-  name: eventbus.sqlite
 - config_key: rag_db_path
   in_agent_toml: true
   kind: db_path

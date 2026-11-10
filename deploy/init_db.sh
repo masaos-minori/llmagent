@@ -33,6 +33,22 @@ mkdir -p "${DEPLOY_DB}"
 echo "--- スキーマ初期化（rag + session + workflow + eventbus）---"
 (cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python "${DEPLOY_SCRIPTS}/db/create_schema.py")
 
+# ── eventbus.sqlite（EventBus 側ツールが作成・検証する）─────────────────────────
+# eventbus.sqlite is owned by the EventBus service: its path comes from
+# EVENTBUS_CONFIG_PATH (default /opt/llm/config/eventbus.toml) and creation, shape
+# validation, archive, and verification live in eventbus.db_tools. The tool reads only
+# db_path, so no EventBus token variable is needed here.
+eventbus_db_tool() {
+  (cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true \
+    uv run "${UV_PROD_FLAGS[@]}" python -m eventbus.db_tools "$@")
+}
+
+echo "--- eventbus.sqlite パス解決（eventbus.db_tools）---"
+EVENTBUS_DB="$(eventbus_db_tool path)" || {
+    echo "[FATAL] EventBus database path cannot be resolved from the EventBus configuration" >&2
+    exit 1
+}
+
 # ── テーブル確認 ──────────────────────────────────────────────────────────────
 echo "--- テーブル確認 ---"
 sqlite3 "${DEPLOY_DB}/rag.sqlite" ".tables"
@@ -67,56 +83,47 @@ echo "OK: all required workflow.sqlite tables present (${REQUIRED_WORKFLOW_TABLE
 # reject it before the shape checks (fail-closed, same style as the workflow
 # table gate above). The script performs no write, archive, or delete itself.
 echo "--- legacy migration marker check ---"
-for DB_NAME in "workflow.sqlite" "eventbus.sqlite"; do
-  COUNT=$(sqlite3 "${DEPLOY_DB}/${DB_NAME}" \
+for DB_FILE in "${DEPLOY_DB}/workflow.sqlite" "${EVENTBUS_DB}"; do
+  # eventbus.sqlite does not exist yet on a fresh deploy (it is created below);
+  # sqlite3 would create an empty file, so skip a missing one.
+  [ -f "${DB_FILE}" ] || continue
+  DB_NAME="$(basename "${DB_FILE}")"
+  COUNT=$(sqlite3 "${DB_FILE}" \
     "SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('schema_migrations','workflow_schema_version');")
   if [ "${COUNT}" != "0" ]; then
     echo "[FATAL] ${DB_NAME} carries legacy migration marker table(s) and does not match the current schema." >&2
     echo "Automatic migration and version stamping are not supported." >&2
     echo "Stop the service, archive the existing database if required, remove or rename it, and create a new database using the current schema:" >&2
     echo "  1. Archive it with the rotation step (rotate_all_dbs)" >&2
-    echo "  2. Remove or rename ${DEPLOY_DB}/${DB_NAME}" >&2
+    echo "  2. Remove or rename ${DB_FILE}" >&2
     echo "  3. Re-run deploy/init_db.sh" >&2
     exit 1
   fi
 done
 echo "OK: no legacy migration marker tables in workflow.sqlite and eventbus.sqlite"
 
-# ── eventbus.sqlite 形状ゲート（REQ-003）────────────────────────────────────────
-# 存在確認だけでなく shared.eventbus_schema_fingerprint で正準形状と比較し、
+# ── eventbus.sqlite 作成・形状ゲート（REQ-003）──────────────────────────────────
+# レガシー マーカー ゲートを通過した後に eventbus.db_tools ensure で作成（または検証）し、
+# 存在確認だけでなく eventbus.db_tools verify（integrity_check と
+# shared.eventbus_schema_fingerprint による正準形状比較）を通し、
 # バージョン一致で形状だけのずれた DB を service 起動前に reject する。
-echo "--- eventbus.sqlite 形状検証 ---"
-EVENTBUS_DB="${DEPLOY_DB}/eventbus.sqlite"
-if [ ! -f "${EVENTBUS_DB}" ]; then
-    echo "[FATAL] EventBus database is missing: ${EVENTBUS_DB}" >&2
-    exit 1
-fi
-if ! (cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" EVENTBUS_DB="${EVENTBUS_DB}" \
-    UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python - <<'PY'
-import os
-import sqlite3
-
-from shared.eventbus_schema_fingerprint import assert_matches
-
-db_path = os.environ["EVENTBUS_DB"]
-conn = sqlite3.connect(db_path)
-try:
-    assert_matches(conn, label=db_path)
-    rows = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' "
-        "AND name NOT LIKE 'sqlite_%' ORDER BY name"
-    )
-    tables = [row[0] for row in rows]
-finally:
-    conn.close()
-print(f"OK: {db_path} matches the canonical EventBus schema")
-print("tables:", " ".join(tables))
-PY
-); then
+echo "--- eventbus.sqlite 作成・形状検証 ---"
+if ! eventbus_db_tool ensure >/dev/null; then
     echo "[FATAL] EventBus database schema is missing or malformed: ${EVENTBUS_DB}" >&2
     echo "Delete the database and re-run init_db.sh before starting the Event Bus services." >&2
     exit 1
 fi
+if [ ! -f "${EVENTBUS_DB}" ]; then
+    echo "[FATAL] EventBus database is missing: ${EVENTBUS_DB}" >&2
+    exit 1
+fi
+if ! eventbus_db_tool verify >/dev/null; then
+    echo "[FATAL] EventBus database schema is missing or malformed: ${EVENTBUS_DB}" >&2
+    echo "Delete the database and re-run init_db.sh before starting the Event Bus services." >&2
+    exit 1
+fi
+echo "OK: ${EVENTBUS_DB} matches the canonical EventBus schema"
+echo "tables: $(sqlite3 "${EVENTBUS_DB}" ".tables" | tr -s ' \n' ' ')"
 
 # ── Recovery drill hook (REQ-007) ────────────────────────────────────────────
 # Default OFF. Only run the read-only drill when an operator opts in with
@@ -136,6 +143,14 @@ if [ "${RUN_RECOVERY_DRILL:-0}" = "1" ]; then
   echo "--- recovery drill (RUN_RECOVERY_DRILL=1) ---"
   if (cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python "${DEPLOY_SCRIPTS}/db/recovery_drill.py" --domain all); then
     echo "OK: recovery drill passed for all domains; artifacts in ${DRILLS_DIR}"
+    # eventbus.sqlite is verified by the EventBus-owned tool (integrity and shape);
+    # recovery_drill.py covers rag, session, and workflow.
+    if eventbus_db_tool verify >/dev/null; then
+      echo "OK: eventbus.sqlite verified by eventbus.db_tools"
+    else
+      echo "[FATAL] eventbus.db_tools verify failed for ${EVENTBUS_DB}" >&2
+      exit 1
+    fi
   else
     echo "[FATAL] recovery drill reported failures; artifacts in ${DRILLS_DIR}" >&2
     exit 1

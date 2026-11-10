@@ -86,6 +86,13 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `release_active_db_user` | `def release_active_db_user() -> None` | Decrement the count of live DB users after the locked critical section. |
 |  | `open_db` | `def open_db(db_path) -> sqlite3.Connection` | Return a shared SQLite connection for the Event Bus. |
 |  | `check_db` | `def check_db(conn) -> bool` | Return True if the DB connection is usable. |
+| `scripts/eventbus/db_tools.py` | `read_db_path` | `def read_db_path() -> Path` | Return the database path from the EventBus configuration file's ``db_path``. |
+|  | `schema_sql` | `def schema_sql() -> str` | Return the canonical DDL text of ``scripts/eventbus/schema.sql``. |
+|  | `schema_version` | `def schema_version() -> int` | Return the schema version that ``schema.sql`` stamps. |
+|  | `ensure` | `def ensure(db_path) -> Path` | Create the database when absent, or validate it when present. |
+|  | `verify` | `def verify(db_path) -> Path` | Verify integrity and canonical shape of the database; return its path. |
+|  | `rotate` | `def rotate(archive_dir) -> Path` | Write a verified, WAL-consistent archive of the database and return its path. |
+|  | `main` | `def main(argv) -> int` | Command-line entry point; returns the process exit code. |
 | `scripts/eventbus/delivery_repo.py` | `NackResult` | `class NackResult` | Return value for nack_event(). |
 |  | `nack_event` | `def nack_event(conn, event_id, consumer_id, last_nack_attempt) -> NackResult` | Record a per-consumer NACK failure for an event. |
 |  | `ack_event_for_consumer` | `def ack_event_for_consumer(conn, event_id, consumer_id, now) -> tuple[bool, bool, int \| None]` | Acknowledge an event for a specific consumer atomically. |

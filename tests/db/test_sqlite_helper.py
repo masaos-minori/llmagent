@@ -228,7 +228,7 @@ class TestSQLiteHelperTargetValidation:
         """An unrecognized string target raises ValueError with the expected message."""
         with pytest.raises(
             ValueError,
-            match=r"target must be 'rag', 'session', 'workflow', or 'eventbus', got: 'bogus'",
+            match=r"target must be 'rag', 'session', or 'workflow', got: 'bogus'",
         ):
             SQLiteHelper("bogus")
 
@@ -244,7 +244,6 @@ class TestSQLiteHelperMissingDbPathMessage:
             rag_db_path="/tmp/rag.sqlite",
             session_db_path="/tmp/session.sqlite",
             workflow_db_path="/opt/llm/db/workflow.sqlite",
-            eventbus_db_path="/tmp/eventbus.sqlite",
         )
         with patch("db.helper.build_db_config", return_value=cfg):
             helper = SQLiteHelper("workflow")
@@ -283,7 +282,6 @@ class TestSQLiteHelperVecDefault:
             ("rag", True),
             ("session", True),
             ("workflow", False),
-            ("eventbus", False),
         ],
     )
     def test_default_load_vec_per_target(self, target: str, expected: bool) -> None:
@@ -295,7 +293,6 @@ class TestSQLiteHelperVecDefault:
             rag_db_path="/tmp/rag.sqlite",
             session_db_path="/tmp/session.sqlite",
             workflow_db_path="/tmp/workflow.sqlite",
-            eventbus_db_path="/tmp/eventbus.sqlite",
         )
         with patch("db.helper.build_db_config", return_value=cfg):
             assert SQLiteHelper(target)._default_load_vec is expected
@@ -329,7 +326,6 @@ class TestSQLiteHelperVecExtensionLoading:
             rag_db_path=str(tmp_path / "rag.sqlite"),
             session_db_path=str(tmp_path / "session.sqlite"),
             workflow_db_path=str(tmp_path / "workflow.sqlite"),
-            eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
             sqlite_vec_so=vec_so,
         )
 

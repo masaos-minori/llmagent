@@ -121,7 +121,9 @@ def _schema_ddl() -> dict[str, str]:
         "rag": schema_sql.build_rag_schema_sql(8),
         "session": schema_sql.build_session_schema_sql(8),
         "workflow": schema_sql.build_workflow_schema_sql(),
-        "eventbus": schema_sql.build_eventbus_schema_sql(),
+        "eventbus": (REPO_ROOT / "scripts" / "eventbus" / "schema.sql").read_text(
+            encoding="utf-8"
+        ),
     }
 
 
@@ -187,8 +189,21 @@ def check_db_paths() -> list[str]:
         "rag": "",
         "session": "",
         "workflow": str(defaults["workflow_db_path"]),
-        "eventbus": str(defaults["eventbus_db_path"]),
+        "eventbus": "",
     }
+    # eventbus.sqlite belongs to the EventBus service: its path is the db_path of
+    # config/eventbus.toml, never a key of agent.toml.
+    eventbus_toml = CONFIG_DIR / "eventbus.toml"
+    if eventbus_toml.is_file():
+        eventbus_data = tomllib.loads(eventbus_toml.read_text(encoding="utf-8"))
+        configured_path = eventbus_data.get("db_path")
+        if isinstance(configured_path, str):
+            paths["eventbus"] = configured_path
+            if Path(configured_path).name != "eventbus.sqlite":
+                problems.append(
+                    f"[db-path] config/eventbus.toml: db_path = {configured_path!r} "
+                    "is not named eventbus.sqlite"
+                )
     agent_toml = CONFIG_DIR / "agent.toml"
     if agent_toml.is_file():
         data = tomllib.loads(agent_toml.read_text(encoding="utf-8"))
@@ -199,7 +214,12 @@ def check_db_paths() -> list[str]:
                 paths[m.group("db")] = value
     for db_name, path in paths.items():
         if not path:
-            problems.append(f"[db-path] {db_name}_db_path is not configured")
+            source = (
+                "config/eventbus.toml db_path"
+                if db_name == "eventbus"
+                else f"{db_name}_db_path"
+            )
+            problems.append(f"[db-path] {source} is not configured")
     configured = {d: _normalize(p) for d, p in paths.items() if p}
     seen: dict[str, str] = {}
     for db_name, path in configured.items():

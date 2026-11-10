@@ -27,7 +27,6 @@ from db.recovery import DbCondition, recover_corruption
 from db.rotation import (
     _archive_db_file,
     rotate_all_dbs,
-    rotate_eventbus_db,
     rotate_session_db,
     rotate_workflow_db,
 )
@@ -56,7 +55,6 @@ def _make_db_cfg(
     rag_name="rag.sqlite",
     session_name="session.sqlite",
     workflow_name="workflow.sqlite",
-    eventbus_name="eventbus.sqlite",
     **kwargs,
 ):
     """Return a mock DbConfig pointing to tmp_path files (bypasses path validation)."""
@@ -66,7 +64,6 @@ def _make_db_cfg(
     cfg.rag_db_path = str(tmp_path / rag_name)
     cfg.session_db_path = str(tmp_path / session_name)
     cfg.workflow_db_path = str(tmp_path / workflow_name)
-    cfg.eventbus_db_path = str(tmp_path / eventbus_name)
     cfg.sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
     cfg.sqlite_timeout = 30
     cfg.sqlite_busy_timeout_ms = 30000
@@ -673,7 +670,7 @@ class TestRecoverCorruption:
         assert result.action == "preserved_operator_intervention_required"
 
     def test_unsupported_target_returns_error(self) -> None:
-        """target outside rag/session/workflow/eventbus -> unsupported_target, no DB access."""
+        """target outside rag/session/workflow -> unsupported_target, no DB access."""
         from unittest.mock import patch
 
         with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
@@ -1055,15 +1052,14 @@ class TestRotateWorkflowAndAll:
         rag_file = tmp_path / "rag.sqlite"
         ses_file = tmp_path / "session.sqlite"
         wf_file = tmp_path / "workflow.sqlite"
-        eb_file = tmp_path / "eventbus.sqlite"
-        for f in (rag_file, ses_file, wf_file, eb_file):
+        for f in (rag_file, ses_file, wf_file):
             self._make_real_sqlite(f)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
             "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
-        rag_dest, ses_dest, wf_dest, eb_dest = rotate_all_dbs(archive_dir=archive_dir)
+        rag_dest, ses_dest, wf_dest = rotate_all_dbs(archive_dir=archive_dir)
 
         assert rag_dest.exists()
         assert rag_dest.name.startswith("rag_")
@@ -1071,8 +1067,6 @@ class TestRotateWorkflowAndAll:
         assert ses_dest.name.startswith("session_")
         assert wf_dest.exists()
         assert wf_dest.name.startswith("workflow_")
-        assert eb_dest.exists()
-        assert eb_dest.name.startswith("eventbus_")
 
     def test_rotate_workflow_db_missing_file_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1099,35 +1093,6 @@ class TestRotateWorkflowAndAll:
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):
             rotate_all_dbs(archive_dir=archive_dir)
-
-    def test_rotate_all_dbs_missing_eventbus_raises(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        rag_file = tmp_path / "rag.sqlite"
-        ses_file = tmp_path / "session.sqlite"
-        wf_file = tmp_path / "workflow.sqlite"
-        for f in (rag_file, ses_file, wf_file):
-            self._make_real_sqlite(f)
-        archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
-
-        with pytest.raises(FileNotFoundError, match="eventbus.sqlite"):
-            rotate_all_dbs(archive_dir=archive_dir)
-
-    def test_rotate_eventbus_db_happy_path(self, tmp_path: Path) -> None:
-        eb_file = tmp_path / "eventbus.sqlite"
-        self._make_real_sqlite(eb_file)
-        archive_dir = tmp_path / "archive"
-        monkeypatch = pytest.MonkeyPatch()
-        monkeypatch.setattr("db.config.build_db_config", lambda: _make_db_cfg(tmp_path))
-        del monkeypatch
-
-        dest = rotate_eventbus_db(archive_dir=archive_dir)
-
-        assert dest.exists()
-        assert dest.name.startswith("eventbus_")
 
 
 # ── archive verification (dbmig001 row 12) ────────────────────────────────────
@@ -1220,12 +1185,12 @@ class TestArchiveVerification:
         real_integrity = rotation.run_integrity_check
 
         def _fake_integrity(db_path: object, target: str = "rag") -> tuple:
-            if target == "workflow":
+            if target == "session":
                 return (DbCondition.CORRUPTION, "injected malformed")
             return real_integrity(db_path, target)
 
         monkeypatch.setattr(rotation, "run_integrity_check", _fake_integrity)
-        for name in ("rag", "session", "workflow", "eventbus"):
+        for name in ("rag", "session", "workflow"):
             self._make_domain_db(
                 tmp_path / f"{name}.sqlite", with_documents=(name == "rag")
             )
@@ -1238,8 +1203,8 @@ class TestArchiveVerification:
             rotate_all_dbs(archive_dir=archive_dir)
 
         archives = {p.name for p in archive_dir.glob("*.sqlite")}
-        # rag + session archived before workflow failed ...
+        # rag archived before session failed ...
         assert any(n.startswith("rag_") for n in archives)
         assert any(n.startswith("session_") for n in archives)
-        # ... eventbus never reached.
-        assert not any(n.startswith("eventbus_") for n in archives)
+        # ... workflow never reached.
+        assert not any(n.startswith("workflow_") for n in archives)

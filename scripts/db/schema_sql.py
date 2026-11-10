@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/db/schema_sql.py
 
-SQL DDL templates for rag.sqlite, session.sqlite, workflow.sqlite, and eventbus.sqlite schema creation.
+SQL DDL templates for rag.sqlite, session.sqlite, and workflow.sqlite schema creation.
 
 Templates use DIMS placeholder that must be replaced with the actual embedding
 dimension count before execution (done by build_rag_schema_sql(dims) /
@@ -11,12 +11,9 @@ Functions:
   build_rag_schema_sql(dims) — return DDL for rag.sqlite with given dimension
   build_session_schema_sql(dims) — return DDL for session.sqlite with given dimension
   build_workflow_schema_sql() — return DDL for workflow.sqlite (metadata DB)
-  build_eventbus_schema_sql() — return DDL for eventbus.sqlite, read from scripts/eventbus/schema.sql
 """
 
 import logging
-import re
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -239,29 +236,6 @@ CREATE TABLE IF NOT EXISTS tool_call_state (
 CREATE INDEX IF NOT EXISTS idx_tool_call_state_task_state
     ON tool_call_state(task_id, state);
 """
-
-# eventbus.sqlite's DDL is owned by the EventBus service (ADR-008 INV-04). The db layer
-# reads it as a file and never imports the eventbus package.
-EVENTBUS_SCHEMA_SQL_PATH: Path = (
-    Path(__file__).resolve().parents[1] / "eventbus" / "schema.sql"
-)
-
-
-def eventbus_schema_version() -> int:
-    """Return the version schema.sql stamps with PRAGMA user_version."""
-    match = re.search(
-        r"^PRAGMA\s+user_version\s*=\s*(\d+)\s*;",
-        build_eventbus_schema_sql(),
-        re.MULTILINE,
-    )
-    if match is None:
-        raise RuntimeError(f"{EVENTBUS_SCHEMA_SQL_PATH} does not stamp user_version")
-    return int(match.group(1))
-
-
-def build_eventbus_schema_sql() -> str:
-    """Return DDL for eventbus.sqlite (event bus message queue), read from scripts/eventbus/schema.sql."""
-    return EVENTBUS_SCHEMA_SQL_PATH.read_text(encoding="utf-8")
 
 
 def build_workflow_schema_sql() -> str:

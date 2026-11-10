@@ -33,7 +33,6 @@ def _config(tmp_path: Path, vec_so: str) -> DbConfig:
         rag_db_path=str(tmp_path / "rag.sqlite"),
         session_db_path=str(tmp_path / "session.sqlite"),
         workflow_db_path=str(tmp_path / "workflow.sqlite"),
-        eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
         sqlite_vec_so=vec_so,
     )
 

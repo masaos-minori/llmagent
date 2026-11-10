@@ -432,6 +432,21 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
             for err in result.errors
         )
 
+    def test_eventbus_db_path_key_is_rejected(self) -> None:
+        """eventbus.sqlite belongs to the EventBus service: agent.toml must not
+        carry its path, so the removed key is reported as unknown."""
+        config = {
+            "tool_definitions_strict": True,
+            "eventbus_db_path": "/opt/llm/db/eventbus.sqlite",
+        }
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production"
+        )
+        assert any(
+            "Unknown config keys" in err and "eventbus_db_path" in err
+            for err in result.errors
+        )
+
     def test_multiple_unknown_keys_produce_errors(self) -> None:
         config = {
             "tool_definitions_strict": True,

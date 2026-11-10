@@ -486,7 +486,7 @@ def recover_corruption(
 ) -> RecoveryResult:
     """Detect and recover from corruption in the target DB; returns RecoveryResult.
 
-    target: "rag" (default), "session", "workflow", or "eventbus".
+    target: "rag" (default), "session", or "workflow".
     action values:
       "vacuum"                              — integrity ok; VACUUM executed (or skipped in dry_run)
       "vacuum_failed"                       — integrity ok but VACUUM raised
@@ -500,10 +500,9 @@ def recover_corruption(
                                                 candidate (mandatory target unverifiable)
       "rollback_failed"                     — post-activation re-check failed and the
                                                 rollback of the archived original also failed
-      "unsupported_target"                  — target is not one of "rag"/"session"/"workflow"/
-                                                "eventbus"
+      "unsupported_target"                  — target is not one of "rag"/"session"/"workflow"
       "error"                               — could not open DB or OS-level failure
-      "no_recovery_allowed"                 — automatic recovery prohibited for workflow/eventbus
+      "no_recovery_allowed"                 — automatic recovery prohibited for workflow
       "preserved_operator_intervention_required" — integrity check returned an unclassifiable result; DB preserved, operator intervention required
     """
     db_cfg = build_db_config()
@@ -517,8 +516,8 @@ def recover_corruption(
         )
 
     # Domain policy check — moved here, before _run_integrity_check()
-    if target in ("workflow", "eventbus"):
-        # ADR-008 recovery policy: workflow/eventbus require an explicit operator decision
+    if target == "workflow":
+        # ADR-008 recovery policy: workflow requires an explicit operator decision
         return RecoveryResult(
             success=False,
             action="no_recovery_allowed",

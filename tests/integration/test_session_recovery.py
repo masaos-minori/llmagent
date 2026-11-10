@@ -35,7 +35,7 @@ def _patch_db_config(
 ) -> None:
     """Point build_db_config() at session_db_path for both db.helper and db.recovery.
 
-    rag/workflow/eventbus paths are unused placeholders in tmp_path -- DbConfig
+    rag/workflow paths are unused placeholders in tmp_path -- DbConfig
     only requires their parent directory to exist, not the files themselves.
     sqlite_timeout/sqlite_busy_timeout_ms are shortened so lock-contention
     tests (E05) resolve quickly instead of waiting out the 30s default.
@@ -46,7 +46,6 @@ def _patch_db_config(
         rag_db_path=str(tmp_path / "rag.sqlite"),
         session_db_path=session_db_path,
         workflow_db_path=str(tmp_path / "workflow.sqlite"),
-        eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
         sqlite_timeout=1,
         sqlite_busy_timeout_ms=500,
     )

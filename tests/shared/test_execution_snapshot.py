@@ -59,12 +59,10 @@ def fx(tmp_path: Path) -> dict[str, Any]:
     config_dir.mkdir()
     rag_db = _make_db(tmp_path / "rag.sqlite", user_version=7)
     session_db = _make_db(tmp_path / "session.sqlite", user_version=3)
-    event_db = _make_db(tmp_path / "eventbus.sqlite", user_version=2)
     workflow_db = _make_db(tmp_path / "workflow.sqlite", user_version=1)
     (config_dir / "agent.toml").write_text(
         f'rag_db_path = "{rag_db}"\n'
         f'session_db_path = "{session_db}"\n'
-        f'eventbus_db_path = "{event_db}"\n'
         f'workflow_db_path = "{workflow_db}"\n'
     )
     (config_dir / "rag.toml").write_text('search_provider = "openai"\n')
@@ -72,7 +70,7 @@ def fx(tmp_path: Path) -> dict[str, Any]:
         "tmp": tmp_path,
         "deploy_rev": deploy_rev,
         "config_dir": config_dir,
-        "db_paths": {"rag": rag_db, "session": session_db, "eventbus": event_db},
+        "db_paths": {"rag": rag_db, "session": session_db, "workflow": workflow_db},
     }
 
 
@@ -96,7 +94,7 @@ class TestBuild:
 
     def test_schema_versions_label_join(self, fx: dict[str, Any]) -> None:
         snap = _build(fx)
-        assert snap["schema_versions"] == "eventbus=2;rag=7;session=3"
+        assert snap["schema_versions"] == "rag=7;session=3;workflow=1"
 
     def test_missing_db_reads_absent(self, fx: dict[str, Any]) -> None:
         snap = _build(fx, db_paths={"rag": fx["tmp"] / "nope.sqlite"})
@@ -111,7 +109,7 @@ class TestBuild:
     def test_default_db_paths_from_agent_toml(self, fx: dict[str, Any]) -> None:
         # agent.toml in the fixture config dir carries the top-level db path keys.
         snap = _build(fx, db_paths=None)
-        assert snap["schema_versions"] == "eventbus=2;rag=7;session=3;workflow=1"
+        assert snap["schema_versions"] == "rag=7;session=3;workflow=1"
 
 
 class TestEquality:
@@ -207,8 +205,8 @@ class TestTolerance:
         empty_cfg.mkdir()
         snap = _build(fx, config_dir=empty_cfg, db_paths=None)
         labels = [seg.split("=")[0] for seg in snap["schema_versions"].split(";")]
-        # rag/session have no default path (dropped); workflow/eventbus do.
-        assert labels == ["eventbus", "workflow"]
+        # rag/session have no default path (dropped); workflow does.
+        assert labels == ["workflow"]
 
     def test_partial_agent_toml_falls_back_per_label(self, fx: dict[str, Any]) -> None:
         partial_cfg = fx["tmp"] / "partial_cfg"
@@ -221,7 +219,7 @@ class TestTolerance:
         )
         snap = _build(fx, config_dir=partial_cfg, db_paths=None)
         labels = [seg.split("=")[0] for seg in snap["schema_versions"].split(";")]
-        assert labels == ["eventbus", "rag", "workflow"]
+        assert labels == ["rag", "workflow"]
 
     def test_malformed_agent_toml_falls_back_to_defaults(
         self, fx: dict[str, Any]
@@ -231,15 +229,15 @@ class TestTolerance:
         (bad_cfg / "agent.toml").write_text("not = valid = toml")
         snap = _build(fx, config_dir=bad_cfg, db_paths=None)
         labels = [seg.split("=")[0] for seg in snap["schema_versions"].split(";")]
-        assert labels == ["eventbus", "workflow"]
+        assert labels == ["workflow"]
 
     def test_empty_db_paths_schema_versions_none(self, fx: dict[str, Any]) -> None:
         snap = _build(fx, db_paths={})
         assert snap["schema_versions"] == "none"
 
     def test_iterable_db_paths_uses_stem_labels(self, fx: dict[str, Any]) -> None:
-        snap = _build(fx, db_paths=[fx["db_paths"]["rag"], fx["db_paths"]["eventbus"]])
-        assert snap["schema_versions"] == "eventbus=2;rag=7"
+        snap = _build(fx, db_paths=[fx["db_paths"]["rag"], fx["db_paths"]["workflow"]])
+        assert snap["schema_versions"] == "rag=7;workflow=1"
 
 
 class TestMissingDeployedRev:

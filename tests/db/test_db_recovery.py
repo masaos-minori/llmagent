@@ -24,7 +24,6 @@ def mock_db_cfg():
         mock_instance.rag_db_path = Path("/tmp/rag.db")
         mock_instance.session_db_path = Path("/tmp/session.db")
         mock_instance.workflow_db_path = Path("/tmp/workflow.db")
-        mock_instance.eventbus_db_path = Path("/tmp/eventbus.db")
         mock_cfg.return_value = mock_instance
         yield mock_instance
 
@@ -342,18 +341,6 @@ def test_recover_workflow_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
         assert result.action == "no_recovery_allowed"
 
 
-def test_recover_eventbus_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
-    with patch(
-        "db.recovery._run_integrity_check",
-        return_value=(DbCondition.CORRUPTION, "corruption error"),
-    ) as mock_integrity:
-        result = recover_corruption(target="eventbus")
-
-        mock_integrity.assert_not_called()
-        assert result.success is False
-        assert result.action == "no_recovery_allowed"
-
-
 def test_recover_unknown_preserved_operator_intervention_required(
     mock_db_cfg, mock_sqlite_helper
 ):
@@ -584,22 +571,6 @@ def test_recover_healthy_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
             mock_vacuum.assert_not_called()
 
 
-def test_recover_healthy_eventbus_prohibited(mock_db_cfg, mock_sqlite_helper):
-    """Regression: eventbus target with HEALTHY DB must reject before any DB access."""
-    with patch(
-        "db.recovery._run_integrity_check",
-        return_value=(DbCondition.HEALTHY, None),
-    ) as mock_integrity:
-        with patch("db.recovery._vacuum_db") as mock_vacuum:
-            result = recover_corruption(target="eventbus")
-
-            assert result.success is False
-            assert result.action == "no_recovery_allowed"
-            assert result.detail and "Automatic recovery is prohibited" in result.detail
-            mock_integrity.assert_not_called()
-            mock_vacuum.assert_not_called()
-
-
 def test_recover_dry_run_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
     """Regression: dry_run mode must reject workflow before any DB access."""
     with patch(
@@ -614,17 +585,14 @@ def test_recover_dry_run_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
         mock_integrity.assert_not_called()
 
 
-def test_recover_dry_run_eventbus_prohibited(mock_db_cfg, mock_sqlite_helper):
-    """Regression: dry_run mode must reject eventbus before any DB access."""
-    with patch(
-        "db.recovery._run_integrity_check",
-        return_value=(DbCondition.HEALTHY, None),
-    ) as mock_integrity:
-        result = recover_corruption(target="eventbus", dry_run=True)
+def test_recover_eventbus_target_is_unsupported(mock_db_cfg, mock_sqlite_helper):
+    """eventbus.sqlite is owned by the EventBus service: the Agent-side recovery
+    rejects it as an unknown target before any DB access."""
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
+        result = recover_corruption(target="eventbus")
 
         assert result.success is False
-        assert result.action == "no_recovery_allowed"
-        assert result.dry_run is True
+        assert result.action == "unsupported_target"
         mock_integrity.assert_not_called()
 
 

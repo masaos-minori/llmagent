@@ -28,7 +28,7 @@ from shared.runtime_paths import resolve_config_dir
 
 logger = logging.getLogger(__name__)
 
-# Same fallback-literal shape as the workflow_db_path/eventbus_db_path defaults in
+# Same fallback-literal shape as the workflow_db_path default in
 # scripts/db/config.py; the shared-leaf contract forbids importing scripts/db here.
 DEFAULT_DB_PATH = "/opt/llm/db/mcp_dedup.sqlite"
 DEFAULT_RETENTION_DAYS = 14

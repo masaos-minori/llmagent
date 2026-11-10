@@ -21,11 +21,9 @@ import subprocess
 from collections.abc import Callable
 
 import pytest
-from db.schema_sql import (
-    build_eventbus_schema_sql,
-    build_workflow_schema_sql,
-    eventbus_schema_version,
-)
+from db.schema_sql import build_workflow_schema_sql
+from eventbus.db_tools import schema_sql as eventbus_schema_sql
+from eventbus.db_tools import schema_version as eventbus_schema_version
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _INIT_DB = _REPO_ROOT / "deploy" / "init_db.sh"
@@ -57,7 +55,7 @@ def _provision_databases(db_dir: pathlib.Path, *, malformed: bool) -> None:
     db_dir.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_dir / "eventbus.sqlite")
     try:
-        conn.executescript(build_eventbus_schema_sql())
+        conn.executescript(eventbus_schema_sql())
         conn.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
         if malformed:
             conn.execute(_MALFORMED_EXTRA)
@@ -107,6 +105,7 @@ def _write_stub_scripts(tmp_path: pathlib.Path) -> pathlib.Path:
         encoding="utf-8",
     )
     shutil.copytree(_REPO_ROOT / "scripts" / "shared", stub / "shared")
+    shutil.copytree(_REPO_ROOT / "scripts" / "eventbus", stub / "eventbus")
     return stub
 
 
@@ -125,6 +124,7 @@ def _write_init_db_driver(
                 f'export DEPLOY_SCRIPTS="{scripts_dir}"',
                 f'export DEPLOY_DB="{db_dir}"',
                 f'export LLMAGENT_CONFIG_DIR="{cfg_dir}"',
+                f'export EVENTBUS_CONFIG_PATH="{cfg_dir / "eventbus.toml"}"',
                 f'export LLMAGENT_LOG_DIR="{log_dir}"',
                 f'bash "{_INIT_DB}"',
                 "",

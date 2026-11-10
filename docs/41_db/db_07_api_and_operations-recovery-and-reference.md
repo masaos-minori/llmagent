@@ -83,7 +83,7 @@ Recovery policy differs by data ownership; `recover_corruption()` supports multi
 - **Session data**: covered by `recover_corruption(target='session')`. Backup restoration is performed for this domain only inside an operator-initiated `recover_corruption()` call (ADR-008); it is never triggered automatically. Post-restoration logical verification (`check_session_consistency()`) runs automatically after recovery and reports orphaned records as operator-only recommendations (see §9.5).
 - **RAG data**: covered by `recover_corruption(target='rag')` (default). Backup restoration is performed for this domain only inside an operator-initiated `recover_corruption()` call (ADR-008); it is never triggered automatically. Post-restoration logical verification (`check_rag_consistency()`) runs automatically after recovery and reports FTS/index inconsistencies as operator-only recommendations (see §9.5).
 - **Workflow data** (`workflow.sqlite`): has **no automatic physical-corruption recovery path**. Calling `recover_corruption(target='workflow')` returns `no_recovery_allowed` (ADR-008 Decision Details #20).
-- **Event delivery state** (`eventbus.sqlite`): has **no corruption-recovery path**, but **is included in backup rotation**. Calling `recover_corruption(target='eventbus')` returns `no_recovery_allowed`; `rotate_all_dbs()` archives `eventbus.sqlite` alongside the other three databases (`scripts/db/rotation.py::rotate_eventbus_db()`), but no automated *restoration* path consumes that archive for this domain (ADR-008 Decision Details #20).
+- **Event delivery state** (`eventbus.sqlite`): has **no corruption-recovery path**, but **is included in backup rotation**. Calling `recover_corruption(target='eventbus')` returns `unsupported_target` (eventbus is not an Agent-side target); `rotate_all_dbs()` archives the rag, session, and workflow databases and the EventBus-owned tool archives `eventbus.sqlite` (`python -m eventbus.db_tools rotate`), but no automated *restoration* path consumes that archive for this domain (ADR-008 Decision Details #20).
 
 Failure to recover required workflow or event-delivery state MUST NOT be silently hidden by automatic reinitialization; neither domain has an automatic reinitialization path, so this invariant holds by design enforcement (`recover_corruption()` returns `no_recovery_allowed` for `workflow`/`eventbus` targets).
 
@@ -112,12 +112,12 @@ Busy/locked `sqlite3.OperationalError` waits automatically via `PRAGMA busy_time
 
 ## 11. DB Recreation Procedure
 
-Schema changes require DB recreation — a migration feature does not exist. Automatic migration and version stamping are not supported for any domain: a database that does not match the current schema — including one carrying the legacy `schema_migrations` or `workflow_schema_version` tables — is never repaired in place, stamped, or rewritten. It must be archived (step 1) before it is removed (step 2), then recreated from the current schema (step 3). **Step 1: Archive** — execute `rotate_all_dbs()` to archive every production DB (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`). **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path`/`eventbus_db_path` keys (`db/config.py::DbConfig`); `create_schema()` also recreates `eventbus.sqlite`, so include the `eventbus_db_path` file if deleting **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
+Schema changes require DB recreation — a migration feature does not exist. Automatic migration and version stamping are not supported for any domain: a database that does not match the current schema — including one carrying the legacy `schema_migrations` or `workflow_schema_version` tables — is never repaired in place, stamped, or rewritten. It must be archived (step 1) before it is removed (step 2), then recreated from the current schema (step 3). **Step 1: Archive** — execute `rotate_all_dbs()` to archive the rag, session, and workflow databases and `python -m eventbus.db_tools rotate` to archive `eventbus.sqlite`. **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path` keys (`db/config.py::DbConfig`); the `eventbus.sqlite` path is the `db_path` of `config/eventbus.toml`, and `deploy/init_db.sh` recreates it through `python -m eventbus.db_tools ensure`, so include that file if deleting **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
 
 **Important notes:** 
 - Recreated DBs are empty — existing records are not automatically migrated.
-- `create_schema()` is a wrapper calling `create_rag_schema()` → `create_session_schema()` → `create_workflow_schema()` → `create_eventbus_schema()` unconditionally and sequentially; each schema DDL is protected by `IF NOT EXISTS` so it is idempotent even against existing files.
-- A condition "initialize only if `eventbus.sqlite` does not exist" does not exist in the implementation; if you only need to recreate one DB, use the individual functions: `create_rag_schema()`, `create_session_schema()`, `create_workflow_schema()`, `create_eventbus_schema()`.
+- `create_schema()` is a wrapper calling `create_rag_schema()` → `create_session_schema()` → `create_workflow_schema()` unconditionally and sequentially; each schema DDL is protected by `IF NOT EXISTS` so it is idempotent even against existing files.
+- If you only need to recreate one DB, use the individual functions: `create_rag_schema()`, `create_session_schema()`, `create_workflow_schema()`; `eventbus.sqlite` is created or validated by `python -m eventbus.db_tools ensure`.
 - **Archived files are verified recovery points.** `rotate_all_dbs()` archives each database through `_archive_db_file()`, which runs the integrity check on every domain and the domain-identity check where a required table is defined before returning the copy; a failing archive raises and is left in place, named in the error, for re-rotation or investigation. Recovery drills (section 12) restore from these verified archives.
 
 ### 11a. Identifying a Database's Current Schema
@@ -130,7 +130,7 @@ sqlite3 "file:<workflow_db_path>?mode=ro" \
   "SELECT group_concat(name) FROM sqlite_master WHERE type='table';"
 
 # eventbus.sqlite: column names of its three tables
-sqlite3 "file:<eventbus_db_path>?mode=ro" \
+sqlite3 "file:<eventbus db_path from config/eventbus.toml>?mode=ro" \
   "SELECT group_concat(name) FROM pragma_table_info('events');
    SELECT group_concat(name) FROM pragma_table_info('consumer_delivery');
    SELECT group_concat(name) FROM pragma_table_info('consumer_offsets');"

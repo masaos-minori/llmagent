@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """scripts/db/helper.py
 
-SQLite connection manager for RAG, session, workflow, and eventbus databases.
+SQLite connection manager for the RAG, session, and workflow databases.
 
 Provides open/close lifecycle with optional sqlite-vec extension and WAL setup.
 target="rag" (default) loads vec extension by default.
-target="session", "workflow", "eventbus" skip vec extension by default.
+target="session" loads it too; target="workflow" skips it by default.
 Config is resolved at construction time; failure raises RuntimeError immediately.
 """
 
@@ -49,7 +49,6 @@ class DbTarget(StrEnum):
     RAG = "rag"
     SESSION = "session"
     WORKFLOW = "workflow"
-    EVENTBUS = "eventbus"
 
 
 class SQLiteHelper:
@@ -73,7 +72,7 @@ class SQLiteHelper:
         sqlite_busy_timeout_ms: int = 30000,
         check_same_thread: bool = True,
     ) -> None:
-        """Accepts DbTarget enum members or string literals ('rag', 'session', 'workflow', 'eventbus').
+        """Accepts DbTarget enum members or string literals ('rag', 'session', 'workflow').
 
         When db_path is provided, bypasses build_db_config() and uses the supplied path and
         connection settings directly. This allows callers (e.g. MCP servers) to self-contain
@@ -97,11 +96,11 @@ class SQLiteHelper:
 
         if isinstance(target, DbTarget):
             resolved = target.value
-        elif target in ("rag", "session", "workflow", "eventbus"):
+        elif target in ("rag", "session", "workflow"):
             resolved = target
         else:
             raise ValueError(
-                f"target must be 'rag', 'session', 'workflow', or 'eventbus', got: {target!r}"
+                f"target must be 'rag', 'session', or 'workflow', got: {target!r}"
             )
         self._target = resolved
         self._default_load_vec = resolved in ("rag", "session")
@@ -115,10 +114,8 @@ class SQLiteHelper:
             self._db_path = db_cfg.rag_db_path
         elif resolved == "session":
             self._db_path = db_cfg.session_db_path
-        elif resolved == "workflow":
-            self._db_path = db_cfg.workflow_db_path
         else:
-            self._db_path = db_cfg.eventbus_db_path
+            self._db_path = db_cfg.workflow_db_path
         self._vec_so = db_cfg.sqlite_vec_so
         self._sqlite_timeout = db_cfg.sqlite_timeout
         self._busy_timeout_ms = db_cfg.sqlite_busy_timeout_ms
@@ -192,7 +189,7 @@ class SQLiteHelper:
         """Open a connection with optional vec extension and WAL pragmas.
 
         load_vec: None = use instance default (True for rag and session, False for
-            workflow and eventbus).
+            workflow).
         write_mode: enforce FK constraints.
         row_factory: enable column-name access on result rows.
         reuse_connection: skip reconnect if already connected; skip close in __exit__.

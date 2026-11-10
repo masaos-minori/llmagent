@@ -98,7 +98,7 @@ Historical, superseded 2026-11-07 (source compatrm001): plan dbmig001 had extend
 | Automatic restore allowed or prohibited | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | prohibited (INV-18) | prohibited (INV-18) |
 | Manual restore allowed or prohibited | allowed | allowed | operator intervention only | operator intervention only |
 | Operator approval requirement | required for manual restore | required for manual restore | required (manual operation only) | required (manual operation only) |
-| Backup retention requirement | regular file copy via `rotate_all_dbs()` | regular file copy via `rotate_all_dbs()` | archived via `rotate_all_dbs()` but no automated restoration | archived via `rotate_eventbus_db()` alongside other three databases |
+| Backup retention requirement | regular file copy via `rotate_all_dbs()` | regular file copy via `rotate_all_dbs()` | archived via `rotate_all_dbs()` but no automated restoration | archived by the EventBus-owned tool `db_tools.py` |
 | WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | same | same | same |
 | Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | not applicable (no automated restore) | not applicable (no automated restore) |
 | Database-specific logical verification | `check_rag_consistency()` post-restore | `check_session_consistency()` post-restore | none automated (manual operator handling) | none automated (manual operator handling) |
@@ -143,7 +143,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 - **Target processes**: the Agent process, the ingester process, the EventBus process
 - **Target data**: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
-- **Target APIs or processing paths**: `DbConfig.rag_db_path`, `DbConfig.session_db_path`, `DbConfig.workflow_db_path`, `DbConfig.eventbus_db_path`, `recover_corruption()`
+- **Target APIs or processing paths**: `DbConfig.rag_db_path`, `DbConfig.session_db_path`, `DbConfig.workflow_db_path`, `recover_corruption()`
 
 ### Out of Scope
 
@@ -304,12 +304,12 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 
 | Test | Verifies | Type | Blocking | Implementation |
 |---|---|---|---|---|
-| Each DB has its own schema creation and its own recovery target path (supporting the per-database ownership of INV-01 to INV-04; the static check below is the primary verification, and INV-01's derived-index clause is verified under ADR-005) | INV-01, INV-02, INV-03, INV-04 | Integration | Yes | `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_four_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_uses_correct_db_path` |
+| Each DB has its own schema creation and its own recovery target path (supporting the per-database ownership of INV-01 to INV-04; the static check below is the primary verification, and INV-01's derived-index clause is verified under ADR-005) | INV-01, INV-02, INV-03, INV-04 | Integration | Yes | `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_three_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_target_is_unsupported` |
 | The four-database boundary holds: each table is created only in its owning database, no DDL foreign key crosses databases, the four database paths are distinct files, and no `ATTACH` or schema-qualified `FROM`/`JOIN` exists in `scripts/` SQL | INV-01, INV-02, INV-03, INV-04, INV-05 | Static check | Yes | `tools/check_db_separation.py` (CI `lint` job and the deploy pre-deploy check), `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations`, `tests/tools/test_check_db_separation.py::test_detects_table_in_wrong_database`, `tests/tools/test_check_db_separation.py::test_detects_cross_db_foreign_key`, `tests/tools/test_check_db_separation.py::test_detects_shared_physical_path`, `tests/tools/test_check_db_separation.py::test_detects_attach_and_qualified_access` |
 | sqlite-vec is loaded by default only for `rag` and `session`, never for `workflow` or `eventbus` | INV-08 | Regression | Yes | `tests/db/test_sqlite_helper.py::TestSQLiteHelperVecDefault::test_default_load_vec_per_target`, `tests/tools/test_check_db_separation.py::test_default_load_vec_rule_rejects_extra_target`, `tests/agent/memory/test_memory_vec_session.py::test_session_default_connection_loads_vec` |
 | Lock Contention and Permission Failure are not classified as physical corruption | INV-13 | Regression | Yes | `tests/db/test_db_recovery.py::test_recover_lock_contention`, `tests/db/test_db_recovery.py::test_recover_permission_failure`, `tests/db/test_db_recovery.py::test_classify_error_lock_contention_via_sqlite_errorcode` |
-| Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results | INV-16 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_eventbus_prohibited` `tests/db/test_db_recovery.py::test_recover_dry_run_corrupt_file_unchanged` (bytes and directory of a corrupt WAL-mode database unchanged; a rollback-journal file is switched to WAL when opened and is not covered) |
-| A `recover_corruption()` call specifying `workflow`/`eventbus` does not perform an automatic restore | INV-18 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_corrupt_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_healthy_eventbus_prohibited` |
+| Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results | INV-16 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_corrupt_file_unchanged` (bytes and directory of a corrupt WAL-mode database unchanged; a rollback-journal file is switched to WAL when opened and is not covered) |
+| A `recover_corruption()` call specifying `workflow`/`eventbus` does not perform an automatic restore | INV-18 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_corrupt_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_eventbus_target_is_unsupported` |
 | A restore candidate with a corrupt or wrong-domain backup is rejected and the target DB is left untouched | INV-14, INV-15 | Unit | Yes | `tests/db/test_db_recovery.py::test_recover_bad_backup`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_rejected`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_leaves_db_untouched` |
 | An unclassifiable integrity-check failure preserves the target DB and requires operator intervention | INV-17 | Unit | Yes | `tests/db/test_db_recovery.py::test_recover_unknown_preserved_operator_intervention_required` |
 
@@ -401,7 +401,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/db/rag_consistency.py` (`check_rag_consistency()`)
 - `scripts/db/recovery.py` (`recover_corruption()`, `_classify_error()`, `_run_integrity_check()`, `_restore_from_backup()`)
 - `scripts/db/recovery_restore.py` (`_resolve_backup()`, `_stage_restore()`, `_quarantine_sidecar_files()`, `_stage_backup_sidecars()`)
-- `scripts/db/rotation.py` (`rotate_all_dbs()`, `rotate_eventbus_db()`)
+- `scripts/db/rotation.py` (`rotate_all_dbs()`)
+- `scripts/eventbus/db_tools.py` (EventBus-owned create, rotate, verify)
 - `scripts/db/session_consistency.py` (`check_session_consistency()`)
 - `rag.sqlite` (`documents`, `chunks`, `chunks_fts`, `chunks_vec`)
 - `session.sqlite` (`sessions`, `messages`, `memories`, `memories_vec`)

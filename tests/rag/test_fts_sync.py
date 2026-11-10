@@ -63,7 +63,6 @@ def _make_db_cfg(tmp_path: Path, rag_name: str = "rag.sqlite") -> DbConfig:
     cfg.rag_db_path = str(tmp_path / rag_name)
     cfg.session_db_path = str(tmp_path / "session.sqlite")
     cfg.workflow_db_path = str(tmp_path / "workflow.sqlite")
-    cfg.eventbus_db_path = str(tmp_path / "eventbus.sqlite")
     cfg.sqlite_vec_so = ""
     cfg.sqlite_timeout = 30
     cfg.sqlite_busy_timeout_ms = 30000

@@ -22,7 +22,7 @@ import threading
 import time
 
 import pytest
-from db.schema_sql import build_eventbus_schema_sql
+from eventbus.db_tools import schema_sql as eventbus_schema_sql
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
@@ -134,7 +134,7 @@ def _seed_workflow_db(sb: pathlib.Path) -> None:
 
 def _seed_eventbus_db(sb: pathlib.Path, *, malformed: bool) -> None:
     conn = sqlite3.connect(sb / "db" / "eventbus.sqlite")
-    conn.executescript(build_eventbus_schema_sql())
+    conn.executescript(eventbus_schema_sql())
     if malformed:
         # Unrepairable by the IF NOT EXISTS DDL re-apply (Doc 03/09 pattern).
         conn.execute("ALTER TABLE events ADD COLUMN malformed_extra TEXT")

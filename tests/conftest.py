@@ -96,9 +96,12 @@ def _provision_databases() -> None:
     from db.config import build_db_config
     from db.schema_sql import build_rag_schema_sql, build_session_schema_sql
     from db.store_protocols import get_embedding_dims
+    from eventbus import db_tools
 
     create_schema.create_workflow_schema()
-    create_schema.create_eventbus_schema()
+    # eventbus.sqlite belongs to the EventBus service: its path is the db_path of the
+    # isolated eventbus.toml (EVENTBUS_CONFIG_PATH), created by the EventBus tool.
+    db_tools.ensure()
     cfg = build_db_config()
     for create, build_sql, db_path in (
         (
@@ -141,7 +144,6 @@ def _isolate_db_config(root: Path) -> None:
             "rag_db_path",
             "session_db_path",
             "workflow_db_path",
-            "eventbus_db_path",
         ):
             value = getattr(self, field)
             if isinstance(value, str) and value.startswith(production_db_dir):

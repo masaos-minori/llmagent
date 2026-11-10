@@ -152,9 +152,9 @@ Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/S
 
 An optional subsystem enabled when `use_memory_layer=True`, accessed via `ctx.services.memory`. It injects relevant memories at session start and on each user prompt (see [agent_11_01](agent_11_01_memory-overview-and-modes.md)), extracts and persists memories at session end, and stores them in JSONL plus SQLite with FTS5 and optional KNN retrieval.
 
-##### EventBus Client Modules (`agent/eventbus_client.py`, `agent/eventbus_subscriber.py`, `agent/eventbus_topic_admin_client.py`)
+##### EventBus Client Modules (`agent/eventbus_subscriber.py`, `agent/eventbus_topic_admin_client.py`)
 
-Client-side libraries for the Event Bus HTTP API: `EventBusClient` publishes events, `EventBusSubscriber` consumes the `/subscribe` SSE stream (reconnecting with the configured stable `consumer_id` and resuming with a `since_seq` parameter from the last processed event `seq`), and `EventBusTopicAdminClient` updates the admin topics-authorization settings. No runtime component of the Agent process imports these modules; only their unit tests do, so the Agent does not currently publish to or subscribe from the Event Bus by itself.
+Client-side libraries for the Event Bus HTTP API: `EventBusSubscriber` consumes the `/subscribe` SSE stream (reconnecting with the configured stable `consumer_id` and resuming with a `since_seq` parameter from the last processed event `seq`), and `EventBusTopicAdminClient` updates the admin topics-authorization settings. No runtime component of the Agent process imports these modules; only their unit tests do, so the Agent does not currently publish to or subscribe from the Event Bus by itself.
 
 ### Key Constraints
 
