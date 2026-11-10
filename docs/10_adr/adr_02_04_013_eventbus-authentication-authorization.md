@@ -43,7 +43,7 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 
 ### Current State
 
-`attach_auth_middleware(app)` (request-ID assignment only) is attached in `scripts/eventbus/app.py`. Each route requires role-based authentication via `Depends(require_role(...))`. Consumer-facing routes (/subscribe, /ack, /nack) additionally require `Depends(require_consumer_identity)` for consumer identity validation.
+`attach_auth_middleware(app)` (request-ID assignment only) is attached in `scripts/eventbus/app.py`. Each route is registered once, by its route module's router, with `Depends(require_role(...))` on that handler. Consumer routes (/subscribe, /ack, /nack) also authorize the `(consumer_id, topic)` pair: /subscribe in a dependency, /ack and /nack in the handler.
 
 ### Constraints
 
