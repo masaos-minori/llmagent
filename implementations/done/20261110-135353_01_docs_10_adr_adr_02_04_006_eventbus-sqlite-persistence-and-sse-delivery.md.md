@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` as described in Procedure | Pending | — | — | |
-| 2 | Run the documentation checkers listed in Validation plan | Pending | — | — | |
+| 1 | Edit `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` as described in Procedure | Completed | 20261110-160040 | 20261110-160040 | Stale detection clean. Applied per Procedure: Decision Details #14 (keep decision 2026-11-09, producer/consumer not yet defined/UNK-01), Positive Consequences bullet, Current Decision Approval line. |
+| 2 | Run the documentation checkers listed in Validation plan | Completed | 20261110-160040 | 20261110-160040 | check_adr_structure/check_adr_authority/check_docs_content_policy --strict pass. check_adr_preservation reports only the intended Approval(ERROR)+Decision(WARNING) changes; sentence-level mapping in Final Report. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

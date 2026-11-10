@@ -58,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` as described in Procedure | Pending | — | — | |
-| 2 | Run the documentation checkers listed in Validation plan | Pending | — | — | |
+| 1 | Edit `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` as described in Procedure | Completed | — | — |  |
+| 2 | Run the documentation checkers listed in Validation plan | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

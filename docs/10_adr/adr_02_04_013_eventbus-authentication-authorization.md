@@ -52,6 +52,10 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 - EventBus configuration loading uses `scripts/shared/config_loader.py`'s `ConfigLoader` without `restrict_to()` (ADR-002 already documented and accepted this local-invariant exception); validating keys through a `ConfigLoader`-based schema is not adopted here.
 - Loopback-only binding (`EventBusConfig.__post_init__`, `_LoopbackVerifyingServer`) is already implemented; this ADR does not re-implement or weaken it.
 
+### Caller model status
+
+The EventBus is intentionally kept in service (keep decision recorded in `adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`, repository owner instruction 2026-11-09); its producers and consumers are not yet defined, and the component that will define them together with the integration timing are a marked pending item — "maintainer decision (pending)" — registered through `governance_03_issue-and-uncertainty-management.md` (Plan UNK-01). Until that item is resolved, no producer or consumer is named, and any first publisher or consumer client of any kind activates `Review Triggers` item 1 and must authenticate and authorize under this ADR's contract.
+
 ## Assumptions
 
 - "Privileged replay" means all `/replay` calls require operator permission (all replay is treated as an operator action).
@@ -288,6 +292,7 @@ Not applicable
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-15, including the Consumer-route admission rule and the removal of the superuser bypass; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) of 2026-11-09 (keep the EventBus) and 2026-11-10 covers the caller-model status added here; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

@@ -41,14 +41,17 @@ This document is the cross-cutting security architecture overview for the projec
 
 ```
 Agent -> LLM -> MCP -> target resource
+      \-> EventBus client (Publisher/Consumer role) -> EventBus process -> SQLite / SSE delivery
       \-> RAG ingestion path -> vector store
 ```
 
-Two primary boundary crossings exist:
+Three primary boundary crossings exist:
 
 1. **Agent → MCP**: The Agent invokes MCP tools via the MCP protocol. This boundary crosses from the Agent process (which handles LLM interaction, approval workflows, and session state) to MCP server processes (which execute tools against external resources). The boundary enforces tool-level approval, path allowlist validation, and command allowlist checks.
 
 2. **RAG ingestion path → vector store**: During ingestion, external content (web pages, documents) is fetched, processed, and embedded. The boundary crosses from the ingestion pipeline (which handles untrusted external content) into the vector store (which stores embeddings for retrieval). This boundary enforces content sanitization, size limits, and embedding model consistency.
+
+3. **Client → EventBus**: Publisher/Consumer-role clients call the EventBus HTTP API. The boundary crosses from external callers into the trusted EventBus process. The boundary enforces per-route Bearer-token authentication, role and `consumer_id`/topic authorization, and loopback-only binding. Authority: [ADR-013-eventbus-authentication-authorization](../10_adr/adr_02_04_013_eventbus-authentication-authorization.md); controls detailed in the [EventBus Authentication and Authorization](#eventbus-authentication-and-authorization) section below.
 
 ## Protected assets
 
@@ -73,6 +76,7 @@ The threat model covers the following threat vectors:
 - **Command-allowlist bypass**: Attempts to execute unauthorized commands; mitigated by command allowlist enforcement in shell MCP and shell tool
 - **Unauthorized repo/workflow access**: Attempts to access unauthorized GitHub repos or CI/CD workflows; mitigated by `allowed_repos` and workflow allowlists
 - **Execution without approval**: High-risk tools executed without required approval; mitigated by approval workflow in `agent_06_01`/`agent_06_02`
+- **Unauthorized EventBus access**: an unauthenticated or wrongly-scoped caller publishes, consumes, acknowledges, or administers delivery state; mitigated by ADR-013's fail-closed authentication and authorization boundary and the loopback-only bind (INV-01, INV-02, INV-06, INV-07)
 
 ## Per-externally-reachable-API authN/authZ table
 

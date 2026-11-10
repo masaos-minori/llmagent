@@ -67,7 +67,7 @@ Generated from `registry/component_mandatoriness.yaml`. Do not hand-edit between
 | `web_search` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
 <!-- END AUTO-GENERATED -->
 
-Subprocess servers must stay required (ADR-004 Exceptions; `McpServerConfig` rejects `required = false` with `startup_mode = "subprocess"`). A non-required reclassification requires an explicit owner decision and an update to this table, per ADR-004 Decision Group 3 item 13.
+Subprocess servers must stay required (ADR-004 Exceptions; `McpServerConfig` rejects `required = false` with `startup_mode = "subprocess"`). A non-required reclassification requires an explicit owner decision and an update to this table, per ADR-004 Decision Group 3 item 13. No server is classified non-required in `registry/component_mandatoriness.yaml` as of 2026-11-10, so ADR-004 Decision Group 7 and INV-09 currently describe behavior no configuration triggers and are declared inapplicable until the first non-required classification (the removal trigger; see the ADR-004 Group 7 applicability note).
 
 #### Process Isolation
 

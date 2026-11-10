@@ -91,6 +91,8 @@ A posture `FAILED` result is a safety/integrity failure under Group 2 item 5, no
 17. When a mandatory component unavailable: abort startup. Make failure and reason observable. Do not silently disable. Do not perform Fallback.
 ### Group 7: Behavior of Non-Mandatory Components
 
+> **Applicability (option B, repository owner instruction 2026-11-10):** Every component in `registry/component_mandatoriness.yaml` is classified `required`, so items 18-19 and INV-09 describe behavior no current configuration triggers. They remain in force as written and are inapplicable until the first component is classified non-required (an explicit owner decision per Decision Group 3 item 13). Removal trigger: that first non-required classification in `registry/component_mandatoriness.yaml`.
+
 18. When an availability failure occurs in a non-mandatory component: disable component. Permit system to continue startup in partial-availability state. Exclude component's Tools/functions from executable exposure set. Reject new calls targeting those Tools/functions. Report disabled state, failure reason, affected functions, startup-continuation reason. Expose state through currently approved Diagnostics/Observability mechanisms. Do not report system as fully available.
 19. If a safety/integrity failure occurs in same component, continuing startup prohibited. Being classified as non-mandatory is not an exemption from safety/integrity failures.
 ### Group 8: Observability of Partial Availability
@@ -337,6 +339,7 @@ Re-evaluate when:
 - **Approval Date**: Not recorded (individual approval dates not recorded for task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13, except Decision Group 10 ("Fallback prohibited without exception"), whose amendment is Pending maintainer statement; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) of 2026-11-10 (option B) covers the Group 7/INV-09 applicability statement added here; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

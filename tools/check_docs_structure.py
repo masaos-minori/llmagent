@@ -112,7 +112,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # documented; base size was already 38 bytes under MAX_SIZE, so this necessary content
     # pushes it over. The ceiling equals the accepted size, so further growth fails.
     # Re-recorded after the ebdlqunique007 redelivery-uniqueness note (2026-10-28): 24979.
-    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 24979,
+    # Re-accepted at 25651 (2026-11-10): adrrev006 doc 01 added Decision Details #14 keep
+    # decision + producer/consumer "not yet defined", a Positive Consequences bullet, and a
+    # Current Decision Approval line; the ceiling equals the accepted size, so further growth
+    # fails.
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 25651,
     # The generated agent-class reference table was already 24961 bytes (2026-10-24), over
     # MAX_SIZE before any new plan touched it. `plans/20261023-072425_plan.md` REQ-005
     # regenerates it with a longer `mask_args` summary row, which lands at 24972 bytes. The
@@ -175,7 +179,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # ADR-013 reached 27185 when the authz-generation change (2026-11-01) recorded the
     # generation, TTL sweep and restart-baseline decisions and their evidence, over the
     # default MAX_SIZE; the ceiling equals the accepted size.
-    "adr_02_04_013_eventbus-authentication-authorization.md": 27185,
+    # Re-accepted at 28097 (2026-11-10): adrrev006 doc 02 added the "Caller model status"
+    # sub-section (keep decision + producers/consumers not yet defined) and a Current Decision
+    # Approval line; the ceiling equals the accepted size.
+    "adr_02_04_013_eventbus-authentication-authorization.md": 28097,
 }
 
 

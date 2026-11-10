@@ -82,6 +82,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive) with different rol
     - 11e. On the Replay-to-Live switch, Consumers must process idempotently by `event_id`.
 12. Authentication and authorization of EventBus callers follow ADR-013. Independently of authentication, the EventBus accepts only a loopback bind address; a non-loopback host fails configuration validation. (Explicit in code — `scripts/eventbus/config.py` `_validate_deployment_mode()`)
 13. The ACK Offset is a high-water mark of acknowledged `seq` values, not a contiguous low-water mark. On resume, the position is the lowest unacknowledged `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1`; no unacknowledged event is skipped, and already-acknowledged events are fast-forwarded. Consumers need not ACK in strict `seq` order.
+14. The EventBus service is kept (planned future integration), per the repository owner instruction of 2026-11-09; it currently has no defined producers or consumers, and that absence is intentional. The producer and consumer model is not yet defined (UNK-01): the defining component and integration timing are left as a marked pending item for the maintainer to complete through `governance_03_issue-and-uncertainty-management.md`.
 
 ### Scope
 
@@ -149,6 +150,7 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 - Consumer ID collisions are detected
 - DLQ promotion paths are unified
 - ACK state and Offset tracking are independent per consumer, and the ACK write and Offset advancement are committed or rolled back within a transaction
+- The intentional-keep status is now explicit, so reviews can distinguish it from abandonment
 
 ### Negative Consequences
 
@@ -309,6 +311,7 @@ Not applicable
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner) covers the current decision (2026-10-15).
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-11-09, including the keep decision and the producer/consumer model stated as not yet defined; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

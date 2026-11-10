@@ -26,6 +26,7 @@ The Event Bus provides an internal publish/subscribe infrastructure for LLM agen
 
 > **Note:** The Event Bus HTTP API is fully implemented as a standalone service and is operational.
 > The Agent runtime does not publish to or subscribe from the Event Bus. This documentation describes the Event Bus as an independent component.
+> The Event Bus is intentionally kept for a planned future integration; its producers and consumers are not yet defined (ADR-006, keep decision recorded 2026-11-09), and future clients use the Publisher/Consumer role model (`eventbus_02_api-reference-index.md`, ADR-013).
 
 ## Architecture
 
@@ -51,7 +52,7 @@ The Agent runtime does not use the Event Bus:
 
 - **Event publishing by Agents**: No event producer exists on the Agent side. The Event Bus HTTP API accepts publishing from any HTTP client.
 - **SSE subscription by Agents**: No Agent-side subscriber consumes events via `/subscribe` SSE.
-- **Agent event topics**: No topics are defined by the Agent.
+- **Agent event topics**: No topics are defined by the Agent. This status is intentional, pending the producer/consumer definition recorded in ADR-006 and ADR-013.
 
 ## Known Issues
 
