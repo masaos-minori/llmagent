@@ -31,11 +31,11 @@ related:
 
 # Event Bus: Reference API
 
-Module-level reference for `scripts/eventbus/`. HTTP-level contracts (request/response shapes, status codes, authorization) are specified once in `eventbus_03_dlq_operations.md`, `eventbus_04_dlq_endpoint.md`, `eventbus_10_health_endpoint.md`, `eventbus_11_replay_endpoint.md` and `eventbus_12_ack_nack_endpoints.md`; this document does not restate them. The signature table below is generated from the source and is the authoritative symbol inventory.
+Module-level reference for `scripts/eventbus/`. HTTP-level contracts (request/response shapes, status codes, authorization) are specified once in `eventbus_03_dlq_operations.md`, `eventbus_04_dlq_endpoint.md`, `eventbus_10_health_endpoint.md`, `eventbus_11_replay_endpoint.md` and `eventbus_12_ack_nack_endpoints.md`; this document does not restate them. The signature table below is generated from the source as a reference listing; the source and the contract documents above remain authoritative.
 
 ## Module Responsibilities
 
-- Route modules (`publish_route.py`, `subscribe_route.py`, `replay_route.py`, `ack_route.py`, `dlq_route.py`, `health_route.py`, `admin_route.py`) implement the HTTP endpoints; event, delivery and DLQ state changes are implemented in the repository modules (`event_repo.py`, `delivery_repo.py`, `dlq_repo.py`) and `dlq.py`.
+- Route modules (`publish_route.py`, `subscribe_route.py`, `replay_route.py`, `ack_route.py`, `dlq_route.py`, `health_route.py`, `admin_route.py`) each own their routes: every route is registered once, by its route module's router, together with the role dependency that gates it, and `app.py` only includes the routers and owns startup and shutdown. Consumer routes additionally authorize the `(consumer_id, topic)` pair. Event, delivery and DLQ state changes are implemented in the repository modules (`event_repo.py`, `delivery_repo.py`, `dlq_repo.py`) and `dlq.py`.
 - `dlq.py` and `dlq_repo.py` own the DLQ lifecycle: the promotion paths commit `dlq_at` together with a `dlq_outbox` generation request, the outbox worker (`process_outbox`) fulfills those requests with retry bounded by `outbox_max_attempts`, `outbox_backoff_base_seconds`, and `outbox_backoff_max_seconds` and metered by `eventbus_dlq_outbox_generated_total`, `eventbus_dlq_outbox_attempt_failure_total`, and `eventbus_dlq_outbox_failed_total`, and `reconcile_missing_dlq_files` reports file/outbox divergences.
 - `broker.py` (`EventBroker`) is the in-memory live-delivery fan-out. It holds no durable state; SQLite is the replay source.
 - `config.py` (`EventBusConfig`) validates configuration at startup, including the unconditional loopback-only bind rule. Configuration semantics are in `eventbus_07_configuration-and-operations.md`.
@@ -48,20 +48,10 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|
 | `scripts/eventbus/ack_route.py` | `authorize_event_pair` | `async def authorize_event_pair(request, db, principal, event_id, consumer_id) -> None` | Authorize the (consumer_id, event topic) pair before any delivery write. |
-|  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
-|  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
-| `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request, principal) -> dict[str, Any] \| JSONResponse` | Update `consumer_authorization`/`topic_authorization` at runtime and |
-| `scripts/eventbus/app.py` | `lifespan` | `async def lifespan(app) -> AsyncGenerator[None]` | FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown. |
-|  | `resolve_subscribe_identity` | `async def resolve_subscribe_identity(request, consumer_id, topic, principal) -> Principal` | — |
-|  | `health` | `async def health(request, _principal) -> JSONResponse` | Health check endpoint for the event bus service. |
-|  | `publish` | `async def publish(request, _principal) -> dict[str, Any]` | Publish a new event to the event bus. |
-|  | `replay` | `async def replay(request, since_seq, fmt, limit, offset, _principal) -> Any` | Replay events from a given sequence number via SSE or JSON. |
-|  | `subscribe` | `async def subscribe(request, topic, since_seq, consumer_id, _principal, _identity) -> Any` | Subscribe to events matching the specified topics via SSE. |
-|  | `dlq_list` | `async def dlq_list(request, limit, offset, _principal) -> dict[str, Any]` | List dead-letter queue entries with pagination support. |
-|  | `dlq_requeue` | `async def dlq_requeue(request, event_id, _principal) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active queue. |
 |  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
 |  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
-|  | `admin_topics_authorization` | `async def admin_topics_authorization(request, _principal) -> dict[str, Any] \| JSONResponse` | Update consumer_authorization/topic_authorization at runtime. |
+| `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request, principal) -> dict[str, Any] \| JSONResponse` | Update `consumer_authorization`/`topic_authorization` at runtime and |
+| `scripts/eventbus/app.py` | `lifespan` | `async def lifespan(app) -> AsyncGenerator[None]` | FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown. |
 | `scripts/eventbus/audit.py` | `AuditRecord` | `class AuditRecord` | Structured payload for one EventBus audit record. |
 |  | `log_auth_failure` | `def log_auth_failure(consumer_id, request_id, route, target, error_type, detail) -> None` | Emit one JSON-lines audit record for an authorization failure. |
 |  | `log_privileged_action` | `def log_privileged_action(consumer_id, request_id, route, target, detail, actor, *, previous_generation, new_generation) -> None` | Emit one JSON-lines audit record for a privileged action. |
@@ -116,7 +106,7 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `record_attempt_failure` | `def record_attempt_failure(db, event_id, last_error, next_attempt_at, terminal) -> None` | Persist one failed generation attempt for an outbox row. |
 |  | `get_outbox_state` | `def get_outbox_state(db, event_id) -> sqlite3.Row \| None` | Return the dlq_outbox row for one event, or None when absent. |
 |  | `done_outbox_event_ids` | `def done_outbox_event_ids(db) -> set[str]` | Return event ids whose outbox row is done — the orphan classifier's set. |
-| `scripts/eventbus/dlq_route.py` | `dlq_list` | `async def dlq_list(request, limit, offset) -> dict[str, Any]` | List dead-letter queue entries with pagination support (one snapshot). |
+| `scripts/eventbus/dlq_route.py` | `dlq_list` | `async def dlq_list(request, limit, offset, _principal) -> dict[str, Any]` | List dead-letter queue entries with pagination support (one snapshot). |
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id, principal) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active event queue. |
 | `scripts/eventbus/event_repo.py` | `insert_event` | `def insert_event(conn, event_id, topic, payload_str, producer, published_at) -> tuple[int \| None, bool, str]` | INSERT OR IGNORE. Returns (seq, inserted, status). |
 |  | `get_seq` | `def get_seq(conn, event_id) -> int` | Return the seq for an existing event_id; 0 if not found. |
@@ -125,10 +115,10 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `fetch_dlq` | `def fetch_dlq(conn, limit, offset) -> list[sqlite3.Row]` | Return events currently in the DLQ (dlq_at IS NOT NULL). |
 |  | `count_dlq` | `def count_dlq(conn) -> int` | Return the number of events currently in the DLQ. |
 | `scripts/eventbus/health_route.py` | `is_ready` | `def is_ready(liveness, readiness) -> bool` | Return the readiness gate predicate used by the deployment gate. |
-|  | `health_check` | `async def health_check(request) -> JSONResponse` | Return DB/broker/DLQ task health status as a JSON response. |
+|  | `health_check` | `async def health_check(request, _principal) -> JSONResponse` | Return DB/broker/DLQ task health status as a JSON response. |
 | `scripts/eventbus/json_utils.py` | `dumps` | `def dumps(obj, option) -> str` | — |
 |  | `now_iso` | `def now_iso() -> str` | — |
-| `scripts/eventbus/publish_route.py` | `publish` | `async def publish(request) -> dict[str, Any]` | Publish an event after validating its envelope against the configured schema. |
+| `scripts/eventbus/publish_route.py` | `publish` | `async def publish(request, _principal) -> dict[str, Any]` | Publish an event after validating its envelope against the configured schema. |
 | `scripts/eventbus/replay_route.py` | `replay` | `async def replay(request, principal, since_seq, fmt, limit, offset) -> Any` | Replay events from a given sequence number via SSE or JSON response. |
 | `scripts/eventbus/route_helpers.py` | `get_histogram_avg` | `def get_histogram_avg(hist) -> float` | Return the average observation for a Histogram via the public API. |
 |  | `get_counter_value` | `def get_counter_value(counter) -> int` | Return the current value of a Counter via the public API. |
@@ -139,7 +129,8 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `app_get_config` | `def app_get_config(app) -> Any` | Return app.state.config or raise RuntimeError. |
 |  | `app_get_broker` | `def app_get_broker(app) -> 'EventBroker'` | Return app.state.broker or raise RuntimeError. |
 |  | `run_with_db_lock` | `async def run_with_db_lock(func) -> Any` | Execute a function inside get_db_lock() via asyncio.to_thread. |
-| `scripts/eventbus/subscribe_route.py` | `subscribe` | `async def subscribe(request, topic, since_seq, consumer_id, _principal, _identity) -> Any` | Subscribe to events via SSE with optional topic filtering and offset recovery. |
+| `scripts/eventbus/subscribe_route.py` | `resolve_subscribe_identity` | `async def resolve_subscribe_identity(request, consumer_id, topic, principal) -> Principal` | — |
+|  | `subscribe` | `async def subscribe(request, topic, since_seq, consumer_id, _principal, _identity) -> Any` | Subscribe to events via SSE with optional topic filtering and offset recovery. |
 <!-- END AUTO-GENERATED -->
 
 ## Keywords

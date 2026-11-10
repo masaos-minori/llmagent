@@ -4,10 +4,10 @@
 import logging
 from typing import Any
 
-from fastapi import HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from eventbus.audit import log_privileged_action
-from eventbus.auth import Principal
+from eventbus.auth import Principal, Role, require_role
 from eventbus.dlq_repo import RequeueResult, redeliver_event
 from eventbus.event_repo import count_dlq, fetch_dlq
 from eventbus.route_helpers import (
@@ -19,11 +19,15 @@ from eventbus.route_helpers import (
 
 logger = logging.getLogger(__name__)
 
+router = APIRouter()
 
+
+@router.get("/dlq")
 async def dlq_list(
     request: Request,
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    _principal: Principal = Depends(require_role(Role.OPERATOR)),
 ) -> dict[str, Any]:
     """List dead-letter queue entries with pagination support (one snapshot)."""
     db = get_db(request)
@@ -43,10 +47,11 @@ async def dlq_list(
     return snapshot
 
 
+@router.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(
     request: Request,
     event_id: str,
-    principal: Principal,
+    principal: Principal = Depends(require_role(Role.OPERATOR)),
 ) -> dict[str, Any]:
     """Requeue a dead-letter queue entry back into the active event queue.
 

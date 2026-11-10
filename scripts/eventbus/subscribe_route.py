@@ -7,12 +7,16 @@ import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from fastapi import HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from eventbus.auth import (
     Principal,
+    Role,
     effective_topics,
+    require_consumer_identity,
+    require_role,
+    resolve_principal,
 )
 from eventbus.broker import ConsumerAlreadyConnectedError
 from eventbus.json_utils import dumps as json_dumps
@@ -28,14 +32,33 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SSE_IDLE_TIMEOUT = 60  # seconds — default idle timeout for SSE subscribers
 
+router = APIRouter()
 
+
+async def resolve_subscribe_identity(
+    request: Request,
+    consumer_id: str = Query(default=""),
+    topic: list[str] = Query(default=[]),
+    principal: Principal = Depends(resolve_principal),
+) -> Principal:
+    # require_consumer_identity enforces the (consumer_id, topic) grants of the
+    # caller; passing the real consumer_id and topic (rather than empty
+    # defaults) is what makes those grants take effect. principal is resolved
+    # here (not left as an unresolved Depends marker) so the direct call below
+    # does not raise.
+    return await require_consumer_identity(
+        request, consumer_id=consumer_id, topics=topic, principal=principal
+    )
+
+
+@router.get("/subscribe")
 async def subscribe(
     request: Request,
     topic: list[str] = Query(default=[]),
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
-    _principal: Principal | None = None,  # set by app.py wrapper
-    _identity: Principal | None = None,  # set by app.py wrapper
+    _principal: Principal = Depends(require_role(Role.CONSUMER)),
+    _identity: Principal = Depends(resolve_subscribe_identity),
 ) -> Any:
     """Subscribe to events via SSE with optional topic filtering and offset recovery."""
 

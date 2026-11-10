@@ -14,12 +14,11 @@ import asyncio
 import time
 from datetime import UTC
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from tests.eventbus.eventbus_helpers import (
@@ -54,12 +53,8 @@ def _make_test_app(
     from eventbus import app as eb_app
     from eventbus.auth import (
         Principal,
-        Role,
         attach_auth_middleware,
         current_generation,
-        require_consumer_identity,
-        require_role,
-        resolve_principal,
     )
     from eventbus.config import EventBusConfig
 
@@ -127,136 +122,24 @@ def _make_test_app(
 
     attach_auth_middleware(local_app)
 
-    async def resolve_subscribe_identity(
-        request: Request,
-        consumer_id: str = Query(default=""),
-        topic: list[str] = Query(default=[]),
-        principal: Principal = Depends(resolve_principal),
-    ) -> Principal:
-        # require_consumer_identity enforces the caller's (consumer_id, topic)
-        # grants; passing the real consumer_id and topic (rather than
-        # empty defaults) is what makes those allowlists take effect. principal is
-        # resolved here (not left as an unresolved Depends marker) so the direct
-        # call below does not raise.
-        return await require_consumer_identity(
-            request, consumer_id=consumer_id, topics=topic, principal=principal
-        )
+    from eventbus.ack_route import router as ack_router
+    from eventbus.admin_route import router as admin_router
+    from eventbus.dlq_route import router as dlq_router
+    from eventbus.health_route import router as health_router
+    from eventbus.publish_route import router as publish_router
+    from eventbus.replay_route import router as replay_router
+    from eventbus.subscribe_route import router as subscribe_router
 
-    @local_app.get("/health")
-    async def health_check(request: Request) -> JSONResponse:
-        return JSONResponse(content={"status": "ok"}, status_code=200)
-
-    @local_app.post("/publish")
-    async def publish(
-        request: Request,
-        _principal: Principal = Depends(require_role(Role.PUBLISHER)),
-    ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.publish_route(request)
-        return result
-
-    @local_app.get("/subscribe")
-    async def subscribe(
-        request: Request,
-        topic: list[str] = Query(default=[]),
-        since_seq: int = Query(default=0, ge=0),
-        consumer_id: str = Query(default=""),
-        _principal: Principal = Depends(require_role(Role.CONSUMER)),
-        _identity: Principal = Depends(resolve_subscribe_identity),
-    ) -> Any:
-        return await eb_app.subscribe_route(
-            request,
-            topic=topic,
-            since_seq=since_seq,
-            consumer_id=consumer_id,
-            _principal=_principal,
-            _identity=_identity,
-        )
-
-    @local_app.get("/dlq")
-    async def dlq_list(
-        request: Request,
-        limit: int = Query(default=100, ge=1, le=1000),
-        offset: int = Query(default=0, ge=0),
-        _principal: Principal = Depends(require_role(Role.OPERATOR)),
-    ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.dlq_list_route(
-            request, limit=limit, offset=offset
-        )
-        return result
-
-    @local_app.post("/dlq/{event_id}/requeue")
-    async def dlq_requeue(
-        request: Request,
-        event_id: str,
-        _principal: Principal = Depends(require_role(Role.OPERATOR)),
-    ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.dlq_requeue_route(
-            request, event_id, principal=_principal
-        )
-        return result
-
-    @local_app.get("/replay")
-    async def replay(
-        request: Request,
-        since_seq: int = Query(default=0, ge=0),
-        fmt: Literal["sse", "json"] = Query(default="sse", alias="format"),
-        limit: int = Query(default=100, ge=1, le=1000),
-        offset: int = Query(default=0, ge=0),
-        _principal: Principal = Depends(require_role(Role.OPERATOR)),
-    ) -> Any:
-        return await eb_app.replay_route(
-            request,
-            principal=_principal,
-            since_seq=since_seq,
-            fmt=fmt,
-            limit=limit,
-            offset=offset,
-        )
-
-    @local_app.post("/events/{event_id}/ack")
-    async def ack_event(
-        request: Request,
-        event_id: str,
-        consumer_id: str = Query(default=""),
-        _principal: Principal = Depends(require_role(Role.CONSUMER)),
-        _identity: Principal = Depends(require_consumer_identity),
-    ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.ack_event_route(
-            request,
-            event_id=event_id,
-            consumer_id=consumer_id,
-            _principal=_principal,
-            _identity=_identity,
-        )
-        return result
-
-    @local_app.post("/nack")
-    async def nack(
-        request: Request,
-        event_id: str = Query(default=""),
-        idempotency_key: str = Query(
-            default=""
-        ),  # (new) caller-supplied NACK idempotency key
-        _principal: Principal = Depends(require_role(Role.CONSUMER)),
-        _identity: Principal = Depends(require_consumer_identity),
-    ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.nack_route(
-            request,
-            event_id=event_id,
-            idempotency_key=idempotency_key,
-            _principal=_principal,
-            _identity=_identity,
-        )
-        return result
-
-    @local_app.post("/admin/topics/authorization", response_model=None)
-    async def admin_topics_authorization(
-        request: Request,
-        _principal: Principal = Depends(require_role(Role.ADMIN)),
-    ) -> Any:
-        return await eb_app.update_topics_authorization_route(
-            request, principal=_principal
-        )
+    for production_router in (
+        health_router,
+        publish_router,
+        replay_router,
+        subscribe_router,
+        dlq_router,
+        ack_router,
+        admin_router,
+    ):
+        local_app.include_router(production_router)
 
     client = TestClient(local_app, raise_server_exceptions=False)
 

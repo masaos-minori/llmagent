@@ -213,6 +213,7 @@ class TestSubscribeCancelledBeforeReplay:
         """
         from eventbus import app as eb_app
         from eventbus import subscribe_route
+        from eventbus.auth import Principal, Role
 
         async def _raise_cancelled(_func: Any) -> Any:
             raise asyncio.CancelledError
@@ -229,9 +230,20 @@ class TestSubscribeCancelledBeforeReplay:
         }
         request = Request(scope)
 
+        principal = Principal(
+            roles=frozenset({Role.CONSUMER}),
+            consumer_grants=frozenset({("c1", "t")}),
+            token_fingerprint="test",
+        )
+
         with caplog.at_level(logging.INFO, logger="eventbus.subscribe_route"):
             response = await subscribe_route.subscribe(
-                request, topic=[], since_seq=0, consumer_id=""
+                request,
+                topic=["t"],
+                since_seq=0,
+                consumer_id="c1",
+                _principal=principal,
+                _identity=principal,
             )
             gen = response.body_iterator
             with pytest.raises(StopAsyncIteration):

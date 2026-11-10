@@ -6,21 +6,25 @@ import logging
 import time
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from eventbus.audit import log_privileged_action
 from eventbus.auth import (
     AuthzGeneration,
     Principal,
+    Role,
     _build_principal_map,
     current_generation,
     publish_generation,
+    require_role,
 )
 from eventbus.config import authorization_baseline_hash
 from eventbus.route_helpers import get_config
 
 logger = logging.getLogger(__name__)
+
+router = APIRouter()
 
 
 def _validate_consumer_authorization(value: Any) -> dict[str, list[str]]:
@@ -95,8 +99,10 @@ def _authorization_pairs(cfg: Any) -> set[tuple[str, str]]:
     return pairs
 
 
+@router.post("/admin/topics/authorization", response_model=None)
 async def update_topics_authorization(
-    request: Request, principal: Principal
+    request: Request,
+    principal: Principal = Depends(require_role(Role.ADMIN)),
 ) -> dict[str, Any] | JSONResponse:
     """Update `consumer_authorization`/`topic_authorization` at runtime and
     publish the result as a new AuthzGeneration (EBAUTHGEN001).

@@ -8,14 +8,14 @@ entries:
 - file: scripts/eventbus/ack_route.py
   kind: async function
   name: ack_event
-  signature: async def ack_event(request, event_id, consumer_id, _principal, _identity)
-    -> dict[str, Any]
+  signature: async def ack_event(request, event_id, consumer_id, _principal) -> dict[str,
+    Any]
   summary: Acknowledge an event as successfully processed by a consumer.
 - file: scripts/eventbus/ack_route.py
   kind: async function
   name: nack
-  signature: async def nack(request, event_id, consumer_id, idempotency_key, _principal,
-    _identity) -> dict[str, Any]
+  signature: async def nack(request, event_id, consumer_id, idempotency_key, _principal)
+    -> dict[str, Any]
   summary: Negatively acknowledge an event, triggering retry logic.
 - file: scripts/eventbus/admin_route.py
   kind: async function
@@ -29,62 +29,6 @@ entries:
   signature: async def lifespan(app) -> AsyncGenerator[None]
   summary: 'FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up
     on shutdown.'
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: resolve_subscribe_identity
-  signature: async def resolve_subscribe_identity(request, consumer_id, topic, principal)
-    -> Principal
-  summary: "\u2014"
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: health
-  signature: async def health(request, _principal) -> JSONResponse
-  summary: Health check endpoint for the event bus service.
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: publish
-  signature: async def publish(request, _principal) -> dict[str, Any]
-  summary: Publish a new event to the event bus.
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: replay
-  signature: async def replay(request, since_seq, fmt, limit, offset, _principal)
-    -> Any
-  summary: Replay events from a given sequence number via SSE or JSON.
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: subscribe
-  signature: async def subscribe(request, topic, since_seq, consumer_id, _principal,
-    _identity) -> Any
-  summary: Subscribe to events matching the specified topics via SSE.
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: dlq_list
-  signature: async def dlq_list(request, limit, offset, _principal) -> dict[str, Any]
-  summary: List dead-letter queue entries with pagination support.
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: dlq_requeue
-  signature: async def dlq_requeue(request, event_id, _principal) -> dict[str, Any]
-  summary: Requeue a dead-letter queue entry back into the active queue.
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: ack_event
-  signature: async def ack_event(request, event_id, consumer_id, _principal) -> dict[str,
-    Any]
-  summary: Acknowledge an event as successfully processed by a consumer.
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: nack
-  signature: async def nack(request, event_id, consumer_id, idempotency_key, _principal)
-    -> dict[str, Any]
-  summary: Negatively acknowledge an event, triggering retry logic.
-- file: scripts/eventbus/app.py
-  kind: async function
-  name: admin_topics_authorization
-  signature: async def admin_topics_authorization(request, _principal) -> dict[str,
-    Any] | JSONResponse
-  summary: Update consumer_authorization/topic_authorization at runtime.
 - file: scripts/eventbus/audit.py
   kind: class
   name: AuditRecord
@@ -372,7 +316,7 @@ entries:
 - file: scripts/eventbus/dlq_route.py
   kind: async function
   name: dlq_list
-  signature: async def dlq_list(request, limit, offset) -> dict[str, Any]
+  signature: async def dlq_list(request, limit, offset, _principal) -> dict[str, Any]
   summary: List dead-letter queue entries with pagination support (one snapshot).
 - file: scripts/eventbus/dlq_route.py
   kind: async function
@@ -418,7 +362,7 @@ entries:
 - file: scripts/eventbus/health_route.py
   kind: async function
   name: health_check
-  signature: async def health_check(request) -> JSONResponse
+  signature: async def health_check(request, _principal) -> JSONResponse
   summary: Return DB/broker/DLQ task health status as a JSON response.
 - file: scripts/eventbus/json_utils.py
   kind: function
@@ -433,7 +377,7 @@ entries:
 - file: scripts/eventbus/publish_route.py
   kind: async function
   name: publish
-  signature: async def publish(request) -> dict[str, Any]
+  signature: async def publish(request, _principal) -> dict[str, Any]
   summary: Publish an event after validating its envelope against the configured schema.
 - file: scripts/eventbus/replay_route.py
   kind: async function
@@ -486,6 +430,12 @@ entries:
   name: run_with_db_lock
   signature: async def run_with_db_lock(func) -> Any
   summary: Execute a function inside get_db_lock() via asyncio.to_thread.
+- file: scripts/eventbus/subscribe_route.py
+  kind: async function
+  name: resolve_subscribe_identity
+  signature: async def resolve_subscribe_identity(request, consumer_id, topic, principal)
+    -> Principal
+  summary: "\u2014"
 - file: scripts/eventbus/subscribe_route.py
   kind: async function
   name: subscribe

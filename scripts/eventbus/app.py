@@ -8,27 +8,18 @@ import sqlite3
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import orjson
-from fastapi import Depends, FastAPI, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 
-from eventbus.ack_route import ack_event as ack_event_route
-from eventbus.ack_route import nack as nack_route
-from eventbus.admin_route import (
-    update_topics_authorization as update_topics_authorization_route,
-)
+from eventbus.ack_route import router as ack_router
+from eventbus.admin_route import router as admin_router
 from eventbus.audit import log_privileged_action
 from eventbus.auth import (
-    Principal,
-    Role,
     attach_auth_middleware,  # noqa: PLC0415 — new module, REQ-002
     build_and_publish_generation,  # noqa: PLC0415 — new module, REQ-004
     current_generation,
-    require_consumer_identity,
-    require_role,
-    resolve_principal,
 )
 from eventbus.authz_ttl import authz_sweep_loop
 from eventbus.broker import EventBroker
@@ -50,15 +41,10 @@ from eventbus.dlq import (
     reconcile_missing_dlq_files,
     sweep_orphans,
 )
-from eventbus.dlq_route import (
-    dlq_list as dlq_list_route,
-)
-from eventbus.dlq_route import (
-    dlq_requeue as dlq_requeue_route,
-)
-from eventbus.health_route import health_check
-from eventbus.publish_route import publish as publish_route
-from eventbus.replay_route import replay as replay_route
+from eventbus.dlq_route import router as dlq_router
+from eventbus.health_route import router as health_router
+from eventbus.publish_route import router as publish_router
+from eventbus.replay_route import router as replay_router
 from eventbus.route_helpers import (
     app_get_config as get_config,
 )
@@ -68,7 +54,7 @@ from eventbus.route_helpers import (
 from eventbus.route_helpers import (
     run_with_db_lock,
 )
-from eventbus.subscribe_route import subscribe as subscribe_route
+from eventbus.subscribe_route import router as subscribe_router
 
 logger = logging.getLogger(__name__)
 
@@ -229,157 +215,13 @@ async def _dlq_loop(app: FastAPI) -> None:
 
 app = FastAPI(lifespan=lifespan)
 attach_auth_middleware(app)
-
-
-async def resolve_subscribe_identity(
-    request: Request,
-    consumer_id: str = Query(default=""),
-    topic: list[str] = Query(default=[]),
-    principal: Principal = Depends(resolve_principal),
-) -> Principal:
-    # require_consumer_identity enforces the (consumer_id, topic) grants of the
-    # caller; passing the real consumer_id and topic (rather than empty
-    # defaults) is what makes those grants take effect. principal is resolved
-    # here (not left as an unresolved Depends marker) so the direct call below
-    # does not raise.
-    return await require_consumer_identity(
-        request, consumer_id=consumer_id, topics=topic, principal=principal
-    )
-
-
-@app.get("/health")
-async def health(
-    request: Request,
-    _principal: Principal = Depends(require_role(Role.MONITORING)),
-) -> JSONResponse:
-    """Health check endpoint for the event bus service."""
-    result: JSONResponse = await health_check(request)
-    return result
-
-
-@app.post("/publish")
-async def publish(
-    request: Request,
-    _principal: Principal = Depends(require_role(Role.PUBLISHER)),
-) -> dict[str, Any]:
-    """Publish a new event to the event bus."""
-    result: dict[str, Any] = await publish_route(request)
-    return result
-
-
-@app.get("/replay")
-async def replay(
-    request: Request,
-    since_seq: int = Query(default=0, ge=0),
-    fmt: Literal["sse", "json"] = Query(default="sse", alias="format"),
-    limit: int = Query(default=100, ge=1, le=1000),
-    offset: int = Query(default=0, ge=0),
-    _principal: Principal = Depends(require_role(Role.OPERATOR)),
-) -> Any:
-    """Replay events from a given sequence number via SSE or JSON."""
-    return await replay_route(
-        request,
-        principal=_principal,
-        since_seq=since_seq,
-        fmt=fmt,
-        limit=limit,
-        offset=offset,
-    )
-
-
-@app.get("/subscribe")
-async def subscribe(
-    request: Request,
-    topic: list[str] = Query(default=[]),
-    since_seq: int = Query(default=0, ge=0),
-    consumer_id: str = Query(default=""),
-    _principal: Principal = Depends(require_role(Role.CONSUMER)),
-    _identity: Principal = Depends(resolve_subscribe_identity),
-) -> Any:
-    """Subscribe to events matching the specified topics via SSE."""
-    return await subscribe_route(
-        request,
-        topic=topic,
-        since_seq=since_seq,
-        consumer_id=consumer_id,
-        _principal=_principal,
-        _identity=_identity,
-    )
-
-
-@app.get("/dlq")
-async def dlq_list(
-    request: Request,
-    limit: int = Query(default=100, ge=1, le=1000),
-    offset: int = Query(default=0, ge=0),
-    _principal: Principal = Depends(require_role(Role.OPERATOR)),
-) -> dict[str, Any]:
-    """List dead-letter queue entries with pagination support."""
-    result: dict[str, Any] = await dlq_list_route(request, limit=limit, offset=offset)
-    return result
-
-
-@app.post("/dlq/{event_id}/requeue")
-async def dlq_requeue(
-    request: Request,
-    event_id: str,
-    _principal: Principal = Depends(require_role(Role.OPERATOR)),
-) -> dict[str, Any]:
-    """Requeue a dead-letter queue entry back into the active queue."""
-    result: dict[str, Any] = await dlq_requeue_route(
-        request, event_id, principal=_principal
-    )
-    return result
-
-
-@app.post("/events/{event_id}/ack")
-async def ack_event(
-    request: Request,
-    event_id: str,
-    consumer_id: str = Query(...),  # Required — no default (REQ-004)
-    _principal: Principal = Depends(require_role(Role.CONSUMER)),
-) -> dict[str, Any]:
-    """Acknowledge an event as successfully processed by a consumer."""
-    result: dict[str, Any] = await ack_event_route(
-        request,
-        event_id=event_id,
-        consumer_id=consumer_id,
-        _principal=_principal,
-    )
-    return result
-
-
-@app.post("/nack")
-async def nack(
-    request: Request,
-    event_id: str = Query(default=""),
-    consumer_id: str = Query(...),  # Required — no default (REQ-007)
-    idempotency_key: str = Query(
-        default=""
-    ),  # (new) caller-supplied NACK idempotency key
-    _principal: Principal = Depends(require_role(Role.CONSUMER)),
-) -> dict[str, Any]:
-    """Negatively acknowledge an event, triggering retry logic."""
-    result: dict[str, Any] = await nack_route(
-        request,
-        event_id=event_id,
-        consumer_id=consumer_id,
-        idempotency_key=idempotency_key,
-        _principal=_principal,
-    )
-    return result
-
-
-@app.post("/admin/topics/authorization", response_model=None)
-async def admin_topics_authorization(
-    request: Request,
-    _principal: Principal = Depends(require_role(Role.ADMIN)),
-) -> dict[str, Any] | JSONResponse:
-    """Update consumer_authorization/topic_authorization at runtime."""
-    result: dict[str, Any] | JSONResponse = await update_topics_authorization_route(
-        request, principal=_principal
-    )
-    return result
+app.include_router(health_router)
+app.include_router(publish_router)
+app.include_router(replay_router)
+app.include_router(subscribe_router)
+app.include_router(dlq_router)
+app.include_router(ack_router)
+app.include_router(admin_router)
 
 
 def _main() -> None:

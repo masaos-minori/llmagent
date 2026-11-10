@@ -5,11 +5,13 @@ import logging
 import sqlite3
 from typing import Any
 
-from fastapi import HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from eventbus.auth import (
     Principal,
+    Role,
     authorize_consumer_access,
+    require_role,
 )
 from eventbus.delivery_repo import nack_event as _nack_event
 from eventbus.event_repo import get_event_topic
@@ -25,6 +27,8 @@ from eventbus.route_helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+router = APIRouter()
 
 
 async def authorize_event_pair(
@@ -54,8 +58,7 @@ async def _do_ack(
     consumer_id: str,  # Required — no default (REQ-004)
     *,
     request: Request,
-    _principal: Principal | None = None,  # set by app.py wrapper
-    _identity: Principal | None = None,  # set by app.py wrapper
+    _principal: Principal | None = None,  # injected by the route dependency
 ) -> dict[str, Any]:
     """Common ack logic shared by /ack and /events/{event_id}/ack."""
     if not event_id:
@@ -116,12 +119,12 @@ async def _do_ack(
     return resp
 
 
+@router.post("/events/{event_id}/ack")
 async def ack_event(
     request: Request,
     event_id: str,
     consumer_id: str = Query(...),  # Required — no default (REQ-004)
-    _principal: Principal | None = None,  # set by app.py wrapper
-    _identity: Principal | None = None,  # set by app.py wrapper
+    _principal: Principal = Depends(require_role(Role.CONSUMER)),
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
     db = get_db(request)
@@ -131,6 +134,7 @@ async def ack_event(
     )
 
 
+@router.post("/nack")
 async def nack(
     request: Request,
     event_id: str = Query(default=""),
@@ -138,8 +142,7 @@ async def nack(
     idempotency_key: str = Query(
         default=""
     ),  # (new) caller-supplied NACK idempotency key
-    _principal: Principal | None = None,  # set by app.py wrapper
-    _identity: Principal | None = None,  # set by app.py wrapper
+    _principal: Principal = Depends(require_role(Role.CONSUMER)),
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
     if not event_id:

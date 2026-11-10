@@ -3,9 +3,10 @@
 
 import logging
 
-from fastapi import Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
+from eventbus.auth import Principal, Role, require_role
 from eventbus.db_conn import check_db
 from eventbus.route_helpers import (
     _db_lock_contention,
@@ -21,6 +22,8 @@ from eventbus.route_helpers import (
 
 logger = logging.getLogger(__name__)
 
+router = APIRouter()
+
 
 def is_ready(liveness: bool, readiness: bool) -> bool:
     """Return the readiness gate predicate used by the deployment gate.
@@ -31,7 +34,11 @@ def is_ready(liveness: bool, readiness: bool) -> bool:
     return liveness and readiness
 
 
-async def health_check(request: Request) -> JSONResponse:
+@router.get("/health")
+async def health_check(
+    request: Request,
+    _principal: Principal = Depends(require_role(Role.MONITORING)),
+) -> JSONResponse:
     """Return DB/broker/DLQ task health status as a JSON response."""
     db = get_db(request)
     broker = get_broker(request)

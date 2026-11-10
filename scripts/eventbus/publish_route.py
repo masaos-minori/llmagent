@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import jsonschema
-from fastapi import HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from prometheus_client import Counter
 
+from eventbus.auth import Principal, Role, require_role
 from eventbus.event_repo import insert_event
 from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import (
@@ -36,9 +37,13 @@ _broker_notify_failure_counter = Counter(
 # the date-time checker requires rfc3339-validator, declared in pyproject.toml.
 _FORMAT_CHECKER = jsonschema.FormatChecker()
 
+router = APIRouter()
 
+
+@router.post("/publish")
 async def publish(
     request: Request,
+    _principal: Principal = Depends(require_role(Role.PUBLISHER)),
 ) -> dict[str, Any]:
     """Publish an event after validating its envelope against the configured schema."""
     body: dict[str, Any] = await request.json()
