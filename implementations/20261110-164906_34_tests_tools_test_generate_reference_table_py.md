@@ -4,7 +4,7 @@ Drop the `PRAGMA user_version` fixture lines from the reference-table generator 
 (`REQ-004`).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: fingerprint-cutover (Phase 2; batched with rows 02,03,04,16,23,24,26 because the suite cannot validate green with the stamp removed until this row lands)
 
 ## Assumptions
 - `tools/generate_reference_table.py` no longer requires a `PRAGMA user_version` stamp

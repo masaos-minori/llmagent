@@ -7,8 +7,18 @@ generalized `scripts/shared/schema_fingerprint.py` (`REQ-002`, `REQ-004`).
 **Release unit**: fingerprint-cutover (Phase 2)
 
 ## Assumptions
-- By Phase 2 all importers import `schema_fingerprint` instead, so deleting this module does
-  not break an import. Residue must be confirmed before deletion (AC-04 residue check).
+- By Phase 2 all importers import `schema_fingerprint (new)` instead, so deleting this module
+  does not break an import. Residue must be confirmed before deletion (AC-04 residue check).
+- Execution order: batch mode runs members in seq order, so this deletion lands first inside
+  the fingerprint-cutover unit; the importer moves are later members of the same unit — 03
+  (`scripts/eventbus/schema.py:7`), 16 (rewrites the `deploy/init_db.sh:108` comment), 21
+  (`tests/db/test_create_schema.py:26`, which also imports `apply_schema_in_memory`,
+  `expected_fingerprint`, and `build_fingerprint` from this module), and 49
+  (`scripts/eventbus/db_tools.py:25`). Until those members land, importer import failures are
+  batch-allowed red states recorded in the Failure Log. The definitive importer-residue check
+  runs at the unit-end Step 7 gate. The remaining name entry at
+  `tests/mcp_servers/mdq/test_mdq_rag_boundary.py:74` is a string in an allowlist and does not
+  break on deletion; row 33 removes it.
 - This is a pure removal: no compatibility shim is added (Plan target note).
 
 ## Design decisions
@@ -23,7 +33,7 @@ generalized `scripts/shared/schema_fingerprint.py` (`REQ-002`, `REQ-004`).
 `scripts/shared/eventbus_schema_fingerprint.py` (delete)
 
 ### Procedure
-1. Confirm every importer moved: `rg -n "eventbus_schema_fingerprint" scripts/ tests/ deploy/ tools/` returns only the self-reference in the deleted file (and the expected comment in `deploy/init_db.sh` line 108, which is rewritten in this Phase).
+1. Importer-residue check (unit-end gate, Step 7): `rg -n "eventbus_schema_fingerprint" scripts/ tests/ deploy/ tools/` must then return only the allowlist string entry in `tests/mcp_servers/mdq/test_mdq_rag_boundary.py` (removed by row 33); members 03, 16, 21, and 49 have moved the imports and rewritten the `deploy/init_db.sh:108` comment by then.
 2. Remove the file: `git rm scripts/shared/eventbus_schema_fingerprint.py`.
 3. Update the allowed-import entry in `tests/mcp_servers/mdq/test_mdq_rag_boundary.py:74` to the new module name (that row is handled by its own document).
 

@@ -4,7 +4,7 @@ Move `scripts/eventbus/db_tools.py` off the deleted module: import `assert_match
 the generalized `scripts/shared/schema_fingerprint` module (`REQ-003`, fallout 2026-11-10).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: fingerprint-cutover (Phase 2; batched with rows 02,03,04,16,23,24,26 because the suite cannot validate green with the stamp removed until this row lands)
 
 ## Assumptions
 - `scripts/shared/eventbus_schema_fingerprint.py` is deleted in Phase 2 (row 2), so the
@@ -73,8 +73,8 @@ Deleting `eventbus_schema_fingerprint.py` (row 2) and the schema.py changes (row
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Swap the assert_matches import; drop the removed version helper | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Swap the assert_matches import; drop the removed version helper | Pending | — | — | Pre-execution evidence (20261111, read-only assert_matches): deployed /opt/llm/db/eventbus.sqlite carries an extra 'schema_migrations' table and will refuse startup with the new assert until the operator archives and recreates it (UNK-03). rag.sqlite and session.sqlite match; workflow.sqlite carries extra 'execution_snapshots'. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

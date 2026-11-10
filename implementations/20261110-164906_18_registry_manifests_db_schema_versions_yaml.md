@@ -4,7 +4,7 @@ Regenerate `registry/manifests/db_schema_versions.yaml` (not hand-edited) after 
 no longer reads a stamp (`REQ-004`).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: fingerprint-cutover (Phase 2; batched with rows 02,03,04,16,23,24,26 because the suite cannot validate green with the stamp removed until this row lands)
 
 ## Assumptions
 - This YAML is a generated artifact produced by `tools/generate_reference_table.py` (its row);

@@ -150,9 +150,9 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | How the fingerprint treats sqlite-vec virtual tables and their shadow tables in rag.sqlite and session.sqlite | Behavior of `sqlite_master` rows for `vec0` tables under the loaded extension | Default in Implementation Intent (exclude by name, require existence); Phase 1 confirms with the real extension | False |
-| UNK-02 | Whether a legacy workflow database carrying the retired `execution_snapshots` table must fail startup (the documents call it harmless; exact matching rejects it) | A maintainer decision; no production database carries the table today (read-only check) | Default: fail (matches the Issue's "extra legacy table" criterion); the maintainer may object before Phase 3 | False |
-| UNK-03 | The operator's plan for the deployed `/opt/llm/db` files, which already differ from the current schema (workflow markers, no `tool_call_state`; eventbus `user_version 0`; rag without `rag_corpus_meta`; mdq with `chunk_summaries`) | Whether the data in them must be kept | Maintainer decides archive-and-recreate per database before deploy; the Plan changes no data | False |
+| UNK-01 | How the fingerprint treats sqlite-vec virtual tables and their shadow tables in rag.sqlite and session.sqlite | Confirmed (20261111, Phase 1, real extension loaded) | Resolved: virtual bases are required by name only, `{base}_*` shadow tables are omitted, and live virtual tables are recorded name-only from their sqlite_master DDL text, so `assert_matches` works on connections without the extension; confirmed against deployed `rag.sqlite` and `session.sqlite` (both OK) | False |
+| UNK-02 | Whether a legacy workflow database carrying the retired `execution_snapshots` table must fail startup (the documents call it harmless; exact matching rejects it) | A maintainer decision; re-checked 20261111: deployed `/opt/llm/db/workflow.sqlite` does carry `execution_snapshots` and the new fingerprint rejects it | Default: fail (matches the Issue's "extra legacy table" criterion); the maintainer may object before Phase 3 | False |
+| UNK-03 | The operator's plan for the deployed `/opt/llm/db` files, which already differ from the current schema (workflow markers, no `tool_call_state`; eventbus `user_version 0`; rag without `rag_corpus_meta`; mdq with `chunk_summaries`) | Whether the data in them must be kept; re-checked 20261111 (read-only `assert_matches`): `rag.sqlite` and `session.sqlite` match the canonical fingerprint; `workflow.sqlite` carries extra `execution_snapshots`; `eventbus.sqlite` carries extra `schema_migrations` | Maintainer decides archive-and-recreate per database before deploy; the Plan changes no data | False |
 | UNK-04 | Whether any part of the mcp_dedup `tool_call_state` or `classify_stale_pending` is unused | Not re-examined here (ownership is the mcp_dedup Issue's scope) | Left to `issues/20261109-112844_adrrev008_mcp-dedup-ownership.md`; nothing is deleted here | False |
 | UNK-05 | Whether file-level ordering with plan 002 needs a hard gate beyond the recorded Depends on | The state of plan 002 at implementation time | `tools/plan_dependency_order.py --plan` before Phase 1 | False |
 
@@ -267,7 +267,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Generalized fingerprint (additive) | In Progress | — | — |  |
+| 1 | Generalized fingerprint (additive) | Completed | 20261111-073000 | 20261111-082253 | Procedures 01 and 19 archived to implementations/done/ (20261111). Inventory re-verified in the adversarial verification pass. UNK-01 confirmed with the real extension (virtual bases name-only, shadows omitted, live virtual tables recorded name-only from sqlite_master text). Full validation gates --full all Pass once for both rows (shared coverage/diff-cover run at this boundary). |
 | 2 | Eventbus and deploy gate on the new module | In Progress | — | — |  |
 | 3 | Remaining databases | In Progress | — | — |  |
 | 4 | Remove the lease-less legacy rule | In Progress | — | — |  |

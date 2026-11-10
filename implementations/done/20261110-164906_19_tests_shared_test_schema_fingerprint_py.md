@@ -55,9 +55,9 @@ Per-database drift tests (`tests/db/test_schema_validation_per_database.py`, its
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261111-074600 | 20261111-080021 | Test file with 25 tests: canonical builds pass for all four domains; small-fixture drift cases for every drift kind; per-domain drift refusals; virtual name-only and stand-in tests; splitting tests. Drift fixtures derive variants from real builder DDL strings. |
+| 2 | Add or update tests per Validation plan | Completed | 20261111-074600 | 20261111-080021 | Validation plan run: uv run pytest tests/shared/test_schema_fingerprint.py -q = 25 passed. Correction: 26 tests after adding the file-DB virtual-table test (25+1). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-080300 | 20261111-082253 | Shared full-suite run at the Plan step 1 boundary (deviation shared with row 01): run_validation_gates.py --full = all Pass (ast-grep Not run: binary absent on host). Deviation: coverage/diff-cover (>=90) gate run once for both rows. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

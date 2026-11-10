@@ -1,15 +1,21 @@
 ## Goal
 
 Expose the canonical DDL of every database through one accessor family in
-`scripts/db/schema_sql.py`, and remove the eventbus `user_version` reader
-(`eventbus_schema_version`) if plan 002 has not already removed it (`REQ-002`, `REQ-004`).
+`scripts/db/schema_sql.py`, and add the missing `build_eventbus_schema_sql()` accessor
+(`REQ-002`, `REQ-004`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- `build_workflow_schema_sql()`, `build_session_schema_sql()`, `build_rag_schema_sql()`
-  already exist (verified at lines 243-259); callers pass their return value as canonical DDL.
+- `build_rag_schema_sql(dims: int)`, `build_session_schema_sql(dims: int)` (verified at lines
+  161-169), and `build_workflow_schema_sql()` (verified at lines 241-243) already exist;
+  callers pass their return value as canonical DDL. Fingerprint-gate callers must pass the
+  deployed dims values (rag 1024, session 256) for the accessor to reproduce the canonical DDL.
+- Verified 2026-11-11: plan 002 has already removed the eventbus accessor and every
+  `PRAGMA user_version` reader from this file (`rg -n "user_version|eventbus_schema_version"
+  scripts/db/schema_sql.py` returns no hit; file is 243 lines). Procedure step 2 is therefore
+  a confirmation step, not a deletion step.
 - Any eventbus accessor (`eventbus_schema_version`) in this file reads the removed stamp and
   must go; confirm current contents before editing.
 
@@ -25,12 +31,14 @@ Expose the canonical DDL of every database through one accessor family in
 `scripts/db/schema_sql.py`
 
 ### Procedure
-1. Add `build_eventbus_schema_sql()` alongside the existing accessors.
-2. Delete any function/regex that reads `PRAGMA user_version` or the eventbus stamp from this file.
+1. Add `build_eventbus_schema_sql()` alongside the existing accessors, returning the canonical
+   eventbus DDL text (read from `scripts/eventbus/schema.sql`).
+2. Confirm with `rg -n "user_version|eventbus_schema_version" scripts/db/schema_sql.py` that no
+   `PRAGMA user_version` reader remains (already true after plan 002); delete any hit if one appears.
 3. Point callers (handled by their rows) at these accessors for canonical DDL.
 
 ### Method
-- Locate the eventbus `user_version` reader via `rg -n "user_version|eventbus_schema_version" scripts/db/schema_sql.py`; delete only those symbols. Add `build_eventbus_schema_sql()` returning the canonical DDL.
+- Run `rg -n "user_version|eventbus_schema_version" scripts/db/schema_sql.py`; verified 2026-11-11 that there is no hit, so nothing to delete. Add `build_eventbus_schema_sql()` returning the canonical DDL text with the same `build_<domain>_schema_sql() -> str` shape.
 
 ### Details
 - Keep the accessor family signature consistent (`build_<domain>_schema_sql() -> str`).

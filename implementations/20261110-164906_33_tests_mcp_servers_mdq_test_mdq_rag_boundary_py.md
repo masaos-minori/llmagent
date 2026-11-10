@@ -10,6 +10,10 @@ generalized module (`REQ-002`).
 - `scripts/shared/eventbus_schema_fingerprint.py` is deleted and replaced by
   `scripts/shared/schema_fingerprint.py` (row 2); the boundary test's allowlist must point
   at the new module.
+- Row 1 already adds `"schema_fingerprint.py"` to the `ALLOWED` set during its own cycle (the
+  new module uses `sqlite3.connect(":memory:")` and would otherwise fail the boundary test
+  while both modules coexist). This row therefore only removes the old `"eventbus_schema_fingerprint.py"`
+  entry after row 2 deletes that module, and fixes the comment.
 
 ## Design decisions
 - Swap only the allowlisted filename; the test logic is unchanged.

@@ -4,7 +4,7 @@ Delete the `PRAGMA user_version` refusal cases from the EventBus db_tools test t
 Plan removes; keep the shape-drift case (`REQ-004`, fallout 2026-11-10).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: fingerprint-cutover (Phase 2; batched with rows 02,03,04,16,23,24,26 because the suite cannot validate green with the stamp removed until this row lands)
 
 ## Assumptions
 - `scripts/eventbus/schema.py` no longer compares `user_version` (row 3); the generalized

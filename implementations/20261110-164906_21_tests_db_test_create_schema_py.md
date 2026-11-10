@@ -4,14 +4,25 @@ Replace the eventbus `user_version` cases in `tests/db/test_create_schema.py` wi
 cases (`REQ-003`, `REQ-004`).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: fingerprint-cutover (Phase 2; batched with rows 02,03,04,16,23,24,26 because the suite cannot validate green with the stamp removed until this row lands)
 
 ## Assumptions
 - Current cases assert a `PRAGMA user_version` mismatch is refused (Plan: 50 hits); eventbus no
   longer gates on `user_version`.
+- Verified 2026-11-11: this test also imports `eventbus.db_tools.schema_version` (line 25) and
+  `apply_schema_in_memory`, `assert_matches`, `build_fingerprint`, `expected_fingerprint` from
+  `shared.eventbus_schema_fingerprint` (lines 26-31). Row 49 removes `schema_version`; row 02
+  deletes the fingerprint module along with `apply_schema_in_memory` and `expected_fingerprint`.
+  This row must land in the fingerprint-cutover batch BEFORE row 02, or the deletion breaks
+  this test's imports.
+- The EventBus fingerprint block at lines 1007-1044 calls `expected_fingerprint()` and
+  `apply_schema_in_memory()`; `test_validator_raises_even_when_user_version_matches` (lines
+  1192-1201) stamps `PRAGMA user_version = {eventbus_schema_version()}`.
 
 ## Design decisions
 - Replace the eventbus `user_version` assertion with a fingerprint drift assertion (e.g. drop a column or add an extra table) expecting the archive-and-recreate error.
+- Move imports to the generalized module: `from shared.schema_fingerprint import assert_matches, build_fingerprint`; build the expected fingerprint by applying the canonical eventbus DDL (`eventbus.db_tools.schema_sql()`, no stamp after row 04) to an in-memory database, replacing `apply_schema_in_memory()`/`expected_fingerprint()` calls.
+- Delete or convert `test_validator_raises_even_when_user_version_matches`: the version gate no longer exists; keep the shape-drift guarantee through a drift mutation instead.
 
 ## Alternatives considered
 - Deleting the eventbus case: rejected; keep coverage expressed through the fingerprint mechanism.
@@ -21,8 +32,14 @@ cases (`REQ-003`, `REQ-004`).
 `tests/db/test_create_schema.py`
 
 ### Procedure
-1. Find the eventbus `user_version` case(s); replace the `PRAGMA user_version` mutation with a shape drift.
-2. Update assertions to expect the fingerprint refusal message.
+1. Update the imports (lines 25-31): drop `eventbus.db_tools.schema_version`; import
+   `assert_matches` and `build_fingerprint` from `shared.schema_fingerprint` instead of the
+   deleted module; drop `apply_schema_in_memory` and `expected_fingerprint`.
+2. Rewrite the EventBus fingerprint block (lines 1007-1044) to build the expected fingerprint
+   from the canonical eventbus DDL text via the generalized module.
+3. Find the eventbus `user_version` case(s) (including `test_validator_raises_even_when_user_version_matches`,
+   lines 1192-1201); replace the `PRAGMA user_version` mutation with a shape drift.
+4. Update assertions to expect the fingerprint refusal message.
 
 ### Method
 - Mutate the created eventbus database shape (extra table/column) before re-opening via `create_schema`; assert refusal.
