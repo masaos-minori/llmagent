@@ -16,7 +16,6 @@ from agent.shared.health_models import (
 from agent.startup import StartupOrchestrator
 from agent.startup_validation import StartupValidationPipeline
 from shared.config_errors import ConfigLoadError, ConfigMissingError
-from shared.mcp_config import SecurityProfile
 
 MODULE = "agent.startup_validation"
 
@@ -68,8 +67,6 @@ def test_validation_result_skipped_not_fatal() -> None:
 @pytest.fixture()
 def mock_ctx():
     ctx = MagicMock()
-    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-    ctx.cfg.tool.tool_definitions_strict = False
     return ctx
 
 
@@ -100,27 +97,13 @@ async def test_warnings_only_no_raise(startup_instance) -> None:
 
 
 @pytest.mark.asyncio
-async def test_routing_drift_strict_true_raises_fatal(startup_instance) -> None:
-    startup_instance._ctx.cfg.tool.routing_drift_strict = True
+async def test_routing_drift_raises_fatal(startup_instance) -> None:
     pipeline = startup_instance._validation_pipeline
     pipeline.check_services.side_effect = RuntimeError(
         "Startup validation failed: routing drift detected: tool_names mismatch"
     )
     with pytest.raises(RuntimeError, match="Startup validation failed"):
         await startup_instance._check_services()
-
-
-@pytest.mark.asyncio
-async def test_routing_drift_strict_false_warns_only(startup_instance) -> None:
-    startup_instance._ctx.cfg.tool.routing_drift_strict = False
-    pipeline = startup_instance._validation_pipeline
-    pipeline.check_services.return_value = MagicMock(
-        has_fatal=False,
-        fatal_messages=lambda: [],
-        warning_messages=lambda: ["drift: tool foo missing from tool_definitions"],
-        outcomes=[],
-    )
-    await startup_instance._check_services()  # must not raise
 
 
 @pytest.mark.asyncio
@@ -155,13 +138,11 @@ async def test_skipped_live_routing_no_raise(startup_instance) -> None:
 
 @pytest.mark.asyncio
 async def test_validation_pipeline_reports_fatal_when_config_missing() -> None:
-    """REQ-001: Startup validation pipeline reports FATAL when agent.toml is missing (strict-default)."""
+    """REQ-001: Startup validation pipeline reports FATAL when agent.toml is missing."""
     # Arrange: create orchestrator via __new__ to avoid AgentContext.__init__ config loading
     # which wraps ConfigMissingError into RuntimeError.
     # Instead, verify the pipeline aggregation by providing a mock context with cfg.
     ctx = MagicMock()
-    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-    ctx.cfg.tool.tool_definitions_strict = True
     ctx.services_required.runtime_tools = None
 
     instance = StartupOrchestrator.__new__(StartupOrchestrator)
@@ -239,7 +220,6 @@ def test_check_routing_safety_tiers_context():
     server = MagicMock()
     server.tool_names = ["tool_a", "tool_b"]
     cfg.mcp.mcp_servers = {"srv1": server}
-    cfg.tool.routing_drift_strict = False
     cfg.approval.tool_safety_tiers = {}
     ctx.cfg = cfg
     msgs = check_routing_safety_tiers(ctx)
@@ -256,12 +236,9 @@ def test_check_routing_safety_tiers_context():
 
 
 @pytest.fixture()
-def mock_ctx_with_strict_profile():
-    """Return a MagicMock ctx configured for strict production profile."""
+def mock_ctx_production():
+    """Return a MagicMock ctx configured for production startup validation."""
     ctx = MagicMock()
-    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-    ctx.cfg.tool.tool_definitions_strict = True
-    ctx.cfg.tool.routing_drift_strict = True
     return ctx
 
 
@@ -276,15 +253,15 @@ class TestFaltyOwnConfigFileScenario:
 
     @pytest.mark.asyncio
     async def test_falsy_own_config_file_produces_fatal(
-        self, mock_ctx_with_strict_profile
+        self, mock_ctx_production
     ) -> None:
         """Verify that a FATAL error from any check is aggregated by the pipeline."""
         instance = StartupOrchestrator.__new__(StartupOrchestrator)
-        instance._ctx = mock_ctx_with_strict_profile
+        instance._ctx = mock_ctx_production
         instance._view = MagicMock()
         instance._reporter = MagicMock()
         instance._validation_pipeline = StartupValidationPipeline(
-            mock_ctx_with_strict_profile, instance._view
+            mock_ctx_production, instance._view
         )
 
         # Simulate a FATAL error from the readiness step (Security Posture validation)
@@ -311,15 +288,15 @@ class TestFaltyOwnConfigFileScenario:
 
     @pytest.mark.asyncio
     async def test_truthy_own_config_file_does_not_produce_fatal(
-        self, mock_ctx_with_strict_profile
+        self, mock_ctx_production
     ) -> None:
         """Verify that clean checks do not produce FATAL errors."""
         instance = StartupOrchestrator.__new__(StartupOrchestrator)
-        instance._ctx = mock_ctx_with_strict_profile
+        instance._ctx = mock_ctx_production
         instance._view = MagicMock()
         instance._reporter = MagicMock()
         instance._validation_pipeline = StartupValidationPipeline(
-            mock_ctx_with_strict_profile, instance._view
+            mock_ctx_production, instance._view
         )
 
         # All checks pass cleanly
@@ -351,15 +328,15 @@ class TestUnknownTopLevelKeyScenario:
 
     @pytest.mark.asyncio
     async def test_unknown_top_level_key_produces_error_in_production(
-        self, mock_ctx_with_strict_profile
+        self, mock_ctx_production
     ) -> None:
         """Verify that routing_drift warnings are aggregated without raising."""
         instance = StartupOrchestrator.__new__(StartupOrchestrator)
-        instance._ctx = mock_ctx_with_strict_profile
+        instance._ctx = mock_ctx_production
         instance._view = MagicMock()
         instance._reporter = MagicMock()
         instance._validation_pipeline = StartupValidationPipeline(
-            mock_ctx_with_strict_profile, instance._view
+            mock_ctx_production, instance._view
         )
 
         # Simulate routing_drift warning (not FATAL)
@@ -397,16 +374,14 @@ class TestInv07EnvironmentFailureHandling:
     """
 
     @pytest.mark.asyncio
-    async def test_allowlist_failure_produces_fatal(
-        self, mock_ctx_with_strict_profile
-    ) -> None:
+    async def test_allowlist_failure_produces_fatal(self, mock_ctx_production) -> None:
         """Verify that Allowlist verification failure produces a FATAL error."""
         instance = StartupOrchestrator.__new__(StartupOrchestrator)
-        instance._ctx = mock_ctx_with_strict_profile
+        instance._ctx = mock_ctx_production
         instance._view = MagicMock()
         instance._reporter = MagicMock()
         instance._validation_pipeline = StartupValidationPipeline(
-            mock_ctx_with_strict_profile, instance._view
+            mock_ctx_production, instance._view
         )
 
         # Simulate Allowlist verification failure (FATAL)
@@ -431,7 +406,7 @@ class TestInv07EnvironmentFailureHandling:
 
     @pytest.mark.asyncio
     async def test_safety_tier_failure_produces_fatal(
-        self, mock_ctx_with_strict_profile
+        self, mock_ctx_production
     ) -> None:
         """Verify that Safety Tier verification failure produces a FATAL error.
 
@@ -439,11 +414,11 @@ class TestInv07EnvironmentFailureHandling:
         startup without a rollback, so this drives ``_check_config``.
         """
         instance = StartupOrchestrator.__new__(StartupOrchestrator)
-        instance._ctx = mock_ctx_with_strict_profile
+        instance._ctx = mock_ctx_production
         instance._view = MagicMock()
         instance._reporter = MagicMock()
         instance._validation_pipeline = StartupValidationPipeline(
-            mock_ctx_with_strict_profile, instance._view
+            mock_ctx_production, instance._view
         )
 
         # Simulate Safety Tier verification failure (FATAL)

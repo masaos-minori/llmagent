@@ -131,7 +131,23 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 ### Active Items
 
-No active items.
+#### NC-001
+
+- **ID:** NC-001
+- **Source File:** `adr_02_01_004_platform-environment-failure-handling-policy.md`
+- **Section:** Decision > Group 1 (Registered exception, empty `path_denylist`)
+- **Line Number:** 67
+- **Question:** Why is an empty `path_denylist` on the GitHub server permitted as the only empty-safety-list relaxation when every other boundary control is fail-closed?
+- **Evidence:** The ADR-004 Group 1 exception record (PENDING placeholder); `config/github_mcp_server.toml` ships `path_denylist = []`; config build accepts it while `allowed_root` and `protected_branches` are rejected when empty.
+- **Impact:** A maintainer-declared exception without a written rationale weakens the ADR's auditability; the exception stands until the rationale is supplied or the exception is removed.
+- **Required Action:** The maintainer writes the rationale into the ADR-004 Group 1 exception record; the implementer does not write it. Remove the inline marker only when the rationale text is supplied.
+- **Status:** open
+- **Assigned To:** maintainer
+- **Last Reviewed:** 2026-11-10
+- **Priority:** High
+- **Related NC:** None
+- **Resolution Target:** rationale text in the ADR-004 Group 1 exception record
+- **Blocking:** None
 
 ## Part 3: Canonical Source Conflict
 

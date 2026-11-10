@@ -63,12 +63,6 @@ class StartupMode(StrEnum):
         return self == StartupMode.SUBPROCESS
 
 
-class SecurityProfile(StrEnum):
-    """Deployment security profile for MCP auth enforcement."""
-
-    PRODUCTION = "production"
-
-
 @dataclass
 class McpServerConfig:
     """Transport configuration for one MCP server."""

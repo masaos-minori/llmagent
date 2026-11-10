@@ -41,8 +41,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
         "allowed_tools": ["shell_execute"],
-        "tool_definitions_strict": True,
-        "routing_drift_strict": True,
         "tool_definitions": [],
         "tool_safety_tiers": {},
         "approval_risk_rules": {},
@@ -51,7 +49,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_high_risk_branches": [],
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
-        "allowed_root": "",
+        "allowed_root": "/",
         # memory_embed_enabled now defaults to True; embed_url must be non-empty
         # to satisfy AgentConfig.__post_init__'s cross-field validation.
         "embed_url": "http://127.0.0.1:9999",
@@ -340,10 +338,11 @@ class TestCheckAllowedRootEdgeCases:
 
 class TestCheckPreflightEdgeCases:
     def test_empty_allowed_tools_list(self) -> None:
+        """REQ-002: an empty allowed_tools denies every tool."""
         cfg = _cfg(allowed_tools=[])
-        check_preflight(
-            cfg, "any_tool", {}
-        )  # Should not deny when allowed_tools is empty
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(cfg, "any_tool", {})
+        assert exc_info.value.audit_decision == "denied_allowed_tools"
 
     def test_none_values_in_args(self) -> None:
         cfg = _cfg(allowed_root="/tmp", allowed_tools=["write_file"])

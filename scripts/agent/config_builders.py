@@ -20,10 +20,7 @@ from typing import Any
 
 from shared.config_errors import ConfigLoadError
 from shared.config_loader import ConfigLoader
-from shared.mcp_config import (
-    SecurityProfile,
-    _build_mcp_servers,
-)
+from shared.mcp_config import _build_mcp_servers
 from shared.runtime_paths import resolve_config_dir
 from shared.tool_registry import get_registry
 
@@ -101,13 +98,10 @@ def _resolve_config_source_and_registry(
 
 def _run_production_validation(
     cfg: dict[str, Any],
-    security_profile_val: SecurityProfile,
     known_tools: set[str],
 ) -> None:
     """Run production config validation; exit on errors."""
-    results = ProductionConfigValidator().validate(
-        cfg, security_profile=security_profile_val, known_tools=known_tools
-    )
+    results = ProductionConfigValidator().validate(cfg, known_tools=known_tools)
     if results.errors:
         logger.error("Production config validation failed:")
         for err in results.errors:
@@ -122,7 +116,6 @@ def _run_production_validation(
 def _assemble_agent_config(
     cfg: dict[str, Any],
     system_prompt_tool: str,
-    security_profile_val: SecurityProfile,
 ) -> AgentConfig:
     """Assemble AgentConfig by delegating to builder functions."""
     otel_enabled = _get_or_default(cfg, "otel_enabled", _get_bool, False)
@@ -132,10 +125,7 @@ def _assemble_agent_config(
         rag=_build_rag_config(cfg),
         tool=_build_tool_config(cfg, system_prompt_tool),
         memory=_build_memory_config(cfg),
-        mcp=MCPConfig(
-            mcp_servers=_build_mcp_servers(cfg),
-            security_profile=security_profile_val,
-        ),
+        mcp=MCPConfig(mcp_servers=_build_mcp_servers(cfg)),
         approval=_build_approval_config(cfg),
         obs=ObservabilityConfig(
             otel_enabled=otel_enabled,
@@ -163,6 +153,5 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     """
     cfg, known_tools = _resolve_config_source_and_registry(cfg_override)
     system_prompt_tool = cfg.get("system_prompt_tool", "")
-    security_profile_val = SecurityProfile(cfg.get("security_profile", "production"))
-    _run_production_validation(cfg, security_profile_val, known_tools)
-    return _assemble_agent_config(cfg, system_prompt_tool, security_profile_val)
+    _run_production_validation(cfg, known_tools)
+    return _assemble_agent_config(cfg, system_prompt_tool)

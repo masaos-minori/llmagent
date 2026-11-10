@@ -50,7 +50,6 @@ class TestPrintConfigValues:
         assert "llm_url" in out
         assert "SSE stream settings:" in out
         assert "Execution settings:" in out
-        assert "MCP / security settings:" in out
         assert "Approval settings:" in out
         assert "Security settings (tool safety):" in out
         assert "plan_mode           : OFF" in out
@@ -140,8 +139,6 @@ class TestPrintConfigValues:
             "  sse_malformed_retry                : 2",
             "Execution settings:",
             "  serial_tool_calls   : False",
-            "MCP / security settings:",
-            "  tool_def_strict     : False",
             "Approval settings:",
             "  risk_rules          : ",
             "  protected_paths     :",
@@ -152,7 +149,7 @@ class TestPrintConfigValues:
             "  allowed_root        : (disabled)",
             "  github_allowed_repos: (Fail-Closed",
             "  tool_safety_tiers   : 0 tools classified",
-            "  allowed_tools       : (unrestricted)",
+            "  allowed_tools       : (none: all tools denied)",
             "  plan_mode           : OFF",
             "  plan_blocked_tools  :",
             "    - write_file",

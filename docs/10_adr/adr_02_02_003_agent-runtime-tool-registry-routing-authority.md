@@ -253,7 +253,7 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 | Startup fails on duplicate Tool name ownership | INV-01 | Integration | Yes | `tests/agent/services/test_mcp_tool_discovery.py` |
 | Unregistered Tools are not executed | INV-02 | Unit | Yes | `tests/shared/test_route_resolver.py::TestRegistryRouting` |
 | There is no Fallback to the static ToolRegistry | INV-04 | Regression | Yes | Not verified |
-| Startup Drift validation (config/live comparison) uses the static `ToolRegistry` as input and does not change the `RuntimeToolRegistry`-based Routing decision itself | INV-04 (Decision Detail #15) | Integration | No (warning only; in strict mode startup is aborted, but the Routing decision itself is not affected) | `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`, `tests/shared/test_tool_registry.py`, `tests/shared/test_tool_safety_tiers.py` |
+| Startup Drift validation (config/live comparison) uses the static `ToolRegistry` as input and does not change the `RuntimeToolRegistry`-based Routing decision itself | INV-04 (Decision Detail #15) | Integration | No (startup is aborted on drift, but the Routing decision itself is not affected) | `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`, `tests/shared/test_tool_registry.py`, `tests/shared/test_tool_safety_tiers.py` |
 | Routing, approval, and auditing reference the same Safety Tier | INV-03 | Integration | Yes | Not verified |
 | A registered write tool outside the static sets is never classified as READ, and a write-flag mismatch is reported at startup | INV-03 | Unit | Yes | `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/services/test_mcp_tool_discovery.py` |
 | A statically disabled Tool is not included in `llm_tool_definitions()` | INV-06 | Regression | Yes | `tests/shared/test_runtime_tool_registry.py` |
@@ -283,7 +283,7 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 ## Implementation Notes
 
 - Startup validation runs MCP tool discovery and connects the resulting `RuntimeToolRegistry` to `ToolExecutor`; `ToolRouteResolver.resolve()` consults only that Registry (Explicit in code — `scripts/agent/startup_validation.py`, `scripts/shared/route_resolver.py`).
-- Approval and audit operation types never classify a tool whose `RuntimeTool` is a write tool as READ; startup validation reports a mismatch between the static tool sets and `RuntimeTool` write attributes (FATAL under `tool_definitions_strict`, otherwise WARNING) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/services/mcp_tool_discovery.py`).
+- Approval and audit operation types never classify a tool whose `RuntimeTool` is a write tool as READ; startup validation reports a mismatch between the static tool sets and `RuntimeTool` write attributes (FATAL) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/services/mcp_tool_discovery.py`).
 
 See Implementation References for the file/symbol list.
 

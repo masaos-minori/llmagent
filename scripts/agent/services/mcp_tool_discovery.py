@@ -34,13 +34,12 @@ requirement's "avoid automatic priority selection" constraint): when the same
 tool name is reported by more than one server, the tool is **excluded from
 the registry entirely** — the safer of the two options considered (the
 alternative, first-wins-with-a-warning, risks silently routing calls to an
-arbitrary server). Unlike the other findings emitted by this service, a
-duplicate is **always** reported as `FATAL`, regardless of `strict` — a
+arbitrary server). A duplicate is **always** reported as `FATAL` — a
 duplicated tool is unusable, so there is no WARNING-only case.
 
-Unified severity scheme (drift, tool-definitions, malformed-capabilities):
-`is_fatal = strict`. Duplicate-tool findings are the one exception to this
-scheme — they are always FATAL.
+Severity (strict-only): drift, write-classification and tool-definition
+findings are always `FATAL`; per-server findings escalate by the server
+`required` flag in `_escalate_unreachable_findings`.
 
 Security Posture gating: when the caller supplies `posture_gates`, this service
 reduces them to a server-key allowlist with
@@ -152,22 +151,6 @@ class McpToolDiscoveryService:
             entries.extend(fetched)
         return entries, findings, unreachable
 
-    def _is_strict(self) -> bool:
-        """Return True when strict mode is enabled."""
-        return bool(getattr(self._ctx.cfg.tool, "tool_definitions_strict", False))
-
-    def _unified_status(self) -> StartupCheckStatus:
-        """Return the severity a non-duplicate finding takes under the current strict mode.
-
-        Single place where the unified severity scheme (`is_fatal = strict`) is decided, so
-        every finding builder in this service agrees. Duplicate-tool findings are the one
-        exception, and `mcp_tool_discovery_registry._detect_duplicates()` builds them as
-        FATAL directly.
-        """
-        if self._is_strict():
-            return StartupCheckStatus.FATAL
-        return StartupCheckStatus.WARNING
-
     def _build_drift_findings(
         self, entries: list[_RawEntry]
     ) -> list[StartupCheckOutcome]:
@@ -184,7 +167,7 @@ class McpToolDiscoveryService:
             return []
         return _unified_findings(
             (f"Live routing drift [{sk}]: {msgs}" for sk, msgs in drift.items()),
-            self._unified_status(),
+            StartupCheckStatus.FATAL,
         )
 
     def _build_write_classification_findings(
@@ -196,21 +179,20 @@ class McpToolDiscoveryService:
             return []
         return _unified_findings(
             (f"Write classification mismatch: {msg}" for msg in messages),
-            self._unified_status(),
+            StartupCheckStatus.FATAL,
         )
 
     async def _check_tool_definitions_finding(self) -> StartupCheckOutcome | None:
         """Wrap `_check_tool_definitions` to surface failures as data, not exceptions.
 
         Converts any RuntimeError raised by the helper into a
-        StartupCheckOutcome with the unified severity instead of letting it
-        propagate — this resolves the old quirk where strict-mode drift
-        detection was silently downgraded to "skipped" by an unrelated
-        exception handler.
+        `FATAL` StartupCheckOutcome instead of letting it propagate — this
+        resolves the old quirk where drift detection was silently downgraded
+        to "skipped" by an unrelated exception handler.
         """
-        status = self._unified_status()
+        status = StartupCheckStatus.FATAL
         try:
-            result = await _check_tool_definitions(self._ctx, strict=self._is_strict())
+            result = await _check_tool_definitions(self._ctx, strict=True)
             if result.has_issues:
                 return StartupCheckOutcome(
                     source=_SOURCE,

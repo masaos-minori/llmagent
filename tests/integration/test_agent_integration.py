@@ -8,46 +8,9 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any
 
 import pytest
-from agent.config_builders import build_agent_config
-from agent.config_dataclasses import AgentConfig
 from agent.memory.scoring import score
-
-
-def _cfg(**overrides: Any) -> AgentConfig:
-    defaults: dict[str, Any] = {
-        "context_char_limit": 8000,
-        "context_compress_turns": 4,
-        "tool_cache_ttl": 300,
-        "top_k_search": 20,
-        "top_k_rerank": 15,
-        "rag_top_k": 5,
-        "use_mqe": True,
-        "use_search": True,
-        "use_rrf": True,
-        "use_rerank": True,
-        "llm_retry_base_delay": 1.0,
-        "rag_min_score": 0.0,
-        "max_chunks_per_doc": 2,
-        "use_two_stage_fetch": False,
-        "two_stage_max_docs": 2,
-        "serial_tool_calls": False,
-        "tool_result_max_llm_chars": 4000,
-        "masked_fields": [],
-        "allowed_tools": [],
-        "tool_definitions": [],
-        "tool_safety_tiers": {},
-        "approval_risk_rules": {},
-        "approval_shell_safe_prefixes": ["/bin/", "/usr/bin/"],
-        "approval_github_allowed_repos": [],
-        "allowed_root": "",
-        "security_profile": "development",
-        "memory_local_only": False,
-    }
-    merged = {**defaults, **overrides}
-    return build_agent_config(merged)
 
 
 class TestMemoryScoringWithRealDB:

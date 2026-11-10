@@ -5,7 +5,6 @@ Unit tests for shared.mcp_config.McpServerConfig validation and _build_mcp_serve
 import pytest
 from shared.mcp_config import (
     McpServerConfig,
-    SecurityProfile,
     StartupMode,
     TransportType,
     _build_mcp_servers,
@@ -270,19 +269,6 @@ class TestBuildMcpServers:
         }
         with pytest.raises(ValueError):
             _build_mcp_servers(cfg)
-
-
-class TestSecurityProfile:
-    def test_production_value(self) -> None:
-        assert SecurityProfile.PRODUCTION == "production"
-
-    @pytest.mark.parametrize("value", ["invalid", "local"])
-    def test_invalid_value_raises(self, value: str) -> None:
-        with pytest.raises(ValueError):
-            SecurityProfile(value)
-
-    def test_str_to_enum_production(self) -> None:
-        assert SecurityProfile("production") == SecurityProfile.PRODUCTION
 
 
 class TestRequiredDefault:

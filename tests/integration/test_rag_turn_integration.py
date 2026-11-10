@@ -117,6 +117,8 @@ def _make_turn_ctx(
     ctx.cfg = AgentConfig(memory=MemoryConfig(memory_embed_enabled=False))
     ctx.cfg.tool.max_tool_turns = 5
     ctx.cfg.tool.serial_tool_calls = True
+    # REQ-002: empty allowed_tools denies every call, so allow the tools under test.
+    ctx.cfg.tool.allowed_tools = list(risk_none_for)
     for name in risk_none_for:
         ctx.cfg.approval.approval_risk_rules[name] = "none"
     ctx.conv = ConversationState(plan_mode=False)

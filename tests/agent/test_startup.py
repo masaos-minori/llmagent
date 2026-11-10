@@ -29,7 +29,6 @@ from agent.startup import StartupOrchestrator
 from db.models import ConsistencyFinding, FindingSeverity
 from shared.mcp_config import (
     McpServerConfig,
-    SecurityProfile,
     TransportType,
 )
 
@@ -147,13 +146,10 @@ class TestStartupOrchestratorSetupPrompt:
 def _make_startup_ctx(
     *,
     memory_embed_dim: int = 768,
-    tool_definitions_strict: bool = False,
 ) -> MagicMock:
     """Return a ctx MagicMock configured for _check_services() tests."""
     ctx = MagicMock()
-    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
     ctx.cfg.memory.memory_embed_dim = memory_embed_dim
-    ctx.cfg.tool.tool_definitions_strict = tool_definitions_strict
     return ctx
 
 
@@ -486,32 +482,10 @@ class TestCheckServicesSeverityClassification:
         ]
 
     @pytest.mark.asyncio
-    async def test_routing_drift_live_warning_when_non_strict_drift(self) -> None:
-        ctx = _make_startup_ctx(tool_definitions_strict=False)
-        finding = StartupCheckOutcome(
-            "drift_detected",
-            StartupCheckStatus.WARNING,
-            "Live routing drift [web]: extra tool",
-        )
-        discovery_result = MagicMock(registry=None, findings=[finding], unreachable=[])
-        pipeline, exc = await _run_check_services(
-            ctx,
-            McpToolDiscoveryService=MagicMock(
-                return_value=MagicMock(
-                    discover_all=AsyncMock(return_value=discovery_result)
-                )
-            ),
-        )
-        assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
-        assert len(outcomes) == 1
-        assert outcomes[0].status == StartupCheckStatus.WARNING
-
-    @pytest.mark.asyncio
     async def test_routing_drift_live_skipped_on_exception(self) -> None:
         """When discover_all() raises an exception, it is caught by the blanket except clause and
         reported as FATAL; the orchestrator then raises RuntimeError."""
-        ctx = _make_startup_ctx(tool_definitions_strict=True)
+        ctx = _make_startup_ctx()
         pipeline, exc = await _run_check_services(
             ctx,
             McpToolDiscoveryService=MagicMock(
@@ -716,7 +690,6 @@ class TestStartupMemoryFailures:
             auth_token="test-token",
         )
         ctx = MagicMock()
-        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.cfg.mcp.mcp_servers = {"srv1": srv1_cfg, "srv2": srv2_cfg}
         ctx.services_required.tools = MagicMock()
         ctx.services_required.lifecycle = AsyncMock()
@@ -747,7 +720,6 @@ class TestStartupMemoryFailures:
             auth_token="test-token",
         )
         ctx = MagicMock()
-        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.cfg.mcp.mcp_servers = {"srv1": srv1_cfg}
         ctx.services_required.tools = MagicMock()
         ctx.services_required.lifecycle = AsyncMock()
@@ -773,7 +745,6 @@ class TestStartupMemoryFailures:
             auth_token="test-token",
         )
         ctx = MagicMock()
-        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.cfg.mcp.mcp_servers = {"srv1": srv1_cfg}
         ctx.services_required.tools = MagicMock()
         ctx.services_required.lifecycle = AsyncMock()
@@ -794,15 +765,15 @@ class TestStartupMemoryFailures:
 
 
 class TestBuildAgentConfigErrorPath:
-    """REQ-002 consequence: build_agent_config() aborts before security_profile_val
-    computation when agent.toml is missing."""
+    """REQ-002 consequence: build_agent_config() aborts before any config
+    assembly happens when agent.toml is missing."""
 
     def test_missing_agent_toml_raises_config_load_error(self) -> None:
         """build_agent_config() raises ConfigLoadError when agent.toml is missing.
 
         This is a consequence of REQ-001's fix: ConfigLoader.load_all() defaults to
         strict=True, so ConfigMissingError propagates through load_config() as
-        ConfigLoadError. Execution never reaches security_profile_val computation.
+        ConfigLoadError. Execution never reaches the config-assembly stage.
         """
         import pytest
         from agent.config_builders import ConfigLoadError, build_agent_config
@@ -877,13 +848,13 @@ class TestUnknownTopLevelKeyRejection:
         """Assert that known keys derived from dataclass fields pass validation."""
         from agent.production_config_validator import ProductionConfigValidator
 
-        # llm_url is a field name in LLMConfig; include required strict keys
+        # llm_url is a field name in LLMConfig; allowed_root is required by
+        # the production validator.
         validator = ProductionConfigValidator()
         result = validator.validate(
             {
                 "llm_url": "http://localhost:8080",
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
+                "allowed_root": "/opt/llm",
             }
         )
         assert len(result.errors) == 0

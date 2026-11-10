@@ -12,8 +12,8 @@ of service_security.py were previously unexercised by the existing suite):
   - _get_repo: direct delegation to the PyGithub client
   - _resolve_and_check_branch: explicit branch supplied, protected_branches
     non-empty, branch does NOT match any pattern -> silent pass (the "allow"
-    direction of that branch, previously untested; only the "deny" and the
-    "protected_branches empty -> skip entirely" directions were covered)
+    direction of that branch, previously untested; only the "deny" direction
+    was covered)
   - _handle_github_error: HTTP 400 / 422 -> GitHubValidationError (only
     404/403/409/500 were covered previously)
   - _run_github: success path and GithubException-to-domain-exception
@@ -87,8 +87,7 @@ class TestResolveAndCheckBranchExplicitBranchAllowed:
     async def test_explicit_branch_not_matching_protected_pattern_passes_silently(
         self,
     ) -> None:
-        # protected_branches is non-empty (so the early-return skip at the top
-        # of _resolve_and_check_branch does NOT apply) and the supplied branch
+        # protected_branches is non-empty and the supplied branch
         # does not match any pattern -> must return without raising and
         # without calling the GitHub API (no default-branch lookup needed
         # since a branch was explicitly supplied).
@@ -179,7 +178,7 @@ class TestGithubAuditLog:
                 {
                     "allowed_repos": ["org/repo"],
                     "audit_log_path": str(audit_path),
-                    "protected_branches": [],
+                    "protected_branches": ["release/*"],
                 }
             ),
         )
@@ -273,7 +272,7 @@ class TestLegitimateCallRegression:
                 {
                     "allowed_repos": ["org/repo"],
                     "audit_log_path": str(audit_path),
-                    "protected_branches": [],
+                    "protected_branches": ["release/*"],
                 }
             ),
         )
@@ -289,3 +288,42 @@ class TestLegitimateCallRegression:
         assert result.path == "README.md"
         assert result.operation == "created"
         assert result.commit_sha == "deadbeef00001111"
+
+
+class TestGitHubConfigLoad:
+    """GitHubConfig.load() fail-closed validation (ADR-004 REQ-004)."""
+
+    @staticmethod
+    def _patch_loader(monkeypatch: pytest.MonkeyPatch, raw: dict) -> None:
+        class _FakeLoader:
+            def load(self, name: str) -> dict:
+                return raw
+
+        monkeypatch.setattr(
+            "mcp_servers.github.github_models_config.ConfigLoader", _FakeLoader
+        )
+
+    def test_load_rejects_empty_protected_branches(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._patch_loader(monkeypatch, {"protected_branches": []})
+        with pytest.raises(ValueError, match="protected_branches"):
+            GitHubConfig.load()
+
+    def test_load_rejects_absent_protected_branches(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._patch_loader(monkeypatch, {})
+        with pytest.raises(ValueError, match="protected_branches"):
+            GitHubConfig.load()
+
+    def test_load_allows_empty_path_denylist(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An empty path_denylist stays valid under the ADR-004 exception."""
+        self._patch_loader(
+            monkeypatch, {"protected_branches": ["main"], "path_denylist": []}
+        )
+        cfg = GitHubConfig.load()
+        assert cfg.path_denylist == []
+        assert cfg.protected_branches == ["main"]

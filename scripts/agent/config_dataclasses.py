@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from shared.mcp_config import McpServerConfig, SecurityProfile
+from shared.mcp_config import McpServerConfig
 
 from agent.constants import (
     _DEFAULT_APPROVAL_RISK_RULES,
@@ -160,10 +160,6 @@ class ToolConfig:
     # force_serial=True and False now run through the single DAG path
     # (agent/tool_runner.py::_execute_with_dag()).
     serial_tool_calls: bool = False
-    # Compare tool_definitions against /v1/tools at startup
-    tool_definitions_strict: bool = False
-    # Treat config/registry routing drift as fatal at startup; False = warn only
-    routing_drift_strict: bool = False
     tool_dedup_max_repeats: int = 3
     # Window size for cyclic planning detection; 0 disables
     tool_cycle_detect_window: int = 2
@@ -268,14 +264,6 @@ class MCPConfig:
     """MCP server lifecycle settings."""
 
     mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
-    # Deployment security profile. SecurityProfile has one member (PRODUCTION), so MCP auth
-    # enforcement is unconditional and there is no per-deployment relaxation knob.
-    security_profile: SecurityProfile = SecurityProfile.PRODUCTION
-
-    def __post_init__(self) -> None:
-        """Coerce security_profile to SecurityProfile enum if needed."""
-        if not isinstance(self.security_profile, SecurityProfile):
-            self.security_profile = SecurityProfile(self.security_profile)
 
 
 @dataclass

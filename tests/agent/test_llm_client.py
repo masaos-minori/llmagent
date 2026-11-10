@@ -585,6 +585,8 @@ class TestAgentConfigSseValidation:
 
         from agent.config_builders import build_agent_config
 
+        from tests.agent._config_test_defaults import PERMISSIVE_ALLOWED_ROOT
+
         base: dict = {
             "context_char_limit": 8000,
             "context_compress_turns": 4,
@@ -605,6 +607,7 @@ class TestAgentConfigSseValidation:
                     "auth_token": "test-token",
                 }
             },
+            "allowed_root": PERMISSIVE_ALLOWED_ROOT,
             **overrides,
         }
         # This test only cares about SSE field validation raising/not raising;

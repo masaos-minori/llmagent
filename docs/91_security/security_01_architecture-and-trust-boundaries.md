@@ -35,7 +35,7 @@ related:
 
 ## Purpose / how to use this doc
 
-This document is the cross-cutting security architecture overview for the project. It is not a canonical source: security constraints are normative in the Accepted security ADRs registered in the Canonical Source Registry, and this overview only points to them. It synthesizes trust boundaries, protected assets, threat model, per-API authentication/authorization, secret lifecycle, log redaction, audit retention, production behavior (the only security profile), fail-open/closed behavior, and prompt-injection responsibility boundaries from existing scattered documentation. Other documents should cross-reference this document rather than duplicate its content.
+This document is the cross-cutting security architecture overview for the project. It is not a canonical source: security constraints are normative in the Accepted security ADRs registered in the Canonical Source Registry, and this overview only points to them. It synthesizes trust boundaries, protected assets, threat model, per-API authentication/authorization, secret lifecycle, log redaction, audit retention, production behavior (applied in every environment), fail-open/closed behavior, and prompt-injection responsibility boundaries from existing scattered documentation. Other documents should cross-reference this document rather than duplicate its content.
 
 ## Trust-boundary diagram
 
@@ -127,10 +127,9 @@ Audit retention policy:
 
 *Source: `mcp_06_05_reading-audit-logs.md`, `agent_10_02_operations-and-observability-audit-and-otel.md`*
 
-## Production behavior (single security profile)
+## Production behavior
 
-`SecurityProfile` has a single `PRODUCTION` member, so every environment runs the
-production behavior unconditionally. Event Bus and every MCP server bind to loopback
+Production behavior applies unconditionally in every environment. Event Bus and every MCP server bind to loopback
 (`127.0.0.1`/`::1`) only, with no override possible.
 
 | Aspect | Behavior |
@@ -147,7 +146,7 @@ production behavior unconditionally. Event Bus and every MCP server bind to loop
 
 ## Fail-open-vs-fail-closed behavior
 
-Fail-open vs fail-closed behavior by component. There is a single security profile (`PRODUCTION`), so no per-environment column applies:
+Fail-open vs fail-closed behavior by component, applied identically in every environment:
 
 | Component | Behavior | Notes |
 |---|---|---|
@@ -155,6 +154,10 @@ Fail-open vs fail-closed behavior by component. There is a single security profi
 | `approval_github_allowed_repos` empty | Fail-closed (deny all GitHub mutation tools) | Pre-flight check in `agent/tool_policy.py` |
 | `allowed_dirs` empty | Fail-closed (allow none) | |
 | `allowed_repos` (github-mcp) empty | Fail-closed (denies all writes; no fail-open mode exists) | See `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Fail-Open vs Fail-Closed Summary |
+| Agent `allowed_tools` empty | Fail-closed (denies every tool, including after a config reload) | Also a production-validator error at load: `agent/production_config_validator.py` |
+| Agent `allowed_root` empty or absent | Fail-closed (config load error; the path jail is never skipped) | `agent/production_config_validator.py` |
+| `protected_branches` empty (git-mcp and github-mcp) | Fail-closed (config load error) | Enforced in each server's config build |
+| `path_denylist` empty (github-mcp) | Permitted — the registered ADR-004 exception (denies no paths) | The only permitted empty-safety-list relaxation; rationale recorded in ADR-004 Group 1 (pending) |
 | MCP server bind address | Loopback-only binding is unconditional | No override key exists |
 | MCP tool approval | Safety-tier default, overridable per tool by `approval_risk_rules` | Tier mapping and prompt behavior: `agent_06_02_tool-execution-and-approval-approval.md` |
 | Shell command allowlist | Empty = none allowed | Fail-closed by default |

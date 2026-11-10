@@ -306,22 +306,28 @@ class TestResolveAndCheckBranch:
     """
 
     @pytest.mark.asyncio
-    async def test_empty_protected_branches_skips_check_with_explicit_branch(
+    async def test_empty_protected_branches_allows_explicit_branch_without_api_call(
         self,
     ) -> None:
-        # protected_branches=[] → branch が何であれチェックをスキップ
+        # protected_branches=[] → 明示ブランチはどのパターンにも一致せず API 呼び出しなし
         svc = _make_service()
         with patch.object(svc, "_run_github", new=AsyncMock()) as mock_api:
             await svc._resolve_and_check_branch("org", "repo", "main")
         mock_api.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_empty_protected_branches_skips_check_with_empty_branch(self) -> None:
-        # protected_branches=[] かつ branch="" → API 呼び出しなし
+    async def test_empty_protected_branches_with_empty_branch_resolves_default_branch(
+        self,
+    ) -> None:
+        # REQ-004: protected_branches=[] かつ branch="" → デフォルトブランチを解決する
+        # (skip 分岐は削除済み。空リストは GitHubConfig.load() で拒否されるため
+        # 本番では到達しないが、from_dict 経由のサービスで報告対象として検証する)
         svc = _make_service()
-        with patch.object(svc, "_run_github", new=AsyncMock()) as mock_api:
+        with patch.object(
+            svc, "_run_github", new=AsyncMock(return_value="main")
+        ) as mock_api:
             await svc._resolve_and_check_branch("org", "repo", "")
-        mock_api.assert_not_called()
+        mock_api.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_explicit_branch_in_protected_raises(self) -> None:

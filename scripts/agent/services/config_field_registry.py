@@ -72,13 +72,11 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
         validate_tool_result_max_llm_chars,
     ),
     ConfigFieldRegistry("serial_tool_calls", "tool", True),
-    ConfigFieldRegistry("tool_definitions_strict", "tool", True),
     ConfigFieldRegistry("plan_blocked_tools", "tool", True),
     ConfigFieldRegistry("system_prompt_tool", "tool", True),
     ConfigFieldRegistry("system_prompts", "tool", True),
     ConfigFieldRegistry("tool_definitions", "tool", True),
     ConfigFieldRegistry("allowed_tools", "tool", True),
-    ConfigFieldRegistry("routing_drift_strict", "tool", False),
     # Approval section
     ConfigFieldRegistry("approval_risk_rules", "approval", True),
     ConfigFieldRegistry("approval_protected_paths", "approval", True),
@@ -96,8 +94,6 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ConfigFieldRegistry("memory_local_only", "memory", True),
     ConfigFieldRegistry("use_memory_layer", "memory", False),
     ConfigFieldRegistry("memory_embed_enabled", "memory", False),
-    # MCP section
-    ConfigFieldRegistry("security_profile", "mcp", True),
 ]
 
 CONFIG_FIELD_REGISTRY: dict[str, ConfigFieldRegistry] = {

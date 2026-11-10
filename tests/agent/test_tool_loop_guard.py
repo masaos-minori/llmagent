@@ -21,6 +21,8 @@ from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.transport_dto import DynamicAvailabilityHint, ToolCallResult
 
+from tests.agent._config_test_defaults import PERMISSIVE_ALLOWED_ROOT
+
 
 def _cfg(**overrides: dict) -> AgentConfig:
     """Build an AgentConfig for tool_loop_guard.py unit tests.
@@ -46,7 +48,7 @@ def _cfg(**overrides: dict) -> AgentConfig:
         "approval_high_risk_branches": [],
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
-        "allowed_root": "",
+        "allowed_root": PERMISSIVE_ALLOWED_ROOT,
         "tool_dedup_max_repeats": 3,
         "tool_cycle_detect_window": 2,
         "tool_error_retry_max": 1,

@@ -37,7 +37,8 @@ Only the agent process reads `config/agent.toml` via `ConfigLoader().load_all()`
 | `config/agent.toml` → `[mcp_servers.*].auth_token` | Bearer token sent by the agent to that server; must be a non-empty `"${ENV:MCP_<SERVER_KEY>_AUTH_TOKEN}"` reference (resolved by `shared.config_utils.resolve_env_ref()`) — `McpServerConfig` rejects an empty value at construction time unless the server is disabled; the receiving server verifies it, including mdq-mcp; and `agent.startup_validation` re-checks it before tool discovery |
 | `config/agent.toml` → `tool_definitions` | Tool names exposed to the LLM |
 | `config/agent.toml` → `tool_safety_tiers` | Risk tier per tool (READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN) |
-| `config/agent.toml` → `security_profile` | Global agent security profile — `production` only |
+
+**Non-empty required keys:** `allowed_root` in `config/agent.toml` and `protected_branches` in the git and github server files must be non-empty or config load fails (Explicit in code — scripts/agent/config_section_builders.py; scripts/mcp_servers/git/git_models.py; scripts/mcp_servers/github/github_models_config.py). An empty `path_denylist` remains permitted as a registered ADR-004 exception.
 
 **Reload vs. restart:** `/reload` never modifies `[mcp_servers.*]` at
 runtime — MCP server definition changes (URL, startup mode,
@@ -87,9 +88,9 @@ not a configuration key). Per-server limits (GitHub `max_per_page`, shell `max_t
 git `max_log_entries`) are set in the owning `config/*_mcp_server.toml`.
 
 **Sandbox note:** `shell_sandbox_backend` in `config/shell_mcp_server.toml` is a plain config
-parameter and does not switch automatically with `security_profile`. Production requires
-`"firejail"` explicitly. If `"firejail"` is configured and the binary is not on `PATH`, the
-server raises `RuntimeError` (`scripts/mcp_servers/shell/shell_service_static_helpers.py`).
+parameter; no profile switches it automatically. The only accepted backend is
+`"firejail"`: an empty, `"none"`, or unrecognized value is rejected, and if the binary is
+not on `PATH` the server raises `RuntimeError` at init (`scripts/mcp_servers/shell/shell_service_static_helpers.py` `init_sandbox`).
 
 ## Keywords
 

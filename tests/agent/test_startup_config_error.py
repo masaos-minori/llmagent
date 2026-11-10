@@ -11,15 +11,15 @@ from shared.config_loader import ConfigLoader
 
 
 class TestBuildAgentConfigErrorPath:
-    """REQ-002 consequence: build_agent_config() aborts before security_profile_val
-    computation when agent.toml is missing."""
+    """REQ-002 consequence: build_agent_config() aborts before any config section
+    is built when agent.toml is missing."""
 
     def test_missing_agent_toml_raises_config_load_error(self) -> None:
         """build_agent_config() raises ConfigLoadError when agent.toml is missing.
 
         This is a consequence of REQ-001's fix: ConfigLoader.load_all() defaults to
         strict=True, so ConfigMissingError propagates through load_config() as
-        ConfigLoadError. Execution never reaches security_profile_val computation.
+        ConfigLoadError. Execution never reaches validation or section building.
         """
         with patch.object(ConfigLoader, "load_all", side_effect=OSError("no file")):
             with pytest.raises(ConfigLoadError, match="Config load failed"):

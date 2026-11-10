@@ -182,12 +182,6 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
     return _build_model(
         ToolConfig,
         serial_tool_calls=_get_or_default(cfg, "serial_tool_calls", _get_bool, False),
-        tool_definitions_strict=_get_or_default(
-            cfg, "tool_definitions_strict", _get_bool, False
-        ),
-        routing_drift_strict=_get_or_default(
-            cfg, "routing_drift_strict", _get_bool, False
-        ),
         tool_dedup_max_repeats=_get_or_default(
             cfg, "tool_dedup_max_repeats", _get_int, 3
         ),
@@ -302,6 +296,10 @@ def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
     )
     tool_safety_tiers = _get_or_default(cfg, "tool_safety_tiers", _get_dict, {})
     allowed_root = _get_str_or_default(cfg, "allowed_root")
+    if not allowed_root.strip():
+        raise ConfigReloadValidationError(
+            "allowed_root is empty or absent; an empty value would disable the path jail"
+        )
     approval_github_allowed_repos = _get_or_default(
         cfg, "approval_github_allowed_repos", _get_list, []
     )

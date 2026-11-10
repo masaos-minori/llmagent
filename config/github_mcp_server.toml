@@ -25,6 +25,7 @@ allow_force_push = false
 require_pr_review = true
 
 # path_denylist: glob patterns for file paths denied in push_files / create_or_update_file / delete_repo_file
+# Empty is the registered ADR-004 exception (rationale: see the ADR-004 exception record, pending maintainer statement).
 path_denylist = []
 
 # max_file_size_kb: maximum file size (KB) for push_files / create_or_update_file; 0 = unlimited

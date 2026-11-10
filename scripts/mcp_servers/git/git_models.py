@@ -99,8 +99,19 @@ class GitConfig:
 
     @classmethod
     def load(cls) -> GitConfig:
-        """Load from git_mcp_server.toml; raises on failure (fail-fast)."""
-        return cls.from_dict(ConfigLoader().load("git_mcp_server.toml"))
+        """Load from git_mcp_server.toml; raises on failure (fail-fast).
+
+        An empty or absent ``protected_branches`` is a load error: the git
+        server must not start with the protected-branch guard silently
+        disabled (ADR-004 fail-closed). Direct construction and from_dict()
+        with an empty list remain valid for unit tests.
+        """
+        cfg = cls.from_dict(ConfigLoader().load("git_mcp_server.toml"))
+        if not cfg.protected_branches:
+            raise ValueError(
+                "git_mcp_server.toml: protected_branches must not be empty"
+            )
+        return cfg
 
 
 # ──────────────────────────────────────────────────────────────────────────────

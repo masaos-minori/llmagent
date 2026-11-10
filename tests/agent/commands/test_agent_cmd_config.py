@@ -196,7 +196,6 @@ class TestPrintConfigValues:
         ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = True
         ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = False
         ctx.cfg.tool.serial_tool_calls = False
-        ctx.cfg.tool.tool_definitions_strict = False
         ctx.cfg.approval.approval_risk_rules = {}
         ctx.cfg.approval.approval_protected_paths = []
         ctx.cfg.approval.approval_high_risk_branches = []

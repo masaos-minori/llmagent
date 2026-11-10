@@ -16,23 +16,8 @@ from shared.config_validator import ConfigValidationResult
 
 if TYPE_CHECKING:
     from shared.component_mandatoriness import ComponentClassification
-    from shared.mcp_config import SecurityProfile
 
 logger = logging.getLogger(__name__)
-
-
-def _get_security_profile() -> type[SecurityProfile]:
-    """Lazily import SecurityProfile to avoid circular imports."""
-    from shared.mcp_config import SecurityProfile
-
-    return SecurityProfile
-
-
-# Strict keys that must be true in production (defaulting to false is an error)
-_REQUIRED_STRICT_KEYS = (
-    "tool_definitions_strict",
-    "routing_drift_strict",
-)
 
 # Keys where explicit false is an error in production (absent is acceptable)
 _REQUIRED_NOT_FALSE_KEYS: tuple[str, ...] = ()
@@ -184,7 +169,6 @@ def _get_valid_production_keys() -> frozenset[str]:
 
     # build_agent_config() direct keys (not mapped to any sub-config)
     valid_keys.add("system_prompt_tool")
-    valid_keys.add("security_profile")
 
     # Nested-table section key: _build_diagnostics_config() reads cfg["diagnostics"]
     # as a whole table, so the section name itself (not its inner fields, already
@@ -216,38 +200,17 @@ def _get_valid_production_keys() -> frozenset[str]:
 class ProductionConfigValidator:
     """Validate configuration against production security requirements.
 
-    Checks strict mode flags, tool safety tier consistency, and other
-    production-critical settings.
+    Checks tool safety tier consistency and other production-critical settings.
     """
 
     def validate(
         self,
         config: Mapping[str, object],
-        security_profile: SecurityProfile | str = "production",
         known_tools: set[str] | None = None,
     ) -> ConfigValidationResult:
-        """Validate the full configuration against security profile rules."""
+        """Validate the full configuration against production security rules."""
         errors: list[str] = []
         warnings: list[str] = []
-
-        # REQ-003: enforce canonical SecurityProfile model
-        profile_cls = _get_security_profile()
-        try:
-            profile_cls(security_profile)
-        except ValueError:
-            self._record(
-                errors,
-                warnings,
-                f"Unsupported security_profile value {security_profile!r}: "
-                f"only {profile_cls.PRODUCTION.value!r} is permitted",
-            )
-            return ConfigValidationResult(errors=errors, warnings=warnings)
-
-        # Strict keys: default false is an error
-        for key in _REQUIRED_STRICT_KEYS:
-            if not config.get(key, False):
-                msg = f"{key}=false — strict mode is required in production"
-                self._record(errors, warnings, msg)
 
         # Not-false keys: explicit false is an error (absent is acceptable)
         for key in _REQUIRED_NOT_FALSE_KEYS:
@@ -296,7 +259,16 @@ class ProductionConfigValidator:
         # allowed_tools visibility
         allowed_tools = config.get("allowed_tools")
         if isinstance(allowed_tools, (list, tuple)) and len(allowed_tools) == 0:
-            msg = "allowed_tools=[] (all tools allowed; use allowlist to restrict)"
+            msg = "allowed_tools=[] (every tool is denied; list the tools to allow)"
+            self._record(errors, warnings, msg)
+
+        # allowed_root: an empty or absent root would disable the path jail
+        allowed_root = config.get("allowed_root")
+        if not (isinstance(allowed_root, str) and allowed_root.strip()):
+            msg = (
+                "allowed_root is empty or absent (the path jail would be disabled; "
+                "set an absolute directory)"
+            )
             self._record(errors, warnings, msg)
 
         # Unknown top-level key rejection

@@ -162,9 +162,7 @@ class TestKnownToolsNoneFallback:
             )
 
         monkeypatch.setattr("shared.tool_registry.get_registry", _raise)
-        result = validator.validate(
-            config, security_profile="production", known_tools=None
-        )
+        result = validator.validate(config, known_tools=None)
         assert any(
             "registry" in err.lower() or "resolution" in err.lower()
             for err in result.errors
@@ -176,8 +174,6 @@ class TestKnownToolsNoneFallback:
             "tool_safety_tiers": {"unknown_tool": "WRITE_SAFE"},
         }
         validator = ProductionConfigValidator()
-        result = validator.validate(
-            config, security_profile="production", known_tools=set()
-        )
+        result = validator.validate(config, known_tools=set())
         assert any("not a registered tool name" in err for err in result.errors)
         assert len(result.errors) > 0

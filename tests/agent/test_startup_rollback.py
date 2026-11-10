@@ -15,7 +15,6 @@ from agent.startup import StartupInterrupted, StartupOrchestrator
 from agent.startup_component_init import ComponentInitializer
 from shared.mcp_config import (
     McpServerConfig,
-    SecurityProfile,
     StartupMode,
     TransportType,
 )
@@ -196,7 +195,6 @@ class TestStartupRollback:
         that triggers rollback" from the plan's Goal.
         """
         ctx = MagicMock()
-        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.cfg.mcp.mcp_servers = {
             "first": _http_subprocess_cfg(),
             "second": _http_subprocess_cfg(),

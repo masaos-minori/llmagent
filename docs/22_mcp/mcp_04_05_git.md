@@ -45,7 +45,7 @@ A disabled tool called via `/v1/call_tool` returns `Tool disabled: <reason>`.
 
 - `allowed_repo_paths`: fail-closed; empty rejects all. The caller's `repo_path` is resolved via `Path.resolve()` and checked for component-aware containment under a configured entry. A leading `~` is expanded to the server user's home directory at load; other entries are used as written, so list canonical absolute paths.
 - `read_only`: unless explicitly set to false, write tools are disabled (`Tool disabled: read_only=true` at `/v1/call_tool`; `[DENIED] git-mcp is configured with read_only=true` if the service guard is reached directly).
-- `protected_branches`: branch names protected against write tools (see Protected branch authority); empty protects none.
+- `protected_branches`: branch names protected against write tools (see Protected branch authority); required, must be non-empty — an empty or absent value is rejected at config load.
 - `allow_detached_head`: when true, the detached-HEAD precondition is skipped for non-dry-run write calls; the default is fail-closed.
 - `pull_timeout` / `push_timeout`: optional per-operation timeout (seconds); when exceeded the operation raises `TimeoutError`. Unset means no timeout.
 - `max_log_entries` limits `git_log`; the `git_log` `inputSchema` `max_entries` has its own default. `git_show` output is truncated at a fixed character limit.
@@ -95,7 +95,7 @@ Before any mutating call, the remote's current URL is resolved and must appear i
 
 ### Protected branch authority
 
-`GitConfig.protected_branches` (a `list[str]`, configured via `git_mcp_server.toml`) is the policy source. The decision is made by one authoritative Stage 3 check plus a pre-pipeline early-rejection layer:
+`GitConfig.protected_branches` (a `list[str]`, configured via `git_mcp_server.toml`) is the policy source. The policy source cannot be empty at runtime: `GitConfig.load()` rejects an empty or absent `protected_branches` as a load error. The decision is made by one authoritative Stage 3 check plus a pre-pipeline early-rejection layer:
 
 - Authoritative Stage 3 check: `RepositoryState.verify_authorization()` (taking `tool_name`/`requested_branch`/`protected_branches`), called by `WriteProtectionPipeline.run()` at Stage 3, compares the operation **destination** — `req.branch` for `git_pull`/`git_push`, the switch target for `git_checkout`, current HEAD for `git_add`/`git_commit` — against `GitConfig.protected_branches`, normalized to `refs/heads/<name>` and compared case-insensitively. It is the single authoritative check: a protected destination is rejected even if the pre-pipeline check is bypassed. The actually rejected branch name is reported (`[DENIED] {destination!r} is a protected branch`); the message is derived from the destination, not a fixed string.
 - Pre-pipeline early-rejection layer: `git_ref_validation.validate_protected()` runs before the pipeline as defense-in-depth, comparing the same destination and reporting the actually rejected branch name (`[DENIED] {branch!r} is a protected branch`). It rejects an empty branch (`[DENIED] branch must not be empty`), which is unreachable for `git_pull`/`git_push` because `branch` is required in their schemas.

@@ -139,7 +139,7 @@ Constraints not already covered above (import direction, JSON library, HTTP clie
 - **Configuration Format:** TOML / JSON under the deployed config directory — see [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy) for the ownership table
 - **Log Messages:** English only (do not use Japanese in code comments or logs)
 - **SQLite WAL:** Use `PRAGMA journal_mode=WAL` for all connections
-- **Security Profile:** `SecurityProfile` enum in `mcp_config.py` (a single `production` member). The production configuration validator lives in the agent package (`agent/production_config_validator.py`) and is described in the agent configuration document; it validates strict keys, `tool_safety_tiers`, and `allowed_tools`
+- The production configuration validator lives in the agent package (`agent/production_config_validator.py`) and is described in the agent configuration document; it validates required keys, `tool_safety_tiers`, and `allowed_tools`
 
 ---
 

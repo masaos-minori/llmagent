@@ -63,6 +63,8 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 1. Single common failure handling policy for every environment. No environment-specific policies.
 2. Target environments: every environment where the system runs.
 3. Environment names change none of: startup validation, auth/authz, Allowlist enforcement, approval control, Tool ownership, Routing, resource-scope validation, DB integrity, Workflow requirements, Fail-Fast/Fail-Closed conditions.
+
+Registered exception (empty `path_denylist`, GitHub server): an empty `path_denylist` in the GitHub server configuration remains permitted at config load and denies no paths, although this group requires identical Allowlist enforcement in every environment and every other GitHub boundary control is fail-closed. This exception is recorded here as the only permitted empty-safety-list relaxation in the platform. Its rationale is pending from the maintainer and must be written into this section before the exception is treated as settled: PENDING (Needs confirmation).
 ### Group 2: Failure Classification
 
 4. Failures classified into two kinds: "safety/integrity failures" and "availability failures". Used to decide impact boundary; not used to relax safety/integrity requirements.
@@ -234,10 +236,10 @@ The startup validation results built by `StartupOrchestrator` are an in-memory a
 
 ### Alignment with INV-01 and INV-02
 
-The strict-default behavior enforces INV-01 and INV-02 at startup time:
+The unconditional startup checks enforce INV-01 and INV-02 at startup time:
 
 1. **INV-01**: the same strict checks run in every environment; for example, a missing required configuration file (`agent.toml`) raises `ConfigMissingError` (Explicit in code — `scripts/shared/config_loader.py`).
-2. **INV-02**: `ProductionConfigValidator` rejects a configuration whose strict keys (`tool_definitions_strict`, `routing_drift_strict`) are not true, independent of any environment name (Explicit in code — `scripts/agent/production_config_validator.py`).
+2. **INV-02**: the startup safety checks have no toggle: tool-definition mismatch and routing drift are always fatal, independent of any environment name, and the removed strict keys no longer exist and are rejected as unknown configuration keys (Explicit in code — `scripts/agent/production_config_validator.py`).
 
 ## Exceptions
 
@@ -252,7 +254,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 | Missing/invalid Workflow → abort | INV-03 | Integration | Yes | Confirmed |
 | Inconsistent DB Schema → abort | INV-05 | Integration | Yes | Confirmed |
 | Duplicate Tool ownership → abort | INV-04 | Integration | Yes | Confirmed |
-| Initialization failure of RuntimeToolRegistry, failure of a required DB connection, and failures of authentication/authorization/Allowlist/Safety Tier/Config Isolation/establishing approval control abort startup | INV-06, INV-07 | Integration | Yes | Partial by phase — Fail-Fast confirmed at startup for Allowlist, Safety Tier, Config Isolation (strict keys), required DB connection, RuntimeToolRegistry init via the startup validation pipeline and `ProductionConfigValidator.validate()`; Fail-Closed confirmed at runtime for unknown/disabled Tool, ambiguous ownership, invalid args, missing approval, auth/authz, resource-scope, allowlist. Full authentication flow, Secrets, approval-control establishment, duplicate Tool ownership lack a single crosscutting startup test; manual-reason fallback |
+| Initialization failure of RuntimeToolRegistry, failure of a required DB connection, and failures of authentication/authorization/Allowlist/Safety Tier/Config Isolation/establishing approval control abort startup | INV-06, INV-07 | Integration | Yes | Partial by phase — Fail-Fast confirmed at startup for Allowlist, Safety Tier, Config Isolation, required DB connection, RuntimeToolRegistry init via the startup validation pipeline and `ProductionConfigValidator.validate()`; Fail-Closed confirmed at runtime for unknown/disabled Tool, ambiguous ownership, invalid args, missing approval, auth/authz, resource-scope, allowlist. Full authentication flow, Secrets, approval-control establishment, duplicate Tool ownership lack a single crosscutting startup test; manual-reason fallback |
 | Unavailability of a mandatory component (such as a required MCP server) aborts startup | INV-08 | Integration | Yes | Confirmed |
 | An availability failure of a non-mandatory component permits startup to continue and disables that component | INV-09 | Integration | Yes | Confirmed (spawn path: see Exceptions) |
 | Safety/integrity failures not converted to partial availability | INV-10 | Regression | Yes | Partial by phase — each class yields a startup abort (Fail-Fast) or runtime reject (Fail-Closed); none permits continued partial availability. The non-mandatory availability-failure path (disable + exclude from executable exposure) is tested via `McpToolDiscoveryService.discover_all()` and the unified `required` field; the safety/integrity guarantee has no single crosscutting test |

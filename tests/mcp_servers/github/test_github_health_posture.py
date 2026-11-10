@@ -181,12 +181,23 @@ class TestBindGate:
         }
         assert "server.repo_allowlist" in failed
 
+    def test_empty_protected_branches_makes_the_posture_unvalidated(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        posture = _posture_with(monkeypatch, protected_branches=[])
+
+        assert posture.validated is False
+        failed = {
+            check.check_id for check in posture.checks if check.status.value == "failed"
+        }
+        assert "server.protected_branches" in failed
+
     def test_gate_refuses_bind_and_logs_reason_codes(
         self,
         monkeypatch: pytest.MonkeyPatch,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        _posture_with(monkeypatch, allowed_repos=[])
+        _posture_with(monkeypatch, allowed_repos=[], protected_branches=[])
 
         with pytest.raises(SystemExit) as excinfo:
             github_server._enforce_posture_gate()
@@ -194,6 +205,7 @@ class TestBindGate:
         assert excinfo.value.code == 1
         message = "\n".join(record.getMessage() for record in caplog.records)
         assert "server.repo_allowlist:allowlist_empty" in message
+        assert "server.protected_branches:config_invalid" in message
         assert "refusing to bind" in message
 
     def test_health_returns_503_when_the_posture_is_not_validated(

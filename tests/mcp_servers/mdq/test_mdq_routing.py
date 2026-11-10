@@ -137,46 +137,12 @@ class TestMdqMCPServerConformance:
             f"MdqMCPServer.http_host should be '127.0.0.1', got '{MdqMCPServer.http_host}'"
         )
 
-    def test_list_tools_with_server_key(self) -> None:
-        from mcp_servers.mdq.mdq_server import MdqMCPServer
-
-        server = MdqMCPServer()
-        tools = server.list_tools_with_server_key()
-        for tool in tools:
-            assert tool.get("server_key") == "mdq", (
-                f"Tool '{tool['name']}' missing server_key='mdq', got '{tool.get('server_key')}'"
-            )
-
     def test_dispatch_method_exists(self) -> None:
         from mcp_servers.mdq.mdq_server import MdqMCPServer
 
         server = MdqMCPServer()
         assert hasattr(server, "dispatch"), "MdqMCPServer missing dispatch method"
         assert callable(server.dispatch), "MdqMCPServer.dispatch is not callable"
-
-    def test_health_method_returns_standard_shape(self) -> None:
-        from mcp_servers.mdq.mdq_server import MdqMCPServer
-
-        server = MdqMCPServer()
-        health, status_code = server.health()
-        assert isinstance(health, dict), "health() should return a dict"
-        assert "status" in health, "health() missing 'status' key"
-        assert "ready" in health, "health() missing 'ready' key"
-        assert "dependencies" in health, "health() missing 'dependencies' key"
-        assert "details" in health, "health() missing 'details' key"
-        assert isinstance(health["ready"], bool), "health()['ready'] should be bool"
-        assert status_code == 200, (
-            f"Expected HTTP 200 for healthy server, got {status_code}"
-        )
-
-    def test_list_tools_returns_tool_names(self) -> None:
-        from mcp_servers.mdq.mdq_server import MdqMCPServer
-
-        server = MdqMCPServer()
-        tool_names = server.list_tools()
-        assert isinstance(tool_names, list), "list_tools() should return a list"
-        for name in tool_names:
-            assert isinstance(name, str), f"Tool name should be str, got {type(name)}"
 
 
 class TestMdqV1ToolsEndpoint:

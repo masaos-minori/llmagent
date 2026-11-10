@@ -13,6 +13,8 @@ from agent.config_dataclasses import AgentConfig
 from agent.tool_preparation import PreparedToolCall, prepare_tool_calls
 from shared.tool_spec import ToolSpec
 
+from tests.agent._config_test_defaults import PERMISSIVE_ALLOWED_ROOT
+
 
 def _cfg(**overrides: Any) -> AgentConfig:
     """Build an AgentConfig for tool_preparation.py unit tests.
@@ -38,7 +40,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_high_risk_branches": [],
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
-        "allowed_root": "",
+        "allowed_root": PERMISSIVE_ALLOWED_ROOT,
         "tool_results_turn_max_chars": 0,
         "embed_url": "http://127.0.0.1:9999",
         "mcp_servers": {

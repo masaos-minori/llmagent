@@ -29,7 +29,6 @@ from agent.config_section_builders import (
 )
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import _get_int, _get_str
-from shared.mcp_config import SecurityProfile
 
 # Minimal config satisfying _build_mcp_servers (needs at least one HTTP server with url) and
 # AgentConfig.__post_init__'s memory_embed_enabled cross-field check (now defaults to True,
@@ -43,6 +42,7 @@ _MIN_CFG: dict = {
         }
     },
     "embed_url": "http://127.0.0.1:9999",
+    "allowed_root": "/opt/llm",
 }
 
 # ── _build_llm_config ─────────────────────────────────────────────────────────
@@ -145,8 +145,6 @@ class TestBuildRAGConfig:
 
 _TOOL_DEFAULTS = {
     "serial_tool_calls": False,
-    "tool_definitions_strict": False,
-    "routing_drift_strict": False,
     "tool_dedup_max_repeats": 3,
     "tool_cycle_detect_window": 2,
     "tool_error_max_consecutive": 3,
@@ -183,8 +181,6 @@ class TestBuildToolConfig:
     def test_every_field_override_is_independently_reflected(self) -> None:
         overrides = {
             "serial_tool_calls": True,
-            "tool_definitions_strict": True,
-            "routing_drift_strict": True,
             "tool_dedup_max_repeats": 9,
             "tool_cycle_detect_window": 9,
             "tool_error_max_consecutive": 9,
@@ -272,7 +268,7 @@ class TestBuildMemoryConfig:
 
 class TestBuildApprovalConfig:
     def test_empty_dict_returns_defaults(self) -> None:
-        cfg = _build_approval_config({})
+        cfg = _build_approval_config({"allowed_root": "/opt/llm"})
         assert "write_file" in cfg.approval_risk_rules
         assert cfg.approval_risk_rules["delete_file"] == "high"
         assert cfg.approval_protected_paths == [
@@ -325,13 +321,26 @@ class TestBuildApprovalConfig:
             "github_create_branch",
         ]
         assert cfg.tool_safety_tiers == {}
-        assert cfg.allowed_root == ""
+        assert cfg.allowed_root == "/opt/llm"
         assert cfg.approval_github_allowed_repos == []
         assert cfg.gitops_push_blocked is False
 
+    def test_empty_allowed_root_rejected(self) -> None:
+        with pytest.raises(ValueError, match="allowed_root"):
+            _build_approval_config({"allowed_root": ""})
+
+    def test_absent_allowed_root_rejected(self) -> None:
+        with pytest.raises(ValueError, match="allowed_root"):
+            _build_approval_config({})
+
     def test_invalid_risk_level_raises_value_error(self) -> None:
         with pytest.raises(ValueError, match="invalid levels"):
-            _build_approval_config({"approval_risk_rules": {"write_file": "extreme"}})
+            _build_approval_config(
+                {
+                    "allowed_root": "/opt/llm",
+                    "approval_risk_rules": {"write_file": "extreme"},
+                }
+            )
 
     def test_every_field_override_is_independently_reflected(self) -> None:
         overrides: dict = {
@@ -406,18 +415,24 @@ class TestBuildAgentConfig:
         cfg = build_agent_config(
             {
                 **_MIN_CFG,
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
             }
         )
         assert isinstance(cfg, AgentConfig)
+
+    @pytest.mark.parametrize(
+        "key",
+        ["tool_definitions_strict", "routing_drift_strict", "security_profile"],
+    )
+    def test_removed_keys_rejected_by_build_agent_config(self, key: str) -> None:
+        # Removed keys are no longer in the allowed set: the production
+        # validator rejects them and the build raises.
+        with pytest.raises(ConfigReloadValidationError, match="Unknown config keys"):
+            build_agent_config({**_MIN_CFG, key: True})
 
     def test_top_level_bool_and_observability_overrides_reflected(self) -> None:
         cfg = build_agent_config(
             {
                 **_MIN_CFG,
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
                 "otel_enabled": True,
                 "structured_log": True,
                 "otel_endpoint": "http://otel",
@@ -441,32 +456,22 @@ class TestBuildAgentConfig:
 
         assert "security_lockdown_enabled" not in {f.name for f in fields(MCPConfig)}
 
-    def test_system_prompt_tool_and_security_profile_propagate(self) -> None:
+    def test_system_prompt_tool_propagates(self) -> None:
         cfg = build_agent_config(
             {
                 **_MIN_CFG,
                 "system_prompt_tool": "You are a helpful agent.",
-                "security_profile": "production",
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
                 "allowed_tools": ["some_tool"],
             }
         )
         assert cfg.tool.system_prompt_tool == "You are a helpful agent."
-        assert cfg.mcp.security_profile == SecurityProfile.PRODUCTION
 
-    def test_production_validation_passes_without_exit_when_strict_flags_set(
-        self,
-    ) -> None:
+    def test_production_validation_passes_without_exit(self) -> None:
         # Companion to test_production_validation_errors_raises: proves the
-        # ConfigReloadValidationError path is specifically gated on results.errors,
-        # not on security_profile=="production" alone.
+        # ConfigReloadValidationError path is specifically gated on results.errors.
         build_agent_config(
             {
                 **_MIN_CFG,
-                "security_profile": "production",
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
                 "allowed_tools": ["some_tool"],
             }
         )
@@ -475,8 +480,6 @@ class TestBuildAgentConfig:
         cfg = build_agent_config(
             {
                 **_MIN_CFG,
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
             }
         )
         assert cfg.llm.llm_url == ""
@@ -485,8 +488,6 @@ class TestBuildAgentConfig:
         cfg = build_agent_config(
             {
                 **_MIN_CFG,
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
             }
         )
         assert cfg.diagnostics.encryption_key == ""
@@ -496,8 +497,6 @@ class TestBuildAgentConfig:
         with patch("agent.config_builders.ConfigLoader") as MockLoader:
             MockLoader.return_value.load_all.return_value = {
                 **_MIN_CFG,
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
             }
             cfg = build_agent_config(None)
         assert isinstance(cfg, AgentConfig)
@@ -505,10 +504,9 @@ class TestBuildAgentConfig:
     def test_production_validation_errors_raises(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        # security_profile="production" without tool_definitions_strict/
-        # routing_drift_strict set to True produces ProductionConfigValidator
-        # errors, which build_agent_config logs and raises ConfigReloadValidationError.
-        cfg = {**_MIN_CFG, "security_profile": "production"}
+        # A validator stub returning errors makes build_agent_config log and
+        # raise ConfigReloadValidationError.
+        cfg = {**_MIN_CFG}
         with (
             caplog.at_level(logging.ERROR, logger="agent.config_builders"),
             patch(
@@ -548,7 +546,7 @@ class TestLoadConfig:
     def test_raises_on_missing_required_config_file(self) -> None:
         """REQ-002 regression: after REQ-001 makes load_all() strict by default,
         build_agent_config(None) must fail fast when agent.toml is missing,
-        preventing security_profile_val from ever being computed on a stale
+        preventing the config build from ever running on a stale
         fallback path."""
         from shared.config_errors import ConfigMissingError
 
@@ -741,8 +739,6 @@ class TestProductionValidationWarningPath:
     ) -> None:
         cfg = {
             **_MIN_CFG,
-            "tool_definitions_strict": True,
-            "routing_drift_strict": True,
         }
         with (
             caplog.at_level(logging.WARNING, logger="agent.config_builders"),
@@ -769,8 +765,6 @@ class TestEmptyStringFallbackIdioms:
         cfg = build_agent_config(
             {
                 **_MIN_CFG,
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
                 "otel_service_name": "",
                 "audit_log_file": "",
                 "memory_jsonl_dir": "",

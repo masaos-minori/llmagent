@@ -18,7 +18,6 @@ related:
 | `repo_allowlist` = `[]` | All cicd-mcp access is denied |
 | `allowed_repo_paths` = `[]` | All git-mcp access is denied |
 | `read_only = true` (git-mcp) | Git writes are blocked even if `allowed_repo_paths` is set |
-| `tool_definitions_strict = true` | Agent startup is interrupted due to tool name mismatch |
 
 ---
 

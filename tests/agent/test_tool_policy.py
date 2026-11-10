@@ -24,6 +24,27 @@ from agent.tool_policy import (
 )
 from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
 
+# Every tool name this file passes to the policy functions; the _cfg default
+# allowlist must contain them so the deny-on-empty behavior (REQ-002) does not
+# interfere with tests that target other axes. Denial tests override the list.
+_POLICY_TEST_TOOLS = [
+    "any_tool",
+    "custom_list_tool",
+    "delete_directory",
+    "delete_file",
+    "dry_run",
+    "git_status",
+    "github_push_files",
+    "not_registered_tool",
+    "read",
+    "read_multiple_files",
+    "read_text_file",
+    "shell_run",
+    "totally_unregistered_tool_xyz",
+    "unknown_tool",
+    "write_file",
+]
+
 
 def _cfg(**overrides: Any) -> AgentConfig:
     """Build an AgentConfig for tool_policy.py unit tests.
@@ -41,7 +62,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "serial_tool_calls": False,
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
-        "allowed_tools": [],
+        "allowed_tools": _POLICY_TEST_TOOLS,
         "tool_definitions": [],
         "tool_safety_tiers": {},
         "approval_risk_rules": {},
@@ -50,7 +71,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_high_risk_branches": [],
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
-        "allowed_root": "",
+        "allowed_root": "/",
         # memory_embed_enabled now defaults to True; embed_url must be non-empty
         # to satisfy AgentConfig.__post_init__'s cross-field validation.
         "embed_url": "http://127.0.0.1:9999",
@@ -224,12 +245,13 @@ class TestCheckAllowedRoot:
         )
         assert not check_allowed_root(cfg, "write_file", {"path": "/tmp/foo"})
 
-    def test_empty_root_allows_all(self) -> None:
-        cfg = _cfg(
-            allowed_root="",
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-        )
-        assert check_allowed_root(cfg, "write_file", {"path": "/any/path"})
+    def test_empty_root_denies_path_bearing_call(self) -> None:
+        """REQ-003: an empty allowed_root (reachable via /reload) denies a call
+        with a path argument and still passes a pathless call."""
+        cfg = _cfg(approval_resource_keys={"path_keys": ["path"], "branch_keys": []})
+        cfg.approval.allowed_root = ""
+        assert not check_allowed_root(cfg, "write_file", {"path": "/any/path"})
+        assert check_allowed_root(cfg, "write_file", {})
 
     def test_no_matching_keys_allows(self) -> None:
         cfg = _cfg(
@@ -259,11 +281,13 @@ class TestCfgHelperDefaults:
         cfg = _cfg()
         assert classify_risk(cfg, "shell_run", {}) == "high"
 
-    def test_empty_allowed_root_permits_any_path(self) -> None:
-        cfg = _cfg()
+    def test_empty_root_pathless_call_passes(self) -> None:
+        cfg = _cfg(approval_resource_keys={"path_keys": ["path"], "branch_keys": []})
+        cfg.approval.allowed_root = ""
+        assert check_allowed_root(cfg, "write_file", {}) is True
         assert (
             check_allowed_root(cfg, "write_file", {"path": "/any/absolute/path"})
-            is True
+            is False
         )
 
 
@@ -299,7 +323,7 @@ class TestCheckAllowedRepo:
 
 class TestCheckPreflight:
     def test_passes_when_all_checks_pass(self) -> None:
-        cfg = _cfg(allowed_root="", approval_github_allowed_repos=[])
+        cfg = _cfg(approval_github_allowed_repos=[])
         check_preflight(cfg, "read_text_file", {"path": "/tmp/f"})  # does not raise
 
     def test_denied_by_allowed_tools(self) -> None:
@@ -309,9 +333,12 @@ class TestCheckPreflight:
         assert exc_info.value.audit_decision == "denied_allowed_tools"
         assert "write_file" in str(exc_info.value)
 
-    def test_allowed_tools_none_does_not_block(self) -> None:
+    def test_empty_allowed_tools_denies_every_tool(self) -> None:
+        """REQ-002: an empty allowed_tools is an empty allowlist (AC-02)."""
         cfg = _cfg(allowed_tools=[])
-        check_preflight(cfg, "any_tool", {})  # does not raise
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(cfg, "any_tool", {})
+        assert exc_info.value.audit_decision == "denied_allowed_tools"
 
     def test_denied_by_root_jail(self) -> None:
         cfg = _cfg(

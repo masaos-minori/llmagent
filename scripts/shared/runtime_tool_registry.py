@@ -206,21 +206,20 @@ class RuntimeToolRegistry:
     def apply_policy(
         self,
         tier_map: Mapping[str, AgentSafetyTier],
-        allowed_tools: Sequence[str] = (),
+        allowed_tools: Sequence[str],
     ) -> None:
         """Apply a tier/allowlist policy to all registered tools, in place.
 
         `tier_map` maps tool name to `AgentSafetyTier`; tools absent from
         `tier_map` keep their current tier. `allowed_tools` is an allowlist of
-        tool names; an empty sequence means all tools remain allowed (mirrors
-        `agent.config_dataclasses.ToolConfig.allowed_tools`'s own documented
-        convention).
+        tool names; an empty sequence means no tool is allowed (fail closed,
+        ADR-004: mirrors `tool_policy.check_preflight`).
         """
         new_tools: dict[str, RuntimeTool] = {}
         for name, tool in list(self._tools.items()):
             tier = tier_map.get(name, tool.agent_safety_tier)
             resolved_llm_visibility_base = _or_default(tool.llm_visibility_base, True)
-            allowed_alone = not allowed_tools or name in allowed_tools
+            allowed_alone = name in allowed_tools
             if not resolved_llm_visibility_base and allowed_alone:
                 logger.warning(
                     "tool %r hidden at discovery (llm_visibility_base=False);"

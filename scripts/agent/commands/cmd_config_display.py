@@ -7,7 +7,6 @@ Provides:
   _print_llm_settings          — LLM endpoint settings
   _print_sse_settings          — SSE stream settings
   _print_execution_settings    — Execution settings
-  _print_mcp_settings          — MCP / security settings
   _print_approval_settings     — Approval settings
  _print_tool_safety_settings  — Tool safety settings
    _print_config_values         — Combined config display
@@ -74,14 +73,6 @@ class _ConfigDisplayMixin(MixinBase):
             [("serial_tool_calls", str(ctx.cfg.tool.serial_tool_calls))], key_width=20
         )
 
-    def _print_mcp_settings(self, ctx: AgentContext) -> None:
-        """Print MCP and security settings."""
-        self._out.write("MCP / security settings:")
-        self._out.write_kv(
-            [("tool_def_strict", str(ctx.cfg.tool.tool_definitions_strict))],
-            key_width=20,
-        )
-
     def _print_approval_settings(self, ctx: AgentContext) -> None:
         """Print approval and risk rule settings."""
         self._out.write("Approval settings:")
@@ -130,7 +121,7 @@ class _ConfigDisplayMixin(MixinBase):
         if allowed_tools:
             pairs.append(("allowed_tools", ", ".join(allowed_tools)))
         else:
-            pairs.append(("allowed_tools", "(unrestricted)"))
+            pairs.append(("allowed_tools", "(none: all tools denied)"))
         plan_blocked = ctx.cfg.tool.plan_blocked_tools
         plan_state = "ON" if ctx.conv.plan_mode else "OFF"
         pairs.append(("plan_mode", plan_state))
@@ -164,7 +155,6 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write("")
         self._print_execution_settings(ctx)
         self._out.write("")
-        self._print_mcp_settings(ctx)
         self._print_approval_settings(ctx)
         self._out.write("")
         self._print_tool_safety_settings(ctx)

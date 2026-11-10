@@ -101,7 +101,7 @@ Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools
 
 - `approval_github_allowed_repos`: allowlist for GitHub writes; empty = deny all.
 - `gitops_push_blocked`: globally blocks all writes to GitHub.
-- `allowed_root`: file path jail; empty = disabled.
+- `allowed_root`: file path jail; required key, an empty value fails config load, and the path jail is never skipped.
 
 ### Observability Configuration
 
@@ -122,7 +122,7 @@ OpenTelemetry, the audit log path (JSON-lines) and structured logging are config
 ## Key Constraints
 
 - Unknown `tool_safety_tiers` keys are fatal at startup (see Safety Tiers).
-- `allowed_tools=[]` means "allow all" at runtime (`check_preflight()` skips the whitelist check); in production `ProductionConfigValidator` records it as a validation error, so startup exits (Explicit in code — `scripts/agent/production_config_validator.py`).
+- `allowed_tools=[]` denies every tool at runtime, including after a config reload; in production `ProductionConfigValidator` also records it as a validation error at load, so startup exits (Explicit in code — `scripts/agent/production_config_validator.py`).
 - `approval_github_allowed_repos=[]` means "deny all".
 - `cfg.diagnostics.*` changes are reported by `/reload` under the `[LIVE]` category and take effect on the next `DiagnosticStore` save()/fetch() without a restart.
 

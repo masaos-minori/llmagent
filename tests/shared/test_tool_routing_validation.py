@@ -161,14 +161,14 @@ class TestRoutingAuthority:
         reg.apply_policy(tier_map={}, allowed_tools=["other_tool"])
         assert reg.get("search_web").enabled_for_llm is False
 
-    def test_apply_policy_empty_allowed_tools_keeps_all_enabled(self) -> None:
-        """INV-005: empty allowed_tools list does not disable tools."""
+    def test_apply_policy_empty_allowed_tools_disables_all(self) -> None:
+        """REQ-002: empty allowed_tools denies every bound tool (fail-closed)."""
         tool = build_fixture_runtime_tool(
             name="search_web", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
         reg.apply_policy(tier_map={}, allowed_tools=())
-        assert reg.get("search_web").enabled_for_llm is True
+        assert reg.get("search_web").enabled_for_llm is False
 
     def test_apply_policy_updates_tier_to_read_only(self) -> None:
         """INV-005: READ_ONLY tier assignment works via apply_policy."""
@@ -176,7 +176,9 @@ class TestRoutingAuthority:
             name="read_file", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={"read_file": "READ_ONLY"})
+        reg.apply_policy(
+            tier_map={"read_file": "READ_ONLY"}, allowed_tools=["read_file"]
+        )
         updated = reg.get("read_file")
         assert updated.agent_safety_tier == "READ_ONLY"
 
@@ -186,7 +188,7 @@ class TestRoutingAuthority:
             name="read_file", server_key="s", agent_safety_tier="READ_ONLY"
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={})
+        reg.apply_policy(tier_map={}, allowed_tools=["read_file"])
         assert reg.get("read_file").agent_safety_tier == "READ_ONLY"
 
     def test_diagnostics_uses_raw_definition_disabled_reason_when_present(self) -> None:
@@ -357,7 +359,7 @@ class TestApplyPolicyReversibility:
         )
         reg = _registry_with(tool)
         old_id = id(reg._tools)
-        reg.apply_policy(tier_map={}, allowed_tools=[])
+        reg.apply_policy(tier_map={}, allowed_tools=["shell_run"])
         new_id = id(reg._tools)
         assert old_id != new_id
         assert len(reg._tools) == 1

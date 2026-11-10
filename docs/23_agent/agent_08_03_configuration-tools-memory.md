@@ -26,13 +26,12 @@ Documents the structure and constraints of tool and memory configurations.
 
 #### Safety
 
-- `tool_definitions_strict`: a schema mismatch aborts startup with `RuntimeError`. Required to be `true` in production: `ProductionConfigValidator` treats an absent or `false` value as an error.
-- `routing_drift_strict`: detected routing drift aborts startup with `RuntimeError`. Required to be `true` in production, like `tool_definitions_strict`.
+- A startup tool-definition mismatch or detected routing drift always aborts startup; there is no strict toggle. The removed `tool_definitions_strict` and `routing_drift_strict` keys are not recognized and are rejected as unknown keys by the production config validator.
 - `plan_blocked_tools` blocks additional tools in plan mode, on top of every tool outside the `READ_ONLY` safety tier.
 - `masked_fields` replaces configured argument keys with `"***"` anywhere in the argument tree, at any depth (recursing through nested dicts and lists), before the values reach any sink: audit events, logger writes, the REPL tool-call line, and the plan-mode blocked notice. The interactive approval preview is the one deliberate exception and stays unmasked. The default names are `content`, `old_text`, and `new_text`, the argument keys of the `write_file` and `edit_file` tools (and of the GitHub file-write tools); an explicit `masked_fields` replaces the default. In addition to key-based replacement, string values under any other key are scrubbed for content-pattern secrets (`key=value`, `key: value`, `key => value`, quoted-JSON, `Bearer`/`Authorization`, JWT-shaped and URL-credential shapes as listed in agent_10_02), applied at every depth and idempotently; the shared masker `agent/secrets_masker.py` is the single source of these patterns.
   - The preview stays unmasked by design: it exists so the approving user can judge the operation they are approving, and its reader is the person who supplied the arguments.
   - The shipped default matches no current tool-argument key (`content`, `old_text`, `new_text`), so masking only takes effect when the list names a key the tools actually accept.
-- `allowed_tools` is the session tool whitelist; an empty value means "all allowed" at runtime and is rejected by the production validator.
+- `allowed_tools` is the session tool whitelist; an empty value denies every tool at runtime (including after a config reload) and is rejected by the production validator at load.
 
 #### Execution Control and Context Bloat
 
@@ -84,8 +83,8 @@ Injection counts, minimum importance, FTS candidate limit, RRF constant, recency
 
 ## Key Constraints
 
-- Under `tool_definitions_strict=True`, any reachable server schema mismatch causes startup failure; under `routing_drift_strict=True`, routing drift does.
-- `allowed_tools=[]` (empty) means "all allowed" at runtime (`check_preflight()` skips the whitelist check); in production `ProductionConfigValidator` records it as a validation error, so an explicit allowlist is required (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`).
+- Any reachable server schema mismatch or detected routing drift always causes startup failure; there is no strict toggle to make them warnings.
+- `allowed_tools=[]` (empty) denies every tool at runtime, including after a config reload; in production `ProductionConfigValidator` also records it as a validation error at load, so an explicit allowlist is required (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`).
 - `memory_embed_enabled=True` → `rag.embed_url` must not be empty.
 
 ## Keywords

@@ -27,7 +27,7 @@ from shared.json_utils import dumps as _json_dumps
 
 from tests.agent._config_test_defaults import (
     ALL_TOOL_NAMES,
-    STRICT_PRODUCTION_OVERRIDES,
+    PERMISSIVE_ALLOWED_ROOT,
 )
 
 
@@ -35,7 +35,6 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
     """Build a minimal AgentConfig with test-safe defaults."""
     base = build_agent_config(
         {
-            **STRICT_PRODUCTION_OVERRIDES,
             "allowed_tools": ALL_TOOL_NAMES,
             "context_char_limit": 8000,
             "context_compress_turns": 4,
@@ -57,6 +56,7 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
                     "auth_token": "test-token",
                 }
             },
+            "allowed_root": PERMISSIVE_ALLOWED_ROOT,
             **overrides,
         }
     )

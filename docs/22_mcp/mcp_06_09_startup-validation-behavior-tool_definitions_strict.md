@@ -1,5 +1,5 @@
 ---
-title: "Startup Validation Behavior (`tool_definitions_strict`)"
+title: "Startup Validation Behavior"
 area: mcp
 tags:
   - mcp
@@ -9,19 +9,21 @@ related:
   - mcp_06_01_configuration-file-inventory.md
   - mcp_03_02_tool-registry.md
 ---
-# Startup Validation Behavior (`tool_definitions_strict`)
+# Startup Validation Behavior
 
-> **Canonical specification.** This section describes the tool definitions check in `agent/services/tool_validation.py`.
+> **Canonical specification.** This section describes the tool definitions check in `agent/services/tool_validation.py`, surfaced at startup through `McpToolDiscoveryService._check_tool_definitions_finding()` in `agent/services/mcp_tool_discovery.py`.
 > For routing drift detection (`validate_routing_against_live` in `shared/tool_routing_validation.py`), see [mcp_03 Drift validation](./mcp_03_02_tool-registry.md#drift-validation).
 > These are different features.
 
-The tool definitions check is executed at agent startup, comparing the `tool_definitions` in `config/agent.toml` against actual `/v1/tools` responses. Behavior varies depending on server reachability and the `tool_definitions_strict` setting:
+The tool definitions check is executed at agent startup, comparing the `tool_definitions` in `config/agent.toml` against actual `/v1/tools` responses. The startup check is strict-only: there is no setting that downgrades its outcome. A `RuntimeError` raised by the check is converted into a `FATAL` startup finding instead of propagating (Explicit in code — scripts/agent/services/mcp_tool_discovery.py `_check_tool_definitions_finding()`).
 
-| Scenario | `strict = false` | `strict = true` |
-|---|---|---|
-| **Partial Reachability** — Some servers respond | Validation proceeds for reachable servers; unreachable servers are logged as `WARNING` | Same — only compares reachable tools; any mismatch in reachable tools triggers a `RuntimeError` |
-| **Total Unreachability** — No servers respond | Validation is skipped; `INFO: "All MCP servers unreachable ... skipping tool definition check"` — a SKIPPED outcome of this check means tool calls to unreachable servers fail for that session; whether startup continues is decided separately by the per-server `required` rule below | `RuntimeError: "Strict mode: all MCP servers unreachable — cannot validate tool definitions. Unreachable servers: [...]"` |
-| **Tool Mismatch** — Reachable but names differ | `WARNING` per direction (missing_in_server / extra_on_servers) | `RuntimeError: "Strict mode: tool definition mismatch detected. Mismatches: .... Unreachable servers: ...."` |
+| Scenario | Startup outcome |
+|---|---|
+| **Partial Reachability** — Some servers respond | Validation compares reachable servers only; unreachable servers are logged as `WARNING`. Any mismatch in reachable tools is a `FATAL` finding and blocks startup |
+| **Total Unreachability** — No servers respond | `FATAL` finding: `"Strict mode: all MCP servers unreachable — cannot validate tool definitions. Unreachable servers: [...]"` and startup is blocked. Only the case with no configured reachable servers and no unreachable server produces a logged skip with no finding |
+| **Tool Mismatch** — Reachable but names differ | `FATAL` finding: `"Strict mode: tool definition mismatch detected. Mismatches: .... Unreachable servers: ...."` and startup is blocked |
+
+A separate runtime-only validation (`check_tool_definitions_runtime` in `agent/services/tool_validation.py`) logs warnings and never raises; it is not part of the startup gate.
 
 ### Startup validation statuses
 
@@ -42,7 +44,7 @@ Example: MCP discovery skipped due to missing configuration.
 
 ### Discovery failure handling (per-server `required` flag)
 
-MCP discovery follows the ADR-004 rule: an unavailable required server aborts startup; an unavailable non-required server is disabled and startup continues. The outcome depends on `McpServerConfig.required` and on `tool_definitions_strict`, not on any environment name (Explicit in code — scripts/agent/services/mcp_tool_discovery.py `McpToolDiscoveryService.discover_all()`, `_escalate_unreachable_findings()`).
+MCP discovery follows the ADR-004 rule: an unavailable required server aborts startup; an unavailable non-required server is disabled and startup continues. The outcome depends on `McpServerConfig.required`, not on any environment name (Explicit in code — scripts/agent/services/mcp_tool_discovery.py `McpToolDiscoveryService.discover_all()`, `_escalate_unreachable_findings()`).
 
 **Unreachable servers and invalid `/v1/tools` responses or entries (per server):**
 - `required = true`: FATAL outcome, startup blocked
@@ -51,14 +53,13 @@ MCP discovery follows the ADR-004 rule: an unavailable required server aborts st
 **Required tools:** a `tool_names` entry of a required server that is absent from the discovery results is FATAL.
 
 **Duplicate tools:**
-- Always FATAL, startup blocked, independent of `required` and `strict` (safety/integrity failure, ADR-004 Decision Group 2)
+- Always FATAL, startup blocked, independent of `required` (safety/integrity failure, ADR-004 Decision Group 2)
 
 **Routing drift, tool-definition mismatch, malformed capabilities:**
-- `strict = true`: FATAL outcome, startup blocked
-- `strict = false`: WARNING outcome, startup continues
-- Unexpected failure of the routing-drift check itself (not a detected drift): `strict = true` gives a FATAL outcome and blocks startup; `strict = false` gives a WARNING outcome and startup continues
+- Always FATAL, startup blocked, with no toggle (safety/integrity failures)
+- Unexpected failure of the routing-drift check itself (not a detected drift): FATAL outcome, startup blocked
 
-`ProductionConfigValidator` rejects `tool_definitions_strict = false` (Explicit in code — scripts/agent/production_config_validator.py `_REQUIRED_STRICT_KEYS`), so the strict-false rows describe the check's own behavior rather than a supported production setting.
+Removed settings (`tool_definitions_strict`, `routing_drift_strict`) have no effect and are rejected as unknown production keys (Explicit in code — scripts/agent/production_config_validator.py `_check_unknown_production_keys`).
 
 **Important:** If discovery is `SKIPPED`, startup continues but the `RuntimeToolRegistry` remains empty or incomplete. Consequently, even if the LLM recognizes a tool, execution will fail at runtime. Operators must treat `SKIPPED` results from `mcp_tool_discovery` with the same severity as `WARNING`.
 

@@ -135,7 +135,7 @@ Health checks using `mcp_health.py` enable dispatch control based on server stat
 
 #### Drift Validation Behavior
 
-Config Drift defaults to warnings, raises RuntimeError if `routing_drift_strict` enabled. Live Drift defaults to warnings, becomes FATAL if `tool_definitions_strict` enabled. Ownership Duplication always results in FATAL regardless of mode.
+Config Drift and Live Drift are always FATAL and abort startup. Ownership Duplication always results in FATAL regardless of mode.
 
 ## 3.5 Configuration
 

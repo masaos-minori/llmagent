@@ -41,14 +41,18 @@ from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
 
+from tests.agent._config_test_defaults import ALL_TOOL_NAMES, PERMISSIVE_ALLOWED_ROOT
+
 
 def _cfg(**overrides: Any) -> AgentConfig:
     """Build an AgentConfig for tool_runner.py unit tests.
 
     This intentionally bypasses ProductionConfigValidator (patched below):
-    these tests construct deliberately empty allowed_tools/tool_safety_tiers/
-    approval_risk_rules, which is a different concern from whether the
-    resulting config would be accepted as production-ready.
+    only tool_safety_tiers and approval_risk_rules are deliberately empty,
+    which is a different concern from whether the resulting config would be
+    accepted as production-ready. allowed_tools/allowed_root are non-empty
+    because the fail-closed guards (REQ-002, REQ-003) deny every call when
+    either is empty.
     """
     defaults: dict[str, Any] = {
         "context_char_limit": 8000,
@@ -57,7 +61,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "serial_tool_calls": False,
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
-        "allowed_tools": [],
+        "allowed_tools": list(ALL_TOOL_NAMES),
         "tool_definitions": [],
         "tool_safety_tiers": {},
         "approval_risk_rules": {},
@@ -66,7 +70,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_high_risk_branches": [],
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
-        "allowed_root": "",
+        "allowed_root": PERMISSIVE_ALLOWED_ROOT,
         "tool_results_turn_max_chars": 0,
         # memory_embed_enabled now defaults to True; embed_url must be non-empty
         # to satisfy AgentConfig.__post_init__'s cross-field validation.
@@ -2514,11 +2518,15 @@ class TestAttemptSideEffectFlag:
     non-READ call executes (REQ-006 set-before-execute contract)."""
 
     @staticmethod
-    def _ctx_with_real_turn(gateway: Any = None) -> MagicMock:
+    def _ctx_with_real_turn(
+        gateway: Any = None, cfg: AgentConfig | None = None
+    ) -> MagicMock:
         """_make_ctx with a real TurnState so the flag is a real dataclass field."""
         ctx = _make_ctx()
         ctx.turn = TurnState(current_turn_id="test-turn-id")
         ctx.services_required.gateway = gateway
+        if cfg is not None:
+            ctx.cfg = cfg
         return ctx
 
     @pytest.mark.asyncio
@@ -2564,7 +2572,11 @@ class TestAttemptSideEffectFlag:
     @pytest.mark.asyncio
     async def test_unclassified_tool_sets_flag(self) -> None:
         """UNKNOWN (registry raises KeyError) counts as a side effect (conservative)."""
-        ctx = self._ctx_with_real_turn()
+        # `mystery_tool` is not a registered tool, so it must be allowed explicitly
+        # to reach the registry-lookup path instead of the allowed_tools preflight.
+        ctx = self._ctx_with_real_turn(
+            cfg=_cfg(allowed_tools=[*ALL_TOOL_NAMES, "mystery_tool"])
+        )
         registry = MagicMock()
         registry.get = MagicMock(side_effect=KeyError("mystery_tool"))
         ctx.services_required.runtime_tools = registry

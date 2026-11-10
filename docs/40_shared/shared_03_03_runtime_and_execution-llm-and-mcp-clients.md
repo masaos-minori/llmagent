@@ -62,7 +62,7 @@ Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp
 
 **Overview:** Per-server transport config validated by `__post_init__` (URL scheme, timeout range, `tool_names` uniqueness, env type). `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN`. `McpServerHealthRegistry` tracks consecutive failures; `UNAVAILABLE` blocks dispatch. The registry stores no degraded reason (see section 9).
 
-> **Note:** `McpServerConfig.transport` uses the `TransportType` enum instead of a plain string. Related enums include `StartupMode` (none/persistent/subprocess) and `SecurityProfile` (a single `production` member; MCP auth enforcement is unconditional).
+> **Note:** `McpServerConfig.transport` uses the `TransportType` enum instead of a plain string. Related enums include `StartupMode` (none/persistent/subprocess). MCP auth enforcement is unconditional.
 
 ---
 

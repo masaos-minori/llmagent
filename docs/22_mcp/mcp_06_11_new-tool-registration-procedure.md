@@ -46,7 +46,7 @@ After registration is complete:
 uv run pytest tests/shared/test_tool_constants.py tests/shared/test_route_resolver.py -v
 ```
 
-**Expected results:** All routing tests pass. If `tool_definitions_strict = true`, restart the agent and verify that no `Routing drift` warnings are displayed in the startup logs.
+**Expected results:** All routing tests pass. Restart the agent and verify that startup does not abort with a `Routing drift` or tool-definition error; both are always FATAL findings with no toggle.
 
 ---
 

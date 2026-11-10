@@ -29,7 +29,6 @@ from agent.shared.health_models import (
 from fastapi.testclient import TestClient
 from shared.mcp_config import (
     McpServerConfig,
-    SecurityProfile,
     StartupMode,
     TransportType,
 )
@@ -98,14 +97,10 @@ def _server(
 def _make_ctx(
     servers: dict[str, object],
     http: AsyncMock,
-    security_profile: SecurityProfile = SecurityProfile.PRODUCTION,
-    tool_definitions_strict: bool = False,
 ) -> MagicMock:
     """Build a minimal mocked AgentContext (mirrors tests/test_repl_health.py's style)."""
     ctx = MagicMock()
     ctx.cfg.mcp.mcp_servers = servers
-    ctx.cfg.mcp.security_profile = security_profile
-    ctx.cfg.tool.tool_definitions_strict = tool_definitions_strict
     ctx.services_required.http = http
     return ctx
 
@@ -115,13 +110,7 @@ def _make_ctx(
 
 class TestWriteClassificationFinding:
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("strict", "expected"),
-        [(False, StartupCheckStatus.WARNING), (True, StartupCheckStatus.FATAL)],
-    )
-    async def test_static_write_tool_reported_read_only_is_flagged(
-        self, strict: bool, expected: StartupCheckStatus
-    ) -> None:
+    async def test_static_write_tool_reported_read_only_is_flagged(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(
             _resp(
@@ -142,7 +131,7 @@ class TestWriteClassificationFinding:
                 },
             )
         )
-        ctx = _make_ctx({"s": _server()}, http, tool_definitions_strict=strict)
+        ctx = _make_ctx({"s": _server()}, http)
 
         result = await McpToolDiscoveryService(
             ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -154,7 +143,7 @@ class TestWriteClassificationFinding:
             if f.message.startswith("Write classification mismatch")
         ]
         assert len(mismatches) == 1
-        assert mismatches[0].status == expected
+        assert mismatches[0].status == StartupCheckStatus.FATAL
 
 
 # ── discover_all() happy path ─────────────────────────────────────────────────
@@ -536,7 +525,7 @@ class TestDiscoverAllMalformedEntries:
         assert result.registry.get("grep").server_key == "srv"
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         assert len(mcp_findings) >= 1
-        assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
+        assert any(f.status == StartupCheckStatus.FATAL for f in mcp_findings)
 
 
 # ── schema-2.0 four-field contract: required, not defaulted ───────────────────
@@ -905,9 +894,12 @@ class TestDiscoverAllUnreachableServers:
         assert result.registry.get("grep").server_key == "good_server"
 
     @pytest.mark.asyncio
-    async def test_unreachable_non_required_server_with_fail_fast_returns_warning(
+    async def test_unreachable_non_required_server_tool_definition_check_is_fatal(
         self,
     ) -> None:
+        """ADR-004: the tool-definition check has no non-strict bypass, so a server
+        that is unreachable stays `required = false` on the escalation axis (WARNING)
+        but the tool-definition finding is always FATAL."""
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
@@ -925,31 +917,11 @@ class TestDiscoverAllUnreachableServers:
 
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
-        assert all(f.status != StartupCheckStatus.FATAL for f in mcp_findings)
-        assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
-
-    @pytest.mark.asyncio
-    async def test_unreachable_non_required_server_with_degraded_returns_warning(
-        self,
-    ) -> None:
-        srv_cfg = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://127.0.0.1:9000",
-            startup_mode=StartupMode.PERSISTENT,
-            required=False,
-            auth_token="test-token",
+        assert any(
+            f.status == StartupCheckStatus.FATAL
+            and "cannot validate tool definitions" in f.message
+            for f in mcp_findings
         )
-        http = AsyncMock(spec=httpx.AsyncClient)
-        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
-        ctx = _make_ctx({"srv": srv_cfg}, http)
-
-        result = await McpToolDiscoveryService(
-            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
-        ).discover_all()
-
-        assert result.unreachable == ["srv"]
-        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
-        assert all(f.status != StartupCheckStatus.FATAL for f in mcp_findings)
         assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
 
     @pytest.mark.asyncio
@@ -979,48 +951,8 @@ class TestDiscoverAllUnreachableServers:
 # ── cross-server duplicate tool names ──────────────────────────────────────────
 
 
-class TestDiscoverAllCrossProfileEquivalence:
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "security_profile",
-        [SecurityProfile.PRODUCTION],
-    )
-    @pytest.mark.parametrize(
-        "required_value,expected_status",
-        [
-            (True, StartupCheckStatus.FATAL),
-            (False, StartupCheckStatus.WARNING),
-        ],
-    )
-    async def test_classification_equivalent_across_security_profiles(
-        self,
-        required_value: bool,
-        expected_status: StartupCheckStatus,
-        security_profile: SecurityProfile,
-    ) -> None:
-        srv_cfg = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://127.0.0.1:9000",
-            required=required_value,
-            auth_token="test-token",
-            startup_mode=StartupMode.PERSISTENT,
-        )
-        http = AsyncMock(spec=httpx.AsyncClient)
-        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
-        ctx = _make_ctx({"srv": srv_cfg}, http, security_profile=security_profile)
-
-        result = await McpToolDiscoveryService(
-            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
-        ).discover_all()
-
-        assert result.unreachable == ["srv"]
-        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
-        assert len(mcp_findings) >= 1
-        assert any(f.status == expected_status for f in mcp_findings)
-
-
 class TestDiscoverAllDuplicates:
-    def _dup_ctx(self, security_profile: SecurityProfile) -> MagicMock:
+    def _dup_ctx(self) -> MagicMock:
         http = AsyncMock(spec=httpx.AsyncClient)
 
         async def _get(
@@ -1053,14 +985,12 @@ class TestDiscoverAllDuplicates:
                 "server_b": _server("http://b:9000"),
             },
             http,
-            security_profile=security_profile,
         )
-        ctx.cfg.tool.tool_definitions_strict = False
         return ctx
 
     @pytest.mark.asyncio
     async def test_duplicate_name_production_is_fatal_and_excluded(self) -> None:
-        ctx = self._dup_ctx(SecurityProfile.PRODUCTION)
+        ctx = self._dup_ctx()
 
         result = await McpToolDiscoveryService(
             ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -1697,7 +1627,6 @@ class TestDriftDetection:
             },
             http,
         )
-        ctx.cfg.tool.tool_definitions_strict = False
 
         result = await McpToolDiscoveryService(
             ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -1745,9 +1674,7 @@ class TestDriftDetection:
                 "srv2": _server("http://srv2:9000"),
             },
             http,
-            security_profile=SecurityProfile.PRODUCTION,
         )
-        ctx.cfg.tool.tool_definitions_strict = False
 
         result = await McpToolDiscoveryService(
             ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -1759,7 +1686,7 @@ class TestDriftDetection:
         assert dup_findings[0].status == StartupCheckStatus.FATAL
 
     @pytest.mark.asyncio
-    async def test_duplicate_live_tool_fatal_when_strict_even_if_local(self) -> None:
+    async def test_duplicate_live_tool_fatal_even_if_local(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
 
         async def _get(
@@ -1793,7 +1720,6 @@ class TestDriftDetection:
             },
             http,
         )
-        ctx.cfg.tool.tool_definitions_strict = True
 
         result = await McpToolDiscoveryService(
             ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -1870,7 +1796,6 @@ class TestDriftDetection:
                 },
                 http,
             )
-            ctx.cfg.tool.tool_definitions_strict = False
 
             result = await McpToolDiscoveryService(
                 ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -1944,7 +1869,6 @@ class TestDriftDetection:
                 },
                 http,
             )
-            ctx.cfg.tool.tool_definitions_strict = False
 
             result = await McpToolDiscoveryService(
                 ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -1967,12 +1891,8 @@ class TestDriftDetection:
 
 
 class TestUnifiedSeverity:
-    @pytest.mark.parametrize("strict", [False, True])
     @pytest.mark.asyncio
-    async def test_severity_unified_for_duplicates(
-        self,
-        strict: bool,
-    ) -> None:
+    async def test_severity_unified_for_duplicates(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
 
         async def _get(
@@ -2006,7 +1926,6 @@ class TestUnifiedSeverity:
             },
             http,
         )
-        ctx.cfg.tool.tool_definitions_strict = strict
 
         result = await McpToolDiscoveryService(
             ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -2017,22 +1936,12 @@ class TestUnifiedSeverity:
         assert len(dup_findings) == 1
         assert dup_findings[0].status == StartupCheckStatus.FATAL
 
-    @pytest.mark.parametrize(
-        "strict, expected_status",
-        [
-            (False, StartupCheckStatus.WARNING),
-            (True, StartupCheckStatus.FATAL),
-        ],
-    )
     @pytest.mark.asyncio
     async def test_severity_unified_for_tool_definitions_has_issues(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        strict: bool,
-        expected_status: StartupCheckStatus,
     ) -> None:
-        """tool_definitions findings follow the unified severity scheme:
-        FATAL iff strict, else WARNING."""
+        """tool_definitions findings are always FATAL (strict-only)."""
         monkeypatch.setattr(
             "agent.services.mcp_tool_discovery._check_tool_definitions",
             AsyncMock(
@@ -2063,7 +1972,6 @@ class TestUnifiedSeverity:
 
         http.get = AsyncMock(side_effect=_get)
         ctx = _make_ctx({"srv": _server()}, http)
-        ctx.cfg.tool.tool_definitions_strict = strict
 
         result = await McpToolDiscoveryService(
             ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -2072,24 +1980,15 @@ class TestUnifiedSeverity:
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         tool_defs_findings = [f for f in mcp_findings if "mismatch" in f.message]
         assert len(tool_defs_findings) == 1
-        assert tool_defs_findings[0].status == expected_status
+        assert tool_defs_findings[0].status == StartupCheckStatus.FATAL
 
 
 # ── tool definitions check surfaces as outcome, not exception ──────────────────
 
 
-@pytest.mark.parametrize(
-    "strict, expected_status",
-    [
-        (False, StartupCheckStatus.WARNING),
-        (True, StartupCheckStatus.FATAL),
-    ],
-)
 @pytest.mark.asyncio
 async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
     monkeypatch: pytest.MonkeyPatch,
-    strict: bool,
-    expected_status: StartupCheckStatus,
 ) -> None:
     monkeypatch.setattr(
         "agent.services.mcp_tool_discovery._check_tool_definitions",
@@ -2113,7 +2012,6 @@ async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
 
     http.get = AsyncMock(side_effect=_get)
     ctx = _make_ctx({"srv": _server()}, http)
-    ctx.cfg.tool.tool_definitions_strict = strict
 
     result = await McpToolDiscoveryService(
         ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
@@ -2122,7 +2020,7 @@ async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
     mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
     tool_defs_findings = [f for f in mcp_findings if "boom" in f.message]
     assert len(tool_defs_findings) == 1
-    assert tool_defs_findings[0].status == expected_status
+    assert tool_defs_findings[0].status == StartupCheckStatus.FATAL
 
 
 # ── REQ-008: Required-server malformed entry FATAL escalation ──────────────────

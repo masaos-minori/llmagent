@@ -49,7 +49,7 @@ X-Session-Id: <session_id>      (injected by ToolExecutor)
 
 `X-Session-Id` is set during agent startup via `ToolTransportInvoker.set_session_id()` and refreshed whenever the agent's active session id changes (session restore, new-session clear). It is injected into all POST requests by `HttpTransport.call()`. If a session-id change is not followed by a refresh, tool calls keep the previous session's id and server-side audit attribution is wrong for the rest of the run.
 
-`X-Request-Id` is injected as a UUID in the response headers by the server's authentication middleware.
+`X-Request-Id` is injected as a UUID in the response headers by the server's authentication middleware. A 401 rejection response is returned without the header.
 
 Every MCP server registers that middleware and enforces the `Authorization` header (see `mcp_06_14_mcp-authentication-setup.md`).
 
@@ -114,7 +114,7 @@ Not implemented:
 - Top-level `capabilities` — not returned by `build_tools_response()`
 
 Called at startup to verify that configured tool names match live server tools.
-In case of mismatch → warning log; if `tool_definitions_strict=True` → `RuntimeError`.
+In case of mismatch → the `RuntimeError` is surfaced as a `FATAL` startup finding and startup is aborted; there is no toggle.
 
 ---
 
@@ -126,7 +126,7 @@ Contracts owned by the base class:
 
 - **Health**: `health()` returns `(health_dict, http_status)`; HTTP 200 if `ready=True`, 503 if `ready=False`. The health dict carries `status` (`ok` / `degraded`), `ready`, `liveness`, `restart_recommended`, `operator_action_required`, `dependencies`, and `details`. The base implementation always reports `ok` / ready; every MCP server overrides it and builds its response with `make_health_response(deps, details)` (`mcp_servers/health_response.py`). See [mcp_02_02](./mcp_02_02_startup-modes-and-health.md) for details.
 - **Loopback-only binding**: `run_http()` raises `ValueError` before binding if `http_host` is not `"127.0.0.1"` or `"::1"`. Every internal MCP server binds to loopback only, with no override. The bound socket address is verified to be loopback again immediately after startup (defense-in-depth, independent of the pre-bind check).
-- **Authentication**: `attach_auth_middleware(app, token)` rejects requests without a matching `Authorization: Bearer <token>` header with HTTP 401. With an empty `token` the middleware alone would accept all requests, a fallback that exists only for standalone testing: every MCP server refuses to start with an empty `auth_token`, and `McpServerConfig` construction-time validation and `agent.startup_validation`'s "MCP authentication check" also reject it before the agent calls a server.
+- **Authentication**: `attach_auth_middleware(app, token)` rejects requests without a matching `Authorization: Bearer <token>` header with HTTP 401. An empty `token` is also fail-closed in the middleware: every request gets 401 and no accept-all opt-out exists (Explicit in code — scripts/mcp_servers/server.py `attach_auth_middleware`). Every MCP server additionally refuses to start with an empty `auth_token` (`require_auth_token()`), and `McpServerConfig` construction-time validation and `agent.startup_validation`'s "MCP authentication check" reject it before the agent calls a server.
 - **Tool listing**: every server's `/v1/tools` handler annotates its own `TOOL_LIST` and passes it to `build_tools_response()`.
 - **Truncation**: oversized responses are truncated by the base class; the result carries total and visible byte counts so the truncation is observable.
 

@@ -17,7 +17,6 @@ import pytest
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from shared.mcp_config import (
     McpServerConfig,
-    SecurityProfile,
     StartupMode,
     TransportType,
 )
@@ -339,7 +338,6 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
         http.get = AsyncMock(return_value=resp)
         ctx = MagicMock()
         ctx.cfg.mcp.mcp_servers = {"srv": _http()}
-        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         ctx.services_required.http = http
 
         result = await McpToolDiscoveryService(

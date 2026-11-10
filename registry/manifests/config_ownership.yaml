@@ -107,14 +107,6 @@ entries:
   hot_reloadable: true
   section: tool
   validator: null
-- field: routing_drift_strict
-  hot_reloadable: false
-  section: tool
-  validator: null
-- field: security_profile
-  hot_reloadable: true
-  section: mcp
-  validator: null
 - field: serial_tool_calls
   hot_reloadable: true
   section: tool
@@ -140,10 +132,6 @@ entries:
   section: tool
   validator: null
 - field: tool_definitions
-  hot_reloadable: true
-  section: tool
-  validator: null
-- field: tool_definitions_strict
   hot_reloadable: true
   section: tool
   validator: null

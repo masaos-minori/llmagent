@@ -273,14 +273,16 @@ def _check_positional_args(
         if any(pos.startswith(p) for p in cfg.approval.approval_protected_paths):
             return RiskLevel.HIGH
         # Check allowed_root
-        if cfg.approval.allowed_root:
-            root = Path(cfg.approval.allowed_root).resolve()
-            try:
-                resolved = Path(pos).resolve()
-            except (ValueError, OSError):
-                return RiskLevel.HIGH
-            if not resolved.is_relative_to(root):
-                return RiskLevel.HIGH
+        if not cfg.approval.allowed_root:
+            # Empty allowed_root: a path candidate cannot be confined (fail closed).
+            return RiskLevel.HIGH
+        root = Path(cfg.approval.allowed_root).resolve()
+        try:
+            resolved = Path(pos).resolve()
+        except (ValueError, OSError):
+            return RiskLevel.HIGH
+        if not resolved.is_relative_to(root):
+            return RiskLevel.HIGH
     return None
 
 
@@ -461,10 +463,22 @@ def check_allowed_root(
 
     The checked key set is the configured path_keys unioned with the registered
     tool's declared scope keys; every element of a list-valued arg is checked and a
-    not-inspectable value denies (fail closed).
+    not-inspectable value denies (fail closed). An empty `allowed_root` denies a
+    call that carries a path argument (nothing can be confined); a call with no
+    path argument passes.
     """
     if not cfg.approval.allowed_root:
-        return True
+        try:
+            next(
+                _iter_path_arg_values(
+                    args, _resolve_path_keys(cfg, tool_name, registry)
+                )
+            )
+        except StopIteration:
+            return True
+        except _NotInspectablePathValueError:
+            return False
+        return False
     root = Path(cfg.approval.allowed_root).resolve()
     try:
         for val in _iter_path_arg_values(
@@ -510,7 +524,7 @@ def check_preflight(
     Does nothing when all checks pass. The optional registry makes the registered
     tool's declared scope keys available to the root-jail check (REQ-003).
     """
-    if cfg.tool.allowed_tools and tool_name not in cfg.tool.allowed_tools:
+    if tool_name not in cfg.tool.allowed_tools:
         raise PolicyViolationError(
             "denied_allowed_tools",
             f"{tool_name}: not in allowed_tools for this session",

@@ -43,7 +43,6 @@ Documents the `AgentConfig` structure, configuration file ownership, and classif
 - Changes to MCP server URL, authentication tokens, startup modes, commands, or environment variables.
 - `use_memory_layer` — Enabling/disabling the memory subsystem (startup only).
 - `memory_embed_enabled` — Enabling/disabling embedding generation and KNN search (startup only).
-- `routing_drift_strict` — Fatal handling for routing drift (startup only).
 
 ### Hot-Reloadable Scope
 

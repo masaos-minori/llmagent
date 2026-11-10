@@ -619,6 +619,98 @@ class TestRuntimeToolPolicyReapplication:
 
         ctx.services_required.http.get.assert_not_called()  # type: ignore[attr-defined]
 
+    def test_empty_allowed_tools_denies_every_bound_tool(self) -> None:
+        """REQ-002 fail-closed: an empty allowed_tools disables all bound tools."""
+
+        from shared.runtime_tool import AgentSafetyTier
+        from shared.runtime_tool_registry import RuntimeToolRegistry
+
+        from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
+
+        svc, ctx = self._make_svc(with_registry=True)
+        tools = {
+            "read_file": build_fixture_runtime_tool(
+                name="read_file",
+                server_key="fs",
+                description="Read a file",
+                input_schema={"type": "object"},
+                status="active",
+                is_write=False,
+                agent_safety_tier=cast(AgentSafetyTier, "READ_ONLY"),
+                enabled_for_llm=True,
+            ),
+            "delete_file": build_fixture_runtime_tool(
+                name="delete_file",
+                server_key="fs",
+                description="Delete a file",
+                input_schema={"type": "object"},
+                status="active",
+                is_write=True,
+                agent_safety_tier=cast(AgentSafetyTier, "WRITE_DANGEROUS"),
+                enabled_for_llm=True,
+            ),
+        }
+        registry = RuntimeToolRegistry(tools=tools, allowed_servers=frozenset({"fs"}))
+        assert registry.get("read_file").enabled_for_llm is True
+
+        ctx.services_required.runtime_tools = registry  # type: ignore[attr-defined]
+        ctx.cfg.tool.allowed_tools = []  # type: ignore[attr-defined]
+        svc._sync_services({}, None, None, registry)  # type: ignore[attr-defined]
+
+        assert registry.get("read_file").enabled_for_llm is False
+        assert registry.get("delete_file").enabled_for_llm is False
+
+    def test_reload_empty_allowed_tools_fails_closed(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        """REQ-002: apply_config_dict with allowed_tools=[] denies the call."""
+
+        from agent.services.exceptions import ConfigReloadValidationError
+        from agent.tool_exceptions import PolicyViolationError
+        from agent.tool_policy import check_preflight
+
+        svc, ctx = svc_with_ctx
+        ctx.cfg.tool.allowed_tools = ["read_file"]
+
+        try:
+            svc.apply_config_dict({"allowed_tools": []})  # type: ignore[attr-defined]
+        except ConfigReloadValidationError:
+            # Rejected by validation: the live config keeps the old allow list.
+            assert ctx.cfg.tool.allowed_tools == ["read_file"]
+            return
+
+        # Applied as an empty list: pre-flight now denies the previously
+        # allowed tool (fail closed).
+        assert ctx.cfg.tool.allowed_tools == []
+        with pytest.raises(PolicyViolationError):
+            check_preflight(ctx.cfg, "read_file", {})
+
+    def test_reload_empty_allowed_root_fails_closed(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        """REQ-003: apply_config_dict with allowed_root='' disables the path jail."""
+
+        from agent.services.exceptions import ConfigReloadValidationError
+        from agent.tool_policy import check_allowed_root
+
+        svc, ctx = svc_with_ctx
+        ctx.cfg.approval.allowed_root = "/"
+        ctx.cfg.approval.approval_resource_keys = {
+            "path_keys": ["path"],
+            "branch_keys": [],
+        }
+
+        try:
+            svc.apply_config_dict({"allowed_root": ""})  # type: ignore[attr-defined]
+        except ConfigReloadValidationError:
+            # Rejected by validation: the live config keeps the old jail root.
+            assert ctx.cfg.approval.allowed_root == "/"
+            return
+
+        # Applied as an empty root: a path-carrying call is denied.
+        assert ctx.cfg.approval.allowed_root == ""
+        assert check_allowed_root(ctx.cfg, "write_file", {"path": "/tmp/x"}) is False
+
 
 class TestApprovalGitopsPushBlocked:
     """gitops_push_blocked can be updated via /reload."""
@@ -866,13 +958,11 @@ class TestRegistryFieldClassification:
             "max_tool_turns",
             "tool_result_max_llm_chars",
             "serial_tool_calls",
-            "tool_definitions_strict",
             "plan_blocked_tools",
             "system_prompt_tool",
             "system_prompts",
             "tool_definitions",
             "allowed_tools",
-            "routing_drift_strict",
         }
         assert set(tool_fields) == expected
 
@@ -923,7 +1013,7 @@ class TestRegistryFieldClassification:
             for entry in CONFIG_FIELD_REGISTRY.values()
             if entry.section_path == "mcp"
         ]
-        expected = {"security_profile"}
+        expected: set[str] = set()
         assert set(mcp_fields) == expected
 
     def test_all_registry_entries_have_validators_or_none(self) -> None:

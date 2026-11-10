@@ -5,8 +5,10 @@ from __future__ import annotations
 import ast
 import glob
 import os
+import re
 import subprocess  # nosec B404 — fresh-interpreter import checks use a fixed argv
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -16,20 +18,64 @@ from mcp_servers.server import require_auth_token
 pytestmark = pytest.mark.usefixtures("firejail_on_path")
 
 _SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
+_CONFIG_TOML = _SCRIPTS.parent / "config" / "agent.toml"
+_SERVER_SOURCE_GLOB = str(_SCRIPTS / "mcp_servers" / "*" / "*_server.py")
+_ENV_REF_RE = re.compile(r"^\$\{ENV:(\w+)\}$")
 
-_SERVERS = [
-    ("mcp_servers.shell.shell_server", "MCP_SHELL_AUTH_TOKEN"),
-    ("mcp_servers.git.git_server", "MCP_GIT_AUTH_TOKEN"),
-    ("mcp_servers.web_search.web_search_server", "MCP_WEB_SEARCH_AUTH_TOKEN"),
-    ("mcp_servers.file.delete_server", "MCP_FILE_DELETE_AUTH_TOKEN"),
-    ("mcp_servers.file.write_server", "MCP_FILE_WRITE_AUTH_TOKEN"),
-    ("mcp_servers.file.read_server", "MCP_FILE_READ_AUTH_TOKEN"),
-    ("mcp_servers.github.github_server", "MCP_GITHUB_AUTH_TOKEN"),
-    ("mcp_servers.cicd.cicd_server", "MCP_CICD_AUTH_TOKEN"),
-    ("mcp_servers.rag_pipeline.rag_pipeline_server", "MCP_RAG_PIPELINE_AUTH_TOKEN"),
-    ("mcp_servers.mdq.mdq_server", "MCP_MDQ_AUTH_TOKEN"),
-]
-_ALL_TOKEN_VARS = [env for _module, env in _SERVERS]
+
+def _server_source_modules() -> dict[str, str]:
+    """Map each ``scripts/mcp_servers/<dir>/<stem>_server.py`` to its config key.
+
+    Key is ``<stem>`` when it equals ``<dir>`` (``shell/shell_server.py`` ->
+    ``shell``), otherwise ``<dir>_<stem>`` (``file/delete_server.py`` ->
+    ``file_delete``).
+    """
+    mapping: dict[str, str] = {}
+    for path_str in sorted(glob.glob(_SERVER_SOURCE_GLOB)):
+        path = Path(path_str)
+        stem = path.stem
+        if not stem.endswith("_server"):
+            continue
+        dir_name = path.parent.name
+        short = stem[: -len("_server")]
+        key = short if short == dir_name else f"{dir_name}_{short}"
+        mapping[key] = f"mcp_servers.{dir_name}.{stem}"
+    return mapping
+
+
+def _configured_servers() -> list[tuple[str, str, str]]:
+    """Derive ``(key, module, env_var)`` for every ``[mcp_servers.*]`` table.
+
+    Reads the committed ``config/agent.toml`` (not the deployed copy, not
+    ``ConfigLoader``) so the test list tracks the config file itself (REQ-005).
+    Raises on a table whose ``auth_token`` is not a single ``${ENV:NAME}``
+    reference or that has no matching server module — never skips silently.
+    """
+    with _CONFIG_TOML.open("rb") as handle:
+        tables = tomllib.load(handle).get("mcp_servers", {})
+    modules = _server_source_modules()
+    derived: list[tuple[str, str, str]] = []
+    for key, table in tables.items():
+        token = str(table.get("auth_token", ""))
+        match = _ENV_REF_RE.match(token)
+        if match is None:
+            raise ValueError(
+                f"mcp_servers.{key}: auth_token {token!r} is not a single "
+                "${ENV:NAME} reference"
+            )
+        module = modules.get(key)
+        if module is None:
+            raise ValueError(
+                f"mcp_servers.{key}: no matching scripts/mcp_servers/*/*_server.py"
+            )
+        derived.append((key, module, match.group(1)))
+    derived.sort()
+    return derived
+
+
+_CONFIGURED_SERVERS = _configured_servers()
+_SERVERS = [(module, env) for _key, module, env in _CONFIGURED_SERVERS]
+_ALL_TOKEN_VARS = [env for _key, _module, env in _CONFIGURED_SERVERS]
 
 
 class TestRequireAuthToken:
@@ -81,6 +127,26 @@ def test_non_empty_tokens_let_a_server_import(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_every_configured_server_resolves_to_a_module_and_token_variable() -> None:
+    """REQ-005: every ``[mcp_servers.*]`` table yields exactly one derived server."""
+    with _CONFIG_TOML.open("rb") as handle:
+        tables = tomllib.load(handle).get("mcp_servers", {})
+    assert len(_CONFIGURED_SERVERS) == len(tables)
+    for key, module, env_var in _CONFIGURED_SERVERS:
+        assert key in tables
+        assert module.startswith("mcp_servers.")
+        assert module.endswith("_server")
+        assert _ENV_REF_RE.match(str(tables[key].get("auth_token", ""))) is not None
+        assert tables[key].get("auth_token") == f"${{ENV:{env_var}}}"
+
+
+def test_every_server_module_is_configured() -> None:
+    """Converse check: a ``*_server.py`` module without a config table is a failure."""
+    assert set(_server_source_modules()) == {
+        key for key, _module, _env in _CONFIGURED_SERVERS
+    }
+
+
 def _routes_through_enforcement_point(source: str) -> bool:
     """True iff the module calls ``require_auth_token()`` somewhere in its AST.
 
@@ -96,9 +162,6 @@ def _routes_through_enforcement_point(source: str) -> bool:
         ):
             return True
     return False
-
-
-_SERVER_SOURCE_GLOB = str(_SCRIPTS / "mcp_servers" / "*" / "*_server.py")
 
 
 @pytest.mark.parametrize("path", sorted(glob.glob(_SERVER_SOURCE_GLOB)))

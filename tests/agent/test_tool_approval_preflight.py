@@ -35,7 +35,7 @@ from tests.agent._config_test_defaults import (
     ALL_APPROVAL_RISK_RULES,
     ALL_TOOL_NAMES,
     ALL_TOOL_SAFETY_TIERS,
-    STRICT_PRODUCTION_OVERRIDES,
+    PERMISSIVE_ALLOWED_ROOT,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -45,8 +45,8 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
     """Build a minimal AgentConfig with test-safe defaults."""
     base = build_agent_config(
         {
-            **STRICT_PRODUCTION_OVERRIDES,
             "allowed_tools": ALL_TOOL_NAMES,
+            "allowed_root": PERMISSIVE_ALLOWED_ROOT,
             "context_char_limit": 8000,
             "context_compress_turns": 4,
             "llm_retry_base_delay": 1.0,
@@ -1080,7 +1080,7 @@ class TestRunApprovalChecks:
         """T-03: Preflight gate fires when repo is not in GitHub allowlist."""
         cfg = _make_cfg(
             allowed_tools=["github_push_files"],
-            allowed_root="",
+            allowed_root=PERMISSIVE_ALLOWED_ROOT,
             approval_github_allowed_repos=["owner/existing-repo"],
         )
 
@@ -1137,7 +1137,7 @@ class TestRunApprovalChecks:
         # Existing test: allowed_repo passes for authorized repo
         cfg = _make_cfg(
             allowed_tools=["github_push_files"],
-            allowed_root="",
+            allowed_root=PERMISSIVE_ALLOWED_ROOT,
             approval_github_allowed_repos=["owner/repo"],
         )
         check_preflight(cfg, "github_push_files", {"owner": "owner", "repo": "repo"})
@@ -1145,7 +1145,7 @@ class TestRunApprovalChecks:
         # Existing test: allowed_repo denies unauthorized repo
         cfg = _make_cfg(
             allowed_tools=["github_push_files"],
-            allowed_root="",
+            allowed_root=PERMISSIVE_ALLOWED_ROOT,
             approval_github_allowed_repos=["owner/repo"],
         )
         with pytest.raises(PolicyViolationError):

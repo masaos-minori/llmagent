@@ -6,76 +6,6 @@ from shared.component_mandatoriness import (
     ComponentClassification,
     load_component_mandatoriness,
 )
-from shared.mcp_config import SecurityProfile
-
-
-class TestProductionConfigValidatorStrictKeys:
-    """Tests for strict key validation (tool_definitions_strict, routing_drift_strict)."""
-
-    @pytest.mark.parametrize(
-        "strict_key",
-        ["tool_definitions_strict", "routing_drift_strict"],
-    )
-    def test_strict_key_false_produces_error_in_production(
-        self, strict_key: str
-    ) -> None:
-        config = {strict_key: False}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        assert any(strict_key in err for err in result.errors)
-
-    @pytest.mark.parametrize(
-        "strict_key",
-        ["tool_definitions_strict", "routing_drift_strict"],
-    )
-    def test_strict_key_false_produces_error_even_with_local_profile(
-        self, strict_key: str
-    ) -> None:
-        config = {strict_key: False}
-        result = ProductionConfigValidator().validate(
-            config, security_profile=SecurityProfile.PRODUCTION
-        )
-        assert any(strict_key in err for err in result.errors)
-        assert result.warnings == []
-
-    @pytest.mark.parametrize(
-        "strict_key",
-        ["tool_definitions_strict", "routing_drift_strict"],
-    )
-    def test_strict_key_true_no_error_in_production(self, strict_key: str) -> None:
-        config = {strict_key: True}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        assert not any(strict_key in err for err in result.errors)
-
-    def test_all_strict_keys_true_no_errors_in_production(self) -> None:
-        config = {
-            "tool_definitions_strict": True,
-            "routing_drift_strict": True,
-        }
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        assert result.errors == []
-
-    def test_all_strict_keys_absent_produces_two_errors_in_production(self) -> None:
-        config: dict[str, bool] = {}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        assert len(result.errors) == 2
-
-    def test_all_strict_keys_absent_produces_errors_even_with_local_profile(
-        self,
-    ) -> None:
-        config: dict[str, bool] = {}
-        result = ProductionConfigValidator().validate(
-            config, security_profile=SecurityProfile.PRODUCTION
-        )
-        assert len(result.errors) == 2
-        assert result.warnings == []
 
 
 class TestProductionConfigValidatorSafetyTiers:
@@ -87,20 +17,7 @@ class TestProductionConfigValidatorSafetyTiers:
             "tool_safety_tiers": {"shell_execute": "low"},
             "known_tools": known_tools,
         }
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=known_tools
-        )
-        assert any("'file_read'" in err for err in result.errors)
-
-    def test_missing_safety_tier_produces_error_even_with_local_profile(self) -> None:
-        known_tools = {"shell_execute", "file_read"}
-        config = {
-            "tool_safety_tiers": {"shell_execute": "low"},
-            "known_tools": known_tools,
-        }
-        result = ProductionConfigValidator().validate(
-            config, security_profile=SecurityProfile.PRODUCTION, known_tools=known_tools
-        )
+        result = ProductionConfigValidator().validate(config, known_tools=known_tools)
         assert any("'file_read'" in err for err in result.errors)
         assert result.warnings == []
 
@@ -110,22 +27,7 @@ class TestProductionConfigValidatorSafetyTiers:
             "tool_safety_tiers": {"unknown_tool": "high"},
             "known_tools": known_tools,
         }
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=known_tools
-        )
-        assert any("unknown_tool" in err for err in result.errors)
-
-    def test_unknown_safety_tier_key_produces_error_even_with_local_profile(
-        self,
-    ) -> None:
-        known_tools = {"shell_execute", "file_read"}
-        config = {
-            "tool_safety_tiers": {"unknown_tool": "high"},
-            "known_tools": known_tools,
-        }
-        result = ProductionConfigValidator().validate(
-            config, security_profile=SecurityProfile.PRODUCTION, known_tools=known_tools
-        )
+        result = ProductionConfigValidator().validate(config, known_tools=known_tools)
         assert any("unknown_tool" in err for err in result.errors)
         assert result.warnings == []
 
@@ -135,9 +37,7 @@ class TestProductionConfigValidatorSafetyTiers:
             "tool_safety_tiers": {"unknown_tool": "high"},
             "known_tools": known_tools,
         }
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=known_tools
-        )
+        result = ProductionConfigValidator().validate(config, known_tools=known_tools)
         assert any(
             "missing" in err.lower() or "'file_read'" in err for err in result.errors
         )
@@ -147,16 +47,12 @@ class TestProductionConfigValidatorSafetyTiers:
 
     def test_no_safety_tiers_config_no_tier_errors(self) -> None:
         config: dict[str, object] = {}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        result = ProductionConfigValidator().validate(config)
         assert not any("safety tier" in err.lower() for err in result.errors)
 
     def test_empty_safety_tiers_dict_no_tier_errors(self) -> None:
         config: dict[str, object] = {"tool_safety_tiers": {}, "known_tools": set()}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=set()
-        )
+        result = ProductionConfigValidator().validate(config, known_tools=set())
         assert not any("safety tier" in err.lower() for err in result.errors)
 
     def test_all_tiers_present_no_errors(self) -> None:
@@ -165,9 +61,7 @@ class TestProductionConfigValidatorSafetyTiers:
             "tool_safety_tiers": {"shell_execute": "low", "file_read": "medium"},
             "known_tools": known_tools,
         }
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=known_tools
-        )
+        result = ProductionConfigValidator().validate(config, known_tools=known_tools)
         assert not any("safety tier" in err.lower() for err in result.errors)
 
 
@@ -189,9 +83,7 @@ class TestProductionConfigValidatorRegistryLookupFailClosed:
 
         monkeypatch.setattr("shared.tool_registry.get_registry", _raise)
         config = {"tool_safety_tiers": {"mystery_tool": "low"}}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        result = ProductionConfigValidator().validate(config)
         assert any("Tool registry resolution failed" in err for err in result.errors)
         # Safety tier checks should NOT produce additional errors since they were
         # short-circuited by the registry failure error already recorded
@@ -203,78 +95,20 @@ class TestProductionConfigValidatorAllowedTools:
 
     def test_allowed_tools_empty_produces_error_in_production(self) -> None:
         config: dict[str, object] = {"allowed_tools": []}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        assert any("allowed_tools" in err and "[]" in err for err in result.errors)
-
-    def test_allowed_tools_empty_produces_error_even_with_local_profile(self) -> None:
-        config: dict[str, object] = {"allowed_tools": []}
-        result = ProductionConfigValidator().validate(
-            config, security_profile=SecurityProfile.PRODUCTION
-        )
+        result = ProductionConfigValidator().validate(config)
         assert any("allowed_tools" in err and "[]" in err for err in result.errors)
         assert result.warnings == []
 
     def test_allowed_tools_nonempty_no_issue(self) -> None:
         config = {"allowed_tools": ["shell_execute"]}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        result = ProductionConfigValidator().validate(config)
         assert not any("allowed_tools" in err for err in result.errors)
         assert not any("allowed_tools" in warn for warn in result.warnings)
 
     def test_allowed_tools_none_no_issue(self) -> None:
         config: dict[str, object] = {}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        result = ProductionConfigValidator().validate(config)
         assert not any("allowed_tools" in err for err in result.errors)
-
-
-class TestProductionConfigValidatorSecurityProfileEnum:
-    """Tests using SecurityProfile enum values."""
-
-    def test_production_enum_produces_error(self) -> None:
-        config = {"tool_definitions_strict": False}
-        result = ProductionConfigValidator().validate(
-            config, security_profile=SecurityProfile.PRODUCTION
-        )
-        assert any("tool_definitions_strict" in err for err in result.errors)
-        assert result.warnings == []
-
-
-class TestSecurityProfileCoercion:
-    """Tests for SecurityProfile coercion and rejection (REQ-003)."""
-
-    def test_string_coerced_to_enum(self) -> None:
-        config = {"tool_definitions_strict": True, "routing_drift_strict": True}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        assert result.errors == []
-
-    def test_invalid_string_rejected(self) -> None:
-        config = {"tool_definitions_strict": True, "routing_drift_strict": True}
-        result = ProductionConfigValidator().validate(config, security_profile="local")
-        assert any("Unsupported security_profile" in err for err in result.errors)
-
-    def test_valid_enum_no_issue(self) -> None:
-        config = {"tool_definitions_strict": True, "routing_drift_strict": True}
-        result = ProductionConfigValidator().validate(
-            config, security_profile=SecurityProfile.PRODUCTION
-        )
-        assert result.errors == []
-
-    def test_invalid_string_produces_error_not_crash(self) -> None:
-        config = {"tool_definitions_strict": True, "routing_drift_strict": True}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="nonexistent_profile"
-        )
-        assert len(result.errors) == 1
-        assert "nonexistent_profile" in result.errors[0]
-        # Other checks should NOT run when profile is rejected
-        assert not any("strict mode" in err.lower() for err in result.errors)
 
 
 class TestProductionConfigValidatorApprovalRiskFloor:
@@ -291,7 +125,7 @@ class TestProductionConfigValidatorApprovalRiskFloor:
             },
         }
         result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=self.GIT_TOOLS
+            config, known_tools=self.GIT_TOOLS
         )
         assert not any("Effective risk below HIGH" in err for err in result.errors)
 
@@ -304,25 +138,7 @@ class TestProductionConfigValidatorApprovalRiskFloor:
             },
         }
         result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=self.GIT_TOOLS
-        )
-        assert any(
-            "Effective risk below HIGH" in err and "git_checkout" in err
-            for err in result.errors
-        )
-
-    def test_one_git_tool_medium_produces_error_even_with_local_profile(self) -> None:
-        config = {
-            "approval_risk_rules": {
-                "git_checkout": "medium",
-                "git_pull": "high",
-                "git_push": "high",
-            },
-        }
-        result = ProductionConfigValidator().validate(
-            config,
-            security_profile=SecurityProfile.PRODUCTION,
-            known_tools=self.GIT_TOOLS,
+            config, known_tools=self.GIT_TOOLS
         )
         assert any(
             "Effective risk below HIGH" in err and "git_checkout" in err
@@ -342,7 +158,7 @@ class TestProductionConfigValidatorApprovalRiskFloor:
             },
         }
         result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=self.GIT_TOOLS
+            config, known_tools=self.GIT_TOOLS
         )
         assert any(
             "Effective risk below HIGH" in err and "git_checkout" in err
@@ -357,7 +173,7 @@ class TestProductionConfigValidatorApprovalRiskFloor:
             "tool_safety_tiers": {"git_checkout": "WRITE_DANGEROUS"},
         }
         result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=self.GIT_TOOLS
+            config, known_tools=self.GIT_TOOLS
         )
         assert any(
             "Effective risk below HIGH" in err and "git_checkout" in err
@@ -369,7 +185,7 @@ class TestProductionConfigValidatorApprovalRiskFloor:
         HIGH, so the floor check must not flag it."""
         config: dict[str, object] = {}
         result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=self.GIT_TOOLS
+            config, known_tools=self.GIT_TOOLS
         )
         assert not any("Effective risk below HIGH" in err for err in result.errors)
 
@@ -378,7 +194,7 @@ class TestProductionConfigValidatorApprovalRiskFloor:
         absent from config, not only when it is an empty/partial Mapping."""
         config = {"tool_safety_tiers": {"git_checkout": "WRITE_DANGEROUS"}}
         result = ProductionConfigValidator().validate(
-            config, security_profile="production", known_tools=self.GIT_TOOLS
+            config, known_tools=self.GIT_TOOLS
         )
         assert any(
             "Effective risk below HIGH" in err and "git_checkout" in err
@@ -412,21 +228,14 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
 
     def test_valid_keys_only_no_errors(self) -> None:
         config = {
-            "tool_definitions_strict": True,
-            "routing_drift_strict": True,
             "system_prompt_tool": "",
-            "security_profile": "production",
         }
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        result = ProductionConfigValidator().validate(config)
         assert not any("Unknown config keys" in err for err in result.errors)
 
     def test_single_unknown_key_produces_error(self) -> None:
-        config = {"tool_definitions_strict": True, "unknown_mistyped_key": True}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        config = {"unknown_mistyped_key": True}
+        result = ProductionConfigValidator().validate(config)
         assert any(
             "Unknown config keys" in err and "unknown_mistyped_key" in err
             for err in result.errors
@@ -436,12 +245,9 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
         """eventbus.sqlite belongs to the EventBus service: agent.toml must not
         carry its path, so the removed key is reported as unknown."""
         config = {
-            "tool_definitions_strict": True,
             "eventbus_db_path": "/opt/llm/db/eventbus.sqlite",
         }
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        result = ProductionConfigValidator().validate(config)
         assert any(
             "Unknown config keys" in err and "eventbus_db_path" in err
             for err in result.errors
@@ -451,12 +257,9 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
         """The fallback identity gate was removed with the remote RAG delegation
         path: agent.toml must not carry its policy key, so it is reported as unknown."""
         config = {
-            "tool_definitions_strict": True,
             "rag_identity_mismatch_policy": "reject",
         }
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        result = ProductionConfigValidator().validate(config)
         assert any(
             "Unknown config keys" in err and "rag_identity_mismatch_policy" in err
             for err in result.errors
@@ -464,31 +267,24 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
 
     def test_multiple_unknown_keys_produce_errors(self) -> None:
         config = {
-            "tool_definitions_strict": True,
             "unknown_key_1": True,
             "unknown_key_2": True,
         }
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        result = ProductionConfigValidator().validate(config)
         assert any("Unknown config keys" in err for err in result.errors)
         assert any("unknown_key_1" in err for err in result.errors)
         assert any("unknown_key_2" in err for err in result.errors)
 
     def test_empty_config_no_unknown_key_errors(self) -> None:
         config: dict[str, object] = {}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        result = ProductionConfigValidator().validate(config)
         assert not any("Unknown config keys" in err for err in result.errors)
 
     def test_removed_security_lockdown_key_is_rejected(self) -> None:
         """The deny-all suppression knob was removed with its only consumer,
         agent/services/security_audit.py; a stale key left in agent.toml is a hard error."""
-        config = {"tool_definitions_strict": True, "security_lockdown_enabled": True}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
+        config = {"security_lockdown_enabled": True}
+        result = ProductionConfigValidator().validate(config)
         assert any(
             "Unknown config keys" in err and "security_lockdown_enabled" in err
             for err in result.errors
@@ -526,7 +322,9 @@ class TestProductionConfigValidatorValidKeySetUnchanged:
         keys = _get_valid_production_keys()
         assert "agent_memory_max_startup_snippets" in keys
         assert "system_prompt_tool" in keys
-        assert "security_profile" in keys
+        assert "security_profile" not in keys
+        assert "tool_definitions_strict" not in keys
+        assert "routing_drift_strict" not in keys
         assert "embed_url" in keys
         assert "refiner_max_tokens" not in keys
 
@@ -631,3 +429,29 @@ class TestComponentMandatorinessCrossCheck:
 
         # AC-6 guard: the shipped registry and shipped config actually agree.
         assert errors == []
+
+
+class TestRemovedKeysRejected:
+    """ADR-004 Revision 004: the bypass switches have no meaning anymore.
+
+    A config that still sets a removed key is fatal rather than silently
+    accepted: the key is no longer in the allowed set.
+    """
+
+    @pytest.mark.parametrize(
+        "key",
+        ["tool_definitions_strict", "routing_drift_strict", "security_profile"],
+    )
+    def test_removed_key_is_fatal(self, key: str) -> None:
+        result = ProductionConfigValidator().validate({key: True})
+        assert any("Unknown config keys" in err and key in err for err in result.errors)
+
+    def test_empty_allowed_root_is_fatal(self) -> None:
+        # An empty root would disable the approval path jail.
+        result = ProductionConfigValidator().validate({"allowed_root": ""})
+        assert any("allowed_root" in err for err in result.errors)
+
+    def test_clean_production_config_has_no_errors(self) -> None:
+        # The canonical production shape validates without errors.
+        result = ProductionConfigValidator().validate({"allowed_root": "/opt/llm"})
+        assert result.errors == []

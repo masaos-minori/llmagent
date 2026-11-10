@@ -20,7 +20,7 @@ from tests.agent._config_test_defaults import (
     ALL_APPROVAL_RISK_RULES,
     ALL_TOOL_NAMES,
     ALL_TOOL_SAFETY_TIERS,
-    STRICT_PRODUCTION_OVERRIDES,
+    PERMISSIVE_ALLOWED_ROOT,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -30,7 +30,6 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
     """Build a minimal AgentConfig with test-safe defaults."""
     base = build_agent_config(
         {
-            **STRICT_PRODUCTION_OVERRIDES,
             "allowed_tools": ALL_TOOL_NAMES,
             "context_char_limit": 8000,
             "context_compress_turns": 4,
@@ -55,6 +54,7 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             # Standard tier classification; mirrors config/agent.toml defaults
             "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
             "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
+            "allowed_root": PERMISSIVE_ALLOWED_ROOT,
             **overrides,
         }
     )
@@ -129,24 +129,21 @@ class TestCheckApprovalAllowedRoot:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_disabled_root_does_not_block(self, tmp_path: Any) -> None:
+    async def test_empty_allowed_root_denies_path_arguments(
+        self, tmp_path: Any
+    ) -> None:
+        # REQ-003: an empty allowed_root (e.g. produced by a /reload) denies
+        # path-bearing calls instead of disabling the jail.
         # Use tmp_path (not /etc) to avoid triggering approval_protected_paths escalation
         outside = str(tmp_path / "outside.txt")
-        cfg = _make_cfg(allowed_root="", approval_protected_paths=[])
+        cfg = _make_cfg(approval_protected_paths=[])
+        cfg.approval.allowed_root = ""
         ctx = _make_ctx(cfg=cfg)
-        ctx.services_required.tools = MagicMock()
-        ctx.services_required.tools.execute = AsyncMock(
-            return_value=ToolCallResult(
-                output=f"Dry-run: {outside} [would write]",
-                is_error=False,
-                request_id="",
-                server_key="",
-            )
-        )
+        audit = MagicMock()
+        ctx.services_required.audit_logger = audit
 
-        with patch(
-            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
-        ):
-            result = await check_approval(ctx, "write_file", {"path": outside})
+        result = await check_approval(ctx, "write_file", {"path": outside})
 
-        assert result is True
+        assert result is False
+        logged = audit.info.call_args[0][0]
+        assert "denied_root_jail" in logged

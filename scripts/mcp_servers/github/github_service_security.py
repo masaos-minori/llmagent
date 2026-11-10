@@ -145,7 +145,7 @@ class GitHubSecurityGuards:
         """Raise GitHubAuthorizationError if branch matches a protected_branches pattern.
 
         Patterns follow fnmatch glob syntax: 'main' matches exactly, 'release/*'
-        matches any release branch. An empty list means no branch restrictions.
+        matches any release branch.
         """
         from mcp_servers.github.github_models_config import (
             GitHubAuthorizationError,
@@ -167,10 +167,7 @@ class GitHubSecurityGuards:
         """Resolve the effective branch and apply protected_branches check.
 
         When branch is "" (unspecified), the default branch is fetched via GitHub API.
-        Skips entirely when protected_branches is empty (no restrictions configured).
         """
-        if not self._cfg.protected_branches:
-            return
         if branch:
             self._assert_allowed_branch(owner, repo, branch)
             return
@@ -325,9 +322,9 @@ def validate_github_security(cfg: GitHubConfig) -> list[SecurityCheckResult]:
     else:
         branch_check = _check(
             "server.protected_branches",
-            SecurityCheckStatus.NOT_APPLICABLE,
-            REASON_NOT_APPLICABLE,
-            "protected_branches is empty so no branch restriction applies",
+            SecurityCheckStatus.FAILED,
+            REASON_CONFIG_INVALID,
+            "protected_branches is empty; at least one protected branch pattern is required",
         )
 
     if cfg.path_denylist:

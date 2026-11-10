@@ -158,13 +158,13 @@ class TestRuntimeToolRegistry:
         reg.apply_policy(tier_map={}, allowed_tools=["other_tool"])
         assert reg.get("search_web").enabled_for_llm is False
 
-    def test_apply_policy_empty_allowed_tools_keeps_all_enabled(self) -> None:
+    def test_apply_policy_empty_allowed_tools_disables_all(self) -> None:
         tool = build_fixture_runtime_tool(
             name="search_web", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
         reg.apply_policy(tier_map={}, allowed_tools=())
-        assert reg.get("search_web").enabled_for_llm is True
+        assert reg.get("search_web").enabled_for_llm is False
 
     def test_apply_policy_keeps_hidden_tool_disabled_when_allowed(self) -> None:
         tool = build_fixture_runtime_tool(
@@ -207,7 +207,9 @@ class TestRuntimeToolRegistry:
             name="read_file", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={"read_file": "READ_ONLY"})
+        reg.apply_policy(
+            tier_map={"read_file": "READ_ONLY"}, allowed_tools=["read_file"]
+        )
         updated = reg.get("read_file")
         assert updated.agent_safety_tier == "READ_ONLY"
 
@@ -216,7 +218,7 @@ class TestRuntimeToolRegistry:
             name="read_file", server_key="s", agent_safety_tier="READ_ONLY"
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={})
+        reg.apply_policy(tier_map={}, allowed_tools=["read_file"])
         assert reg.get("read_file").agent_safety_tier == "READ_ONLY"
 
     def test_diagnostics_uses_raw_definition_disabled_reason_when_present(self) -> None:
@@ -502,7 +504,8 @@ class TestApplyPolicyReversibility:
         new_id = id(reg._tools)
         assert old_id != new_id
         assert len(reg._tools) == 1
-        assert reg.get("shell_run").enabled_for_llm is True
+        # ADR-004: an empty allowed_tools denies every tool (fail closed).
+        assert reg.get("shell_run").enabled_for_llm is False
 
 
 class TestPostureGate:

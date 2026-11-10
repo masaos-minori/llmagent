@@ -21,7 +21,6 @@ from typing import Any, Protocol
 from starlette.requests import Request
 
 from mcp_servers.dispatch import DispatchResult
-from mcp_servers.health_response import HEALTH_STATUS_DEGRADED, HEALTH_STATUS_OK
 from mcp_servers.models import McpTool
 
 # Library module: use standard getLogger without a dedicated log file.
@@ -96,32 +95,25 @@ def _truncate_with_meta(
 def attach_auth_middleware(
     app: _FastAPIApp,
     token: str,
-    *,
-    accept_all_for_tests: bool = False,
 ) -> None:
     """Register Bearer-token auth + X-Request-Id middleware on a FastAPI app.
 
     When token is non-empty, requests without a matching Authorization header
-    receive a 401 response.  When token is empty, auth is skipped and the
-    middleware only injects the X-Request-Id response header — but only when
-    ``accept_all_for_tests`` is explicitly True.
-
-    An empty token is not a supported production configuration: Agent
-    startup (scripts/agent/startup_validation.py) rejects any MCP server
-    configuration with an empty auth_token before this middleware would ever
-    run for a real Agent-managed server. The accept-all fallback above exists
-    solely for this function's own standalone testability and is now an explicit
-    opt-in argument rather than an implicit module-level default. Every
-    production server routes a non-empty token through ``require_auth_token()``
-    before calling this helper, so the default stays fail-closed.
+    receive a 401 response. An empty token is fail-closed: every request gets
+    401, and no accept-all opt-out exists. Production servers refuse to start
+    with an empty token — every server module routes its token through
+    ``require_auth_token()``, and Agent startup
+    (scripts/agent/startup_validation.py) rejects an MCP server configuration
+    with an empty auth_token before this middleware would ever run for a real
+    Agent-managed server.
     """
     from fastapi import Request  # noqa: F401 — used in closure type annotations below
     from fastapi.responses import JSONResponse
 
     def _is_authorized(request: Request, token: str) -> bool:
-        """Return True when accept-all is opted in or the Bearer header matches."""
+        """Return True only when the Bearer header matches a non-empty token."""
         if not token:
-            return accept_all_for_tests
+            return False
         presented = request.headers.get("Authorization", "")
         return hmac.compare_digest(
             presented.encode("utf-8"), f"Bearer {token}".encode()
@@ -190,63 +182,6 @@ class MCPServer:
     async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
         """Handle a tools/call request. Subclasses must override this."""
         raise NotImplementedError(f"{type(self).__name__}.dispatch is not implemented")
-
-    def list_tools(self) -> list[str]:
-        """Return the tool names served by this instance.
-
-        Introspection helper only: no production call site. The agent reads tool
-        names from each server's HTTP `GET /v1/tools` handler, which builds its
-        response from that module's own `TOOL_LIST`, not from this method.
-        """
-        return [t["name"] for t in getattr(self, "mcp_tools", [])]
-
-    def list_tools_with_server_key(self) -> list[dict[str, Any]]:
-        """Return tool metadata including server_key.
-
-        Each tool dict includes: name, description, inputSchema, server_key.
-
-        Introspection helper only: no production call site. Every server's
-        `GET /v1/tools` handler annotates its own `TOOL_LIST` (e.g.
-        `_annotate_tool`) and passes the result to `build_tools_response()`, and
-        startup tool discovery reads those HTTP responses, so neither path calls
-        this method.
-        """
-        server_key = getattr(self, "server_key", type(self).__name__)
-        tools = getattr(self, "mcp_tools", [])
-        return [t | {"server_key": server_key} for t in tools]
-
-    def health(self) -> tuple[dict[str, object], int]:
-        """Return a health status dict and HTTP status code for HTTP server diagnostics.
-
-        Canonical response shape:
-          status:                   "ok" (all deps healthy) or "degraded" (any dep failed)
-          ready:                    True when status="ok", False when status="degraded"
-          liveness:                 True if the server process is alive and can accept requests;
-                                    False if it cannot (fatal internal state).
-          restart_recommended:      True signals the watchdog that a process restart may resolve
-                                    the failure; False means restart will not help.
-          operator_action_required: True means human intervention is needed (missing credentials,
-                                    missing binary, etc.).
-          dependencies:             dict of dep_name -> error_message; empty when healthy
-          details:                  server-specific supplementary info (may be empty)
-
-        HTTP status code: 200 when ready=True, 503 when ready=False.
-
-        Watchdog restart policy is gated on restart_recommended;
-        operator_action_required=True produces a warning-only log.
-        """
-        deps: dict[str, str] = {}
-        ready = len(deps) == 0
-        status_code = 200 if ready else 503
-        return {
-            "status": HEALTH_STATUS_OK if ready else HEALTH_STATUS_DEGRADED,
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": False,
-            "dependencies": deps,
-            "details": {},
-        }, status_code
 
     def _enforce_startup_posture_gate(self) -> None:
         """Refuse to start when the server module's security posture is not validated.

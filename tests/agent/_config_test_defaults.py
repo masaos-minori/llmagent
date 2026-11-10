@@ -2,19 +2,20 @@
 
 Shared overrides for tests that call build_agent_config()/ProductionConfigValidator
 against a minimal config dict. ProductionConfigValidator unconditionally requires
-tool_definitions_strict/routing_drift_strict, and a non-empty allowed_tools
+a non-empty allowed_tools and a non-empty allowed_root
 (scripts/agent/production_config_validator.py), so any minimal test config dict
-must merge this in unless the test specifically exercises the missing-flags error
-path (see tests/agent/test_config_builders.py's _MIN_CFG, which intentionally
-omits these).
+must merge these in unless the test specifically exercises the missing/empty
+error path (see tests/agent/test_config_builders.py's _MIN_CFG, which
+intentionally omits them).
 """
 
 from shared.tool_registry import get_registry
 
-STRICT_PRODUCTION_OVERRIDES: dict[str, bool] = {
-    "tool_definitions_strict": True,
-    "routing_drift_strict": True,
-}
+# A non-empty allowed_root that contains every absolute test path, so the
+# path jail (tool_policy.check_allowed_root) passes by default; tests that
+# exercise the jail pass their own root. An empty allowed_root now denies
+# every path-bearing tool call.
+PERMISSIVE_ALLOWED_ROOT: str = "/"
 
 # Mirrors config/agent.toml's [approval_risk_rules] table. ProductionConfigValidator
 # requires git_checkout/git_pull/git_push to resolve to an effective risk of
@@ -55,8 +56,9 @@ ALL_APPROVAL_RISK_RULES: dict[str, str] = {
 }
 
 # Every registered tool name, so tests that don't care about allowlist
-# restriction aren't accidentally denied a tool call by an empty-list default
-# now that ProductionConfigValidator rejects allowed_tools=[].
+# restriction aren't accidentally denied a tool call: an empty allowed_tools
+# now disables every tool at runtime (RuntimeToolRegistry.apply_policy) and
+# ProductionConfigValidator rejects allowed_tools=[].
 ALL_TOOL_NAMES: list[str] = sorted(get_registry().get_all_tool_names())
 
 # A tier for every registered tool, mirroring config/agent.toml's

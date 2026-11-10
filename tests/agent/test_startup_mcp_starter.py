@@ -17,7 +17,6 @@ def _make_ctx(tool_names=None):
     server = MagicMock()
     server.tool_names = tool_names or ["tool_a", "tool_b"]
     cfg.mcp.mcp_servers = {"srv1": server}
-    cfg.tool.routing_drift_strict = False
     ctx.cfg = cfg
     return ctx
 

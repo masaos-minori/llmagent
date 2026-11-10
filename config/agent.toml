@@ -44,8 +44,6 @@ http_timeout = 120.0
 
 # ── Context ───────────────────────────────────────────────────────────────────
 
-tool_definitions_strict = true
-routing_drift_strict = true
 context_char_limit = 8000
 context_compress_turns = 4
 

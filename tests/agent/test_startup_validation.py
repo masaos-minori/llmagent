@@ -20,7 +20,6 @@ from agent.shared.health_models import (
 from agent.startup_validation import StartupValidationPipeline
 from shared.mcp_config import (
     McpServerConfig,
-    SecurityProfile,
     StartupMode,
     TransportType,
 )
@@ -28,9 +27,7 @@ from shared.mcp_config import (
 
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
-    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
     ctx.cfg.memory.memory_embed_dim = 768
-    ctx.cfg.tool.tool_definitions_strict = False
     return ctx
 
 
@@ -118,20 +115,35 @@ class TestCheckConfigStage:
     without a short-circuit among them, driven directly through the real check_config()."""
 
     @pytest.mark.asyncio
-    async def test_strict_drift_is_fatal(self) -> None:
-        """A strict-mode routing drift raises RuntimeError inside check_config and is
+    async def test_routing_drift_is_fatal(self) -> None:
+        """A routing drift raises RuntimeError inside check_config and is
         recorded as a FATAL routing_drift outcome."""
         ctx = _make_ctx()
-        ctx.cfg.tool.routing_drift_strict = True
         result = _run_check_config(
             ctx,
             check_routing_drift=MagicMock(
-                side_effect=RuntimeError("Strict mode: routing drift detected")
+                side_effect=RuntimeError("Routing drift detected")
             ),
         )
 
         outcomes = [o for o in result.outcomes if o.source == "routing_drift"]
         assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_drift_check_unexpected_exception_is_fatal(self) -> None:
+        """A non-RuntimeError failure of the drift check is recorded as a FATAL
+        routing_drift outcome: an unknown result is not a clean result."""
+        ctx = _make_ctx()
+        result = _run_check_config(
+            ctx,
+            check_routing_drift=MagicMock(
+                side_effect=ValueError("drift check crashed")
+            ),
+        )
+
+        outcomes = [o for o in result.outcomes if o.source == "routing_drift"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+        assert result.has_fatal
 
     @pytest.mark.asyncio
     async def test_safety_tier_failure_is_fatal(self) -> None:
@@ -146,23 +158,6 @@ class TestCheckConfigStage:
 
         outcomes = [o for o in result.outcomes if o.source == "routing_safety_tiers"]
         assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
-
-    @pytest.mark.asyncio
-    async def test_non_strict_drift_is_warning(self) -> None:
-        """A non-strict routing drift reports its messages as a WARNING, not a FATAL."""
-        ctx = _make_ctx()
-        ctx.cfg.tool.routing_drift_strict = False
-        result = _run_check_config(
-            ctx,
-            check_routing_drift=MagicMock(
-                return_value=["Routing drift [web]: extra tool 'foo'"]
-            ),
-        )
-
-        outcomes = [o for o in result.outcomes if o.source == "routing_drift"]
-        assert len(outcomes) == 1
-        assert outcomes[0].status == StartupCheckStatus.WARNING
-        assert not result.has_fatal
 
     @pytest.mark.asyncio
     async def test_valid_config_passes_cleanly(self) -> None:

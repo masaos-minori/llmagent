@@ -474,7 +474,7 @@ class TestHistoryMarkerRule:
 
     def test_current_state_wording_is_not_reported(self) -> None:
         lines = [
-            "`SecurityProfile` holds only PRODUCTION.",
+            "`StartupMode` has three members.",
             "Resolved server key names are cached after startup.",
         ]
         assert _run_live_rule("history_marker_in_active_doc", lines) == []

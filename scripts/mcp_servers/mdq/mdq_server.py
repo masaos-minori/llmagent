@@ -458,7 +458,7 @@ class MdqMCPServer(MCPServer):
     """MCPServer subclass for mdq-mcp.
 
     Conforms to MCPServer base class contract:
-    - server_key: "mdq" (used by list_tools_with_server_key() and routing)
+    - server_key: "mdq" (used for routing)
     - http_host: explicit "127.0.0.1" (matches other HTTP servers)
     - auth_token: non-empty Bearer token read from mdq_mcp_server.toml (the module refuses to load without it);
       allowed_dirs is a separate path authorization applied after authentication

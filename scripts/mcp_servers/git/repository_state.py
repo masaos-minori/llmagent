@@ -253,11 +253,12 @@ def _matches_protected(
 ) -> bool:
     """Return True when an already-normalized branch name matches a protected entry.
 
-    *protected_branches* are normalized here and an unset or empty list never
-    matches; *normalized_name* must already be in `refs/heads/<name>` form (see
+    *protected_branches* are normalized here; an unset list never matches (an
+    empty list cannot come from a loaded config — `GitConfig.load()` rejects
+    it). *normalized_name* must already be in `refs/heads/<name>` form (see
     `_normalize_branch_name`).
     """
-    if not protected_branches:
+    if protected_branches is None:
         return False
     return any(_normalize_branch_name(p) == normalized_name for p in protected_branches)
 
@@ -272,7 +273,7 @@ def _is_protected_branch(
     when any match is found. A detached HEAD, an unreadable branch, or a branch
     name that normalizes to empty never matches.
     """
-    if not protected_branches:
+    if protected_branches is None:
         return False
     if _head_is_detached(repo):
         return False

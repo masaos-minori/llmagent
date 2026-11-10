@@ -595,10 +595,6 @@ class TestProtectedBranchCheck:
         repo = self._make_mock_repo(branch_name="feature/test")
         assert _is_protected_branch(repo, ["main"]) is False
 
-    def test_is_not_protected_branch_empty_list(self):
-        repo = self._make_mock_repo(branch_name="main")
-        assert _is_protected_branch(repo, []) is False
-
     def test_is_not_protected_branch_none(self):
         repo = self._make_mock_repo(branch_name="main")
         assert _is_protected_branch(repo, None) is False

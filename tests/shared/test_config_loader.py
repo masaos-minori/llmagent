@@ -489,13 +489,13 @@ class TestUnknownTopLevelKeyRejection:
         """Assert that known keys derived from dataclass fields pass validation."""
         from agent.production_config_validator import ProductionConfigValidator
 
-        # llm_url is a field name in LLMConfig; include required strict keys
+        # llm_url is a field name in LLMConfig; allowed_root is required by
+        # the production validator.
         validator = ProductionConfigValidator()
         result = validator.validate(
             {
                 "llm_url": "http://localhost:8080",
-                "tool_definitions_strict": True,
-                "routing_drift_strict": True,
+                "allowed_root": "/opt/llm",
             }
         )
         assert len(result.errors) == 0

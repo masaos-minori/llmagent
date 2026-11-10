@@ -60,8 +60,20 @@ class GitHubConfig:
 
     @classmethod
     def load(cls) -> GitHubConfig:
-        """Load from github_mcp_server.toml; raises on failure (fail-fast)."""
-        return cls.from_dict(ConfigLoader().load("github_mcp_server.toml"))
+        """Load from github_mcp_server.toml; raises on failure (fail-fast).
+
+        An empty or absent ``protected_branches`` is a load error: the server
+        must not start with the protected-branch guard silently disabled
+        (ADR-004 fail-closed). An empty ``path_denylist`` stays valid under the
+        registered ADR-004 exception. from_dict() with an empty list remains
+        valid for unit tests.
+        """
+        cfg = cls.from_dict(ConfigLoader().load("github_mcp_server.toml"))
+        if not cfg.protected_branches:
+            raise ValueError(
+                "github_mcp_server.toml: protected_branches must not be empty"
+            )
+        return cfg
 
 
 # ──────────────────────────────────────────────────────────────────────────────

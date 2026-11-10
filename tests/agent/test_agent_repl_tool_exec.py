@@ -148,9 +148,12 @@ class TestClassifyRiskDeleteDirectory:
 
 
 class TestCheckAllowedRoot:
-    def test_empty_allowed_root_allows_anything(self, tmp_path: Path) -> None:
+    def test_empty_allowed_root_denies_path_arguments(self, tmp_path: Path) -> None:
+        # REQ-003: an empty allowed_root fails closed for path-bearing calls
         cfg = _make_cfg(allowed_root="")
-        assert _check_allowed_root(cfg, "write_file", {"path": str(tmp_path / "a.txt")})
+        assert not _check_allowed_root(
+            cfg, "write_file", {"path": str(tmp_path / "a.txt")}
+        )
 
     def test_path_within_root_is_allowed(self, tmp_path: Path) -> None:
         cfg = _make_cfg(allowed_root=str(tmp_path))

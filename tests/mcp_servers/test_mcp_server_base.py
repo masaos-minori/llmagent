@@ -1,6 +1,7 @@
 """tests/test_mcp_server_base.py
-Unit tests for MCPServer base class: list_tools(), health(),
-__list_tools__ introspection protocol, and attach_auth_middleware.
+Unit tests for MCPServer base class: config isolation and loopback bind
+validation in run_http(), the fail-closed attach_auth_middleware, and the
+request-context helpers.
 """
 
 from __future__ import annotations
@@ -196,46 +197,6 @@ class TestBindAddressValidation:
         _LoopbackV6Server().run_http()
 
 
-class TestListTools:
-    def test_returns_tool_names(self) -> None:
-        srv = _SimpleServer()
-        assert srv.list_tools() == ["tool_a", "tool_b"]
-
-    def test_empty_mcp_tools_attribute_missing_returns_empty_list(self) -> None:
-        srv = _EmptyServer()
-        assert srv.list_tools() == []
-
-
-class TestHealth:
-    def test_default_health_returns_ok(self) -> None:
-        srv = _SimpleServer()
-        health_dict, status_code = srv.health()
-        assert health_dict == {
-            "status": "ok",
-            "ready": True,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": False,
-            "dependencies": {},
-            "details": {},
-        }
-        assert status_code == 200
-
-    def test_health_returns_tuple_with_status_code(self) -> None:
-        srv = _SimpleServer()
-        result = srv.health()
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        health_dict, status_code = result
-        assert isinstance(health_dict, dict)
-        assert isinstance(status_code, int)
-
-    def test_health_status_code_200_when_ready(self) -> None:
-        srv = _SimpleServer()
-        _, status_code = srv.health()
-        assert status_code == 200
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # attach_auth_middleware
 # ─────────────────────────────────────────────────────────────────────────────
@@ -245,14 +206,11 @@ _UUID_RE = re.compile(
 )
 
 
-def _make_test_app(
-    token: str = "", *, accept_all_for_tests: bool = False
-) -> TestClient:
+def _make_test_app(token: str = "") -> TestClient:
     """Build a minimal FastAPI app with auth middleware and return a TestClient.
 
-    The empty-token accept-all fallback is now an explicit opt-in on
-    ``attach_auth_middleware``; tests that exercise it must pass
-    ``accept_all_for_tests=True`` so the default stays fail-closed.
+    An empty ``token`` is fail-closed: the middleware denies every request
+    with 401. There is no accept-all opt-out.
     """
     app = FastAPI()
 
@@ -260,21 +218,37 @@ def _make_test_app(
     async def ping() -> dict[str, str]:
         return {"pong": "ok"}
 
-    attach_auth_middleware(app, token, accept_all_for_tests=accept_all_for_tests)
+    attach_auth_middleware(app, token)
     return TestClient(app, raise_server_exceptions=True)
 
 
 class TestAttachAuthMiddleware:
     def test_no_token_allows_any_request(self) -> None:
-        client = _make_test_app("", accept_all_for_tests=True)
+        """Empty-token middleware allows no request: even a non-empty dummy
+        Bearer token is denied with 401 (fail-closed, inverse of the old
+        accept-all behavior)."""
+        client = _make_test_app("")
+        resp = client.get("/ping", headers={"Authorization": "Bearer dummy"})
+        assert resp.status_code == 401
+        assert resp.json() == {"error": "Unauthorized"}
+
+    def test_empty_token_denies_request_without_credentials(self) -> None:
+        """Empty-token middleware also denies a request that sends no
+        Authorization header: empty token returns 401 for every request."""
+        client = _make_test_app("")
         resp = client.get("/ping")
-        assert resp.status_code == 200
+        assert resp.status_code == 401
+        assert resp.json() == {"error": "Unauthorized"}
 
     def test_no_token_response_contains_request_id(self) -> None:
-        client = _make_test_app("", accept_all_for_tests=True)
-        resp = client.get("/ping")
-        req_id = resp.headers.get("x-request-id", "")
-        assert _UUID_RE.match(req_id), f"Expected UUID4, got {req_id!r}"
+        """401 responses are returned before call_next runs, so the response
+        carries no X-Request-Id header (unchanged behavior — the middleware's
+        X-Request-Id handling is untouched by this row; req_id is still set on
+        request.state for server-side logging)."""
+        client = _make_test_app("")
+        resp = client.get("/ping", headers={"Authorization": "Bearer dummy"})
+        assert resp.status_code == 401
+        assert "x-request-id" not in resp.headers
 
     def test_correct_token_returns_200(self) -> None:
         client = _make_test_app("secret")
@@ -306,21 +280,30 @@ class TestAttachAuthMiddleware:
         assert _UUID_RE.match(req_id), f"Expected UUID4, got {req_id!r}"
 
     def test_each_request_gets_unique_id(self) -> None:
-        client = _make_test_app("", accept_all_for_tests=True)
-        ids = {client.get("/ping").headers.get("x-request-id") for _ in range(5)}
+        client = _make_test_app("tok")
+        ids = {
+            client.get("/ping", headers={"Authorization": "Bearer tok"}).headers.get(
+                "x-request-id"
+            )
+            for _ in range(5)
+        }
         assert len(ids) == 5
 
     def test_empty_token_accept_all_is_not_a_supported_mode(self) -> None:
-        """Empty-token accept-all (test_no_token_allows_any_request) is
-        retained at this middleware level for unit testability, but is
-        unreachable in a real Agent-managed startup: startup_validation.py
-        rejects any MCP server configuration with an empty auth_token
-        before attach_auth_middleware() would ever run with one.
-        The accept-all path is now an explicit opt-in argument rather than
-        an implicit module-level default."""
-        client = _make_test_app("", accept_all_for_tests=True)
-        resp = client.get("/ping")
-        assert resp.status_code == 200
+        """Empty-token middleware rejects every request, with or without a
+        Bearer token. No supported configuration produces an accept-all
+        middleware: every attach_auth_middleware() call site in scripts/mcp_servers/
+        passes the result of require_auth_token(), which raises before returning
+        on an empty value."""
+        client = _make_test_app("")
+        with_token = client.get("/ping", headers={"Authorization": "Bearer dummy"})
+        without_token = client.get("/ping")
+        assert with_token.status_code == 401
+        assert without_token.status_code == 401
+        src = Path(importlib.util.find_spec("mcp_servers.server").origin).read_text()
+        assert "accept_all" not in src, (
+            "attach_auth_middleware must not expose an accept-all opt-out"
+        )
 
 
 class TestTruncateWithMeta:

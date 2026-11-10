@@ -131,6 +131,37 @@ class TestGitConfigLoad:
         cfg = GitConfig.load()
         assert cfg.allowed_remote_urls == []
 
+    @staticmethod
+    def _patch_loader(monkeypatch: pytest.MonkeyPatch, raw: dict) -> None:
+        """Replace the module-level ConfigLoader so load() sees a fixed dict."""
+
+        class _FakeLoader:
+            def load(self, name: str) -> dict:
+                return raw
+
+        monkeypatch.setattr("mcp_servers.git.git_models.ConfigLoader", _FakeLoader)
+
+    def test_load_rejects_empty_protected_branches(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._patch_loader(monkeypatch, {"protected_branches": []})
+        with pytest.raises(ValueError, match="protected_branches"):
+            GitConfig.load()
+
+    def test_load_rejects_absent_protected_branches(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._patch_loader(monkeypatch, {})
+        with pytest.raises(ValueError, match="protected_branches"):
+            GitConfig.load()
+
+    def test_load_accepts_non_empty_protected_branches(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._patch_loader(monkeypatch, {"protected_branches": ["main"]})
+        cfg = GitConfig.load()
+        assert cfg.protected_branches == ["main"]
+
 
 class TestGitServiceError:
     def test_is_a_runtime_error(self) -> None:

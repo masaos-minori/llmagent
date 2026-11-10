@@ -54,18 +54,14 @@ def _classify_rag_failure(exc: Exception) -> str:
 
 
 def _record_drift_check_failure(
-    pipeline: StartupValidationResult, exc: Exception, *, strict: bool
+    pipeline: StartupValidationResult, exc: Exception
 ) -> None:
     """Record an unexpected failure of the routing-drift check itself.
 
-    An unknown result is not a clean result: the failure follows
-    routing_drift_strict, FATAL when strict and a recorded WARNING otherwise.
+    An unknown result is not a clean result: the failure is always FATAL.
     """
     message = f"Routing drift check failed: {exc}"
-    if strict:
-        pipeline.add_fatal("routing_drift", message)
-    else:
-        pipeline.add_warning("routing_drift", message)
+    pipeline.add_fatal("routing_drift", message)
 
 
 def _check_component_mandatoriness(
@@ -144,17 +140,14 @@ class StartupValidationPipeline:
         _check_component_mandatoriness(ctx, pipeline)
 
         # 5. Routing drift (static)
-        # Strictness starts as strict so that a failure while reading the setting
-        # fails closed.
-        drift_strict = True
+        # Strict-only: a drift finding is always FATAL (ADR-003 routing authority).
         try:
-            drift_strict = ctx.cfg.tool.routing_drift_strict
-            for msg in check_routing_drift(ctx, strict=drift_strict):
+            for msg in check_routing_drift(ctx, strict=True):
                 pipeline.add_warning("routing_drift", msg)
         except RuntimeError as exc:
             pipeline.add_fatal("routing_drift", str(exc))
-        except Exception as exc:  # noqa: BLE001 — an unexpected failure of the drift check follows routing_drift_strict (an unknown result is not a clean result), so it must be captured and classified rather than crash startup
-            _record_drift_check_failure(pipeline, exc, strict=drift_strict)
+        except Exception as exc:  # noqa: BLE001 — an unexpected failure of the drift check is always FATAL (an unknown result is not a clean result), so it must be captured and classified rather than crash startup
+            _record_drift_check_failure(pipeline, exc)
 
         # 5b. Routing safety tiers
         try:

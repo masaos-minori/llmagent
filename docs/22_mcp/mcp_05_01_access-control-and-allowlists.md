@@ -54,7 +54,7 @@ To document a common security model across servers. It covers access control, al
 
 - The caller-supplied `repo_path` is resolved with `Path.resolve()` per call and must be contained (component-aware) under a configured entry; a leading `~` in a configured entry is expanded to the server user's home directory when the configuration is loaded, and entries are otherwise compared as written.
 - Empty denies all repository access (fail-closed); all git tools are reported disabled with reason `allowed_repo_paths is empty`.
-- `read_only` (default true) disables the write tools; `protected_branches` rejects write tools on matching branches; see [mcp_04_05_git.md](./mcp_04_05_git.md).
+- `read_only` (default true) disables the write tools; `protected_branches` rejects write tools on matching branches and must also be non-empty (an empty or absent value is rejected at config load); see [mcp_04_05_git.md](./mcp_04_05_git.md).
 
 ---
 
@@ -75,12 +75,12 @@ To document a common security model across servers. It covers access control, al
 
 ### `protected_branches`
 
-- fnmatch patterns (for example `main`, `release/*`); applies to write operations targeting a matching branch. Empty (default) allows all branches. An omitted `branch=""` resolves the default branch via the API before checking.
+- fnmatch patterns (for example `main`, `release/*`); applies to write operations targeting a matching branch. Must be non-empty; an empty or absent value is rejected at config load. An omitted `branch=""` resolves the default branch via the API before checking.
 - A match always raises `GitHubAuthorizationError` (`_assert_allowed_branch`). No approval flow can override it: Agent-layer approval and github-mcp's `protected_branches` are independent layers.
 
 ### `path_denylist`
 
-- fnmatch glob patterns (for example `.github/**`, `Dockerfile*`); applies to `github_create_or_update_file`, `github_push_files`, and `github_delete_file`. Empty (default) allows all paths.
+- fnmatch glob patterns (for example `.github/**`, `Dockerfile*`); applies to `github_create_or_update_file`, `github_push_files`, and `github_delete_file`. Empty (default) allows all paths — the registered ADR-004 exception (rationale pending in ADR-004 Group 1); it is the only empty safety list permitted to relax a boundary.
 - A matching change (for example to GitHub Actions workflows or Docker files) is blocked regardless of approval status.
 
 ### `allow_force_push`

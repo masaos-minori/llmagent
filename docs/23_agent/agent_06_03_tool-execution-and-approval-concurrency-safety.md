@@ -30,8 +30,8 @@ Documents responsibility separation for safety controls, design decisions for `T
 
 | Control | Behavior |
 |---|---|
-| `allowed_tools` (`cfg.tool`) | Whitelist; at runtime (`check_preflight()`) an empty list performs no whitelist check, so all tools are allowed. Separately, `ProductionConfigValidator` records `allowed_tools=[]` as a validation error in production (startup exits on validator errors) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`) |
-| `allowed_root` (`cfg.approval`) | Path jail; if empty, disabled |
+| `allowed_tools` (`cfg.tool`) | Whitelist; an empty list denies every tool at runtime, including after a config reload. Separately, `ProductionConfigValidator` records `allowed_tools=[]` as a validation error at load (startup exits on validator errors) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`) |
+| `allowed_root` (`cfg.approval`) | Path jail; required (an empty or absent value fails config load) |
 | `approval_github_allowed_repos` (`cfg.approval`) | GitHub write allowlist; if empty, all are rejected (**Fail-closed**) |
 
 The remaining controls (`plan_blocked_tools`, `approval_protected_paths`, `approval_high_risk_branches`, `gitops_push_blocked`) are described in [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md).
@@ -63,7 +63,7 @@ The Orchestrator never falls back directly to unapproved execution if it cannot 
 
 ## Key Constraints
 
-- Fail-closed: `approval_github_allowed_repos=[]`, workflow creation failure. `allowed_tools=[]` is not fail-closed at runtime (all tools allowed); only the production startup validator rejects it
+- Fail-closed: `approval_github_allowed_repos=[]`, `allowed_tools=[]` (denies every tool at runtime, also after reload), workflow creation failure
 - Fail-safe: tools missing from `tool_safety_tiers` are rejected at startup; at classification time a tool absent from the registry is `high`
 - ToolLoopGuard guard hints are not injected into history
 

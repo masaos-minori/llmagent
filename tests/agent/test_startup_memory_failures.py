@@ -14,19 +14,15 @@ from agent.shared.health_models import (
     StartupValidationResult,
 )
 from agent.startup import StartupOrchestrator
-from shared.mcp_config import SecurityProfile
 
 
 def _make_startup_ctx(
     *,
     memory_embed_dim: int = 768,
-    tool_definitions_strict: bool = False,
 ) -> MagicMock:
     """Return a ctx MagicMock configured for _check_services() tests."""
     ctx = MagicMock()
-    ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
     ctx.cfg.memory.memory_embed_dim = memory_embed_dim
-    ctx.cfg.tool.tool_definitions_strict = tool_definitions_strict
     return ctx
 
 
@@ -130,11 +126,11 @@ class TestStartupMemoryFailures:
         assert any(o.status == StartupCheckStatus.OK for o in outcomes)
 
     @pytest.mark.asyncio
-    async def test_tool_definitions_strict_fatal_on_finding(self) -> None:
-        """A strict-mode finding from discover_all() is surfaced as FATAL."""
-        ctx = _make_startup_ctx(tool_definitions_strict=True)
+    async def test_tool_definitions_finding_is_fatal(self) -> None:
+        """A FATAL finding from discover_all() is surfaced as FATAL."""
+        ctx = _make_startup_ctx()
         finding = StartupCheckOutcome(
-            "drift_detected", StartupCheckStatus.FATAL, "drift in strict mode"
+            "drift_detected", StartupCheckStatus.FATAL, "drift detected"
         )
         discovery_result = MagicMock(registry=None, findings=[finding], unreachable=[])
         pipeline, exc = await _run_check_services(
@@ -147,37 +143,14 @@ class TestStartupMemoryFailures:
         )
         assert exc is not None
         assert isinstance(exc, RuntimeError)
-        assert "drift in strict mode" in str(exc)
+        assert "drift detected" in str(exc)
         outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
         assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
 
     @pytest.mark.asyncio
-    async def test_tool_definitions_warning_on_non_strict_finding(self) -> None:
-        """Non-strict-mode finding from discover_all() is WARNING, not FATAL."""
-        ctx = _make_startup_ctx(tool_definitions_strict=False)
-        finding = StartupCheckOutcome(
-            "drift_detected",
-            StartupCheckStatus.WARNING,
-            "non-strict drift",
-        )
-        discovery_result = MagicMock(registry=None, findings=[finding], unreachable=[])
-        pipeline, exc = await _run_check_services(
-            ctx,
-            McpToolDiscoveryService=MagicMock(
-                return_value=MagicMock(
-                    discover_all=AsyncMock(return_value=discovery_result)
-                )
-            ),
-        )
-        assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
-        assert len(outcomes) == 1
-        assert outcomes[0].status == StartupCheckStatus.WARNING
-
-    @pytest.mark.asyncio
     async def test_tool_definitions_ok_when_clean(self) -> None:
         """Clean result produces OK outcome."""
-        ctx = _make_startup_ctx(tool_definitions_strict=False)
+        ctx = _make_startup_ctx()
         discovery_result = MagicMock(registry=None, findings=[], unreachable=[])
         pipeline, exc = await _run_check_services(
             ctx,

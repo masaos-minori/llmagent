@@ -28,8 +28,8 @@ related:
 | `repo_allowlist` (cicd-mcp) | Fail-closed | All repositories denied |
 | `workflow_allowlist` (cicd-mcp) | **Fail-closed** | All workflows denied |
 | `command_allowlist` (shell-mcp) | Fail-closed | All commands denied |
-| `path_denylist` (github-mcp) | Fail-open (no blocking by default) | All paths allowed |
-| `protected_branches` (github-mcp) | Fail-open (no blocking by default) | All branches allowed |
+| `path_denylist` (github-mcp) | Fail-open (registered ADR-004 exception; rationale pending) | All paths allowed |
+| `protected_branches` (github-mcp, git-mcp) | Fail-closed at load (empty is a config load error; the server does not start) | Branch protection always configured |
 
 ### Startup Security Validation
 
@@ -46,11 +46,11 @@ Each MCP server validates its own security settings when its process starts and 
 | `workflow_allowlist` | cicd-mcp | `server.workflow_allowlist` | `failed` when empty |
 | `workflow_allowlist` | cicd-mcp | `server.workflow_pattern_valid` | `failed` when a configured pattern contains a path separator; `not_applicable` when the allowlist is empty |
 | `path_denylist` | github-mcp | `server.path_denylist` | `not_applicable` when empty (fail-open setting; never `failed`) |
-| `protected_branches` | github-mcp | `server.protected_branches` | `not_applicable` when empty (fail-open setting; never `failed`) |
+| `protected_branches` | github-mcp | `server.protected_branches` | `failed` with `REASON_CONFIG_INVALID` when empty (Explicit in code — scripts/mcp_servers/github/github_service_security.py); in practice an empty value is rejected earlier at config load and the server does not start (`github_models_config.py`) |
 
-An empty capability-gating allowlist is a posture failure, not a warning: the server refuses to bind its HTTP port and the Agent refuses to start. Fail-open settings are reported as `not_applicable` instead of being omitted, so a missing restriction is visible in the posture rather than silently absent.
+An empty capability-gating allowlist is a posture failure, not a warning: the server refuses to bind its HTTP port and the Agent refuses to start. `path_denylist` is the only fail-open setting; it is reported as `not_applicable` instead of being omitted, so a missing restriction is visible in the posture rather than silently absent.
 
-Runtime denial is enforced independently by each server, so a running server keeps its fail-closed behavior for whatever its allowlists permit. An empty fail-closed setting is an intended safe default (access is denied); an empty fail-open setting allows unrestricted access and is surfaced as `not_applicable` in the posture.
+Runtime denial is enforced independently by each server, so a running server keeps its fail-closed behavior for whatever its allowlists permit. An empty fail-closed setting is an intended safe default (access is denied); an empty `path_denylist` allows unrestricted path access and is surfaced as `not_applicable` in the posture. On the Agent side both fail closed: an empty `allowed_tools` denies every tool (also after `/reload`) and an empty `allowed_root` is a config load error (Explicit in code — scripts/agent/config_section_builders.py).
 
 ---
 
@@ -79,10 +79,10 @@ A tool missing from `tool_safety_tiers` is not given a default tier: startup val
 
 Entries in `tool_safety_tiers` must match registered tool names exactly (not server keys). Bidirectional validation is performed at startup.
 
-- **Missing Tiers:** If a registered tool is not in `tool_safety_tiers`, it causes an error (fatal `RuntimeError`) regardless of environment.
-- **Unknown Keys:** If a key in `tool_safety_tiers` does not match a registered tool name, it causes an error (fatal `RuntimeError`) regardless of environment.
+- **Missing Tiers:** If a registered tool is not in `tool_safety_tiers`, it is a validation error and config build fails (fatal `ConfigReloadValidationError`, `config_builders._run_production_validation`) regardless of environment.
+- **Unknown Keys:** If a key in `tool_safety_tiers` does not match a registered tool name, it is a validation error with the same fatal outcome.
 
-Both checks are performed via `ProductionConfigValidator.validate()`, which integrates all validations for strict-key, safety-tier, and allowed-tools in a single pass.
+Both checks are performed via `ProductionConfigValidator.validate()`, which integrates all validations for safety-tier and allowed-tools in a single pass.
 
 ---
 

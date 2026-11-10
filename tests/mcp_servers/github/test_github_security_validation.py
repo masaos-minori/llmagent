@@ -99,12 +99,17 @@ class TestWarningPolicySettings:
 
 
 class TestInapplicableChecks:
-    """A rule that is switched off is reported not_applicable instead of omitted."""
+    """A rule that is switched off is reported not_applicable instead of omitted.
 
-    def test_empty_protected_branches(self) -> None:
+    Covers `path_denylist`, `max_file_size_kb` and `audit_log_path`; an empty
+    `protected_branches` is no longer such a rule (ADR-004, REQ-004): it is a
+    config-invalid failure.
+    """
+
+    def test_empty_protected_branches_is_config_invalid(self) -> None:
         result = _results(_safe_cfg(protected_branches=[]))["server.protected_branches"]
-        assert result.status is SecurityCheckStatus.NOT_APPLICABLE
-        assert result.reason_code == REASON_NOT_APPLICABLE
+        assert result.status is SecurityCheckStatus.FAILED
+        assert result.reason_code == REASON_CONFIG_INVALID
 
     def test_empty_path_denylist(self) -> None:
         result = _results(_safe_cfg(path_denylist=[]))["server.path_denylist"]

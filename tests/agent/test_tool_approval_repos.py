@@ -20,7 +20,7 @@ from tests.agent._config_test_defaults import (
     ALL_APPROVAL_RISK_RULES,
     ALL_TOOL_NAMES,
     ALL_TOOL_SAFETY_TIERS,
-    STRICT_PRODUCTION_OVERRIDES,
+    PERMISSIVE_ALLOWED_ROOT,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -30,7 +30,6 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
     """Build a minimal AgentConfig with test-safe defaults."""
     base = build_agent_config(
         {
-            **STRICT_PRODUCTION_OVERRIDES,
             "allowed_tools": ALL_TOOL_NAMES,
             "context_char_limit": 8000,
             "context_compress_turns": 4,
@@ -55,6 +54,7 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             # Standard tier classification; mirrors config/agent.toml defaults
             "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
             "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
+            "allowed_root": PERMISSIVE_ALLOWED_ROOT,
             **overrides,
         }
     )

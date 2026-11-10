@@ -7,8 +7,7 @@ loopback-only MCP exposure, and MCP authentication -- introduced by
 (plans/done/20260903-092407_plan.md).
 
 `localremoval`, `loopbackonly`, and `mcpauth` have all landed (2026-09-04):
-`test_production_only_rejects_local_mode`,
-`test_mcp_server_wildcard_bind_is_rejected`, and
+`test_mcp_server_wildcard_bind_is_rejected` and
 `test_mcp_auth_token_redacted_in_logs`'s `xfail` markers have all been
 removed and each test rewritten to exercise the real, current behavior.
 """
@@ -28,52 +27,28 @@ import pytest
 from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
 # ---------------------------------------------------------------------------
-# REQ-001: Production-only policy rejects Local-mode / retired-key config
-# ---------------------------------------------------------------------------
-
-
-def test_production_only_rejects_local_mode() -> None:
-    """localremoval landed (2026-09-04): `SecurityProfile.LOCAL` no longer
-    exists at all -- a config that still requests the retired "local" value
-    is rejected outright at config-construction time, not merely downgraded
-    to warnings the way a pre-landing Local-mode configuration used to be."""
-    from shared.mcp_config import SecurityProfile
-
-    assert not hasattr(SecurityProfile, "LOCAL"), (
-        "SecurityProfile.LOCAL must not exist post-localremoval"
-    )
-    with pytest.raises(ValueError):
-        SecurityProfile("local")
-
-
-# ---------------------------------------------------------------------------
 # REQ-002: Strict configuration validation through the real startup path
 # ---------------------------------------------------------------------------
 
 
 def test_strict_configuration_validation_via_real_startup() -> None:
     """Exercises the real `ProductionConfigValidator` (not a stand-in) against
-    a disposable, in-memory config -- production-profile strict validation
-    already exists today, independent of the three pending dependency Plans.
+    a disposable, in-memory config -- strict validation is unconditional and
+    has no profile switch.
     """
     from agent.production_config_validator import ProductionConfigValidator
 
     config = {
-        "tool_definitions_strict": False,
-        "routing_drift_strict": False,
         "tool_safety_tiers": {"unknown_tool": "READ_ONLY"},
         "allowed_tools": [],
     }
-    result = ProductionConfigValidator().validate(
-        config, security_profile="production", known_tools={"real_tool"}
-    )
-    assert result.errors, "production profile must reject all violations as errors"
+    result = ProductionConfigValidator().validate(config, known_tools={"real_tool"})
+    assert result.errors, "the validator must reject all violations as errors"
     joined = "; ".join(result.errors)
-    assert "tool_definitions_strict" in joined
-    assert "routing_drift_strict" in joined
+    assert "unknown_tool" in joined
     assert "Unknown safety tier keys" in joined
     assert "allowed_tools=[]" in joined
-    assert not result.warnings, "production profile must not downgrade to warnings"
+    assert not result.warnings, "the validator must not downgrade to warnings"
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +150,6 @@ async def test_required_mcp_failure_aborts_startup() -> None:
     from agent.shared.health_models import StartupCheckStatus
     from shared.mcp_config import (
         McpServerConfig,
-        SecurityProfile,
         StartupMode,
         TransportType,
     )
@@ -197,11 +171,8 @@ async def test_required_mcp_failure_aborts_startup() -> None:
             cfg=types.SimpleNamespace(
                 mcp=types.SimpleNamespace(
                     mcp_servers={"required_server": unreachable_cfg},
-                    security_profile=SecurityProfile.PRODUCTION,
                 ),
-                tool=types.SimpleNamespace(
-                    tool_definitions_strict=False, tool_definitions=[]
-                ),
+                tool=types.SimpleNamespace(tool_definitions=[]),
             ),
             services_required=types.SimpleNamespace(http=http),
         )
@@ -215,14 +186,14 @@ async def test_required_mcp_failure_aborts_startup() -> None:
 
 @pytest.mark.asyncio
 async def test_optional_mcp_failure_disables_only_that_tool() -> None:
-    """A `required=False` MCP server that is unreachable produces only a
-    WARNING (not FATAL), and `RuntimeToolRegistry` excludes only that
-    server's tools -- other servers' tools remain registered."""
+    """A `required=False` MCP server that is unreachable stays WARNING on the
+    per-server escalation axis, but the tool-definition check has no
+    non-strict bypass (ADR-004): with every server unreachable it produces a
+    FATAL finding on its own."""
     from agent.services.mcp_tool_discovery import McpToolDiscoveryService
     from agent.shared.health_models import StartupCheckStatus
     from shared.mcp_config import (
         McpServerConfig,
-        SecurityProfile,
         StartupMode,
         TransportType,
     )
@@ -242,11 +213,8 @@ async def test_optional_mcp_failure_disables_only_that_tool() -> None:
             cfg=types.SimpleNamespace(
                 mcp=types.SimpleNamespace(
                     mcp_servers={"optional_server": optional_cfg},
-                    security_profile=SecurityProfile.PRODUCTION,
                 ),
-                tool=types.SimpleNamespace(
-                    tool_definitions_strict=False, tool_definitions=[]
-                ),
+                tool=types.SimpleNamespace(tool_definitions=[]),
             ),
             services_required=types.SimpleNamespace(http=http),
         )
@@ -254,9 +222,16 @@ async def test_optional_mcp_failure_disables_only_that_tool() -> None:
             ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
         ).discover_all()
 
-    assert not any(f.status == StartupCheckStatus.FATAL for f in result.findings), (
-        "an unreachable required=False server must not produce a FATAL finding"
+    mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+    assert result.unreachable == ["optional_server"]
+    assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings), (
+        "the unreachable required=False server itself stays WARNING on the escalation axis"
     )
+    assert any(
+        f.status == StartupCheckStatus.FATAL
+        and "cannot validate tool definitions" in f.message
+        for f in mcp_findings
+    ), "ADR-004: the tool-definition check has no non-strict bypass"
 
 
 def test_disabled_tool_excluded_from_llm_visibility() -> None:

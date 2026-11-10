@@ -284,21 +284,16 @@ class TestDiagnosticsConfigValidation:
         assert cfg.retention_days == 7
 
 
-# ── MCPConfig coercion ────────────────────────────────────────────────────────
+# ── MCPConfig removed-mode fields stay absent ─────────────────────────────────
 
 
 class TestMCPConfigValidation:
-    def test_defaults_are_valid(self) -> None:
-        from shared.mcp_config import SecurityProfile
-
+    def test_removed_fields_are_absent(self) -> None:
         cfg = MCPConfig()
-        assert cfg.security_profile == SecurityProfile.PRODUCTION
-
-    def test_string_profile_coerced_to_enum(self) -> None:
-        from shared.mcp_config import SecurityProfile
-
-        cfg = MCPConfig(security_profile="production")  # type: ignore[arg-type]
-        assert cfg.security_profile == SecurityProfile.PRODUCTION
+        assert not hasattr(cfg, "security_profile")
+        tool = ToolConfig()
+        assert not hasattr(tool, "tool_definitions_strict")
+        assert not hasattr(tool, "routing_drift_strict")
 
 
 # ── MemoryConfig ──────────────────────────────────────────────────────────────

@@ -78,7 +78,6 @@ def _http(bodies: dict[str, dict[str, object]]) -> AsyncMock:
 def _make_ctx(servers: dict[str, McpServerConfig], http: AsyncMock) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg.mcp.mcp_servers = servers
-    ctx.cfg.tool.tool_definitions_strict = False
     ctx.services_required.http = http
     return ctx
 
@@ -281,10 +280,22 @@ class TestRequiredToolInteraction:
         missing = [
             finding
             for finding in result.findings
-            if finding.source == _SOURCE and "git_push" in finding.message
+            if finding.source == _SOURCE and "required tool" in finding.message
         ]
         assert len(missing) == 1
         assert missing[0].status == StartupCheckStatus.FATAL
+
+        # REQ-001 strict-only: git_push is declared by the server but absent
+        # from tools_definitions, so the definition check now contributes a
+        # second FATAL finding (previously a WARNING under the removed strict
+        # toggle).
+        mismatches = [
+            finding
+            for finding in result.findings
+            if finding.source == _SOURCE and "extra_on_servers" in finding.message
+        ]
+        assert len(mismatches) == 1
+        assert mismatches[0].status == StartupCheckStatus.FATAL
 
     @pytest.mark.asyncio
     async def test_a_green_gate_keeps_the_required_tool_present(self) -> None:

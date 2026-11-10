@@ -13,6 +13,7 @@ import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.memory.scoring import recency_boost
+from agent.services.exceptions import ConfigReloadValidationError
 from agent.tool_enums import RiskLevel
 from agent.tool_policy import classify_risk
 
@@ -26,15 +27,12 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
         "allowed_tools": ["shell_execute"],
-        "tool_definitions_strict": True,
-        "routing_drift_strict": True,
         "tool_definitions": [],
         "tool_safety_tiers": {},
         "approval_risk_rules": {},
         "approval_shell_safe_prefixes": ["/bin/", "/usr/bin/"],
         "approval_github_allowed_repos": [],
-        "allowed_root": "",
-        "security_profile": "production",
+        "allowed_root": "/opt/llm",
         "memory_local_only": True,
         "memory_embed_enabled": False,
         "mcp_servers": {
@@ -49,20 +47,26 @@ def _cfg(**overrides: Any) -> AgentConfig:
     return build_agent_config(merged)
 
 
-class TestSecurityProfileInvalidValue:
-    """AGENT-1: Invalid security_profile value should raise ValueError."""
+class TestRemovedConfigKeysRejected:
+    """AGENT-1: A config that still sets a removed strict/profile key is rejected."""
 
-    def test_invalid_security_profile_raises_value_error(self) -> None:
-        with pytest.raises(ValueError):
-            _cfg(security_profile="INVALID_PROFILE")
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            {"tool_definitions_strict": True},
+            {"routing_drift_strict": True},
+            {"security_profile": "production"},
+        ],
+    )
+    def test_removed_key_rejected(self, overrides: dict[str, Any]) -> None:
+        # Removed keys are no longer in the allowed set: the production
+        # validator rejects them and the build raises.
+        with pytest.raises(ConfigReloadValidationError):
+            _cfg(**overrides)
 
-    def test_empty_string_security_profile_raises_value_error(self) -> None:
-        with pytest.raises(ValueError):
-            _cfg(security_profile="")
-
-    def test_numeric_security_profile_raises_value_error(self) -> None:
-        with pytest.raises(ValueError):
-            _cfg(security_profile="123")
+    def test_empty_allowed_root_rejected(self) -> None:
+        with pytest.raises(ValueError, match="allowed_root"):
+            _cfg(allowed_root="")
 
 
 class TestRecencyDaysBoundary:

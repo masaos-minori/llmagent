@@ -82,7 +82,7 @@ File isolation and key validation are separate. File isolation: every process ex
 
 | Process | Required Config File | Required Keys | Empty-Allowed Keys |
 |---|---|---|---|
-| Agent | `config/agent.toml` (absence aborts startup) | `tool_definitions_strict` and `routing_drift_strict` (must be true in production; an absent key defaults to false and is rejected), `tool_safety_tiers` (must cover every known tool), and the `[mcp_servers.<key>]` entries validated by `_build_mcp_servers()`; every other key has a built-in default | `llm_url`, `tokenize_url`, `embed_url`, `allowed_root`, `system_prompt_tool`, `otel_endpoint`, and `encryption_key` (in the `[diagnostics]` table) |
+| Agent | `config/agent.toml` (absence aborts startup) | `tool_safety_tiers` (must cover every known tool), `allowed_root` (an empty or absent value is rejected because the path jail would be disabled), and the `[mcp_servers.<key>]` entries validated by `_build_mcp_servers()`; every other key has a built-in default | `llm_url`, `tokenize_url`, `embed_url`, `system_prompt_tool`, `otel_endpoint`, and `encryption_key` (in the `[diagnostics]` table) |
 | MCP Server (each) | `config/<name>_mcp_server.toml`, named by the server class attribute `own_config_file` (an empty value aborts startup) | Server-specific; defined by each server's own configuration file. `http_host`, `http_port`, and `app_module` are server class attributes, not configuration keys | — |
 | Crawler | `config/crawler.toml` | `rag_src_dir`, `crawl_delay`, `max_depth`, `min_chunk`, `fetch_retry`, `target_urls` | — |
 | Chunk Splitter | `config/chunk_splitter.toml` | `rag_src_dir`, `min_chunk`, `max_chunk`, `en_stopwords`, `ja_stop_pos` | — |
