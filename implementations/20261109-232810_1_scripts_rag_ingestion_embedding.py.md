@@ -3,7 +3,7 @@
 - Reject an embedding BLOB whose length does not match the expected dimension inside `EmbeddingService.embed_and_store`, before any transaction, so the group takes the existing `failed/` routing (`REQ-001`: wrong-size embedding rejection).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: ragrev015-core (Plan `### Release units`; owner-declared batch unit 20261110)
 
 - One method only: `EmbeddingService.embed_and_store` in `scripts/rag/ingestion/embedding.py`.
 
@@ -11,6 +11,9 @@
 
 - The failure reuses `IngestionFailureReason.VALIDATION_FAILED` (no new enum member), per the Plan's Assumptions; the human-readable size message reaches the failure log.
 - The expected size is the module constant surface of `scripts/db/store_protocols.py` (`get_embedding_dims()` / `get_embedding_bytes()`, currently 1024 dims = 4096 bytes); a model change updates that constant, and the rejection follows it.
+- Verified anchor set at HEAD `02f3143e2` (`git log -1 --oneline -- scripts/rag/ingestion/embedding.py` = `3d2dc8790`): `embed_and_store` signature at L71-73, `chunk_type: str = data.chunk_type or ""` at L85, `embedding = self.get_embedding(content)` at L89, the `embedding is None` warn-and-return block at L90-103, `return PreparedChunk(` at L104, `embedding_blob=floats_to_blob(embedding),` at L109.
+- Verified choke point: `ChunkFactory._embed_and_store` (`scripts/rag/ingestion/chunk_preparation.py` L76-80) is a one-line delegation to `EmbeddingService.embed_and_store`, so no change is needed there and every embedded chunk passes the new check.
+- Measured blast radius at HEAD `02f3143e2` in a scratch worktree: the size check alone fails 22 tests in `tests/rag/ingestion` (16 in `test_ingester.py`, 4 in `test_rag_ingestion_pipeline.py`, 2 in `test_ingester_index_generation.py`), and the full suite (12123 tests, 0 failures at HEAD) shows no failure outside `tests/rag/ingestion`.
 
 ## Design decisions
 
@@ -45,7 +48,8 @@
 
 ## Compatibility considerations
 
-- `validate_embedding_blob` enforces the 1024-dim constant; existing `tests/rag/ingestion/test_ingester.py` stubs use `_DIM = 384` fake embeddings, so those fixtures must be aligned (see the seq-4 test procedure: derive the fake vector length from `get_embedding_dims()`).
+- `validate_embedding_blob` enforces the 1024-dim constant; the fake embeddings in `tests/rag/ingestion` are shorter and must be aligned by the test procedures in the same batch: `tests/rag/ingestion/test_ingester.py` `_DIM = 384` (L61-62) per the seq-4 document, 5 stubs in `tests/rag/ingestion/test_rag_ingestion_pipeline.py` per the seq-10 document, and 4 stubs in `tests/rag/ingestion/test_ingester_index_generation.py` per the seq-11 document.
+- `floats_to_blob` (`scripts/rag/utils.py` L125) validates element type, emptiness, and finiteness but not length, so the size check has to be explicit; it is not already covered by the conversion helper.
 - Correct-size payloads are byte-identical to today; `store_impl.py`'s own `validate_embedding_blob` calls stay as defense-in-depth.
 
 ## Security considerations
@@ -73,9 +77,9 @@ N/A: revert the single commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Confirm the tests added by the seq-4 document pass | Pending | — | — | Tests live in `tests/rag/ingestion/test_ingester.py` (own procedure document) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261110-113819 | 20261110-113819 |  |
+| 2 | Confirm the tests added by the seq-4 document pass | Completed | — | 20261110-114823 | Tests live in `tests/rag/ingestion/test_ingester.py` (own procedure document) seq-4 tests green: test_ingester.py 44 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261110-120906 | end-of-unit gate: tests/rag/ingestion 337 passed; full suite 12133 passed; diff-cover 100%; ruff/mypy/lint-imports pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
