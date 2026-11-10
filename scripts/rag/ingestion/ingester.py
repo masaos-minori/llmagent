@@ -438,7 +438,7 @@ class RagIngester:
         """
         tx_mgr = TransactionManager(db, doc_mgr, doc_store)
         try:
-            result = tx_mgr.commit(
+            result: tuple[int | None, bool, bool] = tx_mgr.commit(
                 url,
                 doc_id,
                 prepared_chunks,
