@@ -15,7 +15,7 @@ High
 - Decisions on record (stated by the repository owner, the authority the project's ADRs cite for approval): keep the EventBus service (2026-11-09, quoted in the Issue); Group 7 option B, declare Group 7 inapplicable until a non-required server exists (2026-11-10, in this session). Neither statement names an individual approver; the ADRs' existing convention records "task-level approval decision (repository owner instruction)" without reviewer names (`adr_02_04_013...md:287-290`, `adr_02_01_004...md:338-343`).
 - `Confirmed by repository evidence`: `registry/component_mandatoriness.yaml` has 10 entries, every one `classification: required`, so Group 7 (`adr_02_01_004...md:93`, INV-09 at `:226`, matrix row at `:257`) applies to no component today. `agent_08_04` documents the table from the registry in an `AUTO-GENERATED` block.
 - `Confirmed by repository evidence` (partly confirms the memo): `docs/91_security/security_01_architecture-and-trust-boundaries.md` mentions the EventBus (`Protected assets` line 61, a full `EventBus Authentication and Authorization` section at line 272, loopback binding at line 129), but the trust-boundary diagram (lines 40-51) and the threat vector list (lines 65-75) do not name it, and the per-API table (lines 77-90) lists MCP servers only.
-- `Confirmed by repository evidence`: no ADR states the intended producers and consumers. ADR-006 describes Publisher and Subscriber generically (`adr_02_04_006...md:45-72`); ADR-013 `Review Triggers` line 272 assumes "the single trusted Agent process"; `eventbus_01` lines 25-28 and 52 state that the Agent neither publishes nor subscribes and that any HTTP client may publish. The Agent-side clients are unused (`plans/20261110-091327_adrrev002_agent-eventbus-coupling.md`).
+- `Confirmed by repository evidence`: no ADR states the intended producers and consumers. ADR-006 describes Publisher and Subscriber generically (`adr_02_04_006...md:45-72`); ADR-013 `Review Triggers` line 272 was extended by plan 002's implementation (re-verified 2026-11-10, commit add36ad68: "A first publisher or consumer client of any kind is added to the EventBus"); the older item at line 273 names replacement of the single trusted Agent process as a trigger and remains as written; `eventbus_01` lines 25-28 and 52 state that the Agent neither publishes nor subscribes and that any HTTP client may publish. The Agent-side clients have been removed by plan 002's implementation (commit add36ad68, 2026-11-10; `plans/20261110-091327_adrrev002_agent-eventbus-coupling.md`).
 - `Needs confirmation`: the planned producers and consumers of the EventBus and the integration timing (UNK-01); no repository evidence defines them.
 
 ## Problem
@@ -45,7 +45,7 @@ table — no other file may be treated as a modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` | Modify: Record the keep decision and the producer/consumer model (or its explicit absence) in the ADR | Record the keep decision and the producer/consumer model (or its explicit absence) in the ADR | REQ-001 / AC-01 | ADR-006 (`Context`, `Decision`) describes Publisher and Subscriber roles generically (lines 45-72) and records no keep decision or defined producers/consumers (checked in Step 3) | `check_adr_structure.py`, `check_adr_authority.py`, `check_adr_preservation.py` | Verified |
-| `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Modify: Record the keep decision and state that producers and consumers are not yet defined, naming the responsible component as pending | Record the keep decision and state that producers and consumers are not yet defined, naming the responsible component as pending | REQ-001 / AC-01 | ADR-013 `Review Triggers` (line 272) assumes a single trusted Agent caller and no ADR text states the intended producers and consumers (checked in Step 3) | `check_adr_structure.py`, `check_adr_authority.py`, `check_adr_preservation.py` | Verified |
+| `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Modify: Record the keep decision and state that producers and consumers are not yet defined, naming the responsible component as pending | Record the keep decision and state that producers and consumers are not yet defined, naming the responsible component as pending | REQ-001 / AC-01 | ADR-013 `Review Triggers` (line 272) — extended by plan 002 (commit add36ad68), item 1 now reads "A first publisher or consumer client of any kind is added to the EventBus" (re-verified 2026-11-10) — states no producer/consumer model, and no ADR text states the intended producers and consumers | `check_adr_structure.py`, `check_adr_authority.py`, `check_adr_preservation.py` | Verified |
 | `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` | Modify: Declare Decision Group 7 and INV-09 inapplicable until a non-required server exists, with the approval record | Declare Decision Group 7 and INV-09 inapplicable until a non-required server exists, with the approval record | REQ-002 / AC-02 | ADR-004 `### Group 7` (line 93), `INV-09` (line 226) and the verification-matrix row (line 257); `registry/component_mandatoriness.yaml` classifies all 10 servers `required` (checked in Step 3) | `check_adr_structure.py`, `check_adr_authority.py`, `check_adr_preservation.py` | Verified |
 | `docs/10_adr/adr_01_index.md` | Modify: Reflect the Group 7 outcome and the EventBus keep decision in the index | Reflect the Group 7 outcome and the EventBus keep decision in the index | REQ-001, REQ-002 / AC-01, AC-02 | ADR index rows for ADR-004, ADR-006, ADR-013 (lines 48, 50, 56) and the verification matrix (checked in Step 3) | `uv run python tools/generate_adr_authority.py --check` | Verified |
 | `docs/91_security/security_01_architecture-and-trust-boundaries.md` | Modify: Add the EventBus to the trust-boundary diagram and the threat vectors | Add the EventBus to the trust-boundary diagram and the threat vectors | REQ-003 / AC-03 | The trust-boundary diagram (lines 40-51) and the threat vector list (lines 65-75) name no EventBus; EventBus appears only in `Protected assets` (line 61) and `EventBus Authentication and Authorization` (line 272) (checked in Step 3) | `uv run python tools/check_docs_consistency.py --domain eventbus`, `check_docs_content_policy.py --strict` | Verified |
@@ -142,11 +142,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | EventBus keep decision and producer/consumer status | Pending | — | — | |
-| 2 | Group 7 outcome | Pending | — | — | |
-| 3 | ADR index | Pending | — | — | |
-| 4 | Follow-up issues | Pending | — | — | |
-| 5 | Verification | Pending | — | — | |
+| 1 | EventBus keep decision and producer/consumer status | In Progress | — | — |  |
+| 2 | Group 7 outcome | In Progress | — | — |  |
+| 3 | ADR index | In Progress | — | — |  |
+| 4 | Follow-up issues | Pending | — | — |  |
+| 5 | Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -156,7 +156,13 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261110-135353_01_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261110-135353_02_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261110-135353_03_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261110-135353_04_docs_10_adr_adr_01_index.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261110-135353_05_docs_91_security_security_01_architecture-and-trust-boundaries.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261110-135353_06_docs_24_eventbus_eventbus_01_system-overview.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261110-135353_07_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -179,3 +185,5 @@ N/A: no release unit
 | REQ-001 | Required Changes / repository evidence | `docs/24_eventbus/eventbus_01_system-overview.md` | 1 | AC-01 | `uv run python tools/check_docs_consistency.py --domain eventbus` | Confirmed by repository evidence |
 | REQ-002 | Required Changes / repository evidence | `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` | 2 | AC-02 | `uv run python tools/check_docs_consistency.py --domain agent`, `uv run python tools/generate_reference_table.py --check` | Confirmed by repository evidence |
 | REQ-004 | Required Changes / Acceptance Criteria: follow-up issues | N/A: workflow artifacts under `issues/`, no modification target | 4 | AC-04 | `check_workitem_structure.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261110-135353 -->
