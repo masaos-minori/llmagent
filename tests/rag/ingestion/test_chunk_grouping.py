@@ -47,7 +47,7 @@ def _payload(**overrides) -> dict:
         "normalized_content": None,
         "chunk_index": 0,
         "source_file": "doc.json",
-        "chunk_type": "paragraph",
+        "chunk_type": "text",
         "chunking_strategy": "heading",
         "fetched_at": "2024-01-01T00:00:00Z",
     }
@@ -139,6 +139,19 @@ class TestRejectedReporting:
 
         assert rejected == [("broken.json", IngestionFailureReason.PARSE_FAILED)]
         assert all(p.name != "broken.json" for paths in groups.values() for p in paths)
+
+    def test_out_of_domain_chunk_type_reports_parse_failed(
+        self, tmp_path: Path
+    ) -> None:
+        # seq-2: read_chunk_json rejects chunk_type outside ('text','code'), which
+        # reaches grouping as a ChunkFormatError and is classified PARSE_FAILED.
+        good = _write_chunk(tmp_path, "good.json", _payload())
+        bad = _write_chunk(tmp_path, "bad.json", _payload(chunk_type="chunk"))
+
+        groups, rejected = _group(ChunkGroupingStrategy(), [good, bad])
+
+        assert rejected == [("bad.json", IngestionFailureReason.PARSE_FAILED)]
+        assert list(groups.values()) == [[good]]
 
     def test_empty_url_reports_parse_failed(self, tmp_path: Path) -> None:
         # read_chunk_json validates 'url' as a non-empty string, so an empty

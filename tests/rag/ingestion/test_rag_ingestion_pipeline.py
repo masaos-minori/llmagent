@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from db.store_protocols import get_embedding_dims
 from rag.ingestion.chunk_splitter import ChunkSplitter
 from rag.ingestion.embedding import EmbeddingService
 from rag.ingestion.ingester import RagIngester
@@ -242,7 +243,11 @@ class TestJsonLifecycle:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+            patch.object(
+                EmbeddingService,
+                "get_embedding",
+                return_value=[0.1] * get_embedding_dims(),
+            ),
         ):
             result = ingester.ingest_all()
             assert result is not None
@@ -285,7 +290,11 @@ class TestJsonLifecycle:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+            patch.object(
+                EmbeddingService,
+                "get_embedding",
+                return_value=[0.1] * get_embedding_dims(),
+            ),
         ):
             ingester.ingest_all()
 
@@ -362,7 +371,11 @@ class TestChunkSplitterOutputEndToEnd:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+            patch.object(
+                EmbeddingService,
+                "get_embedding",
+                return_value=[0.1] * get_embedding_dims(),
+            ),
         ):
             ingester.ingest_all()
 
@@ -418,7 +431,11 @@ class TestChunkSplitterOutputEndToEnd:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+            patch.object(
+                EmbeddingService,
+                "get_embedding",
+                return_value=[0.1] * get_embedding_dims(),
+            ),
         ):
             ingester.ingest_all()
 
@@ -426,9 +443,10 @@ class TestChunkSplitterOutputEndToEnd:
         assert docs == 0
         assert not chunk_dir.joinpath("2024-01-01-test-page.json").exists()
         # A code_blocks-removed file is rejected by read_chunk_json (unparseable), so it is
-        # quarantined in failed/ but carries no .error.json (write_error_metadata needs the
-        # content, which is exactly what is missing here). The key invariant is rejection +
-        # non-persistence, proving the validator is not weakened.
+        # quarantined in failed/ with a generic .error.json sidecar (seq-7 always-write
+        # guarantee: payload-derived keys are omitted, the caller-supplied reason is kept).
+        # The key invariant is rejection + non-persistence, proving the validator is not
+        # weakened.
         failed_dir = src_dir / "failed"
         assert failed_dir.exists()
         assert failed_dir.joinpath("2024-01-01-test-page.json").exists()
@@ -443,7 +461,9 @@ class TestReingest:
     @pytest.fixture(autouse=True)
     def mock_embedding(self):
         """Automatically mock EmbeddingService.get_embedding for all tests in this class."""
-        with patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128):
+        with patch.object(
+            EmbeddingService, "get_embedding", return_value=[0.1] * get_embedding_dims()
+        ):
             yield
 
     @pytest.fixture

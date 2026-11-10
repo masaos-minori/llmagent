@@ -27,7 +27,7 @@ from rag.ingestion.embedding import EmbeddingService
 from rag.ingestion.file_routing import FileRouter
 from rag.ingestion.pipeline_utils import read_chunk_json
 from rag.ingestion.transaction_commit import TransactionManager
-from rag.models_data import ChunkDocument
+from rag.models_data import ChunkDocument, PreparedChunk
 from shared.config_loader import ConfigLoader
 from shared.llm_client import build_embed_url
 from shared.logger import Logger
@@ -327,8 +327,10 @@ class RagIngester:
         )
 
         if len(prepared_chunks) > 0 and len(failed_paths) == 0:
-            tx_mgr = TransactionManager(db, doc_mgr, doc_store)
-            _, skipped, _ = tx_mgr.commit(
+            commit_result = self.commit_url_group(
+                db,
+                doc_mgr,
+                doc_store,
                 url,
                 doc_id,
                 prepared_chunks,
@@ -342,15 +344,22 @@ class RagIngester:
                 chunking_strategy=chunking_strategy,
                 fetched_at=first_data.fetched_at,
             )
+            if commit_result is None:
+                return IngestUrlResult(
+                    url=url,
+                    n_success=0,
+                    n_failed=len(chunk_files),
+                    skipped=False,
+                    failure_reason=IngestionFailureReason.STORAGE_FAILED,
+                )
+            _, skipped, _ = commit_result
             if skipped:
                 logger.warning(
                     "stale generation skipped: keeping stored content for %s",
                     url,
                     extra={"url": url, "stage_name": "ingester"},
                 )
-                self._file_router.route(prepared_paths, [])
                 return IngestUrlResult.skip(url)
-            self._file_router.route(prepared_paths, [])
         else:
             failed_all = [
                 (p, "embedding_partial_failure") for p in prepared_paths
@@ -399,6 +408,58 @@ class RagIngester:
                 "stage_name": "ingester",
             },
         )
+
+    def commit_url_group(
+        self,
+        db: SQLiteHelper,
+        doc_mgr: DocumentManager,
+        doc_store: DocumentStore,
+        url: str,
+        doc_id: int | None,
+        prepared_chunks: list[PreparedChunk],
+        prepared_paths: list[Path],
+        force: bool,
+        replace: bool,
+        title: str,
+        lang: str,
+        *,
+        etag: str | None,
+        last_modified: str | None,
+        chunking_strategy: str,
+        fetched_at: str,
+    ) -> tuple[int | None, bool, bool] | None:
+        """Commit one URL group, route its files; return the commit result or None on IntegrityError.
+
+        Returns (doc_id, skip, replace) from TransactionManager.commit on success.
+        sqlite3.IntegrityError is deterministic (schema/constraint violation): the whole
+        group is routed to failed/ with STORAGE_FAILED and None is returned instead of
+        being retried forever. Any other sqlite3.Error propagates unchanged, keeping the
+        existing retryable behavior (files stay in chunk/ for the next run).
+        """
+        tx_mgr = TransactionManager(db, doc_mgr, doc_store)
+        try:
+            result = tx_mgr.commit(
+                url,
+                doc_id,
+                prepared_chunks,
+                prepared_paths,
+                force,
+                replace,
+                title,
+                lang,
+                etag=etag,
+                last_modified=last_modified,
+                chunking_strategy=chunking_strategy,
+                fetched_at=fetched_at,
+            )
+        except sqlite3.IntegrityError as e:
+            logger.warning("commit IntegrityError for %s: %s", url, e)
+            self._route_group_failed(
+                [(p, IngestionFailureReason.STORAGE_FAILED) for p in prepared_paths]
+            )
+            return None
+        self._file_router.route(prepared_paths, [])
+        return result
 
     def _route_group_failed(self, failed_paths: Sequence[tuple[Path, str]]) -> None:
         """Move every file of a rejected group to failed/ with .error.json metadata."""

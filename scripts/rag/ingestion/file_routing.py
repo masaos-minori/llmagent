@@ -44,7 +44,7 @@ class FileRouter:
     def route(
         self, successful_paths: list[Path], failed_paths: list[tuple[Path, str]]
     ) -> None:
-        """Route chunk files based on success/failure: successful→registered/, failed→failed/ with .error.json."""
+        """Route chunk files based on success/failure: successful→registered/, failed→failed/ with a .error.json sidecar always written for each failed file."""
         self._registered_dir.mkdir(parents=True, exist_ok=True)
         failed_dir = self._chunk_dir.parent / "failed"
         failed_dir.mkdir(parents=True, exist_ok=True)
@@ -104,12 +104,29 @@ class FileRouter:
                     extra={"stage_name": "ingester"},
                 )
 
-    def write_error_metadata(self, path: Path, failure_reason: str) -> dict | None:
-        """Write .error.json metadata for a failed chunk."""
+    def write_error_metadata(self, path: Path, failure_reason: str) -> dict:
+        """Write .error.json metadata for a failed chunk; a sidecar is always returned.
+
+        Payload-derived keys (url, chunk_index, source_file) are present only when the
+        payload can be parsed; an unreadable payload yields the envelope plus an
+        ``error`` note instead.
+        """
         try:
             chunk_data = read_chunk_json(path)
         except ChunkFormatError:
-            return None
+            logger.warning(
+                "chunk payload unreadable for %s: generic error sidecar (reason=%s)",
+                path,
+                failure_reason,
+                extra={"source_type": "file", "stage_name": "ingester"},
+            )
+            return {
+                "schema_version": "1",
+                "created_by": "rag_ingester",
+                "failure_reason": failure_reason,
+                "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
+                "error": "chunk payload unreadable; no metadata fields extracted",
+            }
 
         metadata = {
             "schema_version": "1",

@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import orjson
 import pytest
+from db.store_protocols import get_embedding_dims
 from rag.exceptions import IngestionFailureReason
 from rag.ingestion.chunk_preparation import ChunkFactory
 from rag.ingestion.document_manager import DocumentManager
@@ -58,7 +59,7 @@ CREATE TABLE IF NOT EXISTS chunks_vec (
 );
 """
 
-_DIM = 384
+_DIM = get_embedding_dims()
 _FAKE_EMBEDDING = [0.1] * _DIM
 
 
@@ -129,7 +130,7 @@ class _ChunkSpec:
     last_modified: str | None = None
     code_blocks: list[str] = dataclasses.field(default_factory=list)
     source_file: str = "chunk.json"
-    chunk_type: str = "chunk"
+    chunk_type: str = "text"
     chunking_strategy: str = "text"
     fetched_at: str = "2024-01-01T00:00:00Z"
 
@@ -436,22 +437,17 @@ class TestEmbedAndStore:
         path = _write_chunk(tmp_path / "chunk", "c.json")
         ingester = _make_ingester_with_retry(tmp_path, embed_retry=2)
 
-        wrong_dim_resp = _fake_embed_resp(embedding=[0.1] * 8)  # wrong dim (expect 384)
+        wrong_dim_resp = _fake_embed_resp(
+            embedding=[0.1] * 8
+        )  # wrong dim (expect get_embedding_dims())
 
-        with (
-            patch("rag.ingestion.embedding.time.sleep"),
-            patch.object(
-                ingester._client,
-                "post",
-                side_effect=[wrong_dim_resp, _fake_embed_resp()],
-            ),
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
-        ):
+        with patch.object(ingester._client, "post", return_value=wrong_dim_resp):
             factory = ChunkFactory(ingester._embedding_service, ingester._embed_workers)
             result = factory._embed_and_store(doc_id, path)
 
-        assert isinstance(result, PreparedChunk)
-        assert result.chunk_index == 0
+        # seq-1: the size check runs after get_embedding returns, so no retry happens
+        # and the failure is deterministic VALIDATION_FAILED, not a PreparedChunk.
+        assert result is IngestionFailureReason.VALIDATION_FAILED
 
 
 # ── ingest_url_group() ────────────────────────────────────────────────────────
@@ -712,6 +708,48 @@ class TestIngestUrlGroup:
 
         assert result.url == url
         assert result.n_embed_failed == 2  # both chunks failed embedding
+
+    def test_wrong_size_embedding_routes_group_to_failed(self, tmp_path: Path) -> None:
+        """AC-1: a wrong-size embedding routes the whole group to failed/ with no commit."""
+        conn, fake_db, ingester = self._setup(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+        paths = [
+            _write_chunk(
+                chunk_dir,
+                "c0.json",
+                dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0),
+            ),
+            _write_chunk(
+                chunk_dir,
+                "c1.json",
+                dataclasses.replace(_DEFAULT_CHUNK, chunk_index=1),
+            ),
+        ]
+        wrong_dim_resp = _fake_embed_resp(
+            embedding=[0.1] * 8
+        )  # 8 dims != get_embedding_dims()
+        with (
+            patch.object(ingester._client, "post", return_value=wrong_dim_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+            patch.object(TransactionManager, "commit") as mock_commit,
+        ):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
+                "https://example.com/doc",
+                paths,
+                force=False,
+            )
+        mock_commit.assert_not_called()  # the failed_paths gate skips commit entirely
+        assert result.n_failed == 2
+        failed_dir = tmp_path / "failed"
+        assert _error_reasons(failed_dir, ["c0", "c1"]) == [
+            "validation_failed",
+            "validation_failed",
+        ]
+        assert not any(chunk_dir.iterdir())  # nothing left in chunk/
+        assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
 
 
 # ── Artifact validation (strict vs lenient) ───────────────────────────────────
@@ -983,7 +1021,7 @@ class TestGroupValidation:
             ("last_modified", "2025-01-01T00:00:00Z"),
             ("source_file", "other.json"),
             ("chunking_strategy", "semantic"),
-            ("chunk_type", "paragraph"),
+            ("chunk_type", "code"),
         ],
     )
     def test_mismatched_field_rejects_group(
@@ -1114,10 +1152,12 @@ class TestGroupValidation:
         assert result.failure_reason == IngestionFailureReason.PARSE_FAILED
         assert not path0.exists() and not path1.exists()
         failed_dir = tmp_path / "failed"
-        # FileRouter cannot build metadata for an unparseable payload (no sidecar for c0);
-        # the parseable sibling gets the sidecar naming the group reason.
-        assert not (failed_dir / "c0.error.json").exists()
-        assert _error_reasons(failed_dir, ["c1"]) == ["parse_failed"]
+        # FileRouter writes a generic sidecar even for the unparseable payload (seq-7
+        # always-write guarantee); the parseable sibling gets the full-metadata sidecar.
+        assert _error_reasons(failed_dir, ["c0", "c1"]) == [
+            "parse_failed",
+            "parse_failed",
+        ]
 
     def test_malformed_later_file_routes_group_as_parse_failed(
         self, tmp_path: Path
@@ -1142,8 +1182,37 @@ class TestGroupValidation:
         assert result.failure_reason == IngestionFailureReason.PARSE_FAILED
         assert not path0.exists() and not path1.exists()
         failed_dir = tmp_path / "failed"
-        assert _error_reasons(failed_dir, ["c0"]) == ["parse_failed"]
-        assert not (failed_dir / "c1.error.json").exists()
+        assert _error_reasons(failed_dir, ["c0", "c1"]) == [
+            "parse_failed",
+            "parse_failed",
+        ]
+
+    def test_unparseable_payload_still_gets_error_sidecar(self, tmp_path: Path) -> None:
+        """seq-7 always-write guarantee: an unreadable payload gets a generic sidecar."""
+        conn, fake_db, ingester = self._setup(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        path = chunk_dir / "c0.json"
+        path.write_bytes(b"not a chunk payload")
+        with patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
+                "https://example.com/doc",
+                [path],
+                force=False,
+            )
+        assert result.failure_reason == IngestionFailureReason.PARSE_FAILED
+        failed_dir = tmp_path / "failed"
+        sidecar = failed_dir / "c0.error.json"
+        assert sidecar.exists()
+        metadata = orjson.loads(sidecar.read_bytes())
+        assert metadata["failure_reason"] == "parse_failed"
+        assert (
+            "url" not in metadata
+        )  # payload-derived keys omitted by the generic envelope
+        assert "chunk_index" not in metadata
 
 
 class TestGenerationDrain:
@@ -1254,7 +1323,12 @@ class TestGenerationDrain:
 
 
 class TestIntegrityErrorPropagation:
-    """Tests for IntegrityError propagation from _insert_chunks_batch."""
+    """Tests for sqlite3 error handling split: propagation from TransactionManager, quarantine in the ingester.
+
+    IntegrityError is deterministic: ingest_url_group routes the group to failed/ with
+    STORAGE_FAILED (commit_url_group). Other sqlite3.Error (e.g. lock timeouts) stay
+    retryable: they propagate to _process_url_groups and move no files.
+    """
 
     def _setup(
         self, tmp_path: Path
@@ -1307,7 +1381,44 @@ class TestIntegrityErrorPropagation:
                 side_effect=sqlite3.IntegrityError("foreign key violation"),
             ),
         ):
-            with pytest.raises(sqlite3.IntegrityError):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                DocumentStore(fake_db, DocumentManager(fake_db)),
+                "https://example.com/doc",
+                [path],
+                force=True,
+            )
+        # AC-3: a deterministic IntegrityError quarantines the group instead of retrying
+        assert result.failure_reason == IngestionFailureReason.STORAGE_FAILED
+        failed_dir = tmp_path / "failed"
+        assert (failed_dir / "c.json").exists()
+        assert _error_reasons(failed_dir, ["c"]) == ["storage_failed"]
+        # After rollback via begin_immediate fix, no partial rows remain
+        assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
+
+    def test_transient_operational_error_keeps_group_retryable(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-4: a transient sqlite3.OperationalError propagates and moves no files."""
+        conn, fake_db, ingester = self._setup(tmp_path)
+        conn.execute(
+            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
+            ("https://example.com/doc", "Doc", "ja", "text"),
+        )
+        conn.commit()
+        chunk_dir = tmp_path / "chunk"
+        path = _write_chunk(chunk_dir, "c.json")
+        with (
+            patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+            patch.object(
+                TransactionManager,
+                "_insert_chunks_batch",
+                side_effect=sqlite3.OperationalError("database is locked"),
+            ),
+        ):
+            with pytest.raises(sqlite3.OperationalError):
                 ingester.ingest_url_group(
                     DocumentManager(fake_db),
                     fake_db,
@@ -1316,5 +1427,6 @@ class TestIntegrityErrorPropagation:
                     [path],
                     force=True,
                 )
-        # After rollback via begin_immediate fix, no partial rows remain
-        assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
+        # retryable: the group stays in chunk/ for the next run, nothing routed to failed/
+        assert path.exists()
+        assert not (tmp_path / "failed").exists()

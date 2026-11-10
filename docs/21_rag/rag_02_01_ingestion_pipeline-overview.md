@@ -32,7 +32,7 @@ The ingestion pipeline runs as three separate scripts (crawl, chunk split, embed
 | Path | Created By | Content | Deletion Policy |
 |---|---|---|---|
 | `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks | Not deleted by the pipeline code; no automated retention or cleanup |
-| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy | Moved out of `chunk/` after ingestion: to `registered/` on success, to `failed/` on failure (a `.error.json` file naming the failure reason is written for parseable payloads) |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy | Moved out of `chunk/` after ingestion: to `registered/` on success, to `failed/` on failure (a `.error.json` file naming the failure reason is written for every failed chunk; keys taken from the payload, such as `url` and `chunk_index`, appear only when the payload is readable) |
 | `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered | No automated retention or cleanup; files accumulate until removed manually |
 
 Chunk files are grouped per URL and per crawl generation (payload `fetched_at`), processed oldest first, so files from distinct generations of one URL never compete in one group.

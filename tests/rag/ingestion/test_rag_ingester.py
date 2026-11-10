@@ -38,7 +38,7 @@ def _make_chunk_json(
     etag: str | None = None,
     last_modified: str | None = None,
     fetched_at: str = "2024-01-01T00:00:00Z",
-    chunk_type: str = "",
+    chunk_type: str = "text",
     source_file: str = "",
 ) -> dict:
     """Build a chunk JSON dict matching what ChunkSplitter produces."""
@@ -231,6 +231,34 @@ class TestRagIngester:
                 assert result.n_success == 1
                 assert mock_prep.called
                 assert mock_commit.called
+
+    def test_out_of_domain_chunk_type_quarantined_with_sidecar(
+        self, tmp_path, mock_db, mock_http_client, mock_doc_mgr
+    ) -> None:
+        """seq-2 + seq-7: out-of-domain chunk_type is rejected at read time, routed to failed/ with a generic sidecar."""
+        ingester = _make_ingester(tmp_path)
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+        ingester._client = mock_http_client
+
+        bad_path = tmp_path / "chunk" / "bad.json"
+        bad_path.write_bytes(orjson.dumps(_make_chunk_json(chunk_type="chunk")))
+
+        with (
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_db),
+            patch.object(DocumentManager, "check_consistency", return_value=None),
+            patch.object(TransactionManager, "commit") as mock_commit,
+        ):
+            ingester.ingest_all(force=False)
+
+        assert not bad_path.exists()
+        failed_dir = tmp_path / "failed"
+        assert (failed_dir / "bad.json").exists()
+        sidecar = failed_dir / "bad.error.json"
+        assert sidecar.exists()
+        assert orjson.loads(sidecar.read_bytes())["failure_reason"] == "parse_failed"
+        # rejected before grouping/commit: no chunks row can be written for the URL
+        mock_commit.assert_not_called()
 
 
 class TestAtomicity:

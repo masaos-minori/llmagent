@@ -17,6 +17,7 @@ import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from db.store_protocols import get_embedding_dims
 from rag.corpus_identity import ensure_corpus_meta
 from rag.ingestion.embedding import EmbeddingService
 from rag.ingestion.ingester import RagIngester
@@ -137,7 +138,7 @@ def _write_chunk(chunk_dir: Path) -> None:
         "etag": "etag-test-page",
         "last_modified": "2024-01-01T00:00:00",
         "fetched_at": "2024-01-01T00:00:00",
-        "chunk_type": "",
+        "chunk_type": "text",
         "source_file": "",
         "code_blocks": [],
     }
@@ -165,7 +166,7 @@ def _write_chunk_pair(chunk_dir: Path) -> None:
         "etag": "etag-test-page",
         "last_modified": "2024-01-01T00:00:00",
         "fetched_at": "2024-01-01T00:00:00",
-        "chunk_type": "",
+        "chunk_type": "text",
         "source_file": "",
         "code_blocks": [],
     }
@@ -233,7 +234,11 @@ class TestIngestAllIndexGenerationBump:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+            patch.object(
+                EmbeddingService,
+                "get_embedding",
+                return_value=[0.1] * get_embedding_dims(),
+            ),
         ):
             result = ingester.ingest_all()
 
@@ -287,7 +292,11 @@ class TestIngestAllIndexGenerationBump:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+            patch.object(
+                EmbeddingService,
+                "get_embedding",
+                return_value=[0.1] * get_embedding_dims(),
+            ),
         ):
             # Must not raise even though bump_index_generation() finds no table.
             ingester.ingest_all()
@@ -401,7 +410,11 @@ class TestIngestAllIndexGenerationBump:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+            patch.object(
+                EmbeddingService,
+                "get_embedding",
+                return_value=[0.1] * get_embedding_dims(),
+            ),
         ):
             ingester.ingest_all()
         assert _read_generation(conn) == 1
@@ -418,7 +431,11 @@ class TestIngestAllIndexGenerationBump:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
-            patch.object(EmbeddingService, "get_embedding", return_value=[0.1] * 128),
+            patch.object(
+                EmbeddingService,
+                "get_embedding",
+                return_value=[0.1] * get_embedding_dims(),
+            ),
         ):
             ingester.ingest_all()
 

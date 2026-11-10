@@ -158,6 +158,25 @@ class TestReadChunkJson:
         with pytest.raises(ChunkFormatError, match="Missing keys"):
             read_chunk_json(_make_tmp_file(tmp_path, data))
 
+    @pytest.mark.parametrize("bad", ["", "chunk", "foo"])
+    def test_invalid_chunk_type_rejected(self, bad: str, tmp_path: Path) -> None:
+        """AC-2: out-of-domain chunk_type is rejected at read time (schema CHECK mirror)."""
+        data = dict(CHUNK_PAYLOAD)
+        data["chunk_type"] = bad
+        with pytest.raises(ChunkFormatError) as excinfo:
+            read_chunk_json(_make_tmp_file(tmp_path, data))
+        message = str(excinfo.value)
+        assert "chunk_type" in message
+        if bad:  # the domain branch names the offending value; the empty branch rejects before it
+            assert repr(bad) in message
+
+    @pytest.mark.parametrize("good", ["text", "code"])
+    def test_valid_chunk_type_accepted(self, good: str, tmp_path: Path) -> None:
+        data = dict(CHUNK_PAYLOAD)
+        data["chunk_type"] = good
+        result = read_chunk_json(_make_tmp_file(tmp_path, data))
+        assert result.chunk_type == good
+
     def test_extra_key_raises(self, tmp_path: Path) -> None:
         data = dict(CHUNK_PAYLOAD)
         data["unknown_field"] = "bad"

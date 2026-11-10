@@ -196,7 +196,9 @@ def read_chunk_json(path: Path) -> ChunkDocument:
     normalized_content = _validate_nullable_str(data, "normalized_content", "chunk")
     chunk_index = _validate_int_non_negative(data, "chunk_index", "chunk")
     source_file = _validate_str_or_empty(data, "source_file", "chunk")
-    chunk_type = _validate_str_or_empty(data, "chunk_type", "chunk")
+    chunk_type = _validate_str(data, "chunk_type", "chunk")
+    if chunk_type not in ("text", "code"):
+        raise ChunkFormatError(f"Invalid chunk_type in chunk payload: {chunk_type!r}")
     chunking_strategy = _validate_str(data, "chunking_strategy", "chunk")
     fetched_at = _validate_str(data, "fetched_at", "chunk")
     return ChunkDocument(

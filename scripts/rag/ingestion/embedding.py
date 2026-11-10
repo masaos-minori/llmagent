@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 import httpx
+from db.store_protocols import validate_embedding_blob
 from rag.exceptions import ChunkFormatError, IngestionFailureReason
 from rag.ingestion.pipeline_utils import read_chunk_json
 from rag.models_data import PreparedChunk
@@ -101,12 +102,28 @@ class EmbeddingService:
                 },
             )
             return IngestionFailureReason.EMBEDDING_FAILED
+        embedding_blob = floats_to_blob(embedding)
+        try:
+            validate_embedding_blob(embedding_blob)
+        except ValueError as e:
+            logger.warning(
+                "embedding size rejected for %s: %s",
+                path.name,
+                e,
+                extra={
+                    "doc_id": doc_id,
+                    "url": data.url,
+                    "source_type": "file",
+                    "stage_name": "ingester",
+                },
+            )
+            return IngestionFailureReason.VALIDATION_FAILED
         return PreparedChunk(
             doc_id=doc_id,
             chunk_index=idx,
             content=content,
             normalized_content=normalized_content,
-            embedding_blob=floats_to_blob(embedding),
+            embedding_blob=embedding_blob,
             chunk_type=chunk_type,
             source_file=source_file,
         )

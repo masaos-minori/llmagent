@@ -105,9 +105,21 @@ embedding API retry, per-chunk embedding retry-limit handling, invalid `lang` va
 `chunks_vec` deletion-order and embedding-dimension checks,
 `IngestUrlResult.validation_failure()` (artifact validation failure — the whole URL's
 chunk group fails and is routed to `failed/`, with a `.error.json` file naming the failure
-reason — group signature mismatch or parse failure — written for each parseable payload in
-the group, and is not counted toward `n_embed_failed`), chunk files rejected during
-grouping reach `failed/` the same way, and file-move failure logging.
+reason — group signature mismatch or parse failure — written for every file the group
+routes, with keys taken from the payload present only when the payload is readable, and
+is not counted toward `n_embed_failed`), chunk files rejected during grouping reach
+`failed/` the same way, and file-move failure logging.
+
+Deterministic integrity and validation failures quarantine the whole group in `failed/`:
+a wrong-dimension embedding BLOB is rejected before the transaction (reason
+`validation_failed`, checked in `scripts/rag/ingestion/embedding.py`), an out-of-schema
+`chunk_type` is rejected at read time (`parse_failed`), and a `sqlite3.IntegrityError`
+from `TransactionManager.commit` routes the group to `failed/` (`storage_failed`) with
+the transaction rolled back and no partial rows. Every other `sqlite3.Error` (for example
+a lock `OperationalError`) is treated as possibly transient: the files stay in `chunk/`
+for the next run. Reason values are the `scripts/rag/exceptions.py`
+`IngestionFailureReason` values (`parse_failed`, `validation_failed`,
+`group_validation_failed`, `storage_failed`).
 
 ### 4.7 Logging
 
