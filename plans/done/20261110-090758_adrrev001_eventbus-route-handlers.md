@@ -46,6 +46,7 @@ High
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-10 (fallout): added tests/eventbus/test_eventbus_subscribe_transition.py — The test calls subscribe_route.subscribe(request, topic=[], since_seq=0, consumer_id="") without a principal; once the registered handler takes its principal through Depends, a direct call must pass a Principal
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -68,6 +69,7 @@ table — no other file may be treated as a modification target.
 | `docs/24_eventbus/eventbus_02_api-reference-index.md` | Correct contract pointer | Replace the `eventbus_08` pointer for `/admin/topics/authorization` with the document that holds the contract | REQ-006 / AC-06 | Line 46 pointer; `eventbus_08` holds only a symbol row (checked in Step 3) | `uv run python tools/check_docs_consistency.py --domain eventbus` | Verified |
 | `docs/24_eventbus/eventbus_08_reference_api.md` | Refresh generated block and prose | Update Module Responsibilities and the lead sentence calling the table "the authoritative symbol inventory"; regenerate the guarded block | REQ-007 / AC-07 | Lead paragraph and `## Module Responsibilities`; `AUTO-GENERATED` guard at lines 45-143 (checked in Step 3) | `uv run python tools/generate_reference_table.py --check` | Verified |
 | `registry/manifests/eventbus_api.yaml` | Generated symbol manifest | Regenerate with `tools/generate_reference_table.py --manifests` after the rename (not hand-edited) | REQ-007 / AC-07 | `manifest: eventbus_api`, entries for `scripts/eventbus/app.py` (checked in Step 3) | `uv run python tools/generate_reference_table.py --check` | Verified |
+| `tests/eventbus/test_eventbus_subscribe_transition.py` | Keep the direct route-function call valid after the subscribe signature change | The test calls subscribe_route.subscribe(request, topic=[], since_seq=0, consumer_id="") without a principal; once the registered handler takes its principal through Depends, a direct call must pass a Principal | REQ-003 / AC-02 | tests/eventbus/test_eventbus_subscribe_transition.py:233 calls subscribe_route.subscribe directly (checked in Step 3a) | uv run pytest tests/eventbus/test_eventbus_subscribe_transition.py -v | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified.
@@ -133,6 +135,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | `docs/24_eventbus/eventbus_02_api-reference-index.md` | modify | Low: one pointer | N/A | N/A | not applicable (rsynced) |
 | `docs/24_eventbus/eventbus_08_reference_api.md` | modify | Medium: generated block; 25 commits in 30 days | 25 | N/A | not applicable (rsynced) |
 | `registry/manifests/eventbus_api.yaml` | modify | Low: generated manifest | N/A | N/A | not applicable (rsynced) |
+| `tests/eventbus/test_eventbus_subscribe_transition.py` | Modify | Low | N/A | N/A | not applicable (rsynced) |
 
 ## Design
 - **Registration decision** (python-design Step 4, narrow use): Option A, `APIRouter` per route module with `app.py` only calling `include_router`. Option B (keep `app.py` handlers, rename route-module functions to internal helpers) was rejected: it keeps role dependencies in `app.py` and consumer-pair authorization in the helper, which is the two-layer split the Issue wants removed, and it leaves ack/nack/subscribe layered differently. Option A puts the role dependency and the pair check on one function per route. Compatibility impact: URLs, methods, parameters, and response models are unchanged (no router prefix); `eventbus.app.*_route` aliases disappear, and the only consumer of them is `tests/eventbus/test_eventbus_auth.py` (`eb_app.publish_route`, `subscribe_route`, `dlq_list_route`, `dlq_requeue_route`, `replay_route`, `ack_event_route`, `nack_route`, `update_topics_authorization_route`).
@@ -150,6 +153,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
    - [ ] Add `APIRouter` plus `require_role` to `health_route.py`, `publish_route.py`, `replay_route.py`, `dlq_route.py`, `admin_route.py`; include the routers in `app.py`; remove their wrappers and aliases from `app.py`; replace the matching route copies in `_make_test_app` (REQ-003, REQ-004, REQ-005; `scripts/eventbus/app.py`, `scripts/eventbus/health_route.py`, `scripts/eventbus/publish_route.py`, `scripts/eventbus/replay_route.py`, `scripts/eventbus/dlq_route.py`, `scripts/eventbus/admin_route.py`, `tests/eventbus/test_eventbus_auth.py`). Run `uv run pytest tests/eventbus -v`.
 3. **Phase 3: Move consumer routes**
    - [ ] Add `APIRouter`, `require_role(Role.CONSUMER)` and the pair authorization to `subscribe_route.py` and `ack_route.py`; move `resolve_subscribe_identity` out of `app.py`; remove the remaining wrappers and aliases; replace the remaining route copies in `_make_test_app` (REQ-003, REQ-004, REQ-005; `scripts/eventbus/app.py`, `scripts/eventbus/subscribe_route.py`, `scripts/eventbus/ack_route.py`, `tests/eventbus/test_eventbus_auth.py`). Run `uv run pytest tests/eventbus -v`; the Phase 1 tests must still pass unchanged.
+   - [ ] Keep the direct route-function call valid after the subscribe signature change (REQ-003; `tests/eventbus/test_eventbus_subscribe_transition.py`) — amendment 2026-11-10
 4. **Phase 4: Documentation and generated references**
    - [ ] Correct ADR-013 `Current State` and the `eventbus_02` pointer; update `eventbus_08` prose; run `uv run python tools/generate_reference_table.py --manifests` to refresh `registry/manifests/eventbus_api.yaml` and the guarded block (REQ-006, REQ-007; `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, `docs/24_eventbus/eventbus_02_api-reference-index.md`, `docs/24_eventbus/eventbus_08_reference_api.md`, `registry/manifests/eventbus_api.yaml`).
 5. **Phase 5: Deployment and verification**
@@ -183,11 +187,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Lock current behavior with tests (no source change) | Pending | — | — | |
-| 2 | Move Monitoring, Publisher, Operator, and Admin routes | Pending | — | — | |
-| 3 | Move consumer routes | Pending | — | — | |
-| 4 | Documentation and generated references | Pending | — | — | |
-| 5 | Deployment and verification | Pending | — | — | |
+| 1 | Lock current behavior with tests (no source change) | In Progress | — | — |  |
+| 2 | Move Monitoring, Publisher, Operator, and Admin routes | In Progress | — | — |  |
+| 3 | Move consumer routes | In Progress | — | — |  |
+| 4 | Documentation and generated references | In Progress | — | — |  |
+| 5 | Deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -197,7 +201,21 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261110-100805_01_scripts_eventbus_app.py.md | 2, 3 | Procedure | Pending | — | — |
+| implementations/20261110-100805_02_scripts_eventbus_health_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261110-100805_03_scripts_eventbus_publish_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261110-100805_04_scripts_eventbus_replay_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261110-100805_05_scripts_eventbus_dlq_route.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-100805_06_scripts_eventbus_subscribe_route.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-100805_07_scripts_eventbus_ack_route.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-100805_08_scripts_eventbus_admin_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261110-100805_09_tests_eventbus_test_eventbus_route_registry.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261110-100805_10_tests_eventbus_test_eventbus_auth.py.md | 2, 3 | Procedure | Pending | — | — |
+| implementations/20261110-100805_11_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261110-100805_12_docs_24_eventbus_eventbus_02_api-reference-index.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261110-100805_13_docs_24_eventbus_eventbus_08_reference_api.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261110-100805_14_registry_manifests_eventbus_api.yaml.md | 4 | Procedure | Pending | — | — |
+| implementations/20261110-100805_15_tests_eventbus_test_eventbus_subscribe_transition.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -206,7 +224,7 @@ N/A: no release unit
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261110-090758
-- **Related target files**: `scripts/eventbus/app.py`, `scripts/eventbus/health_route.py`, `scripts/eventbus/publish_route.py`, `scripts/eventbus/replay_route.py`, `scripts/eventbus/dlq_route.py`, `scripts/eventbus/subscribe_route.py`, `scripts/eventbus/ack_route.py`, `scripts/eventbus/admin_route.py`, `tests/eventbus/test_eventbus_route_registry.py`, `tests/eventbus/test_eventbus_auth.py`, `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, `docs/24_eventbus/eventbus_02_api-reference-index.md`, `docs/24_eventbus/eventbus_08_reference_api.md`, `registry/manifests/eventbus_api.yaml`
+- **Related target files**: `scripts/eventbus/app.py`, `scripts/eventbus/health_route.py`, `scripts/eventbus/publish_route.py`, `scripts/eventbus/replay_route.py`, `scripts/eventbus/dlq_route.py`, `scripts/eventbus/subscribe_route.py`, `scripts/eventbus/ack_route.py`, `scripts/eventbus/admin_route.py`, `tests/eventbus/test_eventbus_route_registry.py`, `tests/eventbus/test_eventbus_auth.py`, `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, `docs/24_eventbus/eventbus_02_api-reference-index.md`, `docs/24_eventbus/eventbus_08_reference_api.md`, `registry/manifests/eventbus_api.yaml`, `tests/eventbus/test_eventbus_subscribe_transition.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -229,3 +247,6 @@ N/A: no release unit
 | REQ-006 | Evidence: `eventbus_02` pointer stale | `docs/24_eventbus/eventbus_02_api-reference-index.md` | 4 | AC-06 | `check_docs_consistency.py --domain eventbus` | Derived from confirmed evidence |
 | REQ-007 | Required Changes: `eventbus_08` rewrite, narrowed by ADR-015 | `docs/24_eventbus/eventbus_08_reference_api.md` | 4 | AC-07 | `generate_reference_table.py --check` | Derived from confirmed evidence |
 | REQ-007 | Documentation Impact: generated reference | `registry/manifests/eventbus_api.yaml` | 4 | AC-07 | `generate_reference_table.py --check` | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-10: The test calls subscribe_route.subscribe(request, topic=[], since_seq=0, consumer_id="") without a principal; once the registered handler takes its principal through Depends, a direct call must pass a Principal | tests/eventbus/test_eventbus_subscribe_transition.py | Phase 3 | N/A: none cites REQ-003 | uv run pytest tests/eventbus/test_eventbus_subscribe_transition.py -v | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261110-100805 -->

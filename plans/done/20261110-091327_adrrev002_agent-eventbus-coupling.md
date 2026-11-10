@@ -35,7 +35,7 @@ High
 
 ## Requirements
 - `REQ-001`: Delete `scripts/agent/eventbus_client.py` and `tests/agent/test_eventbus_client.py`, regenerate the references that list them, and leave no `EventBusClient`/`EventBusClientConfig`/`EventBusPublish*` symbol in `scripts/`, `tests/`, `config/`, `docs/`.
-- `REQ-002`: Provide `scripts/eventbus/db_tools.py` with create-or-validate, rotate (consistent copy with integrity and fingerprint verification), and verify entry points; the database path is read through `eventbus.config.load_config(get_config_path())` and nowhere else; it imports only `eventbus` and `shared` modules and the standard library.
+- `REQ-002`: Provide `scripts/eventbus/db_tools.py` with create-or-validate, rotate (consistent copy with integrity and fingerprint verification), and verify entry points; the database path is read only from the `db_path` key of the file `eventbus.config.get_config_path()` returns, parsed with the standard library inside the tool (not through `eventbus.config.load_config`, which resolves token references and rejects an empty `auth_token`, and `deploy/init_db.sh` sets no EventBus token variables); it imports only `eventbus` and `shared` modules and the standard library.
 - `REQ-003`: `deploy/init_db.sh` creates, shape-gates, and (when `RUN_RECOVERY_DRILL=1`) verifies eventbus.sqlite through the EventBus-side tool; a fresh deploy still ends with the file present and matching the canonical schema.
 - `REQ-004`: Remove `DbTarget.EVENTBUS`, the EventBus branch of `create_schema()` (`create_eventbus_schema`), `build_eventbus_schema_sql`, `rotate_eventbus_db` (and the eventbus element of `rotate_all_dbs`), the eventbus domain of `recovery_drill`, and the eventbus target of `recover_corruption` from `scripts/db/`; no `scripts/db/` module reads an eventbus path.
 - `REQ-005`: Remove `eventbus_db_path` from `config/agent.toml`, `DbConfig`, `build_db_config`, `execution_snapshot` db-path mapping, and the allowed-key list of `production_config_validator.py`; an `agent.toml` containing the key fails validation (test added).
@@ -45,6 +45,9 @@ High
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-10 (fallout): added tests/eventbus/test_eventbus_schema_version.py — Import the schema version helper from the EventBus-side tool; found by the consumer re-scan in plan-to-implementation-procedure Step 3a
+Amended 2026-11-10 (fallout): added registry/manifests/db_schema_versions.yaml — Regenerate the generated manifest after eventbus_db_path leaves DbConfig; found by the consumer re-scan in plan-to-implementation-procedure Step 3a
+Amended 2026-11-10 (fallout): added docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md — Reword the archive sentence that names rotate_eventbus_db(); found by the consumer re-scan in plan-to-implementation-procedure Step 3a
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -56,7 +59,7 @@ table — no other file may be treated as a modification target.
 | `scripts/agent/eventbus_client.py` | Delete the unused client | Delete: no `scripts/` importer; fail-open `publisher_token = ""` default | REQ-001 / AC-01 | `scripts/agent/eventbus_client.py:43,74`; `rg` finds importers only in `tests/agent/test_eventbus_client.py` (checked in Step 2) | `tests/agent/test_eventbus_client.py` (deleted with it) | Verified |
 | `tests/agent/test_eventbus_client.py` | Delete the client's tests | Delete: tests only the removed module | REQ-001 / AC-01 | File exists; sole importer of `agent.eventbus_client` (checked in Step 2) | `uv run pytest tests/agent -v` | Verified |
 | `scripts/eventbus/db_tools.py` | EventBus-owned create/rotate/verify entry points | New file; path from `eventbus.config` only; stdlib and `shared` imports only | REQ-002 / AC-02 | `scripts/eventbus/schema.py:_init_schema`, `scripts/shared/eventbus_schema_fingerprint.py:201,210`, `.importlinter` contracts (checked in Step 3) | `tests/eventbus/test_eventbus_db_tools.py` | Verified |
-| `tests/eventbus/test_eventbus_db_tools.py` | Tests for the EventBus-side tool | New file: fresh create, existing-current validation, refusal of a stale or unstamped database, rotate with verification, path taken from `eventbus.toml` | REQ-002 / AC-02 | Analogues: `tests/db/test_create_schema.py:827`, `tests/db/test_db_maintenance.py:1119` (checked in Step 3) | `uv run pytest tests/eventbus/test_eventbus_db_tools.py -v` | Verified |
+| `tests/eventbus/test_eventbus_db_tools.py` | New file: tests for the EventBus-side tool | New file: fresh create, existing-current validation, refusal of a stale or unstamped database, rotate with verification, path taken from `eventbus.toml` | REQ-002 / AC-02 | Analogues: `tests/db/test_create_schema.py:827`, `tests/db/test_db_maintenance.py:1119` (checked in Step 3) | `uv run pytest tests/eventbus/test_eventbus_db_tools.py -v` | Verified |
 | `deploy/init_db.sh` | Create and gate eventbus.sqlite through the EventBus tool | Replace the eventbus part of the `create_schema.py` call, the shape gate, and the drill hook with calls to the EventBus-side tool | REQ-003 / AC-03 | `deploy/init_db.sh:34` (create_schema.py), `:89-117` (existence check and `assert_matches` gate), `:137` (`recovery_drill.py --domain all`) (checked in Step 3) | `tests/deploy/test_init_db_eventbus_schema.py`, `tests/deploy/test_init_db_schema_gate.py` | Verified |
 | `scripts/db/helper.py` | Remove the eventbus target | Remove `DbTarget.EVENTBUS`, the `"eventbus"` literal branch, and the `eventbus_db_path` lookup | REQ-004 / AC-04 | `scripts/db/helper.py:52,100-104,121` (checked in Step 3) | `tests/db/test_sqlite_helper.py` | Verified |
 | `scripts/db/create_schema.py` | Remove EventBus schema creation | Delete `create_eventbus_schema()` and its call in `create_schema()`; drop the `build_eventbus_schema_sql` import | REQ-004 / AC-04 | `scripts/db/create_schema.py:29,84-131,134-140` (checked in Step 3) | `tests/db/test_create_schema.py` | Verified |
@@ -104,6 +107,9 @@ table — no other file may be treated as a modification target.
 | `docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md` | Schema ownership statement | Describe creation and rotation as EventBus-owned | REQ-008 / AC-08 | Two hits for the removed symbols (checked in Step 3) | `uv run python tools/check_docs_consistency.py --domain eventbus` | Verified |
 | `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | Retention note names the removed function | Reword the note on archives written by `rotate_eventbus_db()` | REQ-008 / AC-08 | `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md:118` (checked in Step 3) | `uv run python tools/check_docs_consistency.py --domain agent` | Verified |
 | `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` | Creation and rotation ownership | Rewrite the `create_eventbus_schema()` sentence (line 49) and the `rotate_eventbus_db()` table cell (line 83) | REQ-008 / AC-08 | `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md:49,83` (checked in Step 3) | `uv run python tools/check_docs_consistency.py --domain db` | Verified |
+| `tests/eventbus/test_eventbus_schema_version.py` | Import the schema version helper from the EventBus-side tool | Import the schema version helper from the EventBus-side tool; found by the consumer re-scan in plan-to-implementation-procedure Step 3a | REQ-007 / N/A: none cites REQ-007 | tests/eventbus/test_eventbus_schema_version.py:28 imports eventbus_schema_version from db.schema_sql, removed with the Agent-side accessors (checked in Step 3a) | uv run pytest tests/eventbus/test_eventbus_schema_version.py -v | Verified |
+| `registry/manifests/db_schema_versions.yaml` | Regenerate the generated manifest after eventbus_db_path leaves DbConfig | Regenerate the generated manifest after eventbus_db_path leaves DbConfig; found by the consumer re-scan in plan-to-implementation-procedure Step 3a | REQ-005 / N/A: none cites REQ-005 | registry/manifests/db_schema_versions.yaml:2 lists config_key eventbus_db_path as a db_path entry (checked in Step 3a) | uv run python tools/generate_reference_table.py --check | Verified |
+| `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` | Reword the archive sentence that names rotate_eventbus_db() | Reword the archive sentence that names rotate_eventbus_db(); found by the consumer re-scan in plan-to-implementation-procedure Step 3a | REQ-008 / N/A: none cites REQ-008 | docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md:199 names rotate_eventbus_db() (checked in Step 3a) | uv run python tools/check_docs_consistency.py --domain eventbus | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified.
@@ -147,6 +153,9 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - A remaining unconfirmed caller or operator procedure is recorded as a Needs Confirmation item through `governance_03` (`tools/check_needs_confirmation_inventory.py`), not as inline prose.
 
 ## Assumptions
+- Overlap with the rows added by the Step 3a amendments (judged 2026-11-10): `registry/manifests/db_schema_versions.yaml` and `tests/eventbus/test_eventbus_schema_version.py` are also targets of `plans/20261110-095137_adrrev005_schema-fingerprint-unify.md`: sequencing dependency, this Plan first (plan 005 already records plan 002 as its predecessor); `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` has no other Frozen Plan.
+- Step 3a correction (2026-11-10): `eventbus.config.load_config` resolves `${ENV:...}` token references and raises when `auth_token` is empty (`scripts/eventbus/config.py:365-373`), and `deploy/init_db.sh` does not export the EventBus token variables, so the tool reads `db_path` with its own minimal reader. Falsifiable by `tests/deploy/test_init_db_eventbus_schema.py` running without token variables.
+- Step 3a additions (fallout rows added by `tools/amend_plan.py` on 2026-11-10): `tests/eventbus/test_eventbus_schema_version.py` (imports `db.schema_sql.eventbus_schema_version`, removed with the Agent-side accessors; the version helper moves to the EventBus-side tool), `registry/manifests/db_schema_versions.yaml` (generated; lists `eventbus_db_path` as a `db_path` entry), `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` (names `rotate_eventbus_db()` at line 199). `eventbus_schema_version` is removed from `scripts/db/schema_sql.py` and exposed by `scripts/eventbus/db_tools.py` as `schema_version`.
 - The maintainer's decision (2026-11-10) fixes the design: EventBus-side tooling owns creation, rotation, and verification; the Agent-side `scripts/db/` loses all eventbus handling.
 - The EventBus-side tool is an operator and deploy entry point, not part of the service request path; it may be invoked as `python -m eventbus.db_tools` from `deploy/init_db.sh` with `PYTHONPATH=${DEPLOY_SCRIPTS}`. Falsifiable by the `tests/deploy/test_init_db_*` integration tests.
 - The execution snapshot reporting three databases instead of four is an accepted observability change (the snapshot cannot read `eventbus.toml` without a second configuration read in a shared leaf). Falsifiable by the owner; see UNK-03.
@@ -215,6 +224,9 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | `docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md` | modify | Low | N/A | N/A | not applicable (rsynced) |
 | `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | modify | Low | N/A | N/A | not applicable (rsynced) |
 | `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` | modify | Low | N/A | N/A | not applicable (rsynced) |
+| `tests/eventbus/test_eventbus_schema_version.py` | Modify | Not assessed (amendment 2026-11-10) | N/A | N/A | Not assessed (amendment 2026-11-10) |
+| `registry/manifests/db_schema_versions.yaml` | Modify | Not assessed (amendment 2026-11-10) | N/A | N/A | Not assessed (amendment 2026-11-10) |
+| `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` | Modify | Not assessed (amendment 2026-11-10) | N/A | N/A | Not assessed (amendment 2026-11-10) |
 
 ## Design
 - **Ownership decision** (maintainer, 2026-11-10; alternatives: keep `DbTarget.EVENTBUS` and read `eventbus.toml` from `scripts/db` through a shared reader; or split into two Plans): EventBus-side tooling. The shared-reader option was rejected because `db` would then read another process's configuration, which ADR-002 forbids; the split option was rejected by the maintainer. Compatibility impact: `scripts/db/` loses eventbus support (`rotate_all_dbs` returns three paths, `recovery_drill --domain all` covers three domains, `SQLiteHelper("eventbus")` is rejected), and `agent.toml` containing `eventbus_db_path` fails validation after this change, so a deployed `/opt/llm/config/agent.toml` must carry the removal before the validator reaches production (deploy order is in Phase 6).
@@ -234,10 +246,13 @@ Files that must be read to implement the targets above, but MUST NOT be modified
    - [ ] Remove the eventbus code from `scripts/db/helper.py`, `create_schema.py`, `schema_sql.py`, `config.py`, `rotation.py`, `recovery_drill.py`, `recovery.py`, `__init__.py`; remove the `eventbus_db_path` mapping from `scripts/shared/execution_snapshot.py` and the comment in `scripts/shared/mcp_dedup.py` (REQ-004, REQ-005).
    - [ ] Remove `eventbus_db_path` from `scripts/agent/production_config_validator.py` and `config/agent.toml`; add the rejection test to `tests/agent/test_production_config_validator.py` (REQ-005).
    - [ ] Update `tests/conftest.py`, `tests/test_production_isolation.py`, `tests/db/test_create_schema.py`, `tests/db/test_db_maintenance.py`, `tests/db/test_db_recovery.py`, `tests/db/test_recovery_drill.py`, `tests/db/test_sqlite_helper.py`, `tests/deploy/test_setup_services_eventbus.py`, `tests/eventbus/test_eventbus_startup.py`, `tests/shared/test_execution_snapshot.py`, `tests/shared/test_mcp_dedup.py`, `tests/agent/test_repl.py`, `tests/integration/test_session_recovery.py`, `tests/agent/memory/test_memory_vec_session.py`, `tests/rag/test_fts_sync.py` (REQ-007). This phase is one release unit (see below).
+   - [ ] Import the schema version helper from the EventBus-side tool (REQ-007; `tests/eventbus/test_eventbus_schema_version.py`) — amendment 2026-11-10
+   - [ ] Regenerate the generated manifest after eventbus_db_path leaves DbConfig (REQ-005; `registry/manifests/db_schema_versions.yaml`) — amendment 2026-11-10
 4. **Phase 4: Delete the unused client**
    - [ ] Delete `scripts/agent/eventbus_client.py` and `tests/agent/test_eventbus_client.py`; regenerate `registry/manifests/agent_api.yaml` and `docs/23_agent/agent_13_reference-api-generated.md` with `tools/generate_reference_table.py` (REQ-001).
 5. **Phase 5: Documentation**
    - [ ] Update ADR-013, ADR-008, `db_01`, `db_02`, `db_03`, `db_07`, `db_08`, `deployment_01`, `eventbus_06`, `agent_02`, `agent_10_01`, `governance_05`; register any Needs Confirmation item through `governance_03` (REQ-008; the twelve document rows of `Implementation Target Files`).
+   - [ ] Reword the archive sentence that names rotate_eventbus_db() (REQ-008; `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`) — amendment 2026-11-10
 6. **Phase 6: Deployment and verification**
    - [ ] Run the full validation sequence in `rules/toolchain.md`. After the change is committed and pushed (the user's decision), hand off to `skills/deploy/SKILL.md`: `scripts/`, `config/agent.toml`, and `deploy/init_db.sh` changed, so deploy copies the new `agent.toml` without the key and runs `init_db.sh` on the existing databases (REQ-003, REQ-005; `deploy/init_db.sh`, `config/agent.toml`).
 
@@ -273,12 +288,12 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the EventBus-side tool (additive, no removal) | Pending | — | — | |
-| 2 | Switch deploy and the ADR-008 checker to the new owner | Pending | — | — | |
-| 3 | Remove Agent-side eventbus support and the config key | Pending | — | — | |
-| 4 | Delete the unused client | Pending | — | — | |
-| 5 | Documentation | Pending | — | — | |
-| 6 | Deployment and verification | Pending | — | — | |
+| 1 | Add the EventBus-side tool (additive, no removal) | In Progress | — | — |  |
+| 2 | Switch deploy and the ADR-008 checker to the new owner | In Progress | — | — |  |
+| 3 | Remove Agent-side eventbus support and the config key | In Progress | — | — |  |
+| 4 | Delete the unused client | In Progress | — | — |  |
+| 5 | Documentation | In Progress | — | — |  |
+| 6 | Deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -288,7 +303,51 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261110-102050_01_scripts_agent_eventbus_client.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261110-102050_03_scripts_eventbus_db_tools.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261110-102050_04_tests_eventbus_test_eventbus_db_tools.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261110-102050_05_deploy_init_db.sh.md | 2 | Procedure | Pending | — | — |
+| implementations/20261110-102050_06_scripts_db_helper.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_07_scripts_db_create_schema.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_08_scripts_db_schema_sql.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_09_scripts_db_config.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_10_scripts_db_rotation.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_11_scripts_db_recovery_drill.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_12_scripts_db_recovery.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_13_scripts_db___init__.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_14_scripts_shared_execution_snapshot.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_15_scripts_shared_mcp_dedup.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_16_scripts_agent_production_config_validator.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_17_config_agent.toml.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_18_tools_check_db_separation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261110-102050_20_tests_agent_test_production_config_validator.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_21_tests_conftest.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_22_tests_test_production_isolation.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_23_tests_db_test_create_schema.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_24_tests_db_test_db_maintenance.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_27_tests_db_test_sqlite_helper.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_30_tests_deploy_test_setup_services_eventbus.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_34_tests_agent_test_repl.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_35_tests_integration_test_session_recovery.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_36_tests_agent_memory_test_memory_vec_session.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_37_tests_rag_test_fts_sync.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_38_registry_manifests_agent_api.yaml.md | 4 | Procedure | Pending | — | — |
+| implementations/20261110-102050_39_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261110-102050_40_docs_23_agent_agent_02_runtime-architecture.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_41_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_42_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_43_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_44_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_45_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_46_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_47_docs_41_db_db_08_active_databases.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_48_docs_90_deployment_deployment_01_deployment.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_49_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_50_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_51_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_52_tests_eventbus_test_eventbus_schema_version.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_53_registry_manifests_db_schema_versions.yaml.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-102050_54_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -297,7 +356,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261110-091327
-- **Related target files**: `scripts/agent/eventbus_client.py`, `tests/agent/test_eventbus_client.py`, `scripts/eventbus/db_tools.py`, `tests/eventbus/test_eventbus_db_tools.py`, `deploy/init_db.sh`, `scripts/db/helper.py`, `scripts/db/create_schema.py`, `scripts/db/schema_sql.py`, `scripts/db/config.py`, `scripts/db/rotation.py`, `scripts/db/recovery_drill.py`, `scripts/db/recovery.py`, `scripts/db/__init__.py`, `scripts/shared/execution_snapshot.py`, `scripts/shared/mcp_dedup.py`, `scripts/agent/production_config_validator.py`, `config/agent.toml`, `tools/check_db_separation.py`, `tests/tools/test_check_db_separation.py`, `tests/agent/test_production_config_validator.py`, `tests/conftest.py`, `tests/test_production_isolation.py`, `tests/db/test_create_schema.py`, `tests/db/test_db_maintenance.py`, `tests/db/test_db_recovery.py`, `tests/db/test_recovery_drill.py`, `tests/db/test_sqlite_helper.py`, `tests/deploy/test_init_db_eventbus_schema.py`, `tests/deploy/test_init_db_schema_gate.py`, `tests/deploy/test_setup_services_eventbus.py`, `tests/eventbus/test_eventbus_startup.py`, `tests/shared/test_execution_snapshot.py`, `tests/shared/test_mcp_dedup.py`, `tests/agent/test_repl.py`, `tests/integration/test_session_recovery.py`, `tests/agent/memory/test_memory_vec_session.py`, `tests/rag/test_fts_sync.py`, `registry/manifests/agent_api.yaml`, `docs/23_agent/agent_13_reference-api-generated.md`, `docs/23_agent/agent_02_runtime-architecture.md`, `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`, `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, `docs/41_db/db_01_architecture_and_schema-overview-and-config.md`, `docs/41_db/db_02_architecture_and_schema-schema-reference.md`, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`, `docs/41_db/db_08_active_databases.md`, `docs/90_deployment/deployment_01_deployment.md`, `docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md`, `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`
+- **Related target files**: `scripts/agent/eventbus_client.py`, `tests/agent/test_eventbus_client.py`, `scripts/eventbus/db_tools.py`, `tests/eventbus/test_eventbus_db_tools.py`, `deploy/init_db.sh`, `scripts/db/helper.py`, `scripts/db/create_schema.py`, `scripts/db/schema_sql.py`, `scripts/db/config.py`, `scripts/db/rotation.py`, `scripts/db/recovery_drill.py`, `scripts/db/recovery.py`, `scripts/db/__init__.py`, `scripts/shared/execution_snapshot.py`, `scripts/shared/mcp_dedup.py`, `scripts/agent/production_config_validator.py`, `config/agent.toml`, `tools/check_db_separation.py`, `tests/tools/test_check_db_separation.py`, `tests/agent/test_production_config_validator.py`, `tests/conftest.py`, `tests/test_production_isolation.py`, `tests/db/test_create_schema.py`, `tests/db/test_db_maintenance.py`, `tests/db/test_db_recovery.py`, `tests/db/test_recovery_drill.py`, `tests/db/test_sqlite_helper.py`, `tests/deploy/test_init_db_eventbus_schema.py`, `tests/deploy/test_init_db_schema_gate.py`, `tests/deploy/test_setup_services_eventbus.py`, `tests/eventbus/test_eventbus_startup.py`, `tests/shared/test_execution_snapshot.py`, `tests/shared/test_mcp_dedup.py`, `tests/agent/test_repl.py`, `tests/integration/test_session_recovery.py`, `tests/agent/memory/test_memory_vec_session.py`, `tests/rag/test_fts_sync.py`, `registry/manifests/agent_api.yaml`, `docs/23_agent/agent_13_reference-api-generated.md`, `docs/23_agent/agent_02_runtime-architecture.md`, `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`, `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, `docs/41_db/db_01_architecture_and_schema-overview-and-config.md`, `docs/41_db/db_02_architecture_and_schema-schema-reference.md`, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`, `docs/41_db/db_08_active_databases.md`, `docs/90_deployment/deployment_01_deployment.md`, `docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md`, `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`, `tests/eventbus/test_eventbus_schema_version.py`, `registry/manifests/db_schema_versions.yaml`, `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -353,3 +412,8 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | REQ-008 | Required Changes: `eventbus_06` | `docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md` | 5 | AC-08 | `check_docs_consistency.py --domain eventbus` | Explicit in issue |
 | REQ-008 | Evidence: retention note names `rotate_eventbus_db()` | `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | 5 | AC-08 | `check_docs_consistency.py --domain agent` | Derived from confirmed evidence |
 | REQ-008 | Evidence: creation and rotation sentences name removed functions | `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` | 5 | AC-08 | `check_docs_consistency.py --domain db` | Derived from confirmed evidence |
+| REQ-007 | Amendment 2026-11-10: Import the schema version helper from the EventBus-side tool; found by the consumer re-scan in plan-to-implementation-procedure Step 3a | tests/eventbus/test_eventbus_schema_version.py | Phase 3 | N/A: none cites REQ-007 | uv run pytest tests/eventbus/test_eventbus_schema_version.py -v | Confirmed by repository evidence |
+| REQ-005 | Amendment 2026-11-10: Regenerate the generated manifest after eventbus_db_path leaves DbConfig; found by the consumer re-scan in plan-to-implementation-procedure Step 3a | registry/manifests/db_schema_versions.yaml | Phase 3 | N/A: none cites REQ-005 | uv run python tools/generate_reference_table.py --check | Confirmed by repository evidence |
+| REQ-008 | Amendment 2026-11-10: Reword the archive sentence that names rotate_eventbus_db(); found by the consumer re-scan in plan-to-implementation-procedure Step 3a | docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md | Phase 5 | N/A: none cites REQ-008 | uv run python tools/check_docs_consistency.py --domain eventbus | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261110-102050 -->

@@ -1,0 +1,81 @@
+## Goal
+- Replace the removed DDL accessor in the setup-services EventBus test (REQ-007).
+
+## Scope
+**Release unit**: db-eventbus-removal
+
+- In scope: this one file, Phase 3 of the Plan.
+- Not in scope: any other file; a second file needed here is an additional-target discovery.
+- Execution order follows the Plan's phases, not `seq`: Phase 1 (documents 03, 04), Phase 2 (05, 18), Phase 3 (the `scripts/db`, `scripts/shared`, validator, config, and test documents, one release unit), Phase 4 (01, 38, 39), Phase 5 (the document rows), Phase 6 verification.
+
+## Assumptions
+- Overlap with plans 003, 004, 005, 006 (judged in the Plan's Assumptions): sequencing or different keys; no contradiction on this file.
+- The Plan's Step 3a corrections apply (EventBus tool reads `db_path` with its own reader; `eventbus_schema_version` and the DDL text accessor move to `scripts/eventbus/db_tools.py`).
+
+## Design decisions
+- Remove only what the Plan names for this file; keep every other behavior unchanged.
+
+## Alternatives considered
+N/A: the ownership decision (EventBus-side tooling, maintainer 2026-11-10) is fixed in the Plan's Design section.
+
+## Implementation
+### Target file
+`tests/deploy/test_setup_services_eventbus.py`
+
+### Procedure
+1. Replace `from db.schema_sql import build_eventbus_schema_sql` (`:25`) and `conn.executescript(build_eventbus_schema_sql())` (`:137`) with `eventbus.db_tools.schema_sql()`.
+2. Leave `make_eventbus_client` usage as it is (the name collision with the deleted client is irrelevant).
+
+### Method
+- Targeted edits; remove imports left unused as `ruff` reports them.
+
+### Details
+- Lightweight row.
+
+## Compatibility considerations
+N/A: test code only.
+
+## Security considerations
+N/A: test code only; no credentials involved.
+
+## Rollback considerations
+N/A: revert the commit.
+
+## Validation plan
+- `uv run pytest tests/deploy/test_setup_services_eventbus.py -v`.
+
+## Completion criteria
+- The test passes without `db.schema_sql` eventbus names.
+
+## Out of Scope
+- Editing any other file.
+- Redesigning the EventBus, its schema, or its authorization.
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Implement the change in `tests/deploy/test_setup_services_eventbus.py` | Pending | — | — | |
+| 2 | Add or update tests per Validation plan | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-007
+- **Source issue**: issues/20261109-112538_adrrev002_agent-eventbus-coupling.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20261110-091327_adrrev002_agent-eventbus-coupling.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20261110-102050
+- **Related target files**: `tests/deploy/test_setup_services_eventbus.py`
