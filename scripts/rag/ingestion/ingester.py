@@ -328,7 +328,7 @@ class RagIngester:
 
         if len(prepared_chunks) > 0 and len(failed_paths) == 0:
             tx_mgr = TransactionManager(db, doc_mgr, doc_store)
-            tx_mgr.commit(
+            _, skipped, _ = tx_mgr.commit(
                 url,
                 doc_id,
                 prepared_chunks,
@@ -342,6 +342,14 @@ class RagIngester:
                 chunking_strategy=chunking_strategy,
                 fetched_at=first_data.fetched_at,
             )
+            if skipped:
+                logger.warning(
+                    "stale generation skipped: keeping stored content for %s",
+                    url,
+                    extra={"url": url, "stage_name": "ingester"},
+                )
+                self._file_router.route(prepared_paths, [])
+                return IngestUrlResult.skip(url)
             self._file_router.route(prepared_paths, [])
         else:
             failed_all = [

@@ -59,6 +59,26 @@ for how callers rely on this contract, and
 [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md) for
 the `ValueError` conditions in the shared error-handling reference table.
 
+### 4.9.2 Stale Payload Skips the Replace
+
+The freshness guard above governs the stored `etag`/`last_modified`/`fetched_at`
+values; the same staleness decision also controls whether the replacement happens
+at all. In `TransactionManager.commit`, when a non-`file://` HTTP document is
+re-ingested with `replace=True` and `force=False`, a stale incoming generation
+skips the entire replacement: the stored document, its `chunks`, and its
+`chunks_vec` rows are left untouched, and the freshly fetched files are routed as
+a skip rather than embedded. The stored generation is neither deleted nor
+rewritten, so a stale crawl can never regress stored content or freshness.
+
+Two classes of replacement bypass this skip and let the incoming generation
+always win, persisting its own metadata alongside the new content:
+
+- **`file://` sources:** the file content hash is the change signal, not the
+  fetch timestamp. An older `fetched_at` does not block replacement — a changed
+  hash re-ingests — and the incoming validators are persisted verbatim.
+- **`force=True`:** operator intent overrides freshness. A forced re-ingest
+  replaces regardless of staleness and persists the incoming metadata.
+
 ## 4.10 Configuration (`config/ingester.toml`)
 
 See [rag_05_01-configuration-reference.md, `config/ingester.toml`](rag_05_01-configuration-reference.md).

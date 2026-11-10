@@ -184,7 +184,7 @@ class TestRagIngester:
             ),
         ) as mock_prep:
             with patch.object(
-                TransactionManager, "commit", return_value=None
+                TransactionManager, "commit", return_value=(1, False, False)
             ) as mock_commit:
                 result = ingester.ingest_url_group(
                     mock_doc_mgr, mock_db, doc_store, urls[0], [chunk_path], force=False
@@ -218,7 +218,7 @@ class TestRagIngester:
             ),
         ) as mock_prep:
             with patch.object(
-                TransactionManager, "commit", return_value=None
+                TransactionManager, "commit", return_value=(1, False, False)
             ) as mock_commit:
                 result = ingester.ingest_url_group(
                     mock_doc_mgr,

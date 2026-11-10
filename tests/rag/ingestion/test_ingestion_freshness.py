@@ -517,7 +517,11 @@ class TestFreshnessAtomicity:
         store = DocumentStore(db, doc_mgr)  # type: ignore[arg-type]
         tx_mgr = TransactionManager(db, doc_mgr, store)
 
-        tx_mgr.commit(
+        chunks_before = conn.execute(
+            "SELECT content FROM chunks WHERE doc_id = ?", (doc_id,)
+        ).fetchall()
+
+        _, skipped, _ = tx_mgr.commit(
             "https://example.com/doc",
             doc_id,
             _prepared(),
@@ -532,7 +536,170 @@ class TestFreshnessAtomicity:
             fetched_at="2024-01-01T00:00:00Z",
         )
         # Stale incoming must not overwrite stored freshness on the replace path.
+        assert skipped is True
         assert _freshness_row(conn) == (("old_etag", "lm-old", "2024-06-10T00:00:00Z"),)
+        # And no chunk replacement happened either — byte-identical before/after.
+        assert (
+            conn.execute(
+                "SELECT content FROM chunks WHERE doc_id = ?", (doc_id,)
+            ).fetchall()
+            == chunks_before
+        )
+
+    def test_stale_http_commit_skips_replacement(self) -> None:
+        # AC-1: a stale HTTP payload on the replace path returns the skip tuple
+        # and leaves both freshness and content byte-identical.
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(
+            conn,
+            etag="old_etag",
+            last_modified="lm-old",
+            fetched_at="2024-06-10T00:00:00Z",
+        )
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+        store = DocumentStore(db, doc_mgr)  # type: ignore[arg-type]
+        tx_mgr = TransactionManager(db, doc_mgr, store)
+
+        chunks_before = conn.execute(
+            "SELECT content FROM chunks WHERE doc_id = ?", (doc_id,)
+        ).fetchall()
+        vec_before = conn.execute(
+            "SELECT chunk_id, embedding FROM chunks_vec ORDER BY chunk_id"
+        ).fetchall()
+
+        returned, skipped, replaced = tx_mgr.commit(
+            "https://example.com/doc",
+            doc_id,
+            _prepared("stale should not land"),
+            [],
+            force=False,
+            replace=True,
+            title="Doc",
+            lang="en",
+            etag="stale_etag",
+            last_modified="lm-stale",
+            chunking_strategy="text",
+            fetched_at="2024-01-01T00:00:00Z",
+        )
+        assert returned == doc_id
+        assert (skipped, replaced) == (True, False)
+        assert _freshness_row(conn) == (("old_etag", "lm-old", "2024-06-10T00:00:00Z"),)
+        assert (
+            conn.execute(
+                "SELECT content FROM chunks WHERE doc_id = ?", (doc_id,)
+            ).fetchall()
+            == chunks_before
+        )
+        assert (
+            conn.execute(
+                "SELECT chunk_id, embedding FROM chunks_vec ORDER BY chunk_id"
+            ).fetchall()
+            == vec_before
+        )
+
+    def test_file_payload_older_mtime_replaces_with_incoming_metadata(self) -> None:
+        # AC-2: a stale `file://` payload still replaces content and writes the
+        # incoming metadata; the next run recognizes it as unchanged (no loop).
+        conn, db = _make_freshness_db()
+        url = "file:///tmp/doc.txt"
+        doc_id = _seed_document(
+            conn,
+            url=url,
+            etag="old_hash",
+            last_modified="lm-old",
+            fetched_at="2024-06-10T00:00:00Z",
+        )
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+        store = DocumentStore(db, doc_mgr)  # type: ignore[arg-type]
+        tx_mgr = TransactionManager(db, doc_mgr, store)
+
+        chunks_before = conn.execute(
+            "SELECT content FROM chunks WHERE doc_id = ?", (doc_id,)
+        ).fetchall()
+
+        # Incoming is older (fetched_at) and a different hash, but file:// bypasses
+        # the stale-skip guard entirely.
+        new_doc_id, skipped, _ = tx_mgr.commit(
+            url,
+            doc_id,
+            _prepared("new file chunk"),
+            [],
+            force=False,
+            replace=True,
+            title="Doc",
+            lang="en",
+            etag="new_hash",
+            last_modified="lm-new",
+            chunking_strategy="text",
+            fetched_at="2024-01-01T00:00:00Z",
+        )
+        assert skipped is False
+        assert new_doc_id is not None
+        # Content replaced and stored metadata equals the incoming (stale) values.
+        assert _freshness_row(conn) == (("new_hash", "lm-new", "2024-01-01T00:00:00Z"),)
+        assert (
+            conn.execute(
+                "SELECT content FROM chunks WHERE doc_id = ?", (new_doc_id,)
+            ).fetchall()
+            != chunks_before
+        )
+        assert (
+            conn.execute(
+                "SELECT content FROM chunks WHERE doc_id = ?", (new_doc_id,)
+            ).fetchone()[0]
+            == "new file chunk"
+        )
+        # Follow-up run with the same payload is recognized as unchanged: loop broken.
+        _follow, skip_next, _ = doc_mgr.handle_existing_document(
+            url,
+            new_doc_id,
+            False,
+            "new_hash",
+            "lm-new",
+            "2024-01-01T00:00:00Z",
+            lambda u: u.startswith("file://"),
+        )
+        assert skip_next is True
+
+    def test_force_stale_commit_writes_incoming_metadata(self) -> None:
+        # AC-2: force=True bypasses the stale guard and writes the incoming
+        # (stale) metadata even for an HTTP payload.
+        conn, db = _make_freshness_db()
+        doc_id = _seed_document(
+            conn,
+            etag="old_etag",
+            last_modified="lm-old",
+            fetched_at="2024-06-10T00:00:00Z",
+        )
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+        store = DocumentStore(db, doc_mgr)  # type: ignore[arg-type]
+        tx_mgr = TransactionManager(db, doc_mgr, store)
+
+        new_doc_id, skipped, _ = tx_mgr.commit(
+            "https://example.com/doc",
+            doc_id,
+            _prepared("forced chunk"),
+            [],
+            force=True,
+            replace=True,
+            title="Doc",
+            lang="en",
+            etag="stale_etag",
+            last_modified="lm-stale",
+            chunking_strategy="text",
+            fetched_at="2024-01-01T00:00:00Z",
+        )
+        assert skipped is False
+        assert new_doc_id is not None
+        assert _freshness_row(conn) == (
+            ("stale_etag", "lm-stale", "2024-01-01T00:00:00Z"),
+        )
+        assert (
+            conn.execute(
+                "SELECT content FROM chunks WHERE doc_id = ?", (new_doc_id,)
+            ).fetchone()[0]
+            == "forced chunk"
+        )
 
 
 class TestResolveIncomingGuard:

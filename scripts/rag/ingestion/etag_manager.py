@@ -80,6 +80,23 @@ class ETagManager:
             return stored
         return (etag, last_modified, new_fetched_at)
 
+    def is_stale_incoming(
+        self,
+        etag: str | None,
+        last_modified: str | None,
+        new_fetched_at: str,
+    ) -> bool:
+        """Return True only when the incoming payload is stale versus the stored row.
+
+        Delegates to _incoming_decision and collapses its tri-state to bool:
+        incoming-wins and both-None both return False, so the caller skips only
+        when the stored row is fresher. Same validation contract as
+        resolve_incoming: empty new_fetched_at raises ValueError and unparseable
+        timestamps raise InvalidIncomingTimestampError / InvalidStoredTimestampError
+        before any skip decision.
+        """
+        return self._incoming_decision(etag, last_modified, new_fetched_at) is False
+
     def _incoming_decision(
         self,
         etag: str | None,

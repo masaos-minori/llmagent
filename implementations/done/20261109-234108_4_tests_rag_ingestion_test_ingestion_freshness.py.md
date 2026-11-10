@@ -67,13 +67,13 @@ N/A: revert the single commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the new tests and the extension per Implementation > Method | Pending | — | — | Gated: plans/20261108-170534_ragrev015_poison-chunk-groups-retried.md phase 3 - both plans edit the `tx_mgr.commit(...)` block chain; land the commit-error handling first so the skip handling is added to the settled block |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: plans/20261108-170534_ragrev015_poison-chunk-groups-retried.md phase 3 - both plans edit the `tx_mgr.commit(...)` block chain; land the commit-error handling first so the skip handling is added to the settled block |
+| 1 | Add the new tests and the extension per Implementation > Method | Completed | 20261110-0900 | 20261110-0940 | AC-1 `test_stale_http_commit_skips_replacement`, AC-2 `test_file_payload_older_mtime_replaces_with_incoming_metadata` + `test_force_stale_commit_writes_incoming_metadata`, AC-4 extension of `test_stale_payload_cannot_regress_stored_freshness`. Gate (plans/...ragrev015 phase 3) evaluated stale — rev015 phase 3 is not a dependency of rev016; cleared per prior user approval. Also fixed a seq-3 regression in `tests/rag/ingestion/test_rag_ingester.py`: three tests mocked `TransactionManager.commit` with `return_value=None`; the seq-3 unpack `_, skipped, _ = tx_mgr.commit(...)` raised `TypeError`. Restored a realistic `(1, False, False)` tuple (the documented contract) — no production None-guard added (would be dead code). |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-0940 | 20261110-1015 | ruff clean; mypy 557 files clean; lint-imports 0 broken; ast-grep clean; bandit 0 medium/high; `tests/rag/ingestion` 330 passed; `test_mdq_rag_boundary` 5 passed; diff-cover 100% on changed production lines (`transaction_commit.py` 100%, `etag_manager.py` 100%; `ingester.py` omitted by project policy). Full-suite run has 3 failed / 25 errors in `tests/eventbus/test_eventbus_auth.py` — pre-existing environment issue (`eventbus.sqlite` missing `schema_migrations`), unrelated to this change (working tree touches only `rag/ingestion`). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | seq-3 unpack `_, skipped, _ = tx_mgr.commit(...)` broke three `test_rag_ingester.py` tests that mocked `commit` with `return_value=None` (`TypeError: cannot unpack non-iterable NoneType`). Unrelated to seq-4 production behavior. | Yes — restored realistic `(1, False, False)` mock (documented contract); no production guard added | 20261110 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

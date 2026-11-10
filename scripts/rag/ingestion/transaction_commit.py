@@ -59,13 +59,28 @@ class TransactionManager:
             new_doc_id: int | None = None
             if doc_id is None or replace:
                 if replace and doc_id is not None:
-                    # Guard freshness against the stored row BEFORE deleting it,
-                    # so a stale payload can never regress stored values and the
-                    # resolved freshness lands in the same transaction.
-                    etag, last_modified, fetched_at = ETagManager(
-                        self._db, doc_id
-                    ).resolve_incoming(etag, last_modified, fetched_at)
+                    # Stale non-forced HTTP payload: skip the replace entirely and
+                    # keep the stored row; the decision is race-consistent inside
+                    # this transaction.
+                    if (
+                        not force
+                        and not url.startswith("file://")
+                        and ETagManager(self._db, doc_id).is_stale_incoming(
+                            etag, last_modified, fetched_at
+                        )
+                    ):
+                        return doc_id, True, False
+                    # Delete the existing row before inserting the replacement
+                    # so the UNIQUE constraint on documents.url is not violated.
                     self._doc_mgr.delete_existing_document(doc_id)
+                    # file:// and force replaces always write incoming metadata;
+                    # fresh or both-None HTTP payloads keep the resolve_incoming
+                    # guard before writing, so a stale payload can never regress
+                    # stored freshness.
+                    if not (url.startswith("file://") or force):
+                        etag, last_modified, fetched_at = ETagManager(
+                            self._db, doc_id
+                        ).resolve_incoming(etag, last_modified, fetched_at)
                 cursor = self._doc_store.insert(
                     self._db,
                     url,

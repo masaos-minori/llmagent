@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add subsection 4.9.2 per Implementation > Procedure/Method/Details | Pending | — | — | Gated: plans/20261108-170534_ragrev015_poison-chunk-groups-retried.md phase 3 - both plans edit the `tx_mgr.commit(...)` block chain; land the commit-error handling first so the skip handling is added to the settled block |
-| 2 | Run the documentation checkers (Validation plan) | Pending | — | — | Gated: plans/20261108-170534_ragrev015_poison-chunk-groups-retried.md phase 3 - both plans edit the `tx_mgr.commit(...)` block chain; land the commit-error handling first so the skip handling is added to the settled block |
+| 1 | Add subsection 4.9.2 per Implementation > Procedure/Method/Details | Completed | 20261110-1030 | 20261110-1045 | Added `### 4.9.2 Stale Payload Skips the Replace` after 4.9.1: HTTP stale-skip skips the whole replace (no delete/insert; chunks/chunks_vec untouched; files routed as skip); `file://` (content hash is the change signal, older `fetched_at` does not block) and `force=True` (operator intent wins) are the two exceptions that persist incoming metadata. 4.9 intro and 4.9.1 unchanged. Gate (plans/...ragrev015 phase 3) evaluated stale — cleared per prior user approval. |
+| 2 | Run the documentation checkers (Validation plan) | Completed | 20261110-1045 | 20261110-1050 | check_docs_quality ✓ / check_docs_structure ✓ / check_docs_content_policy ✓ / check_docs_consistency --domain rag ✓ / check_docs_japanese ✓ — no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
