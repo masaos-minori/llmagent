@@ -35,7 +35,7 @@ N/A: documentation-only decision record; the Plan already rejected deferral (the
 
 ### Details
 - `Context` and `Constraints` keep their generic Subscriber wording (verified in Step 3a); future-client role statements link to ADR-013 and `eventbus_02_api-reference-index.md` instead of restating the role table (Docs content policy: point, do not duplicate).
-- ADR-006 already relates to ADR-013 (`Related ADRs`, index Authority Graph line 108); no new dependency edge is added.
+- ADR-006 already relates to ADR-013 (`Related ADRs`, index Authority Graph line 106, re-verified 2026-11-10 at HEAD `9a86dede9`); no new dependency edge is added.
 
 ## Compatibility considerations
 - Plan AC-05 names ADR-004 and ADR-013 for the preservation check; the ADR-006 edit made here is also an intended change and must be reported as such.
