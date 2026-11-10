@@ -1,0 +1,79 @@
+## Goal
+Remove the removed-key reference from the Agent key-validation row (REQ-008).
+
+## Scope
+**Release unit**: N/A: not part of a release unit
+
+## Assumptions
+- Line numbers were read on 2026-11-10 before the code phases; re-locate them with `rg` if the file changed. Strict-only startup: tool-definition mismatch and routing drift are always FATAL with no toggle; empty `allowed_tools` denies every tool (also after reload); empty `allowed_root` and empty `protected_branches` (git, github) are rejected at config load; empty `path_denylist` stays permitted as a registered ADR-004 exception; `security_profile`/`SecurityProfile` no longer exist.
+- The document is edited in Phase 6, after the code phases, so it describes the final behavior.
+
+## Design decisions
+- Wording edit of one table cell; check_adr_preservation.py must not report an ERROR.
+
+## Alternatives considered
+N/A: documentation-only row; the wording follows the Plan's settled behavior.
+
+## Implementation
+### Target file
+`docs/10_adr/adr_02_01_002_platform-config-isolation.md`
+### Procedure
+1. Line 85 (Agent row of the validated-keys table): delete 'tool_definitions_strict and routing_drift_strict (must be true in production; an absent key defaults to false and is rejected)'; the remaining validated keys stay. Line 85 also lists `allowed_root` among the secret/endpoint-like keys: leave it unchanged unless it states the key is optional (read the full line).
+2. No decision, invariant, or reference text changes.
+### Method
+- Locate each statement with `rg -n 'tool_definitions_strict|routing_drift_strict|security_profile|SecurityProfile|accept_all_for_tests|list_tools|allowed_tools|allowed_root|protected_branches|path_denylist|fail-open' docs/10_adr/adr_02_01_002_platform-config-isolation.md` and read the surrounding lines before editing.
+### Details
+- Target behavior to state: Strict-only startup: tool-definition mismatch and routing drift are always FATAL with no toggle; empty `allowed_tools` denies every tool (also after reload); empty `allowed_root` and empty `protected_branches` (git, github) are rejected at config load; empty `path_denylist` stays permitted as a registered ADR-004 exception; `security_profile`/`SecurityProfile` no longer exist.
+- After the edit, `rg -n 'security_profile|SecurityProfile|accept_all_for_tests|list_tools_with_server_key' docs/10_adr/adr_02_01_002_platform-config-isolation.md` returns nothing (AC-07, AC-05, AC-06).
+
+## Compatibility considerations
+N/A: documentation only; no code or config behavior changes in this row.
+
+## Security considerations
+N/A: documentation only; the text must not weaken the described fail-closed behavior.
+
+## Rollback considerations
+N/A: revert the commit.
+
+## Validation plan
+- Run `uv run python tools/check_docs_quality.py`, `uv run python tools/check_docs_structure.py docs/10_adr/adr_02_01_002_platform-config-isolation.md`, `uv run python tools/check_docs_content_policy.py --strict`, `uv run python tools/check_docs_japanese.py`, `uv run python tools/check_adr_preservation.py`, `uv run python tools/check_adr_authority.py`.
+
+## Completion criteria
+- Every listed statement is changed, the checkers above pass, and no removed name remains in the file.
+
+## Out of Scope
+- Renaming `mcp_06_09_startup-validation-behavior-tool_definitions_strict.md`; any file other than the target; writing the ADR-004 rationale text (maintainer, UNK-01).
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Edit the document per Implementation > Procedure | Done | 20261110-232611 | 20261110-232611 | strict-key fragment deleted from the Agent Required Keys cell; allowed_root moved from Empty-Allowed Keys to Required Keys (empty/absent rejected, production_config_validator.py:265-269); no decision/invariant/reference text changed |
+| 2 | Run the documentation checkers per Validation plan | Done | 20261110-232611 | 20261110-232611 | structure/quality/content-policy --strict/adr authority pass; adr preservation exit 0 with 1 expected WARNING (Decision section text changed: table cell) |
+
+### Verification Findings
+| Item | Finding | Action taken |
+|------|---------|--------------|
+| VF-1 | Sentence-level mapping for the Decision-section WARNING: deleted 'tool_definitions_strict and routing_drift_strict (must be true in production...)' (keys removed); added 'allowed_root (an empty or absent value is rejected because the path jail would be disabled)'; removed allowed_root from the Empty-Allowed Keys list | Recorded here; preservation exit 0 |
+| VF-2 | Procedure said leave allowed_root 'unchanged unless it states the key is optional'; the Empty-Allowed Keys column states exactly that (empty preserved), which the current validator contradicts | allowed_root moved to Required Keys per current code |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-008
+- **Source issue**: issues/20261109-112640_adrrev004_non-strict-bypass-removal.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20261110-094140_adrrev004_non-strict-bypass-removal.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20261110-154603
+- **Related target files**: `docs/10_adr/adr_02_01_002_platform-config-isolation.md`

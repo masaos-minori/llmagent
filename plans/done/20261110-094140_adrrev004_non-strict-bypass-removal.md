@@ -64,6 +64,9 @@ Amended 2026-11-10 (fallout): added docs/22_mcp/mcp_04_05_git.md — mcp_04_05_g
 Amended 2026-11-10 (fallout): added docs/22_mcp/mcp_05_01_access-control-and-allowlists.md — mcp_05_01:78,83 state empty protected_branches/path_denylist allow all (AC-07/REQ-008 grep or fail-closed statement)
 Amended 2026-11-10 (fallout): added tests/agent/test_repository_gateway.py — Imports STRICT_PRODUCTION_OVERRIDES, which is removed from tests/agent/_config_test_defaults.py
 Amended 2026-11-10 (fallout): added tests/agent/test_tool_audit.py — Imports STRICT_PRODUCTION_OVERRIDES, which is removed from tests/agent/_config_test_defaults.py
+Amended 2026-11-10 (fallout): added tests/agent/test_tool_preparation.py — Fallout from row 07: `_cfg` builds build_agent_config with allowed_root="" (line 41); the approval section builder now rejects it and 12 tests fail (measured at the end-of-batch full-suite gate)
+Amended 2026-11-10 (fallout): added tests/agent/test_tool_loop_guard.py — Fallout from row 07: `_cfg` builds build_agent_config with allowed_root="" (line 49); the approval section builder now rejects it and 46 tests fail (measured at the end-of-batch full-suite gate)
+Amended 2026-11-10 (fallout): added tests/agent/test_llm_client.py — Fallout from row 07: the SSE-validation `_build` base dict (lines ~583-608) carries no `allowed_root` key; the approval section builder rejects an absent value and 3 tests fail (measured at the end-of-batch full-suite gate)
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -165,6 +168,9 @@ table — no other file may be treated as a modification target.
 | `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md` | Modify: Update empty protected_branches and the path_denylist exception wording | mcp_05_01:78,83 state empty protected_branches/path_denylist allow all (AC-07/REQ-008 grep or fail-closed statement) | REQ-008 / AC-08 | mcp_05_01:78,83 state empty protected_branches/path_denylist allow all | uv run python tools/check_docs_consistency.py --domain mcp | Verified |
 | `tests/agent/test_repository_gateway.py` | Modify: Stop importing STRICT_PRODUCTION_OVERRIDES | Imports STRICT_PRODUCTION_OVERRIDES, which is removed from tests/agent/_config_test_defaults.py | REQ-001 / AC-01 | tests/agent/test_repository_gateway.py imports the constant (rg) | uv run pytest tests/agent/test_repository_gateway.py -v | Verified |
 | `tests/agent/test_tool_audit.py` | Modify: Stop importing STRICT_PRODUCTION_OVERRIDES | Imports STRICT_PRODUCTION_OVERRIDES, which is removed from tests/agent/_config_test_defaults.py | REQ-001 / AC-01 | tests/agent/test_tool_audit.py imports the constant (rg) | uv run pytest tests/agent/test_tool_audit.py -v | Verified |
+| `tests/agent/test_tool_preparation.py` | Test fixture fix: `_cfg` supplies a non-empty `allowed_root` | Fallout from row 07: `_cfg` builds build_agent_config with allowed_root="" (line 41); the approval section builder now rejects it and 12 tests fail (measured at the end-of-batch full-suite gate) | REQ-003 / N/A: none cites REQ-003 | tests/agent/test_tool_preparation.py:41 ("allowed_root": ""); 12 measured failures in the 20261110 end-of-batch pytest tests/ run | uv run pytest tests/agent/test_tool_preparation.py -v | Verified |
+| `tests/agent/test_tool_loop_guard.py` | Test fixture fix: `_cfg` supplies a non-empty `allowed_root` | Fallout from row 07: `_cfg` builds build_agent_config with allowed_root="" (line 49); the approval section builder now rejects it and 46 tests fail (measured at the end-of-batch full-suite gate) | REQ-003 / N/A: none cites REQ-003 | tests/agent/test_tool_loop_guard.py:49 ("allowed_root": ""); 46 measured failures in the 20261110 end-of-batch pytest tests/ run | uv run pytest tests/agent/test_tool_loop_guard.py -v | Verified |
+| `tests/agent/test_llm_client.py` | Test fixture fix: `_build` supplies a non-empty `allowed_root` | Fallout from row 07: the SSE-validation `_build` base dict (lines ~583-608) carries no `allowed_root` key; the approval section builder rejects an absent value and 3 tests fail (measured at the end-of-batch full-suite gate) | REQ-003 / N/A: none cites REQ-003 | tests/agent/test_llm_client.py `_build` base dict has no allowed_root key; 3 measured failures (TestAgentConfigSseValidation::test_zero_sse_*) in the 20261110 end-of-batch pytest tests/ run | uv run pytest tests/agent/test_llm_client.py -v | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified.
@@ -313,6 +319,9 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md` | Modify | Not assessed (amendment 2026-11-10) | N/A | N/A | Not assessed (amendment 2026-11-10) |
 | `tests/agent/test_repository_gateway.py` | Modify | Not assessed (amendment 2026-11-10) | N/A | N/A | Not assessed (amendment 2026-11-10) |
 | `tests/agent/test_tool_audit.py` | Modify | Not assessed (amendment 2026-11-10) | N/A | N/A | Not assessed (amendment 2026-11-10) |
+| `tests/agent/test_tool_preparation.py` | Modify | Not assessed (amendment 2026-11-10) | N/A | N/A | Not assessed (amendment 2026-11-10) |
+| `tests/agent/test_tool_loop_guard.py` | Modify | Not assessed (amendment 2026-11-10) | N/A | N/A | Not assessed (amendment 2026-11-10) |
+| `tests/agent/test_llm_client.py` | Modify | Not assessed (amendment 2026-11-10) | N/A | N/A | Not assessed (amendment 2026-11-10) |
 
 ## Design
 - **Approach**: remove optionality leaf-first, in testable steps. Phase 1 removes the strict toggles; Phase 2 the `MCPServer` bypass and helpers; Phase 3 `security_profile`; Phase 4 the empty-list denials (the largest fixture blast, so it runs after the removals shrink the surface); Phase 5 the shared empty-token test and server-config rejections are folded into Phases 2 and 4; Phase 6 ADRs and documents; Phase 7 verification and deploy hand-off. Alternatives rejected: keeping `*_strict` as always-true flags (still optionality in the schema) and rejecting empty `allowed_tools` only at load (the reload path would stay open).
@@ -342,6 +351,9 @@ Files that must be read to implement the targets above, but MUST NOT be modified
    - [ ] Modify: Supply a non-empty allowed_tools where the default was relied on (REQ-002; `tests/agent/test_tool_approval_risk.py`) — amendment 2026-11-10
    - [ ] Modify: Supply a non-empty allowed_tools where the default was relied on (REQ-002; `tests/agent/test_tool_runner.py`) — amendment 2026-11-10
    - [ ] Modify: Supply a non-empty allowed_tools where the default was relied on (REQ-002; `tests/integration/test_rag_turn_integration.py`) — amendment 2026-11-10
+   - [ ] Test fixture fix: `_cfg` supplies a non-empty `allowed_root` (REQ-003; `tests/agent/test_tool_preparation.py`) — amendment 2026-11-10
+   - [ ] Test fixture fix: `_cfg` supplies a non-empty `allowed_root` (REQ-003; `tests/agent/test_tool_loop_guard.py`) — amendment 2026-11-10
+   - [ ] Test fixture fix: `_build` supplies a non-empty `allowed_root` (REQ-003; `tests/agent/test_llm_client.py`) — amendment 2026-11-10
 5. **Phase 5: Consolidated test pass**
    - [ ] Run the whole affected test set once and fix remaining fixtures in the files of the target table only; any other file is a Plan amendment (UNK-05) (REQ-009).
 6. **Phase 6: ADRs and documents (ADR-004 rationale after the maintainer's statement)**
@@ -385,13 +397,13 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the strict toggles | In Progress | — | — |  |
-| 2 | Remove the test-only bypass and unused helpers | In Progress | — | — |  |
-| 3 | Remove `security_profile` | In Progress | — | — |  |
-| 4 | Fail-closed safety lists | In Progress | — | — |  |
-| 5 | Consolidated test pass | Pending | — | — |  |
-| 6 | ADRs and documents (ADR-004 rationale after the maintainer's statement) | In Progress | — | — |  |
-| 7 | Deployment and verification | Pending | — | — |  |
+| 1 | Remove the strict toggles | Completed | 20261110-154603 | 20261110-230700 | All procedure rows archived in implementations/done/ |
+| 2 | Remove the test-only bypass and unused helpers | Completed | 20261110-154603 | 20261110-230700 | accept_all_for_tests and list_tools helpers removed; rg clean |
+| 3 | Remove `security_profile` | Completed | 20261110-154603 | 20261110-230700 | AC-07 greps clean in scripts/, tests/, config/, docs/ |
+| 4 | Fail-closed safety lists | Completed | 20261110-154603 | 20261110-230700 | allowed_tools/allowed_root/protected_branches fail-closed; path_denylist exception registered |
+| 5 | Consolidated test pass | Completed | 20261110-230700 | 20261110-231300 | pytest 12032 passed/9 skipped; diff-cover 93%; mypy/lint-imports/bandit pass |
+| 6 | ADRs and documents (ADR-004 rationale after the maintainer's statement) | In Progress | 20261110-154603 | — | All 17 doc rows implemented and archived; ADR-004 rationale pending from the maintainer (NC-001 open) |
+| 7 | Deployment and verification | Pending | — | — | Not started; requires explicit deployment request |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -401,84 +413,87 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261110-154603_01_scripts_agent_production_config_validator.py.md` | 1,3,4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_02_scripts_agent_startup_validation.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_03_scripts_agent_services_mcp_tool_discovery.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_04_scripts_agent_services_config_field_registry.py.md` | 1,3 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_05_scripts_agent_config_builders.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_06_scripts_agent_config_dataclasses.py.md` | 1,3 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_07_scripts_agent_config_section_builders.py.md` | 1,4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_08_scripts_agent_commands_cmd_config_display.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_09_scripts_agent_tool_policy.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_10_scripts_shared_mcp_config.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_11_scripts_mcp_servers_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_12_scripts_mcp_servers_mdq_mdq_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_13_scripts_mcp_servers_git_git_models.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_14_scripts_mcp_servers_git_repository_state.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_15_scripts_mcp_servers_github_github_models_config.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_16_scripts_mcp_servers_github_github_service_security.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_17_config_agent.toml.md` | 1,2,7 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_18_config_github_mcp_server.toml.md` | 4,7 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_19_tests_agent_test_production_config_validator.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_20_tests_agent_test_config_builders.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_22_tests_agent_test_startup_mcp_lifecycle.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_23_tests_integration_test_production_security_regression.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_24_tests_agent_test_startup_severity_classification.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_25_tests_agent_test_startup.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_27_tests_agent_test_agent_negative_paths.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_29_tests_agent_test_startup_memory_failures.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_33_tests_agent_test_startup_mcp_starter.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_34_tests_shared_test_config_loader.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_35_tests_mcp_servers_mdq_test_mdq_routing.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_36_tests_agent_services_test_config_reload.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_37_tests_agent__config_test_defaults.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_38_tests_shared_test_shared_boundary_conditions.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_40_tests_agent_test_startup_rollback.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_41_tests_agent_test_startup_config_error.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_42_tests_agent_services_test_runtime_tool_routing_integration.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_43_tests_integration_test_agent_integration.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_44_tests_agent_services_test_mcp_tool_discovery_posture_gate.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_46_tests_agent_test_tool_approval_preflight.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_47_tests_agent_test_tool_approval_paths.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_48_tests_agent_test_agent_repl_tool_exec.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_50_tests_shared_test_tool_routing_validation.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_51_tests_mcp_servers_test_require_auth_token.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_55_tests_mcp_servers_github_test_github_security_validation.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_57_docs_22_mcp_mcp_06_09_startup-validation-behavior-tool_definitions_strict.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_58_docs_22_mcp_mcp_06_01_configuration-file-inventory.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_59_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_60_docs_22_mcp_mcp_06_13_pre-production-fail-open-checklist.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_61_docs_22_mcp_mcp_06_03_long-running-http-operation-startup_modesubprocess.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_62_docs_22_mcp_mcp_05_02_auth-profiles-and-sandboxing.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_63_docs_22_mcp_mcp_03_02_tool-registry.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_64_docs_22_mcp_mcp_06_11_new-tool-registration-procedure.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_65_docs_22_mcp_mcp_06_08_settings-with-high-operational-impact.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_66_docs_22_mcp_mcp_02_01_endpoints-and-transport.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_67_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_68_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_69_docs_23_agent_agent_08_03_configuration-tools-memory.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_70_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_71_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_72_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_73_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_74_docs_01_overview_overview_02_files.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_75_scripts_shared_runtime_tool_registry.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_78_tests_tools_test_check_docs_quality.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_79_tests_mcp_servers_github_test_github_mcp_service.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_80_tests_agent_test_tool_approval_repos.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_81_tests_agent_test_tool_approval_risk.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_82_tests_agent_test_tool_runner.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_83_tests_integration_test_rag_turn_integration.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_84_docs_40_shared_shared_01_overview.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_85_docs_40_shared_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_86_docs_91_security_security_01_architecture-and-trust-boundaries.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_87_docs_91_security_security_02_high-risk-tool-common-policy.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_88_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_89_docs_23_agent_agent_06_03_tool-execution-and-approval-concurrency-safety.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_90_docs_22_mcp_mcp_04_05_git.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_91_docs_22_mcp_mcp_05_01_access-control-and-allowlists.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_92_tests_agent_test_repository_gateway.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-154603_93_tests_agent_test_tool_audit.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261110-154603_01_scripts_agent_production_config_validator.py.md` | 1,3,4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_02_scripts_agent_startup_validation.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_03_scripts_agent_services_mcp_tool_discovery.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_04_scripts_agent_services_config_field_registry.py.md` | 1,3 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_05_scripts_agent_config_builders.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_06_scripts_agent_config_dataclasses.py.md` | 1,3 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_07_scripts_agent_config_section_builders.py.md` | 1,4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_08_scripts_agent_commands_cmd_config_display.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_09_scripts_agent_tool_policy.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_10_scripts_shared_mcp_config.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_11_scripts_mcp_servers_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_12_scripts_mcp_servers_mdq_mdq_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_13_scripts_mcp_servers_git_git_models.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_14_scripts_mcp_servers_git_repository_state.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_15_scripts_mcp_servers_github_github_models_config.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_16_scripts_mcp_servers_github_github_service_security.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_17_config_agent.toml.md` | 1,2,7 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_18_config_github_mcp_server.toml.md` | 4,7 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_19_tests_agent_test_production_config_validator.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_20_tests_agent_test_config_builders.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_22_tests_agent_test_startup_mcp_lifecycle.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_23_tests_integration_test_production_security_regression.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_24_tests_agent_test_startup_severity_classification.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_25_tests_agent_test_startup.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_27_tests_agent_test_agent_negative_paths.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_29_tests_agent_test_startup_memory_failures.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_33_tests_agent_test_startup_mcp_starter.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_34_tests_shared_test_config_loader.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_35_tests_mcp_servers_mdq_test_mdq_routing.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_36_tests_agent_services_test_config_reload.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_37_tests_agent__config_test_defaults.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_38_tests_shared_test_shared_boundary_conditions.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_40_tests_agent_test_startup_rollback.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_41_tests_agent_test_startup_config_error.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_42_tests_agent_services_test_runtime_tool_routing_integration.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_43_tests_integration_test_agent_integration.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_44_tests_agent_services_test_mcp_tool_discovery_posture_gate.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_46_tests_agent_test_tool_approval_preflight.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_47_tests_agent_test_tool_approval_paths.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_48_tests_agent_test_agent_repl_tool_exec.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_50_tests_shared_test_tool_routing_validation.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_51_tests_mcp_servers_test_require_auth_token.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_55_tests_mcp_servers_github_test_github_security_validation.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_57_docs_22_mcp_mcp_06_09_startup-validation-behavior-tool_definitions_strict.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_58_docs_22_mcp_mcp_06_01_configuration-file-inventory.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_59_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_60_docs_22_mcp_mcp_06_13_pre-production-fail-open-checklist.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_61_docs_22_mcp_mcp_06_03_long-running-http-operation-startup_modesubprocess.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_62_docs_22_mcp_mcp_05_02_auth-profiles-and-sandboxing.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_63_docs_22_mcp_mcp_03_02_tool-registry.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_64_docs_22_mcp_mcp_06_11_new-tool-registration-procedure.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_65_docs_22_mcp_mcp_06_08_settings-with-high-operational-impact.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_66_docs_22_mcp_mcp_02_01_endpoints-and-transport.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_67_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_68_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_69_docs_23_agent_agent_08_03_configuration-tools-memory.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_70_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_71_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_72_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_73_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_74_docs_01_overview_overview_02_files.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_75_scripts_shared_runtime_tool_registry.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_78_tests_tools_test_check_docs_quality.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_79_tests_mcp_servers_github_test_github_mcp_service.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_80_tests_agent_test_tool_approval_repos.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_81_tests_agent_test_tool_approval_risk.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_82_tests_agent_test_tool_runner.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_83_tests_integration_test_rag_turn_integration.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_84_docs_40_shared_shared_01_overview.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_85_docs_40_shared_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_86_docs_91_security_security_01_architecture-and-trust-boundaries.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_87_docs_91_security_security_02_high-risk-tool-common-policy.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_88_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_89_docs_23_agent_agent_06_03_tool-execution-and-approval-concurrency-safety.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_90_docs_22_mcp_mcp_04_05_git.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_91_docs_22_mcp_mcp_05_01_access-control-and-allowlists.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_92_tests_agent_test_repository_gateway.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-154603_93_tests_agent_test_tool_audit.py.md` | 1 | Procedure | Completed | — | — |
+| implementations/20261110-154603_94_tests_agent_test_tool_preparation.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261110-154603_95_tests_agent_test_tool_loop_guard.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261110-154603_96_tests_agent_test_llm_client.py.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -487,7 +502,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261110-094140
-- **Related target files**: `scripts/agent/production_config_validator.py`, `scripts/agent/startup_validation.py`, `scripts/agent/services/mcp_tool_discovery.py`, `scripts/agent/services/config_field_registry.py`, `scripts/agent/config_builders.py`, `scripts/agent/config_dataclasses.py`, `scripts/agent/config_section_builders.py`, `scripts/agent/commands/cmd_config_display.py`, `scripts/agent/tool_policy.py`, `scripts/shared/mcp_config.py`, `scripts/mcp_servers/server.py`, `scripts/mcp_servers/mdq/mdq_server.py`, `scripts/mcp_servers/git/git_models.py`, `scripts/mcp_servers/git/repository_state.py`, `scripts/mcp_servers/github/github_models_config.py`, `scripts/mcp_servers/github/github_service_security.py`, `config/agent.toml`, `config/github_mcp_server.toml`, `tests/agent/test_production_config_validator.py`, `tests/agent/test_config_builders.py`, `tests/agent/services/test_mcp_tool_discovery.py`, `tests/agent/test_startup_mcp_lifecycle.py`, `tests/integration/test_production_security_regression.py`, `tests/agent/test_startup_severity_classification.py`, `tests/agent/test_startup.py`, `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_agent_negative_paths.py`, `tests/mcp_servers/test_mcp_server_base.py`, `tests/agent/test_startup_memory_failures.py`, `tests/shared/test_mcp_config.py`, `tests/agent/test_startup_validation.py`, `tests/agent/test_config_dataclasses.py`, `tests/agent/test_startup_mcp_starter.py`, `tests/shared/test_config_loader.py`, `tests/mcp_servers/mdq/test_mdq_routing.py`, `tests/agent/services/test_config_reload.py`, `tests/agent/_config_test_defaults.py`, `tests/shared/test_shared_boundary_conditions.py`, `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/test_startup_rollback.py`, `tests/agent/test_startup_config_error.py`, `tests/agent/services/test_runtime_tool_routing_integration.py`, `tests/integration/test_agent_integration.py`, `tests/agent/services/test_mcp_tool_discovery_posture_gate.py`, `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_approval_preflight.py`, `tests/agent/test_tool_approval_paths.py`, `tests/agent/test_agent_repl_tool_exec.py`, `tests/shared/test_runtime_tool_registry.py`, `tests/shared/test_tool_routing_validation.py`, `tests/mcp_servers/test_require_auth_token.py`, `tests/mcp_servers/git/test_git_models.py`, `tests/mcp_servers/git/test_repository_state.py`, `tests/mcp_servers/github/test_service_security.py`, `tests/mcp_servers/github/test_github_security_validation.py`, `tests/mcp_servers/github/test_github_health_posture.py`, `docs/22_mcp/mcp_06_09_startup-validation-behavior-tool_definitions_strict.md`, `docs/22_mcp/mcp_06_01_configuration-file-inventory.md`, `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`, `docs/22_mcp/mcp_06_13_pre-production-fail-open-checklist.md`, `docs/22_mcp/mcp_06_03_long-running-http-operation-startup_modesubprocess.md`, `docs/22_mcp/mcp_05_02_auth-profiles-and-sandboxing.md`, `docs/22_mcp/mcp_03_02_tool-registry.md`, `docs/22_mcp/mcp_06_11_new-tool-registration-procedure.md`, `docs/22_mcp/mcp_06_08_settings-with-high-operational-impact.md`, `docs/22_mcp/mcp_02_01_endpoints-and-transport.md`, `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`, `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`, `docs/23_agent/agent_08_03_configuration-tools-memory.md`, `docs/23_agent/agent_08_01_configuration-loading-agent-config.md`, `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`, `docs/10_adr/adr_02_01_002_platform-config-isolation.md`, `docs/01_overview/overview_02_files.md`, `scripts/shared/runtime_tool_registry.py`, `tests/agent/commands/test_cmd_config_char.py`, `tests/agent/commands/test_agent_cmd_config.py`, `tests/tools/test_check_docs_quality.py`, `tests/mcp_servers/github/test_github_mcp_service.py`, `tests/agent/test_tool_approval_repos.py`, `tests/agent/test_tool_approval_risk.py`, `tests/agent/test_tool_runner.py`, `tests/integration/test_rag_turn_integration.py`, `docs/40_shared/shared_01_overview.md`, `docs/40_shared/shared_03_03_runtime_and_execution-llm-and-mcp-clients.md`, `docs/91_security/security_01_architecture-and-trust-boundaries.md`, `docs/91_security/security_02_high-risk-tool-common-policy.md`, `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`, `docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md`, `docs/22_mcp/mcp_04_05_git.md`, `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md`, `tests/agent/test_repository_gateway.py`, `tests/agent/test_tool_audit.py`
+- **Related target files**: `scripts/agent/production_config_validator.py`, `scripts/agent/startup_validation.py`, `scripts/agent/services/mcp_tool_discovery.py`, `scripts/agent/services/config_field_registry.py`, `scripts/agent/config_builders.py`, `scripts/agent/config_dataclasses.py`, `scripts/agent/config_section_builders.py`, `scripts/agent/commands/cmd_config_display.py`, `scripts/agent/tool_policy.py`, `scripts/shared/mcp_config.py`, `scripts/mcp_servers/server.py`, `scripts/mcp_servers/mdq/mdq_server.py`, `scripts/mcp_servers/git/git_models.py`, `scripts/mcp_servers/git/repository_state.py`, `scripts/mcp_servers/github/github_models_config.py`, `scripts/mcp_servers/github/github_service_security.py`, `config/agent.toml`, `config/github_mcp_server.toml`, `tests/agent/test_production_config_validator.py`, `tests/agent/test_config_builders.py`, `tests/agent/services/test_mcp_tool_discovery.py`, `tests/agent/test_startup_mcp_lifecycle.py`, `tests/integration/test_production_security_regression.py`, `tests/agent/test_startup_severity_classification.py`, `tests/agent/test_startup.py`, `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_agent_negative_paths.py`, `tests/mcp_servers/test_mcp_server_base.py`, `tests/agent/test_startup_memory_failures.py`, `tests/shared/test_mcp_config.py`, `tests/agent/test_startup_validation.py`, `tests/agent/test_config_dataclasses.py`, `tests/agent/test_startup_mcp_starter.py`, `tests/shared/test_config_loader.py`, `tests/mcp_servers/mdq/test_mdq_routing.py`, `tests/agent/services/test_config_reload.py`, `tests/agent/_config_test_defaults.py`, `tests/shared/test_shared_boundary_conditions.py`, `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/test_startup_rollback.py`, `tests/agent/test_startup_config_error.py`, `tests/agent/services/test_runtime_tool_routing_integration.py`, `tests/integration/test_agent_integration.py`, `tests/agent/services/test_mcp_tool_discovery_posture_gate.py`, `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_approval_preflight.py`, `tests/agent/test_tool_approval_paths.py`, `tests/agent/test_agent_repl_tool_exec.py`, `tests/shared/test_runtime_tool_registry.py`, `tests/shared/test_tool_routing_validation.py`, `tests/mcp_servers/test_require_auth_token.py`, `tests/mcp_servers/git/test_git_models.py`, `tests/mcp_servers/git/test_repository_state.py`, `tests/mcp_servers/github/test_service_security.py`, `tests/mcp_servers/github/test_github_security_validation.py`, `tests/mcp_servers/github/test_github_health_posture.py`, `docs/22_mcp/mcp_06_09_startup-validation-behavior-tool_definitions_strict.md`, `docs/22_mcp/mcp_06_01_configuration-file-inventory.md`, `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`, `docs/22_mcp/mcp_06_13_pre-production-fail-open-checklist.md`, `docs/22_mcp/mcp_06_03_long-running-http-operation-startup_modesubprocess.md`, `docs/22_mcp/mcp_05_02_auth-profiles-and-sandboxing.md`, `docs/22_mcp/mcp_03_02_tool-registry.md`, `docs/22_mcp/mcp_06_11_new-tool-registration-procedure.md`, `docs/22_mcp/mcp_06_08_settings-with-high-operational-impact.md`, `docs/22_mcp/mcp_02_01_endpoints-and-transport.md`, `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`, `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`, `docs/23_agent/agent_08_03_configuration-tools-memory.md`, `docs/23_agent/agent_08_01_configuration-loading-agent-config.md`, `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`, `docs/10_adr/adr_02_01_002_platform-config-isolation.md`, `docs/01_overview/overview_02_files.md`, `scripts/shared/runtime_tool_registry.py`, `tests/agent/commands/test_cmd_config_char.py`, `tests/agent/commands/test_agent_cmd_config.py`, `tests/tools/test_check_docs_quality.py`, `tests/mcp_servers/github/test_github_mcp_service.py`, `tests/agent/test_tool_approval_repos.py`, `tests/agent/test_tool_approval_risk.py`, `tests/agent/test_tool_runner.py`, `tests/integration/test_rag_turn_integration.py`, `docs/40_shared/shared_01_overview.md`, `docs/40_shared/shared_03_03_runtime_and_execution-llm-and-mcp-clients.md`, `docs/91_security/security_01_architecture-and-trust-boundaries.md`, `docs/91_security/security_02_high-risk-tool-common-policy.md`, `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`, `docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md`, `docs/22_mcp/mcp_04_05_git.md`, `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md`, `tests/agent/test_repository_gateway.py`, `tests/agent/test_tool_audit.py`, `tests/agent/test_tool_preparation.py`, `tests/agent/test_tool_loop_guard.py`, `tests/agent/test_llm_client.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -606,5 +621,8 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | REQ-008 | Amendment 2026-11-10: mcp_05_01:78,83 state empty protected_branches/path_denylist allow all (AC-07/REQ-008 grep or fail-closed statement) | docs/22_mcp/mcp_05_01_access-control-and-allowlists.md | Phase 6 | N/A: none cites REQ-008 | uv run python tools/check_docs_consistency.py --domain mcp | Confirmed by repository evidence |
 | REQ-001 | Amendment 2026-11-10: Imports STRICT_PRODUCTION_OVERRIDES, which is removed from tests/agent/_config_test_defaults.py | tests/agent/test_repository_gateway.py | Phase 1 | N/A: none cites REQ-001 | uv run pytest tests/agent/test_repository_gateway.py -v | Confirmed by repository evidence |
 | REQ-001 | Amendment 2026-11-10: Imports STRICT_PRODUCTION_OVERRIDES, which is removed from tests/agent/_config_test_defaults.py | tests/agent/test_tool_audit.py | Phase 1 | N/A: none cites REQ-001 | uv run pytest tests/agent/test_tool_audit.py -v | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-10: Fallout from row 07: `_cfg` builds build_agent_config with allowed_root="" (line 41); the approval section builder now rejects it and 12 tests fail (measured at the end-of-batch full-suite gate) | tests/agent/test_tool_preparation.py | Phase 4 | N/A: none cites REQ-003 | uv run pytest tests/agent/test_tool_preparation.py -v | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-10: Fallout from row 07: `_cfg` builds build_agent_config with allowed_root="" (line 49); the approval section builder now rejects it and 46 tests fail (measured at the end-of-batch full-suite gate) | tests/agent/test_tool_loop_guard.py | Phase 4 | N/A: none cites REQ-003 | uv run pytest tests/agent/test_tool_loop_guard.py -v | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-10: Fallout from row 07: the SSE-validation `_build` base dict (lines ~583-608) carries no `allowed_root` key; the approval section builder rejects an absent value and 3 tests fail (measured at the end-of-batch full-suite gate) | tests/agent/test_llm_client.py | Phase 4 | N/A: none cites REQ-003 | uv run pytest tests/agent/test_llm_client.py -v | Confirmed by repository evidence |
 
 <!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261110-154603 -->
