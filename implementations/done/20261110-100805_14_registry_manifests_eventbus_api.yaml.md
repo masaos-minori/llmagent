@@ -54,8 +54,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run the generator for the eventbus manifests | Pending | — | — | |
-| 2 | Run `uv run python tools/generate_reference_table.py --check` | Pending | — | — | |
+| 1 | Run the generator for the eventbus manifests | Completed | 20261110-113335 | 20261110-113335 | generate_reference_table.py --manifests --type eventbus also rewrote eventbus_route_roles.yaml with no diff; eventbus_08 guarded block refreshed (document 13). |
+| 2 | Run `uv run python tools/generate_reference_table.py --check` | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

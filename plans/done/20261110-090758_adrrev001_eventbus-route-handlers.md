@@ -187,10 +187,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Lock current behavior with tests (no source change) | In Progress | — | — |  |
-| 2 | Move Monitoring, Publisher, Operator, and Admin routes | In Progress | — | — |  |
-| 3 | Move consumer routes | In Progress | — | — |  |
-| 4 | Documentation and generated references | In Progress | — | — |  |
+| 1 | Lock current behavior with tests (no source change) | Completed | — | 20261110-113407 |  |
+| 2 | Move Monitoring, Publisher, Operator, and Admin routes | Completed | — | 20261110-113407 |  |
+| 3 | Move consumer routes | Completed | — | 20261110-113407 |  |
+| 4 | Documentation and generated references | Completed | — | 20261110-113407 |  |
 | 5 | Deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -201,21 +201,21 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261110-100805_01_scripts_eventbus_app.py.md | 2, 3 | Procedure | Pending | — | — |
-| implementations/20261110-100805_02_scripts_eventbus_health_route.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261110-100805_03_scripts_eventbus_publish_route.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261110-100805_04_scripts_eventbus_replay_route.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261110-100805_05_scripts_eventbus_dlq_route.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-100805_06_scripts_eventbus_subscribe_route.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-100805_07_scripts_eventbus_ack_route.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-100805_08_scripts_eventbus_admin_route.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261110-100805_09_tests_eventbus_test_eventbus_route_registry.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261110-100805_10_tests_eventbus_test_eventbus_auth.py.md | 2, 3 | Procedure | Pending | — | — |
-| implementations/20261110-100805_11_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261110-100805_12_docs_24_eventbus_eventbus_02_api-reference-index.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261110-100805_13_docs_24_eventbus_eventbus_08_reference_api.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261110-100805_14_registry_manifests_eventbus_api.yaml.md | 4 | Procedure | Pending | — | — |
-| implementations/20261110-100805_15_tests_eventbus_test_eventbus_subscribe_transition.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261110-100805_01_scripts_eventbus_app.py.md | 2, 3 | Procedure | Completed | — | — |
+| implementations/20261110-100805_02_scripts_eventbus_health_route.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261110-100805_03_scripts_eventbus_publish_route.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261110-100805_04_scripts_eventbus_replay_route.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261110-100805_05_scripts_eventbus_dlq_route.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-100805_06_scripts_eventbus_subscribe_route.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-100805_07_scripts_eventbus_ack_route.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-100805_08_scripts_eventbus_admin_route.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261110-100805_09_tests_eventbus_test_eventbus_route_registry.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261110-100805_10_tests_eventbus_test_eventbus_auth.py.md | 2, 3 | Procedure | Completed | — | — |
+| implementations/20261110-100805_11_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261110-100805_12_docs_24_eventbus_eventbus_02_api-reference-index.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261110-100805_13_docs_24_eventbus_eventbus_08_reference_api.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261110-100805_14_registry_manifests_eventbus_api.yaml.md | 4 | Procedure | Completed | — | — |
+| implementations/20261110-100805_15_tests_eventbus_test_eventbus_subscribe_transition.py.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

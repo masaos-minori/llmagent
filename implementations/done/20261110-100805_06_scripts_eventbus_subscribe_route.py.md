@@ -67,9 +67,9 @@ N/A: the registration decision (APIRouter per module) was made in the Plan's Des
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move `resolve_subscribe_identity` into `scripts/eventbus/subscribe_route.py` and register `subscribe` on the router | Pending | — | — | |
-| 2 | Run the tests named in Validation plan (the direct-call test is updated by document 15 in the same phase) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Move `resolve_subscribe_identity` into `scripts/eventbus/subscribe_route.py` and register `subscribe` on the router | Completed | 20261110-113335 | 20261110-113335 |  |
+| 2 | Run the tests named in Validation plan (the direct-call test is updated by document 15 in the same phase) | Completed | 20261110-113335 | 20261110-113335 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

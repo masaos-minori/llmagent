@@ -62,10 +62,10 @@ N/A: test code only.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 2: switch the Phase 2 routes of `_make_test_app` to production routers | Pending | — | — | |
-| 2 | Phase 3: switch the consumer routes and remove the local `resolve_subscribe_identity` | Pending | — | — | |
-| 3 | Run `uv run pytest tests/eventbus/test_eventbus_auth.py -v` after each phase | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Phase 2: switch the Phase 2 routes of `_make_test_app` to production routers | Completed | 20261110-113335 | 20261110-113335 | No wiring finding: every existing *Auth test passed unchanged against the production routers; Literal/JSONResponse imports removed by ruff. |
+| 2 | Phase 3: switch the consumer routes and remove the local `resolve_subscribe_identity` | Completed | 20261110-113335 | 20261110-113335 |  |
+| 3 | Run `uv run pytest tests/eventbus/test_eventbus_auth.py -v` after each phase | Completed | 20261110-113335 | 20261110-113335 |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

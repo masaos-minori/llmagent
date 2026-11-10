@@ -65,9 +65,9 @@ N/A: delete the new file (single-file revert of the commit).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/eventbus/test_eventbus_route_registry.py` with the registry and name tests | Pending | — | — | |
-| 2 | Add the production-app negative authorization tests | Pending | — | — | |
-| 3 | Run `uv run pytest tests/eventbus/test_eventbus_route_registry.py -v` and the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create `tests/eventbus/test_eventbus_route_registry.py` with the registry and name tests | Completed | 20261110-113335 | 20261110-113335 | Name-uniqueness test is red before Phase 3 by design (7 duplicate names) and green after; the other 6 tests passed against the original code. |
+| 2 | Add the production-app negative authorization tests | Completed | 20261110-113335 | 20261110-113335 |  |
+| 3 | Run `uv run pytest tests/eventbus/test_eventbus_route_registry.py -v` and the validation sequence (`rules/toolchain.md`) | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

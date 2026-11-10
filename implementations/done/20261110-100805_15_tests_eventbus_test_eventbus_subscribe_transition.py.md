@@ -58,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the direct `subscribe_route.subscribe` call to pass a granted principal | Pending | — | — | |
-| 2 | Run `uv run pytest tests/eventbus/test_eventbus_subscribe_transition.py -v` and the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the direct `subscribe_route.subscribe` call to pass a granted principal | Completed | 20261110-113335 | 20261110-113335 |  |
+| 2 | Run `uv run pytest tests/eventbus/test_eventbus_subscribe_transition.py -v` and the validation sequence (`rules/toolchain.md`) | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

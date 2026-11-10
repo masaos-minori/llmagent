@@ -64,10 +64,10 @@ N/A: decided in the Plan's Design section (Option A, APIRouter per module).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 2: include the five routers and remove their wrappers from `scripts/eventbus/app.py` | Pending | — | — | |
-| 2 | Phase 3: include the two consumer routers, remove the remaining wrappers and `resolve_subscribe_identity`, and clean unused imports | Pending | — | — | |
-| 3 | Run the tests named in Validation plan after each phase | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Phase 2: include the five routers and remove their wrappers from `scripts/eventbus/app.py` | Completed | 20261110-113335 | 20261110-113335 | Phase 2 and 3 done: nine wrappers and resolve_subscribe_identity removed; routers included in the original route order; ruff removed the unused imports. OpenAPI paths/methods/parameters identical; only description/summary text and operation ID of /health and /admin changed (Plan UNK-01 resolved). |
+| 2 | Phase 3: include the two consumer routers, remove the remaining wrappers and `resolve_subscribe_identity`, and clean unused imports | Completed | 20261110-113335 | 20261110-113335 |  |
+| 3 | Run the tests named in Validation plan after each phase | Completed | 20261110-113335 | 20261110-113335 | tests/eventbus 501 passed; full suite 12130 passed, 9 skipped; diff-cover 100%; ruff, mypy, lint-imports, bandit, module size clean. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

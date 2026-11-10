@@ -1,5 +1,5 @@
 ## Goal
-- Make `scripts/eventbus/replay_route.py` own its route(s) `GET /replay`: register the handler through an `APIRouter` with the role dependency on the same function (REQ-003 one registered handler per route; REQ-004 role enforced on that function).
+- Make `scripts/eventbus/admin_route.py` own its route(s) `POST /admin/topics/authorization`: register the handler through an `APIRouter` with the role dependency on the same function (REQ-003 one registered handler per route; REQ-004 role enforced on that function).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
@@ -13,19 +13,19 @@
 - Overlap with plan `plans/20261110-091327_adrrev002_agent-eventbus-coupling.md` and plan `plans/20261110-095717_adrrev006_eventbus-future-decision.md`: no shared file in this row (compatible).
 
 ## Design decisions
-- Keep the existing function name `replay` as the registered handler; drop the same-named wrapper in `app.py` (separate document).
-- Role dependency: `Depends(require_role(Role.OPERATOR))` declared on the handler's principal parameter; no change to `require_role` or `Principal`.
+- Keep the existing function name `update_topics_authorization` as the registered handler; drop the same-named wrapper in `app.py` (separate document).
+- Role dependency: `Depends(require_role(Role.ADMIN))` declared on the handler's principal parameter; no change to `require_role` or `Principal`.
 
 ## Alternatives considered
 N/A: the registration decision (APIRouter per module) was made in the Plan's Design section.
 
 ## Implementation
 ### Target file
-`scripts/eventbus/replay_route.py`
+`scripts/eventbus/admin_route.py`
 
 ### Procedure
-1. In `scripts/eventbus/replay_route.py`, add `router = APIRouter()` (new) and import `APIRouter`, `Depends` from `fastapi` and `Principal`, `Role`, `require_role` from `eventbus.auth` (existing imports are kept).
-2. Decorate `replay` with the route decorator(s) listed under Details and give its principal parameter the `Depends(require_role(Role.OPERATOR))` default.
+1. In `scripts/eventbus/admin_route.py`, add `router = APIRouter()` (new) and import `APIRouter`, `Depends` from `fastapi` and `Principal`, `Role`, `require_role` from `eventbus.auth` (existing imports are kept).
+2. Decorate `update_topics_authorization` with the route decorator(s) listed under Details and give its principal parameter the `Depends(require_role(Role.ADMIN))` default.
 3. Do not change the handler body, logging, audit calls, or responses.
 4. Run the module's tests named under Validation plan.
 
@@ -33,9 +33,9 @@ N/A: the registration decision (APIRouter per module) was made in the Plan's Des
 - Use `@router.get(...)`/`@router.post(...)` with the same path strings `app.py` uses today; keep return annotations as they are in `app.py` today so FastAPI builds the same response handling.
 
 ### Details
-- Route: `@router.get("/replay")`; change `principal: Principal` to `principal: Principal = Depends(require_role(Role.OPERATOR))`; keep the `since_seq`, `format` (alias of `fmt`), `limit`, `offset` query parameters exactly as `app.py` and this function declare them.
-- The `app.py` wrapper passed `principal=_principal`; the audit call `log_privileged_action(... actor=principal.token_fingerprint)` is unchanged.
-- Return annotation `Any` as in `app.py`.
+- Route: `@router.post("/admin/topics/authorization", response_model=None)`; change `principal: Principal` to `principal: Principal = Depends(require_role(Role.ADMIN))`.
+- The function keeps its name (the `app.py` wrapper `admin_topics_authorization` disappears); `response_model=None` is required because the return type is `dict | JSONResponse`.
+- Tests patch `eventbus.admin_route.log_privileged_action` and `_build_principal_map`; both stay.
 
 ## Compatibility considerations
 - URL, method, query parameters, status codes, and response bodies are unchanged. The OpenAPI `operationId` of a route follows the function name; it changes only for `/health` (`health` to `health_check`) and `/admin/topics/authorization` (`admin_topics_authorization` to `update_topics_authorization`); no consumer of operationId exists in the repository (checked with `rg operationId`).
@@ -47,12 +47,12 @@ N/A: the registration decision (APIRouter per module) was made in the Plan's Des
 - Revert this file's commit; the `app.py` wrapper change is reverted together with it (same phase).
 
 ## Validation plan
-- `uv run pytest tests/eventbus/test_eventbus_replay_pagination.py tests/eventbus/test_eventbus_replay_subscribe.py -v`
+- `uv run pytest tests/eventbus/test_admin_topics_authorization.py tests/eventbus/test_authz_generation_ttl.py -v`
 - `uv run pytest tests/eventbus -v`, `uv run ruff check scripts/eventbus/`, `uv run mypy --no-namespace-packages scripts/ tests/eventbus tools`, `PYTHONPATH=scripts uv run lint-imports`.
 
 ## Completion criteria
-- `scripts/eventbus/replay_route.py` defines `router` with the route(s) above; the role dependency sits on the registered function.
-- `rg -n "^(async )?def replay\b" scripts/eventbus/` returns exactly one match.
+- `scripts/eventbus/admin_route.py` defines `router` with the route(s) above; the role dependency sits on the registered function.
+- `rg -n "^(async )?def update_topics_authorization\b" scripts/eventbus/` returns exactly one match.
 - The listed tests and checks pass.
 
 ## Out of Scope
@@ -64,9 +64,9 @@ N/A: the registration decision (APIRouter per module) was made in the Plan's Des
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the router and decorators in `scripts/eventbus/replay_route.py` | Pending | — | — | |
-| 2 | Run the tests named in Validation plan (no new test file in this row) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the router and decorators in `scripts/eventbus/admin_route.py` | Completed | 20261110-113335 | 20261110-113335 |  |
+| 2 | Run the tests named in Validation plan (no new test file in this row) | Completed | 20261110-113335 | 20261110-113335 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -86,4 +86,4 @@ N/A: the registration decision (APIRouter per module) was made in the Plan's Des
 - **Source plan**: plans/20261110-090758_adrrev001_eventbus-route-handlers.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261110-100805
-- **Related target files**: `scripts/eventbus/replay_route.py`
+- **Related target files**: `scripts/eventbus/admin_route.py`

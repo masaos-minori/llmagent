@@ -63,9 +63,9 @@ N/A: the registration decision (APIRouter per module) was made in the Plan's Des
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the router and decorators in `scripts/eventbus/publish_route.py` | Pending | — | — | |
-| 2 | Run the tests named in Validation plan (no new test file in this row) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the router and decorators in `scripts/eventbus/publish_route.py` | Completed | 20261110-113335 | 20261110-113335 |  |
+| 2 | Run the tests named in Validation plan (no new test file in this row) | Completed | 20261110-113335 | 20261110-113335 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

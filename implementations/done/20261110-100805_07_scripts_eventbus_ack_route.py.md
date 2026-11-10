@@ -65,9 +65,9 @@ N/A: the registration decision (APIRouter per module) was made in the Plan's Des
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the router, decorators, and the principal dependency in `scripts/eventbus/ack_route.py` | Pending | — | — | |
-| 2 | Run the tests named in Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the router, decorators, and the principal dependency in `scripts/eventbus/ack_route.py` | Completed | 20261110-113335 | 20261110-113335 | Also removed the unused _identity parameter of _do_ack; _principal stays Optional there as the fail-closed guard. |
+| 2 | Run the tests named in Validation plan | Completed | 20261110-113335 | 20261110-113335 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

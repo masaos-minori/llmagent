@@ -55,9 +55,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the prose in `docs/24_eventbus/eventbus_08_reference_api.md` | Pending | — | — | |
-| 2 | Regenerate the guarded block with the generator and run `--check` | Pending | — | — | |
-| 3 | Run the documentation checkers listed in Validation plan | Pending | — | — | |
+| 1 | Edit the prose in `docs/24_eventbus/eventbus_08_reference_api.md` | Completed | 20261110-113335 | 20261110-113335 |  |
+| 2 | Regenerate the guarded block with the generator and run `--check` | Completed | 20261110-113335 | 20261110-113335 |  |
+| 3 | Run the documentation checkers listed in Validation plan | Completed | 20261110-113335 | 20261110-113335 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
