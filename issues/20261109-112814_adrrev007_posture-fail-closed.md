@@ -75,6 +75,79 @@ Ensure the Agent never continues startup unless every configured MCP server's se
 - `Needs confirmation`: the current text of ADR-002, ADR-007, and ADR-014 posture restatements (not read in this review).
 - Maintainer approval is required for the ADR-003 and ADR-004 amendments.
 
+## Adversarial Verification Results
+
+Verified against current source on 2026-11-10 (HEAD `dab0fdf30`). Each claim was checked
+once against live files; evidence cites file, line, and behavior.
+
+### Claim 1 — a pre-bind posture exit looks like an outage for a non-required server (Needs confirmation #1)
+
+Status: **REFUTED for subprocess mode; dormant for HTTP/persistent mode.**
+
+- `scripts/mcp_servers/server.py` `_enforce_startup_posture_gate()` (L251-281) raises
+  `RuntimeError` when the gate is missing or fails. `run_http()` calls it at L314, before
+  uvicorn creates any socket (L316-344). The docstring (L289-292) states the exit is pre-bind
+  and fail-fast: the process terminates before binding.
+- Subprocess servers are started by `scripts/agent/startup_mcp_starter.py`. Both
+  `start_servers()` (L88-122) and `verify_health()` (L125-180) route every failure through
+  `retry_once_with_delay()` (`scripts/agent/shared/retry_helper.py`), which re-raises with a
+  `[fatal]` prefix on second failure and aborts startup. Neither path reads `cfg.required`;
+  the abort is unconditional. Comment L119: "fail closed (required=true always for subprocess
+  servers)".
+- Therefore a subprocess that exits before binding is detected as a spawn/health failure and
+  aborts startup regardless of `required`. The Agent never reaches the HTTP-probe /
+  `classify_server_failure()` Availability path for a subprocess server.
+- ADR-004 already encodes this: line 244 and line 305 state a subprocess spawn failure aborts
+  startup regardless of `required`, and startup validation rejects a configuration in which a
+  subprocess server sets `required = false`.
+- The only path where an unreachable server becomes an Availability failure is
+  `collect_server_postures()` / `check_readiness()` for probed (persistent/HTTP) servers
+  (`scripts/agent/services/mcp_health.py`, classify L160-161, `_is_fatal_gate` L149). A
+  `required=false` such server degrades to a warning. However every entry in
+  `registry/component_mandatoriness.yaml` is classified `required` (all 10 entries), and
+  config validation enforces that classification, so no non-required server exists. The bypass
+  is dormant, not exploitable.
+
+Conclusion: the claimed bypass does not reproduce for the mode this issue targets (subprocess).
+Per the AI Implementation Instruction, the code change is not warranted; the work narrows to the
+documentation and authority-model changes.
+
+### Claim 2 — posture rules are restated in ADR-002, ADR-003, ADR-007, ADR-014 (Needs confirmation #2)
+
+Status: **CONFIRMED that restatements exist; the contradiction is narrower than stated.**
+
+- ADR-002 L239: "a `FAILED` check aborts Agent startup." Consistent with ADR-004.
+- ADR-007 L80 / L228: "A posture `FAILED` result aborts startup"; explicitly "not an
+  availability failure." More precise than ADR-003.
+- ADR-014 L138: "no `RuntimeToolRegistry` entry for a server whose posture is not accepted
+  (contract gate only)." Registry-exclusion framing.
+- ADR-003 Decision Detail #16 (L86): "A server whose Security Posture is not accepted is
+  excluded when `RuntimeToolRegistry` is constructed..." frames it as a static-availability
+  decision and does NOT carve out the ADR-004 "posture `FAILED` -> abort even when
+  `required = false`" rule. This is the single phrasing that invites the "exclude and continue"
+  misread the issue flags.
+- Nuance: ADR-003 #16's "not accepted" is broader than ADR-004's "FAILED". Some not-accepted
+  cases are Availability failures (a non-required server may continue) while `FAILED` is always
+  Safety/Integrity (abort). The two ADRs are not strictly contradictory; the tension is that
+  ADR-003 #16 omits the `required = false` abort that ADR-004 mandates. The issue's proposed fix
+  (treat "not accepted" as identical to `FAILED` for this rule; drop the "continue" implication)
+  is reasonable, but the scope is one ambiguous clause, not five contradictory places.
+
+### Claim 3 — no registered authority target for the posture contract
+
+Status: **CONFIRMED.** `config/adr_authority.toml` contains no `security.posture-contract`
+entry (nor any `security.` or `posture` token).
+
+### Overall
+
+- Code change: not warranted. The bypass the issue asks to reproduce does not exist for
+  subprocess-mode servers; persistent-mode non-required servers do not currently exist.
+- Documentation / authority change: warranted. Consolidate ADR-003 #16 wording, replace the
+  restatements in ADR-002/007/014 with references to ADR-004, and register
+  `security.posture-contract` (primary: ADR-004) in `config/adr_authority.toml`.
+- Unchanged: ADR amendments still require maintainer approval (issue Constraint); do not fabricate
+  approval records.
+
 ## AI Implementation Instruction
 - Reproduce the claimed bypass first; if it does not exist, limit the work to the documentation and authority-model changes and say so in the report.
 - Do not relax any existing safety or integrity abort.

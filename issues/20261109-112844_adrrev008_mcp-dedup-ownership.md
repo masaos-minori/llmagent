@@ -85,6 +85,104 @@ Classify `mcp_dedup.sqlite` as a disposable cache (maintainer decision of 2026-1
 - `Explicit in documentation`: `db_03_07` calls the store "a separate system of record" in one place and "a replay cache ... a fresh empty store only means the next call of each key runs for real" in another, and itself notes that `db_08_active_databases.md` does not list the store; it also still cites the now-archived `issues/20261031-175803_toolstate001_tool-call-state-producer.md`.
 - `Strongly implied by code`: `DedupStore` holds one open connection per process; deleting the file while a server runs leaves the process writing to an unlinked file until restart, and a recreated file yields an empty store for new processes (confirm by test).
 
+## Adversarial Verification Results
+
+Verified against current source on 2026-11-10 (HEAD `dab0fdf30`). Each claim checked once
+against live files; evidence cites file, line, and behavior.
+
+### Claim 1 — store loss/recreation lets a non-retryable tool re-execute (Needs confirmation #81)
+
+Status: **CONFIRMED by control-flow trace.**
+
+- `DedupStore.__init__` (`mcp_dedup.py` L232-246) runs `CREATE TABLE IF NOT EXISTS` and stamps
+  `PRAGMA user_version`; it succeeds on a missing or recreated file and returns a handle to a
+  fresh, empty store.
+- `_dedup_context()` (`dispatch.py` L175-194) therefore returns a non-None store even when the DB
+  was just recreated; it only fails open (sets `_dedup_disabled=True`, returns `(None, None)`)
+  when `open_dedup_store` raises.
+- In `dispatch_tool`, an empty store makes `store.lookup(key)` return None, so `row is None`
+  and the code takes the `else` branch (L405-412): `record_pending`, then `await handler(a)`
+  (L431). There is no "is this store freshly created?" check, so the tool executes.
+- Fail-closed (`dedup_store_error`) fires only on (a) init failure -> the `(None, None)` path
+  (L413-428) or (b) `lookup` raising `sqlite3.Error`/`OSError` (L309-323). An empty-but-open
+  store hits neither.
+- Conclusion: a non-retryable tool re-executes after the store is lost or recreated. The
+  guarantee breaks exactly during recovery. The issue's "strongly implied by code" note is
+  correct and is now confirmed by reading the actual control flow.
+
+### Claim 2 — current fail-open behavior (explicit in code)
+
+Status: **CONFIRMED.**
+
+- Init/lookup failure: retryable tools proceed overlay-only with `store_error`; non-retryable
+  tools fail closed with `dedup_store_error`. Verified by
+  `test_store_error_retryable_proceeds_non_retryable_fails_closed` (L521) and
+  `test_init_failure_fail_closed_and_degrade` (L555), both asserting the described outcomes
+  (`dedup_state == "store_error"` + `calls == 1` for retryable; `error_type ==
+  "dedup_store_error"` + `calls == 0` for non-retryable).
+- `_dedup_context()` fails open by design (L186 comment).
+- `_store_op` (L209-216): a failed write after a successful open logs a warning and returns
+  `False`; the caller ignores the return and continues. This is the third, quieter path. For a
+  non-retryable tool against an empty store, if `record_pending` itself fails the tool still
+  executes (warning only) -> the "post-open write failure" gap the issue wants made fail-closed
+  for non-retryable tools.
+
+### Claim 3 — one config file shared by several processes
+
+Status: **CONFIRMED.** `load_dedup_config()` resolves `resolve_config_dir() / "mcp_dedup.toml"`
+(`mcp_dedup.py` L80) and is called by `scripts/mcp_servers/dispatch.py:183` (every MCP server
+process using the shared dispatcher) and `scripts/agent/workflow/workflow_engine.py:167` (the
+Agent pending timeout); `tool_runner.py` reads `retry_class`. Multiple process kinds read one
+file, coupling their lifecycles contrary to ADR-002.
+
+### Claim 4 — dedup key and snapshot replay inputs
+
+Status: **CONFIRMED.** `derive_idempotency_key` is
+`sha256(method \n tool_name \n canonical-JSON(args) \n uid)` (`http_transport.py:62`). The
+execution snapshot (`execution_snapshot.py`) carries `config_hash` (SHA-256 over the
+`config/*.toml` tree), the deployed revision, and each DB's `user_version` header, and reads
+`user_version` and `eventbus_db_path`. So the schema-validation and EventBus-coupling issues in
+this batch change the replay-equality decision's inputs, as the issue states.
+
+### Claim 5 — retention / purge
+
+Status: **CONFIRMED.** `purge_expired` (`mcp_dedup.py` L351-376) deletes only terminal rows
+older than retention; pending rows are never purged. The guarantee is bounded by retention,
+snapshot equality, and session scope, not absolute.
+
+### Claim 6 — db_03_07 wording
+
+Status: **CONFIRMED internal inconsistency.** `db_03_07` L99 calls the store "a separate system
+of record" and cites the archived `toolstate001` issue; L148 calls it a "replay cache" whose
+"fresh empty store only means the next call of each key runs for real"; L150 notes `db_08` does
+not yet list the store. "System of record" vs "replay cache" contradict each other.
+
+### Claim 7 — ADR-008 matrix / db_08 / ADR-004 registration
+
+Status: **CONFIRMED absence.**
+- ADR-008 has a Recovery Policy Matrix (L86) and L138 requires extending it before deploying a
+  system-of-record store, but `mcp_dedup` appears nowhere in ADR-008 -> not in the matrix.
+- `db_08_active_databases.md` does not list `mcp_dedup`.
+- ADR-004 contains no `dedup` mention -> the retryable fail-open and the post-open write-failure
+  degradation are unregistered fail-opens.
+
+### Overall
+
+- The central problem is REAL and reproduced by code reading (and reproducible by test): the
+  fail-closed guarantee holds for the two failure modes (init failure, lookup raises) but NOT
+  for the empty-store mode, which is precisely the recovery scenario for a disposable cache.
+  Classifying the store as a disposable cache (Option B) makes the gap operational, so the
+  fail-closed-on-empty-store fix is warranted.
+- Every "explicit in code" and "documentation only" claim checks against source; no
+  contradiction with the issue's characterizations was found.
+- Adversarial note for the plan: any fix must not block a legitimate first-time call on a fresh
+  store (never-seen key must still execute). It must only block re-execution of a completed
+  non-retryable call that was lost. Distinguishing "first-ever" from "recreated after loss" is
+  the unresolved design question and must be resolved out-of-band (not inside the lossable DB
+  file), as the issue states.
+- Correctly left to the plan: the "lost or recreated" detection mechanism; maintainer approvals
+  for the ADR-004/ADR-008 amendments (do not fabricate approval records).
+
 ## AI Implementation Instruction
 - The classification is decided (disposable cache); do not implement Option A (backup and restore of the store). Implement the decided ADR-004 treatment (exception for the retryable fail-open, fail closed for non-retryable write failures); do not widen the exception to non-retryable tools.
 - Never weaken a retry classification; keep unknown tools non-retryable.

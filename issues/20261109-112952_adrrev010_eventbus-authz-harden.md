@@ -79,6 +79,92 @@ Make the EventBus authorization guarantees hold across restarts and across princ
 - Use dummy secrets only; do not write approval records on a maintainer's behalf.
 - Write documentation in English and follow the docs content policy; do not commit.
 
+## Adversarial Verification Results
+
+Verified against current source on 2026-11-10. Source read: `scripts/eventbus/auth.py`,
+`scripts/eventbus/admin_route.py`, `scripts/eventbus/config.py`,
+`tests/eventbus/test_authz_generation_ttl.py`,
+`docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`.
+
+### Claims confirmed true in current source
+
+- **Generation counter restarts from 0.** `_CURRENT_GENERATION` is module-level
+  (`auth.py:93`); `build_and_publish_generation()` sets `generation = 0 if previous is
+  None else previous.generation + 1` (`auth.py:240`). A restart therefore resets to 0.
+  CONFIRMED.
+- **Admin endpoint contract.** `admin_route.py` rejects an empty body with 422
+  (`:125-129`), compares `expected_generation` against the in-force generation BEFORE
+  change detection and returns 409 on mismatch (`:155-169`), and returns a `changed`
+  boolean; a non-empty but unchanged body returns 200 `changed: false` (`:214-225`).
+  CONFIRMED.
+- **Two control-plane credentials, identical roles.** Both `auth_token` and `admin_token`
+  exist and are built with the same `_CONTROL_PLANE_ROLES` ({OPERATOR, MONITORING,
+  ADMIN}); `admin_token` holds no Consumer role (`auth.py:96-98,174-223`). They are
+  functionally redundant. CONFIRMED.
+- **No `load_config()` guard for a shared `consumer_id`.** Neither `load_config()` nor
+  `EventBusConfig.__post_init__` rejects a configuration granting one `consumer_id` to
+  more than one principal. The only duplicate guard is the token-value check in
+  `_build_principal_map()` (`auth.py:147-165`). CONFIRMED (a genuine gap; the issue's
+  `Needs confirmation` is answered: it is not rejected today).
+- **Verification-table mis-mappings.** The ADR-013 Verification table maps
+  `persistent: false` to INV-03 (`:254`) and the admin 422 / no-op `changed: false` to
+  INV-04 (`:255-256`). INV-03 is "DLQ administration and privileged replay MUST require
+  operator authorization" (`:201`) and INV-04 is "unknown/missing/mistyped config keys
+  MUST be rejected by `load_config()`" (`:204`). Neither matches the mapped behavior.
+  Both mappings are WRONG. CONFIRMED.
+- **Threat-model alternation + identity-store sentence.** The ADR calls the model
+  "multi-tenant" (`:148`) and "single-operator" (`:153-154`) in adjacent alternatives,
+  and states production deployments "should use a proper identity store" (`:183`).
+  CONFIRMED.
+- **Broken `load_config()` sentence.** Decision Details #6 (`:79`) ends "...rejects a
+  configuration in which distinct token roles share one non-empty token value, and a
+  TOML authorization mapping reaches the Consumer principal through it." The trailing
+  clause does not parse. CONFIRMED (grammatically broken).
+
+### Claims overstated or inaccurate
+
+- **"generation, TTL, `expected_generation` 409/422, and baseline audit have no invariant
+  or test" is FALSE.** Generation is mapped to INV-01 and tested
+  (`test_generation_monotonicity`, `test_snapshot_immutability`,
+  `test_racing_updates_publish_one_generation`); `expected_generation` 409 is covered by
+  `test_racing_updates_publish_one_generation`; TTL expiry is covered by
+  `TestTTLExpirySweep`. Generation, TTL, and the 409 path all have tests. The statement
+  overstates the gap. (TTL and the 409 path lack a *dedicated* ADR invariant row beyond
+  INV-01; that is a narrower doc-consistency item, not an untested blind spot.)
+- **The no-op "cannot be implemented consistently" framing is an overstatement.** The
+  code IS internally consistent: it distinguishes an empty/malformed body (422) from a
+  well-formed but unchanged body (200 `changed: false`). The real inconsistency is between
+  ADR rule 12 (`:99`: "a body that produces no actual change is rejected with HTTP 422")
+  and (a) the code that returns 200 `changed: false`, and (b) the ADR's own Verification
+  row 256 ("No-op detected: `changed: false`"). This is a DOC-vs-CODE drift in ADR-013,
+  resolvable by editing the ADR, not an implementation impossibility.
+
+### Restart vulnerability is largely theoretical
+
+- After a restart the baseline is reloaded from `config/eventbus.toml` as generation 0
+  (ADR-013 rule 15, `:109`), and runtime overrides are never persisted. So a stale
+  `expected_generation=N` accepted after the counter again reaches N operates on the
+  freshly-reloaded baseline that every observer sees. There is no divergent hidden state
+  to attack. The boot-epoch hardening is defensive, not a fix for a reachable exploit.
+  The issue itself lists the boot-epoch form as an Unresolved Question.
+
+### Assessment
+
+- **Real, verifiable problems:** the two Verification-table mis-mappings (`persistent:
+  false`→INV-03, admin 422/no-op→INV-04), the ADR rule 12 vs code/row-256 no-op drift,
+  the grammatically broken Decision Details #6 sentence, the threat-model alternation,
+  and the "proper identity store" sentence. All four are DOCUMENT fixes to ADR-013.
+- **Not warranted as stated:** merging `auth_token`/`admin_token` (redundant, but a
+  config-breaking change with blast radius — maintainer decision); standardizing no-op as
+  422 and removing `changed` (would discard the currently-useful empty-vs-no-op
+  distinction the code already implements correctly — regression risk); rejecting a shared
+  `consumer_id` at `load_config()` (defensible guard, single-operator threat model,
+  maintainer decision); adding a boot epoch (theoretical harm, form undecided).
+- **Net:** this issue is DOCUMENTS/authority-only for ADR-013 plus three maintainer
+  decisions (credential merge, no-op standardization, shared-`consumer_id` guard) and one
+  undecided design choice (boot-epoch form). No clear code correctness fix is required.
+  The verified doc defects can be fixed without fabricating any governance approval.
+
 ## Traceability
 - **Workflow phase**: issue-creator
 - **Source issue**: N/A: this document is the issue
