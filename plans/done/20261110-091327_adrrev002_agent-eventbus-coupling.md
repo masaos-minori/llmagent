@@ -288,11 +288,11 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the EventBus-side tool (additive, no removal) | In Progress | — | — |  |
-| 2 | Switch deploy and the ADR-008 checker to the new owner | In Progress | — | — |  |
-| 3 | Remove Agent-side eventbus support and the config key | In Progress | — | — |  |
-| 4 | Delete the unused client | In Progress | — | — |  |
-| 5 | Documentation | In Progress | — | — |  |
+| 1 | Add the EventBus-side tool (additive, no removal) | Completed | — | 20261110-122453 |  |
+| 2 | Switch deploy and the ADR-008 checker to the new owner | Completed | — | 20261110-122453 |  |
+| 3 | Remove Agent-side eventbus support and the config key | Completed | — | 20261110-122453 |  |
+| 4 | Delete the unused client | Completed | — | 20261110-122453 |  |
+| 5 | Documentation | Completed | — | 20261110-122453 |  |
 | 6 | Deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -303,51 +303,51 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261110-102050_01_scripts_agent_eventbus_client.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261110-102050_03_scripts_eventbus_db_tools.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261110-102050_04_tests_eventbus_test_eventbus_db_tools.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261110-102050_05_deploy_init_db.sh.md | 2 | Procedure | Pending | — | — |
-| implementations/20261110-102050_06_scripts_db_helper.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_07_scripts_db_create_schema.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_08_scripts_db_schema_sql.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_09_scripts_db_config.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_10_scripts_db_rotation.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_11_scripts_db_recovery_drill.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_12_scripts_db_recovery.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_13_scripts_db___init__.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_14_scripts_shared_execution_snapshot.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_15_scripts_shared_mcp_dedup.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_16_scripts_agent_production_config_validator.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_17_config_agent.toml.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_18_tools_check_db_separation.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261110-102050_20_tests_agent_test_production_config_validator.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_21_tests_conftest.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_22_tests_test_production_isolation.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_23_tests_db_test_create_schema.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_24_tests_db_test_db_maintenance.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_27_tests_db_test_sqlite_helper.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_30_tests_deploy_test_setup_services_eventbus.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_34_tests_agent_test_repl.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_35_tests_integration_test_session_recovery.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_36_tests_agent_memory_test_memory_vec_session.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_37_tests_rag_test_fts_sync.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_38_registry_manifests_agent_api.yaml.md | 4 | Procedure | Pending | — | — |
-| implementations/20261110-102050_39_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261110-102050_40_docs_23_agent_agent_02_runtime-architecture.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_41_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_42_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_43_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_44_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_45_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_46_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_47_docs_41_db_db_08_active_databases.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_48_docs_90_deployment_deployment_01_deployment.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_49_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_50_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_51_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261110-102050_52_tests_eventbus_test_eventbus_schema_version.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_53_registry_manifests_db_schema_versions.yaml.md | 3 | Procedure | Pending | — | — |
-| implementations/20261110-102050_54_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261110-102050_01_scripts_agent_eventbus_client.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261110-102050_03_scripts_eventbus_db_tools.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261110-102050_04_tests_eventbus_test_eventbus_db_tools.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261110-102050_05_deploy_init_db.sh.md | 2 | Procedure | Completed | — | — |
+| implementations/20261110-102050_06_scripts_db_helper.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_07_scripts_db_create_schema.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_08_scripts_db_schema_sql.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_09_scripts_db_config.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_10_scripts_db_rotation.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_11_scripts_db_recovery_drill.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_12_scripts_db_recovery.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_13_scripts_db___init__.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_14_scripts_shared_execution_snapshot.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_15_scripts_shared_mcp_dedup.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_16_scripts_agent_production_config_validator.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_17_config_agent.toml.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_18_tools_check_db_separation.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261110-102050_20_tests_agent_test_production_config_validator.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_21_tests_conftest.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_22_tests_test_production_isolation.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_23_tests_db_test_create_schema.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_24_tests_db_test_db_maintenance.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_27_tests_db_test_sqlite_helper.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_30_tests_deploy_test_setup_services_eventbus.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_34_tests_agent_test_repl.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_35_tests_integration_test_session_recovery.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_36_tests_agent_memory_test_memory_vec_session.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_37_tests_rag_test_fts_sync.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_38_registry_manifests_agent_api.yaml.md | 4 | Procedure | Completed | — | — |
+| implementations/20261110-102050_39_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261110-102050_40_docs_23_agent_agent_02_runtime-architecture.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_41_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_42_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_43_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_44_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_45_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_46_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_47_docs_41_db_db_08_active_databases.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_48_docs_90_deployment_deployment_01_deployment.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_49_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_50_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_51_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261110-102050_52_tests_eventbus_test_eventbus_schema_version.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_53_registry_manifests_db_schema_versions.yaml.md | 3 | Procedure | Completed | — | — |
+| implementations/20261110-102050_54_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
