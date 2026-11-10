@@ -447,6 +447,21 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
             for err in result.errors
         )
 
+    def test_rag_identity_mismatch_policy_key_is_rejected(self) -> None:
+        """The fallback identity gate was removed with the remote RAG delegation
+        path: agent.toml must not carry its policy key, so it is reported as unknown."""
+        config = {
+            "tool_definitions_strict": True,
+            "rag_identity_mismatch_policy": "reject",
+        }
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production"
+        )
+        assert any(
+            "Unknown config keys" in err and "rag_identity_mismatch_policy" in err
+            for err in result.errors
+        )
+
     def test_multiple_unknown_keys_produce_errors(self) -> None:
         config = {
             "tool_definitions_strict": True,

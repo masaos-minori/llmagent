@@ -36,7 +36,7 @@ Confirmed deviations are tracked in `docs/00_governance/governance_03_issue-and-
 | HTTP MCP Adoption | `adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md` |
 | SQLite 4DB Separation | `adr_02_05_008_db-sqlite-4db-separation.md` |
 | RAG FTS5 Text Separation | `adr_02_06_009_rag-fts5-text-separation.md` |
-| RAG Fallback | `adr_02_06_010_rag-fallback.md` |
+| RAG Fallback (Withdrawn) | `adr_02_06_010_rag-fallback.md` |
 | Git MCP Server-Side Write | `adr_02_03_012_mcp-git-server-side-write-enforcement.md` |
 | EventBus Authentication | `adr_02_04_013_eventbus-authentication-authorization.md` |
 | Agent Control Plane Boundaries | `adr_02_02_014_agent-control-plane-responsibility-boundaries.md` |

@@ -51,7 +51,7 @@ This index records no deviations of its own. Open deviations are recorded in the
 | ADR-007 | Adoption of HTTP MCP and Non-Support of stdio | Accepted | 03 mcp | `10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md` |
 | ADR-008 | Separating SQLite into Four Databases | Accepted (amended 2026-10-30; superseded 2026-11-07: the forward-only migration contract for workflow/eventbus was removed — current-only schema policy) | 05 db | `10_adr/adr_02_05_008_db-sqlite-4db-separation.md` |
 | ADR-009 | Separating RAG FTS5 Search Text from LLM Presentation Text | Accepted | 06 rag | `10_adr/adr_02_06_009_rag-fts5-text-separation.md` |
-| ADR-010 | In-Process Fallback When External RAG Execution Fails | Accepted | 06 rag | `10_adr/adr_02_06_010_rag-fallback.md` |
+| ADR-010 | In-Process Fallback When External RAG Execution Fails | Withdrawn | 06 rag | `10_adr/adr_02_06_010_rag-fallback.md` |
 | ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | 03 mcp | `10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md` |
 | ADR-013 | EventBus Authentication and Authorization | Accepted | 04 eventbus | `10_adr/adr_02_04_013_eventbus-authentication-authorization.md` |
 | ADR-014 | Responsibility Boundaries of the Agent Control Plane | Accepted | 02 agent | `10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md` |
@@ -75,13 +75,12 @@ Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`.
 ADR-001 → ADR-004, ADR-014
 ADR-002 → ADR-001, ADR-004
 ADR-003 → ADR-001, ADR-002, ADR-004
-ADR-004 → ADR-001, ADR-002, ADR-003, ADR-010
+ADR-004 → ADR-001, ADR-002, ADR-003
 ADR-005 → ADR-002, ADR-004
 ADR-006 → ADR-002, ADR-004, ADR-013
 ADR-007 → ADR-002, ADR-004
 ADR-008 → ADR-002, ADR-004, ADR-005, ADR-006, ADR-013
 ADR-009 → ADR-002, ADR-004, ADR-005
-ADR-010 → ADR-002, ADR-004, ADR-005
 ADR-012 → ADR-007
 ADR-013 → ADR-002, ADR-006
 ADR-014 → ADR-001
@@ -104,7 +103,6 @@ Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`.
 ADR-001 --Requires--> ADR-004
 ADR-004 --Requires--> ADR-002
 ADR-004 --Extends--> ADR-003
-ADR-010 --Exception-to--> ADR-004
 ADR-013 --Specializes--> ADR-006
 ADR-014 --Extends--> ADR-001
 ```
@@ -123,8 +121,7 @@ ADR-014 --Extends--> ADR-001
 | `eventbus.persistence` | ADR-006 | ADR-013 — authentication and authorization semantics only |
 | `mcp.technical-safety` | ADR-012 | ADR-007 — transport, authentication, and health-check responsibilities |
 | `mcp.transport` | ADR-007 | — |
-| `rag.canonical-data` | ADR-005 | ADR-010 — fallback behavior only |
-| `rag.fallback` | ADR-010 | ADR-004 — failure-classification contract; ADR-010 is the sole Fallback exception it permits; ADR-005 — canonical data selection |
+| `rag.canonical-data` | ADR-005 | — |
 <!-- END AUTO-GENERATED -->
 
 ### Intentional Circular References
@@ -138,7 +135,6 @@ Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`.
 - ADR-001 ↔ ADR-014: ADR-014 extends the responsibility boundaries to the components other than the Workflow Engine; ADR-001 owns the Workflow Engine's mandatoriness.
 - ADR-002 ↔ ADR-004: ADR-004 classifies a Config Isolation violation as a Fail-Fast failure; ADR-002 owns the isolation decision.
 - ADR-003 ↔ ADR-004: ADR-004 defines the failure-classification contract; ADR-003 remains the authority for RuntimeToolRegistry, Tool ownership, and Routing.
-- ADR-004 ↔ ADR-010: ADR-004 defines the failure-classification contract; ADR-010 is the sole Fallback it permits.
 - ADR-006 ↔ ADR-013: ADR-013 owns EventBus authentication and authorization; ADR-006 owns persistence and SSE delivery.
 <!-- END AUTO-GENERATED -->
 
@@ -181,7 +177,7 @@ The ADR body Verification section is the canonical record of verification eviden
 | ADR-004 INV-08 | Required-component unavailability prevents startup | Startup Validation | Startup | Deployment Blocking | Confirmed (`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers`, passing; the unified `required` field drives startup behavior) |
 | ADR-004 INV-09 | A non-required component's availability failure permits startup continuation with partial availability; the component is disabled and its capabilities excluded from executable exposure | Startup Validation | Startup | Deployment Blocking | Confirmed (`tests/agent/services/test_mcp_tool_discovery.py::TestDiscoverAllUnreachableServers`, passing; the subprocess spawn path is covered by ADR-004 Exceptions and `tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_subprocess_non_required_rejected`) |
 | ADR-004 INV-14 | Unknown component criticality must not be assumed non-required; it must be treated as an unresolved design or configuration error (ADR-004 Decision #12) | Startup Validation | Startup | Deployment Blocking | Confirmed (`tests/shared/test_mcp_config.py::TestRequiredDefault::test_required_default_true_on_direct_construction`, `tests/shared/test_mcp_config.py::TestRequiredDefault::test_required_default_true_from_toml_absent_key`, passing; an unspecified `required` defaults to true) |
-| ADR-004 INV-15, INV-16 | Fallback occurs only where another Accepted ADR explicitly defines it; ADR-010 remains the sole authority for RAG fallback | Manual Review | Release review | Non-Blocking | Manual — procedure: release-review fallback audit, the controlling gate. Automated fallback-path detection rejected: "fallback" appears as defensive default-value patterns across production sources, giving unmanageable false positives; only ADR-010 marker uniqueness is automated (`tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard`). Cadence: each release review. Expected evidence: a fallback audit record showing every fallback path in `scripts/` traces to an Accepted ADR that explicitly defines it. Owner: Repository owner |
+| ADR-004 INV-15, INV-16 | Fallback is prohibited without exception; no path in `scripts/` substitutes another Destination for a failed one | Manual Review | Release review | Non-Blocking | Manual — procedure: release-review fallback audit, the controlling gate. Automated fallback-path detection rejected: "fallback" appears as defensive default-value patterns across production sources, giving unmanageable false positives. Cadence: each release review. Expected evidence: a fallback audit record showing no fallback path in `scripts/` substitutes another Destination for a failed one. Owner: Repository owner |
 | ADR-005 INV-02 | `chunks_vec` deleted before `documents` | Unit Test | CI | Blocking | Confirmed (`tests/rag/ingestion/test_delete_chain.py::TestDeleteDocumentChain::test_delete_chunks_vec_before_documents`, `tests/agent/services/test_rag_index_integrity.py::test_delete_document_chain_no_orphan_vec`, passing) |
 | ADR-006 INV-02 | No success response before event persistence | Integration Test | CI | Blocking | Confirmed (`tests/eventbus/test_eventbus_publish.py::test_publish_sqlite_write_failure_reports_failure_without_side_effects`, passing; SQLite insert and commit failures are injected into `POST /publish`, and the HTTP response, committed SQLite state, JSONL archive, and broker notification are verified together; the converse is covered by `tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::test_publish_succeeds_if_jsonl_append_fails`) |
 | ADR-006 INV-05, INV-09 | EventBus offsets strictly monotonic | Unit Test | CI | Blocking | Confirmed (`tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq`, `tests/eventbus/test_eventbus_offsets.py::TestSqliteOffsetMonotonicity::test_older_seq_cannot_move_offset_backward`) |
@@ -196,9 +192,6 @@ The ADR body Verification section is the canonical record of verification eviden
 | ADR-008 INV-01 | Each DB has its own schema creation and recovery target path; supports the ownership checked by the static row above | Unit Test | CI | Blocking | Confirmed (`tests/db/test_create_schema.py::TestCreateSchemaWrapper`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations`) |
 | ADR-009 INV-07 | FTS5 rebuild rules followed | Integration Test | CI | Blocking | Confirmed (`tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`, `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_rebuild_fts_preserves_normalized_content_semantics`, `tests/agent/services/test_rag_index_integrity.py::test_rebuild_fts_uses_coalesce`) |
 | ADR-009 INV-10 | `normalized_content` must not appear in LLM output | Unit Test | CI | Blocking | Confirmed (`tests/rag/test_rag_pipeline_stage.py::TestAugmentStage::test_augment_stage_content_only_invariant`, `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_real_normalized_content_attribute_excluded`, passing) |
-| ADR-010 INV-03 | No local fallback on normal empty RAG result | Integration Test | CI | Blocking | Confirmed (`remote_empty` → `HttpResultKind.EMPTY`; `tests/rag/test_rag_http_mode.py::test_remote_empty_does_not_trigger_in_process`, passing) |
-| ADR-010 INV-04 | No local fallback on RAG 401/403 | Integration Test | CI | Blocking | Confirmed (`tests/rag/test_pipeline_http_result_kind.py::test_auth_error_fails_closed_without_in_process_fallback`, `tests/rag/test_rag_http_mode.py`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling`, passing) |
-| ADR-010 INV-05 | On fallback, the in-process pipeline re-runs its stages in order | Integration Test | CI | Blocking | Partial — stage order confirmed (`tests/rag/test_rag_http_mode.py::test_in_process_fallback_runs_stages_in_order`, `tests/rag/test_stage_lifecycle.py::TestStageExecutionOrder::test_stage_order_with_mocked_stages`, passing); unverified: real stage behavior behind the recorders. Cadence: each release review. Expected evidence: a fallback run showing every stage ran. Owner: Repository owner |
 | ADR-012 INV-01, INV-02, INV-03, INV-04 | Git MCP write operations enforced server-side: safe ref/remote patterns, no forced update through the normal `git_push` path, protected-branch enforcement on the changed branch, and independence from Agent-side approval | Unit/Integration Test | CI | Blocking | Confirmed (`tests/mcp_servers/git/`, passing). INV-01 covered by the write-tool allow-list rejection suite (`test_git_service_dispatch.py`) plus the retained read-tool option-injection tests; INV-02 covered by the push refspec rejection tests (`tests/mcp_servers/git/test_git_service_dispatch.py::TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot`, `tests/mcp_servers/git/test_git_service_dispatch.py::TestWriteRefAllowlist::test_rejected_branch_forms`); INV-03 covered by the destination-based protected-branch tests (`tests/mcp_servers/git/test_repository_state.py::TestStage3DestinationProtection`, `tests/mcp_servers/git/test_git_service_dispatch.py::TestDestinationBasedProtection`) plus the existing protected-branch suite; INV-04 covered by the independence tests under `tests/mcp_servers/git/`. |
 | ADR-013 INV-02, INV-07 | Every Consumer-route principal is explicitly bound to authorized `consumer_id` and topic values; shared and admin credentials have no Consumer-route bypass, and a rejected Subscribe, ACK, or NACK changes no delivery state | Integration Test | CI | Blocking | Confirmed (`tests/eventbus/test_eventbus_consumer_authorization.py::TestSharedAndAdminTokensHaveNoConsumerBypass`, `tests/eventbus/test_eventbus_consumer_authorization.py::TestConsumerPrincipalBinding`, `tests/eventbus/test_eventbus_auth.py::TestFailClosedConsumerAuthorization::test_shared_and_admin_tokens_have_no_consumer_bypass`, passing) |
 | ADR-014 INV-01 | Non-WorkflowEngine components (Orchestrator, LlmTurnExecutor, ToolExecutor) do not decide persistent Task/Attempt state, stage transitions, or retries | Manual Review | Code Review | Non-Blocking | Manual — procedure: code review. `Orchestrator.handle_turn()` delegates to `WorkflowEngineAdapter.execute_turn()` (Explicit in code — `scripts/agent/orchestrator.py`, `scripts/agent/workflow_engine_adapter.py`); no automated test. Cadence: every change to Orchestrator, LlmTurnExecutor, or ToolExecutor. Expected evidence: the code-review record showing no persistent Task/Attempt state, stage transition, or retry decision outside WorkflowEngine. Owner: Repository owner |
@@ -211,7 +204,7 @@ The ADR body Verification section is the canonical record of verification eviden
 
 | Pipeline Stage | Invariants Covered |
 |----------------|-------------------|
-| CI (pull request), confirmed | ADR-001 INV-01, INV-08, INV-10 and INV-11; ADR-002 INV-01 and INV-02; ADR-003 INV-02; ADR-004 INV-14; ADR-005 INV-02; ADR-006 INV-02, INV-05, INV-09 and INV-16; ADR-007 INV-06, INV-09, INV-11 and INV-12; ADR-013 INV-02 and INV-07; ADR-015 INV-01; ADR-009 INV-07 and INV-10; ADR-010 INV-03 and INV-04; ADR-012 INV-01, INV-02, INV-03 and INV-04; ADR-014 INV-02 |
+| CI (pull request), confirmed | ADR-001 INV-01, INV-08, INV-10 and INV-11; ADR-002 INV-01 and INV-02; ADR-003 INV-02; ADR-004 INV-14; ADR-005 INV-02; ADR-006 INV-02, INV-05, INV-09 and INV-16; ADR-007 INV-06, INV-09, INV-11 and INV-12; ADR-013 INV-02 and INV-07; ADR-015 INV-01; ADR-009 INV-07 and INV-10; ADR-012 INV-01, INV-02, INV-03 and INV-04; ADR-014 INV-02 |
 | CI (pull request), Partial | ADR-004 INV-07, INV-10 |
 | Startup validation | ADR-004 INV-01, INV-02, INV-07 (Partial), INV-08, INV-09, INV-10 (Partial) and INV-14; ADR-002 INV-01 and INV-02 through the Security Posture contract |
 | Pre-deployment validation | ADR-008 INV-01 to INV-05 (also enforced in CI) |

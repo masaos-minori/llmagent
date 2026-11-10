@@ -34,7 +34,6 @@ class TestBuildRagCfgAdapter:
         assert ns.use_rerank is True
         assert ns.use_refiner is False
         assert ns.use_search is True
-        assert ns.rag_query_service_url == ""
         assert ns.top_k_search == 20
         assert ns.top_k_rerank == 15
         assert ns.rag_top_k == 5
@@ -73,12 +72,6 @@ class TestBuildRagCfgAdapter:
         assert ns.refiner_max_chars_per_chunk == 400
         assert ns.refiner_timeout == 15.0
 
-    def test_rag_query_service_url_always_empty(self) -> None:
-        # rag_query_service_url must always be "" to prevent HTTP loop in MCP process
-        cfg = RagPipelineConfig()
-        ns = build_rag_cfg_adapter(cfg)
-        assert ns.rag_query_service_url == ""
-
     def test_use_search_always_true(self) -> None:
         cfg = RagPipelineConfig()
         ns = build_rag_cfg_adapter(cfg)
@@ -101,7 +94,6 @@ class TestBuildRagCfgAdapter:
             refiner_max_tokens=256,
             refiner_max_chars_per_chunk=400,
             refiner_timeout=15.0,
-            rag_auth_token="test-token",
         )
         adapter = build_rag_cfg_adapter(cfg)
 
@@ -116,8 +108,6 @@ class TestBuildRagCfgAdapter:
             "use_rrf",
             "rrf_k",
             "use_search",
-            "rag_query_service_url",
-            "rag_auth_token",
             "use_refiner",
             "refiner_max_tokens",
             "refiner_max_chars_per_chunk",
@@ -141,11 +131,9 @@ class TestBuildRagCfgAdapter:
         assert adapter.refiner_max_tokens == 256
         assert adapter.refiner_max_chars_per_chunk == 400
         assert adapter.refiner_timeout == 15.0
-        assert adapter.rag_auth_token == "test-token"
 
         # MCP mode invariants
         assert adapter.use_search is True
-        assert adapter.rag_query_service_url == ""
 
 
 # ── _hit_to_dict helper ───────────────────────────────────────────────────────

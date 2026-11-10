@@ -34,26 +34,17 @@ stage-populated field is written by a specific pipeline stage:
 - `augment_result` — written by `AugmentStage`
 - `stage_results` — appended by `RagPipeline.run()`
 - `search_diagnostics` — replaced by `SearchStage` with a new `SearchDiagnostics`
-  object containing populated `embed_ok`/`embed_failed`/`fts_errors` during search; in
-  HTTP mode, the HTTP augment handler replaces it using `dataclasses.replace()` with
-  `result_source`, `http_result_kind`, `remote_status_code`, and `remote_latency_ms`.
+  object containing populated `embed_ok`/`embed_failed`/`fts_errors` during search.
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
-Field definitions: `SearchDiagnostics`, `ResultSource`, and `HttpResultKind` in `scripts/rag/models_result.py` (summary in [rag_04_dto-models-types.md](rag_04_dto-models-types.md)). This section describes boundary conditions and ownership specifically in HTTP mode.
-
-#### Boundary Conditions (Boundary and ownership)
-
-Note that the name `http_result_kind` is used in two different value systems; do not confuse them.
-
-- `SearchDiagnostics.http_result_kind` (this section, `HttpResultKind` enum in `rag/models_result.py`) has these members: `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED` / `AUTH_ERROR`. It is set within the HTTP augment execution in `pipeline.py` as either `HttpResultKind.SUCCESS` (non-empty), `HttpResultKind.EMPTY` (`""`), `HttpResultKind.ERROR` (`None`), or `HttpResultKind.AUTH_ERROR` (authentication failure) via the `RagPipeline.get_diagnostics()` method.
-- `get_diagnostics()["http_result_kind"]` (via `HttpAugment.run()`) also carries an `HttpResultKind` enum value; the four string literals (`"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"` / `"auth_error"`) exist only as an internal implementation detail inside `HttpAugment`: `HttpAugment._http_result_kind` stores these literals, but `_map_http_result_kind()` converts them to the `HttpResultKind` enum before either public field is set — the string literals never reach a caller reading either field.
+Field definitions: `SearchDiagnostics` in `scripts/rag/models_result.py` (summary in [rag_04_dto-models-types.md](rag_04_dto-models-types.md)). Its fields are the local-execution counters (`embed_ok`, `embed_failed`, `fts_errors`, `degraded`), `fallback_reason`, and `corpus_generation`.
 
 ### 4.3 get_diagnostics() Return Value (`RagPipeline.get_diagnostics()`)
 
-`RagPipeline.get_diagnostics()` returns a dict that groups: per-stage results and timings (`stage_results`, `timings`), the fetch result (`fetch_result`), the fusion mode (`fusion_mode`: `"rrf"` or `"dedup_only"`), the HTTP classification (`http_result_kind`, always an `HttpResultKind` enum value, never a raw string literal), fallback counters (`fallback_count`, `fallback_reasons`), refiner counters (see [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md)), `hit_counts`, and the `search_diagnostics` summary including `degraded`. The authoritative key set is the method itself.
+`RagPipeline.get_diagnostics()` returns a dict that groups: per-stage results and timings (`stage_results`, `timings`), the fetch result (`fetch_result`), the fusion mode (`fusion_mode`: `"rrf"` or `"dedup_only"`), fallback counters (`fallback_count`, `fallback_reasons`), refiner counters (see [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md)), `hit_counts`, and the `search_diagnostics` summary including `degraded`. The authoritative key set is the method itself.
 
-> **Note:** In HTTP mode, `fetch_result` is populated only when the response body carries a non-empty `selected_hits` list. The `POST /v1/call_tool` result of the rag-pipeline MCP server has only `result` and `is_error`, so a call through that endpoint leaves `fetch_result` unchanged; the structured `selected_hits` field exists only on the direct `POST /rag_run_pipeline` response (see `mcp_04_03_rag-pipeline-and-cicd.md`). `fetch_result` may also be stale when the HTTP call succeeds but returns zero hits (`selected_hits` is empty). In that case `_forward_fetch_result()` skips the callback invocation (`augment.py`), so `last_fetch_result` retains its prior value.
+> **Note:** `fetch_result` is populated by `RagPipeline.run()` only. The `POST /v1/call_tool` result of the rag-pipeline MCP server has only `result` and `is_error`; the structured `selected_hits` field exists only on the direct `POST /rag_run_pipeline` response (see `mcp_04_03_rag-pipeline-and-cicd.md`).
 
 **Safe to call before `run()` / `augment()`** — returns empty/zero values. Callers should serialize using `orjson.dumps(pipeline.get_diagnostics())`.
 

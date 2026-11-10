@@ -66,7 +66,7 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 
 #### Why SQLite (`rag.sqlite`) owns the vector store layer
 
-Per ADR-005, SQLite's `documents`/`chunks` tables are the canonical data and `chunks_fts`/`chunks_vec` are derived indexes; the in-process fallback model is defined by ADR-010. ADR-005's Rationale rests on three points: (1) Data Integrity — separating canonical from derived data prevents canonical data from being updated through a derived index; (2) Operability — the deletion-order invariant (`chunks_vec` before `documents`) prevents orphan records, and unified consistency checks and repair procedures leave operators without ambiguity; (3) Portability — because the indexes can be rebuilt from `documents` and `chunks`, FTS5 or the vector engine can be replaced. See [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md).
+Per ADR-005, SQLite's `documents`/`chunks` tables are the canonical data and `chunks_fts`/`chunks_vec` are derived indexes. ADR-005's Rationale rests on three points: (1) Data Integrity — separating canonical from derived data prevents canonical data from being updated through a derived index; (2) Operability — the deletion-order invariant (`chunks_vec` before `documents`) prevents orphan records, and unified consistency checks and repair procedures leave operators without ambiguity; (3) Portability — because the indexes can be rebuilt from `documents` and `chunks`, FTS5 or the vector engine can be replaced. See [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md).
 
 #### Retention of `registered/`
 
@@ -173,7 +173,7 @@ Chunk-size, chunk-overlap, crawl-depth, and max-pages bounds exist to keep chunk
 
 - **rag-pipeline MCP server (`rag_pipeline_server.py`)**: HTTP routing and request/response formatting; translates `RagPipelineServiceError` into error responses.
 - **`RagPipelineMCPService` (`rag_pipeline_service.py`)**: pipeline orchestration, lifecycle (start/stop), result formatting for MCP tool responses, and the tool-name dispatch.
-- **`RagPipeline` (`scripts/rag/pipeline.py`)**: core search logic and stage execution, the `augment()` fallback chain (HTTP → search → refiner → raw chunks) with identity comparison before fallback acceptance, and diagnostics collection.
+- **`RagPipeline` (`scripts/rag/pipeline.py`)**: core search logic and stage execution, the `augment()` chain (search → refiner → raw chunks), and diagnostics collection.
 
 The interaction flow is: MCP client → HTTP routing → service orchestration → pipeline execution. For details see `docs/21_rag/rag_03_01_query_pipeline-overview.md`.
 

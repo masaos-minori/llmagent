@@ -278,10 +278,10 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the HTTP delegation path and its tests | In Progress | — | — |  |
-| 2 | Remove the fallback identity gate | In Progress | — | — |  |
-| 3 | Remove the configuration keys | In Progress | — | — |  |
-| 4 | ADRs and documents (after the maintainer's statement for the ADR rows) | In Progress | — | — |  |
+| 1 | Remove the HTTP delegation path and its tests | Completed | — | 20261110-152015 |  |
+| 2 | Remove the fallback identity gate | Completed | — | 20261110-152015 |  |
+| 3 | Remove the configuration keys | Completed | — | 20261110-152015 |  |
+| 4 | ADRs and documents (after the maintainer's statement for the ADR rows) | Completed | — | 20261110-152015 | ADR-010 and ADR-004 approval records are pending the maintainer statement (UNK-02) |
 | 5 | Deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -292,7 +292,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261110-143149_*.md (52 procedure documents) | 1-4 | Implementation procedures | Created | — | — |
+| implementations/20261110-143149_*.md (52 procedure documents) | 1-4 | Implementation procedures | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

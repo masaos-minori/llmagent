@@ -29,8 +29,6 @@ def _make_cfg(**overrides):
         "use_rrf": True,
         "rrf_k": 60,
         "use_search": True,
-        "rag_query_service_url": None,
-        "rag_auth_token": None,
         "use_refiner": False,
         "refiner_max_tokens": 512,
         "refiner_max_chars_per_chunk": 800,
@@ -77,8 +75,6 @@ def test_returns_rag_config_impl_directly(mock_validator):
         use_rrf=True,
         rrf_k=60,
         use_search=True,
-        rag_query_service_url=None,
-        rag_auth_token=None,
         use_refiner=False,
         refiner_max_tokens=512,
         refiner_max_chars_per_chunk=800,
@@ -181,25 +177,24 @@ def test_valid_string_templates_resolve():
     assert result.rerank_prompt_template == "Rerank results for: {query}"
 
 
-def test_renamed_key_resolves_and_old_spelling_ignored(mock_validator):
-    """rag003 AC-2: the renamed key resolves; the old spelling is filtered out.
+@pytest.mark.parametrize(
+    "key",
+    ["rag_query_service_url", "rag_auth_token", "rag_identity_mismatch_policy"],
+)
+def test_removed_delegation_key_is_rejected(key):
+    """REQ-003: a config carrying a removed delegation key fails resolution.
 
-    `rag_query_service_url` is the query-path key. A config dict carrying the
-    pre-rename spelling `rag_service_url` is an extra key for the _ALL_FIELDS
-    filter and must stay None (fail-safe: no HTTP delegation).
+    The real validator runs on the raw layered dict (not the filtered one), so the
+    key is reported instead of being silently dropped.
     """
-    result = resolve_rag_config({"rag_query_service_url": "http://x"})
-    assert result.rag_query_service_url == "http://x"
-
-    result = resolve_rag_config({"rag_service_url": "http://x"})
-    assert result.rag_query_service_url is None
+    with pytest.raises(ValueError, match=key):
+        resolve_rag_config({key: "x"})
 
 
 def _adapter_cfg(**overrides) -> SimpleNamespace:
     """Adapter-shaped RagConfig lacking rag_db_path (as build_rag_cfg_adapter produces)."""
     attrs = dict(
         use_search=True,
-        rag_query_service_url="",
         use_refiner=False,
         use_mqe=False,
         use_rerank=False,
@@ -221,7 +216,6 @@ def _adapter_cfg(**overrides) -> SimpleNamespace:
         rag_pipeline_service_url=None,
         mqe_prompt_template="Expand query: {query}",
         rerank_prompt_template="Rerank results for: {query}",
-        rag_auth_token="",
     )
     attrs.update(overrides)
     return SimpleNamespace(**attrs)

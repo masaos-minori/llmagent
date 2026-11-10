@@ -207,7 +207,6 @@ mcp_servers/web_search/web_search_tools.py	missing separator
 rag/augment.py	empty description
 rag/enums.py	missing separator
 rag/exceptions.py	missing separator
-rag/http_augment.py	missing separator
 rag/ingestion/chunk_english.py	missing separator
 rag/ingestion/chunk_japanese.py	missing separator
 rag/ingestion/chunk_splitter.py	missing separator

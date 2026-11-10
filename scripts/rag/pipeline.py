@@ -12,7 +12,6 @@ Pipeline order:
 Module layout:
    rag/repository.py      — RagRepository, RagScorer, FTS helpers
    rag/llm_client.py      — RagLLM, get_embedding, summarize_tool_result
-   rag/pipeline_service.py — External RAG service delegation
    rag/pipeline_refiner.py — Context refiner (chunk compression)
    rag/config_resolution.py — resolve_rag_config() config resolution delegate
    rag/diagnostics.py       — PipelineDiagnostics structured diagnostics
@@ -21,7 +20,6 @@ Module layout:
    rag/pipeline.py          — RagPipeline core orchestration (this file)
 """
 
-import dataclasses
 import logging
 from collections.abc import Callable
 from typing import cast
@@ -36,12 +34,11 @@ from rag.config_resolution import resolve_rag_config
 from rag.db_connection import RagDatabaseConnection
 from rag.diagnostics import PipelineDiagnostics
 from rag.exceptions import RagPipelineError
-from rag.http_augment import _map_http_result_kind
-from rag.identity_gate import _identity_gate, _safe_corpus_id, compute_local_identity
+from rag.identity_gate import compute_local_identity
 from rag.llm_client import RagLLM
 from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
-from rag.models_result import HttpResultKind, SearchDiagnostics
+from rag.models_result import SearchDiagnostics
 from rag.stage import StageResult
 from rag.stage_lifecycle import RagPipelineStageLifecycle
 from rag.stages.augment import (
@@ -52,10 +49,9 @@ from rag.types import PipelineRunResult
 logger = logging.getLogger(__name__)
 
 # Schema version is not persisted in the ``rag_corpus_meta`` table (no column for it), so
-# the fallback gate supplies it as a module-level constant rather than reading it from
-# configuration (no runtime config source exists). It participates in identity equality
-# but never affects gate behavior while the remote side is unverifiable; bump only on a
-# breaking corpus-schema change so existing corpora keep a stable identity.
+# the pipeline supplies it as a module-level constant rather than reading it from
+# configuration (no runtime config source exists). It participates in identity equality;
+# bump only on a breaking corpus-schema change so existing corpora keep a stable identity.
 SCHEMA_VERSION = "1"
 
 
@@ -94,9 +90,6 @@ class RagPipeline:
         # RAGCORPUS001 (REQ-004): corpus generation of the last accepted result, surfaced by
         # get_diagnostics(); None when no verified local corpus produced the result.
         self._last_corpus_generation: int | None = None
-        # RAGCORPUS001 (REQ-007): True when the fallback gate tolerated a mismatch under the
-        # ``degraded`` policy on the last execution.
-        self._identity_degraded: bool = False
 
         # Resolve configuration via delegate
         self._cfg = resolve_rag_config(cfg, module_cfg=module_cfg)
@@ -112,15 +105,13 @@ class RagPipeline:
         self._sqlite_timeout: int = self._cfg.sqlite_timeout
         self._sqlite_busy_timeout_ms: int = self._cfg.sqlite_busy_timeout_ms
 
-        # AugmentRefiner: HTTP augment + refiner concern
+        # AugmentRefiner: refiner concern
         if augment_refiner is not None:
             self._augment_refiner = augment_refiner
         else:
             self._augment_refiner = AugmentRefiner(
-                http=self._http,
                 cfg=self._cfg,
                 on_status=self._on_status,
-                set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
                 search_diagnostics=self.last_search_diagnostics,
                 llm=self._llm,
             )
@@ -175,22 +166,14 @@ class RagPipeline:
             - ``""`` (empty string): Pipeline disabled (``use_search=False``), no cache
               hit, no search results, or all stages produced empty output
 
-        Identity vs truthiness:
-            The HTTP and refiner stages use ``is not None`` identity checks (not
-            truthiness). This means ``""`` from HTTP is treated as a valid result,
-            while only explicit ``None`` triggers fallback.
-
         Fallback chain (each step produces the final result unless it returns None):
-            1. HTTP mode: ``call_rag_service()`` → str/"" (final), None (fallback), or
-               ``RagPipelineError`` on HTTP 401/403 (fail closed, no fallback)
-            2. Search pipeline: semantic + FTS5 + RRF merge + rerank → reranked hits
-            3. Refiner: ``refine_context()`` → refined text (final) or None (fallback)
-            4. Raw chunks: ``_format_chunks(reranked)`` → formatted text (final)
+            1. Search pipeline: semantic + FTS5 + RRF merge + rerank → reranked hits
+            2. Refiner: ``refine_context()`` → refined text (final) or None (fallback)
+            3. Raw chunks: ``_format_chunks(reranked)`` → formatted text (final)
 
-        Raw-chunk fallback conditions (step 5 is reached when):
+        Raw-chunk fallback conditions (step 3 is reached when):
             - ``use_refiner=False`` (config disabled) → skip refiner, go to raw chunks
             - Refiner returned ``None`` (empty LLM output or error) → use raw reranked hits
-            - HTTP stage returned ``None`` → entire in-process pipeline runs, ending at raw chunks
 
         Raw-chunk format:
             ``_format_chunks()`` wraps reranked hits in ``[RAG_CONTEXT_START]...[RAG_CONTEXT_END]``
@@ -198,42 +181,15 @@ class RagPipeline:
 
         Side effects:
             - Updates ``self.last_stage_results`` with per-stage status
-            - Updates ``self.last_fetch_result`` when HTTP stage is used
 
         Raises:
-            RagPipelineError: If the underlying database connection fails, or the
-                external RAG service rejects authentication (HTTP 401/403).
+            RagPipelineError: If the underlying database connection fails.
         """
         if not self._cfg.use_search:
             return ""
-        # Reset per-request refiner state on every path so a long-lived pipeline
-        # never accumulates HttpAugment records or carries stale diagnostics.
+        # Reset per-request refiner state so a long-lived pipeline never accumulates
+        # stage records or carries stale diagnostics.
         self._augment_refiner.reset_request_state()
-        # HTTP-derived state captured only on the fallback path (see below); kept
-        # for the post-run merge that preserves it after an in-process fallback.
-        http_diag: SearchDiagnostics | None = None
-        http_records: list[StageResult] = []
-        # HTTP mode: delegate to external RAG service when rag_query_service_url is configured
-        result = None
-        if rag_url := self._cfg.rag_query_service_url:
-            try:
-                result = await self._augment_refiner.run_http_augment(
-                    query, history_context, rag_url
-                )
-            finally:
-                # Copy diagnostics even when RagPipelineError (auth failure) is raised
-                self.last_search_diagnostics = self._augment_refiner.search_diagnostics
-                self.last_stage_results = list(self._augment_refiner.last_stage_results)
-            if result is not None:
-                fetch_result = getattr(self._augment_refiner, "last_fetch_result", None)
-                if fetch_result is not None:
-                    self.last_fetch_result = cast(TwoStageFetchResult, fetch_result)
-                return result
-            else:
-                # Fallback path: this request's HTTP diagnostics and its
-                # HttpAugment record survive into the post-run merge below.
-                http_diag = self._augment_refiner.search_diagnostics
-                http_records = self._augment_refiner.http_stage_results
         try:
             with RagDatabaseConnection(
                 rag_db_path=self._rag_db_path,
@@ -241,44 +197,10 @@ class RagPipeline:
                 sqlite_timeout=self._sqlite_timeout,
                 sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
             ) as db:
-                # RAGCORPUS001 Phase 3 fallback identity gate (REQ-003): compare the
-                # remote identity (parsed once upstream, doc 11) against the local
-                # identity before accepting a remote-to-local fallback. Reject/degrade
-                # only when both are present and unequal; otherwise preserve the
-                # existing fallback behavior and record the unverifiable state.
+                # REQ-004: record the generation of the corpus that serves the result.
                 local_identity = compute_local_identity(
                     db, schema_version=SCHEMA_VERSION
                 )
-                gate = _identity_gate(
-                    self._augment_refiner.last_remote_identity,
-                    local_identity,
-                    policy=self._cfg.rag_identity_mismatch_policy,
-                )
-                if gate.reject:
-                    self.last_stage_results.append(
-                        StageResult(
-                            stage_name="IdentityGate",
-                            status="failure",
-                            elapsed_seconds=0.0,
-                            fallback_reason=gate.reason,
-                        )
-                    )
-                    logger.warning(
-                        "RAG fallback rejected: remote=%s local=%s policy=%s",
-                        _safe_corpus_id(self._augment_refiner.last_remote_identity),
-                        _safe_corpus_id(local_identity),
-                        self._cfg.rag_identity_mismatch_policy,
-                    )
-                    return ""
-                if gate.degraded:
-                    self._identity_degraded = True
-                    logger.warning(
-                        "RAG fallback identity mismatch tolerated under 'degraded' "
-                        "policy: remote=%s local=%s",
-                        _safe_corpus_id(self._augment_refiner.last_remote_identity),
-                        _safe_corpus_id(local_identity),
-                    )
-                # REQ-004: record the generation of the corpus that will serve the result.
                 self._last_corpus_generation = (
                     local_identity.index_generation if local_identity.verified else None
                 )
@@ -290,7 +212,6 @@ class RagPipeline:
         except RuntimeError as e:
             raise RagPipelineError(f"DB open failed (RAG unavailable): {e}") from e
         # run() already calls on_clear() in its finally block
-        self._merge_http_state(http_diag, http_records, pipeline_result)
         if debug_fn is not None:
             debug_fn(
                 pipeline_result.queries,
@@ -315,60 +236,12 @@ class RagPipeline:
         context_block: str = _augment_format_chunks(pipeline_result.reranked)
         return context_block
 
-    def _merge_http_state(
-        self,
-        http_diag: SearchDiagnostics | None,
-        http_records: list[StageResult],
-        run_result: PipelineRunResult,
-    ) -> None:
-        """Fold this request's HTTP diagnostics and HttpAugment record into the
-        post-run state after an in-process fallback (REQ-001..REQ-005).
-
-        ``http_diag`` is ``None`` on the no-HTTP path (no ``rag_query_service_url``);
-        the merge is skipped and ``run()``'s own state stands (REQ-004). Otherwise
-        rebuilds ``last_search_diagnostics`` from the run's own diagnostics via
-        ``dataclasses.replace``, overlaying only the HTTP-derived fields
-        (``result_source``, ``http_result_kind``, ``remote_status_code``,
-        ``remote_latency_ms``) from ``http_diag`` and ``fallback_reason`` from the
-        first ``http_records`` entry that carries one. The embed/FTS counters and
-        every other field stay with the run's diagnostics. ``last_stage_results``
-        becomes the HttpAugment record first, then the in-process stages. Leaves
-        timings, fetch result, the cumulative search counters, and the identity
-        markers untouched.
-        """
-        if http_diag is None:
-            return
-        fallback_reason = next(
-            (
-                record["fallback_reason"]
-                for record in http_records
-                if record["fallback_reason"] is not None
-            ),
-            None,
-        )
-        self.last_search_diagnostics = dataclasses.replace(
-            run_result.diagnostics,
-            result_source=http_diag.result_source,
-            http_result_kind=http_diag.http_result_kind,
-            remote_status_code=http_diag.remote_status_code,
-            remote_latency_ms=http_diag.remote_latency_ms,
-            fallback_reason=fallback_reason,
-        )
-        self.last_stage_results = [*http_records, *run_result.stage_results]
-
     def get_diagnostics(self) -> dict:
         """Return structured diagnostics for the last pipeline execution.
 
         Safe to call before ``run()`` / ``augment()`` — returns empty/zero values.
         Callers should serialize with ``orjson.dumps(pipeline.get_diagnostics())``.
         """
-        http_result_kind_raw = getattr(
-            self.last_search_diagnostics, "http_result_kind", None
-        )
-        if isinstance(http_result_kind_raw, HttpResultKind):
-            http_result_kind = http_result_kind_raw
-        else:
-            http_result_kind = _map_http_result_kind(http_result_kind_raw)
         diagnostics = PipelineDiagnostics.to_dict(
             PipelineDiagnostics.from_run_result(
                 embed_ok=self.last_search_diagnostics.embed_ok,
@@ -379,16 +252,14 @@ class RagPipeline:
                 fetch_result=self.last_fetch_result,
                 use_rrf=self._cfg.use_rrf,
                 rrf_k=self._cfg.rrf_k,
-                http_result_kind=http_result_kind,
             )
         )
-        # RAGCORPUS001 (REQ-004/REQ-007): surface the accepted corpus generation and the
-        # identity-degraded marker. Added here rather than in PipelineDiagnostics.to_dict()
+        # RAGCORPUS001 (REQ-004): surface the accepted corpus generation. Added here
+        # rather than in PipelineDiagnostics.to_dict()
         # so the frozen diagnostics contract in tests/rag/test_diagnostics.py stays
         # byte-for-byte stable. getattr defaults keep this safe when called before
         # augment() (some tests build the pipeline via RagPipeline.__new__).
         diagnostics["corpus_generation"] = getattr(
             self, "_last_corpus_generation", None
         )
-        diagnostics["identity_degraded"] = getattr(self, "_identity_degraded", False)
         return diagnostics

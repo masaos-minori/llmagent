@@ -34,7 +34,7 @@ ADR precedence across the ADR set is today prose-based: the ADR index lists depe
 
 ### Problem
 
-Plans and checkers increasingly depend on ADR-governed contracts (DB migration workflow under ADR-008, RAG fallback under ADR-010, reference generation under ADR-015). With precedence recorded only as prose in `docs/10_adr/adr_01_index.md`:
+Plans and checkers increasingly depend on ADR-governed contracts (DB migration workflow under ADR-008, reference generation under ADR-015). With precedence recorded only as prose in `docs/10_adr/adr_01_index.md`:
 
 - a second ADR claiming primacy over a target is invisible until two documents contradict each other;
 - the dependency graph and intentional-cycle list are hand-maintained and can drift from ADR front matter `related` lists;

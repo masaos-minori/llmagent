@@ -113,10 +113,8 @@ entries:
   timing: Startup
 - adr: ADR-004
   cadence: each release review.
-  cited:
-  - tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard
-  expected_evidence: a fallback audit record showing every fallback path in `scripts/`
-    traces to an Accepted ADR that explicitly defines it.
+  expected_evidence: a fallback audit record showing no fallback path in `scripts/`
+    substitutes another Destination for a failed one.
   gate: Manual Review
   invariant: INV-15, INV-16
   status: Manual
@@ -227,32 +225,6 @@ entries:
   gate: Unit Test
   invariant: INV-10
   status: Confirmed
-  timing: CI
-- adr: ADR-010
-  cited:
-  - tests/rag/test_rag_http_mode.py::test_remote_empty_does_not_trigger_in_process
-  gate: Integration Test
-  invariant: INV-03
-  status: Confirmed
-  timing: CI
-- adr: ADR-010
-  cited:
-  - tests/rag/test_pipeline_http_result_kind.py::test_auth_error_fails_closed_without_in_process_fallback
-  - tests/rag/test_rag_http_mode.py
-  - tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling
-  gate: Integration Test
-  invariant: INV-04
-  status: Confirmed
-  timing: CI
-- adr: ADR-010
-  cadence: each release review.
-  cited:
-  - tests/rag/test_rag_http_mode.py::test_in_process_fallback_runs_stages_in_order
-  - tests/rag/test_stage_lifecycle.py::TestStageExecutionOrder::test_stage_order_with_mocked_stages
-  expected_evidence: a fallback run showing every stage ran.
-  gate: Integration Test
-  invariant: INV-05
-  status: Partial
   timing: CI
 - adr: ADR-012
   cited:

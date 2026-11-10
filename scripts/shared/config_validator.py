@@ -37,6 +37,10 @@ class RagConfigValidator:
         if removed_key_error is not None:
             errors.append(removed_key_error)
 
+        delegation_key_error = self._check_removed_rag_delegation_keys(rag)
+        if delegation_key_error is not None:
+            errors.append(delegation_key_error)
+
         template_type_error = self._check_prompt_template_types(rag)
         if template_type_error is not None:
             errors.append(template_type_error)
@@ -78,6 +82,27 @@ class RagConfigValidator:
                 f"Configuration key(s) {keys_str} are no longer supported -- "
                 "the semantic cache feature was removed (see issues/done/20260902-150339_semcacherm_remove_semanticcache_implementation_and_invalidation_paths.md"
                 " and issues/done/20260902-150341_semcachedocs_replace_semanticcache_tests_and_docs_with_no_cache_design.md); "
+                f"remove {keys_str} from your configuration."
+            )
+        return None
+
+    @staticmethod
+    def _check_removed_rag_delegation_keys(rag: Mapping[str, Any]) -> str | None:
+        """Return a migration error message when a removed RAG delegation key is present."""
+        removed_keys = frozenset(
+            (
+                "rag_query_service_url",
+                "rag_auth_token",
+                "rag_identity_mismatch_policy",
+            )
+        )
+        found = [k for k in rag if k in removed_keys]
+        if found:
+            keys_str = ", ".join(sorted(found))
+            return (
+                f"Configuration key(s) {keys_str} are no longer supported -- "
+                "the remote RAG delegation path and its fallback identity gate were "
+                "removed (RAG is reached only through rag-pipeline-mcp); "
                 f"remove {keys_str} from your configuration."
             )
         return None

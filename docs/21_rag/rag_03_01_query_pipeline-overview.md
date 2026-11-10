@@ -33,7 +33,6 @@ related:
 ``` text
 RagPipeline.augment(query)
   → use_search=False? → returns ""
-  → rag_query_service_url is configured? → call_rag_service() → fallback to in-process execution on failure
   → run(query, db, history_context)
       [1] MqeStage         — Expands query into N variants
       [2] SearchStage      — Executes KNN + BM25 per variant
@@ -46,18 +45,17 @@ RagPipeline.augment(query)
 
 **Caller:** `RagPipelineMCPService` (`scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`). The Agent REPL does not call `RagPipeline` directly; it calls the `rag_run_pipeline` MCP tool.
 
-### augment() Fallback Chain
+### augment() Result Chain
 
-`augment()` determines the final result through the following sequence. Each step only falls back to the next if it returns `None` (Explicit in code).
+`augment()` determines the final result through the following sequence. The refiner is the only step that can hand over to the next step by returning `None` (Explicit in code).
 
 | Step | Produces | Fallback Trigger | Final Result | Diagnostics |
 |---|---|---|---|---|
-| 1. HTTP Mode | `str` (including empty string) or `None` | Returns `None` | HTTP response body or empty string | `last_stage_results`, `last_search_diagnostics` (`SearchDiagnostics`) |
-| 2. Search Pipeline | `ctx.reranked` (list of ranked chunks) | Not a fallback/final step — produces input for subsequent steps | N/A (intermediate) | `last_search_diagnostics` (`SearchDiagnostics`) |
-| 3. Refiner | Compressed text (`str`) or `None` | Returns `None` | Compressed/refined context text | `last_stage_results` (`StageResult(stage_name="Refiner")`; `status="success"` or `"fallback"`) |
-| 4. Raw Chunks | Formatted text (`str`) | Reached if Step 1 or Step 3 returned `None`, or if `use_refiner=False` | Chunk-formatted context text | Not directly tracked — inferable from absence of a "success"/"fallback" `StageResult` for Refiner combined with `use_refiner=False`, or from `Refiner`'s `StageResult` showing `status="fallback"` |
+| 1. Search Pipeline | `ctx.reranked` (list of ranked chunks) | Not a fallback/final step — produces input for subsequent steps | N/A (intermediate) | `last_search_diagnostics` (`SearchDiagnostics`) |
+| 2. Refiner | Compressed text (`str`) or `None` | Returns `None` | Compressed/refined context text | `last_stage_results` (`StageResult(stage_name="Refiner")`; `status="success"` or `"fallback"`) |
+| 3. Raw Chunks | Formatted text (`str`) | Reached if Step 2 returned `None`, or if `use_refiner=False` | Chunk-formatted context text | Not directly tracked — inferable from absence of a "success"/"fallback" `StageResult` for Refiner combined with `use_refiner=False`, or from `Refiner`'s `StageResult` showing `status="fallback"` |
 
-**Identity vs Truthiness (Explicit in code):** Results for HTTP mode and the refiner are determined using identity checks (`is not None`), not truthiness checks. Therefore, an empty string `""` returned by HTTP mode is treated as a valid result, and fallback only occurs when `None` is explicitly returned. This allows distinguishing between "searched but found 0 results" and "not yet searched."
+**Identity vs Truthiness (Explicit in code):** The refiner result is determined using an identity check (`is not None`), not a truthiness check, so only an explicit `None` hands over to the raw chunks.
 
 **On DB Connection Failure (Explicit in code):** If opening the DB from `self._rag_db_path` raises `sqlite3.OperationalError` or `sqlite3.DatabaseError`, the DB connection layer wraps it in `RuntimeError` and `augment()` raises a `RagPipelineError` (the error is surfaced to the caller, not swallowed and not followed by a fallback).
 

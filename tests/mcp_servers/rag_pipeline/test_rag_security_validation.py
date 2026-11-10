@@ -69,12 +69,9 @@ class TestNonSecretView:
         view = _cfg().non_secret_view()
         assert view[OWN_CONFIG_FILE_VIEW_KEY] == "rag_pipeline_mcp_server.toml"
 
-    def test_excludes_both_secret_fields(self) -> None:
-        view = _cfg(
-            auth_token=SECRET_TOKEN, rag_auth_token=SECRET_TOKEN
-        ).non_secret_view()
+    def test_excludes_the_secret_field(self) -> None:
+        view = _cfg(auth_token=SECRET_TOKEN).non_secret_view()
         assert "auth_token" not in view
-        assert "rag_auth_token" not in view
         assert SECRET_TOKEN not in view.values()
 
     def test_every_value_can_be_fingerprinted(self) -> None:
@@ -84,7 +81,6 @@ class TestNonSecretView:
             rag_db_path=SECRET_DB_PATH,
             sqlite_vec_so=SECRET_VEC_PATH,
             auth_token=SECRET_TOKEN,
-            rag_auth_token=SECRET_TOKEN,
         )
         digest = compute_config_fingerprint(cfg.non_secret_view())
         assert len(digest) == 64
@@ -124,12 +120,10 @@ class TestNonSecretView:
 
     def test_fingerprint_does_not_hash_token_values(self) -> None:
         first = compute_config_fingerprint(
-            _cfg(
-                auth_token="sk-token-one", rag_auth_token="sk-token-one"
-            ).non_secret_view()
+            _cfg(auth_token="sk-token-one").non_secret_view()
         )
         second = compute_config_fingerprint(
-            _cfg(auth_token=SECRET_TOKEN, rag_auth_token=SECRET_TOKEN).non_secret_view()
+            _cfg(auth_token=SECRET_TOKEN).non_secret_view()
         )
         assert first == second
 
@@ -337,7 +331,6 @@ class TestMessages:
                 rag_db_path=SECRET_DB_PATH,
                 sqlite_vec_so=SECRET_VEC_PATH,
                 auth_token=SECRET_TOKEN,
-                rag_auth_token=SECRET_TOKEN,
                 top_k_search=0,
             )
         )

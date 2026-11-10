@@ -42,7 +42,6 @@ def _make_cfg(**overrides: object) -> RagConfig:
         mqe_n_queries=3,
         rerank_prompt_template="Rerank results for: {query}",
         use_search=True,
-        rag_query_service_url=None,
         use_refiner=False,
         use_mqe=False,
         use_rerank=False,
@@ -56,7 +55,6 @@ def _make_cfg(**overrides: object) -> RagConfig:
         refiner_max_tokens=256,
         refiner_max_chars_per_chunk=500,
         refiner_timeout=10.0,
-        rag_auth_token="",
     )
     return dataclasses.replace(base, **overrides) if overrides else base
 

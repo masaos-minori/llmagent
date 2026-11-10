@@ -7,7 +7,6 @@ Result DTOs for the RAG and ingestion layers.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -16,24 +15,6 @@ if TYPE_CHECKING:
     )
 
 from rag.enums import MqeStatus
-
-
-class ResultSource(StrEnum):
-    """Source of an HTTP response in RAG pipeline stages."""
-
-    REMOTE = "remote"
-    LOCAL = "local"
-    FALLBACK = "fallback"
-
-
-class HttpResultKind(StrEnum):
-    """Outcome classification for HTTP responses in RAG pipeline stages."""
-
-    SUCCESS = "success"
-    EMPTY = "empty"
-    ERROR = "error"
-    NOT_USED = "not_used"
-    AUTH_ERROR = "auth_error"
 
 
 @dataclass(frozen=True)
@@ -105,14 +86,6 @@ class SearchDiagnostics:
     embed_failed: int = 0
     fts_errors: int = 0
     degraded: bool = False
-    # Remote mode fields (new):
-    result_source: ResultSource = ResultSource.LOCAL
-    http_result_kind: HttpResultKind = HttpResultKind.NOT_USED
-    remote_status_code: int | None = None
-    remote_latency_ms: float | None = None
     fallback_reason: str | None = None
-    # Corpus identity fields (new, RAGCORPUS001 REQ-004): the selected corpus
-    # ``index_generation`` and the gate's degraded-marker. ``corpus_generation`` is
-    # ``None`` when no remote identity was available.
+    # Corpus identity field (RAGCORPUS001 REQ-004): the selected corpus ``index_generation``.
     corpus_generation: int | None = None
-    identity_degraded: bool = False

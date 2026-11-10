@@ -32,7 +32,6 @@ related:
 | `SearchStage` | Results returned | No matching chunks (empty result) | DB error or embedding failure |
 | `FusionStage` | RRF merge applied | `use_rrf=False`; raw results used | Merge error |
 | `RerankStage` | Cross-encoder rerank applied | `use_rerank=False`, or `RagRerankError` caught (reason `rerank_exception`); RRF order used | An exception other than `RagRerankError` escaped the stage |
-| `HttpAugment` | Remote RAG service returned a result (non-empty or valid empty) | Remote call produced no result: the reason string reported by the HTTP call (default `in-process fallback`) | HTTP error / no context |
 | `Refiner` | Refiner compressed chunks | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) | Not recorded; refiner errors are reported as fallback |
 
 ### Status Values
@@ -43,9 +42,9 @@ related:
 | `fallback` | Stage bypassed by a configuration flag (e.g., `use_rrf=False`), or an expected error was handled with a lower-quality result (e.g., `rerank_exception`) |
 | `failure` | An exception escaped the stage (`RuntimeError`, SQLite operational error, HTTP error, or timeout); pipeline continues with degraded output |
 
-### HTTP Result Classification
+### Refiner Stage Record
 
-`HttpAugment` (present when `rag_query_service_url` is configured) and `Refiner` (present when `use_refiner=True`) appear as additional entries in `last_stage_results`. The HTTP result classification is exposed separately as `get_diagnostics()["http_result_kind"]` (`HttpResultKind`: `success` / `empty` / `error` / `not_used` / `auth_error`); the internal string literals of `HttpAugment` are not part of any external surface (see [rag_03_03](../21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md)). (Explicit in code — `scripts/rag/http_augment.py`)
+`Refiner` (present when `use_refiner=True`) appears as an additional entry in `last_stage_results`.
 
 ## RAG Ingestion Diagnostics
 

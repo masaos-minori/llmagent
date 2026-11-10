@@ -56,25 +56,15 @@ This differs from `sanitize_document_full()`, which also returns a `SanitizeResu
 
 ### 5.6 AugmentRefiner Class (`scripts/rag/augment.py`)
 
-**Purpose:** Owns all HTTP augment and context refinement related state and behavior extracted from `RagPipeline`. Dependencies (HTTP client, `RagConfig`, optional callbacks, diagnostics object, optional `RagLLM`) are injected through the constructor.
+**Purpose:** Owns context refinement related state and behavior extracted from `RagPipeline`. Dependencies (`RagConfig`, optional status callback, diagnostics object, optional `RagLLM`) are injected through the constructor.
 
 The optional constructor parameters fall into three categories by consequence of omission:
 
-- **Observational callbacks** (`on_status`, `set_fetch_result`, `set_fallback_reason`): purely informational — each forwards data to an external caller and has no effect on `AugmentRefiner`'s own HTTP-augment or refiner behavior if omitted. Leaving them as their no-op defaults means the caller loses visibility into those events but nothing else changes.
+- **Observational callback** (`on_status`): purely informational — it forwards data to an external caller and has no effect on `AugmentRefiner`'s own refiner behavior if omitted. Leaving it as its no-op default means the caller loses visibility into those events but nothing else changes.
 - **Functionally required** (`llm`): omitting `llm` while `run_refiner()` is invoked with `use_refiner=true` raises `ValueError` at call time; there is no silent degradation.
 - **Functionally inert default** (`search_diagnostics`): its default value (a fresh `SearchDiagnostics()`) only determines the diagnostics object's starting state before the first update; omitting it has no other functional consequence.
 
 #### Methods
-
-##### `run_http_augment(query, history_context, rag_url)` — HTTP augment execution
-
-Returns `str | None`:
-
-- `str` (non-empty): HTTP call successful; non-empty context returned
-- `""` (empty string): HTTP 200 but `context` field is `""` — valid empty result, not a fallback
-- `None`: HTTP error; triggers fallback to in-process pipeline
-
-Side effects: updates `search_diagnostics` (`result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`) and appends a `StageResult` to `last_stage_results`.
 
 ##### `run_refiner(reranked, query)` — Context refinement
 
@@ -84,13 +74,9 @@ Raises `ValueError` if `llm` dependency not injected.
 
 Side effects: appends a `StageResult` with `"success"` or `"fallback"` status to `last_stage_results`, and logs at INFO level when refiner fallback occurs.
 
-##### `map_http_result_kind(kind)` — Static method
-
-Maps the internal HTTP result literal to the `HttpResultKind` enum (see [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md) section 4.2); `None` maps to `NOT_USED`.
-
 #### Integration with RagPipeline
 
-`RagPipeline` instantiates `AugmentRefiner` via constructor injection and delegates HTTP augment and refiner operations to it. The class maintains its own `SearchDiagnostics` and `StageResult` tracking separate from `RagPipeline`'s own diagnostics.
+`RagPipeline` instantiates `AugmentRefiner` via constructor injection and delegates refiner operations to it. The class maintains its own `SearchDiagnostics` and `StageResult` tracking separate from `RagPipeline`'s own diagnostics.
 
 #### Refiner Fallback Reasons
 

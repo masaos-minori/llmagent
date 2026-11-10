@@ -53,7 +53,6 @@ class TestRagPipelineConfigFromDict:
             "refiner_max_tokens": 128,
             "refiner_max_chars_per_chunk": 400,
             "refiner_timeout": 12.5,
-            "rag_auth_token": "secret-token",
         }
         cfg = RagPipelineConfig.from_dict(raw)
         assert cfg.llm_url == "http://llm.example"
@@ -78,15 +77,11 @@ class TestRagPipelineConfigFromDict:
         assert cfg.refiner_max_tokens == 128
         assert cfg.refiner_max_chars_per_chunk == 400
         assert cfg.refiner_timeout == 12.5
-        assert cfg.rag_auth_token == "secret-token"
 
-    def test_auth_token_is_read_and_distinct_from_rag_auth_token(self) -> None:
-        """auth_token (inbound) and rag_auth_token (outbound) are separate fields."""
-        cfg = RagPipelineConfig.from_dict(
-            {"auth_token": "inbound", "rag_auth_token": "outbound"}
-        )
+    def test_auth_token_is_read(self) -> None:
+        """auth_token is the inbound token read from the config."""
+        cfg = RagPipelineConfig.from_dict({"auth_token": "inbound"})
         assert cfg.auth_token == "inbound"
-        assert cfg.rag_auth_token == "outbound"
 
     def test_auth_token_defaults_to_empty(self) -> None:
         assert RagPipelineConfig.from_dict({}).auth_token == ""
@@ -115,13 +110,11 @@ class TestRagPipelineConfigFromDict:
             {
                 "sqlite_timeout": 0,
                 "use_mqe": False,
-                "rag_auth_token": "",
                 "rag_min_score": 0,
             }
         )
         assert cfg.sqlite_timeout == 0
         assert cfg.use_mqe is False
-        assert cfg.rag_auth_token == ""
         assert cfg.rag_min_score == 0.0
 
     def test_unknown_keys_are_ignored(self) -> None:
@@ -162,4 +155,17 @@ class TestRagPipelineConfigLoad:
         monkeypatch.setattr(ConfigLoader, "load", raising_load)
 
         with pytest.raises(ValueError, match="boom"):
+            RagPipelineConfig.load()
+
+    def test_load_rejects_removed_rag_auth_token(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """REQ-003: the outbound token key was removed; the loader fails fast on it."""
+
+        def fake_load(self: ConfigLoader, *names: str) -> dict[str, Any]:
+            return {"llm_url": "http://from-toml", "rag_auth_token": "outbound"}
+
+        monkeypatch.setattr(ConfigLoader, "load", fake_load)
+
+        with pytest.raises(ValueError, match="rag_auth_token"):
             RagPipelineConfig.load()

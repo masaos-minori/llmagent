@@ -286,7 +286,6 @@ class TestRagPipelineErrorOnDbOpen:
     def _make_pipeline(self) -> RagPipeline:
         cfg = SimpleNamespace(
             use_search=True,
-            rag_query_service_url="",
             use_refiner=False,
             use_mqe=False,
             use_rerank=False,
@@ -312,7 +311,6 @@ class TestRagPipelineErrorOnDbOpen:
             mqe_prompt_template="Expand query: {query}",
             mqe_n_queries=3,
             rerank_prompt_template="Rerank results for: {query}",
-            rag_auth_token="",
         )
         http = MagicMock()
         return RagPipeline(http, cfg)
@@ -362,7 +360,6 @@ class TestGetDiagnostics:
     def _make_pipeline(self) -> RagPipeline:
         cfg = SimpleNamespace(
             use_search=True,
-            rag_query_service_url="",
             use_refiner=False,
             use_mqe=False,
             use_rerank=False,
@@ -388,7 +385,6 @@ class TestGetDiagnostics:
             mqe_prompt_template="Expand query: {query}",
             mqe_n_queries=3,
             rerank_prompt_template="Rerank results for: {query}",
-            rag_auth_token="",
         )
         http = MagicMock()
         return RagPipeline(http, cfg)

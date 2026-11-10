@@ -63,7 +63,7 @@ Merges multiple search result lists using RRF (Reciprocal Rank Fusion) via `rrf_
 
 Every query-time path that embeds retrieved chunk content into an LLM prompt sanitizes it with `sanitize_document` at the formatting site: `refine_context` (refiner prompt) and `_build_rerank_prompt` (rerank previews) in this module — both import `sanitize_document` from `rag.utils` — in addition to the augment stage's `_format_chunks` (see [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md)). `summarize_tool_result` is a different trust boundary (agent tool output, not corpus chunks) and is not covered by this invariant.
 
-The in-process HTTP calls in this module (`RagLLM._call_llm`, `get_embedding`) pass `timeout=client.timeout` explicitly at each POST, inheriting the injected client's configured timeout; the delegate path (`call_rag_service`, see [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)) uses a fixed per-attempt timeout instead.
+The in-process HTTP calls in this module (`RagLLM._call_llm`, `get_embedding`) pass `timeout=client.timeout` explicitly at each POST, inheriting the injected client's configured timeout (see [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)).
 
 ### 7.4 PipelineRunResult (`scripts/rag/types.py`)
 

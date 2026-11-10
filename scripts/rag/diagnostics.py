@@ -13,7 +13,6 @@ import logging
 from dataclasses import dataclass
 
 from rag.models_data import TwoStageFetchResult
-from rag.models_result import HttpResultKind
 from rag.stage import StageResult
 
 logger = logging.getLogger(__name__)
@@ -65,7 +64,6 @@ class PipelineDiagnostics:
     fetch_result: TwoStageFetchResult | None = None
     use_rrf: bool = True
     rrf_k: int = 60
-    http_result_kind: HttpResultKind | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Produce the exact same dict shape as the current get_diagnostics()."""
@@ -76,7 +74,6 @@ class PipelineDiagnostics:
         fallbacks = [r for r in stage_results if r.get("status") == "fallback"]
         fetch = self.fetch_result
         fusion_mode = "rrf" if self.use_rrf else "dedup_only"
-        http_result_kind = self.http_result_kind
         refiner_fallbacks = [
             r
             for r in stage_results
@@ -105,7 +102,6 @@ class PipelineDiagnostics:
                 else None
             ),
             "fusion_mode": fusion_mode,
-            "http_result_kind": http_result_kind,
             "fallback_count": len(fallbacks),
             "fallback_reasons": [
                 r["fallback_reason"] for r in stage_results if r.get("fallback_reason")
@@ -132,7 +128,6 @@ class PipelineDiagnostics:
         fetch_result: TwoStageFetchResult | None = None,
         use_rrf: bool = True,
         rrf_k: int = 60,
-        http_result_kind: HttpResultKind | None = None,
     ) -> PipelineDiagnostics:
         """Build PipelineDiagnostics from a run result."""
         search_diag = SearchDiagnostics.from_run_result(
@@ -145,5 +140,4 @@ class PipelineDiagnostics:
             fetch_result=fetch_result,
             use_rrf=use_rrf,
             rrf_k=rrf_k,
-            http_result_kind=http_result_kind,
         )

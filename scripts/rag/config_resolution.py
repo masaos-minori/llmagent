@@ -31,8 +31,6 @@ _ALL_FIELDS = frozenset(
         "use_rrf",
         "rrf_k",
         "use_search",
-        "rag_query_service_url",
-        "rag_auth_token",
         "use_refiner",
         "refiner_max_tokens",
         "refiner_max_chars_per_chunk",
@@ -49,7 +47,6 @@ _ALL_FIELDS = frozenset(
         "mqe_prompt_template",
         "mqe_n_queries",
         "rerank_prompt_template",
-        "rag_identity_mismatch_policy",
     }
 )
 
@@ -64,8 +61,6 @@ _DEFAULTS_FOR_ALL = {
     "use_rrf": True,
     "rrf_k": 60,
     "use_search": False,
-    "rag_query_service_url": None,
-    "rag_auth_token": None,
     "use_refiner": False,
     "refiner_max_tokens": 512,
     "refiner_max_chars_per_chunk": 800,
@@ -82,7 +77,6 @@ _DEFAULTS_FOR_ALL = {
     "mqe_prompt_template": "Expand query: {query}",
     "mqe_n_queries": 3,
     "rerank_prompt_template": "Rerank results for: {query}",
-    "rag_identity_mismatch_policy": "reject",
 }
 
 
@@ -190,7 +184,9 @@ def resolve_rag_config(
     raw_cfg = _load_raw_cfg(cfg, module_cfg, config_loader)
     filtered_cfg = _apply_defaults(raw_cfg)
     validator = RagConfigValidator()
-    validation_result = validator.validate(filtered_cfg)
+    # Validate the raw layered dict: _apply_defaults drops unknown keys, so a removed
+    # key would never reach the validator after filtering.
+    validation_result = validator.validate(raw_cfg)
     for warning in validation_result.warnings:
         logger.warning("rag config warning: %s", warning)
     for error in validation_result.errors:

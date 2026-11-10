@@ -183,3 +183,39 @@ def test_integration_rag_validator_real_config() -> None:
     result = RagConfigValidator().validate(cfg)
     assert result.ok is True
     assert len(result.errors) == 0
+
+
+class TestRemovedRagDelegationKeys:
+    """REQ-003: the remote RAG delegation keys are rejected, not translated."""
+
+    def setup_method(self) -> None:
+        self.validator = RagConfigValidator()
+
+    @pytest.mark.parametrize(
+        "key",
+        ["rag_query_service_url", "rag_auth_token", "rag_identity_mismatch_policy"],
+    )
+    def test_removed_rag_delegation_keys_are_rejected(self, key: str) -> None:
+        result = self.validator.validate({key: "x"})
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert key in result.errors[0]
+
+    def test_all_removed_keys_are_named_together(self) -> None:
+        result = self.validator.validate(
+            {
+                "rag_query_service_url": "http://x",
+                "rag_auth_token": "t",
+                "rag_identity_mismatch_policy": "reject",
+            }
+        )
+        assert len(result.errors) == 1
+        for key in (
+            "rag_query_service_url",
+            "rag_auth_token",
+            "rag_identity_mismatch_policy",
+        ):
+            assert key in result.errors[0]
+
+    def test_config_without_removed_keys_stays_valid(self) -> None:
+        assert self.validator.validate({"rag_pipeline_service_url": "http://x"}).ok

@@ -58,7 +58,6 @@ Used by: `ingester.py` only.
 Used by: `rag-pipeline-mcp` only (the rag-pipeline MCP server process). Loaded via `RagPipelineConfig.from_dict()` in `mcp_servers/rag_pipeline/rag_pipeline_models.py`. Does NOT use `agent.toml` (as stated in the header comment).
 
 - Keys cover the SQLite path and `sqlite-vec` library, the LLM and embedding endpoints, the stage switches (`use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`), search sizing (`top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`), `rrf_k`, `mqe_n_queries`, refiner limits, and the MQE/rerank prompt templates (placeholders `{n_queries}`, `{query}` and `{query}`, `{items_text}`).
-- `rag_auth_token` is the outbound Bearer token sent to a remote RAG service; empty means no header.
 - `auth_token` is the inbound Bearer token required by the rag-pipeline MCP server itself; it is an `${ENV:...}` reference and must match the Agent's `[mcp_servers.rag_pipeline].auth_token` in `config/agent.toml`.
 
 **Precedence rule:** When a key exists in `config/rag_pipeline_mcp_server.toml`, its value overrides the corresponding code default in `RagPipelineConfig`; code defaults apply only when a key is absent from the `.toml` file.
@@ -76,9 +75,8 @@ The following values are **hardcoded** and cannot be changed via
 | `http_host` | `MCPServer` base class (`server.py`) |
 | `http_port` | `rag_pipeline_server.py` |
 | `http_timeout` | `rag_pipeline_service.py` |
-| Fallback `timeout` | `scripts/rag/pipeline_service.py::call_rag_service()` |
 
-`http_timeout` is the HTTP client timeout of the MCP server itself, while a separate, shorter fixed per-attempt timeout is used for fallback calls to external RAG services (`call_rag_service()`); neither is loaded from configuration or `RagPipelineConfig`. The in-process RAG query-path calls (`RagLLM._call_llm`, `get_embedding` in `scripts/rag/llm_client.py`) pass `timeout=client.timeout` explicitly at each POST, inheriting the injected `httpx.AsyncClient`'s configured timeout (120.0s in both production client paths: the agent's `llm.http_timeout`, and the rag_pipeline server's process-level client), while the delegate path `call_rag_service()` keeps its fixed per-attempt 10.0s.
+`http_timeout` is the HTTP client timeout of the MCP server itself and is not loaded from configuration or `RagPipelineConfig`. The in-process RAG query-path calls (`RagLLM._call_llm`, `get_embedding` in `scripts/rag/llm_client.py`) pass `timeout=client.timeout` explicitly at each POST, inheriting the injected `httpx.AsyncClient`'s configured timeout (120.0s in both production client paths: the agent's `llm.http_timeout`, and the rag_pipeline server's process-level client).
 
 > **Warning:** Hardcoded values listed above cannot be changed by editing
 > `config/rag_pipeline_mcp_server.toml`. Any modification must be made in the
@@ -88,11 +86,10 @@ The following values are **hardcoded** and cannot be changed via
 
 Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `AgentConfig`.
 
-`AgentConfig.rag` (`RAGConfig`) carries only `embed_url`. The refiner is configured in `config/rag_pipeline_mcp_server.toml`; refiner keys in `config/agent.toml` are rejected at startup. It does not carry the search-stage parameters (`use_search`, `use_mqe`, `use_rrf`, `use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`) or `rag_query_service_url`. Those are owned by `config/rag_pipeline_mcp_server.toml` (see the `config/rag_pipeline_mcp_server.toml` section above).
+`AgentConfig.rag` (`RAGConfig`) carries only `embed_url`. The refiner is configured in `config/rag_pipeline_mcp_server.toml`; refiner keys in `config/agent.toml` are rejected at startup. It does not carry the search-stage parameters (`use_search`, `use_mqe`, `use_rrf`, `use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`. Those are owned by `config/rag_pipeline_mcp_server.toml` (see the `config/rag_pipeline_mcp_server.toml` section above).
 
 - The Agent process consumes `embed_url` (memory embedding client and the `embed-llm` health check).
-- `rag_query_service_url` is not a key of `config/agent.toml`, and no production process sets it to a non-empty value (see `adr_02_06_010_rag-fallback.md` Scope).
-- `rag_identity_mismatch_policy` (`reject` by default; `degraded` only by explicit operator approval) selects how the `augment()` fallback identity gate labels a remote/local corpus-identity mismatch or an unverifiable identity: `reject` (default) refuses the fallback, `degraded` accepts it while marking the result degraded. It never changes the fallback trigger conditions (ADR-010). Any value other than `degraded` fails closed (rejects).
+- RAG has no remote-delegation keys: a configuration file that carries `rag_query_service_url`, `rag_auth_token`, or `rag_identity_mismatch_policy` is rejected when it is loaded.
 
 (Explicit in code — `scripts/agent/config_builders.py`)
 

@@ -9,7 +9,6 @@ related:
   - adr_02_02_001_agent-workflow-engine-mandatory.md
   - adr_02_01_002_platform-config-isolation.md
   - adr_02_02_003_agent-runtime-tool-registry-routing-authority.md
-  - adr_02_06_010_rag-fallback.md
   - deployment_01_deployment.md
   - agent_08_04_configuration-mcp-approval-obs.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
@@ -33,7 +32,7 @@ Accepted
 
 ## Summary
 
-Single common failure handling policy for every environment (Decision Group 1); environment names change no safety/validation behavior. Failures are classified as safety/integrity failures (always Fail-Fast/Fail-Closed) or availability failures. Mandatory component unavailability aborts startup; only availability failures of non-mandatory components permit continued startup in partial-availability state. Fallback is permitted only when another Accepted ADR explicitly defines trigger, destination, eligibility, restrictions, result semantics, and observability; ADR-010 RAG fallback is the only such exception.
+Single common failure handling policy for every environment (Decision Group 1); environment names change no safety/validation behavior. Failures are classified as safety/integrity failures (always Fail-Fast/Fail-Closed) or availability failures. Mandatory component unavailability aborts startup; only availability failures of non-mandatory components permit continued startup in partial-availability state. Fallback is prohibited without exception.
 
 ## Context
 
@@ -74,7 +73,7 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 ### Group 3: Component Mandatoriness Classification
 
 9. **Criteria for mandatory components**: a component is mandatory if any applies: required to start/complete core processing; establishes auth/authz/approval/Routing/auditability/Config Isolation/persistence/data integrity; absence prevents operations from being safely rejected; absence could cause incorrect success result; owns canonical state for core processing; an Accepted ADR explicitly defines it as mandatory; failure cannot be safely isolated from other mandatory components.
-10. **Criteria for non-mandatory components**: a component may be non-mandatory only if all true: absence does not prevent safe core processing; absence bypasses none of auth/authz/approval/Routing/audit/Config Isolation/data integrity controls; failure can be localized to known set of functions; related functions/Tools can be reliably disabled; calls targeting the function can be rejected Fail-Closed; disabled state and impact are observable; other mandatory components remain safe and internally consistent; any Fallback explicitly defined by an Accepted ADR.
+10. **Criteria for non-mandatory components**: a component may be non-mandatory only if all true: absence does not prevent safe core processing; absence bypasses none of auth/authz/approval/Routing/audit/Config Isolation/data integrity controls; failure can be localized to known set of functions; related functions/Tools can be reliably disabled; calls targeting the function can be rejected Fail-Closed; disabled state and impact are observable; other mandatory components remain safe and internally consistent.
 11. A component must not be treated as non-mandatory merely because startup is technically possible.
 12. When a component's mandatoriness is undefined or cannot be determined: do not assume non-mandatory. Do not use undefined classification as grounds for continuing startup. Treat as unresolved design/configuration error.
 13. **Division of classification responsibility**: this ADR defines classification criteria and failure handling contract. Approved classification of each MCP server is recorded in the classification table of `agent_08_04` in machine-readable form at `registry/component_mandatoriness.yaml`; the `agent_08_04` table is generated from it; the `required` field in `config/agent.toml` must match it. Configuration provides effective values only within the range that classification permits. Startup validation verifies effective classification before using it to decide whether startup continues. Configuration alone cannot weaken a mandatory component to non-mandatory without an approved architecture or Specification change.
@@ -89,7 +88,7 @@ A posture `FAILED` result is a safety/integrity failure under Group 2 item 5, no
 16. Rejected operation must return failure/rejection result. Must not be converted to No-op treated as success. Routing by name inference prohibited. Must not fall back to static Registry. Unless an Accepted ADR explicitly permits, must not redirect to another Tool. Observable reason must be recorded.
 ### Group 6: Behavior of Mandatory Components
 
-17. When a mandatory component unavailable: abort startup. Make failure and reason observable. Do not silently disable. Do not perform Fallback unless an Accepted ADR explicitly permits it.
+17. When a mandatory component unavailable: abort startup. Make failure and reason observable. Do not silently disable. Do not perform Fallback.
 ### Group 7: Behavior of Non-Mandatory Components
 
 18. When an availability failure occurs in a non-mandatory component: disable component. Permit system to continue startup in partial-availability state. Exclude component's Tools/functions from executable exposure set. Reject new calls targeting those Tools/functions. Report disabled state, failure reason, affected functions, startup-continuation reason. Expose state through currently approved Diagnostics/Observability mechanisms. Do not report system as fully available.
@@ -105,9 +104,9 @@ A posture `FAILED` result is a safety/integrity failure under Group 2 item 5, no
 24. Distinguish between a component unavailable because of startup classification (disabled due to non-mandatory availability failure) and one dynamically unavailable after startup due to Dynamic Health. Former relates to ADR-003's "static availability" affecting LLM visibility/Routing eligibility. Latter relates to ADR-003's "Dynamic Health", affects only runtime success/failure, does not automatically change LLM visibility. This ADR does not merge/collapse this distinction defined by ADR-003.
 ### Group 10: Fallback Boundary
 
-25. Fallback prohibited by default.
-26. Fallback permitted only when an Accepted ADR explicitly defines all: trigger (Failure Trigger), destination (Destination), eligibility conditions (Eligibility Conditions), restrictions (Restrictions), result semantics (Result Semantics), observability requirements (Observability Requirements).
-27. ADR-010 sole authority for approved external-RAG-to-in-process-RAG fallback. ADR-010 permits Fallback only for RAG-related conditions, does not permit general Fail-Open behavior. Ordinary empty RAG result does not automatically trigger Fallback. Safety/integrity failure must not trigger availability Fallback. Fallback must not bypass auth/authz/approval/Allowlist/Routing/data integrity controls.
+25. Fallback prohibited without exception.
+26. A failed execution path is never replaced by another path (Destination substitution); the failure is surfaced as Fail-Fast, Fail-Closed, or the explicit partial-availability state.
+27. Ordinary empty RAG result does not trigger any substitute path. Safety/integrity failure must not trigger availability handling that bypasses auth/authz/approval/Allowlist/Routing/data integrity controls.
 
 ### Scope
 
@@ -127,7 +126,6 @@ A posture `FAILED` result is a safety/integrity failure under Group 2 item 5, no
 - Concrete mandatory/non-mandatory assignment of individual components (recorded in the classification table of `agent_08_04`)
 - New configuration keys or configuration models
 - RuntimeToolRegistry, Routing, availability concepts redesign (ADR-003)
-- RAG Fallback changes (ADR-010)
 
 ## Rationale
 
@@ -201,7 +199,7 @@ The startup validation results built by `StartupOrchestrator` are an in-memory a
 - Startup can continue when only non-mandatory components unavailable
 - Unavailable functions excluded from executable exposure set
 - Partial-availability state observable
-- Fallback conditions limited to explicit definitions by other Accepted ADRs
+- No Fallback path exists
 
 ### Negative Consequences
 
@@ -229,8 +227,8 @@ The startup validation results built by `StartupOrchestrator` are an in-memory a
 - INV-12: Tools related to a disabled component cannot be executed
 - INV-13: The partial-availability state and its reason are observable
 - INV-14: If a component's mandatoriness is undefined, startup is not permitted to continue
-- INV-15: Fallback is permitted only when another Accepted ADR explicitly defines it
-- INV-16: ADR-010 remains the authority for the approved RAG Fallback
+- INV-15: Fallback is prohibited without exception
+- INV-16: No path in `scripts/` substitutes another Destination for a failed one
 
 ### Alignment with INV-01 and INV-02
 
@@ -257,7 +255,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 | An availability failure of a non-mandatory component permits startup to continue and disables that component | INV-09 | Integration | Yes | Confirmed (spawn path: see Exceptions) |
 | Safety/integrity failures not converted to partial availability | INV-10 | Regression | Yes | Partial by phase — each class yields a startup abort (Fail-Fast) or runtime reject (Fail-Closed); none permits continued partial availability. The non-mandatory availability-failure path (disable + exclude from executable exposure) is tested via `McpToolDiscoveryService.discover_all()` and the unified `required` field; the safety/integrity guarantee has no single crosscutting test |
 | Calls to Tools of disabled component → rejected | INV-11, INV-12 | Unit | No | Confirmed |
-| Fallback only per ADR-010 | INV-15, INV-16 | Manual Review | No | Manual-release-review decision: automated fallback-path detector rejected because "fallback" appears as defensive default-value/best-effort patterns across production sources, so a pattern-based check yields unmanageable false positives; only ADR-010 marker uniqueness is automated. Manual audit retained as the controlling gate |
+| No Fallback path | INV-15, INV-16 | Manual Review | No | Manual-release-review decision: automated fallback-path detector rejected because "fallback" appears as defensive default-value/best-effort patterns across production sources, so a pattern-based check yields unmanageable false positives. Manual audit retained as the controlling gate |
 | A server posture `FAILED` result aborts startup even when the server is `required = false` | INV-07, INV-09, INV-10 | Integration | Yes | Confirmed (`tests/agent/test_mcp_health_posture.py`, `tests/agent/test_failure_handling_policy_cross_cutting.py`) |
 
 ### Startup Validation
@@ -285,16 +283,14 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 - Review of component mandatoriness classification
 - No automated test directly verifies INV-01 (single common failure handling policy); INV-02 and INV-13 have no dedicated entry in the list above
 - INV-14 (no startup continuation with undefined mandatoriness) verified by unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`)
-- INV-15/INV-16 cross-cutting audit (no ADR-004-scope fallback outside ADR-010):
-  - **Why not automated**: "fallback" appears throughout production code in defensive patterns (default-value substitution, best-effort cleanup) not Destination substitution; pattern-based detector would produce unmanageable false positives. Only ADR-010 marker uniqueness automated (`TestFallbackMarkerLockGuard`).
-  - **Procedure**: search production sources for fallback paths, classify as (a) ADR-010 fallback or (b) ADR-004-scope fallback requiring Accepted ADR (Decision #26); file follow-up issue for paths fitting neither.
-  - **Baseline**: ADR-010 is the sole Accepted ADR defining fallback; its failure decision table (Decision Details item 13) is the single statement of which causes fall back, fail closed, or yield an empty result.
+- INV-15/INV-16 cross-cutting audit (no fallback exists in `scripts/`):
+  - **Why not automated**: "fallback" appears throughout production code in defensive patterns (default-value substitution, best-effort cleanup) not Destination substitution; pattern-based detector would produce unmanageable false positives.
+  - **Procedure**: search production sources for fallback paths and classify each as a Destination substitution (a violation; file a follow-up issue) or a defensive default/within-component degradation (outside this ADR's scope).
   - **Classification of known paths**:
     - **Orchestrator workflow loading** (`orchestrator.py`): no fallback exists. A workflow definition that fails to load aborts Orchestrator construction, consistent with INV-03.
-    - **Vector-to-FTS degradation** (`retriever.py`): accepted current behavior. Rationale: vector→FTS is a within-database mode switch (both modes read the same `memories` table), not a Destination substitution; therefore outside ADR-004 scope.
-    - **augment() HTTP-to-in-process path**: ADR-010 fallback, class (a).
-    - **MQE, Rerank, and Refiner degradation**: outside ADR-004 scope; each degrades within the same in-process pipeline (original query, RRF order, raw chunks), not a Destination.
-  - **Automated fallback registry: not adopted.** Scope is unbounded (fallback patterns pervade defensive code), so a registry cannot be kept complete or trustworthy; the manual audit above remains the controlling gate.
+    - **Vector-to-FTS degradation** (`retriever.py`): accepted current behavior. Rationale: vector→FTS is a within-database mode switch (both modes read the same `memories` table), not a Destination substitution.
+    - **MQE, Rerank, and Refiner degradation**: each degrades within the same in-process pipeline (original query, RRF order, raw chunks), not a Destination.
+  - **Automated fallback registry: not adopted.** Scope is unbounded, so a registry cannot be kept complete or trustworthy; the manual audit above remains the controlling gate.
   - **Cadence**: at each release review, and when a change introduces fallback or Destination substitution.
   - **Owner**: Repository owner.
 
@@ -322,7 +318,7 @@ Re-evaluate when:
 - Reasons for rejecting an alternative no longer hold
 - Component mandatoriness classification criteria change
 - An MCP subprocess server is to be reclassified non-required (the spawn-failure exception must be removed first)
-- New Accepted ADR permitting Fallback added
+- A change introduces a Fallback or Destination substitution
 - The Security Posture contract changes how posture failures are classified as safety/integrity failures (linked with ADR-002 and ADR-003)
 
 ## Approval
@@ -340,7 +336,7 @@ Re-evaluate when:
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names not recorded)
 - **Approval Date**: Not recorded (individual approval dates not recorded for task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13, except Decision Group 10 ("Fallback prohibited without exception"), whose amendment is Pending maintainer statement; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -349,7 +345,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - ADR-001: Mandatory Workflow Engine — missing/invalid Workflow → Fail-Fast
 - ADR-002: Per-Process Configuration Ownership and Config Isolation — Config Isolation violation → Fail-Fast
 - ADR-003: RuntimeToolRegistry as the Sole Routing Authority — RuntimeToolRegistry init failure → Fail-Fast; authority for Tool visibility/Routing/Dynamic Health
-- ADR-010: In-Process Fallback When External RAG Execution Fails — sole Fallback this ADR permits
 
 ## Implementation References
 

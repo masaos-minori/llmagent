@@ -62,7 +62,6 @@ class RagPipelineConfig:
     refiner_max_tokens: int = 512
     refiner_max_chars_per_chunk: int = 300
     refiner_timeout: float = 30.0
-    rag_auth_token: str = ""
     auth_token: str = ""
 
     @classmethod
@@ -91,7 +90,6 @@ class RagPipelineConfig:
             refiner_max_tokens=int(d.get("refiner_max_tokens", 512)),
             refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 300)),
             refiner_timeout=float(d.get("refiner_timeout", 30.0)),
-            rag_auth_token=str(d.get("rag_auth_token", "")),
             auth_token=get_str(d, "auth_token"),
         )
 
@@ -115,11 +113,11 @@ class RagPipelineConfig:
         """The config view the posture fingerprint is computed from, with no Secret and no value
         that a fingerprint may not hash.
 
-        Scalar settings appear as values. URLs, paths, prompt templates, and both auth tokens appear
+        Scalar settings appear as values. URLs, paths, prompt templates, and the auth token appear
         only as presence booleans: compute_config_fingerprint() rejects an absolute path, a
         credential-shaped value, and a config section header, so a view carrying rag_db_path or
         sqlite_vec_so by value would make common.own_config_only FAILED and stop this server from
-        starting. rag_auth_token and auth_token are Secrets under REQ-002 and never appear at all.
+        starting. auth_token is a Secret under REQ-002 and never appears at all.
 
         A new dict is built on every call because RagPipelineConfig is a mutable dataclass and the
         view must not track later mutations of the config object.
@@ -131,7 +129,6 @@ class RagPipelineConfig:
             "rag_db_path_present": bool(self.rag_db_path),
             "sqlite_vec_so_present": bool(self.sqlite_vec_so),
             "auth_token_present": bool(self.auth_token),
-            "rag_auth_token_present": bool(self.rag_auth_token),
             "sqlite_timeout": self.sqlite_timeout,
             "sqlite_busy_timeout_ms": self.sqlite_busy_timeout_ms,
             "mqe_n_queries": self.mqe_n_queries,
@@ -168,8 +165,6 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> RagConfig:
             use_rerank=bool(cfg.use_rerank),
             use_refiner=bool(cfg.use_refiner),
             use_search=True,  # always True in MCP mode; checked in augment()
-            rag_query_service_url="",  # prevent HTTP loop when augment() is called in-process
-            rag_auth_token=cfg.rag_auth_token if cfg.rag_auth_token else "",
             top_k_search=int(cfg.top_k_search),
             top_k_rerank=int(cfg.top_k_rerank),
             rag_top_k=int(cfg.rag_top_k),

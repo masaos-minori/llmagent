@@ -23,8 +23,6 @@ class RagConfigImpl:
     use_rrf: bool
     rrf_k: int
     use_search: bool
-    rag_query_service_url: str
-    rag_auth_token: str | None
     use_refiner: bool
     refiner_max_tokens: int
     refiner_max_chars_per_chunk: int
@@ -41,6 +39,3 @@ class RagConfigImpl:
     mqe_prompt_template: str
     mqe_n_queries: int
     rerank_prompt_template: str
-    # RAGCORPUS001 REQ-003: identity-mismatch policy consumed by the fallback gate
-    # (doc 08). Fail-closed default; `degraded` only by explicit operator approval.
-    rag_identity_mismatch_policy: str = "reject"

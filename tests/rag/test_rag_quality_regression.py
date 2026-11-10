@@ -37,8 +37,6 @@ def _make_rag_cfg(
         use_rrf=use_rrf,
         rrf_k=60,
         use_search=use_search,
-        rag_query_service_url="",
-        rag_auth_token="",
         use_refiner=use_refiner,
         refiner_max_tokens=256,
         refiner_max_chars_per_chunk=500,

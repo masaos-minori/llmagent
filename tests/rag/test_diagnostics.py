@@ -194,7 +194,6 @@ class TestPipelineDiagnosticsFromRunResult:
             "timings",
             "fetch_result",
             "fusion_mode",
-            "http_result_kind",
             "fallback_count",
             "fallback_reasons",
             "refiner_fallback_count",

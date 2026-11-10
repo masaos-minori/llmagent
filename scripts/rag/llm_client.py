@@ -118,10 +118,8 @@ class RagLLM:
     ) -> str:
         """Call the chat LLM endpoint and return the response content string.
 
-        The in-process per-request timeout is the injected client's configured
-        timeout, declared explicitly at the call site. Contrast: the delegate
-        path ``scripts/rag/pipeline_service.py::call_rag_service`` uses a fixed
-        per-attempt timeout (``_REQUEST_TIMEOUT_SECONDS``).
+        The per-request timeout is the injected client's configured timeout,
+        declared explicitly at the call site.
         """
         resp = await self._client.post(
             self._llm_url,
@@ -283,10 +281,8 @@ async def get_embedding(
 ) -> list[float]:
     """Convert text to a float embedding vector.
 
-    The in-process per-request timeout is the injected client's configured
-    timeout, declared explicitly at the call site. Contrast: the delegate
-    path ``scripts/rag/pipeline_service.py::call_rag_service`` uses a fixed
-    per-attempt timeout (``_REQUEST_TIMEOUT_SECONDS``).
+    The per-request timeout is the injected client's configured timeout,
+    declared explicitly at the call site.
 
     Raises ValueError if the response has no 'embedding' list, or if any
     element is non-numeric, non-finite, or outside the float32 range

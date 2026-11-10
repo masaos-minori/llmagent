@@ -85,17 +85,7 @@ supplemental_adrs = []
 [[authority]]
 decision_target = "rag.canonical-data"
 primary_adr = "ADR-005"
-supplemental_adrs = [
-  { adr = "ADR-010", limit = "fallback behavior only" },
-]
-
-[[authority]]
-decision_target = "rag.fallback"
-primary_adr = "ADR-010"
-supplemental_adrs = [
-  { adr = "ADR-004", limit = "failure-classification contract; ADR-010 is the sole Fallback exception it permits" },
-  { adr = "ADR-005", limit = "canonical data selection" },
-]
+supplemental_adrs = []
 
 [[authority]]
 decision_target = "docs.reference-generation"
@@ -165,13 +155,6 @@ edge_type = "Requires"
 from = "ADR-004"
 to = "ADR-003"
 edge_type = "Extends"
-
-[[adr_edge]]
-from = "ADR-004"
-to = "ADR-010"
-edge_type = "Reference"
-intentional = true
-note = "ADR-004 defines the failure-classification contract; ADR-010 is the sole Fallback it permits."
 
 [[adr_edge]]
 from = "ADR-005"
@@ -247,21 +230,6 @@ edge_type = "Reference"
 
 [[adr_edge]]
 from = "ADR-009"
-to = "ADR-005"
-edge_type = "Reference"
-
-[[adr_edge]]
-from = "ADR-010"
-to = "ADR-002"
-edge_type = "Reference"
-
-[[adr_edge]]
-from = "ADR-010"
-to = "ADR-004"
-edge_type = "Exception-to"
-
-[[adr_edge]]
-from = "ADR-010"
 to = "ADR-005"
 edge_type = "Reference"
 
