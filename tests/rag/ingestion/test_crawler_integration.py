@@ -219,6 +219,36 @@ class TestMaxPagesBoundaryCondition:
         assert "persisted budget reached" in caplog.text
 
     @pytest.mark.asyncio
+    async def test_none_save_result_not_counted(
+        self,
+        mock_config: dict,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """AC-5: a save_http result of None is not counted against the persisted budget and enqueues no links."""
+        mock_config["max_pages"] = 1
+        mock_config["max_depth"] = 3
+        mock_config["rag_src_dir"] = str(tmp_path)
+
+        with respx.mock:
+            respx.get("http://example.com/start").mock(
+                return_value=Response(200, text=self._page("Alpha", ("/b",)))
+            )
+            respx.get("http://example.com/b").mock(
+                return_value=Response(200, text=self._page("Bravo", ("/c", "/d")))
+            )
+            crawler = WebCrawler(config=mock_config)
+            with caplog.at_level(logging.WARNING, logger="rag.ingestion.orchestrator"):
+                with patch.object(
+                    crawler.crawl_persister, "save_http", return_value=None
+                ):
+                    await crawler.crawl_site("http://example.com/start", "en")
+
+            assert len(list(tmp_path.glob("*-*.json"))) == 0
+            assert "persisted budget reached" not in caplog.text
+            assert len(respx.calls) == 1
+
+    @pytest.mark.asyncio
     async def test_max_pages_warning_logged(
         self,
         mock_config: dict,

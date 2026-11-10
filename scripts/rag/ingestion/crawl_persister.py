@@ -113,17 +113,21 @@ class CrawlPersister:
         etag: str | None = None,
         last_modified: str | None = None,
         fetched_at: str | None = None,
-    ) -> Path:
-        """Save crawl results as JSON to rag-src/yyyymmddhhmmss-{slug}.json."""
+    ) -> Path | None:
+        """Save crawl results as JSON to rag-src/yyyymmddhhmmss-{slug}.json.
+
+        Returns the written file's Path, or None when the save is skipped
+        (unsupported lang, code_blocks not a list, or empty content without
+        code blocks); the skip branches compute and return no file path."""
         if lang not in frozenset({"en", "ja"}):
             logger.warning("lang=%r not supported, skipping save: %s", lang, url)
-            return self.make_crawl_filepath(url)
+            return None
         if not isinstance(code_blocks, list):
             logger.warning("code_blocks is not a list, skipping save: %s", url)
-            return self.make_crawl_filepath(url)
+            return None
         if not content and not code_blocks:
             logger.warning("empty content without code blocks, skipping save: %s", url)
-            return self.make_crawl_filepath(url)
+            return None
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         path = self.make_crawl_filepath(url)
         payload: CrawlJsonPayload = {

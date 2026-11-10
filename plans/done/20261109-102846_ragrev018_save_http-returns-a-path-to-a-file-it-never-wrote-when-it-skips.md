@@ -170,8 +170,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Persister contract change (optional `Path` return, `None` on skips, docstring) with per-branch unit tests | In Progress | — | — |  |
-| 2 | Orchestrator handles `None` (no budget increment, no enqueue) with caller-side test | In Progress | — | — |  |
+| 1 | Persister contract change (optional `Path` return, `None` on skips, docstring) with per-branch unit tests | Completed | — | 20261110-131239 |  |
+| 2 | Orchestrator handles `None` (no budget increment, no enqueue) with caller-side test | Completed | — | 20261110-131239 |  |
 | 3 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -182,10 +182,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261109-235704_01_scripts_rag_ingestion_crawl_persister.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261109-235704_02_scripts_rag_ingestion_orchestrator.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261109-235704_03_tests_rag_ingestion_test_crawl_persister_lang.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261109-235704_04_tests_rag_ingestion_test_crawler_integration.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261109-235704_01_scripts_rag_ingestion_crawl_persister.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261109-235704_02_scripts_rag_ingestion_orchestrator.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261109-235704_03_tests_rag_ingestion_test_crawl_persister_lang.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261109-235704_04_tests_rag_ingestion_test_crawler_integration.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

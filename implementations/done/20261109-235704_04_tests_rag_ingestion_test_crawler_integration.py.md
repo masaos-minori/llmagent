@@ -64,8 +64,12 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the test per Implementation > Procedure/Method/Details | Pending | — | — | Land before the seq-02 code change (red-first, Plan Phase 2) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Full green requires the seq-02 document landed |
+| 1 | Add the test per Implementation > Procedure/Method/Details | Completed | 20261110 | 20261110 | seq-02 (orchestrator `if saved is None: return`, L326-327) was already landed in seq-02, so the test lands green on HEAD rather than red. Red-first is moot once the fix exists. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110 | 20261110 | ruff format/check clean; `check_mock_patch_targets.py` No findings; mypy clean on `scripts/ tests/eventbus tools` (558 files) and explicitly on this test file (tests/rag/ is outside the default mypy `files`); `TestMaxPagesBoundaryCondition` 6/6 green. |
+
+**Adversarial verification notes:**
+- `max_pages=1` makes the `len(respx.calls) == 1` and `len(glob("*-*.json")) == 0` assertions co-satisfiable by the persisted-budget stop alone (without the fix, `/b` is enqueued but the budget stop at `orchestrator.py` L142 breaks before draining it, so it is never fetched). The assertion that actually forces red without the fix is `"persisted budget reached" not in caplog.text`: without the fix `budget.persisted` reaches 1 after the start page, the stop fires, and the warning is logged. With the fix `budget.persisted` stays 0 and the warning never fires. The test is therefore a valid regression test for AC-5.
+- The `save_http` result is ignored by the caller without the fix; patching it to `None` still exercises the real fetch/extract/lang-resolve path up to the save call, so the budget accounting is genuinely exercised, not stubbed.
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

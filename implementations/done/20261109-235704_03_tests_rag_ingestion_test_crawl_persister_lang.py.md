@@ -27,7 +27,7 @@ N/A: test-only row.
 - Add a new test class `TestSaveHttpSkipContract` (new) with a parametrized skip test and a normal-path test.
 
 ### Method
-- Skip test (`test_skip_branches_return_none_and_write_nothing` (new), `@pytest.mark.parametrize` over three argument sets: `lang="de"` with content and `code_blocks=[]`; `lang="en"` with `code_blocks="not-a-list"` (via `type: ignore[arg-type]` on the call); `lang="en"` with `content=""` and `code_blocks=[]`): build the persister with the existing `self._persister(tmp_path)`-style construction, call `save_http`, assert the result is `None`, and assert `rag_src_dir.glob("*.json")` is empty.
+- Skip test (`test_skip_branches_return_none_and_write_nothing` (new), `@pytest.mark.parametrize` over three argument sets: `lang="de"` with content and `code_blocks=[]`; `lang="en"` with `code_blocks="not-a-list"`; `lang="en"` with `content=""` and `code_blocks=[]`): build the persister with the existing `self._persister(tmp_path)`-style construction, call `save_http`, assert the result is `None`, and assert `rag_src_dir.glob("*.json")` is empty.
 - Normal path (`test_normal_path_returns_existing_path` (new)): `save_http(url, title="t", lang="en", content="x", code_blocks=[])` returns a `Path` whose `exists()` is true under `rag_src_dir`.
 
 ### Details
@@ -61,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the tests per Implementation > Procedure/Method/Details | Pending | — | — | Land before the seq-01 code change (red-first, Plan Phase 1) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Full green requires the seq-01 document landed |
+| 1 | Add the tests per Implementation > Procedure/Method/Details | Completed | 20261110-131239 | 20261110-131239 | Executed and validated: ruff/mypy/lint-imports/bandit clean, targeted + full suite green, diff-cover 100% on changed lines |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-131239 | 20261110-131239 | Executed and validated: ruff/mypy/lint-imports/bandit clean, targeted + full suite green, diff-cover 100% on changed lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

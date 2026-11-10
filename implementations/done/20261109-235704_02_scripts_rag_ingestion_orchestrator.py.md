@@ -67,9 +67,9 @@ N/A: revert the single commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After the seq-01 document (Plan phase order); the seq-04 test lands red before this step per Plan Phase 2 |
-| 2 | Confirm the tests added by the seq-04 document pass | Pending | — | — | Tests live in `tests/rag/ingestion/test_crawler_integration.py` (own procedure document) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261110-131239 | 20261110-131239 | Executed and validated: ruff/mypy/lint-imports/bandit clean, targeted + full suite green, diff-cover 100% on changed lines |
+| 2 | Confirm the tests added by the seq-04 document pass | Completed | 20261110-131239 | 20261110-131239 | Executed and validated: ruff/mypy/lint-imports/bandit clean, targeted + full suite green, diff-cover 100% on changed lines |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-131239 | 20261110-131239 | Executed and validated: ruff/mypy/lint-imports/bandit clean, targeted + full suite green, diff-cover 100% on changed lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

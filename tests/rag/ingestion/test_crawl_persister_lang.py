@@ -151,3 +151,51 @@ class TestMakeCrawlFilePathUniqueness:
         assert len(files) == 2
         contents = {orjson.loads(f.read_bytes())["content"] for f in files}
         assert contents == {"content-a", "content-b"}
+
+
+class TestSaveHttpSkipContract:
+    def _persister(self, tmp_path: Path) -> CrawlPersister:
+        return CrawlPersister({"rag_src_dir": str(tmp_path / "rag-src")})
+
+    @pytest.mark.parametrize(
+        ("lang", "content", "code_blocks"),
+        [
+            pytest.param("de", "some content", [], id="unsupported-lang"),
+            pytest.param("en", "some content", "not-a-list", id="non-list-code-blocks"),
+            pytest.param("en", "", [], id="empty-content"),
+        ],
+    )
+    def test_skip_branches_return_none_and_write_nothing(
+        self,
+        tmp_path: Path,
+        lang: str,
+        content: str,
+        code_blocks: object,
+    ) -> None:
+        persister = self._persister(tmp_path)
+
+        result = persister.save_http(
+            "https://example.com/skip",
+            title="skip",
+            lang=lang,
+            content=content,
+            code_blocks=code_blocks,
+        )
+
+        assert result is None
+        assert not list((tmp_path / "rag-src").glob("*.json"))
+
+    def test_normal_path_returns_existing_path(self, tmp_path: Path) -> None:
+        persister = self._persister(tmp_path)
+
+        result = persister.save_http(
+            "https://example.com/ok",
+            title="t",
+            lang="en",
+            content="x",
+            code_blocks=[],
+        )
+
+        assert isinstance(result, Path)
+        assert result.parent == tmp_path / "rag-src"
+        assert result.exists()

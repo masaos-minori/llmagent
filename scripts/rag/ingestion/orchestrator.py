@@ -313,7 +313,7 @@ class CrawlOrchestrator:
                 return
 
             fetched_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-            self._persister.save_http(
+            saved = self._persister.save_http(
                 final_url,
                 title,
                 resolved_lang,
@@ -323,6 +323,8 @@ class CrawlOrchestrator:
                 last_modified,
                 fetched_at,
             )
+            if saved is None:
+                return
             budget.persisted += 1
             visited.add(final_url)
             self._link_discovery.enqueue_links(html, final_url, start_url, depth, queue)
