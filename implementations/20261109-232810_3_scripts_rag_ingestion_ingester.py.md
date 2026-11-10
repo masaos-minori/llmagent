@@ -3,7 +3,7 @@
 - Quarantine a URL group whose commit fails with a deterministic `sqlite3.IntegrityError` by routing the whole group to `failed/` with reason `STORAGE_FAILED`, while every other `sqlite3.Error` keeps today's retryable behavior (`REQ-003`: IntegrityError quarantine; `REQ-004`: transient errors unchanged; `REQ-005`: atomicity unchanged).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: ragrev015-core (Plan `### Release units`; owner-declared batch unit 20261110)
 
 - The `TransactionManager.commit` call site in `RagIngester.ingest_url_group` in `scripts/rag/ingestion/ingester.py`.
 
@@ -11,6 +11,9 @@
 
 - Overlap judgment (vs `plans/20261108-170725_ragrev016_stale-recrawl-replaces-content.md`): `scripts/rag/ingestion/ingester.py` and `tests/rag/ingestion/test_ingester.py` are targets of both plans; judged a sequencing dependency, not a conflict — ragrev016's Scope states it must land after this plan's Phase 3 because both edit the same `commit` block. Keep the `commit(...)` call shape and its ignored return value `(doc_id, skip, replace)` unchanged here so the ragrev016 skip-handling adds on top cleanly.
 - `TransactionManager.commit` runs inside `begin_immediate()` and the context manager rolls back on error (Plan Background; `scripts/rag/ingestion/transaction_commit.py` unchanged), so no manual rollback is added here.
+- Verified anchors at HEAD `02f3143e2`: `TransactionManager.commit` signature `scripts/rag/ingestion/transaction_commit.py` L38-91 with no local `sqlite3.Error` handler (it propagates); `ingester.py` `IngestUrlResult` L43-58 (`url`, `n_success`, `n_failed`, `skipped`, `n_embed_failed`, `failure_reason`); the `GROUP_VALIDATION_FAILED` result shapes this helper must mirror at L276-282 and L291-297; `tx_mgr = TransactionManager(...)` at L330, `tx_mgr.commit(...)` at L331-343, `self._file_router.route(prepared_paths, [])` at L345; `_route_group_failed` at L395-399; `_process_url_groups` at L401-428.
+- Verified AC-4 baseline: the `except (OSError, RuntimeError, ValueError, sqlite3.Error)` clause at L423-428 logs the failure, appends `IngestUrlResult.unexpected_failure(url)`, and moves nothing — the group's files stay in `chunk/` and are reprocessed on the next run. That is the retryable behavior the Plan requires to stay unchanged, and it is also why an unclassified deterministic failure is retried forever (Plan Problem statement).
+- Verified aggregation surface: `ingest_all` sums `r.n_embed_failed` into `doc_manager.check_consistency(embed_failed=...)` at L176-181; no `IngestStats` type and no `groups_failed` field exist, so a quarantined group is reported through `IngestUrlResult.failure_reason` and `n_failed`, not a new counter.
 
 ## Design decisions
 
@@ -35,8 +38,8 @@
 - `ingest_url_group` replaces its inline commit block with a call to the helper; on `False`, return `IngestUrlResult(url=url, n_success=0, n_failed=len(chunk_files), skipped=False, failure_reason=IngestionFailureReason.STORAGE_FAILED)` — the same result shape as the existing `GROUP_VALIDATION_FAILED` branch (L276-282).
 
 ### Details
-- `_process_url_groups` (L401-422) stays untouched: `IntegrityError` no longer reaches it, and the `unexpected_failure` path for other errors (REQ-004/AC-4) is preserved exactly.
-- `.error.json` metadata per file is written by `FileRouter.route` (existing `_route_group_failed` behavior); no new reason value (`STORAGE_FAILED` already exists in `scripts/rag/exceptions.py`).
+- `_process_url_groups` (L401-428) stays untouched: `IntegrityError` no longer reaches it, and the `unexpected_failure` path for other errors (REQ-004/AC-4) is preserved exactly, including the fact that it moves no files.
+- `.error.json` metadata per file is written by `FileRouter.route` (existing `_route_group_failed` behavior). These group files already passed `read_chunk_json` in `ingest_url_group`, so their metadata is readable and no sidecar gap is introduced by this row; the always-write guarantee for unreadable payloads is the seq-7 document's scope. No new reason value (`STORAGE_FAILED` already exists in `scripts/rag/exceptions.py`).
 - The group continues: `_process_url_groups` keeps iterating to the next group (AC-3).
 
 ## Compatibility considerations
@@ -69,9 +72,9 @@ N/A: revert the single commit; quarantined `failed/` files are recoverable by mo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Confirm the tests added by the seq-4 document pass | Pending | — | — | Tests live in `tests/rag/ingestion/test_ingester.py` (own procedure document) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261110-114048 | 20261110-114048 |  |
+| 2 | Confirm the tests added by the seq-4 document pass | Completed | — | 20261110-120906 | Tests live in `tests/rag/ingestion/test_ingester.py` (own procedure document) end-of-unit gate: tests/rag/ingestion 337 passed; full suite 12133 passed; diff-cover 100%; ruff/mypy/lint-imports pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-114143 | 20261110-120906 | ruff/lint-imports pass; mypy full-suite rc=0, 6 findings identical to HEAD baseline (pre-existing unused-ignore at line 373->382 after insert) end-of-unit gate: tests/rag/ingestion 337 passed; full suite 12133 passed; diff-cover 100%; ruff/mypy/lint-imports pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
