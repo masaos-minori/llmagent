@@ -69,6 +69,10 @@ class TestMdqRagBoundary:
     def test_shared_layer_has_no_direct_mdq_rag_sqlite_access(self) -> None:
         """scripts/shared/ must not access the MDQ or RAG SQLite DBs directly."""
         ALLOWED: set[str] = {
+            # Shared schema-shape validator (adrrev005): opens only in-memory
+            # databases and target connections passed by callers; never touches MDQ or
+            # RAG DB files.
+            "schema_fingerprint.py",
             # Shared EventBus schema-shape validator: opens only in-memory databases
             # and target connections passed by callers; never touches MDQ or RAG DB files.
             "eventbus_schema_fingerprint.py",
