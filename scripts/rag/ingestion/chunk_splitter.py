@@ -13,6 +13,7 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 """
 
 import argparse
+import os
 import re
 from pathlib import Path
 from typing import TypedDict
@@ -115,6 +116,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
                     extra={"url": chunk_doc.url},
                 )
             return 0
+        self._clear_leftover_temp_files(src_path.stem)
         chunk_doc = self._read_source_data(src_path)
         if chunk_doc is None:
             return 0
@@ -155,6 +157,21 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         if removed:
             logger.info("pruned %s stale chunk files for %s", removed, stem)
         return removed
+
+    def _clear_leftover_temp_files(self, stem: str) -> None:
+        """Remove leftover {stem}-*.json.tmp files from an interrupted earlier run.
+
+        Called before writing so a crash in a previous run never leaves temp files
+        that would otherwise be ingested or confuse the next run. A failure to
+        remove one file is logged and does not stop the run.
+        """
+        if not self._chunk_dir.exists():
+            return
+        for path in self._chunk_dir.glob(f"{stem}-*.json.tmp"):
+            try:
+                path.unlink()
+            except OSError as e:
+                logger.error("failed to remove leftover temp chunk %s: %s", path, e)
 
     # ── English and Japanese chunking ─────────────────────────────────────────
     # Provided by ChunkEnglishMixin and ChunkJapaneseMixin respectively.
@@ -280,25 +297,57 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         src_path: Path,
         chunking_strategy: str = "text",
     ) -> int:
-        """Write (chunk_type, content, normalized_content) triples to chunk_dir."""
+        """Write (chunk_type, content, normalized_content) triples to chunk_dir.
+
+        Every chunk is first written under a temporary name; the final names are
+        then published with os.replace in descending index order so the -0000
+        sentinel appears last. On any OSError this run's temp and published files
+        are removed and the error is re-raised so process_all logs one error.
+        """
         if not chunks:
             return 0
         self._chunk_dir.mkdir(parents=True, exist_ok=True)
         metadata = self._extract_chunk_metadata(data, src_path, chunking_strategy)
-        written: int = 0
-        for idx, (chunk_type, chunk_content, norm_content) in enumerate(chunks):
-            out_path = self._chunk_dir / f"{src_path.stem}-{idx:04d}.json"
-            payload = self._build_chunk_payload(
-                metadata, idx, chunk_type, chunk_content, norm_content
-            )
-            try:
-                out_path.write_bytes(
+        pairs: list[tuple[Path, Path]] = []
+        try:
+            for idx, (chunk_type, chunk_content, norm_content) in enumerate(chunks):
+                final_path = self._chunk_dir / f"{src_path.stem}-{idx:04d}.json"
+                temp_path = final_path.with_name(final_path.name + ".tmp")
+                payload = self._build_chunk_payload(
+                    metadata, idx, chunk_type, chunk_content, norm_content
+                )
+                temp_path.write_bytes(
                     orjson.dumps(payload, option=orjson.OPT_INDENT_2),
                 )
-                written += 1
-            except OSError as e:
-                logger.error("failed to write chunk %s: %s", out_path, e)
-        return written
+                pairs.append((temp_path, final_path))
+            return self.publish_chunk_files(pairs)
+        except OSError:
+            self.cleanup_chunk_files(pairs)
+            raise
+
+    def publish_chunk_files(self, pairs: list[tuple[Path, Path]]) -> int:
+        """Publish (temp_path, final_path) pairs via os.replace in descending index order.
+
+        The -0000 sentinel is published last so its presence marks a complete set.
+        Returns the number of files published.
+        """
+        published: list[Path] = []
+        for temp_path, final_path in sorted(
+            pairs, key=lambda pair: pair[1].name, reverse=True
+        ):
+            os.replace(temp_path, final_path)
+            published.append(final_path)
+        return len(published)
+
+    def cleanup_chunk_files(self, pairs: list[tuple[Path, Path]]) -> None:
+        """Remove this run's temp files and any final files published in this call.
+
+        Called from a single OSError handler around the write and publish phases so
+        a failure leaves no partial or temporary output for this document.
+        """
+        for temp_path, final_path in pairs:
+            temp_path.unlink(missing_ok=True)
+            final_path.unlink(missing_ok=True)
 
     def _extract_chunk_metadata(
         self, data: ChunkDocument, src_path: Path, chunking_strategy: str

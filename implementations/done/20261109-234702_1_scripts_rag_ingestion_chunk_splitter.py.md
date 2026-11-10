@@ -75,9 +75,9 @@ N/A: revert the single commit; leftover `*.json.tmp` files from new-code runs ar
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add companion tests per Companion test files | Pending | — | — | Companion: `tests/rag/ingestion/test_chunk_splitter.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261110-114539 | 20261110-114539 | Stale detector clean; implementation matches procedure: temp-write then sentinel-last publish, cleanup on OSError, leftover-temp removal before write. |
+| 2 | Add companion tests per Companion test files | Completed | 20261110-114539 | 20261110-114539 | Companion: `tests/rag/ingestion/test_chunk_splitter.py` TestAtomicChunkWrite (5 tests) added to companion file; fixed _patch_os_replace patch target (patch.object -> patch for os.replace origin module). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-114539 | 20261110-114539 | ruff/mypy/lint-imports/bandit(-ll)/ast-grep clean; pytest targeted 5/5 + regression 335 pass; diff-cover exit 0 (chunk_splitter.py is coverage-omit per pyproject.toml [tool.coverage.run] omit list). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

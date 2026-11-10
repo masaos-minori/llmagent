@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the idempotency sentence per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (Validation plan) | Pending | — | — | |
+| 1 | Update the idempotency sentence per Implementation > Procedure/Method/Details | Completed | 20261110-114700 | 20261110-114700 | Sentinel-last publish semantics added to idempotency sentence (AC-6); stale detector clean. |
+| 2 | Run the documentation checkers (Validation plan) | Completed | 20261110-114700 | 20261110-114700 | Docs checkers pass: content_policy, japanese, quality, structure, consistency(--domain rag) all clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

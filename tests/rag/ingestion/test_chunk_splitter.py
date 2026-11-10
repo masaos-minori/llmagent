@@ -5,6 +5,7 @@ and fetched_at propagation across all written chunk files.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -917,6 +918,43 @@ def _series_indices(files: list[Path]) -> list[str]:
     return [p.name[len(p.name) - 9 : -5] for p in files]
 
 
+def _patch_write_bytes(fail_on: int | None = None) -> Any:
+    """Patch Path.write_bytes to delegate to the real write, optionally failing once.
+
+    The fail-th call raises OSError; every other call performs a real write so
+    partial-output and success-path assertions exercise actual filesystem state.
+    """
+    real = Path.write_bytes
+    state: dict[str, int] = {"n": 0}
+
+    def wrapped(instance: Path, data: bytes, *args: object, **kwargs: object):
+        state["n"] += 1
+        if fail_on is not None and state["n"] == fail_on:
+            raise OSError("simulated disk error")
+        return real(instance, data, *args, **kwargs)
+
+    return patch.object(Path, "write_bytes", wrapped)
+
+
+def _patch_os_replace(order: list[str], fail_on: int | None = None) -> Any:
+    """Patch os.replace to record final names, optionally failing once.
+
+    Every non-failing call delegates to the real os.replace so published files
+    actually appear; the fail-th call raises to simulate a publish-phase error.
+    """
+    real = os.replace
+    state: dict[str, int] = {"n": 0}
+
+    def wrapped(temp: object, final: object, *args: object, **kwargs: object):
+        state["n"] += 1
+        order.append(Path(final).name)
+        if fail_on is not None and state["n"] == fail_on:
+            raise OSError("simulated publish error")
+        return real(temp, final, *args, **kwargs)
+
+    return patch("os.replace", wrapped)
+
+
 # ── TestForceRechunkPrune (raging004 REQ-001 / REQ-003) ────────────────────────
 
 
@@ -1176,3 +1214,121 @@ class TestJapaneseMarkdownChunking:
         for cf in chunk_files:
             data = orjson.loads(cf.read_bytes())
             assert data["chunking_strategy"] == "heading"
+
+
+# ── TestAtomicChunkWrite (ragrev017 REQ-001..REQ-005 / AC-1..AC-5) ─────────────
+
+
+class TestAtomicChunkWrite:
+    """A document's chunk set is all-or-nothing: temp writes then sentinel-last publish.
+
+    Red before the fix: a write error leaves a gapped set whose sentinel skips the
+    next non-forced run. Characterization: write-error cleanup+regenerate (a/b),
+    publish-order and publish-error cleanup (c), leftover temp removal (d),
+    success-path unchanged (e).
+    """
+
+    _FIVE_CHUNKS: list[tuple[str, str, str | None]] = [
+        ("text", f"word{i} " * 40, "") for i in range(5)
+    ]
+
+    def test_write_error_leaves_no_output_and_regenerates(self, tmp_path: Path) -> None:
+        # AC-1: a write error for one chunk removes this run's partial output.
+        # AC-2: a non-forced rerun regenerates the full set.
+        src = _write_prune_src(tmp_path, "atomic", _LONG_SINGLE)
+        splitter = _make_prune_splitter(tmp_path)
+        with patch.object(
+            splitter, "_build_chunk_list", return_value=list(self._FIVE_CHUNKS)
+        ):
+            with _patch_write_bytes(fail_on=3):
+                with pytest.raises(OSError):
+                    splitter.process_file(src, force=False)
+            chunk_dir = tmp_path / "chunk"
+            assert _chunk_series(chunk_dir, "atomic") == []
+            assert [p.name for p in chunk_dir.glob("atomic-*.json.tmp")] == []
+            count = splitter.process_file(src, force=False)
+        assert count == 5
+        series = _chunk_series(chunk_dir, "atomic")
+        assert len(series) == 5
+        assert _series_indices(series) == [f"{i:04d}" for i in range(5)]
+
+    def test_process_all_logs_one_error_on_write_failure(self, tmp_path: Path) -> None:
+        # AC-1: the failure is logged once at error level by process_all.
+        import sys
+
+        _write_prune_src(tmp_path, "logged", _LONG_SINGLE)
+        splitter = _make_prune_splitter(tmp_path)
+        mod = sys.modules[type(splitter).__module__]
+        with patch.object(
+            splitter, "_build_chunk_list", return_value=list(self._FIVE_CHUNKS)
+        ):
+            with _patch_write_bytes(fail_on=3):
+                with patch.object(mod, "logger") as mock_logger:
+                    result = splitter.process_all()
+        assert result == 0
+        mock_logger.exception.assert_called_once()
+
+    def test_sentinel_published_last_and_publish_error_cleans_up(
+        self, tmp_path: Path
+    ) -> None:
+        # AC-3: the -0000 sentinel is published last; a publish-step error cleans up.
+        src = _write_prune_src(tmp_path, "order", _LONG_SINGLE)
+        splitter = _make_prune_splitter(tmp_path)
+        order: list[str] = []
+        with patch.object(
+            splitter, "_build_chunk_list", return_value=list(self._FIVE_CHUNKS)
+        ):
+            with _patch_os_replace(order):
+                splitter.process_file(src, force=False)
+        assert order[-1].endswith("-0000.json")
+        assert order[0].endswith("-0004.json")
+
+        # publish-step OSError variant: cleanup removes published finals + remaining temps
+        chunk_dir = tmp_path / "chunk"
+        order.clear()
+        src2 = _write_prune_src(tmp_path, "puberr", _LONG_SINGLE)
+        splitter2 = _make_prune_splitter(tmp_path)
+        with patch.object(
+            splitter2, "_build_chunk_list", return_value=list(self._FIVE_CHUNKS)
+        ):
+            with _patch_write_bytes():
+                with _patch_os_replace(order, fail_on=3):
+                    with pytest.raises(OSError):
+                        splitter2.process_file(src2, force=False)
+        assert [p.name for p in chunk_dir.glob("puberr-*.json.tmp")] == []
+        assert _chunk_series(chunk_dir, "puberr") == []
+
+    def test_leftover_temp_removed_by_next_run(self, tmp_path: Path) -> None:
+        # AC-4: a leftover {stem}-*.json.tmp from a crashed run is removed before writing.
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(parents=True)
+        leftover = chunk_dir / "lefty-0002.json.tmp"
+        leftover.write_bytes(orjson.dumps({"chunk_index": 2}))
+        src = _write_prune_src(tmp_path, "lefty", _LONG_SINGLE)
+        splitter = _make_prune_splitter(tmp_path)
+        with patch.object(
+            splitter, "_build_chunk_list", return_value=list(self._FIVE_CHUNKS)
+        ):
+            with _patch_write_bytes():
+                assert splitter.process_file(src, force=False) == 5
+        assert not leftover.exists()
+        assert [p.name for p in chunk_dir.glob("lefty-*.json.tmp")] == []
+        assert len(_chunk_series(chunk_dir, "lefty")) == 5
+
+    def test_success_path_names_contents_and_return_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        # AC-5: the success path still writes the same names/contents and returns the count.
+        src = _write_prune_src(tmp_path, "success", _LONG_SINGLE)
+        splitter = _make_prune_splitter(tmp_path)
+        with patch.object(
+            splitter, "_build_chunk_list", return_value=list(self._FIVE_CHUNKS)
+        ):
+            with _patch_write_bytes():
+                count = splitter.process_file(src, force=False)
+        assert count == 5
+        series = _chunk_series(tmp_path / "chunk", "success")
+        assert len(series) == 5
+        for i, path in enumerate(series):
+            assert orjson.loads(path.read_bytes())["chunk_index"] == i
+        assert [p.name for p in tmp_path.glob("success-*.json.tmp")] == []
