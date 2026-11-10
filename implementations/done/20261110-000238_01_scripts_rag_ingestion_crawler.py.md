@@ -9,7 +9,7 @@
 
 ## Assumptions
 
-- Overlap check (Step 2 tool): no findings; no other open Plan targets `crawler.py` (verified this cycle; only ragrev018/019 remained open and 018 targets `orchestrator.py`/`crawl_persister.py`, not `crawler.py`).
+- Overlap check (Step 2 tool): no findings; no other open Plan targets `crawler.py` (re-verified at execution: the open Plans are adrrev003-006 and none target `crawler.py` in `Implementation Target Files`; `plan_dependency_order.py` overlap notes name no `crawler.py`).
 - The six subscripted keys verified this cycle at L60-68: `rag_src_dir`, `crawl_delay`, `max_depth`, `min_chunk`, `fetch_retry`, `target_urls`; all other keys already use `.get()` defaults.
 - The mixed access is not triggered today: `config/crawler.toml` defines all six keys (verified: L3/L14/L17/L18/L19/L33), so no shipped behavior changes.
 - `ValueError` (not `ConfigMissingError`, not a new class) per the Plan's chosen alternative; no `except KeyError` exists in `scripts/rag/` and `main()` (L182) is the only production constructor site (verified this cycle).
@@ -43,7 +43,7 @@
 
 ## Compatibility considerations
 
-- All 27 test constructor sites pass configs that already contain the six keys (they would fail today's subscripts otherwise), so no fixture changes are expected (Plan Risks mitigation); `tests/rag/ingestion` must pass unmodified (AC-2).
+- All test constructor sites pass configs that already contain the six keys (they would fail today's subscripts otherwise), so no fixture changes are expected (Plan Risks mitigation); re-verified at execution: 38 `WebCrawler(` sites across 7 modules in `tests/rag/ingestion` — the Plan's 27/6 count predates `test_crawler_redirects.py` (added 20261109 by ragrev012), whose 5 sites use a `crawl_config` fixture carrying all six keys; `tests/rag/ingestion` must pass unmodified (AC-2).
 - `ConfigLoader().load("crawler.toml")` path: the shipped file satisfies the tuple, guaranteed by the seq-02 drift-guard test.
 
 ## Security considerations
@@ -72,9 +72,9 @@ N/A: revert the single commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Tests-first order: land the seq-02 test module (red on HEAD) before this step per the Plan's Phase 1 |
-| 2 | Confirm the tests added by the seq-02 document pass | Pending | — | — | Tests live in `tests/rag/ingestion/test_crawler_config_validation.py` (own procedure document) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261110-125710 | 20261110-125830 | Tests-first order: land the seq-02 test module (red on HEAD) before this step per the Plan's Phase 1 Changed files: scripts/rag/ingestion/crawler.py |
+| 2 | Confirm the tests added by the seq-02 document pass | Completed | 20261110-125830 | 20261110-125940 | Tests live in `tests/rag/ingestion/test_crawler_config_validation.py` (own procedure document) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-125940 | 20261110-131853 | Gates: ruff format+check clean (crawler.py reformatted only), mypy 1 pre-existing finding scripts/rag/ingestion/ingester.py:462 no-any-return (identical on a HEAD baseline worktree, not introduced here), bandit -ll identical to HEAD baseline (Medium 8 High 39, exit 0), lint-imports 6 contracts kept, check_docstrings OK, check_module_size OK, run_validation_gates fast mode Pass, Not run: ast-grep unavailable (binary not installed). Tests: targeted testmon run 885 passed 574 deselected, full suite 12157 passed 9 skipped. Coverage gate: scripts/rag/ingestion/crawler.py is listed in pyproject [tool.coverage.run] omit, so diff-cover reports no measurable lines in this diff and the gate passes without coverage signal for this file. Docs gate applied via docs/00_index.md row 'crawler.py changes': docs/21_rag/rag_05_04-error-handling-reference.md Crawler section corrected (the claim that all Crawler-level failures are non-fatal at URL granularity no longer covers construction-time config errors), docs/21_rag/rag_02_02_ingestion_pipeline-crawler.md gained section 2.1.2 Configuration Validation At Construction (old 2.1.2 renumbered to 2.1.3, no cross-document section-number references to it). Docs checkers pass: check_docs_quality, check_docs_structure (scoped), check_docs_content_policy, check_docs_japanese, check_metadata_field_policy, check_docs_consistency --domain rag. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

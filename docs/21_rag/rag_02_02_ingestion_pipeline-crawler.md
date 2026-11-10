@@ -67,7 +67,14 @@ enqueue time as a pre-filter. It defaults to disabled, so no `robots.txt`
 request is issued and crawling behavior is unchanged when the flag is off. See
 [Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md).
 
-### 2.1.2 `crawl_file` Behavior
+### 2.1.2 Configuration Validation At Construction
+
+The crawler constructor validates that the configuration keys it requires are present in
+the loaded configuration and raises `ValueError` naming every missing key before the crawl
+starts. A key the crawler treats as optional is not reported when absent. See
+[rag_05_04-error-handling-reference.md, "Crawler"](rag_05_04-error-handling-reference.md).
+
+### 2.1.3 `crawl_file` Behavior
 
 `crawl_file(path, lang)` reads a local file and writes the crawl JSON to `rag-src/`. Unlike web URLs, no HTTP round-trips occur. Python files (.py) are stored as code blocks and subject to code-specific chunking. Other file types store their content directly in the `content` field.
 

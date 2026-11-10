@@ -10,7 +10,7 @@
 ## Assumptions
 
 - The module does not exist today (verified: `tests/rag/ingestion/` holds no module of this name).
-- Tests-first (Plan Phase 1): the missing-key tests are expected to fail against the current bare `KeyError` until the seq-01 document lands.
+- Tests-first (Plan Phase 1): the module is red on HEAD until the seq-01 document lands; because the tests import `_REQUIRED_KEYS` (created by seq-01), HEAD fails at collection with an `ImportError` rather than the bare `KeyError` the Plan text anticipated.
 - The required-key names come from `crawler.py`'s `_REQUIRED_KEYS` tuple (defined by the seq-01 document); the tests import it instead of restating the list, so the parametrization and the drift guard both track the single declaration.
 
 ## Design decisions
@@ -41,7 +41,7 @@ N/A: test-only row.
 ## Compatibility considerations
 
 - The drift-guard test depends on the shipped `config/crawler.toml` staying as-is (Plan Out-of-Scope: the file is not modified); it reads, never writes.
-- The existing constructor-site modules (`test_robots.py`, `test_ingestion_freshness.py`, `test_crawler_retry_boundary.py`, `test_crawler_integration.py`, `test_crawl_persister_lang.py`, `test_crawl_persister_targets_file.py`) are untouched and must stay green.
+- The existing constructor-site modules (`test_robots.py`, `test_ingestion_freshness.py`, `test_crawler_retry_boundary.py`, `test_crawler_integration.py`, `test_crawl_persister_lang.py`, `test_crawler_targets_file.py`, `test_crawler_redirects.py` — added 20261109 by ragrev012; re-verified at execution, the earlier name `test_crawl_persister_targets_file.py` does not exist) are untouched and must stay green.
 
 ## Security considerations
 N/A: test-only.
@@ -51,7 +51,7 @@ N/A: delete the new file / revert the commit.
 
 ## Validation plan
 
-- `uv run pytest tests/rag/ingestion/test_crawler_config_validation.py -v` — missing-key tests red on HEAD (`KeyError`, not `ValueError`), green after the seq-01 document lands; the drift guard passes before and after.
+- `uv run pytest tests/rag/ingestion/test_crawler_config_validation.py -v` — red on HEAD before the seq-01 code change lands (collection fails on the `_REQUIRED_KEYS` import); after seq-01 lands, all four tests are green, the missing-key cases raising `ValueError`.
 - `uv run pytest tests/rag/ingestion -q` — whole directory green unmodified (AC-2).
 
 ## Completion criteria
@@ -67,8 +67,8 @@ N/A: delete the new file / revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the test module per Implementation > Procedure/Method/Details | Pending | — | — | Land before the seq-01 code change (red-first, Plan Phase 1) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Full green requires the seq-01 document landed |
+| 1 | Create the test module per Implementation > Procedure/Method/Details | Completed | 20261110-125634 | 20261110-125710 | Land before the seq-01 code change (red-first, Plan Phase 1) Red-first on HEAD confirmed: collection fails with ImportError on _REQUIRED_KEYS (created by seq-01); expected per corrected Validation plan |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261110-125940 | 20261110-131853 | Full green requires the seq-01 document landed 9 tests pass after the seq-01 change landed. tests/rag/ingestion unchanged suite: 354 passed. Drift guard green post-implementation as corrected in the Validation plan. ruff and mypy clean on the new module, mock-patch-targets and check_docstrings pass. Coverage note: crawler.py is in the pyproject coverage omit list, so this module adds unit coverage that diff-cover does not measure. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

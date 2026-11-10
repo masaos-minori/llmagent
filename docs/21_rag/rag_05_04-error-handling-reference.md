@@ -17,11 +17,17 @@ related:
 
 ## Crawler
 
-All Crawler-level failures are non-fatal at URL granularity. An HTTP failure is
+All failures that occur during a crawl are non-fatal at URL granularity. An HTTP failure is
 retried with backoff before falling through to the same per-URL exception handling
 that an unhandled exception or an unsupported `lang` value also hits, each of which
 skips just that URL without stopping the overall crawl — see
 `scripts/rag/ingestion/crawler.py` for the exact retry count/backoff formula.
+
+Configuration errors are a different class. The crawler constructor validates that the
+configuration keys it requires are present before any request is issued, and raises
+`ValueError` naming every missing key. Such a failure aborts the crawl before it starts
+and is not caught by the per-URL handling above. A key the crawler treats as optional is
+not reported when absent, so this error names only the keys proven to be missing.
 
 ## ChunkSplitter
 

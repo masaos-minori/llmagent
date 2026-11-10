@@ -166,7 +166,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Required-key validation pass in `WebCrawler.__init__` with the new test module (tests first) | In Progress | — | — |  |
+| 1 | Required-key validation pass in `WebCrawler.__init__` with the new test module (tests first) | Completed | — | 20261110-131943 |  |
 | 2 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -177,8 +177,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261110-000238_01_scripts_rag_ingestion_crawler.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261110-000238_02_tests_rag_ingestion_test_crawler_config_validation.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261110-000238_01_scripts_rag_ingestion_crawler.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261110-000238_02_tests_rag_ingestion_test_crawler_config_validation.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

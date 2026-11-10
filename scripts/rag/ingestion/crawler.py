@@ -37,6 +37,18 @@ from shared.logger import Logger
 logger = Logger(__name__, "/opt/llm/logs/crawl.log", structured_log=True)
 
 
+# Config keys that must be present; a missing key is a startup configuration
+# error, rejected with one ValueError naming every missing key (ragrev019).
+_REQUIRED_KEYS: tuple[str, ...] = (
+    "rag_src_dir",
+    "crawl_delay",
+    "max_depth",
+    "min_chunk",
+    "fetch_retry",
+    "target_urls",
+)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Crawler class (thin composition facade)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -54,9 +66,18 @@ class WebCrawler:
     }
 
     def __init__(self, config: dict | None = None) -> None:
-        """Initialize with optional config override and load crawler settings."""
+        """Initialize with optional config override and load crawler settings.
+
+        Raises:
+            ValueError: If any key in _REQUIRED_KEYS is missing from the config.
+        """
         self.config: dict = config or ConfigLoader().load("crawler.toml")
         cfg: dict = self.config
+        missing = [key for key in _REQUIRED_KEYS if key not in cfg]
+        if missing:
+            raise ValueError(
+                f"crawler config is missing required keys: {', '.join(missing)}"
+            )
         self._rag_src_dir: Path = Path(cfg["rag_src_dir"])
         self._crawl_delay: float = float(cfg["crawl_delay"])
         self._max_depth: int = int(cfg["max_depth"])
