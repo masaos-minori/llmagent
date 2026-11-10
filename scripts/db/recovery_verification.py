@@ -130,7 +130,7 @@ def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | N
     An unknown mandatory target, or a database this stage cannot open, fails
     closed as (False, "verification_unavailable"): a verification gap must never
     be reported as success for a mandatory check. Non-mandatory targets
-    (workflow, eventbus) keep the skip result.
+    (workflow) keep the skip result.
     """
     verify = _LOGICAL_VERIFIERS.get(target)
     if verify is None:
