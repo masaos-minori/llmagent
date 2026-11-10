@@ -3,7 +3,7 @@
 - State in the ingester documentation which failures are deterministic and routed to `failed/`, and which database errors stay retryable (`REQ-006`: deterministic-failure routing documented).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: ragrev015-core (Plan `### Release units`; owner-declared batch unit 20261110)
 
 - Section 4.6 (Error Handling) of `docs/21_rag/rag_02_04_ingestion_pipeline-ingester.md`; failure behavior only.
 
@@ -24,13 +24,16 @@ N/A: documentation-only row.
 
 ### Procedure
 - In section 4.6, name the deterministic failures that route the whole group to `failed/` with a `.error.json` reason: embedding BLOB size mismatch (`VALIDATION_FAILED`), out-of-schema `chunk_type` at read time (`PARSE_FAILED`), and `sqlite3.IntegrityError` from the commit (`STORAGE_FAILED`).
+- In the same section, correct the existing sidecar wording: the current sentence (L107-109) says the sidecar is "written for each parseable payload in the group", which is inaccurate once the seq-7 always-write guarantee lands.
 
 ### Method
 - Append to the section 4.6 list (after the existing grouping sentence at L110): deterministic integrity/validation failures are quarantined — a wrong-dimension embedding is rejected before the transaction (`VALIDATION_FAILED`), an invalid `chunk_type` is rejected at read (`PARSE_FAILED`), and a `sqlite3.IntegrityError` from `TransactionManager.commit` routes the whole group to `failed/` (`STORAGE_FAILED`), rolled back with no partial rows.
+- Replace the parenthetical "written for each parseable payload in the group" (current L108-109) with wording of this shape: written for every file the group routes, with keys taken from the payload present only when the payload is readable.
 
 ### Details
-- State the contrast: every other `sqlite3.Error` (for example a lock `OperationalError`) is treated as possibly transient — files stay in `chunk/` for the next run.
-- Match the enum names exactly as in `scripts/rag/exceptions.py`.
+- State the contrast: every other `sqlite3.Error` (for example a lock `OperationalError`) is treated as possibly transient — files stay in `chunk/` for the next run. Verified at HEAD: `_process_url_groups` L423-428 logs and records `IngestUrlResult.unexpected_failure(url)` without moving any file.
+- Match the enum names exactly as in `scripts/rag/exceptions.py` (`parse_failed`, `validation_failed`, `group_validation_failed`, `storage_failed`).
+- Coordinate the sidecar sentence with the `docs/21_rag/rag_02_01_ingestion_pipeline-overview.md` lifecycle row updated by the seq-12 document; the two must state the same guarantee.
 
 ## Compatibility considerations
 
@@ -59,8 +62,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update section 4.6 per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (Validation plan) | Pending | — | — | |
+| 1 | Update section 4.6 per Implementation > Procedure/Method/Details | Completed | — | 20261110-121150 |  |
+| 2 | Run the documentation checkers (Validation plan) | Completed | — | 20261110-121150 | docs gates: quality/structure/content-policy/consistency(rag)/japanese all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
