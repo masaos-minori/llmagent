@@ -57,8 +57,8 @@ Changing RAG consistency/orphan logic.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-115520 | fingerprint gate replaces name-only recognition; fixtures migrated (tests/db/test_rag_consistency.py, tests/rag/ingestion/test_ingester.py, tests/agent/services/test_rag_index_integrity.py) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-115520 | tests/db+tests/rag green, full suite 12061 passed, pre-commit 25 hooks pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
