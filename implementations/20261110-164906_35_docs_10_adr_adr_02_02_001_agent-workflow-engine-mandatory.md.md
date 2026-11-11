@@ -60,9 +60,9 @@ Removing the lease-less legacy recovery rule from `scripts/agent/workflow/state_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the lease-less legacy-row statement | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove the lease-less legacy-row statement | Completed | — | 20261111-144834 | clause 'or lease-less legacy rows older than 3600 s' deleted from Decision Details item 11; lease-expiry definition of interrupted kept |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-144834 | check_adr_preservation exit 0 (Decision-section WARNING, mapping: only the 3600s clause removed from item 11, no other sentence changed); check_adr_authority no findings; rg _LEGACY_STALE_AGE_SEC scripts/ returns no matches (named exception already removed by row 11) |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-144834 | documentation-only row; no further docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
