@@ -77,7 +77,7 @@ restarts, and a failed load is not cached.
 
 ## `tool_call_state` (workflow.sqlite); `execution_snapshots` retired
 
-The `execution_snapshots` table and the `tool_call_state.snapshot_id` foreign key were never written by any code path and are retired (wfaudit010). Fresh databases no longer create them; a legacy database may still contain the empty table and a NULL column, and no migration drops them.
+The `execution_snapshots` table and the `tool_call_state.snapshot_id` foreign key were never written by any code path and are retired (wfaudit010). Fresh databases no longer create them; a legacy database that still carries the empty table fails startup under exact fingerprint matching and is archived and recreated by the operator.
 
 `tool_call_state` lives in `workflow.sqlite`, defined in the canonical create-path DDL
 `db/schema_sql.py` and created at database creation. (Historical note: it was originally
