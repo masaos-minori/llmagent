@@ -607,6 +607,122 @@ class TestDurableDedup:
         assert len(calls2) == 0
 
     @pytest.mark.asyncio
+    async def test_lost_store_non_retryable_refused_retryable_proceeds(
+        self, durable: dict, monkeypatch: Any
+    ) -> None:
+        """A lost/recreated store cannot prove a prior non-retryable call
+        completed: refuse it until an operator resolves the sentinel (REQ-001);
+        retryable tools degrade overlay-only (REQ-002)."""
+        import os
+
+        from shared.mcp_dedup import DedupStore
+
+        # Simulate a store that was lost and recreated: delete the DB file and
+        # drop the operator-acknowledgement sentinel beside it, then reopen.
+        durable["store"].close()
+        os.remove(durable["db_path"])
+        sentinel = os.path.join(
+            os.path.dirname(durable["db_path"]), ".mcp_dedup_resolved"
+        )
+        with open(sentinel, "w", encoding="utf-8") as fh:
+            fh.write("operator-resolved\n")
+        reopened = DedupStore(durable["db_path"])
+        assert reopened.lost_or_recreated is True
+        durable["mod"]._dedup_store = reopened
+
+        # Non-retryable: refused without executing (fail closed).
+        durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert r.is_error
+        assert r.error_type == "dedup_store_error"
+        assert r.dedup_state == "store_error"
+        assert len(calls) == 0
+
+        # Retryable: degrade to store_error and proceed overlay-only.
+        durable["mod"]._dedup_config = replace(
+            durable["config"], retry_class={self.TOOL: "retryable"}
+        )
+        calls2: list[int] = []
+        r2 = await dispatch_tool(
+            {self.TOOL: self._handler(calls2)},
+            self.TOOL,
+            {"p": "b"},
+            idempotency_key="k2",
+        )
+        assert not r2.is_error
+        assert r2.dedup_state == "store_error"
+        assert len(calls2) == 1
+
+    @pytest.mark.asyncio
+    async def test_first_ever_key_executes_once_on_fresh_store(
+        self, durable: dict
+    ) -> None:
+        """A genuinely fresh store (no sentinel) executes a never-seen key once;
+        the lost/recreated gate does not fire before an operator acknowledges the
+        deployment (Plan Risks)."""
+        assert durable["store"].lost_or_recreated is False
+        durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="fresh-1",
+        )
+        assert not r.is_error
+        assert len(calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_post_open_write_failure_fails_closed_non_retryable(
+        self, durable: dict, monkeypatch: Any
+    ) -> None:
+        """A failed pre-execution write leaves no proof of completion: a
+        non-retryable tool fails closed (REQ-002)."""
+
+        def _boom(*a: Any, **kw: Any) -> None:
+            raise sqlite3.OperationalError("disk I/O error")
+
+        monkeypatch.setattr(durable["store"], "record_pending", _boom)
+        durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert r.is_error
+        assert r.error_type == "dedup_store_error"
+        assert len(calls) == 0
+
+    @pytest.mark.asyncio
+    async def test_post_open_write_failure_warning_only_retryable(
+        self, durable: dict, monkeypatch: Any
+    ) -> None:
+        """A failed pre-execution write degrades to the overlay for a retryable
+        tool (warning only); the call still executes (REQ-002)."""
+
+        def _boom(*a: Any, **kw: Any) -> None:
+            raise sqlite3.OperationalError("disk I/O error")
+
+        monkeypatch.setattr(durable["store"], "record_pending", _boom)
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert not r.is_error
+        assert len(calls) == 1
+
+    @pytest.mark.asyncio
     async def test_retention_sweep_runs_once_per_process(self, durable: dict) -> None:
         """One opportunistic purge per process (REQ-009)."""
         import time

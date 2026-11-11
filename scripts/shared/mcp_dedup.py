@@ -65,6 +65,12 @@ _INDEXES = (
 # for open-time validation (ADR-008; no stamping, no automatic migration).
 _CANONICAL_DDL = _SCHEMA + ";\n" + ";\n".join(_INDEXES) + ";"
 
+# Out-of-band marker for REQ-003/REQ-001. Co-located with the DB file (outside it)
+# so it survives a DB-file loss: its presence while the DB file is absent proves a
+# prior store existed and the store was lost or recreated. A genuine first run finds
+# neither, so fail-closed cannot fire before an operator acknowledges the deployment.
+DEDUP_SENTINEL_NAME = ".mcp_dedup_resolved"
+
 
 @dataclass(frozen=True)
 class DedupConfig:
@@ -233,7 +239,11 @@ class DedupStore:
     """
 
     def __init__(self, db_path: str, *, busy_timeout_ms: int = 5000) -> None:
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        self._db_path = str(db_path)
+        self._sentinel_path = Path(self._db_path).parent / DEDUP_SENTINEL_NAME
+        db_existed = Path(self._db_path).exists()
+        self._lost_or_recreated = not db_existed and self._sentinel_path.exists()
+        Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
@@ -254,6 +264,13 @@ class DedupStore:
             for ddl in _INDEXES:
                 self._conn.execute(ddl)
         self._conn.commit()
+
+    @property
+    def lost_or_recreated(self) -> bool:
+        """True when the DB file was absent at open time but the operator
+        acknowledgement sentinel exists — the store was lost or recreated, not a
+        genuine first run (REQ-003)."""
+        return self._lost_or_recreated
 
     def close(self) -> None:
         with self._lock:
@@ -411,3 +428,19 @@ def open_dedup_store(
     """Open (and initialize) a store handle for the configured db_path."""
     db_path = config.db_path if isinstance(config, DedupConfig) else config
     return DedupStore(db_path, busy_timeout_ms=busy_timeout_ms)
+
+
+def resolve_lost_store(db_path: str | Path) -> None:
+    """Operator-resolution step for a lost or recreated store (REQ-001).
+
+    Creates the out-of-band acknowledgement sentinel alongside the DB file and
+    ensures the store file exists so the store is usable again. Call this only
+    after an operator has reviewed the post-recreation state; the store is a
+    disposable cache, so no data recovery is attempted.
+    """
+    resolved = Path(db_path)
+    resolved.parent.mkdir(parents=True, exist_ok=True)
+    resolved.touch()
+    (resolved.parent / DEDUP_SENTINEL_NAME).write_text(
+        "operator-resolved\n", encoding="utf-8"
+    )

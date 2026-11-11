@@ -36,7 +36,7 @@ from agent.tool_runner import (
 from agent.tool_scheduler import ExecutionPlan, ScheduledBatch, ScheduledGroup
 from shared.http_transport import HttpTransport, derive_idempotency_key
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
-from shared.mcp_dedup import retry_class
+from shared.tool_constants import RETRYABLE_TOOLS
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
@@ -2409,9 +2409,12 @@ class TestToolCallStateProducer:
         _finalize_state(ctx, "some-key", "completed")
 
     @pytest.mark.asyncio
-    async def test_retry_class_from_owner(self) -> None:
-        """REQ-006: the recorded retry_class is shared.mcp_dedup.retry_class(name)
-        verbatim — listed tool from config/mcp_dedup.toml, default otherwise."""
+    async def test_retry_class_from_agent_local_classifier(self) -> None:
+        """SEQ-04: the recorded retry_class is resolved from the Agent's canonical
+        set shared.tool_constants.RETRYABLE_TOOLS (not the dispatcher's
+        config/mcp_dedup.toml): dispatch-capable tools retryable, read tools and
+        everything else non_retryable.
+        """
         recorder = FakeRecorder()
         ctx = _state_ctx(recorder)
 
@@ -2429,8 +2432,29 @@ class TestToolCallStateProducer:
         )
 
         recorded_write, recorded_read = recorder.records()
-        assert recorded_write[4] == retry_class("write_file") == "retryable"
-        assert recorded_read[4] == retry_class("read_text_file") == "non_retryable"
+        assert recorded_write[4] == "retryable"
+        assert "write_file" in RETRYABLE_TOOLS
+        assert recorded_read[4] == "non_retryable"
+        assert "read_text_file" not in RETRYABLE_TOOLS
+
+    @pytest.mark.asyncio
+    async def test_retry_class_unknown_tool_is_non_retryable(self) -> None:
+        """SEQ-04: an unknown/unlisted tool defaults to non_retryable (fail-safe),
+        never retryable — a future or unclassified tool is unreplayable until named.
+        """
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+
+        await _execute_with_dag(
+            ctx,
+            [_pc("tool_that_does_not_exist", {}, call_id="cu")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+
+        (recorded_unknown,) = recorder.records()
+        assert recorded_unknown[4] == "non_retryable"
+        assert "tool_that_does_not_exist" not in RETRYABLE_TOOLS
 
     @pytest.mark.asyncio
     async def test_key_matches_transport_derivation(self) -> None:

@@ -85,27 +85,27 @@ Historical, superseded 2026-11-07 (source compatrm001): plan dbmig001 had extend
 
 ### Recovery Policy Matrix
 
-| Field | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite |
-|---|---|---|---|---|
-| Persistence-domain identifier | rag | session | workflow | eventbus |
-| Database file | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite |
-| System of record | documents, chunks (canonical); FTS5, Vector Index (derived from chunks) | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, processed events | events, offsets, deliveries, DLQ state |
-| Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_vec (from memories) | none | none |
-| Owning component | RAG layer | Agent layer | Workflow engine (Agent layer) | EventBus service |
-| Required service stop scope | Agent process, rag-pipeline-mcp, and any running ingester | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process |
-| Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | no automated diagnosis through `recover_corruption()` (returns `no_recovery_allowed` before any check) | no automated diagnosis through `recover_corruption()` (returns `no_recovery_allowed` before any check) |
-| Supported recovery source | verified backup from operator for `documents`/`chunks`; FTS5 and Vector Index rebuilt from `chunks` (Decision Detail #20) | verified backup from operator | no automated recovery source (auto-restore prohibited per Decision Detail #20; manual operator handling) | no automated recovery source (auto-restore prohibited per Decision Detail #20; manual operator handling) |
-| Automatic restore allowed or prohibited | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | prohibited (INV-18) | prohibited (INV-18) |
-| Manual restore allowed or prohibited | allowed | allowed | operator intervention only | operator intervention only |
-| Operator approval requirement | required for manual restore | required for manual restore | required (manual operation only) | required (manual operation only) |
-| Backup retention requirement | regular file copy via `rotate_all_dbs()` | regular file copy via `rotate_all_dbs()` | archived via `rotate_all_dbs()` but no automated restoration | archived by the EventBus-owned tool `db_tools.py` |
-| WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | same | same | same |
-| Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | not applicable (no automated restore) | not applicable (no automated restore) |
-| Database-specific logical verification | `check_rag_consistency()` post-restore | `check_session_consistency()` post-restore | none automated (manual operator handling) | none automated (manual operator handling) |
-| Service restart condition | Agent process, rag-pipeline-mcp, and any ingester restart after restore | Agent process restart after restore | Agent process restart after restore | EventBus process restart after restore |
-| Rollback condition | atomic replacement leaves the original intact if a restore fails | atomic replacement leaves the original intact if a restore fails | not applicable (no automated restore) | not applicable (no automated restore) |
-| Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | same | same | same |
-| Data-loss disclosure requirement | loss between backup point and failure time must be reported | same | same | same |
+| Field | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite | mcp_dedup.sqlite |
+|---|---|---|---|---|---|
+| Persistence-domain identifier | rag | session | workflow | eventbus | outside the four domains (dispatcher-owned dedup store) |
+| Database file | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite | mcp_dedup.sqlite |
+| System of record | documents, chunks (canonical); FTS5, Vector Index (derived from chunks) | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, processed events | events, offsets, deliveries, DLQ state | none (disposable tool_call_state ledger) |
+| Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_vec (from memories) | none | none | none (recreated empty) |
+| Owning component | RAG layer | Agent layer | Workflow engine (Agent layer) | EventBus service | Shared MCP dispatcher layer |
+| Required service stop scope | Agent process, rag-pipeline-mcp, and any running ingester | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process | shared MCP dispatcher process |
+| Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | no automated diagnosis through `recover_corruption()` (returns `no_recovery_allowed` before any check) | no automated diagnosis through `recover_corruption()` (returns `no_recovery_allowed` before any check) | none automated |
+| Supported recovery source | verified backup from operator for `documents`/`chunks`; FTS5 and Vector Index rebuilt from `chunks` (Decision Detail #20) | verified backup from operator | no automated recovery source (auto-restore prohibited per Decision Detail #20; manual operator handling) | no automated recovery source (auto-restore prohibited per Decision Detail #20; manual operator handling) | none (no backup, recreation) |
+| Automatic restore allowed or prohibited | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | prohibited (INV-18) | prohibited (INV-18) | prohibited |
+| Manual restore allowed or prohibited | allowed | allowed | operator intervention only | operator intervention only | not applicable (recreation, not restore) |
+| Operator approval requirement | required for manual restore | required for manual restore | required (manual operation only) | required (manual operation only) | required to resolve lost/recreated state before non-retryable replay |
+| Backup retention requirement | regular file copy via `rotate_all_dbs()` | regular file copy via `rotate_all_dbs()` | archived via `rotate_all_dbs()` but no automated restoration | archived by the EventBus-owned tool `db_tools.py` | none |
+| WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | same | same | same | not applicable |
+| Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | not applicable (no automated restore) | not applicable (no automated restore) | not applicable |
+| Database-specific logical verification | `check_rag_consistency()` post-restore | `check_session_consistency()` post-restore | none automated (manual operator handling) | none automated (manual operator handling) | none automated |
+| Service restart condition | Agent process, rag-pipeline-mcp, and any ingester restart after restore | Agent process restart after restore | Agent process restart after restore | EventBus process restart after restore | dispatcher restart after recreation |
+| Rollback condition | atomic replacement leaves the original intact if a restore fails | atomic replacement leaves the original intact if a restore fails | not applicable (no automated restore) | not applicable (no automated restore) | not applicable |
+| Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | same | same | same | same |
+| Data-loss disclosure requirement | loss between backup point and failure time must be reported | same | same | same | not applicable (disposable; completed non-retryable replay is blocked, not restored) |
 
 Future persistence domains: default policy is fail-closed—no automatic restore until an approved architectural decision defines its recovery policy.
 
@@ -135,6 +135,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 ### Derived Stores Outside the Four Domains
 
 - mdq.sqlite is owned by mdq-mcp and holds only documents, chunks, an FTS5 index and indexing state derived from Markdown files under `allowed_dirs`. It is rebuilt from those files by `index_paths` and `refresh_index`, and it is not backed up or restored by `recover_corruption()` or `rotate_all_dbs()` (Explicit in code — `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/indexer.py`, `scripts/db/recovery.py`, `scripts/db/rotation.py`). Its schema creation and startup validation are the MDQ service's own responsibility, run every time the service starts: an existing `mdq.sqlite` is accepted only when its shape matches the canonical DDL by the shared fingerprint (see section 8d of `db_03_architecture_and_schema-migration-and-scaling.md`).
+- `mcp_dedup.sqlite` is owned by the shared MCP dispatcher and holds only the dedup ledger (`tool_call_state`). It is a **disposable cache**, not a system of record: it is recreated (empty) after loss or corruption, is not backed up or restored by `recover_corruption()` or `rotate_all_dbs()`, and after recreation non-retryable tools are rejected (fail closed) until an operator resolves the state. Its schema migration is the dispatcher service's own responsibility.
 - Adding a store that is a system of record for any data requires extending the Recovery Policy Matrix of this ADR before deployment.
 
 ### Scope

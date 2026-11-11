@@ -15,8 +15,6 @@ from collections.abc import Awaitable, Callable
 from contextlib import nullcontext
 from typing import Protocol
 
-from shared.mcp_dedup import load_dedup_config
-
 from agent.workflow.models import TaskRecord, WorkflowDef
 from agent.workflow.state_store import StateStore
 
@@ -31,6 +29,13 @@ _ERROR_KIND_LLM_FAILURE = "llm_failure"
 # is bounded by the asyncio.timeout deadline, so the lease only outlives the
 # stage by this margin; no heartbeat renewal exists (Plan UNK-02).
 _LEASE_MARGIN_SEC = 30
+
+# Default stale-pending timeout window (minutes) when no Agent-config value is
+# supplied. Mirrors shared.mcp_dedup.DEFAULT_PENDING_TIMEOUT_MINUTES (10) and
+# config/agent.toml's pending_timeout_minutes default; kept local so this module
+# never imports the dispatcher's dedup config (REQ-004). orchestrator.py supplies
+# the real value via AgentConfig.pending_timeout_minutes in production.
+_DEFAULT_PENDING_TIMEOUT_MINUTES = 10
 
 StageCallback = Callable[[], Awaitable[str | None]]  # returns artifact URI or None
 
@@ -129,11 +134,19 @@ class WorkflowEngine:
         self,
         workflow_def: WorkflowDef,
         store: StateStore,
+        pending_timeout_minutes: int = _DEFAULT_PENDING_TIMEOUT_MINUTES,
         tracer: _Span | None = None,
     ) -> None:
-        """Initialize the workflow engine with its definition, state store, and optional tracer."""
+        """Initialize the workflow engine with its definition, state store, and optional tracer.
+
+        *pending_timeout_minutes* is the Agent-side stale-pending timeout window
+        (REQ-004): sourced from AgentConfig, never from the dispatcher's
+        mcp_dedup.toml. Defaults to 10 so direct constructions in tests stay green;
+        orchestrator.py passes the real config value.
+        """
         self._wdef = workflow_def
         self._store = store
+        self._pending_timeout_seconds = pending_timeout_minutes * 60
         self._tracer = tracer
 
     @property
@@ -164,7 +177,7 @@ class WorkflowEngine:
         duplicate live work.
         """
         try:
-            timeout_seconds = load_dedup_config().pending_timeout_minutes * 60
+            timeout_seconds = self._pending_timeout_seconds
             interrupted = self._store.classify_stale_pending(task_id, timeout_seconds)
         except Exception as exc:  # noqa: BLE001 — turn availability beats replay accuracy; the dispatcher dedup still guards execution
             logger.warning(

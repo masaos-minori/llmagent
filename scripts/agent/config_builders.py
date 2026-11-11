@@ -142,6 +142,9 @@ def _assemble_agent_config(
         agent_memory_max_startup_snippets=_get_or_default(
             cfg, "agent_memory_max_startup_snippets", _get_int, 10
         ),
+        pending_timeout_minutes=_get_or_default(
+            cfg, "pending_timeout_minutes", _get_int, 10
+        ),
     )
 
 

@@ -13,7 +13,6 @@
 [dedup]
 db_path = "/opt/llm/db/mcp_dedup.sqlite"
 retention_days = 14
-pending_timeout_minutes = 10
 
 [retry_class]
 # file_write server (REQ-006 group: file_write)

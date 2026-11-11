@@ -390,6 +390,7 @@ class AgentConfig:
     diagnostics: DiagnosticsConfig = field(default_factory=DiagnosticsConfig)
     messages: MessageRoleConfig = field(default_factory=MessageRoleConfig)
     agent_memory_max_startup_snippets: int = 10
+    pending_timeout_minutes: int = 10
 
     def __post_init__(self) -> None:
         """Validate cross-field dependencies between sub-configs."""

@@ -62,6 +62,14 @@ Each database is owned by a single component (see the **Owner** line of each sec
 - **Lifecycle**: Created on first MDQ use; persists until deleted
 - **Rebuild**: derived store, rebuildable from the Markdown sources; backup and rotation helpers do not cover it. To rebuild, stop the `mdq-mcp` server, delete the `db_path` file if a clean index is required, start the server (it recreates the file and tables), re-run `index_paths` over the `allowed_dirs` roots, then confirm with `stats`. See [MDQ tools](../22_mcp/mcp_04_04_mdq.md) and [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) (Derived Stores Outside the Four Domains)
 
+## mcp_dedup.sqlite
+
+- **Owner**: the shared MCP dispatcher (`scripts/mcp_servers/dispatch.py`)
+- **Config source**: `db_path` in `config/mcp_dedup.toml` only; `agent.toml` carries no dedup path
+- **Schema authority**: `scripts/shared/mcp_dedup.py` (`_SCHEMA`, `CREATE TABLE IF NOT EXISTS tool_call_state`); `DedupStore.__init__` executes it on first use
+- **Lifecycle**: Created on first dispatch use via `open_dedup_store`; persists until deleted
+- **Rebuild**: disposable derived store, rebuildable from live dispatch decisions; backup and rotation helpers do not cover it. Recovery is recreation per ADR-004. See [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) (Derived Stores Outside the Four Domains)
+
 ## Related ADRs
 
 - [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) — Separating SQLite into Four Databases
@@ -74,5 +82,6 @@ Each database is owned by a single component (see the **Owner** line of each sec
 - workflow.sqlite
 - eventbus.sqlite
 - mdq.sqlite
+- mcp_dedup.sqlite
 - WAL
 - schema authority

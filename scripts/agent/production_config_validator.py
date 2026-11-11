@@ -167,6 +167,12 @@ def _get_valid_production_keys() -> frozenset[str]:
     # AgentConfig-level key
     valid_keys.add("agent_memory_max_startup_snippets")
 
+    # AgentConfig-level key: Agent-side stale-pending timeout window moved here
+    # from config/mcp_dedup.toml (seq 03, REQ-004). Registered so
+    # _check_unknown_production_keys does not reject it as an unknown top-level
+    # key during build_agent_config().
+    valid_keys.add("pending_timeout_minutes")
+
     # build_agent_config() direct keys (not mapped to any sub-config)
     valid_keys.add("system_prompt_tool")
 

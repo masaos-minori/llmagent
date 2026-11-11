@@ -795,6 +795,36 @@ class TestBuildTurnControlMessage:
         ):
             assert engine.build_turn_control_message(task.task_id) is None
 
+    def test_pending_timeout_constructor_larger_window(self, store) -> None:
+        """SEQ-03: the constructor's pending_timeout_minutes sets the stale window —
+        a 2h-old row stays 'pending' (not listed) when the configured window is 4h."""
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        store.record_tool_call(task.task_id, "kt", "calculator__calculate", "retryable")
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=? WHERE idempotency_key=?",
+            (time.time() - 2 * 3600, "kt"),
+        )
+        store._db.commit()
+        engine = WorkflowEngine(_make_wdef(), store, pending_timeout_minutes=240)
+        # 4h window > 2h age -> still pending, so nothing is listed.
+        assert engine.build_turn_control_message(task.task_id) is None
+
+    def test_pending_timeout_constructor_smaller_window(self, store) -> None:
+        """SEQ-03: a small configured window classifies an old row as interrupted —
+        a 2h-old row is listed when the window is 1m."""
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        store.record_tool_call(task.task_id, "kx", "calculator__calculate", "retryable")
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=? WHERE idempotency_key=?",
+            (time.time() - 2 * 3600, "kx"),
+        )
+        store._db.commit()
+        engine = WorkflowEngine(_make_wdef(), store, pending_timeout_minutes=1)
+        # 1m window << 2h age -> interrupted -> replay section present.
+        msg = engine.build_turn_control_message(task.task_id)
+        assert msg is not None
+        assert "replay: tool=calculator__calculate idempotency_key=kx" in msg
+
 
 class TestEngineFacadeRouting:
     """Engine must route stage-start and artifact writes through the store facade.

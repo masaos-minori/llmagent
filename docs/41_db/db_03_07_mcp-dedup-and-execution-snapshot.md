@@ -95,9 +95,10 @@ fingerprint gate compares against.) Column definitions (canonical DDL:
 Operational notes:
 
 - Ownership: the agent executor path writes these rows through the `StateStore` facade
-  (`scripts/agent/workflow/tool_call_state_ops.py`); the dispatcher's `mcp_dedup.sqlite`
-  store is a separate system of record behind the dispatcher boundary. The producer wiring
-  on the agent side is tracked by follow-up issue `issues/20261031-175803_toolstate001_tool-call-state-producer.md`.
+  (`scripts/agent/workflow/tool_call_state_ops.py`). `workflow.sqlite` `tool_call_state`
+  is the system of record. The dispatcher's `mcp_dedup.sqlite` store is a disposable
+  dedup-log cache behind the dispatcher boundary, not a system of record (adrrev008 settled
+  the producer-ownership question the archived issue tracked).
 - Timestamps: `created_at`/`updated_at` are REAL epoch seconds (wall-clock),
   unlike the ISO-8601 TEXT columns of the older workflow tables.
   Consumers must not assume a single timestamp format across workflow tables
@@ -145,10 +146,7 @@ and carries no version ledger or migration step: the per-database migration mech
 established by dbmig001 was removed by the compatrm001 plan. A future schema change to this file lands as a new canonical DDL in
 `scripts/shared/mcp_dedup.py`, and an existing file matching the previous shape is archived
 and recreated. Until such a change, recovery for this file is recreating it: the store is a
-replay cache, and a fresh empty store only means the next call of each key runs for real.
-
-Note: `db_08_active_databases.md` does not yet list `mcp_dedup.sqlite` among the live
-database files; no frozen procedure row owns that edit (flagged during implementation).
+disposable cache, and a fresh empty store only means the next call of each key runs for real.
 
 ## Keywords
 

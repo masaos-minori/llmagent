@@ -21,7 +21,7 @@ from shared.http_transport import derive_idempotency_key
 from shared.json_utils import (
     dumps as _json_dumps,
 )
-from shared.mcp_dedup import retry_class
+from shared.tool_constants import RETRYABLE_TOOLS
 from shared.tool_executor import ToolExecutor
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
@@ -161,6 +161,19 @@ def _state_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
     return f"{transport_key}:{ctx.workflow.current_task_id}"
 
 
+def _classify_retry_class(tool_name: str) -> str:
+    """Return the retry classification for a tool using the Agent's canonical set.
+
+    Single source of truth is shared.tool_constants.RETRYABLE_TOOLS (REQ-006 /
+    ADR-008): dispatch-capable tools are 'retryable'; every other tool — including
+    unknown ones — is 'non_retryable' (fail-safe). Resolving locally here (rather
+    than importing shared.mcp_dedup) keeps the Agent process from reading the
+    dispatcher's config/mcp_dedup.toml (REQ-004). Mirrors the dispatcher's own
+    [retry_class] map; keep the two consistent.
+    """
+    return "retryable" if tool_name in RETRYABLE_TOOLS else "non_retryable"
+
+
 def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None:
     """Write the pending tool_call_state row before dispatch (REQ-001/REQ-008).
 
@@ -174,7 +187,7 @@ def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None
         return None
     key = _state_key(ctx, pc)
     try:
-        recorder.record_tool_call(task_id, key, pc.name, retry_class(pc.name))
+        recorder.record_tool_call(task_id, key, pc.name, _classify_retry_class(pc.name))
     except Exception as exc:  # noqa: BLE001 — recording failure must not break tool execution (REQ-007); args are never logged
         logger.warning("tool-call state record failed tool=%r: %s", pc.name, exc)
         return None

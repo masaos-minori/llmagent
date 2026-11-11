@@ -140,6 +140,7 @@ class Orchestrator:
             else WorkflowEngine(
                 self._workflow_def,
                 self._state_store,
+                pending_timeout_minutes=self._ctx.cfg.pending_timeout_minutes,
                 tracer=tracer,
             )
         )

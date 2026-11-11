@@ -303,6 +303,27 @@ async def dispatch_tool(
 
         store, config = _dedup_context()
         if store is not None and config is not None:
+            # REQ-001/REQ-002: a store that was lost or recreated cannot prove a
+            # prior non-retryable call completed. Refuse until an operator resolves
+            # the sentinel (resolve_lost_store); retryable tools degrade to the
+            # audited overlay-only store_error marker and proceed.
+            if store.lost_or_recreated:
+                if retry_class(name, config) != "retryable":
+                    logger.warning(
+                        "Dedup store lost or recreated; call to tool %r refused "
+                        "pending operator resolution (non-retryable)",
+                        name,
+                    )
+                    return DispatchResult(
+                        output=(
+                            f"Dedup store lost or recreated; call to tool {name!r} "
+                            "refused pending operator resolution"
+                        ),
+                        is_error=True,
+                        error_type="dedup_store_error",
+                        dedup_state="store_error",
+                    )
+                dedup_state = "store_error"
             _purge_once(store, config)
             try:
                 row = store.lookup(key)
@@ -403,13 +424,31 @@ async def dispatch_tool(
                         dedup_state="unreplayable",
                     )
             else:
-                _store_op(
+                # REQ-002: a failed pre-execution write leaves no proof the call
+                # completed. Fail closed for non-retryable tools until an operator
+                # resolves it; retryable tools degrade to the overlay (warning only).
+                wrote_pending = _store_op(
                     store,
                     lambda: store.record_pending(
                         key, name, args_hash, snapshot_at_start
                     ),
                     "record-pending",
                 )
+                if not wrote_pending and retry_class(name, config) != "retryable":
+                    logger.warning(
+                        "Dedup store write failed (record-pending); call to tool "
+                        "%r refused pending operator resolution (non-retryable)",
+                        name,
+                    )
+                    return DispatchResult(
+                        output=(
+                            f"Dedup store write failed; call to tool {name!r} "
+                            "refused pending operator resolution"
+                        ),
+                        is_error=True,
+                        error_type="dedup_store_error",
+                        dedup_state="store_error",
+                    )
         else:
             # Init failure / disabled: reconcile with the
             # lookup-failure asymmetry (REQ-001/REQ-002/REQ-003).

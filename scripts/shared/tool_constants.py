@@ -176,6 +176,47 @@ GITHUB_TOOLS: frozenset[str] = (
     GITHUB_READ_TOOLS | GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
 )
 
+# Retry-classification owner (REQ-006 / ADR-008). A tool in this set is
+# 'retryable' (dispatch-capable: a failed call can be safely re-dispatched and
+# deduplicated); every other tool — including unknown ones — is 'non_retryable'
+# (fail-safe). This frozenset is the single source of truth shared by the
+# dispatcher's dedup config and the Agent's tool_runner, so both resolve the same
+# classification without the Agent importing the dispatcher's mcp_dedup.toml
+# (REQ-004 config isolation). Keep it in sync with config/mcp_dedup.toml
+# [retry_class]; see implementation 20261111-111905_04.
+RETRYABLE_TOOLS: frozenset[str] = frozenset(
+    {
+        # file_write server (REQ-006 group: file_write)
+        "write_file",
+        "edit_file",
+        "create_directory",
+        "move_file",
+        # file_delete server (REQ-006 group: file_delete)
+        "delete_file",
+        "delete_directory",
+        # git server (REQ-006 group: git)
+        "git_add",
+        "git_commit",
+        "git_checkout",
+        "git_pull",
+        "git_push",
+        # github server (REQ-006 group: github)
+        "github_add_issue_comment",
+        "github_create_branch",
+        "github_create_issue",
+        "github_create_or_update_file",
+        "github_delete_file",
+        "github_merge_pull_request",
+        "github_push_files",
+        "github_update_pull_request",
+        # mdq server (REQ-006 group: mdq)
+        "index_paths",
+        "refresh_index",
+        # rag_pipeline server (REQ-006 group: rag_pipeline)
+        "rag_delete_document",
+    }
+)
+
 
 def get_all_mcp_tool_names() -> frozenset[str]:
     """Return all known MCP tool names for conflict checking.

@@ -33,6 +33,8 @@ The `workflow` database is validated against the current schema at startup and h
 
 Four DB files exist; `rag.sqlite` and `session.sqlite` have their own path keys in `agent.toml`, `workflow.sqlite` uses a Python-level default path (`workflow_db_path` is not an `agent.toml` key), and `eventbus.sqlite` is configured only by `db_path` in `config/eventbus.toml`: `rag.sqlite` (documents, chunks, FTS and vector index), `session.sqlite` (sessions, messages, long-term memory with FTS and vector index), `workflow.sqlite` (task tracking) and `eventbus.sqlite` (event, delivery and offset state). Table definitions are in `db_02`. The files are separated because RAG indexing and conversation state have different access patterns (`rag.sqlite` writes heavily during ingestion and reads during query; `session.sqlite` appends heavily during conversations); separation avoids WAL contention.
 
+A fifth store, `mcp_dedup.sqlite` (the dispatcher's `tool_call_state` dedup ledger, `scripts/shared/mcp_dedup.py` `DedupStore`), lives outside these four domains: it is a disposable cache owned by the shared MCP dispatcher, recreated after loss or corruption, and not backed up or served by `SQLiteHelper`. Its schema/dependency overview and lifecycle are in `db_03_07` and `db_08`.
+
 **Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers import contracts and helpers from `db.store_protocols` and SQLite implementations from `db.store_impl`; the `db.store` re-export facade was deleted (2026-11-07) and must not be reintroduced.
 
 ---

@@ -14,12 +14,14 @@ from pathlib import Path
 import pytest
 from shared.config_errors import ConfigMissingError, ConfigParseError
 from shared.mcp_dedup import (
+    DEDUP_SENTINEL_NAME,
     DEFAULT_DB_PATH,
     DedupStore,
     classify_interrupted,
     clear_dedup_config_cache,
     load_dedup_config,
     open_dedup_store,
+    resolve_lost_store,
     retry_class,
 )
 
@@ -393,3 +395,71 @@ class TestConfigResolutionAndCache:
             if f.name == "workflow_db_path"
         ]
         assert fallbacks and all(Path(v).parent == own_parent for v in fallbacks)
+
+
+class TestLostOrRecreatedDetection:
+    def _path(self, tmp_path):
+        return str(tmp_path / "dedup.sqlite")
+
+    def test_constructor_succeeds_on_missing_file(self, tmp_path):
+        # Regression guard: the fail-open was the bug; the constructor must still
+        # succeed on a missing/recreated file and report not-lost when fresh.
+        store = DedupStore(self._path(tmp_path))
+        assert store.lost_or_recreated is False
+        store.close()
+
+    def test_genuine_first_run_is_not_lost(self, tmp_path):
+        # Neither the DB nor the sentinel exists: a brand-new store executes once.
+        store = DedupStore(self._path(tmp_path))
+        assert store.lost_or_recreated is False
+        store.close()
+
+    def test_healthy_store_is_not_lost(self, tmp_path):
+        path = self._path(tmp_path)
+        store = DedupStore(path)
+        store.record_pending("k1", "web_search", "h", _SNAP)
+        store.close()
+        reopened = DedupStore(path)
+        assert reopened.lost_or_recreated is False
+        reopened.close()
+
+    def test_deleted_db_with_sentinel_is_lost(self, tmp_path):
+        path = self._path(tmp_path)
+        store = DedupStore(path)
+        store.record_completed("k1", _SNAP, "done")
+        store.close()
+        # Operator acknowledges the deployment, then the DB file is lost.
+        resolve_lost_store(path)
+        Path(path).unlink()
+        reopened = DedupStore(path)
+        assert reopened.lost_or_recreated is True
+        reopened.close()
+
+    def test_sentinel_lives_outside_the_db_file(self, tmp_path):
+        path = self._path(tmp_path)
+        resolve_lost_store(path)
+        sentinel = Path(path).parent / DEDUP_SENTINEL_NAME
+        assert sentinel != Path(path)
+        assert sentinel.exists()
+
+    def test_resolve_creates_sentinel_and_store_file(self, tmp_path):
+        path = self._path(tmp_path)
+        resolve_lost_store(path)
+        assert (Path(path).parent / DEDUP_SENTINEL_NAME).exists()
+        # The store file exists again, so the store is usable after resolution.
+        reopened = DedupStore(path)
+        assert reopened.lost_or_recreated is False
+        reopened.close()
+
+    def test_resolve_after_loss_clears_the_flag(self, tmp_path):
+        path = self._path(tmp_path)
+        resolve_lost_store(path)
+        Path(path).unlink()
+        lost = DedupStore(path)
+        assert lost.lost_or_recreated is True
+        lost.close()
+        # Operator resolves: recreate the store and re-acknowledge.
+        resolve_lost_store(path)
+        cleared = DedupStore(path)
+        assert cleared.lost_or_recreated is False
+        cleared.close()
