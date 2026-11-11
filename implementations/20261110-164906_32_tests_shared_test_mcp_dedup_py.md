@@ -66,8 +66,8 @@ Changing `mcp_dedup.py` itself (its row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the fingerprint-refusal case; drop stamp expectations | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the fingerprint-refusal case; drop stamp expectations | Completed | — | 20261111-133414 | TestFingerprintGate (4 cases: no-stamp pin, drifted table, extra table, missing index) added in the row-12 cycle; _SNAP fixture kept; no stamp assertion existed to drop |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-133414 | tests/shared/test_mcp_dedup.py 33 passed, tests/shared 1237+ passed, full suite 12062 passed (uv run), pre-commit green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
