@@ -119,9 +119,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the redundant turn-start `check_empty_result_repeat` call in `check_all` | Pending | — | — | |
-| 2 | Update `check_all` docstring (drop "empty result", add post-execution note) | Pending | — | — | |
-| 3 | Verify: ruff, mypy, and affected test trees pass | Pending | — | — | |
+| 1 | Delete the redundant turn-start `check_empty_result_repeat` call in `check_all` | Completed | — | 20261111-221559 |  |
+| 2 | Update `check_all` docstring (drop "empty result", add post-execution note) | Completed | — | 20261111-221623 |  |
+| 3 | Verify: ruff, mypy, and affected test trees pass | Completed | — | 20261111-221623 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -131,7 +131,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/done/20261111-215359_01_scripts_agent_tool_loop_guard.py.md | 1,2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -144,3 +144,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261111-215359 -->

@@ -473,15 +473,13 @@ class ToolLoopGuard:
         failed_calls: set[str],
         message: LLMMessage,
     ) -> str | None:
-        """Run cycle, stagnation, dedup, retry, and empty result guards in order; return first hit or None."""
+        """Run cycle, stagnation, dedup, and retry guards in order; return first hit or None. The empty-result guard is evaluated once per turn, after execution, in LLMTurnRunner.run."""
         if msg := self.check_cycle(round_fingerprints, message):
             return msg
         if msg := self._check_progress_stagnation(
             round_fingerprints, round_tool_names, message
         ):
             return msg  # NEW: check stagnation before dedup/retry
-        if msg := self.check_empty_result_repeat(message):
-            return msg
         if msg := self.check_dedup(seen_calls, message):
             return msg
         return self.check_retry(failed_calls, message)
