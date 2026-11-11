@@ -64,9 +64,9 @@ Removing the `rag.sqlite`/`session.sqlite` recreate policy or the four-DB separa
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Describe fingerprint matching as the one drift check | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Describe fingerprint matching as the one drift check | Completed | — | 20261111-145016 | line 60 marker-table phrasing replaced with shared-fingerprint refusal; line 75 amendment now names the shared fingerprint; line 137 mdq 'schema migration' phrasing replaced with create + fingerprint startup validation (only validation mechanism claims removed) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-145016 | check_adr_preservation exit 0 (Decision WARNING; mapping: 3 sentences reworded to fingerprint, no other sentence changed); check_adr_authority no findings; no marker/user_version mechanism claims remain in the doc |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-145016 | documentation-only row; db_03 section 8d follow-up belongs to row 39 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
