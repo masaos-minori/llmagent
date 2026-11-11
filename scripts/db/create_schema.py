@@ -21,6 +21,8 @@ import logging
 import sqlite3
 import sys
 
+from shared.schema_fingerprint import assert_matches
+
 from db.helper import SQLiteHelper
 from db.schema_sql import (
     build_rag_schema_sql,
@@ -30,6 +32,37 @@ from db.schema_sql import (
 from db.store_protocols import get_embedding_dims
 
 logger = logging.getLogger(__name__)
+
+# Primary table per domain: its presence marks the file as an existing database
+# (same signal eventbus/schema.py keys off "events").
+_PRIMARY_TABLES: dict[str, str] = {
+    "rag": "documents",
+    "session": "sessions",
+    "workflow": "tasks",
+}
+
+
+def _refuse_existing_drift(
+    db: SQLiteHelper, domain: str, canonical_ddl: str, label: str
+) -> None:
+    """Validate-first gate (REQ-003): fingerprint an existing database before
+    executing any DDL.
+
+    If the domain's primary table already exists the file is an existing
+    database: its shape must equal the canonical DDL or this raises RuntimeError
+    before any write, leaving the file untouched (archive-and-recreate path).
+    A fresh file (no primary table) returns without a check.
+    """
+    row = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+        (_PRIMARY_TABLES[domain],),
+    ).fetchone()
+    if row is None:
+        return
+    conn = db.conn
+    if conn is None:
+        raise RuntimeError(f"{label}: no open connection for fingerprint check")
+    assert_matches(conn, canonical_ddl, label=label)
 
 
 def _execute_schema_ddl(db: SQLiteHelper, sql: str, error_label: str) -> None:
@@ -50,16 +83,20 @@ def _execute_schema_ddl(db: SQLiteHelper, sql: str, error_label: str) -> None:
 def create_rag_schema() -> None:
     """Create rag.sqlite tables, virtual tables, and triggers."""
     dims = get_embedding_dims()
+    ddl = build_rag_schema_sql(dims)
     with SQLiteHelper("rag").open(write_mode=True) as db:
-        _execute_schema_ddl(db, build_rag_schema_sql(dims), "RAG")
+        _refuse_existing_drift(db, "rag", ddl, "rag.sqlite")
+        _execute_schema_ddl(db, ddl, "RAG")
     logger.info("RAG schema created successfully.")
 
 
 def create_session_schema() -> None:
     """Create session.sqlite tables for conversations and memory."""
     dims = get_embedding_dims()
+    ddl = build_session_schema_sql(dims)
     with SQLiteHelper("session").open(write_mode=True, load_vec=True) as db:
-        _execute_schema_ddl(db, build_session_schema_sql(dims), "session")
+        _refuse_existing_drift(db, "session", ddl, "session.sqlite")
+        _execute_schema_ddl(db, ddl, "session")
     logger.info("Session schema created successfully.")
 
 
@@ -70,8 +107,10 @@ def create_workflow_schema() -> None:
     baseline write. Legacy marker tables on an existing database are rejected
     by the workflow shape gate (agent/services/workflow_schema.py), not here.
     """
+    ddl = build_workflow_schema_sql()
     with SQLiteHelper("workflow").open(write_mode=True) as db:
-        _execute_schema_ddl(db, build_workflow_schema_sql(), "workflow")
+        _refuse_existing_drift(db, "workflow", ddl, "workflow.sqlite")
+        _execute_schema_ddl(db, ddl, "workflow")
         db.commit()
     logger.info("Workflow schema created successfully.")
 

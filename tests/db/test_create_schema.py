@@ -13,6 +13,7 @@ import logging
 import re
 import sqlite3
 from collections.abc import Generator
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
@@ -1325,3 +1326,118 @@ class TestCreateSchemaWrapper:
         ):
             cs.create_schema()
         assert calls == ["rag", "session", "workflow"]
+
+
+# ── Validate-first gate (REQ-003): existing databases are fingerprinted before any DDL ──
+
+
+class TestValidateFirstGate:
+    """create_*_schema() fingerprints an existing database (primary table present)
+    against the canonical DDL and refuses any drift without writing, leaving the
+    file exactly as it was (archive-and-recreate path)."""
+
+    def test_rag_existing_column_drift_is_refused_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        db_file = tmp_path / "rag_gate.sqlite"
+        cfg = _make_db_config(db_file, "rag")
+        patches = (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_rag_schema_sql",
+                return_value=_RAG_SCHEMA_NO_VEC0,
+            ),
+            patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
+        )
+        with ExitStack() as stack:
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+            stack.enter_context(patches[2])
+            cs.create_rag_schema()
+        conn = sqlite3.connect(str(db_file))
+        conn.execute("ALTER TABLE documents ADD COLUMN drifted_extra TEXT")
+        conn.commit()
+        conn.close()
+        with ExitStack() as stack:
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+            stack.enter_context(patches[2])
+            with pytest.raises(
+                RuntimeError, match="rag.sqlite.documents: columns differ"
+            ):
+                cs.create_rag_schema()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(documents)")}
+            assert "drifted_extra" in cols  # refusal neither repaired nor extended
+        finally:
+            conn.close()
+
+    def test_session_existing_extra_table_is_refused_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        db_file = tmp_path / "session_gate.sqlite"
+        cfg = _make_db_config(db_file, "session")
+        patches = (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_session_schema_sql",
+                return_value=_SESSION_SCHEMA_NO_VEC0,
+            ),
+            patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
+        )
+        with ExitStack() as stack:
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+            stack.enter_context(patches[2])
+            cs.create_session_schema()
+        conn = sqlite3.connect(str(db_file))
+        conn.execute("CREATE TABLE unexpected_gate (id INTEGER)")
+        conn.commit()
+        conn.close()
+        with ExitStack() as stack:
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+            stack.enter_context(patches[2])
+            with pytest.raises(
+                RuntimeError, match="session.sqlite: unexpected table 'unexpected_gate'"
+            ):
+                cs.create_session_schema()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            assert "unexpected_gate" in _table_names(conn)
+        finally:
+            conn.close()
+
+    def test_workflow_existing_column_drift_is_refused_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        db_file = tmp_path / "workflow_gate.sqlite"
+        cfg = _make_db_config(db_file, "workflow")
+        patches = (patch("db.helper.build_db_config", return_value=cfg),)
+        with patches[0]:
+            cs.create_workflow_schema()
+        conn = sqlite3.connect(str(db_file))
+        conn.execute("ALTER TABLE tasks ADD COLUMN drifted_extra TEXT")
+        conn.commit()
+        conn.close()
+        with patches[0]:
+            with pytest.raises(
+                RuntimeError, match="workflow.sqlite.tasks: columns differ"
+            ):
+                cs.create_workflow_schema()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(tasks)")}
+            assert "drifted_extra" in cols
+        finally:
+            conn.close()
+
+    def test_matching_existing_database_is_accepted(self, tmp_path: Path) -> None:
+        """An existing database whose shape equals the canonical DDL passes the
+        gate and stays idempotent."""
+        db_file = tmp_path / "workflow_gate_ok.sqlite"
+        cfg = _make_db_config(db_file, "workflow")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            cs.create_workflow_schema()
+            cs.create_workflow_schema()
