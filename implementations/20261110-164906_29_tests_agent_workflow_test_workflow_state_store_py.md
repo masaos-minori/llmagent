@@ -65,8 +65,8 @@ Changing `state_store.py` itself (its row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the legacy lease-less recovery expectations | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the legacy lease-less recovery expectations | Completed | — | 20261111-144626 | already satisfied by row-11 pull-in (commit a55a62c95): no .legacy_recovered assertion or _LEGACY_STALE_AGE_SEC reference remains in tests/ or scripts/; lease-expired cases kept |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-144626 | 49 passed for test_workflow_state_store.py + test_stale_recovery_lease.py; full suite 12097 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
