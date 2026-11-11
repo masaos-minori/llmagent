@@ -64,9 +64,9 @@ Deleting the retired-table history or the task-nonce descriptions.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | State the retired-table behavior accurately | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | State the retired-table behavior accurately | Completed | — | 20261111-145628 | line 80 'with no effect' claim replaced: a legacy database carrying execution_snapshots fails startup under exact fingerprint matching and is archived and recreated |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-145628 | check_docs_consistency --domain agent: No issues found; no 'no effect'/harmless claim remains in agent_04_03 |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-145629 | documentation-only row; task_nonce/tool_call_state descriptions untouched |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
