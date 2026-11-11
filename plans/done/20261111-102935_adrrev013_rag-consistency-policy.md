@@ -178,11 +178,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | MCP delete path through the shared helper (REQ-004, REQ-005) | Pending | — | — | |
-| 2 | Policy source and remediation standardization (REQ-001, REQ-002) | Pending | — | — | |
-| 3 | ADR-005 and db_07 alignment (REQ-002, REQ-003, REQ-004) | Pending | — | — | |
-| 4 | ADR-009 invariants and failure wording (REQ-006) | Pending | — | — | |
-| 5 | Deployment & Verification | Pending | — | — | |
+| 1 | MCP delete path through the shared helper (REQ-004, REQ-005) | In Progress | — | — |  |
+| 2 | Policy source and remediation standardization (REQ-001, REQ-002) | In Progress | — | — |  |
+| 3 | ADR-005 and db_07 alignment (REQ-002, REQ-003, REQ-004) | In Progress | — | — |  |
+| 4 | ADR-009 invariants and failure wording (REQ-006) | In Progress | — | — |  |
+| 5 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -192,7 +192,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261112-063813_01_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-063813_02_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-063813_03_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-063813_04_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-063813_05_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-063813_06_docs_21_rag_rag_05_02-execution-guide.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-063813_07_scripts_mcp_servers_rag_pipeline_document_manager.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -220,3 +226,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-004 | Same; ADR-005 Decision 11 records the duplicated SQL | `docs/10_adr/adr_02_06_005_rag-source-derived-index-relationships.md` | Step 3 | AC-4 | `check_adr_structure.py` | Confirmed by repository evidence |
 | REQ-005 | Testing Expectations: a test for the MCP delete path | `tests/mcp_servers/rag_pipeline/test_document_manager.py` | Step 1 | AC-5 | `check_mock_patch_targets.py`, pytest | Derived from confirmed evidence |
 | REQ-006 | Required Changes: merge duplicate ADR-009 invariants, define normalization-failure behavior, fix classification | `docs/10_adr/adr_02_06_009_rag-fts5-text-separation.md` | Step 4 | AC-6 | `check_adr_invariant_matrix.py`, `check_adr_preservation.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261112-063813 -->
