@@ -53,9 +53,9 @@ Non-schema health assertions.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-144508 | already satisfied by row-10 pull-in: fixture builds canonical DDL and mutates shape; marker cases assert unexpected-table refusal |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-144508 | fingerprint drift cases present (exclude_table/missing_column/'does not match the current schema'/file-hash unchanged); no table-list membership case remains |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-144508 | tests/agent/test_repl_health.py 46 passed; full suite 12097 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
