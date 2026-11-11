@@ -66,8 +66,8 @@ Changing the DDL objects themselves.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-103716 | Added build_eventbus_schema_sql() reading scripts/eventbus/schema.sql; rg confirmed no user_version reader (0 hits) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-103716 | pytest tests/db/test_create_schema.py 67 passed (new accessor test); ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
