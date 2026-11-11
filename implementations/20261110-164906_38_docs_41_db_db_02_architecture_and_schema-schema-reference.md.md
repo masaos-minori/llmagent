@@ -62,9 +62,9 @@ Changing the workflow create path or CHECK constraints.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Align the workflow validation statement to fingerprint matching | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Align the workflow validation statement to fingerprint matching | Completed | — | 20261111-145201 | section 7 validation sentence replaced with shared-fingerprint shape matching; archive-and-recreate consequence kept; CHECK-constraint descriptions untouched |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-145201 | check_docs_consistency --domain db: No issues found; no schema_migrations/workflow_schema_version/marker claims remain in db_02 |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-145201 | documentation-only row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
