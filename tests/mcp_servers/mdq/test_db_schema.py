@@ -113,6 +113,80 @@ class TestRerunOnCurrentShape:
             conn.close()
 
 
+class TestFingerprintGate:
+    """ADR-008: an existing mdq database is fingerprint-validated on open."""
+
+    def test_drifted_documents_table_is_refused(self, tmp_path: Path) -> None:
+        db_path = str(tmp_path / "drift.sqlite")
+        conn = sqlite3.connect(db_path)
+        try:
+            create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
+            conn.execute("ALTER TABLE documents DROP COLUMN content_hash")
+            conn.commit()
+            with pytest.raises(
+                RuntimeError, match="mdq.sqlite.documents: columns differ"
+            ):
+                create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
+        finally:
+            conn.close()
+
+    def test_missing_table_is_refused(self, tmp_path: Path) -> None:
+        db_path = str(tmp_path / "partial.sqlite")
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.execute(
+                "CREATE TABLE documents (doc_id TEXT PRIMARY KEY, source_path TEXT NOT NULL)"
+            )
+            conn.commit()
+            with pytest.raises(
+                RuntimeError, match="mdq.sqlite: missing table 'chunks' defined"
+            ):
+                create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
+        finally:
+            conn.close()
+
+    def test_extra_table_is_refused(self, tmp_path: Path) -> None:
+        db_path = str(tmp_path / "extra.sqlite")
+        conn = sqlite3.connect(db_path)
+        try:
+            create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
+            conn.execute("CREATE TABLE legacy_mdq_extra (k TEXT)")
+            conn.commit()
+            with pytest.raises(
+                RuntimeError, match="unexpected table 'legacy_mdq_extra'"
+            ):
+                create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
+        finally:
+            conn.close()
+
+    def test_refusal_leaves_existing_rows_intact(self, tmp_path: Path) -> None:
+        db_path = str(tmp_path / "intact.sqlite")
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.execute(
+                "CREATE TABLE documents (doc_id TEXT PRIMARY KEY, source_path TEXT NOT NULL)"
+            )
+            conn.execute("INSERT INTO documents VALUES ('d1', '/p')")
+            conn.commit()
+            with pytest.raises(RuntimeError, match="does not match the current schema"):
+                create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
+            rows = conn.execute("SELECT doc_id FROM documents").fetchall()
+            assert rows == [("d1",)]
+        finally:
+            conn.close()
+
+    def test_current_shape_database_passes_the_gate(self, tmp_path: Path) -> None:
+        db_path = str(tmp_path / "clean.sqlite")
+        conn = sqlite3.connect(db_path)
+        try:
+            create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
+            conn.close()
+            conn = sqlite3.connect(db_path)
+            create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
+        finally:
+            conn.close()
+
+
 class TestErrorHandling:
     """Behavior when a sqlite3.OperationalError occurs during table creation."""
 

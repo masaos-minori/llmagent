@@ -73,9 +73,6 @@ class TestMdqRagBoundary:
             # databases and target connections passed by callers; never touches MDQ or
             # RAG DB files.
             "schema_fingerprint.py",
-            # Shared EventBus schema-shape validator: opens only in-memory databases
-            # and target connections passed by callers; never touches MDQ or RAG DB files.
-            "eventbus_schema_fingerprint.py",
             # Shared domain-neutral migration framework: sqlite3.connect() only on
             # tempfile.mkstemp() copies for the backup/dry-run gates; never opens
             # mdq.sqlite or rag.sqlite. Added for dbmig001 (shared migration framework).
