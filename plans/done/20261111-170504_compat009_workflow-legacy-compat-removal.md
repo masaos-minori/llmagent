@@ -7,23 +7,23 @@ Medium
 ## Scope
 - **In-Scope**:
   - `REQ-001`: remove `FailurePolicy`, `McpServerConfig.failure_policy`, its parsing, its use in the readiness warning, the test name that refers to it, and its documentation bullet.
-  - `REQ-002`: remove the lease-less age dependence and the `legacy_recovered` assertions from `tests/agent/workflow/test_state_store.py` (a fallout of the adrrev005 lease-less removal that none of its procedures names).
+  - `REQ-002`: remove the lease-less age dependence and the `legacy_recovered` assertions from `tests/agent/workflow/test_state_store.py` (a fallout of the adrrev005 lease-less removal that none of its procedures names). Amendment 2026-11-11 (user-approved): satisfied ahead of this Plan by adrrev005 procedure 11 (commit `331754c1c`); the row was removed from the frozen table and only the AC-3 regression gate remains.
   - `REQ-003`: remove the two retained-database compatibility tests (legacy composite task key, legacy snapshot column) from `tests/agent/workflow/test_workflow_state_store.py`.
   - `REQ-004`: completion checks (`tools/check_compat_shims.py`, zero-caller `rg`, documentation and toolchain gates).
 - **Out-of-Scope**:
-  - The lease-less legacy recovery branch, `_LEGACY_STALE_AGE_SEC`, the `legacy_recovered` field, the legacy-age cases of `tests/agent/workflow/test_workflow_state_store.py` and `tests/agent/workflow/test_stale_recovery_lease.py`, and the ADR and DB document wording about lease-less recovery. These belong to the archived adrrev005 plan (`REQ-004`, `REQ-006`), whose procedures for `state_store.py`, both test files, and the documents are still `Pending`.
+  - The lease-less legacy recovery branch, `_LEGACY_STALE_AGE_SEC`, the `legacy_recovered` field, the legacy-age cases of `tests/agent/workflow/test_workflow_state_store.py` and `tests/agent/workflow/test_stale_recovery_lease.py`, and the ADR and DB document wording about lease-less recovery. These belong to the archived adrrev005 plan (`REQ-004`, `REQ-006`), whose procedures for `state_store.py`, both test files, and the documents have landed: all 50 adrrev005 procedures are archived in `implementations/done/` (re-verified 2026-11-11).
   - Changing the optional `lease_duration_sec` parameter of `begin_stage_if_new` (see UNK-01).
   - RAG, EventBus, history-comment, and checker items owned by `issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md` through `issues/20261110-171157_rmcompat008_compat-checker-patterns.md`.
   - `ToolConfig.tool_definitions` consumers and `scripts/shared/tool_constants.py` comments (owned by `issues/20261111-163741_rtregistry001_runtime-registry-sole-authority.md` and `issues/20261111-163800_sideeffect001_side-effect-classification-central.md`).
   - WAL, mode, and Memory compatibility cleanup (see UNK-04).
-- **Dependencies**: Fix order for this Plan: `REQ-001` is independent of every other item. `REQ-002` and `REQ-003` edit test files that the adrrev005 procedures also edit or whose behavior they change, so they follow adrrev005 phase 4. `plans/20261111-110144_adrrev017_docs-history-wording.md` edits ADR-001 wording and no file of this Plan, so no ordering applies to it. `issues/20261110-171040_rmcompat007_history-comment-sweep.md` runs after this Plan. `issues/20261111-163819_wfrecov001_adr001-recovery-reconciliation.md` describes the recovery rule that adrrev005 and this Plan finish.
-  - **Depends on**: plans/done/20261110-095137_adrrev005_schema-fingerprint-unify.md | phase 4 | its lease-less removal (procedures 11, 29, 30 in `implementations/`) must land before `REQ-003` edits the same test file and before the `legacy_recovered` field disappears
+- **Dependencies**: Fix order for this Plan: `REQ-001` is independent of every other item. `REQ-002` and `REQ-003` edit test files that the adrrev005 procedures also edit or whose behavior they change, so they follow adrrev005 phase 4, which has completed (all adrrev005 procedures archived; re-verified 2026-11-11). `plans/20261111-110144_adrrev017_docs-history-wording.md` edits ADR-001 wording and no file of this Plan, so no ordering applies to it. `issues/20261110-171040_rmcompat007_history-comment-sweep.md` runs after this Plan. `issues/20261111-163819_wfrecov001_adr001-recovery-reconciliation.md` describes the recovery rule that adrrev005 and this Plan finish.
+  - **Depends on**: plans/done/20261110-095137_adrrev005_schema-fingerprint-unify.md | phase 4 | its lease-less removal (procedures 11, 29, 30) must land before `REQ-003` edits the same test file and before the `legacy_recovered` field disappears. Landed: the dependency plan is archived in `plans/done/` and its procedures in `implementations/done/` (verified 2026-11-11 by `tools/plan_dependency_order.py` → `Ready`).
 
 ## Background
 The Issue (`issues/20261111-163923_compat009_workflow-legacy-compat-removal.md`) asks to remove workflow-recovery compatibility code and the single-valued `FailurePolicy`. Step 2 verification against current source changed its scope:
 
-- The lease-less legacy recovery branch (`_LEGACY_STALE_AGE_SEC`, `legacy_recovered`) is confirmed in `scripts/agent/workflow/state_store.py`, but the Issue's claim that no open plan covers it is wrong. The archived adrrev005 plan lists it as `REQ-004`, and its implementation procedures for `state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, and `tests/agent/workflow/test_stale_recovery_lease.py` are `Pending` in `implementations/`. adrrev005's Execution Status shows phase 4 `In Progress`. This Plan therefore does not plan that removal again.
-- `tests/agent/workflow/test_state_store.py` also asserts the legacy rule (a lease-less row older than the legacy age is recovered and reports `legacy_recovered`) and is not a target of any adrrev005 procedure, so it would fail once the field is removed.
+- The lease-less legacy recovery branch (`_LEGACY_STALE_AGE_SEC`, `legacy_recovered`) was confirmed in `scripts/agent/workflow/state_store.py` at planning time, and the Issue's claim that no open plan covers it is wrong: the archived adrrev005 plan lists it as `REQ-004`. Re-verification 2026-11-11: adrrev005 has fully landed — all 50 of its procedures are archived in `implementations/done/` and phase 4 is `Completed` — so the branch itself is already removed. This Plan does not plan that removal again.
+- `tests/agent/workflow/test_state_store.py` asserted the legacy rule at planning time and was not named by any adrrev005 procedure. Re-verification 2026-11-11: commit `331754c1c` ("feat(workflow): stale recovery requires a lease (adrrev005 row 11)") rewrote its recovery cases to lease-bearing rows; the file contains no `legacy_recovered` or lease-less-age assertions (the only `legacy` match is a historical comment at line 166), and `uv run pytest tests/agent/workflow/test_state_store.py tests/agent/workflow/test_workflow_state_store.py` passes (66 tests). `REQ-002` is therefore already satisfied.
 - `FailurePolicy` is confirmed single-valued: the enum has one member, the `McpServerConfig.failure_policy` field is documented as reserved, and `docs/22_mcp` states nothing branches on it.
 - Two retained-database compatibility tests exist in `tests/agent/workflow/test_workflow_state_store.py` and are not named by adrrev005's procedure for that file.
 - The Issue's memo path `tests/test_workflow_state_store.py` does not exist; the real path is `tests/agent/workflow/test_workflow_state_store.py`. The WAL module path in the memo (`scripts/db/wal_checkpoint_manager.py`) does not exist either.
@@ -31,7 +31,7 @@ The Issue (`issues/20261111-163923_compat009_workflow-legacy-compat-removal.md`)
 ## Problem
 - `FailurePolicy` adds an enum, a config field, a parse step, and a log suffix for a policy that has exactly one value and that no code branches on.
 - Retained-database tests pin behavior for pre-current-schema data (a composite-style task key and an unused snapshot column), which contradicts the current-schema-only policy.
-- `tests/agent/workflow/test_state_store.py` depends on the lease-less age rule that adrrev005 removes, so adrrev005's `state_store.py` change would break it with no procedure assigned to fix it.
+- `tests/agent/workflow/test_state_store.py` depended on the lease-less age rule that adrrev005 removes. Resolved before this Plan executes: adrrev005 procedure 11 (commit `331754c1c`) rewrote the file to lease-bearing rows, so no broken test file remains.
 
 ## Reason for Change
 The recovery transaction is being documented and simplified (adrrev005, the ADR-001 issue). Removing the remaining test dependencies and the unused `FailurePolicy` indirection at the same time avoids a broken test file after adrrev005 lands and avoids leaving a second dead abstraction. No deadline exists; priority is Medium maintainability work.
@@ -44,7 +44,7 @@ The recovery transaction is being documented and simplified (adrrev005, the ADR-
 
 ## Requirements
 - `REQ-001`: Remove the `FailurePolicy` enum, `McpServerConfig.failure_policy`, its parsing in `_build_single_server`, the `getattr(..., "failure_policy", None)` suffix in the readiness warning, the test name that refers to it, and the `failure_policy` bullet in the MCP server configuration reference. A stale `failure_policy` key in an existing `agent.toml` MUST still load (ignored).
-- `REQ-002`: In `tests/agent/workflow/test_state_store.py`, replace lease-less seeded rows with lease-bearing rows and remove every `legacy_recovered` assertion and the `legacy` error-message assertion, keeping the lease-expiry, live-lease, compare-and-swap, and reconciliation cases.
+- `REQ-002`: In `tests/agent/workflow/test_state_store.py`, replace lease-less seeded rows with lease-bearing rows and remove every `legacy_recovered` assertion and the `legacy` error-message assertion, keeping the lease-expiry, live-lease, compare-and-swap, and reconciliation cases. (Verification 2026-11-11: already satisfied by commit `331754c1c`; no modification remains for this Plan.)
 - `REQ-003`: Remove `test_retained_db_compatibility` and `test_lifecycle_works_on_legacy_shape_with_unused_snapshot_column` from `tests/agent/workflow/test_workflow_state_store.py`.
 - `REQ-004`: `uv run python tools/check_compat_shims.py` passes, `rg` finds no `FailurePolicy` or `failure_policy` outside work items, no `legacy_recovered` remains in `tests/agent/workflow/test_state_store.py`, and no file owned by adrrev005 is modified by this Plan.
 
@@ -62,7 +62,6 @@ table — no other file may be treated as a modification target.
 | `scripts/agent/startup_reporter.py` | Readiness warning text | Remove the `getattr(cfg_entry, "failure_policy", None)` lookup so `ReadinessReporter` lists unavailable servers by key only | `REQ-001`, AC-1, AC-2 | `ReadinessReporter` builds `f"{key} ({policy})"` from that lookup; the consumer scan lists it as the only other script reader (checked in Step 3) | `tests/agent/test_startup_reporter.py`, `tests/agent/test_startup.py` | Verified |
 | `tests/agent/test_startup.py` | Startup readiness test | Rename `test_excluded_tools_log_includes_failure_policy` to describe what it asserts (excluded server keys are listed); its assertions never check the policy text | `REQ-001`, AC-2 | The test asserts "Excluded tools (unavailable)", "srv1", and "srv2" only (checked in Step 3) | itself | Verified |
 | `docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md` | MCP server configuration field reference | Remove the `failure_policy` bullet (a documented field that no longer exists) | `REQ-001`, AC-1 | The bullet states the field is reserved and that only `fail-fast` exists; it is the only `docs/` mention of `failure_policy` (checked in Step 3) | `tools/check_docs_consistency.py --domain mcp` | Verified |
-| `tests/agent/workflow/test_state_store.py` | Real-DB recovery tests | Seed lease-bearing rows in `test_recover_single_stale_attempt` and `test_recover_non_stale_attempt_not_changed`, drop the `legacy` message assertion and every `legacy_recovered` assertion | `REQ-002`, AC-3 | `test_recover_single_stale_attempt` asserts `"legacy"` in `error_msg` and `(report.recovered, report.legacy_recovered) == (1, 1)`; the expired-lease test asserts `(1, 0)`; no adrrev005 procedure targets this file (checked in Step 3) | itself | Verified |
 | `tests/agent/workflow/test_workflow_state_store.py` | State-store unit tests | Delete `test_retained_db_compatibility` (pre-existing composite-key row) and `test_lifecycle_works_on_legacy_shape_with_unused_snapshot_column` (legacy table and column shape) | `REQ-003`, AC-4 | The first test is in `TestCreateTask` and the second in `TestToolCallStateOps`; both build legacy data by hand; `snapshot_id` is absent from `scripts/db/schema_sql.py` and the workflow schema service; the adrrev005 procedure for this file names the legacy-age cases only (checked in Step 3) | itself | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
@@ -85,16 +84,16 @@ glob patterns, components, file groups, or vague phrases.
 |---|---|---|
 | `scripts/agent/workflow/state_store.py` | Shows `RecoveryReport` and the lease-less branch that adrrev005 removes; confirms what `last_recovery_report` still carries when `REQ-002` lands | `REQ-002`, `tests/agent/workflow/test_state_store.py` |
 | `scripts/agent/workflow/idempotency_ops.py` | `begin_stage_if_new` keeps an optional `lease_duration_sec`; read to judge UNK-01 | `REQ-002` |
-| `tests/agent/workflow/test_stale_recovery_lease.py` | Adrrev005 procedure 30 edits it; read to avoid duplicating or conflicting with that removal | `REQ-002`, `REQ-003` |
-| `implementations/20261110-164906_11_scripts_agent_workflow_state_store_py.md` | The pending procedure that removes the lease-less rule; confirms its ordering and what remains undefined | `REQ-002`, UNK-01 |
-| `implementations/20261110-164906_29_tests_agent_workflow_test_workflow_state_store_py.md` | The pending procedure that edits `tests/agent/workflow/test_workflow_state_store.py`; `REQ-003` follows it | `REQ-003` |
+| `tests/agent/workflow/test_stale_recovery_lease.py` | Adrrev005 procedure 30 edited and landed; read to confirm no leftover legacy references | `REQ-002`, `REQ-003` |
+| `implementations/done/20261110-164906_11_scripts_agent_workflow_state_store_py.md` | The landed procedure that removed the lease-less rule (commit `331754c1c`); confirms what remains undefined for lease-less rows (UNK-01) | `REQ-002`, UNK-01 |
+| `implementations/done/20261110-164906_29_tests_agent_workflow_test_workflow_state_store_py.md` | The landed procedure that edited `tests/agent/workflow/test_workflow_state_store.py`; `REQ-003` follows it | `REQ-003` |
 | `tests/shared/test_mcp_config_validation.py` | Exercises `_build_single_server`; must keep passing after the field removal | `REQ-001`, `scripts/shared/mcp_config.py` |
 | `tests/agent/test_startup_reporter.py` | `ReadinessReporter` tests; must keep passing after the log suffix removal | `REQ-001`, `scripts/agent/startup_reporter.py` |
 
 ## Acceptance Criteria
 - AC-1 (`REQ-001`): `rg -n "FailurePolicy|failure_policy" scripts tests docs config registry` returns no hit, and the readiness warning lists unavailable servers by key only.
 - AC-2 (`REQ-001`): `tests/shared/test_mcp_config.py`, `tests/shared/test_mcp_config_validation.py`, `tests/agent/test_startup.py`, and `tests/agent/test_startup_reporter.py` pass, and a server entry that still carries a `failure_policy` key loads without error.
-- AC-3 (`REQ-002`): `rg -n "legacy_recovered|_LEGACY_STALE_AGE_SEC|legacy" tests/agent/workflow/test_state_store.py` returns no hit, and the lease-expiry, live-lease, compare-and-swap, and reconciliation cases in that file pass.
+- AC-3 (`REQ-002`): `rg -n "legacy_recovered|_LEGACY_STALE_AGE_SEC|legacy" tests/agent/workflow/test_state_store.py` returns no hit other than the historical comment at line 166 (a comment, not an assertion), and the lease-expiry, live-lease, compare-and-swap, and reconciliation cases in that file pass.
 - AC-4 (`REQ-003`): the two named tests no longer exist and `rg -n "composite|legacy shape|retained" tests/agent/workflow/test_workflow_state_store.py` returns no hit.
 - AC-5 (`REQ-004`): `uv run python tools/check_compat_shims.py`, `uv run python tools/check_docs_consistency.py --domain mcp`, ruff, mypy, import-linter, and the targeted pytest runs pass, and `git diff --name-only` lists only files from the frozen table.
 
@@ -110,16 +109,18 @@ Yes, for `REQ-001` only: the MCP server configuration field reference loses the 
 ## Assumptions
 - A-1: removing the field does not reject an existing `failure_policy` key, because `_build_single_server` reads keys by name and `rg` finds no unknown-key or allowed-key check in `scripts/shared/mcp_config.py`; it is checked once by a load check in Phase 1 (falsifiable).
 - A-2: the readiness warning change from `srv (fail-fast)` to `srv` affects no parser or document: tests assert only the prefix and the server names, and `docs/` never quotes the suffix (checked in Step 3).
-- A-3: `tests/agent/workflow/test_state_store.py` is not an adrrev005 target (its implementation procedure list names `test_workflow_state_store.py` and `test_stale_recovery_lease.py` only), so `REQ-002` does not conflict with it; sequencing risk applies to `tests/agent/workflow/test_workflow_state_store.py` only.
+- A-3: `tests/agent/workflow/test_state_store.py` was not an adrrev005 target file, so `REQ-002` did not conflict with it; sequencing risk applied to `tests/agent/workflow/test_workflow_state_store.py` only. Verified 2026-11-11: the assumption held, and adrrev005 procedure 11 additionally rewrote `test_state_store.py` in the same commit (`331754c1c`), satisfying `REQ-002` ahead of this Plan.
 - A-4: the removal of the two retained-database tests loses no current-schema coverage, because neighboring tests (`test_state_store_create_task_issues_unique_keys` and the tool-call-state lifecycle tests) exercise the same current-schema paths.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | What recovery does with a running attempt that has no lease after adrrev005 removes the legacy age rule. Its procedure says such a row "falls through to normal classification", but `_classify_running_attempts` has no other branch for a missing lease, and `begin_stage_if_new` still accepts `lease_duration_sec=None` (documented "for legacy callers"; the production caller passes a lease, several tests do not). This is the Issue's Decision 1 (can a lease-less row still exist) in a new form. | A recorded decision on lease-less rows and on whether the `None` default stays | Owner of adrrev005 procedure `implementations/20261110-164906_11_scripts_agent_workflow_state_store_py.md` decides; if the `None` default should go, file a follow-up Issue (it touches `idempotency_ops.py`, `state_store.py`, and three test files) | False |
-| UNK-02 | Whether adrrev005 procedures 29 and 30 enumerate every `legacy_recovered` assertion (`test_stale_recovery_lease.py` has two outside the removed cases, `test_workflow_state_store.py` has two more); any missed one fails after the field is removed | Line-level coverage of those two procedures | Owner of adrrev005 phase 4 confirms before procedure 11 executes; not a target of this Plan | False |
+| UNK-01 | What recovery does with a running attempt that has no lease after adrrev005 removes the legacy age rule. Its procedure says such a row "falls through to normal classification", but `_classify_running_attempts` has no other branch for a missing lease, and `begin_stage_if_new` still accepts `lease_duration_sec=None` (documented "for legacy callers"; the production caller passes a lease, several tests do not). This is the Issue's Decision 1 (can a lease-less row still exist) in a new form. | A recorded decision on lease-less rows and on whether the `None` default stays | Resolved 2026-11-11: adrrev005 procedure 11 landed and a lease-less running row stays live — `_classify_running_attempts` (`scripts/agent/workflow/state_store.py`) parses only rows with a stored lease as stale, so a `NULL` lease never expires. `begin_stage_if_new` still exposes `lease_duration_sec: int \| None = None` in `scripts/agent/workflow/idempotency_ops.py`; whether that default should be removed is a follow-up decision for the adrrev005 procedure 11 owner (it touches `idempotency_ops.py`, `state_store.py`, and three test files) and stays outside this Plan | False |
+| UNK-02 | Whether adrrev005 procedures 29 and 30 enumerate every `legacy_recovered` assertion (`test_stale_recovery_lease.py` has two outside the removed cases, `test_workflow_state_store.py` has two more); any missed one fails after the field is removed | Line-level coverage of those two procedures | Resolved 2026-11-11: procedures 29 and 30 have landed, and `rg -n "legacy_recovered\|_LEGACY_STALE_AGE_SEC" scripts/ tests/ docs/` returns zero hits; no missed assertion remains | False |
 | UNK-03 | Whether any deployed `agent.toml` sets `failure_policy` | Production configuration was not inspected (`rules/ai-execution.md` Repository Tool Usage item 7) | A-1 shows it is ignored; confirm during the deploy hand-off | False |
 | UNK-04 | Whether any WAL, mode, or Memory compatibility remains (the Issue's own open fact; the WAL path in the memo does not exist) | A confirmed target list | File a separate Issue after a repository search; outside this Plan | False |
+
+Verification Result: No blocking unknowns remaining (re-verification 2026-11-11; UNK-01 and UNK-02 resolved as recorded above; UNK-03 and UNK-04 are non-blocking and delegated to the deploy hand-off and a separate Issue respectively).
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -133,11 +134,10 @@ separate scope-of-record.
 | `scripts/agent/startup_reporter.py` | Modify | Low: imported by `scripts/agent/startup.py` and one test module | 4 | High: one author | not applicable (rsynced) |
 | `tests/agent/test_startup.py` | Modify | Low: a rename in one test | 7 | High: one author | not applicable (rsynced) |
 | `docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md` | Modify | Low: one bullet, no other document quotes it | 6 | High: one author | not applicable (rsynced) |
-| `tests/agent/workflow/test_state_store.py` | Modify | Low: recovery test cases only | 6 | High: one author | not applicable (rsynced) |
 | `tests/agent/workflow/test_workflow_state_store.py` | Modify | Low: two tests removed; shares the file with adrrev005 procedure 29 | 12 | High: one author | not applicable (rsynced) |
 
 ## Design
-- **Scope decision (Step 2 verification)**: the Issue's main item (remove the lease-less recovery branch) duplicates adrrev005 `REQ-004`, whose procedures are still `Pending` and in active execution. This Plan keeps only what that plan does not cover, so no two plans edit `state_store.py`. The alternative (a second plan for the same branch) was rejected because it would create two procedures for one file.
+- **Scope decision (Step 2 verification)**: the Issue's main item (remove the lease-less recovery branch) duplicates adrrev005 `REQ-004`, which was in active execution at planning time and has since fully landed (all 50 procedures archived, re-verified 2026-11-11). This Plan kept only what that plan did not cover, so no two plans edit `state_store.py`. The alternative (a second plan for the same branch) was rejected because it would create two procedures for one file.
 - **`FailurePolicy` removal**: delete the enum, field, and parse step; no alias or deprecation shim (`rules/coding.md` Deprecation policy; zero-caller `rg` check first). Alternative rejected: keep the enum for future policies, because nothing branches on it and a future policy can add it back with its behavior. Alternative rejected: reject a leftover `failure_policy` key, because that adds new strict validation outside the Issue.
 - **Operator-visible change**: the readiness warning line changes from `srv (fail-fast)` to `srv`.
 - **Consumer scan record** (`tools/scan_change_consumers.py --seed FailurePolicy --seed failure_policy`; the testmon state was stale, so results are candidates only):
@@ -163,9 +163,9 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
    - [ ] Rename the readiness test to describe what it asserts (`REQ-001`; `tests/agent/test_startup.py`)
    - [ ] Remove the `failure_policy` bullet (`REQ-001`; `docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md`)
    - [ ] Check that a server entry with a leftover `failure_policy` key still loads (A-1)
-2. **Phase 2: Align the workflow tests (after adrrev005 phase 4)**
-   - [ ] Seed lease-bearing rows and remove `legacy`/`legacy_recovered` assertions (`REQ-002`; `tests/agent/workflow/test_state_store.py`)
-   - [ ] Delete `test_retained_db_compatibility` and `test_lifecycle_works_on_legacy_shape_with_unused_snapshot_column`, after adrrev005 procedure 29 has landed (`REQ-003`; `tests/agent/workflow/test_workflow_state_store.py`)
+2. **Phase 2: Align the workflow tests (adrrev005 phase 4 has landed)**
+   - [ ] Verify no `legacy`/`legacy_recovered` assertion remains in `tests/agent/workflow/test_state_store.py` (`REQ-002`; already satisfied by adrrev005 procedure 11, commit `331754c1c`; no edit planned)
+   - [ ] Delete `test_retained_db_compatibility` and `test_lifecycle_works_on_legacy_shape_with_unused_snapshot_column`, after adrrev005 procedure 29 has landed (`REQ-003`; `tests/agent/workflow/test_workflow_state_store.py`; procedure 29 archived 2026-11-11, both tests confirmed still present)
 3. **Phase 3: Deployment & Verification**
    - [ ] Run the validation sequence in `rules/toolchain.md`, `uv run python tools/check_compat_shims.py`, and the documentation checks (`REQ-004`)
    - [ ] Deployment hand-off: `scripts/shared/mcp_config.py` and `scripts/agent/startup_reporter.py` are production code, so deploying follows `skills/deploy/SKILL.md`; its prerequisite is that the change is committed and pushed first, and deploying is the user's decision (it has an approval gate); confirm UNK-03 during that hand-off (`REQ-001`)
@@ -201,9 +201,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove `FailurePolicy` from `scripts/shared/mcp_config.py`, `scripts/agent/startup_reporter.py`, `tests/agent/test_startup.py`, and the MCP configuration reference | Pending | — | — | |
-| 2 | Align `tests/agent/workflow/test_state_store.py` and `tests/agent/workflow/test_workflow_state_store.py` with lease-only recovery and the current schema | Pending | — | — | Starts after adrrev005 phase 4 |
-| 3 | Run the validation sequence and the compatibility checks, then hand off deployment | Pending | — | — | |
+| 1 | Remove `FailurePolicy` from `scripts/shared/mcp_config.py`, `scripts/agent/startup_reporter.py`, `tests/agent/test_startup.py`, and the MCP configuration reference | Completed | — | 20261111-191542 |  |
+| 2 | Align `tests/agent/workflow/test_state_store.py` and `tests/agent/workflow/test_workflow_state_store.py` with lease-only recovery and the current schema | Completed | — | 20261111-191542 | adrrev005 phase 4 landed 2026-11-11; the `test_state_store.py` half is already satisfied by commit `331754c1c` adrrev005 phase 4 landed 2026-11-11; REQ-002 already satisfied by commit 331754c1c and its frozen-table row removed with user approval; AC-3 kept as regression gate |
+| 3 | Run the validation sequence and the compatibility checks, then hand off deployment | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -213,7 +213,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261111-180615_1_scripts_shared_mcp_config.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261111-180615_2_scripts_agent_startup_reporter.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261111-180615_4_docs_22_mcp_mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261111-180615_6_tests_agent_workflow_test_workflow_state_store.py.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -222,7 +225,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261111-170504
-- **Related target files**: `scripts/shared/mcp_config.py`, `scripts/agent/startup_reporter.py`, `tests/agent/test_startup.py`, `docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`
+- **Related target files**: `scripts/shared/mcp_config.py`, `scripts/agent/startup_reporter.py`, `tests/agent/test_startup.py`, `docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md`, `tests/agent/workflow/test_workflow_state_store.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -231,6 +234,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-001 | `ReadinessReporter` policy lookup in `scripts/agent/startup_reporter.py` | `scripts/agent/startup_reporter.py` | Step 1 | AC-1, AC-2 | `tests/agent/test_startup_reporter.py` | Confirmed by repository evidence |
 | REQ-001 | Test named after the removed field in `tests/agent/test_startup.py` | `tests/agent/test_startup.py` | Step 1 | AC-2 | `tests/agent/test_startup.py` | Confirmed by repository evidence |
 | REQ-001 | Documented field bullet in the MCP configuration reference | `docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md` | Step 1 | AC-1 | `tools/check_docs_consistency.py --domain mcp` | Confirmed by repository evidence |
-| REQ-002 | Issue Required Changes (legacy-only tests) and Acceptance Criteria; legacy assertions in `tests/agent/workflow/test_state_store.py` | `tests/agent/workflow/test_state_store.py` | Step 2 | AC-3 | `tests/agent/workflow/test_state_store.py` | Derived from confirmed evidence |
+| REQ-002 | Issue Required Changes (legacy-only tests) and Acceptance Criteria; legacy assertions in `tests/agent/workflow/test_state_store.py` | N/A: already satisfied by commit `331754c1c` (adrrev005 procedure 11); row removed from the frozen table 2026-11-11 with user approval | Step 2 | AC-3 | `tests/agent/workflow/test_state_store.py` (regression gate) | Confirmed by repository evidence; already satisfied by commit `331754c1c` (verification 2026-11-11) |
 | REQ-003 | Issue Required Changes (retained-database compatibility tests); the two named tests in `tests/agent/workflow/test_workflow_state_store.py` | `tests/agent/workflow/test_workflow_state_store.py` | Step 2 | AC-4 | `tests/agent/workflow/test_workflow_state_store.py` | Confirmed by repository evidence |
 | REQ-004 | Issue Acceptance Criteria (`check_compat_shims.py` passes) and Testing Expectations | N/A: verification only, no file change | Step 3 | AC-5 | `tools/check_compat_shims.py`, toolchain gates | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261111-180615 -->
