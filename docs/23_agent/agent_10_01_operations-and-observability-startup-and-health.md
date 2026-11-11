@@ -99,7 +99,7 @@ When an MCP subprocess fails to start, the tail of its stderr is included in the
 
 When `workflow.sqlite` or `eventbus.sqlite` becomes corrupted (e.g., disk failure, unexpected shutdown), `recover_corruption()` returns `action="no_recovery_allowed"` for both — ADR-008 INV-18 prohibits automatic restoration for these two domains. Recovery is an operator action. Prefer restoring from a rotation-archive backup (below); fall back to recreating empty databases (Step 6) only when no valid backup exists.
 
-**Step 1 — Stop the agent process completely** (ensure no remaining subprocesses).
+**Step 1 — Stop the writing processes completely** (ensure no remaining subprocesses): stop the Agent process, then stop the standalone EventBus service. The EventBus is a persistent uvicorn HTTP process (`scripts/eventbus/app.py`) that binds `cfg.host:cfg.port` and holds `eventbus.sqlite` open; it is separate from the Agent process, so the Agent's own shutdown does not stop it. Stop it via its service manager (or the process that launched it) and confirm no `eventbus` uvicorn process remains. This step applies when the EventBus is enabled; name it regardless, because `adr_02_05_008` lists the EventBus as a target process that holds `eventbus.sqlite`.
 
 **Step 2 — Preserve the corrupted files for forensics:**
 ```bash
@@ -124,6 +124,17 @@ sqlite3 "$ARCHIVE_DIR/eventbus_<YYYYMMDD_HHMMSS>.sqlite" "PRAGMA integrity_check
 ```
 Each must print exactly `ok`. Reject and try the next-older archive otherwise.
 
+**Step 4b — Move `-wal`/`-shm` sidecars aside before restoring.** Leaving stale sidecars in place lets SQLite replay those frames onto the restored file on next open, producing a corrupted or mixed database — the same hazard the automated path closes by quarantining sidecars (`scripts/db/recovery_restore.py::_quarantine_sidecar_files()`). Move each database's sidecars aside to a timestamped quarantine directory before Step 5's `cp`:
+```bash
+QUARANTINE_DIR="./recovery_quarantine_$(date -u +%Y%m%d_%H%M%S)"
+mkdir -p "$QUARANTINE_DIR"
+for db in workflow eventbus; do
+  for ext in -wal -shm; do
+    [ -f "${db}.sqlite${ext}" ] && mv "${db}.sqlite${ext}" "$QUARANTINE_DIR/"
+  done
+done
+```
+
 **Step 5 — Apply the validated backup, then re-verify:**
 ```bash
 cp "$ARCHIVE_DIR/workflow_<YYYYMMDD_HHMMSS>.sqlite" workflow.sqlite
@@ -131,7 +142,7 @@ cp "$ARCHIVE_DIR/eventbus_<YYYYMMDD_HHMMSS>.sqlite" eventbus.sqlite
 sqlite3 workflow.sqlite "PRAGMA integrity_check;"
 sqlite3 eventbus.sqlite "PRAGMA integrity_check;"
 ```
-Both must print `ok` again post-copy before starting the agent. Data committed after the backup's timestamp is lost — this is expected; note the gap when escalating if it matters operationally.
+Both must print `ok` again post-copy before starting the agent. Data committed after the backup's timestamp is lost — this is expected; note the gap when escalating if it matters operationally. Then run the `adrrev005` post-restore schema-fingerprint verification against `workflow.sqlite` and `eventbus.sqlite`: a fingerprint mismatch means the restore did not produce the expected schema, so do not start the agent — revert to the archived original and escalate. The fingerprint check's exact assertions are defined by `adrrev005`.
 
 **Step 6 — No valid backup available (all candidates missing or failing integrity check).** Fall back to recreating empty databases — this is a last resort, not the default path. `recover_corruption()` has no reinitialization path for these domains (it only returns `no_recovery_allowed`), so the empty state is produced by removing the corrupted files and running the schema creation functions of `scripts/db/create_schema.py` (Explicit in code — `scripts/db/recovery.py`, `scripts/db/create_schema.py`). The corrupted content is not re-imported; Step 2's `.corrupted` copies are the only remaining record of it.
 ```bash

@@ -117,7 +117,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, and the DLQ. Owned by the EventBus service.
 5. Reasons for DB separation: differences in write characteristics, lock contention, failure isolation, retention periods, recovery methods, and extension-loading scope.
 6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
-7. Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
+7. Logical IDs such as Session ID, Workflow ID, and Event ID identify the same entity across databases and are used to join related rows at query time. This is a static logical reference, not a live EventBus publish/consume path (see Decision Detail #8).
 8. Cross-DB consistency is guaranteed by idempotent processing and state reconciliation. No runtime component publishes to or consumes from the EventBus, so Events are not a consistency mechanism.
 9. sqlite-vec is loaded by default only into the databases that own a vec0 table: `rag.sqlite` and `session.sqlite`.
 10. Each DB defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period.
@@ -347,7 +347,8 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue:** SHARED-001 — Dry Run switches a rollback-journal-mode target database to WAL mode on open. Recorded pending a maintainer decision (fix Dry Run to avoid the journal-mode change, or accept and document it); not resolved. See `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
+- **Known Issue:** SHARED-002 — `memories_vec` is classified as both system of record and derived/rebuildable in the ADR-008 Recovery Policy Matrix (lines 92-93). Recorded pending a maintainer decision on the correct classification; not resolved. See `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
 
 ## Review Triggers
 

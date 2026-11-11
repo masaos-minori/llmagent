@@ -1,3 +1,5 @@
+> **PAUSED** — superseded by adrrev009 (20261111-193537). Implementation halted until adrrev009 lands; its overlapping ADR-008 scope is now owned by adrrev009.
+
 ## Goal
 Make the governance ledger (`governance_03`) truthful and well-formed: fix its two format defects, register the contradictions and gaps that are still true when this Plan is implemented (with a valid owner and the sibling Plan that resolves each), and align ADR-016's acceptance wording with its approval record, without inventing any maintainer approval.
 

@@ -1,3 +1,5 @@
+> **PAUSED** — superseded by adrrev009 (20261111-193537). Implementation halted until adrrev009 lands; its overlapping ADR-008 scope is now owned by adrrev009.
+
 ## Goal
 Remove change-history passages from the current-specification documents (amendment sections and narratives, "replaces the previous", renamed-field notes, plan and issue IDs, dates in parentheses), align the policy text that still allows ADR Amendments, and correct the two runtime statements that contradict ADR-004 and the code (the subprocess retry wording in `security_01` and the definition of FATAL in `mcp_06_09`), without changing any normative decision, approval record, or invariant.
 

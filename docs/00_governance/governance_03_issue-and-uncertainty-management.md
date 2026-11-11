@@ -91,7 +91,45 @@ Part 1 entries, Part 2 items, and "Proposed" ADRs are reviewed quarterly (`gover
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, AGENT-*, MCP-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
-No active Known Issue items remain.
+#### SHARED-001
+
+- **ID:** SHARED-001
+- **Title:** Dry Run switches a rollback-journal-mode target database to WAL mode on open
+- **Status**: open
+- **Severity:** Low
+- **Area:** Shared/DB
+- **Type:** implementation-bug
+- **Source:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` Automated Tests INV-16 row and `tests/db/test_db_recovery.py` rollback-journal clause
+- **Owner:** Repository owner
+- **First Found:** adrrev009 ADR-008 recovery alignment review
+- **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Related:** `plans/20261110-233648_adrrev009_adr008-recovery-align.md`
+- **Summary:** The Dry Run path opens the target DB connection to classify its condition, which converts a rollback-journal-mode database to WAL mode; ADR-008 documents Dry Run as taking no action on the target DB, which does not cover this journal-mode switch.
+- **Current Description:** ADR-008 Automated Tests INV-16 states "a rollback-journal file is switched to WAL when opened and is not covered" while the ADR's `## Known Deviations` reads "Not applicable", so the deviation is neither recorded nor resolved.
+- **Observed Implementation:** `scripts/db/recovery.py` Dry Run path opens the target connection for classification; SQLite rewrites a rollback-journal-mode file to WAL mode on open.
+- **Impact:** A rollback-journal-mode database is silently converted to WAL mode during a Dry Run. Operational impact is low because WAL is the production mode, but it contradicts the documented "no action on the target DB" claim and is currently unrecorded.
+- **Recommended Action:** Maintainer decides either (a) fix Dry Run so it does not alter the target's journal mode (for example a read-only classification that avoids the conversion), or (b) accept the switch and record it as an explicit Known Deviation in ADR-008. Recorded here pending that decision; no code fix or approval is fabricated.
+- **Resolution Target:** maintainer decision recorded in ADR-008 `## Known Deviations` or a Dry Run code fix
+
+#### SHARED-002
+
+- **ID:** SHARED-002
+- **Title:** `memories_vec` is classified as both system of record and derived/rebuildable in ADR-008
+- **Status**: open
+- **Severity:** Medium
+- **Area:** Shared/DB
+- **Type:** document-document-mismatch
+- **Source:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` Recovery Policy Matrix rows "System of record" and "Derived or rebuildable data"
+- **Owner:** Repository owner
+- **First Found:** adrrev009 ADR-008 recovery alignment review
+- **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Related:** `plans/20261110-233648_adrrev009_adr008-recovery-align.md`
+- **Summary:** The session.sqlite column of ADR-008's Recovery Policy Matrix lists `memories_vec` under "System of record" and again under "Derived or rebuildable data (from memories)", classifying one store two mutually exclusive ways.
+- **Current Description:** Line 92 lists `sessions, messages, memories, memories_vec` as the system of record and line 93 lists `memories_vec (from memories)` as derived/rebuildable data for the same store in the same table.
+- **Observed Implementation:** No component treats `memories_vec` as a canonical store independent of `memories`; it is rebuilt from `memories`, which supports the derived classification, but the matrix still lists it as a system of record.
+- **Impact:** An operator cannot determine the recovery policy for `memories_vec`; a store cannot be both canonical and derived, so the matrix is internally contradictory.
+- **Recommended Action:** Maintainer decides the correct classification (system of record versus derived/rebuildable) and edits the matrix accordingly. Recorded here pending that decision; the classification is not resolved by this Plan.
+- **Resolution Target:** maintainer decision reflected in the ADR-008 Recovery Policy Matrix
 
 ## Part 2: Needs Confirmation Inventory
 

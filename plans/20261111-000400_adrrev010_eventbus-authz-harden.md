@@ -1,3 +1,5 @@
+> **PAUSED** — superseded by adrrev009 (20261111-193537). Implementation halted until adrrev009 lands; its overlapping ADR-008 scope is now owned by adrrev009.
+
 ## Goal
 Correct the verified defects in ADR-013 (`docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`) so its Decision Details, Verification table, threat model, and risks state the EventBus authentication/authorization contract accurately, without changing any code, credential model, or governance approval.
 

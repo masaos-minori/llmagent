@@ -1,3 +1,5 @@
+> **PAUSED** — superseded by adrrev009 (20261111-193537). Implementation halted until adrrev009 lands; its overlapping ADR-008 scope is now owned by adrrev009.
+
 ## Goal
 Complete the ADR authority model and ADR format where the confirmation pass found real gaps: register the decision targets that two ADRs both define, add the edges and front-matter entries the ADR bodies and the model support, align the section names and finding-code lists between the index, ADR-016, and the guide, complete ADR-012 and ADR-013's format, and correct the one `governance_05` statement that the code contradicts, without changing checker semantics.
 

@@ -1,3 +1,5 @@
+> **PAUSED** — superseded by adrrev009 (20261111-193537). Implementation halted until adrrev009 lands; its overlapping ADR-008 scope is now owned by adrrev009.
+
 ## Goal
 Close the verified EventBus specification gaps (the `dlq_outbox` table, the `/replay` contract and the `/subscribe` replay-start behavior in ADR-006, a foreign-key-safe manual cleanup procedure, the obsolete NACK failure row) and make the failures that the DLQ guarantee depends on (terminal outbox failures, repeatedly failing sweeps) observable through `/health`, without changing authorization, liveness, or readiness semantics.
 

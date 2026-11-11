@@ -160,12 +160,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Harden the manual recovery procedure in `agent_10_01` | Pending | — | — | |
-| 2 | Resolve the db_07 9.2/9.5 contradiction | Pending | — | — | |
-| 3 | Clarify ADR-008 Decision #7/#8 wording | Pending | — | — | |
-| 4 | Route maintainer decisions (memories_vec, Dry Run) | Pending | — | — | |
-| 5 | Update the ADR index | Pending | — | — | |
-| 6 | Run documentation and invariant checkers | Pending | — | — | |
+| 1 | Harden the manual recovery procedure in `agent_10_01` | Completed | 20261111 | 20261111 | EventBus service stop + `-wal`/`-shm` sidecar handling added before restore `cp`; adrrev005 fingerprint verification referenced (REQ-001). |
+| 2 | Resolve the db_07 9.2/9.5 contradiction | Completed | 20261111 | 20261111 | 9.2 now states backup integrity IS verified before use, matching 9.5 and `recovery.py::_backup_is_usable()` (REQ-002). |
+| 3 | Clarify ADR-008 Decision #7/#8 wording | Completed | 20261111 | 20261111 | Decision #7 wording resolved while preserving factually accurate #8 (REQ-003). |
+| 4 | Route maintainer decisions (memories_vec, Dry Run) | Completed | 20261111 | 20261111 | Registered Known Issues SHARED-001 (Dry Run) and SHARED-002 (memories_vec) in governance_03 Part 1; cited both in ADR-008 `## Known Deviations`. Recorded as pending maintainer decisions; no approval fabricated. Inherits adrrev012's Known Deviations ownership; adrrev012 paused. (REQ-004, REQ-005) |
+| 5 | Update the ADR index | Completed | 20261111 | 20261111 | `adr_01_index` still tracks ADR-008 (title, domain, INV-01–05); no divergence, no edit required (REQ-006). |
+| 6 | Run documentation and invariant checkers | Completed | 20261111 | 20261111 | `check_known_deviation_sync.py`, `check_issue_inventory_conformance.py`, `check_adr_structure.py`, `check_adr_invariant_matrix.py`, `check_docs_consistency.py --domain db/--agent`, `check_docs_content_policy.py --strict`, `check_docs_japanese.py` pass. `check_adr_preservation.py` reports the intended `## Known Deviations` change. `check_docs_structure.py` byte-limit findings are pre-existing (untouched files) and out of scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -197,3 +197,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-004 | Adversarial Verification Claim 9; Unresolved Questions (memories_vec classification) | `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` | 4 | Contradiction flagged, not fabricated | `check_adr_invariant_matrix.py` | Needs confirmation (maintainer) |
 | REQ-005 | Adversarial Verification Claim 7; Required Changes (Dry Run deviation) | `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` | 4 | Deviation recorded per maintainer decision | `check_known_deviation_sync.py` | Needs confirmation (maintainer) |
 | REQ-006 | Target Files or Areas (adr_01_index listed); Reason for Change (index timing) | `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` | 5 | Index tracks ADR-008 after ADR-008 edits | `check_adr_structure.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261111-181318 -->
