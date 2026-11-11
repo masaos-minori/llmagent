@@ -32,10 +32,6 @@ from agent.workflow.tool_call_state_ops import ToolCallState
 
 logger = logging.getLogger(__name__)
 
-# Attempts created before the lease migration carry no lease; they are stale
-# once older than this many seconds (Plan REQ-008 interim safety net).
-_LEGACY_STALE_AGE_SEC = 3600
-
 # Retention horizon for processed_events rows of terminal tasks (wfaudit001
 # REQ-003; the 30-day value is the plan UNK-01 choice, not the dedup default).
 _EVENT_RETENTION_SEC = 30 * 24 * 3600
@@ -50,7 +46,6 @@ class RecoveryReport:
 
     recovered: int = 0
     still_live: int = 0
-    legacy_recovered: int = 0
     unparseable: int = 0
     tasks_reconciled: int = 0
 
@@ -228,14 +223,16 @@ class StateStore:
     # ── Startup Recovery ─────────────────────────────────────────────────────
 
     def recover_stale_attempts(self) -> int:
-        """Mark lease-expired (or lease-less and old) running attempts as failed.
+        """Mark lease-expired running attempts as failed.
 
         Always operates on the store's own connection; callers pass no arguments.
 
-        An attempt is stale when its ``lease_expires_at`` is in the past, or —
-        for rows that predate the lease migration and have no lease — when
-        ``started_at`` is older than ``_LEGACY_STALE_AGE_SEC``. A live lease is
-        never recovered, including by another process (REQ-006 / AC-4). This
+        An attempt is stale when its ``lease_expires_at`` is in the past. The
+        lease-less legacy age rule was removed (adrrev005 REQ-004): the sole
+        attempts writer always stamps a lease, so a lease-less row has no
+        expiry evidence and stays live, and legacy databases that carry such
+        rows are refused earlier by the workflow fingerprint gate. A live lease
+        is never recovered, including by another process (REQ-006 / AC-4). This
         method is called once during process initialization before any turn
         processing begins.
 
@@ -258,7 +255,6 @@ class StateStore:
         still_live = sum(1 for r in classified if r["classification"] == "live")
         stale = [r for r in classified if r["classification"] == "stale"]
         recovered = 0
-        legacy_recovered = 0
         reconciled_candidates: set[str] = set()
         for item in stale:
             attempt_id = item["attempt_id"]
@@ -268,17 +264,13 @@ class StateStore:
                 item["started_at"],
                 item["elapsed_sec"],
             )
-            if item["lease_expires_at"] is None:
-                reason = f"legacy attempt older than {_LEGACY_STALE_AGE_SEC}s"
-            else:
-                reason = "lease expired"
             cursor = db.execute(
                 "UPDATE attempts SET status='failed', ended_at=?, error_msg=? "
                 "WHERE attempt_id=? AND status='running' AND owner_id IS ? "
                 "AND lease_expires_at IS ?",
                 (
                     _now(),
-                    f"recovered at startup: {reason}",
+                    "recovered at startup: lease expired",
                     attempt_id,
                     item["owner_id"],
                     item["lease_expires_at"],
@@ -286,8 +278,6 @@ class StateStore:
             )
             if cursor.rowcount == 1:
                 recovered += 1
-                if item["lease_expires_at"] is None:
-                    legacy_recovered += 1
                 reconciled_candidates.add(item["task_id"])
                 # A claimed (orphaned) attempt's stage must be re-executable on
                 # resume: clear the whole (task_id, stage_id) event pair in the
@@ -325,11 +315,10 @@ class StateStore:
                 update_task_status(db, task_id, "failed", commit=False)
                 tasks_reconciled += 1
             logger.info(
-                "startup recovery: recovered=%s still_live=%s legacy_recovered=%s "
+                "startup recovery: recovered=%s still_live=%s "
                 "unparseable=%s tasks_reconciled=%s",
                 recovered,
                 still_live,
-                legacy_recovered,
                 unparseable,
                 tasks_reconciled,
             )
@@ -337,7 +326,6 @@ class StateStore:
         self.last_recovery_report = RecoveryReport(
             recovered=recovered,
             still_live=still_live,
-            legacy_recovered=legacy_recovered,
             unparseable=unparseable,
             tasks_reconciled=tasks_reconciled,
         )
@@ -380,9 +368,10 @@ def _classify_running_attempts(db: SQLiteHelper) -> list[dict]:
     """Classify every running attempt row as stale, live, or unparseable.
 
     Staleness is decided from ``lease_expires_at`` when present (expired =
-    stale); lease-less rows fall back to the legacy age rule (REQ-008). All
-    comparisons use aware UTC datetimes via ``parse_iso_utc`` — no host-local
-    time anywhere (REQ-002 / AC-2). Unparseable ``started_at`` or
+    stale). Lease-less rows stay live: the lease-less legacy age rule was
+    removed (adrrev005 REQ-004) and the sole attempts writer always stamps a
+    lease. All comparisons use aware UTC datetimes via ``parse_iso_utc`` — no
+    host-local time anywhere (REQ-002 / AC-2). Unparseable ``started_at`` or
     ``lease_expires_at`` values are logged with the attempt id and raw value
     and classified ``unparseable`` — the row is neither recovered nor silently
     skipped (REQ-003 / AC-3).
@@ -429,6 +418,8 @@ def _classify_running_attempts(db: SQLiteHelper) -> list[dict]:
                 continue
             stale = lease_dt < now_utc
         else:
-            stale = entry["elapsed_sec"] > _LEGACY_STALE_AGE_SEC
+            # adrrev005 REQ-004: no lease means no expiry evidence; the row
+            # stays live instead of falling back to a legacy age threshold.
+            stale = False
         classified.append({**entry, "classification": "stale" if stale else "live"})
     return classified

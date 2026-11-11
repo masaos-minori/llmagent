@@ -372,27 +372,8 @@ class TestRecoverStaleAttempts:
         ):
             return StateStore()
 
-    def test_stale_attempt_marked_failed(self, workflow_db) -> None:
-        """A lease-less attempt older than the legacy age is marked as failed."""
-        s = self._open_store(workflow_db)
-        try:
-            self._insert_task_and_attempt(
-                s, "att-stale", "task-1", "execute", "running", "2026-01-01T00:00:00Z"
-            )
-
-            count = s.recover_stale_attempts()
-            assert count == 1
-
-            rows = s._db.fetchall(
-                "SELECT status FROM attempts WHERE attempt_id='att-stale'"
-            )
-            assert rows[0][0] == "failed"
-            assert s.last_recovery_report.legacy_recovered == 1
-        finally:
-            s.close()
-
     def test_fresh_attempt_not_marked_failed(self, workflow_db) -> None:
-        """A lease-less attempt within the legacy age is NOT marked as failed."""
+        """A lease-less attempt stays running (adrrev005 REQ-004: no age fallback)."""
         s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
@@ -449,7 +430,6 @@ class TestRecoverStaleAttempts:
             )
             assert rows[0][0] == "failed"
             assert "lease expired" in (rows[0][1] or "")
-            assert s.last_recovery_report.legacy_recovered == 0
         finally:
             s.close()
 
@@ -551,7 +531,7 @@ class TestRecoverStaleAttempts:
             )
 
             count = s.recover_stale_attempts()
-            assert count == 2
+            assert count == 1  # att-tz-legacy is lease-less: live (REQ-004)
 
             statuses = {
                 row[0]: row[1]
@@ -560,21 +540,34 @@ class TestRecoverStaleAttempts:
                     "WHERE attempt_id IN ('att-tz-legacy', 'att-tz-lease', 'att-tz-live')"
                 )
             }
-            assert statuses["att-tz-legacy"] == "failed"
+            assert (
+                statuses["att-tz-legacy"] == "running"
+            )  # lease-less stays live (REQ-004)
             assert statuses["att-tz-lease"] == "failed"
             assert statuses["att-tz-live"] == "running"
             report = s.last_recovery_report
-            assert (report.recovered, report.still_live) == (2, 1)
-            assert (report.legacy_recovered, report.unparseable) == (1, 0)
+            assert (report.recovered, report.still_live) == (1, 2)
+            assert report.unparseable == 0
         finally:
             s.close()
 
     def test_recovery_marks_only_old_attempts(self, workflow_db) -> None:
-        """recover_stale_attempts marks only lease-expired or legacy-old attempts as failed."""
+        """recover_stale_attempts marks only lease-expired attempts as failed.
+
+        adrrev005 REQ-004: the lease-less legacy age rule is gone, so a lease-less
+        row stays running no matter how old it is.
+        """
         s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
-                s, "att-1", "task-1", "execute", "running", "2026-01-01T00:00:00Z"
+                s,
+                "att-1",
+                "task-1",
+                "execute",
+                "running",
+                _iso(60),
+                owner_id="host-a",
+                lease_expires_at=_iso(30),
             )
             self._insert_task_and_attempt(
                 s, "att-2", "task-2", "execute", "running", _iso(5)
@@ -591,7 +584,7 @@ class TestRecoverStaleAttempts:
                 "SELECT status FROM attempts WHERE attempt_id='att-2'"
             )
             assert rows_2[0][0] == "running"
-            assert s.last_recovery_report.legacy_recovered == 1
+            assert s.last_recovery_report.still_live == 1
         finally:
             s.close()
 
@@ -600,7 +593,14 @@ class TestRecoverStaleAttempts:
         s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
-                s, "att-end", "task-4", "execute", "running", "2026-01-01T00:00:00Z"
+                s,
+                "att-end",
+                "task-4",
+                "execute",
+                "running",
+                _iso(60),
+                owner_id="host-a",
+                lease_expires_at=_iso(30),
             )
 
             s.recover_stale_attempts()
@@ -635,12 +635,14 @@ class TestRecoverStaleAttempts:
                 ),
             )
             conn.execute(
-                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
-                ("att-multi-1", task_id, "execute", old_ts),
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, owner_id, lease_expires_at)"
+                " VALUES (?, ?, ?, 'running', ?, ?, ?)",
+                ("att-multi-1", task_id, "execute", old_ts, "host-multi", _iso(60)),
             )
             conn.execute(
-                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
-                ("att-multi-2", task_id, "execute", old_ts),
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, owner_id, lease_expires_at)"
+                " VALUES (?, ?, ?, 'running', ?, ?, ?)",
+                ("att-multi-2", task_id, "execute", old_ts, "host-multi", _iso(60)),
             )
             conn.commit()
             conn.close()
@@ -698,9 +700,10 @@ class TestStaleRecoveryConcurrency:
         from agent.workflow.state_store import StateStore
         from db.config import DbConfig
 
-        # Setup: create a legacy-stale attempt (lease-less, older than the
-        # 3600 s legacy age) directly in the DB.
+        # Setup: create an expired-lease attempt (adrrev005 REQ-004 removed the
+        # lease-less legacy age rule: only a stamped, expired lease is recoverable).
         old_ts = _iso(7200)
+        expired_lease = _iso(60)
 
         # Use raw connection to seed data
         conn = sqlite3.connect(str(workflow_db))
@@ -721,8 +724,9 @@ class TestStaleRecoveryConcurrency:
             ),
         )
         conn.execute(
-            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
-            (attempt_id, task_id, "execute", old_ts),
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, owner_id, lease_expires_at)"
+            " VALUES (?, ?, ?, 'running', ?, ?, ?)",
+            (attempt_id, task_id, "execute", old_ts, "host-concurrent", expired_lease),
         )
         conn.commit()
         conn.close()

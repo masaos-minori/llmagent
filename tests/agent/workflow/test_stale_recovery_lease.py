@@ -23,11 +23,11 @@ from agent.workflow.state_store import StateStore
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
 
-# Mirrors the private constants in scripts/agent/workflow/state_store.py and
-# scripts/agent/workflow/workflow_engine.py. Tests assert the documented
-# behavior (live/expired/legacy thresholds, lease margin), so silently changing
-# a constant must fail here rather than pass vacuously.
-_LEGACY_STALE_AGE_SEC = 3600  # state_store._LEGACY_STALE_AGE_SEC
+# Mirrors the private constants in scripts/agent/workflow/workflow_engine.py.
+# Tests assert the documented behavior (live/expired thresholds, lease margin),
+# so silently changing a constant must fail here rather than pass vacuously.
+# adrrev005 REQ-004 removed the lease-less legacy age rule, so its constant
+# mirror is gone with it.
 _LEASE_MARGIN_SEC = 30  # workflow_engine._LEASE_MARGIN_SEC
 
 
@@ -144,7 +144,7 @@ class TestLiveLeaseIsProtected:
 
         assert result == 0
         report = store.last_recovery_report
-        assert (report.recovered, report.legacy_recovered) == (0, 0)
+        assert report.recovered == 0
         assert report.still_live == 1
         assert _attempt_row(workflow_db, "att-live")["status"] == "running"
 
@@ -246,41 +246,12 @@ class TestConcurrentRecoverSingleWinner:
         assert _attempt_row(workflow_db, "att-race")["status"] == "failed"
 
 
-class TestLegacyFallback:
-    """AC-3: lease-less attempts (pre-migration rows) fall back to the age rule."""
+class TestUnparseableLease:
+    """REQ-003/AC-3: a malformed lease timestamp is counted, never recovered.
 
-    def test_legacy_attempt_past_threshold_is_recovered(
-        self, store, workflow_db: Path
-    ) -> None:
-        """started_at older than _LEGACY_STALE_AGE_SEC, owner_id/lease_expires_at NULL."""
-        _seed_attempt(
-            workflow_db, "att-old", started_at=_iso(_LEGACY_STALE_AGE_SEC + 60)
-        )
-
-        result = store.recover_stale_attempts()
-
-        assert result == 1
-        report = store.last_recovery_report
-        assert (report.recovered, report.legacy_recovered) == (1, 1)
-        row = _attempt_row(workflow_db, "att-old")
-        assert row["status"] == "failed"
-        assert f"legacy attempt older than {_LEGACY_STALE_AGE_SEC}s" in (
-            row["error_msg"] or ""
-        )
-
-    def test_legacy_attempt_within_threshold_is_not_recovered(
-        self, store, workflow_db: Path
-    ) -> None:
-        """A recent lease-less attempt stays running: the fallback must not widen."""
-        _seed_attempt(
-            workflow_db, "att-young", started_at=_iso(_LEGACY_STALE_AGE_SEC - 600)
-        )
-
-        result = store.recover_stale_attempts()
-
-        assert result == 0
-        assert store.last_recovery_report.legacy_recovered == 0
-        assert _attempt_row(workflow_db, "att-young")["status"] == "running"
+    adrrev005 REQ-004 removed the lease-less legacy age cases that used to sit
+    in this class: lease-less running attempts now stay live.
+    """
 
     def test_unparseable_timestamp_is_reported_not_recovered(
         self, store, workflow_db: Path, caplog: pytest.LogCaptureFixture
@@ -300,7 +271,7 @@ class TestLegacyFallback:
 
         assert result == 0
         report = store.last_recovery_report
-        assert (report.recovered, report.legacy_recovered) == (0, 0)
+        assert report.recovered == 0
         assert report.unparseable == 1
         assert _attempt_row(workflow_db, "att-bad")["status"] == "running"
         messages = [str(r.message) for r in caplog.records]
