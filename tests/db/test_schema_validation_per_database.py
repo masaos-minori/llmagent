@@ -39,8 +39,8 @@ from db.schema_sql import (
 from eventbus.db_tools import ensure as eventbus_ensure
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
 from mcp_servers.mdq.db_schema import _CREATE_STATEMENTS, create_production_tables
-from shared.mcp_dedup import DedupStore
 from shared.mcp_dedup import _CANONICAL_DDL as dedup_canonical_ddl
+from shared.mcp_dedup import DedupStore
 from shared.schema_fingerprint import REFUSAL_MESSAGE, build_fingerprint
 
 _VEC0_STATEMENT_RE = re.compile(
@@ -125,9 +125,7 @@ def _rag_entry_patches(db_file: Path, canonical: str):
 
 @contextmanager
 def _session_entry_patches(db_file: Path, canonical: str):
-    cfg = DbConfig(
-        rag_db_path=str(db_file.parent / "r"), session_db_path=str(db_file)
-    )
+    cfg = DbConfig(rag_db_path=str(db_file.parent / "r"), session_db_path=str(db_file))
     with (
         patch("db.helper.build_db_config", return_value=cfg),
         patch("db.create_schema.build_session_schema_sql", return_value=canonical),
