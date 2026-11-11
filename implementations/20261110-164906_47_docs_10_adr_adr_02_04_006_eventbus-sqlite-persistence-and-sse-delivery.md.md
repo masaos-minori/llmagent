@@ -62,9 +62,9 @@ Changing the loopback-bind or authorization policy.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the stamp reference | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove the stamp reference | Completed | — | 20261111-150954 | line 277 restated as fingerprint mismatch refusal, stamp clause deleted |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-150954 | check_adr_preservation and check_adr_authority pass |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-150954 | loopback-bind and authorization statements untouched |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
