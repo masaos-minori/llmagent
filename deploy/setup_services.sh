@@ -52,19 +52,33 @@ if [ ! -f "${WORKFLOW_DB}" ]; then
   exit 1
 fi
 
-REQUIRED_WORKFLOW_TABLES="tasks attempts processed_events artifacts tool_call_state"
-MISSING_TABLES=""
-for t in ${REQUIRED_WORKFLOW_TABLES}; do
-  FOUND=$(sqlite3 "${WORKFLOW_DB}" \
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='${t}';")
-  if [ -z "${FOUND}" ]; then
-    MISSING_TABLES="${MISSING_TABLES} ${t}"
-  fi
-done
-if [ -n "${MISSING_TABLES}" ]; then
-  echo "[FATAL] Workflow database schema is missing or incomplete." >&2
-  echo "Missing table(s):${MISSING_TABLES}" >&2
-  echo "Run the workflow schema initialization step before starting the agent." >&2
+# Fingerprint gate (adrrev005 REQ-003): workflow.sqlite must match the canonical
+# DDL shape exactly (shared.schema_fingerprint). Missing tables, unexpected
+# tables (including the old schema_migrations / workflow_schema_version markers),
+# and shape drift are refused; the former REQUIRED_WORKFLOW_TABLES name-only
+# loop is subsumed. Read-only inspection; fail-closed, no write or re-stamp.
+if ! PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true \
+  uv run "${UV_PROD_FLAGS[@]}" python - "${WORKFLOW_DB}" <<'PY'
+import sqlite3
+import sys
+
+from db.schema_sql import build_workflow_schema_sql
+from shared.schema_fingerprint import assert_matches
+
+conn = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+try:
+    assert_matches(conn, build_workflow_schema_sql(), label="workflow.sqlite")
+except RuntimeError as exc:
+    print(f"[gate] {exc}", file=sys.stderr)
+    sys.exit(1)
+finally:
+    conn.close()
+PY
+then
+  echo "[FATAL] Workflow database schema does not match the current schema." >&2
+  echo "Automatic migration and version stamping are not supported." >&2
+  echo "Stop the service, archive the existing database if required, remove or rename it," >&2
+  echo "create a new database using the current schema, then re-run this script." >&2
   exit 1
 fi
 

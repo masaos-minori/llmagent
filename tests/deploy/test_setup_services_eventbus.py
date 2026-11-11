@@ -22,6 +22,7 @@ import threading
 import time
 
 import pytest
+from db.schema_sql import build_workflow_schema_sql
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -119,15 +120,9 @@ def _write_configs(
 
 def _seed_workflow_db(sb: pathlib.Path) -> None:
     conn = sqlite3.connect(sb / "db" / "workflow.sqlite")
-    conn.executescript(
-        """
-        CREATE TABLE tasks (id INTEGER PRIMARY KEY);
-        CREATE TABLE attempts (id INTEGER PRIMARY KEY);
-        CREATE TABLE processed_events (id INTEGER PRIMARY KEY);
-        CREATE TABLE artifacts (id INTEGER PRIMARY KEY);
-        CREATE TABLE tool_call_state (idempotency_key TEXT PRIMARY KEY);
-        """
-    )
+    # Canonical shape: the shipped script fingerprint-gates workflow.sqlite
+    # (adrrev005), so the fixture must come from the canonical DDL itself.
+    conn.executescript(build_workflow_schema_sql())
     conn.commit()
     conn.close()
 
