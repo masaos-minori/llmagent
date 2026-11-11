@@ -49,8 +49,9 @@ Workflows are **mandatory** deployment artifacts; there are no settings, environ
 # Directly validate workflow definition files (without starting services)
 PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/default.json
 
-# Check workflow DB schema tables (the legacy marker tables schema_migrations
-# and workflow_schema_version must be absent)
+# Check workflow DB schema tables (must match the canonical schema enforced by
+# the startup fingerprint gate; any drift is refused — see "Schema Fingerprint
+# Refusal" below)
 sqlite3 <workflow_db_path> ".tables"
 ```
 
@@ -82,13 +83,13 @@ sqlite3 <workflow_db_path> ".tables"
 
 #### Missing or Incomplete `workflow.sqlite`
 
-**Symptom:** `init_db.sh` or `setup_services.sh` outputs `[FATAL] Workflow database schema is missing or incomplete.`
+**Symptom:** `setup_services.sh` outputs `[FATAL] Workflow database schema is missing or incomplete.` (file absent; a file that exists but does not match the canonical schema is reported by the fingerprint refusal below)
 
 **Response:** Re-run the deployment scripts.
 
-#### Legacy Migration Marker Refusal
+#### Schema Fingerprint Refusal
 
-**Symptom:** Agent startup reports `Legacy migration marker table(s) present: <tables>` followed by "The database does not match the current schema. Automatic migration and version stamping are not supported." `init_db.sh` reports `[FATAL] workflow.sqlite carries legacy migration marker table(s) and does not match the current schema.`
+**Symptom:** The startup gate refuses a database whose shape does not match the current canonical schema by the shared fingerprint; the error names the differing table, column, index, or constraint and states that the database must be archived and recreated. `init_db.sh` reports `[FATAL] Database schema does not match the current schema (workflow/rag/session).` and `setup_services.sh` reports `[FATAL] Workflow database schema does not match the current schema.`
 
 **Response:** Stop the service, archive the existing database if required, remove or rename it, and create a new database using the current schema. No migration is attempted; the refused file is never modified in place.
 
