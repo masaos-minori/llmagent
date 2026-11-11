@@ -42,15 +42,14 @@ Recreating `session.sqlite` physically removes both sessions and memories, but t
 
 ### 8a. Startup Validation for `workflow.sqlite`
 
-`workflow.sqlite` is accepted only when the current required tables (`tasks`, `attempts`, `processed_events`, `artifacts`, `tool_call_state`) and their required columns are present. `check_workflow_schema()` (agent startup) enforces this shape. A database that carries `schema_migrations` or `workflow_schema_version` is a legacy migration-era database: `check_workflow_schema()` and the deploy pre-flight (`deploy/init_db.sh`) refuse it with the fixed message, and the file is left untouched for manual archive-and-recreate. The workflow domain has no version identifier and no migration path.
+`workflow.sqlite` is accepted only when its whole shape matches the canonical workflow DDL (`scripts/db/schema_sql.py::build_workflow_schema_sql()`) by the shared fingerprint (`scripts/shared/schema_fingerprint.py`). `check_workflow_schema()` (agent startup) and the deploy pre-flight (`deploy/init_db.sh`) enforce this gate. Any other shape — including legacy migration-era files carrying `schema_migrations` or `workflow_schema_version` — is refused with the explicit archive-and-recreate error, and the file is left untouched for manual archive-and-recreate. The workflow domain has no version identifier and no migration path.
 
 ### 8b. Startup Validation for `eventbus.sqlite`
 
-The EventBus service (`open_db()`) and the EventBus-owned tool (`python -m eventbus.db_tools ensure`) both create the schema from the single DDL definition in `scripts/eventbus/schema.sql`. `schema.sql` ends with `PRAGMA user_version = 6;`: new databases receive that stamp from the canonical DDL itself. Validation gates:
+The EventBus service (`open_db()`) and the EventBus-owned tool (`python -m eventbus.db_tools ensure`) both create the schema from the single DDL definition in `scripts/eventbus/schema.sql`. Validation gates:
 
-- An existing database is accepted only when `PRAGMA user_version` equals the version stamped by the canonical DDL and its tables, columns, and indexes match the `shared/eventbus_schema_fingerprint.py` fingerprint computed from `schema.sql` at runtime.
-- An unstamped existing database (`user_version 0`) is refused and left unstamped, even when its shape matches.
-- Any other version or shape difference is refused. Every refusal names the database path and leaves the file unmodified.
+- An existing database is accepted only when its shape matches the canonical DDL by the shared fingerprint (`scripts/shared/schema_fingerprint.py`) computed from `schema.sql` at runtime.
+- Any shape difference is refused. Every refusal names the database path and leaves the file unmodified.
 
 `events.published_at` has a `DEFAULT` expression in `schema.sql`; every insert path (`POST /publish` and the DLQ requeue) supplies `published_at` explicitly. Table roles: `eventbus_06_persistence_schema_and_replay.md`.
 
@@ -60,18 +59,18 @@ The EventBus service (`open_db()`) and the EventBus-owned tool (`python -m event
 
 ### 8d. Create-Only Tables for `mdq.sqlite`
 
-`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` creates the `mdq.sqlite` tables, triggers, and index state with `IF NOT EXISTS` statements every time the MDQ service starts; nothing is dropped or rewritten. `mdq.sqlite` is a derived store: a store older than the supported baseline is recovered by deleting the file and re-indexing the Markdown files (section 8e).
+`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` creates the `mdq.sqlite` tables, triggers, and index state with `IF NOT EXISTS` statements every time the MDQ service starts; nothing is dropped or rewritten. An existing `mdq.sqlite` is accepted only when its shape matches the canonical DDL by the shared fingerprint; a mismatch is refused. `mdq.sqlite` is a derived store: a store older than the supported baseline is recovered by deleting the file and re-indexing the Markdown files (section 8e).
 
 The `chunks_vec` (`rag.sqlite`) and `memories_vec` (`session.sqlite`) tables defined in `db/schema_sql.py` are unrelated to the MDQ schema and are unaffected.
 
 ### 8e. Supported Baseline and Archive-and-Recreate Runbook
 
-The only supported source schema of each database is the schema of the current release. Nothing migrates: `rag`, `session`, `workflow`, `eventbus`, and `mdq` all accept the current shape only, and an older or marker-carrying database is refused (workflow/eventbus) or simply not upgraded (rag/session/mdq).
+The only supported source schema of each database is the schema of the current release. Nothing migrates: `rag`, `session`, `workflow`, `eventbus`, and `mdq` all accept the current shape only, validated at startup by the shared fingerprint, and an older or drifted database is refused.
 
 | Database | Accepted schema | Recovery when not accepted | Owner |
 |---|---|---|---|
-| `workflow.sqlite` | Current task-table shape, no legacy `schema_migrations` / `workflow_schema_version` markers | Archive and recreate (runbook below) | The workflow engine |
-| `eventbus.sqlite` | `PRAGMA user_version = 6` plus the canonical `schema.sql` fingerprint | Archive and recreate (runbook below) | The EventBus service |
+| `workflow.sqlite` | Canonical task-table shape validated by the shared fingerprint | Archive and recreate (runbook below) | The workflow engine |
+| `eventbus.sqlite` | Canonical `schema.sql` shape validated by the shared fingerprint | Archive and recreate (runbook below) | The EventBus service |
 | `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Delete the file and re-index the Markdown files (section 8d) | The `mdq-mcp` server |
 | `rag.sqlite`, `session.sqlite` | Current create-only shape | Archive and recreate (runbook below) | RAG / session layers |
 
