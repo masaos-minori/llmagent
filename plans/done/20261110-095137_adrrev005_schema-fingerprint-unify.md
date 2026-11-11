@@ -269,10 +269,10 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Generalized fingerprint (additive) | Completed | 20261111-073000 | 20261111-082253 | Procedures 01 and 19 archived to implementations/done/ (20261111). Inventory re-verified in the adversarial verification pass. UNK-01 confirmed with the real extension (virtual bases name-only, shadows omitted, live virtual tables recorded name-only from sqlite_master text). Full validation gates --full all Pass once for both rows (shared coverage/diff-cover run at this boundary). |
 | 2 | Eventbus and deploy gate on the new module | Completed | — | 20261111-102849 |  |
-| 3 | Remaining databases | In Progress | — | — |  |
-| 4 | Remove the lease-less legacy rule | In Progress | — | — |  |
-| 5 | Tooling and generated references | In Progress | — | — |  |
-| 6 | Documents | In Progress | — | — |  |
+| 3 | Remaining databases | Completed | — | 20261111-152738 | rag/session/workflow gates cutover (rows 09-11), dedup store gate (row 12), per-database validation tests (row 20); paired test rows 21/22/25/28-31 closed |
+| 4 | Remove the lease-less legacy rule | Completed | — | 20261111-152738 | lease-less legacy rule removed (row 35 closed, ADR-001 clause deleted) |
+| 5 | Tooling and generated references | Completed | — | 20261111-152739 | tooling and generated references updated (rows 13-18, 32-34 closed) |
+| 6 | Documents | Completed | — | 20261111-152739 | all 14 document procedures (rows 35-48) closed; full suite 12097 passed 9 skipped; pre-commit --all-files green |
 | 7 | Deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
