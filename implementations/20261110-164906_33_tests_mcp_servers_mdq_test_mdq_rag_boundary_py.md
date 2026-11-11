@@ -64,8 +64,8 @@ Changing the boundary logic itself.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename the allowed import entry to the generalized module | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rename the allowed import entry to the generalized module | Completed | — | 20261111-135302 | stale eventbus_schema_fingerprint.py allowlist entry removed (module deleted in row 02); generalized schema_fingerprint.py entry and comment already in place |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-135302 | tests/mcp_servers/mdq 416 passed, full suite 12067 passed (uv run), pre-commit green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
