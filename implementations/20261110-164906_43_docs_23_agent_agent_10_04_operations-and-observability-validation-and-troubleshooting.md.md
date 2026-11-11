@@ -67,9 +67,9 @@ Changing other troubleshooting entries or the severity mapping.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Describe the validation mechanism in the troubleshooting steps | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Describe the validation mechanism in the troubleshooting steps | Completed | — | 20261111-150051 | Schema validation prose and bash comment rewritten in agent_10_04 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-150029 | Schema Fingerprint Refusal section added, FATAL messages quoted from scripts, stale bash comment and init_db.sh attribution fixed |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-150051 | docs updated, check_docs_consistency --domain agent passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
