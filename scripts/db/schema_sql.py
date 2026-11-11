@@ -11,9 +11,11 @@ Functions:
   build_rag_schema_sql(dims) — return DDL for rag.sqlite with given dimension
   build_session_schema_sql(dims) — return DDL for session.sqlite with given dimension
   build_workflow_schema_sql() — return DDL for workflow.sqlite (metadata DB)
+  build_eventbus_schema_sql() — return canonical DDL for eventbus.sqlite
 """
 
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -241,3 +243,13 @@ CREATE INDEX IF NOT EXISTS idx_tool_call_state_task_state
 def build_workflow_schema_sql() -> str:
     """Return DDL for workflow.sqlite (metadata DB)."""
     return _WORKFLOW_SCHEMA
+
+
+_EVENTBUS_SCHEMA_PATH = (
+    Path(__file__).resolve().parent.parent / "eventbus" / "schema.sql"
+)
+
+
+def build_eventbus_schema_sql() -> str:
+    """Return canonical DDL for eventbus.sqlite (read from scripts/eventbus/schema.sql)."""
+    return _EVENTBUS_SCHEMA_PATH.read_text()

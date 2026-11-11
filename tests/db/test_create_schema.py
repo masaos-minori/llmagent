@@ -20,7 +20,7 @@ import db.create_schema as cs
 import pytest
 from db.config import DbConfig
 from db.helper import SQLiteHelper
-from db.schema_sql import build_workflow_schema_sql
+from db.schema_sql import build_eventbus_schema_sql, build_workflow_schema_sql
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
 from eventbus.schema import _init_schema as eventbus_init_schema
 from shared.schema_fingerprint import (
@@ -1047,6 +1047,17 @@ class TestEventbusSchemaFingerprint:
             )
         finally:
             disk.close()
+
+    def test_db_accessor_returns_eventbus_canonical_ddl(self) -> None:
+        """scripts/db exposes build_eventbus_schema_sql() returning the same canonical
+        DDL text as the EventBus-owned accessor (REQ-002 accessor family)."""
+        ddl = build_eventbus_schema_sql()
+        assert ddl == _CANONICAL_EVENTBUS_DDL
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            assert_matches(conn, ddl, label="test-db-accessor")
+        finally:
+            conn.close()
 
     def test_missing_column_raises(self) -> None:
         ddl = _CANONICAL_EVENTBUS_DDL.replace(
