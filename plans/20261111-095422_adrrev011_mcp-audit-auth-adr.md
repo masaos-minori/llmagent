@@ -10,7 +10,7 @@ High
 - **Dependencies**: The issue's dependency `issues/20261109-112640_adrrev004_non-strict-bypass-removal.md` is closed (archived; `accept_all_for_tests` no longer appears under `scripts/`, `config/`, `tests/`, or `docs/`), so no `Depends on` entry is recorded. Sequencing: this Plan should land before the ledger Plan so the ledger does not record an empty-token documentation conflict that this Plan closes.
 
 ## Background
-`config/agent.toml` `[tool_safety_tiers]` marks 14 tools WRITE_DANGEROUS: `delete_file`, `delete_directory` (file-delete-mcp); six `github_*` write tools (github-mcp); `rag_delete_document` (rag-pipeline-mcp); `trigger_workflow` (cicd-mcp); `git_checkout`, `git_pull`, `git_push` (git-mcp). Verification against current source found that every hosting server except rag-pipeline-mcp calls `_audit_log()` from its `call_tool` handler; `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` `call_tool` discards `session_id` and `request_id` and writes nothing. The documents `mcp_02_03`, `mcp_06_05`, and `mcp_04_03` state this gap.
+`config/agent.toml` `[tool_safety_tiers]` marks 13 tools WRITE_DANGEROUS: `delete_file`, `delete_directory` (file-delete-mcp); six `github_*` write tools (github-mcp); `rag_delete_document` (rag-pipeline-mcp); `trigger_workflow` (cicd-mcp); `git_checkout`, `git_pull`, `git_push` (git-mcp). Verification against current source found that every hosting server except rag-pipeline-mcp calls `_audit_log()` from its `call_tool` handler; `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` `call_tool` discards `session_id` and `request_id` and writes nothing. The documents `mcp_02_03`, `mcp_06_05`, and `mcp_04_03` state this gap.
 
 On authentication, the memo's claim that only four servers refuse an empty token is stale: `require_auth_token()` is used by every server module, `attach_auth_middleware()` is fail-closed for an empty token, and ADR-007 Decision 9 and INV-09 already state the all-servers rule. What remains is (a) ADR-007's out-of-scope line "Detailed implementation of security authentication (handled by a separate ADR)" with no such ADR, and (b) two sentences that contradict the code: `mcp_06_14` troubleshooting "Missing secrets via environment variables" (Symptom "The server starts, but health checks fail") and the last Bearer bullet of `mcp_02_02` ("Empty server-side token ... `attach_auth_middleware()` skips the authentication check").
 
@@ -84,7 +84,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 
 ## Acceptance Criteria
 - AC-1: A `rag_delete_document` call through rag-pipeline-mcp `POST /v1/call_tool` writes exactly one `mcp_tool_exec` record with `tool`, `target`, `outcome`, `session_id`, `request_id`, and `server_key="rag_pipeline"` for success and for failure, and contains no document content (`REQ-001`).
-- AC-2: The parametrized test fails if any of the 14 WRITE_DANGEROUS tools lacks an audit record on its hosting server, and the completeness test fails if the parametrization drifts from `config/agent.toml` (`REQ-002`).
+- AC-2: The parametrized test fails if any of the 13 WRITE_DANGEROUS tools lacks an audit record on its hosting server, and the completeness test fails if the parametrization drifts from `config/agent.toml` (`REQ-002`).
 - AC-3: ADR-017 states the authentication rules and failure behavior, passes `check_adr_structure.py`, and its Approval section holds a clearly marked pending maintainer statement (`REQ-003`).
 - AC-4: ADR-007 links to ADR-017; ADR-017 appears in the index, the document guide, and `config/adr_authority.toml`; `check_adr_authority.py` and `generate_adr_authority.py --check` pass (`REQ-004`).
 - AC-5: No sentence in `mcp_02_02` or `mcp_06_14` contradicts ADR-017 or the fail-closed code (`REQ-005`).
@@ -93,7 +93,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 
 ## Tests
 - `REQ-001`: in `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py`, an audit record is captured for `rag_delete_document` success, for "Not found" (outcome `ok`), and for a handler error (outcome `error`); no record when the tool is disabled; the record carries no document content.
-- `REQ-002`: `tests/mcp_servers/test_write_dangerous_audit.py` parametrizes over (server, tool) for the 14 tools and over the completeness set derived from `config/agent.toml`.
+- `REQ-002`: `tests/mcp_servers/test_write_dangerous_audit.py` parametrizes over (server, tool) for the 13 tools and over the completeness set derived from `config/agent.toml`.
 
 ## Documentation Impact
 Update the MCP domain documents and the ADR set (`docs/00_index.md` "Document References by Task", MCP and governance areas): the new ADR-017, ADR-007, the ADR index and document guide, `mcp_02_02`, `mcp_02_03`, `mcp_04_03`, `mcp_06_05`, `mcp_06_14` (REQ-003 to REQ-006). Describe intent, rules, and failure behavior; do not copy environment-variable values or tokens. Write in English.
@@ -172,7 +172,7 @@ N/A: no release unit
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
 | `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` | Unit (endpoint audit capture) | `uv run pytest tests/mcp_servers/rag_pipeline -v` | Pass |
-| `tests/mcp_servers/test_write_dangerous_audit.py` | Unit (parametrized, 14 tools) | `uv run pytest tests/mcp_servers -v` | Pass |
+| `tests/mcp_servers/test_write_dangerous_audit.py` | Unit (parametrized, 13 tools) | `uv run pytest tests/mcp_servers -v` | Pass |
 | Python targets | Format, lint, type, security | `uv run ruff format <files>`, `uv run ruff check <files>`, `uv run mypy <files>`, `uv run bandit -r scripts/mcp_servers/rag_pipeline -c pyproject.toml` | Clean |
 | Module size | Size gate | `uv run python tools/check_module_size.py` | Pass |
 | Coverage | Changed lines | `rules/toolchain.md` section 7 diff-cover sequence | At or above the Completion checklist threshold |
@@ -201,11 +201,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | rag-pipeline-mcp audit emission (REQ-001) | Pending | — | — | |
-| 2 | WRITE_DANGEROUS audit coverage test (REQ-002) | Pending | — | — | |
-| 3 | Authentication ADR and authority registration (REQ-003, REQ-004) | Pending | — | — | |
-| 4 | Align the MCP documents (REQ-005, REQ-006) | Pending | — | — | |
-| 5 | Deployment & Verification | Pending | — | — | |
+| 1 | rag-pipeline-mcp audit emission (REQ-001) | In Progress | — | — |  |
+| 2 | WRITE_DANGEROUS audit coverage test (REQ-002) | In Progress | — | — |  |
+| 3 | Authentication ADR and authority registration (REQ-003, REQ-004) | In Progress | — | — |  |
+| 4 | Align the MCP documents (REQ-005, REQ-006) | In Progress | — | — |  |
+| 5 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -215,7 +215,18 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261111-231122_01_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_03_tests_mcp_servers_test_write_dangerous_audit.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_04_docs_10_adr_adr_02_03_017_mcp-authentication.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_05_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_06_docs_10_adr_adr_01_index.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_07_docs_10_adr_adr_00_document-guide.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_08_config_adr_authority.toml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_09_docs_22_mcp_mcp_02_02_startup-modes-and-health.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_10_docs_22_mcp_mcp_06_14_mcp-authentication-setup.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_11_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_12_docs_22_mcp_mcp_06_05_reading-audit-logs.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_13_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -233,7 +244,7 @@ See `templates/requirement-traceability.md` for the canonical column format.
 |---|---|---|---|---|---|---|
 | REQ-001 | Required Changes: emit audit in rag-pipeline-mcp; verification: `rag_pipeline_server.py` `call_tool` writes none | `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` | Step 1 | AC-1 | `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py` | Confirmed by repository evidence |
 | REQ-001 | Testing Expectations: unit tests for rag-pipeline-mcp audit emission (success and failure) | `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py` | Step 1 | AC-1 | `uv run pytest tests/mcp_servers/rag_pipeline -v` | Explicit in issue |
-| REQ-002 | Required Changes: audit-line test for every WRITE_DANGEROUS tool; verification: 14 tools in `[tool_safety_tiers]` | `tests/mcp_servers/test_write_dangerous_audit.py` | Step 2 | AC-2 | `uv run pytest tests/mcp_servers -v` | Confirmed by repository evidence |
+| REQ-002 | Required Changes: audit-line test for every WRITE_DANGEROUS tool; verification: 13 tools in `[tool_safety_tiers]` | `tests/mcp_servers/test_write_dangerous_audit.py` | Step 2 | AC-2 | `uv run pytest tests/mcp_servers -v` | Confirmed by repository evidence |
 | REQ-003 | Required Changes: new ADR for MCP authentication; Problem: ADR-007 defers to a non-existent ADR | `docs/10_adr/adr_02_03_017_mcp-authentication.md` | Step 3 | AC-3 | `check_adr_structure.py`, `check_adr_authority.py` | Confirmed by repository evidence |
 | REQ-004 | Required Changes: link from ADR-007, register in index and authority model | `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md` | Step 3 | AC-4 | `check_adr_preservation.py` | Confirmed by repository evidence |
 | REQ-004 | Required Changes: register in the index and authority model | `docs/10_adr/adr_01_index.md` | Step 3 | AC-4 | `generate_adr_authority.py --check` | Explicit in issue |
@@ -244,3 +255,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-006 | Required Changes: update `mcp_02_03` so it no longer says rag-pipeline-mcp writes no audit log | `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` | Step 4 | AC-6 | `check_docs_quality.py` | Confirmed by repository evidence |
 | REQ-006 | Required Changes: update `mcp_06_05` | `docs/22_mcp/mcp_06_05_reading-audit-logs.md` | Step 4 | AC-6 | `check_docs_quality.py` | Confirmed by repository evidence |
 | REQ-006 | Verification: `mcp_04_03` line 46 states no audit log and was missing from the issue | `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md` | Step 4 | AC-6 | `check_docs_quality.py` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261111-231122 -->
