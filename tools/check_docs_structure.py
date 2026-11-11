@@ -195,7 +195,7 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 28097 (2026-11-10): adrrev006 doc 02 added the "Caller model status"
     # sub-section (keep decision + producers/consumers not yet defined) and a Current Decision
     # Approval line; the ceiling equals the accepted size.
-    "adr_02_04_013_eventbus-authentication-authorization.md": 28097,
+    "adr_02_04_013_eventbus-authentication-authorization.md": 28647,
 }
 
 

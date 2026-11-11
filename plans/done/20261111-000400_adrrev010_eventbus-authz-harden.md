@@ -150,11 +150,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the Verification table (REQ-001) | In Progress | — | — |  |
-| 2 | Reconcile the Empty/no-op contract (REQ-002) | In Progress | — | — |  |
-| 3 | Repair the broken `load_config()` sentence (REQ-003) | In Progress | — | — |  |
-| 4 | Standardize the threat model (REQ-004) | In Progress | — | — |  |
-| 5 | Remove the identity-store sentence (REQ-005) | In Progress | — | — |  |
+| 1 | Correct the Verification table (REQ-001) | Completed | — | 20261111-223538 |  |
+| 2 | Reconcile the Empty/no-op contract (REQ-002) | Completed | — | 20261111-223538 |  |
+| 3 | Repair the broken `load_config()` sentence (REQ-003) | Completed | — | 20261111-223538 |  |
+| 4 | Standardize the threat model (REQ-004) | Completed | — | 20261111-223538 |  |
+| 5 | Remove the identity-store sentence (REQ-005) | Completed | — | 20261111-223538 |  |
 | 6 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -165,7 +165,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261111-212354_01_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md` | 1, 2, 3, 4, 5 | Procedure | Pending | — | — |
+| `implementations/20261111-212354_01_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md` | 1, 2, 3, 4, 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

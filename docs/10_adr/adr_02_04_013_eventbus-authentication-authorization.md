@@ -80,7 +80,7 @@ The EventBus is intentionally kept in service (keep decision recorded in `adr_02
    - 403: the token is valid but lacks the Consumer role, lacks a consumer or topic authorization, or the requested `consumer_id` or topic is not authorized.
 4. DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay (`/replay`) require operator permission.
 5. Audit logging of authorization failures and privileged actions, with no secret/token values recorded.
-6. Fail-closed rejection of unknown, missing, and incorrectly-typed EventBus configuration keys in `load_config()` — implemented locally, not via `ConfigLoader`. `load_config()` also rejects a configuration in which distinct token roles share one non-empty token value, and a TOML authorization mapping reaches the Consumer principal through it.
+6. Fail-closed rejection of unknown, missing, and incorrectly-typed EventBus configuration keys in `load_config()` — implemented locally, not via `ConfigLoader`. The same fail-closed posture rejects duplicate credentials: building the authorization principal map fails at startup when distinct token fields share one non-empty token value, so distinct token roles never resolve to the same bearer token. Consumer principals take their `consumer_id` and topic authorizations only from the TOML `consumer_authorization`/`topic_authorization` mappings and admin updates built on top of them.
 7. A missing or empty `auth_token` in `config/eventbus.toml` must fail closed at startup, not silently start unauthenticated.
 8. EventBus configuration is not loaded through `ConfigLoader` for key validation (ADR-002 documents the local-invariant exception).
 
@@ -100,7 +100,7 @@ The EventBus is intentionally kept in service (keep decision recorded in `adr_02
 
 ### Empty / no-op update
 
-12. **Empty/no-op rejection.** An empty body `{}` or a body that produces no actual change is rejected with HTTP 422 (not reported as a successful change).
+12. **Empty-body rejection; no-op reports unchanged.** An empty body `{}` is rejected with HTTP 422 (not reported as a successful change). A well-formed body that produces no actual change is not rejected: the request returns HTTP 200 with `changed: false`, publishes no new generation (`previous_generation` equals `new_generation`), and emits no audit record (per Decision Detail #11).
 
 ### Authorization TTL and expiry
 
@@ -149,7 +149,7 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 
 - **Advantages:** Less code; simpler deployment; no token management overhead.
 - **Disadvantages:** No protection if loopback binding is bypassed (e.g., misconfiguration, container network changes); no accountability for who performs which action; no separation of concerns between roles.
-- **Reason for Rejection:** Violates the fail-closed security boundary principle adopted for other high-risk components; loopback-only binding alone is insufficient for a multi-tenant security model even on localhost.
+- **Reason for Rejection:** Violates the fail-closed security boundary principle adopted for other high-risk components; loopback-only binding alone is insufficient as the security boundary even for the single-operator deployment model this project targets.
 
 ### Alternative B: Use mutual TLS instead of Bearer tokens
 
@@ -184,7 +184,7 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 ### Ongoing Risks
 
 - Token storage in TOML config requires careful handling (never commit to version control).
-- Consumer identity binding assumes the token encodes the consumer identity; production deployments should use a proper identity store.
+- Consumer identity binding assumes the token encodes the consumer identity.
 - Audit log format evolution must remain compatible with log aggregation tools.
 
 ### Operational Consequences
@@ -255,9 +255,9 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 | a rejected ACK or NACK leaves delivery state, offset, failure count, and DLQ state unchanged (`TestSharedAndAdminTokensHaveNoConsumerBypass::test_rejected_ack_and_nack_change_no_delivery_state`) | INV-02, INV-07 | Integration | Yes |
 | One-generation publish: no empty-map window during principal map rebuild | INV-01 | Unit | Yes |
 | Failed rebuild preserves previous generation's principals | INV-01 | Unit | Yes |
-| Runtime-only persistence: `persistent: false` in admin response | INV-03 | Integration | Yes |
-| Empty/no-op body rejected with 422 | INV-04 | Integration | Yes |
-| No-op detected: `changed: false` when config unchanged | INV-04 | Integration | Yes |
+| Runtime-only persistence: `persistent: false` in admin response | Decision Details #10 (runtime-only persistence) | Integration | Yes |
+| Empty body rejected with 422 | Decision Details #12 (empty body case) | Integration | Yes |
+| No-op detected: `changed: false` when config unchanged | Decision Details #12 (no-op case) | Integration | Yes |
 | Audit emitted on effective change | INV-05 | Integration | Yes |
 | Audit not emitted on no-op | INV-05 | Integration | Yes |
 

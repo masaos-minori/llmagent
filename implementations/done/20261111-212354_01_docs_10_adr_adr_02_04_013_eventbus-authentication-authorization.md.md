@@ -91,9 +91,9 @@ Run from the repository root (Plan Validation plan):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the five ADR-013 text edits per Implementation > Procedure (Phases 1-5) | Pending | — | — | |
+| 1 | Apply the five ADR-013 text edits per Implementation > Procedure (Phases 1-5) | Completed | 20261111-223519 | 20261111-223519 |  |
 | 2 | No test changes (documentation-only Plan; tests are evidence anchors only) | N/A | — | — | Plan Tests section is N/A |
-| 3 | Run the validation sequence (Validation plan; docs-only scope of `rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (Validation plan; docs-only scope of `rules/toolchain.md`) | Completed | 20261111-223519 | 20261111-223519 |  |
 | 4 | Update documentation beyond the target file | N/A | — | — | Target file is the only doc in scope; index needs no regeneration |
 
 ### Blocker Log
