@@ -5,6 +5,7 @@ All SQLite access is on tmp_path files; /opt/llm/db/ is never touched.
 
 from __future__ import annotations
 
+import sqlite3
 import subprocess
 import sys
 import time
@@ -116,6 +117,60 @@ class TestReopenDurability:
         status = classify_interrupted(row, pending_timeout_minutes=10)
         s2.close()
         assert status == "interrupted"
+
+
+class TestFingerprintGate:
+    """ADR-008: open creates when absent, fingerprints when present; no stamping."""
+
+    def test_fresh_db_created_without_version_stamp(self, tmp_path):
+        path = str(tmp_path / "dedup.sqlite")
+        DedupStore(path).close()
+        conn = sqlite3.connect(path)
+        try:
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 0
+            tables = {
+                str(r[0])
+                for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            assert tables == {"tool_call_state"}
+        finally:
+            conn.close()
+
+    def test_old_shape_refused_on_reopen(self, tmp_path):
+        path = str(tmp_path / "dedup.sqlite")
+        conn = sqlite3.connect(path)
+        conn.execute(
+            "CREATE TABLE tool_call_state ("
+            "key TEXT PRIMARY KEY, tool_name TEXT NOT NULL, args_hash TEXT NOT NULL,"
+            " status TEXT NOT NULL, snapshot_json TEXT NOT NULL,"
+            " created_epoch REAL NOT NULL, updated_epoch REAL NOT NULL)"
+        )
+        conn.commit()
+        conn.close()
+        with pytest.raises(RuntimeError, match="differ from the canonical schema"):
+            DedupStore(path)
+
+    def test_extra_table_refused_on_reopen(self, tmp_path):
+        path = str(tmp_path / "dedup.sqlite")
+        DedupStore(path).close()
+        conn = sqlite3.connect(path)
+        conn.execute("CREATE TABLE legacy_dedup_cache (k TEXT)")
+        conn.commit()
+        conn.close()
+        with pytest.raises(RuntimeError, match="unexpected table 'legacy_dedup_cache'"):
+            DedupStore(path)
+
+    def test_missing_index_refused_on_reopen(self, tmp_path):
+        path = str(tmp_path / "dedup.sqlite")
+        DedupStore(path).close()
+        conn = sqlite3.connect(path)
+        conn.execute("DROP INDEX idx_tcs_status")
+        conn.commit()
+        conn.close()
+        with pytest.raises(RuntimeError, match="mcp_dedup.sqlite.tool_call_state"):
+            DedupStore(path)
 
 
 class TestCrossProcessSharing:

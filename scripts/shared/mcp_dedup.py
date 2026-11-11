@@ -25,6 +25,7 @@ from typing import Any
 from shared.config_errors import ConfigMissingError, ConfigParseError
 from shared.execution_snapshot import snapshot_json
 from shared.runtime_paths import resolve_config_dir
+from shared.schema_fingerprint import assert_matches
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,9 @@ _INDEXES = (
     "CREATE INDEX IF NOT EXISTS idx_tcs_updated ON tool_call_state(updated_epoch)",
     "CREATE INDEX IF NOT EXISTS idx_tcs_status ON tool_call_state(status)",
 )
-_USER_VERSION = 1
+# Canonical shape of this database (_SCHEMA + _INDEXES): the fingerprint input
+# for open-time validation (ADR-008; no stamping, no automatic migration).
+_CANONICAL_DDL = _SCHEMA + ";\n" + ";\n".join(_INDEXES) + ";"
 
 
 @dataclass(frozen=True)
@@ -237,12 +240,19 @@ class DedupStore:
         self._conn.execute("PRAGMA journal_mode = WAL")
         self._conn.execute(f"PRAGMA busy_timeout = {int(busy_timeout_ms)}")
         self._conn.execute("PRAGMA synchronous = NORMAL")
-        self._conn.execute(_SCHEMA)
-        for ddl in _INDEXES:
-            self._conn.execute(ddl)
-        current = self._conn.execute("PRAGMA user_version").fetchone()[0]
-        if current != _USER_VERSION:
-            self._conn.execute(f"PRAGMA user_version = {_USER_VERSION}")
+        exists = (
+            self._conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tool_call_state'"
+            ).fetchone()
+            is not None
+        )
+        if exists:
+            # Present-but-different shape is refused, not repaired (ADR-008).
+            assert_matches(self._conn, _CANONICAL_DDL, label="mcp_dedup.sqlite")
+        else:
+            self._conn.execute(_SCHEMA)
+            for ddl in _INDEXES:
+                self._conn.execute(ddl)
         self._conn.commit()
 
     def close(self) -> None:
