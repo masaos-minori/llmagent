@@ -65,9 +65,9 @@ Changing the recreation procedure steps or the supported-baseline table contents
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Describe the fingerprint gate and archive-and-recreate failure | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Describe the fingerprint gate and archive-and-recreate failure | Completed | — | 20261111-145543 | section 11 marker-table clause replaced with shared-fingerprint mismatch; supported-baseline workflow bullet now reads as a fingerprint mismatch; line 149 eventbus user_version stamp sentence replaced with fingerprint acceptance |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-145543 | check_docs_consistency --domain db: No issues found; rg PRAGMA user_version/schema_migrations/workflow_schema_version/marker in db_07 returns no matches |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-145544 | documentation-only row; section 12 drills unaffected |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
