@@ -68,9 +68,9 @@ Adding a migration mechanism or changing the recreate policy.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Describe one validation mechanism | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Describe one validation mechanism | Completed | — | 20261111-145400 | 8a rewritten to shared-fingerprint gate (check_workflow_schema + init_db.sh); 8b user_version stamp sentence, user_version acceptance bullet, and unstamped-0 bullet removed, fingerprint acceptance kept; 8d adds fingerprint acceptance for existing mdq.sqlite; 8e and the accepted-schema table rows now name the shared fingerprint for all five domains |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-145400 | check_docs_consistency --domain db: No issues found; rg user_version/marker/eventbus_schema_fingerprint in db_03 returns no matches |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-145400 | documentation-only row; adr_008 mdq cross-reference aligned in row 36 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
