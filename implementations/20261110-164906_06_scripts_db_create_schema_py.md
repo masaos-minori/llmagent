@@ -60,9 +60,9 @@ Creating/changing the DDL objects; the workflow marker-table removal (its row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-104641 | _refuse_existing_drift() added; rag/session/workflow fingerprint existing DBs (primary-table signal) before DDL; RuntimeError aborts without commit |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-104641 | TestValidateFirstGate added (rag/workflow column drift, session extra table, matching-existing idempotency); 71 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-104641 | pytest tests/db 363 passed; tests/deploy+eventbus 551 passed; lint-imports 6 kept; ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
