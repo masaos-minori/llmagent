@@ -57,9 +57,9 @@ Changing the dedup business schema.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-133311 | open path: create-when-absent else assert_matches(_CANONICAL_DDL, label='mcp_dedup.sqlite'); _USER_VERSION and PRAGMA stamping removed |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-133311 | test_mcp_dedup fingerprint gate cases added together with row 32's drift case (pull-in) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-133311 | tests/shared+tests/mcp_servers 3833 passed, full suite 12062 passed (uv run), pre-commit green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
