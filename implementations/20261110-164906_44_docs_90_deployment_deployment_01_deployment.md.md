@@ -70,9 +70,9 @@ Changing the deploy script order or the environment-variable rules.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Describe the generalized gate in init_db and setup_services | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Describe the generalized gate in init_db and setup_services | Completed | — | 20261111-150513 | generalized per-database fingerprint gate described in init_db/setup_services sections |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-150513 | check_docs_consistency --domain deployment passes |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-150514 | lines 302-309 rewritten, failure-mode table FATAL rows aligned with current scripts |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
