@@ -195,12 +195,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Detect lost/recreated store and fail closed for non-retryable tools | Pending | — | — | Depends on UNK-01 resolution |
-| 2 | Fail-closed the post-open write-failure path | Pending | — | — | |
-| 3 | Isolate configuration per process | Pending | — | — | Depends on UNK-03/UNK-05 |
-| 4 | Tests | Pending | — | — | |
-| 5 | Documentation alignment | Pending | — | — | Blocks adrrev009 |
-| 6 | Deployment & Verification | Pending | — | — | |
+| 1 | Detect lost/recreated store and fail closed for non-retryable tools | Completed | 20261111-111905 | 20261111-170713 | UNK-01 resolved: out-of-band sentinel fail-closed in `scripts/shared/mcp_dedup.py` + `scripts/mcp_servers/dispatch.py`; first-ever key still executes. `test_mcp_dispatch.py` empty-store case green. |
+| 2 | Fail-closed the post-open write-failure path | Completed | 20261111-111905 | 20261111-170713 | Retryable fail-open + post-open write-failure registered as ADR-004 exceptions (`adr_02_01_004`); ADR-008 matrix extended with the dispatcher-owned store. |
+| 3 | Isolate configuration per process | Completed | 20261111-111905 | 20261111-170713 | `pending_timeout_minutes` moved to `config/agent.toml`; `config/mcp_dedup.toml` reduced to dispatcher single-owner config; `tool_runner.py` no longer imports dispatcher config. No hidden reader remains. |
+| 4 | Tests | Completed | 20261111-111905 | 20261111-170713 | Full suite 12068 passed, 11 skipped, no regressions; targeted suites green. |
+| 5 | Documentation alignment | Completed | 20261111-111905 | 20261111-170713 | `db_01`, `db_08`, `db_03_07` corrected; ADR-008 classification recorded. Blocks adrrev009 (adrrev009 depends on `plans/done/adrrev008`). |
+| 6 | Deployment & Verification | Completed | 20261111-111905 | 20261111-170713 | All validation gates Pass (fast mode, base master); `stale_detector.py` clean on every edited procedure doc. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -232,3 +232,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-004 | Problem (shared config); Required Changes (per-process config); Constraints (ADR-002) | `config/agent.toml`, `config/mcp_dedup.toml`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/tool_runner.py` | 3 | No process reads `mcp_dedup.toml`; unknown tools stay non-retryable | `test_tool_runner.py` config isolation | Confirmed by repository evidence |
 | REQ-005 | Problem (doc gaps); Required Changes (ADR-008 matrix, db_01/db_08, db_03_07 wording); Acceptance Criteria | `docs/10_adr/adr_02_05_008...`, `docs/41_db/db_01...`, `docs/41_db/db_03_07...`, `docs/41_db/db_08...` | 5 | Store classified identically as disposable cache; appears in matrix/db_08/graph | `check_db_separation.py`, `check_docs_consistency.py --domain db` | Confirmed by repository evidence |
 | REQ-006 | Problem (unregistered fail-opens); Required Changes (ADR-004 exception registry); Acceptance Criteria | `docs/10_adr/adr_02_01_004...` | 5 | Exceptions registered with rationale + maintainer approval record | `check_adr_authority.py`, `check_adr_structure.py`, `check_adr_preservation.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261111-111905 -->
