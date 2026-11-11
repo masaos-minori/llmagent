@@ -5,7 +5,7 @@ check_compat_shims.py	36263
 check_docs_consistency.py	40577
 check_docs_content_policy.py	33240
 check_docs_quality.py	35387
-check_docs_structure.py	27249
+check_docs_structure.py	27883
 check_workitem_traceability.py	36140
 generate_reference_table.py	42781
 generate_workitem.py	28930

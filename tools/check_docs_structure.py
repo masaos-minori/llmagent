@@ -195,6 +195,13 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 28097 (2026-11-10): adrrev006 doc 02 added the "Caller model status"
     # sub-section (keep decision + producers/consumers not yet defined) and a Current Decision
     # Approval line; the ceiling equals the accepted size.
+    # Re-accepted at 28647 (2026-11-11): adrrev010 doc 01 corrected the Verification rows 258-260
+    # to reference Decision Details #10/#12 instead of INV-03/INV-04, rewrote Decision Detail #6
+    # (duplicate-credential fail-closed plus the TOML mapping source) and Decision Detail #12
+    # (empty body 422 vs well-formed no-op 200 `changed: false`), restated Alternative A's rejection
+    # rationale in single-operator terms, and dropped the "proper identity store" recommendation;
+    # the file sat exactly at the 28097 ceiling, so the necessary 550-byte growth raises it to the
+    # accepted size. Any further growth fails.
     "adr_02_04_013_eventbus-authentication-authorization.md": 28647,
 }
 
