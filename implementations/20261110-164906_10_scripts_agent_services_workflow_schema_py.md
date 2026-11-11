@@ -58,9 +58,9 @@ Changing the workflow schema itself.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-122315 | fingerprint gate replaces REQUIRED_WORKFLOW_TABLES/marker checks; constants removed; refusal text is shared REFUSAL_MESSAGE |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-122315 | test_repl_health fixture migrated to canonical DDL + mutations; parity test python-gate-shape case replaced by constants-gone pin (paired row 22 test pulled in) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-122315 | tests/agent+tests/deploy 4270 passed, full suite 12061 passed, pre-commit 25 hooks pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
