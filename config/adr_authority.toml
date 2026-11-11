@@ -92,6 +92,10 @@ decision_target = "docs.reference-generation"
 primary_adr = "ADR-015"
 supplemental_adrs = []
 
+[[authority]]
+decision_target = "security.posture-contract"
+primary_adr = "ADR-004"
+
 # --- Typed ADR edges (ADR-016 Decision 3) ---
 # edge_type in {Requires, Governs, Specializes, Extends, Exception-to, Reference}.
 # The authority graph is the non-Reference edges and must be acyclic; Reference edges may

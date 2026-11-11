@@ -165,11 +165,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Consolidate ADR-003 #16 | In Progress | — | — |  |
-| 2 | Replace ADR-002/007/014 restatements with references to ADR-004 | In Progress | — | — |  |
-| 3 | Register `security.posture-contract` in `config/adr_authority.toml` | In Progress | — | — |  |
-| 4 | Restate posture intent in `mcp_06_09`, `agent_10_01`, `mcp_02_02` | In Progress | — | — |  |
-| 5 | Run documentation and authority checkers | Pending | — | — |  |
+| 1 | Consolidate ADR-003 #16 | Completed | 2026-11-11 | 2026-11-11 | Decision Detail #16 equates "not accepted" with FAILED; aborts regardless of `required` (REQ-001) |
+| 2 | Replace ADR-002/007/014 restatements with references to ADR-004 | Completed | 2026-11-11 | 2026-11-11 | Posture restatements replaced with one-line ADR-004 pointers (REQ-002..004) |
+| 3 | Register `security.posture-contract` in `config/adr_authority.toml` | Completed | 2026-11-11 | 2026-11-11 | Registered under ADR-004; `check_adr_authority.py` green (REQ-005) |
+| 4 | Restate posture intent in `mcp_06_09`, `agent_10_01`, `mcp_02_02` | Completed | 2026-11-11 | 2026-11-11 | Intent restated per ADR-004; no exit-status/config values copied (REQ-006) |
+| 5 | Run documentation and authority checkers | Completed | 2026-11-11 | 2026-11-11 | All gates green; `check_adr_preservation.py` 3 WARNINGs mapped sentence-level in commit |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

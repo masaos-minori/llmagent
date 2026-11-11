@@ -61,8 +61,8 @@ Point `docs/22_mcp/mcp_06_09_startup-validation-behavior-tool_definitions_strict
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261111-101818 | 20261111-101818 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-101818 | 20261111-101818 | check_docs_consistency.py --domain mcp pass; check_docs_japanese.py pass; check_docs_structure.py pass (ADR-003/004/007 ceilings re-recorded to accepted size); check_adr_structure.py pass; check_adr_preservation.py exit 0 (Decision/Failure-Policy wording warnings, mapped in commit) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

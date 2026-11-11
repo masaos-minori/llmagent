@@ -122,6 +122,7 @@ ADR-014 --Extends--> ADR-001
 | `mcp.technical-safety` | ADR-012 | ADR-007 — transport, authentication, and health-check responsibilities |
 | `mcp.transport` | ADR-007 | — |
 | `rag.canonical-data` | ADR-005 | — |
+| `security.posture-contract` | ADR-004 | — |
 <!-- END AUTO-GENERATED -->
 
 ### Intentional Circular References

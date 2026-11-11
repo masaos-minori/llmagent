@@ -135,7 +135,7 @@ The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are a
 | Test | Verifies | Type | Blocking | Implementation |
 | --- | --- | --- | --- | --- |
 | A regression test that `LlmTurnExecutor` is constructed exactly once by the `Orchestrator` and no component holds an unused or duplicate instance | INV-02 | Unit | No | `tests/agent/test_orchestrator.py` |
-| Agent-side posture contract validation, and no `RuntimeToolRegistry` entry for a server whose posture is not accepted (contract gate only; the INV-03 duplication rule itself stays review-verified) | INV-03 | Unit | No | `tests/agent/test_mcp_health_posture.py`, `tests/shared/test_runtime_tool_registry.py` |
+| Agent-side posture contract validation; a server whose posture is not accepted has no `RuntimeToolRegistry` entry (ADR-003 Decision Detail #16), and its `FAILED` posture aborts startup (ADR-004); contract gate only; the INV-03 duplication rule itself stays review-verified | INV-03 | Unit | No | `tests/agent/test_mcp_health_posture.py`, `tests/shared/test_runtime_tool_registry.py` |
 
 ### Startup Validation
 

@@ -65,8 +65,8 @@ Point `docs/22_mcp/mcp_02_02_startup-modes-and-health.md` at ADR-004 for the sec
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261111-102229 | 20261111-102229 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-102229 | 20261111-102229 | check_docs_consistency.py --domain mcp pass; check_docs_japanese.py pass; check_docs_structure.py pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

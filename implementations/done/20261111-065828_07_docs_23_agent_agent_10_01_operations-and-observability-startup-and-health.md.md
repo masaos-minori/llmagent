@@ -62,8 +62,8 @@ Point `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261111-102229 | 20261111-102229 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-102229 | 20261111-102229 | check_docs_consistency.py --domain agent pass; check_docs_japanese.py pass; check_docs_structure.py pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

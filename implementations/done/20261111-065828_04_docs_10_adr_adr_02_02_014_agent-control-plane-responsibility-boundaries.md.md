@@ -68,8 +68,8 @@ Stop ADR-014 from restating what happens when a server's Security Posture is not
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261111-100246 | 20261111-100246 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-100246 | 20261111-100246 | check_adr_structure.py pass; check_adr_preservation.py exit 0 (warnings for ADR-003/007 Decision/Failure-Policy wording; ADR-014 edit is in Tests section, no warning); check_docs_consistency.py --domain agent pass; check_docs_japanese.py pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

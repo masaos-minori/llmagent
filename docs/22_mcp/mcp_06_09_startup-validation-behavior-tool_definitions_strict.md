@@ -59,6 +59,10 @@ MCP discovery follows the ADR-004 rule: an unavailable required server aborts st
 - Always FATAL, startup blocked, with no toggle (safety/integrity failures)
 - Unexpected failure of the routing-drift check itself (not a detected drift): FATAL outcome, startup blocked
 
+### Pre-bind security-posture gate
+
+Before an MCP server binds, its published security posture is positively confirmed. ADR-004 is the single normative authority for the pre-bind posture gate: a `FAILED` posture is a safety/integrity failure that aborts Agent startup regardless of the server's `required` value (fail-closed), and a `required = false` server does not permit startup to continue. A probe that cannot confirm the posture is treated as `FAILED`. The gate runs before Tool registration and is enforced in code; it is referenced here by authority (ADR-004), not by code path.
+
 Removed settings (`tool_definitions_strict`, `routing_drift_strict`) have no effect and are rejected as unknown production keys (Explicit in code — scripts/agent/production_config_validator.py `_check_unknown_production_keys`).
 
 **Important:** If discovery is `SKIPPED`, startup continues but the `RuntimeToolRegistry` remains empty or incomplete. Consequently, even if the LLM recognizes a tool, execution will fail at runtime. Operators must treat `SKIPPED` results from `mcp_tool_discovery` with the same severity as `WARNING`.

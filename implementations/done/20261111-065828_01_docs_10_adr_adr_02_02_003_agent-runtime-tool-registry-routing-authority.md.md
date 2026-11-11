@@ -66,8 +66,8 @@ Restate ADR-003 Decision Detail #16 so that a server whose Security Posture is "
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261111-095759 | 20261111-095759 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-095759 | 20261111-095759 | check_adr_structure.py pass; check_adr_preservation.py exit 0 (warning: Decision #16 wording change, mapped in commit); check_docs_consistency.py --domain mcp pass; check_docs_japanese.py pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -92,7 +92,15 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Raised to 26890 (2026-10-30) by the toolhint001 Decision 17 append (advisory dynamic
     # availability hints do not change the static visibility contract); the ceiling equals
     # the accepted size, so further growth fails.
-    "adr_02_02_003_agent-runtime-tool-registry-routing-authority.md": 26890,
+    # Re-accepted at 27241 (2026-11-11, adrrev007 doc 06): Decision Detail #16 restated the
+    # posture rule so "not accepted" equals FAILED (aborts startup regardless of `required`,
+    # REQ-001); the ceiling equals the accepted size, so further growth fails.
+    "adr_02_02_003_agent-runtime-tool-registry-routing-authority.md": 27241,
+    # Re-accepted at 24646 (2026-11-11, adrrev007 doc 06): the posture clauses were rewritten
+    # to point to ADR-004 instead of restating the FAILED-abort rule (REQ-003); this pushed
+    # the file past the default MAX_SIZE. The ceiling equals the accepted size, so further
+    # growth fails.
+    "adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md": 24646,
     # ADR-004 grew by the audit Owner assignment and the spawn-failure Exceptions
     # section (2026-10-13), the security-posture Decision and Automated Tests rows
     # (2026-10-17), and the by-phase failure-class verification evidence (2026-10-17);
@@ -100,7 +108,12 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-recorded after the grouped rename: 32305.
     # Re-accepted at 32448 (2026-11-01): mcpgate001 added the component-mandatoriness
     # classification note; the ceiling equals the accepted size.
-    "adr_02_01_004_platform-environment-failure-handling-policy.md": 32448,
+    # Re-accepted at 32586 (2026-11-11): closes a pre-existing gap — ADR-004 had grown to
+    # 32586 by cad5e91ea (adrrev004) without the ceiling being re-recorded (it stayed at
+    # 32448). Not part of adrrev007 scope (the plan treats ADR-004 as an unmodified reference
+    # target); recorded here only to keep check_docs_structure.py green. The ceiling equals
+    # the accepted size, so further growth fails.
+    "adr_02_01_004_platform-environment-failure-handling-policy.md": 32586,
     # ADR-007 reached 24596 after the grouped rename (default limit 24576).
     # adr_02_05_008 sat at 33647 until dbmig001 recorded the workflow/eventbus
     # forward-only migration contract in Context > Constraints plus an Amendment

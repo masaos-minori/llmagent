@@ -77,7 +77,7 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Every MCP server, including mdq-mcp, rejects a request without a matching Bearer token on every endpoint. mdq-mcp's `allowed_dirs` is a separate, fail-closed resource-authorization boundary applied only after successful authentication; it neither replaces authentication nor is replaced by it. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`, `scripts/mcp_servers/mdq/mdq_server.py`)
 10. The Agent and each MCP server read their own token from their own configuration file (the Agent from `agent.toml`, mdq-mcp from `mdq_mcp_server.toml`); the two values must match, but neither process reads the other's file (ADR-002).
 11. Fault isolation, operational monitoring, independent deployment take priority over the cost of HTTP Serialization and Socket communication.
-12. Each MCP server validates its own security configuration and publishes the result as a security posture on `GET /health`; the Agent validates only that posture's contract version and shape, never the server's configuration file (item 10). A posture `FAILED` result aborts startup.
+12. Each MCP server validates its own security configuration and publishes the result as a security posture on `GET /health`; the Agent validates only that posture's contract version and shape, never the server's configuration file (item 10). How a `FAILED` posture is handled is defined by ADR-004, the single normative authority for posture handling.
 
 ### Scope
 
@@ -221,11 +221,11 @@ Not applicable
 - When mdq-mcp's `allowed_dirs` is empty or a requested path is not inside it, or cannot be canonicalized (the request is denied, fail-closed, after authentication)
 - When an MCP server is configured to bind to a non-loopback address (`run_http()` raises)
 - When the configuration names an unsupported transport (such as stdio)
-- When an MCP server reports a posture check as `FAILED` on `GET /health` (Safety/Integrity, not an availability failure)
+- When an MCP server reports a posture check as `FAILED` on `GET /health` (classified Safety/Integrity per ADR-004)
 
 ### Fail-Open or Degraded Conditions
 
-- A non-mandatory MCP server that is unavailable is disabled and startup continues in a partial-availability state (ADR-004: an availability failure of a non-mandatory component disables it and startup continues in a partial-availability state). A posture `FAILED` result is not an availability failure.
+- A non-mandatory MCP server that is unavailable is disabled and startup continues in a partial-availability state (ADR-004: an availability failure of a non-mandatory component disables it and startup continues in a partial-availability state). A `FAILED` posture is a safety/integrity failure, not an availability failure, per ADR-004.
 
 ### Retry Policy
 

@@ -236,7 +236,7 @@ Not applicable (this ADR defines no retry policy of its own)
 
 - Whether each process's configuration file exists
 - Whether configuration files are valid (parseable TOML, required fields)
-- Whether each MCP server's own validation produced a posture with no `FAILED` check: the Agent reads the postures published on each server's `GET /health` through `check_readiness()`, and a `FAILED` check aborts Agent startup
+- Whether each MCP server's published Security Posture validates at startup; how a `FAILED` posture is handled is defined by ADR-004, the single normative authority for posture handling
 
 ### Deployment Validation
 
