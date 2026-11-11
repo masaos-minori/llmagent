@@ -56,8 +56,8 @@ Changing the mdq business schema or the health-check file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-135256 | mdq DDL consolidated into _CREATE_STATEMENTS (single source); create-when-absent else assert_matches(label='mdq.sqlite'); refusal is the shared archive-and-recreate message |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-135256 | TestFingerprintGate added (columns drift / missing table / extra table / rows intact / clean pass); tests/mcp_servers/mdq 416 passed, full suite 12067 passed (uv run), pre-commit green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
