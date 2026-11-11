@@ -31,14 +31,18 @@ from rag.ingestion.ingester import RagIngester
 from rag.ingestion.transaction_commit import TransactionManager
 from rag.models_data import PreparedChunk
 
-# Minimal rag.sqlite schema (regular tables; vec0 extension not required in tests)
+# Canonical rag.sqlite DDL (scripts/db/schema_sql.py _RAG_SCHEMA_TEMPLATE), with the
+# vec0 virtual table replaced by a plain stand-in: the schema fingerprint compares
+# virtual tables by NAME only, so a plain `chunks_vec` is equivalent in fixtures.
+# rag_corpus_meta is seeded because a present-but-empty corpus-meta table is a fatal
+# state for the consistency checks.
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS documents (
     doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
     url                TEXT    NOT NULL UNIQUE,
     title              TEXT,
     lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
-    fetched_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+    fetched_at         TEXT    NOT NULL,
     etag               TEXT,
     last_modified      TEXT,
     chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
@@ -50,13 +54,58 @@ CREATE TABLE IF NOT EXISTS chunks (
     chunk_index        INTEGER NOT NULL,
     content            TEXT    NOT NULL,
     normalized_content TEXT,
-    chunk_type         TEXT,
-    source_file        TEXT
+    chunk_type         TEXT    NOT NULL DEFAULT 'text',
+    source_file        TEXT    NOT NULL DEFAULT '',
+    UNIQUE (doc_id, chunk_index),
+    CHECK (chunk_index >= 0),
+    CHECK (chunk_type IN ('text', 'code')),
+    CHECK (length(content) > 0)
+);
+CREATE TABLE IF NOT EXISTS rag_corpus_meta (
+    corpus_id                TEXT    NOT NULL,
+    index_generation         INTEGER NOT NULL,
+    embedding_model_id       TEXT    NOT NULL,
+    normalization_version    TEXT    NOT NULL,
+    chunking_policy_version  TEXT    NOT NULL,
+    updated_at               TEXT    NOT NULL,
+    -- Single-row: the corpus identity is a single configuration row.
+    CHECK (rowid = 1)
 );
 CREATE TABLE IF NOT EXISTS chunks_vec (
     chunk_id  INTEGER PRIMARY KEY,
     embedding BLOB NOT NULL
 );
+CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+    content,
+    content       = 'chunks',
+    content_rowid = 'chunk_id',
+    tokenize      = 'unicode61'
+);
+CREATE TRIGGER IF NOT EXISTS chunks_ai
+AFTER INSERT ON chunks BEGIN
+    INSERT INTO chunks_fts (rowid, content)
+    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+END;
+CREATE TRIGGER IF NOT EXISTS chunks_ad
+AFTER DELETE ON chunks BEGIN
+    INSERT INTO chunks_fts (chunks_fts, rowid, content)
+    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+END;
+CREATE TRIGGER IF NOT EXISTS chunks_au
+AFTER UPDATE ON chunks BEGIN
+    INSERT INTO chunks_fts (chunks_fts, rowid, content)
+    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+    INSERT INTO chunks_fts (rowid, content)
+    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+END;
+CREATE TRIGGER IF NOT EXISTS chunks_vec_ad
+AFTER DELETE ON chunks BEGIN
+    DELETE FROM chunks_vec WHERE chunk_id = old.chunk_id;
+END;
+INSERT OR IGNORE INTO rag_corpus_meta (
+    rowid, corpus_id, index_generation, embedding_model_id,
+    normalization_version, chunking_policy_version, updated_at
+) VALUES (1, 'fixture-corpus', 1, 'fixture-model', 'v1', 'v1', '2026-01-01T00:00:00Z');
 """
 
 _DIM = get_embedding_dims()
@@ -68,6 +117,7 @@ class _FakeSQLiteHelper:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
+        self.conn = conn  # db.conn alias: consistency probes reach the raw connection
         self._in_transaction = False
         self._conn.row_factory = sqlite3.Row
 
@@ -206,8 +256,9 @@ class TestEmbedAndStore:
         self, conn: sqlite3.Connection, url: str = "https://example.com/doc"
     ) -> int:
         cur = conn.execute(
-            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
-            (url, "Doc", "ja", "text"),
+            "INSERT INTO documents (url, title, lang, chunking_strategy, fetched_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (url, "Doc", "ja", "text", "2026-01-01T00:00:00Z"),
         )
         conn.commit()
         return cur.lastrowid  # type: ignore[return-value]
@@ -255,8 +306,9 @@ class TestEmbedAndStore:
     def test_null_normalized_content_stored_as_null(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         conn.execute(
-            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
-            ("https://example.com/doc", "Doc", "en", "text"),
+            "INSERT INTO documents (url, title, lang, chunking_strategy, fetched_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            ("https://example.com/doc", "Doc", "en", "text", "2026-01-01T00:00:00Z"),
         )
         conn.commit()
         doc_id: int = conn.execute("SELECT doc_id FROM documents").fetchone()[0]
@@ -762,20 +814,10 @@ class TestPartialFailureHandling:
         """Consistency check should run inside the DB context, not after."""
         conn, fake_db = _make_db()
 
-        # Add FTS tables so consistency check doesn't fail
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS chunks_fts_docsize(
-                rowid INTEGER PRIMARY KEY,
-                fts_size INTEGER
-            );
-        """)
-        conn.execute("""
-            INSERT INTO chunks_fts_docsize(rowid, fts_size) VALUES(1, 1);
-        """)
-
         conn.execute(
-            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
-            ("https://example.com/doc", "Doc", "ja", "text"),
+            "INSERT INTO documents (url, title, lang, chunking_strategy, fetched_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            ("https://example.com/doc", "Doc", "ja", "text", "2026-01-01T00:00:00Z"),
         )
         conn.commit()
 
@@ -947,12 +989,6 @@ class TestPartialFailureHandling:
         assert (chunk_dir.parent / "failed" / "c.json").exists()
 
         # A clean run with no failures.
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS chunks_fts_docsize(
-                rowid INTEGER PRIMARY KEY,
-                fts_size INTEGER
-            );
-        """)
         conn.commit()
         path_ok = _write_chunk(chunk_dir, "ok.json")
         ingester2 = _make_ingester(tmp_path)
@@ -1218,24 +1254,11 @@ class TestGroupValidation:
 class TestGenerationDrain:
     """REQ-003/REQ-004/AC-2/AC-4: rejected files drain out and generations resolve oldest-first."""
 
-    @staticmethod
-    def _add_fts_table(conn: sqlite3.Connection) -> None:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS chunks_fts_docsize(
-                rowid INTEGER PRIMARY KEY,
-                fts_size INTEGER
-            );
-            """
-        )
-        conn.commit()
-
     def test_two_generations_ingest_oldest_first_newest_final(
         self, tmp_path: Path
     ) -> None:
         """Two generations of one URL are ingested independently; the newest writes last."""
         conn, fake_db = _make_db()
-        self._add_fts_table(conn)
         chunk_dir = tmp_path / "chunk"
         _write_chunk(
             chunk_dir,
@@ -1287,7 +1310,6 @@ class TestGenerationDrain:
     ) -> None:
         """After a group is drained to failed/, a second run re-processes nothing."""
         conn, fake_db = _make_db()
-        self._add_fts_table(conn)
         chunk_dir = tmp_path / "chunk"
         _write_chunk(chunk_dir, "good-0.json")
         _write_chunk(
@@ -1366,8 +1388,9 @@ class TestIntegrityErrorPropagation:
         conn, fake_db, ingester = self._setup(tmp_path)
         # Insert a document with matching URL so ingest_url_group proceeds past doc lookup
         conn.execute(
-            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
-            ("https://example.com/doc", "Doc", "ja", "text"),
+            "INSERT INTO documents (url, title, lang, chunking_strategy, fetched_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            ("https://example.com/doc", "Doc", "ja", "text", "2026-01-01T00:00:00Z"),
         )
         conn.commit()
         chunk_dir = tmp_path / "chunk"
@@ -1403,8 +1426,9 @@ class TestIntegrityErrorPropagation:
         """AC-4: a transient sqlite3.OperationalError propagates and moves no files."""
         conn, fake_db, ingester = self._setup(tmp_path)
         conn.execute(
-            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
-            ("https://example.com/doc", "Doc", "ja", "text"),
+            "INSERT INTO documents (url, title, lang, chunking_strategy, fetched_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            ("https://example.com/doc", "Doc", "ja", "text", "2026-01-01T00:00:00Z"),
         )
         conn.commit()
         chunk_dir = tmp_path / "chunk"

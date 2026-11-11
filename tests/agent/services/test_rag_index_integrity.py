@@ -92,9 +92,86 @@ CREATE TABLE IF NOT EXISTS rag_corpus_meta (
 """
 
 
+# Canonical rag.sqlite DDL (scripts/db/schema_sql.py _RAG_SCHEMA_TEMPLATE) with the
+# vec0 table as a plain stand-in (the fingerprint compares virtual tables by NAME
+# only) and rag_corpus_meta seeded, for the consistency-report test that must pass
+# the schema-fingerprint gate.
+_SCHEMA_SQL_CANONICAL = """
+CREATE TABLE IF NOT EXISTS documents (
+    doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    url                TEXT    NOT NULL UNIQUE,
+    title              TEXT,
+    lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
+    fetched_at         TEXT    NOT NULL,
+    etag               TEXT,
+    last_modified      TEXT,
+    chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
+);
+CREATE TABLE IF NOT EXISTS chunks (
+    chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id             INTEGER NOT NULL
+                       REFERENCES documents(doc_id) ON DELETE CASCADE,
+    chunk_index        INTEGER NOT NULL,
+    content            TEXT    NOT NULL,
+    normalized_content TEXT,
+    chunk_type         TEXT    NOT NULL DEFAULT 'text',
+    source_file        TEXT    NOT NULL DEFAULT '',
+    UNIQUE (doc_id, chunk_index),
+    CHECK (chunk_index >= 0),
+    CHECK (chunk_type IN ('text', 'code')),
+    CHECK (length(content) > 0)
+);
+CREATE TABLE IF NOT EXISTS rag_corpus_meta (
+    corpus_id                TEXT    NOT NULL,
+    index_generation         INTEGER NOT NULL,
+    embedding_model_id       TEXT    NOT NULL,
+    normalization_version    TEXT    NOT NULL,
+    chunking_policy_version  TEXT    NOT NULL,
+    updated_at               TEXT    NOT NULL,
+    CHECK (rowid = 1)
+);
+CREATE TABLE IF NOT EXISTS chunks_vec (
+    chunk_id INTEGER PRIMARY KEY,
+    embedding  BLOB
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+    content,
+    content       = 'chunks',
+    content_rowid = 'chunk_id',
+    tokenize      = 'unicode61'
+);
+CREATE TRIGGER IF NOT EXISTS chunks_ai
+AFTER INSERT ON chunks BEGIN
+    INSERT INTO chunks_fts (rowid, content)
+    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+END;
+CREATE TRIGGER IF NOT EXISTS chunks_ad
+AFTER DELETE ON chunks BEGIN
+    INSERT INTO chunks_fts (chunks_fts, rowid, content)
+    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+END;
+CREATE TRIGGER IF NOT EXISTS chunks_au
+AFTER UPDATE ON chunks BEGIN
+    INSERT INTO chunks_fts (chunks_fts, rowid, content)
+    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+    INSERT INTO chunks_fts (rowid, content)
+    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+END;
+CREATE TRIGGER IF NOT EXISTS chunks_vec_ad
+AFTER DELETE ON chunks BEGIN
+    DELETE FROM chunks_vec WHERE chunk_id = old.chunk_id;
+END;
+INSERT OR IGNORE INTO rag_corpus_meta (
+    rowid, corpus_id, index_generation, embedding_model_id,
+    normalization_version, chunking_policy_version, updated_at
+) VALUES (1, 'fixture-corpus', 1, 'fixture-model', 'v1', 'v1', '2026-01-01T00:00:00Z');
+"""
+
+
 class _FakeSQLiteHelper:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
+        self.conn = conn  # db.conn alias: consistency probes reach the raw connection
 
     def open(
         self, *, write_mode: bool = False, row_factory: bool = False
@@ -132,10 +209,33 @@ def db() -> Generator[_FakeSQLiteHelper]:
     conn.close()
 
 
+@pytest.fixture
+def canonical_db() -> Generator[_FakeSQLiteHelper]:
+    """Fixture with the canonical rag DDL: required by the schema-fingerprint gate."""
+    conn = sqlite3.connect(":memory:")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(_SCHEMA_SQL_CANONICAL)
+    conn.commit()
+    yield _FakeSQLiteHelper(conn)
+    conn.close()
+
+
 def _insert_doc(conn: sqlite3.Connection, url: str = "http://example.com") -> int:
     cur = conn.execute(
         "INSERT INTO documents (url, title, lang) VALUES (?, ?, ?)",
         (url, "Test", "en"),
+    )
+    conn.commit()
+    assert cur.lastrowid is not None
+    return cur.lastrowid
+
+
+def _insert_doc_canonical(conn: sqlite3.Connection, url: str) -> int:
+    """documents row for the canonical fixture (fetched_at is NOT NULL, no default)."""
+    cur = conn.execute(
+        "INSERT INTO documents (url, title, lang, fetched_at) VALUES (?, ?, ?, ?)",
+        (url, "Test", "en", "2026-01-01T00:00:00Z"),
     )
     conn.commit()
     assert cur.lastrowid is not None
@@ -310,25 +410,25 @@ def test_chunks_vec_ad_trigger_cleans_up_direct_chunks_delete(
 # ── TEST-DESIGN3-05: consistency check detects FTS gap ────────────────────────
 
 
-def test_consistency_check_detects_fts_gap(db: _FakeSQLiteHelper) -> None:
+def test_consistency_check_detects_fts_gap(canonical_db: _FakeSQLiteHelper) -> None:
     """check_rag_consistency() must detect FTS desynchronization."""
-    conn = db._conn
-    doc_id = _insert_doc(conn, url="http://gap.example.com")
+    conn = canonical_db._conn
+    doc_id = _insert_doc_canonical(conn, "http://gap.example.com")
     chunk_id = _insert_chunk(conn, doc_id, "gap text", None)
 
     # Manually remove the FTS entry using the FTS5 delete-command
-    fts_text = db.execute(
+    fts_text = canonical_db.execute(
         "SELECT COALESCE(normalized_content, content) FROM chunks WHERE chunk_id = ?",
         (chunk_id,),
     ).fetchone()[0]
-    db.execute(
+    canonical_db.execute(
         "INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', ?, ?)",
         (chunk_id, fts_text),
     )
-    db.commit()
+    canonical_db.commit()
 
     # Check consistency — should detect the gap
-    report = check_rag_consistency(db)
+    report = check_rag_consistency(canonical_db)
     assert isinstance(report, RagConsistencyReport)
     assert report.fts_gap >= 1
 

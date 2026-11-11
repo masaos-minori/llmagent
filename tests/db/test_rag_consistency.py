@@ -5,11 +5,14 @@ in db/maintenance.py.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from typing import Any
 
+import pytest
 from db.models import RagConsistencyReport
 from db.rag_consistency import check_rag_consistency, is_consistent, summarize_issues
+from db.schema_sql import build_rag_schema_sql
 
 # ── In-memory SQLite helper ───────────────────────────────────────────────────
 
@@ -28,56 +31,40 @@ class _FakeSQLiteHelper:
         self.conn.commit()
 
 
-# ── Schema (chunks_vec replaced with a plain table carrying a valid 1024-dim
-# embedding BLOB, to exercise the embedding probe without the vec0 extension) ──
+# ── Schema (derived from the canonical DDL SSOT; chunks_vec replaced with a
+# plain table carrying a valid 1024-dim embedding BLOB, so the fixture builds
+# and the embedding probe runs without the vec0 extension; UNK-01 compares
+# virtual tables by name only) ────────────────────────────────────────────────
 
-_RAG_SCHEMA = """
-CREATE TABLE IF NOT EXISTS documents (
-    doc_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-    url       TEXT NOT NULL UNIQUE,
-    title     TEXT,
-    lang      TEXT,
-    fetched_at TEXT,
-    etag      TEXT,
-    last_modified TEXT,
-    chunking_strategy TEXT
-);
-CREATE TABLE IF NOT EXISTS chunks (
-    chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    doc_id             INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
-    content            TEXT NOT NULL,
-    normalized_content TEXT,
-    chunk_index        INTEGER,
-    chunk_type         TEXT
-);
-CREATE TABLE IF NOT EXISTS chunks_vec (
-    chunk_id INTEGER PRIMARY KEY,
-    embedding BLOB
-);
-CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
-    content,
-    content       = 'chunks',
-    content_rowid = 'chunk_id',
-    tokenize      = 'unicode61'
-);
-CREATE TRIGGER IF NOT EXISTS chunks_ai
-AFTER INSERT ON chunks BEGIN
-    INSERT INTO chunks_fts (rowid, content)
-    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
-END;
-CREATE TRIGGER IF NOT EXISTS chunks_ad
-AFTER DELETE ON chunks BEGIN
-    INSERT INTO chunks_fts (chunks_fts, rowid, content)
-    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
-END;
-CREATE TRIGGER IF NOT EXISTS chunks_au
-AFTER UPDATE ON chunks BEGIN
-    INSERT INTO chunks_fts (chunks_fts, rowid, content)
-    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
-    INSERT INTO chunks_fts (rowid, content)
-    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
-END
-"""
+#: Concrete embedding dimension for fixtures. Must match get_embedding_dims()
+#: (Qwen3, 1024) so the embedding probe passes on populated fixtures.
+EMBED_DIMS = 1024
+
+_VEC0_PLAIN_SUBSTITUTES: dict[str, str] = {
+    "chunks_vec": "CREATE TABLE chunks_vec (chunk_id INTEGER PRIMARY KEY, embedding BLOB)",
+}
+
+_VEC0_STMT_RE = re.compile(
+    r"CREATE VIRTUAL TABLE IF NOT EXISTS (\w+) USING vec0\(.*?\n    \)",
+    re.DOTALL,
+)
+
+
+def _fallback_from_canonical(ddl: str) -> str:
+    """Canonical DDL with each vec0 virtual table replaced by a plain-table
+    stand-in. The fingerprint compares virtual tables by name only (UNK-01), so
+    the stand-ins satisfy the shape gate without the sqlite-vec extension."""
+
+    def sub(m: re.Match[str]) -> str:
+        name = m.group(1)
+        if name not in _VEC0_PLAIN_SUBSTITUTES:
+            raise AssertionError(f"no plain stand-in defined for vec0 table {name!r}")
+        return _VEC0_PLAIN_SUBSTITUTES[name]
+
+    return _VEC0_STMT_RE.sub(sub, ddl)
+
+
+_RAG_SCHEMA = _fallback_from_canonical(build_rag_schema_sql(EMBED_DIMS))
 
 
 def _make_rag_db() -> _FakeSQLiteHelper:
@@ -85,12 +72,20 @@ def _make_rag_db() -> _FakeSQLiteHelper:
     conn.executescript(
         _RAG_SCHEMA
     )  # executescript handles trigger bodies with semicolons
+    conn.execute(
+        "INSERT INTO rag_corpus_meta (corpus_id, index_generation, embedding_model_id,"
+        " normalization_version, chunking_policy_version, updated_at)"
+        " VALUES ('fixture-corpus', 1, 'fixture-model', '1', '1',"
+        " '2026-01-01T00:00:00Z')"
+    )
+    conn.commit()
     return _FakeSQLiteHelper(conn)
 
 
 def _insert_doc(db: _FakeSQLiteHelper) -> int:
     cur = db.execute(
-        "INSERT INTO documents (url, title) VALUES (?, ?)",
+        "INSERT INTO documents (url, title, lang, fetched_at) VALUES (?, ?, 'en',"
+        " '2026-01-01T00:00:00Z')",
         ("https://example.com/doc", "Test Doc"),
     )
     db.commit()
@@ -99,9 +94,18 @@ def _insert_doc(db: _FakeSQLiteHelper) -> int:
 
 
 def _insert_chunk(db: _FakeSQLiteHelper, doc_id: int, content: str) -> int:
+    """Insert a chunk with the next free chunk_index for its document.
+
+    The canonical schema enforces UNIQUE(doc_id, chunk_index); tests that need
+    a duplicate index insert explicitly.
+    """
+    next_index = db.execute(
+        "SELECT COALESCE(MAX(chunk_index) + 1, 0) FROM chunks WHERE doc_id = ?",
+        (doc_id,),
+    ).fetchone()[0]
     cur = db.execute(
-        "INSERT INTO chunks (doc_id, content) VALUES (?, ?)",
-        (doc_id, content),
+        "INSERT INTO chunks (doc_id, content, chunk_index) VALUES (?, ?, ?)",
+        (doc_id, content, next_index),
     )
     db.commit()
     assert cur.lastrowid is not None
@@ -501,25 +505,37 @@ class TestNewConsistencyChecks:
         assert any("[CRITICAL]" in i and "Chunks without vector" in i for i in issues)
 
     def test_duplicate_chunk_index_detected(self) -> None:
-        """Duplicate chunk_index values within the same document should be flagged."""
-        db = _make_rag_db()
-        doc_id = _insert_doc(db)
-        db.execute(
-            "INSERT INTO chunks (doc_id, content, chunk_index) VALUES (?, ?, 1)",
-            (doc_id, "first chunk"),
-        )
-        db.commit()
+        """Duplicate chunk_index values within the same document should be flagged.
 
-        db.execute(
-            "INSERT INTO chunks (doc_id, content, chunk_index) VALUES (?, ?, 1)",
-            (doc_id, "second chunk"),
-        )
-        db.commit()
+        The canonical UNIQUE(doc_id, chunk_index) makes duplicates uninsertable
+        and the fingerprint gate refuses a rag schema without that UNIQUE
+        (REQ-003), so the duplicate probe runs on a legacy (pre-UNIQUE) schema
+        directly and the classification path runs on a synthetic report.
+        """
+        from db.rag_consistency_queries import _collect_document_checks
 
-        report = check_rag_consistency(db)  # type: ignore[arg-type]
-        assert report.duplicate_chunk_index_count == 1
-        assert report.affected_duplicate_chunk_indices is not None
-        assert (doc_id, 1) in report.affected_duplicate_chunk_indices
+        conn = sqlite3.connect(":memory:")
+        conn.execute("CREATE TABLE documents (doc_id INTEGER PRIMARY KEY)")
+        conn.execute(
+            "CREATE TABLE chunks (chunk_id INTEGER PRIMARY KEY, doc_id INTEGER,"
+            " content TEXT, chunk_index INTEGER)"
+        )
+        conn.execute("CREATE TABLE chunks_vec (chunk_id INTEGER PRIMARY KEY)")
+        conn.execute("INSERT INTO documents VALUES (1)")
+        conn.execute(
+            "INSERT INTO chunks (doc_id, content, chunk_index) VALUES"
+            " (1, 'first chunk', 1), (1, 'second chunk', 1)"
+        )
+        legacy = _FakeSQLiteHelper(conn)
+        _docs_without_chunks, _chunks_without_vec, duplicate_count = (
+            _collect_document_checks(legacy)
+        )
+        assert duplicate_count == 1
+
+        report = _report(
+            duplicate_chunk_index_count=1,
+            affected_duplicate_chunk_indices=((1, 1),),
+        )
         assert not is_consistent(report)
         issues = summarize_issues(report)
         assert any("[CRITICAL]" in i and "Duplicate chunk_index" in i for i in issues)
@@ -969,22 +985,12 @@ class TestCollectionFailureDiagnostics:
         db.commit()
         return db
 
-    def test_missing_chunks_table_records_every_stage_that_reads_it(self) -> None:
+    def test_missing_chunks_table_raises_fingerprint_refusal(self) -> None:
+        """REQ-003: a rag database missing a canonical table raises, not reports."""
         db = self._db_without("chunks")
 
-        report = check_rag_consistency(db)  # type: ignore[arg-type]
-
-        prefixes = {error.split(":")[0] for error in report.diagnostic_errors}
-        assert prefixes == {
-            "Basic counts collection failed",
-            "Document checks collection failed",
-            "Affected identifiers collection failed",
-            "FK consistency probe failed",
-        }
-        assert "URL mismatch collection failed" not in prefixes
-        assert (report.chunks, report.fts, report.vec) == (0, 0, 0)
-        assert report.read_smoke_test_ok is False
-        assert is_consistent(report) is False
+        with pytest.raises(RuntimeError, match="missing table 'chunks'"):
+            check_rag_consistency(db)  # type: ignore[arg-type]
 
     def test_missing_documents_table_leaves_url_mismatches_empty(self) -> None:
         """_safe_url_count_query() swallows per-query failures, so the URL stage never raises."""
@@ -1002,20 +1008,12 @@ class TestCollectionFailureDiagnostics:
         assert report.read_smoke_test_ok is False
         assert is_consistent(report) is False
 
-    def test_missing_vec_table_breaks_every_stage_that_reads_it(self) -> None:
+    def test_missing_vec_table_raises_fingerprint_refusal(self) -> None:
+        """REQ-003: dropping the (name-only) vec table is a fingerprint finding."""
         db = self._db_without("chunks_vec")
 
-        report = check_rag_consistency(db)  # type: ignore[arg-type]
-
-        prefixes = {error.split(":")[0] for error in report.diagnostic_errors}
-        assert prefixes == {
-            "Basic counts collection failed",
-            "Document checks collection failed",
-            "Affected identifiers collection failed",
-            "Embedding dimension probe failed",
-        }
-        assert report.read_smoke_test_ok is False
-        assert is_consistent(report) is False
+        with pytest.raises(RuntimeError, match="missing table 'chunks_vec'"):
+            check_rag_consistency(db)  # type: ignore[arg-type]
 
     def test_a_consistent_database_records_no_diagnostics(self) -> None:
         report = check_rag_consistency(_make_rag_db())  # type: ignore[arg-type]
@@ -1106,7 +1104,9 @@ class TestFailClosedProbeErrors:
         """AC-003: with the embedding probe raising, FK and schema still report real values."""
         db = _make_rag_db()
         # A chunk referencing a missing document: the FK probe must still count it.
-        db.execute("INSERT INTO chunks (doc_id, content) VALUES (9999, 'orphan fk')")
+        db.execute(
+            "INSERT INTO chunks (doc_id, content, chunk_index) VALUES (9999, 'orphan fk', 0)"
+        )
         db.commit()
         helper = _RaisingSQLiteHelper(db.conn, "length(embedding) FROM chunks_vec")
 

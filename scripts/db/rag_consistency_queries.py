@@ -19,7 +19,11 @@ check_rag_consistency() to record as a diagnostic error.
 
 import sqlite3
 
+from shared.schema_fingerprint import assert_matches
+
 from db.helper import SQLiteHelper
+from db.schema_sql import build_rag_schema_sql
+from db.store_protocols import get_embedding_dims
 
 
 def _collect_basic_counts(db: SQLiteHelper) -> tuple[int, int, int, int, int, int]:
@@ -255,20 +259,25 @@ def _check_embedding_dimension(db: SQLiteHelper, expected_dims: int) -> bool:
 
 
 def _check_schema_recognition(db: SQLiteHelper) -> bool:
-    """Return True when every expected RAG table is present.
+    """Recognise the rag schema by canonical fingerprint, not by table names.
 
-    A missing required table means the schema shape is unrecognised, which is the
-    fatal class check_rag_consistency guards against. Mirrors the required-table
-    set of _check_read_smoke_test.
+    A database without the ``documents`` table is not a rag database: it stays
+    the unrecognised-schema fatal class (return False). Once ``documents`` is
+    present, the shared fingerprint (REQ-003) compares every table shape against
+    the canonical rag DDL; any deviation raises the archive-and-recreate
+    refusal. FTS5/vec virtual tables (``chunks_fts``, ``chunks_vec``) are
+    required by name only and their shadows are excluded (UNK-01).
     """
-    expected_tables = ("documents", "chunks", "chunks_vec", "chunks_fts_docsize")
-    present = {
-        name
-        for name, type_ in db.execute(
-            "SELECT name, type FROM sqlite_master WHERE type = 'table'"
-        ).fetchall()
-    }
-    return all(table in present for table in expected_tables)
+    present = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='documents'"
+    ).fetchone()
+    if present is None:
+        return False
+    conn = db.conn
+    if conn is None:
+        raise RuntimeError("rag_consistency_queries: database connection is not open")
+    assert_matches(conn, build_rag_schema_sql(get_embedding_dims()), label="rag.sqlite")
+    return True
 
 
 def _check_corpus_meta(db: SQLiteHelper) -> bool:
