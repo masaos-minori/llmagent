@@ -143,3 +143,8 @@ def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | N
     except sqlite3.Error as e:
         logger.error("Logical verification could not open DB: %s", e)
         return False, "verification_unavailable"
+    except RuntimeError as e:
+        # Fingerprint refusal from the consistency layer (session REQ-003):
+        # a fail-closed verification failure, quoted verbatim for the operator.
+        logger.error("Logical verification refused DB schema: %s", e)
+        return False, str(e)

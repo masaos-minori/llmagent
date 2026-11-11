@@ -2,14 +2,18 @@
 """tests/db/test_session_consistency.py — Unit tests for check_session_consistency()/is_consistent().
 
 Mirrors test_rag_consistency.py's structure: a _FakeSQLiteHelper wrapper around a real
-in-memory sqlite3.Connection, a local schema string (vec0-free copy of the production
-schema), and one test class per concern group.
+in-memory sqlite3.Connection, a fixture schema derived from the canonical DDL SSOT
+(vec0 replaced by plain stand-ins, UNK-01 name-only), and one test class per concern
+group. The schema-shape gate is the shared fingerprint: drift raises RuntimeError.
 """
 
 from __future__ import annotations
 
+import re
 import sqlite3
 
+import pytest
+from db.schema_sql import build_session_schema_sql
 from db.session_consistency import check_session_consistency, is_consistent
 
 # ── In-memory SQLite helper ───────────────────────────────────────────────────
@@ -29,67 +33,41 @@ class _FakeSQLiteHelper:
         self.conn.commit()
 
 
-# ── Schema (memories_vec replaced with a plain table to avoid vec0 extension) ──
+# ── Schema (derived from the canonical DDL SSOT; vec0 replaced by a plain
+# stand-in so the fixture builds without the sqlite-vec extension) ─────────────
 
-_SESSION_SCHEMA = """
-CREATE TABLE IF NOT EXISTS sessions (
-    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    title TEXT
-);
-CREATE TABLE IF NOT EXISTS messages (
-    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
-    role TEXT NOT NULL,
-    content TEXT NOT NULL,
-    tool_calls TEXT,
-    tool_call_id TEXT,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-CREATE TABLE IF NOT EXISTS memories (
-    memory_id TEXT PRIMARY KEY,
-    memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
-    source_type TEXT NOT NULL DEFAULT 'conversation',
-    session_id INTEGER,
-    turn_id TEXT,
-    project TEXT NOT NULL DEFAULT '',
-    repo TEXT NOT NULL DEFAULT '',
-    branch TEXT NOT NULL DEFAULT '',
-    content TEXT NOT NULL,
-    summary TEXT NOT NULL DEFAULT '',
-    tags TEXT NOT NULL DEFAULT '[]',
-    importance REAL NOT NULL DEFAULT 0.5,
-    pinned INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
-    memory_id UNINDEXED,
-    content,
-    summary,
-    tags
-);
-CREATE TABLE IF NOT EXISTS memory_links (
-    src_id TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
-    dst_id TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
-    PRIMARY KEY (src_id, dst_id)
-);
-CREATE TABLE IF NOT EXISTS session_diagnostics (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
-    kind TEXT NOT NULL,
-    content TEXT NOT NULL,
-    workflow_id TEXT,
-    task_id TEXT,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-CREATE INDEX IF NOT EXISTS idx_session_diagnostics_session
-    ON session_diagnostics(session_id);
-CREATE TABLE IF NOT EXISTS memories_vec (
-    memory_id TEXT PRIMARY KEY,
-    embedding BLOB
-);
-"""
+#: Concrete embedding dimension for fixtures. Must match get_embedding_dims()
+#: (Qwen3, 1024); the fingerprint compares virtual tables by name only (UNK-01),
+#: so the dimension never reaches the compared shapes.
+EMBED_DIMS = 1024
+
+_VEC0_PLAIN_SUBSTITUTES: dict[str, str] = {
+    "memories_vec": (
+        "CREATE TABLE memories_vec (memory_id TEXT PRIMARY KEY, embedding BLOB)"
+    ),
+}
+
+_VEC0_STMT_RE = re.compile(
+    r"CREATE VIRTUAL TABLE IF NOT EXISTS (\w+) USING vec0\(.*?\n    \)",
+    re.DOTALL,
+)
+
+
+def _fallback_from_canonical(ddl: str) -> str:
+    """Canonical DDL with each vec0 virtual table replaced by a plain-table
+    stand-in. The fingerprint compares virtual tables by name only (UNK-01), so
+    the stand-ins satisfy the shape gate without the sqlite-vec extension."""
+
+    def sub(m: re.Match[str]) -> str:
+        name = m.group(1)
+        if name not in _VEC0_PLAIN_SUBSTITUTES:
+            raise AssertionError(f"no plain stand-in defined for vec0 table {name!r}")
+        return _VEC0_PLAIN_SUBSTITUTES[name]
+
+    return _VEC0_STMT_RE.sub(sub, ddl)
+
+
+_SESSION_SCHEMA = _fallback_from_canonical(build_session_schema_sql(EMBED_DIMS))
 
 
 def _make_session_db() -> _FakeSQLiteHelper:
@@ -177,16 +155,13 @@ class TestSessionConsistencyHealthy:
         assert before_rows == after_rows
         assert mutating == []
 
-    def test_missing_table_detected(self):
-        """Dropping a required table should set diagnostic_errors."""
+    def test_missing_table_raises_fingerprint_refusal(self):
+        """Dropping a required table raises the fingerprint refusal (REQ-003)."""
         db = _make_session_db()
         db.execute("DROP TABLE IF EXISTS sessions")
         db.commit()
-        report = check_session_consistency(db)
-        assert report.diagnostic_errors is not None
-        assert len(report.diagnostic_errors) > 0
-        assert any("Missing table" in e for e in report.diagnostic_errors)
-        assert is_consistent(report) is False
+        with pytest.raises(RuntimeError, match="missing table 'sessions'"):
+            check_session_consistency(db)
 
     def test_orphaned_messages_detected(self):
         """Inserting a messages row without a matching session should be detected."""
@@ -220,10 +195,10 @@ class TestSessionConsistencyHealthy:
         ) in report.affected_orphaned_memory_link_pairs
         assert is_consistent(report) is False
 
-    def test_read_smoke_test_fails_when_table_missing(self):
-        """Read smoke test should fail when a required table does not exist."""
+    def test_extra_table_raises_fingerprint_refusal(self):
+        """A table not defined by the canonical schema is a fingerprint finding."""
         db = _make_session_db()
-        db.execute("DROP TABLE IF EXISTS sessions")
+        db.execute("CREATE TABLE schema_migrations (version INTEGER)")
         db.commit()
-        report = check_session_consistency(db)
-        assert report.read_smoke_test_ok is False
+        with pytest.raises(RuntimeError, match="unexpected table 'schema_migrations'"):
+            check_session_consistency(db)

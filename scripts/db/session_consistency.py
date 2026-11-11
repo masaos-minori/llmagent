@@ -9,8 +9,12 @@ Mirrors rag_consistency.py's three-part shape:
 
 import sqlite3
 
+from shared.schema_fingerprint import assert_matches
+
 from db.helper import SQLiteHelper
 from db.models import SessionConsistencyReport
+from db.schema_sql import build_session_schema_sql
+from db.store_protocols import get_embedding_dims
 
 
 def _collect_basic_counts(db: SQLiteHelper) -> tuple[int, int, int]:
@@ -72,36 +76,36 @@ def _check_read_smoke_test(db: SQLiteHelper) -> bool:
     return True
 
 
-def _check_required_tables_exist(db: SQLiteHelper) -> list[str]:
-    """Check that all required tables exist; return list of missing table names."""
-    required_tables = [
-        "sessions",
-        "messages",
-        "memories",
-        "memories_fts",
-        "memory_links",
-        "session_diagnostics",
-        "memories_vec",
-    ]
-    missing = []
-    for table in required_tables:
-        cursor = db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-            (table,),
-        )
-        if cursor.fetchone() is None:
-            missing.append(table)
-    return missing
+def _check_schema_fingerprint(db: SQLiteHelper) -> None:
+    """Assert the live schema matches the canonical session DDL (REQ-003).
+
+    Replaces the existence-only required_tables check: any column, index,
+    constraint, foreign-key, or trigger deviation raises the fingerprint
+    refusal (RuntimeError), which carries the archive-and-recreate guidance.
+    Virtual tables (``memories_vec``, ``memories_fts``) are required by name
+    only; their shape is excluded (UNK-01). The database is only inspected.
+    """
+    conn = db.conn
+    if conn is None:
+        raise RuntimeError("session_consistency: database connection is not open")
+    assert_matches(
+        conn, build_session_schema_sql(get_embedding_dims()), label="session.sqlite"
+    )
 
 
 def check_session_consistency(db: SQLiteHelper) -> SessionConsistencyReport:
     """Return a SessionConsistencyReport for the given database connection.
 
-    Every query is read-only. Orphan detection uses the same pattern as
+    Every query is read-only. The canonical fingerprint is asserted first: a
+    schema mismatch raises RuntimeError (archive-and-recreate) instead of
+    passing an existence-only check. Orphan detection uses the same pattern as
     check_rag_consistency(): per-group try/except isolation so one failing check
     group does not abort the others.
     """
     diagnostic_errors: list[str] = []
+
+    # Shape gate first (REQ-003): drift raises, it is not reportable.
+    _check_schema_fingerprint(db)
 
     # Initialize default values
     sessions = messages = memories = 0
@@ -110,14 +114,6 @@ def check_session_consistency(db: SQLiteHelper) -> SessionConsistencyReport:
     read_smoke_test_ok = False
     affected_orphaned_message_ids: tuple[int, ...] | None = None
     affected_orphaned_memory_link_pairs: tuple[tuple[str, str], ...] | None = None
-
-    # Check required tables exist
-    try:
-        missing_tables = _check_required_tables_exist(db)
-        if missing_tables:
-            diagnostic_errors.extend([f"Missing table: {t}" for t in missing_tables])
-    except sqlite3.Error as e:
-        diagnostic_errors.append(f"Table existence check failed: {e}")
 
     # Collect basic counts
     try:

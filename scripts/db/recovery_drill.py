@@ -209,7 +209,9 @@ def _drill_one_domain(
             verification = _verify_rag_session(domain, isolated, cfg.sqlite_vec_so)
         else:
             verification = _verify_workflow(isolated)
-    except sqlite3.Error as exc:
+    except (sqlite3.Error, RuntimeError) as exc:
+        # RuntimeError: the consistency layer's fingerprint refusal (session
+        # REQ-003). Recorded here; the shape gate below names the drift.
         logger.error("drill %s: restore read failed: %s", domain, exc)
         verification = {"integrity": False, "restore_error": False}
     finally:
