@@ -1090,7 +1090,9 @@ class TestEventbusSchemaFingerprint:
         try:
             with pytest.raises(RuntimeError, match="events: indexes differ"):
                 assert_matches(
-                    conn, _CANONICAL_EVENTBUS_DDL, label="test-missing-redelivered-index"
+                    conn,
+                    _CANONICAL_EVENTBUS_DDL,
+                    label="test-missing-redelivered-index",
                 )
         finally:
             conn.close()

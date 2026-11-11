@@ -92,7 +92,9 @@ def _verify_rag_session(domain: str, isolated: Path, sqlite_vec_so: str = "") ->
     if domain == "rag":
         # Fail-closed logical layer (dbmig001 row 11 + ragverify001): an unverified
         # dimension or an inconsistent report fails the domain in the artifact.
-        with SQLiteHelper("rag", db_path=str(isolated), sqlite_vec_so=sqlite_vec_so).open() as db:
+        with SQLiteHelper(
+            "rag", db_path=str(isolated), sqlite_vec_so=sqlite_vec_so
+        ).open() as db:
             report = check_rag_consistency(db)
         verification["rag_consistency"] = bool(
             not report.fk_unverified
@@ -104,7 +106,9 @@ def _verify_rag_session(domain: str, isolated: Path, sqlite_vec_so: str = "") ->
         # Fail-closed logical layer (drillmetrics001): an inconsistent report fails
         # the domain in the artifact. Read-only; no write path is added to the live
         # database.
-        with SQLiteHelper("session", db_path=str(isolated), sqlite_vec_so=sqlite_vec_so).open() as db:
+        with SQLiteHelper(
+            "session", db_path=str(isolated), sqlite_vec_so=sqlite_vec_so
+        ).open() as db:
             sess_report = check_session_consistency(db)
         verification["session_consistent"] = session_is_consistent(sess_report)
     return verification

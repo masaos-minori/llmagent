@@ -166,7 +166,9 @@ def _provision_canonical_vec_db(name: str, path: pathlib.Path) -> None:
                 "INSERT INTO memories (memory_id, memory_type, content) "
                 "VALUES ('m1', 'semantic', 'mem content')"
             )
-            helper.execute("INSERT INTO memory_links (src_id, dst_id) VALUES ('m1', 'm1')")
+            helper.execute(
+                "INSERT INTO memory_links (src_id, dst_id) VALUES ('m1', 'm1')"
+            )
         helper.commit()
     finally:
         helper.close()
@@ -349,7 +351,9 @@ def test_fingerprint_gate_aborts_when_database_is_missing_or_empty(
     # session.sqlite deliberately absent.
     result = _run(_write_driver(tmp_path, db_dir=db_dir, scripts_dir=scripts_dir))
     assert result.returncode != 0
-    assert "[gate] missing database" in result.stderr or "missing table" in result.stderr
+    assert (
+        "[gate] missing database" in result.stderr or "missing table" in result.stderr
+    )
     assert _FINGERPRINT_FATAL in result.stderr
     assert _BANNER not in result.stdout
 

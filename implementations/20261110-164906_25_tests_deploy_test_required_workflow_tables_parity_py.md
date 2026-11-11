@@ -52,7 +52,7 @@ Other deploy tests.
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-093338 | pulled into cutover batch; shell-list parity replaced by fingerprint apply/mutate tests; 5 tests pass |
 | 2 | Add or update tests per Validation plan | Completed | — | 20261111-093339 | covered by batch validation gates (full suite) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | batch validation gates run at unit end |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-100155 | batch validation gates run at unit end Batch gate results: full suite 12050 passed, 3 skipped; diff-cover 100% on changed test files (rules/toolchain.md 7) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
