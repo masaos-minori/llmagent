@@ -54,9 +54,9 @@ Unit tests for the fingerprint itself (`tests/shared/test_schema_fingerprint.py`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-144344 | test matrix implemented |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-144344 | 30 cases (6 domains x (4 drifts + clean baseline)) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-144345 | full suite 12097 passed, pre-commit green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
