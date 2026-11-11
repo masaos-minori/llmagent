@@ -1,4 +1,4 @@
-> **PAUSED** — superseded by adrrev009 (20261111-193537). Implementation halted until adrrev009 lands; its overlapping ADR-008 scope is now owned by adrrev009.
+> **Pause lifted 2026-11-11**: the halt condition ("until adrrev009 lands") is satisfied — adrrev009 (`plans/done/20261110-233648_adrrev009_adr008-recovery-align.md`) landed at commit `8ab061b3c` with its procedures archived to `implementations/done/`. The ADR-008 scope adrrev009 owns is disjoint from this Plan's sole target (ADR-013), so no content is superseded.
 
 ## Goal
 Correct the verified defects in ADR-013 (`docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`) so its Decision Details, Verification table, threat model, and risks state the EventBus authentication/authorization contract accurately, without changing any code, credential model, or governance approval.
@@ -75,7 +75,7 @@ ADR-013 (`docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`) i
 ## Assumptions
 - The verified defects are confined to ADR-013. The issue's other doc targets (`docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`, `docs/10_adr/adr_01_index.md`, `docs/24_eventbus/eventbus_02_api-reference-index.md`, `docs/24_eventbus/eventbus_07_configuration-and-operations.md`, `docs/91_security/security_01_architecture-and-trust-boundaries.md`) were inspected during verification and found not to require modification; they are therefore out of scope, not Reference Files.
 - The ADR index does not need regeneration after these body edits: the authority graph (`ADR-013 → ADR-002, ADR-006`), the area assignment, and the cited test paths (`tests/eventbus/test_eventbus_consumer_authorization.py`, `tests/eventbus/test_eventbus_auth.py`) are unchanged, so `generate_adr_authority.py --check` should report no drift.
-- Overlap with sibling Plans in this batch is compatible: this Plan touches only ADR-013; adrrev007 targets `agent_10_01` (posture fail-closed ops) and adrrev008/adrrev009 target ADR-008 in sections distinct from ADR-013. No file appears in more than one frozen Plan.
+- Overlap with sibling Plans in this batch is compatible: this Plan touches only ADR-013; adrrev007 targets `agent_10_01` (posture fail-closed ops) and adrrev008/adrrev009 target ADR-008 in sections distinct from ADR-013. Corrected 2026-11-11: ADR-013 is now also targeted by adrrev016 (Verification table Implementation column) and adrrev017 (Decision Detail wording, EBAUTHGEN001 note); both are paused and their edits do not contradict the five corrections in this Plan (see the generated procedure document's Assumptions).
 - Correcting Decision Detail #12 to match the code is a documentation correction, not a new decision: the code already returns `200 changed: false` for an unchanged body, so the ADR is made truthful rather than re-decided. Whether to instead standardize no-op as 422 by changing the code is a maintainer decision (UNK-02), deferred.
 - `check_adr_preservation.py` compares against `HEAD`; edits that change a Decision, Failure Policy, or normative-keyword count raise a WARNING, not an ERROR. The Detail #12 correction is expected to touch a Decision's wording, so a WARNING is possible and acceptable if it does not also alter an invariant, reference, test citation, Known Deviation, or Approval text.
 
@@ -86,8 +86,8 @@ ADR-013 (`docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`) i
 | UNK-02 | Standardize the no-op outcome as HTTP 422 and remove the `changed` response field. The code correctly distinguishes empty/malformed body (422) from well-formed-but-unchanged body (200 `changed: false`); standardizing to 422 would discard that distinction and risk regression. | No maintainer ruling on whether the empty-vs-no-op distinction is worth keeping. | Maintainer decision; if adopted, requires code + test + doc changes beyond this Plan's scope. Not implemented here. | False |
 | UNK-03 | Reject at `load_config()` any configuration granting one `consumer_id` to more than one principal. Neither `load_config()` nor `EventBusConfig.__post_init__` currently rejects such a grant (only the token-value check in `_build_principal_map()` exists); a genuine gap. Defensible under the single-operator threat model, but a behavioral/code change. | No maintainer ruling on whether to add the guard. | Maintainer decision; if adopted, requires a code change beyond this Plan's scope. Not implemented here. | False |
 | UNK-04 | Form of a boot epoch (or hash of the baseline) added to the authorization generation to reject stale post-restart generations with 409. After restart the baseline reloads as generation 0 and runtime overrides are never persisted, so a stale `expected_generation` operates on the freshly-reloaded baseline every observer sees; the vulnerability is theoretical, and the issue lists the epoch form as undecided. | No decided design choice (separate field vs hash of baseline). | Design choice left open; record resolution in ADR-013 Restart semantics if adopted. Not implemented here. | False |
-| UNK-05 | Open dependency `issues/20261109-112504_adrrev001_eventbus-route-handlers.md` (EventBus route handlers, per-route authorization enforcement). This Plan documents existing behavior only and does not require adrrev001 to land first. | adrrev001 is still open in `issues/`. | Recorded as non-blocking; adrrev001's path is the Resolution Path. | False |
-| UNK-06 | Open dependency `issues/20261109-112739_adrrev006_eventbus-future-decision.md` (EventBus future-integration decision). This Plan documents the kept-EventBus contract and does not require adrrev006 to land first. | adrrev006 is still open in `issues/`. | Recorded as non-blocking; adrrev006's path is the Resolution Path. | False |
+| UNK-05 | Open dependency `issues/20261109-112504_adrrev001_eventbus-route-handlers.md` (EventBus route handlers, per-route authorization enforcement). This Plan documents existing behavior only and does not require adrrev001 to land first. | Dependency landed: the issue is archived at `issues/done/20261109-112504_adrrev001_eventbus-route-handlers.md` (confirmed 2026-11-11). | Recorded as non-blocking; resolved. | False |
+| UNK-06 | Open dependency `issues/20261109-112739_adrrev006_eventbus-future-decision.md` (EventBus future-integration decision). This Plan documents the kept-EventBus contract and does not require adrrev006 to land first. | Dependency landed: the issue is archived at `issues/done/20261109-112739_adrrev006_eventbus-future-decision.md` (confirmed 2026-11-11). | Recorded as non-blocking; resolved. | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor` columns. The `File` column here MUST be a subset of `Implementation Target Files`' rows — this table analyzes change-impact risk for those same files; it is not a separate scope-of-record.
@@ -150,12 +150,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the Verification table (REQ-001) | Pending | — | — | |
-| 2 | Reconcile the Empty/no-op contract (REQ-002) | Pending | — | — | |
-| 3 | Repair the broken `load_config()` sentence (REQ-003) | Pending | — | — | |
-| 4 | Standardize the threat model (REQ-004) | Pending | — | — | |
-| 5 | Remove the identity-store sentence (REQ-005) | Pending | — | — | |
-| 6 | Deployment & Verification | Pending | — | — | |
+| 1 | Correct the Verification table (REQ-001) | In Progress | — | — |  |
+| 2 | Reconcile the Empty/no-op contract (REQ-002) | In Progress | — | — |  |
+| 3 | Repair the broken `load_config()` sentence (REQ-003) | In Progress | — | — |  |
+| 4 | Standardize the threat model (REQ-004) | In Progress | — | — |  |
+| 5 | Remove the identity-store sentence (REQ-005) | In Progress | — | — |  |
+| 6 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -165,7 +165,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261111-212354_01_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md` | 1, 2, 3, 4, 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -186,3 +186,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Adversarial Verification: broken `load_config()` sentence (Decision Detail #6 line 83) | `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Step 3 | AC 3 | `check_docs_quality.py` | Confirmed by repository evidence |
 | REQ-004 | Adversarial Verification: threat-model alternation (lines 152, 157-158) | `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Step 4 | AC 4 | `check_docs_quality.py` | Confirmed by repository evidence |
 | REQ-005 | Adversarial Verification: "proper identity store" sentence (line 187) | `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Step 5 | AC 5 | `check_docs_quality.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261111-212354 -->
