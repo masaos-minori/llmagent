@@ -59,8 +59,8 @@ Changing `state_store.py` itself (its row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the legacy age-rule cases | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the legacy age-rule cases | Completed | — | 20261111-144626 | already satisfied by row-11 pull-in (commit a55a62c95): legacy age-rule cases deleted; remaining mentions are removal-explaining comments only |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-144626 | 49 passed for test_workflow_state_store.py + test_stale_recovery_lease.py; full suite 12097 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
