@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -22,132 +23,55 @@ import pytest
 from db.config import DbConfig
 from db.models import RagConsistencyReport
 from db.recovery_drill import DOMAINS, run_drill
-from db.schema_sql import build_rag_schema_sql, build_session_schema_sql
+from db.schema_sql import (
+    build_rag_schema_sql,
+    build_session_schema_sql,
+    build_workflow_schema_sql,
+)
 
-# Per-domain fixtures. session/workflow ship vec0/fts5 virtual tables that require
-# the external sqlite-vec extension; the drill's identity+integrity checks for them
-# cover only the core tables, but rag/session additionally run the fail-closed
-# logical layer (`check_rag_consistency` / `check_session_consistency`), whose
-# read-smoke-test requires the full table set. When the sqlite-vec extension loads,
-# the production DDL SSOT (`build_rag_schema_sql` / `build_session_schema_sql`) is
-# used verbatim so the fixture is structurally identical to production. When it does
-# not load (this CI env), the rag fixture falls back to the plain RAG core schema
-# (chunks, a plain `chunks_vec` carrying a valid 1024-dim embedding BLOB, fts5 +
-# triggers, matching tests/db/test_rag_consistency.py) and the session fixture falls
-# back to a plain 7-table copy of the session schema with `memories_vec` as a regular
-# table instead of a vec0 virtual table. Both fallbacks still satisfy the logical
-# checks, so the healthy sweep stays green without the extension.
-_RAG_DDL = """CREATE TABLE documents (
-    doc_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-    url       TEXT NOT NULL UNIQUE,
-    title     TEXT,
-    lang      TEXT,
-    fetched_at TEXT,
-    etag      TEXT,
-    last_modified TEXT,
-    chunking_strategy TEXT
-);
-CREATE TABLE chunks (
-    chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    doc_id             INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
-    content            TEXT NOT NULL,
-    normalized_content TEXT,
-    chunk_index        INTEGER,
-    chunk_type         TEXT
-);
-CREATE TABLE chunks_vec (
-    chunk_id INTEGER PRIMARY KEY,
-    embedding BLOB
-);
-CREATE VIRTUAL TABLE chunks_fts USING fts5(
-    content,
-    content       = 'chunks',
-    content_rowid = 'chunk_id',
-    tokenize      = 'unicode61'
-);
-CREATE TRIGGER chunks_ai
-AFTER INSERT ON chunks BEGIN
-    INSERT INTO chunks_fts (rowid, content)
-    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
-END;
-CREATE TRIGGER chunks_ad
-AFTER DELETE ON chunks BEGIN
-    INSERT INTO chunks_fts (chunks_fts, rowid, content)
-    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
-END;
-CREATE TRIGGER chunks_au
-AFTER UPDATE ON chunks BEGIN
-    INSERT INTO chunks_fts (chunks_fts, rowid, content)
-    VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
-    INSERT INTO chunks_fts (rowid, content)
-    VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
-END"""
-
-# Plain-table fallback for session when vec0 is unavailable. Mirrors
-# build_session_schema_sql() exactly, except `memories_vec` is a regular table
-# (a vec0 virtual table cannot be created without the extension). The logical
-# check reads all seven tables, so this keeps the read-smoke-test green.
-_SESSION_FALLBACK_DDL = """CREATE TABLE sessions (
-    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at TEXT NOT NULL,
-    title TEXT,
-    undo_floor_message_id INTEGER NOT NULL DEFAULT 0
-);
-CREATE TABLE messages (
-    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
-    role TEXT NOT NULL,
-    content TEXT NOT NULL,
-    tool_calls TEXT,
-    tool_call_id TEXT,
-    created_at TEXT NOT NULL
-);
-CREATE TABLE memories (
-    memory_id TEXT PRIMARY KEY,
-    memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
-    source_type TEXT NOT NULL DEFAULT 'conversation',
-    session_id INTEGER,
-    turn_id TEXT,
-    project TEXT NOT NULL DEFAULT '',
-    repo TEXT NOT NULL DEFAULT '',
-    branch TEXT NOT NULL DEFAULT '',
-    content TEXT NOT NULL,
-    summary TEXT NOT NULL DEFAULT '',
-    tags TEXT NOT NULL DEFAULT '[]',
-    importance REAL NOT NULL DEFAULT 0.5,
-    pinned INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-CREATE VIRTUAL TABLE memories_fts USING fts5(
-    memory_id UNINDEXED,
-    content,
-    summary,
-    tags
-);
-CREATE TABLE memory_links (
-    src_id TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
-    dst_id TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
-    PRIMARY KEY (src_id, dst_id)
-);
-CREATE TABLE session_diagnostics (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
-    kind TEXT NOT NULL,
-    content TEXT NOT NULL,
-    workflow_id TEXT,
-    task_id TEXT,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-CREATE INDEX idx_session_diagnostics_session ON session_diagnostics(session_id);
-CREATE TABLE memories_vec (
-    memory_id TEXT PRIMARY KEY,
-    embedding BLOB
-)"""
-
-#: Concrete embedding dimension for fixtures. Must match get_embedding_dims()
+# Per-domain fixtures. rag/session/workflow canonical DDL ships vec0 virtual
+# tables that require the external sqlite-vec extension. The drill's fingerprint
+# gate (REQ-003/REQ-004) compares virtual tables by name only (UNK-01), so when
+# the extension is unavailable the fixtures derive from the production DDL SSOT
+# (`build_rag_schema_sql` / `build_session_schema_sql` / `build_workflow_schema_sql`)
+# with each vec0 statement replaced by a plain-table stand-in of the same name:
+# the shape gate and the fail-closed logical layer both see a structurally
+# canonical copy, and the healthy sweep stays green without the extension. When
+# the extension loads, the canonical DDL is used verbatim.
+""  #: Concrete embedding dimension for fixtures. Must match get_embedding_dims()
 #: (Qwen3, 1024) so the rag dimension probe passes on a populated fixture.
 EMBED_DIMS = 1024
+
+_VEC0_PLAIN_SUBSTITUTES: dict[str, str] = {
+    "chunks_vec": "CREATE TABLE chunks_vec (chunk_id INTEGER PRIMARY KEY, embedding BLOB)",
+    "memories_vec": (
+        "CREATE TABLE memories_vec (memory_id TEXT PRIMARY KEY, embedding BLOB)"
+    ),
+}
+
+_VEC0_STMT_RE = re.compile(
+    r"CREATE VIRTUAL TABLE IF NOT EXISTS (\w+) USING vec0\(.*?\n    \)",
+    re.DOTALL,
+)
+
+
+def _fallback_from_canonical(ddl: str) -> str:
+    """Canonical DDL with each vec0 virtual table replaced by a plain-table
+    stand-in. The fingerprint compares virtual tables by name only (UNK-01), so
+    the stand-ins satisfy the shape gate without the sqlite-vec extension."""
+
+    def sub(m: re.Match[str]) -> str:
+        name = m.group(1)
+        if name not in _VEC0_PLAIN_SUBSTITUTES:
+            raise AssertionError(f"no plain stand-in defined for vec0 table {name!r}")
+        return _VEC0_PLAIN_SUBSTITUTES[name]
+
+    return _VEC0_STMT_RE.sub(sub, ddl)
+
+
+_RAG_DDL = _fallback_from_canonical(build_rag_schema_sql(EMBED_DIMS))
+
+_SESSION_FALLBACK_DDL = _fallback_from_canonical(build_session_schema_sql(EMBED_DIMS))
 
 
 def _has_vec_extension() -> bool:
@@ -174,6 +98,14 @@ def _build_rag(path: Path, *, prod: bool = False) -> None:
             conn.executescript(build_rag_schema_sql(EMBED_DIMS))
         else:
             conn.executescript(_RAG_DDL)
+        # The canonical rag schema carries the single-row rag_corpus_meta table;
+        # a healthy fixture verifies it (present-but-empty is the fatal class).
+        conn.execute(
+            "INSERT INTO rag_corpus_meta (rowid, corpus_id, index_generation, "
+            "embedding_model_id, normalization_version, chunking_policy_version, "
+            "updated_at) VALUES (1, 'fixture-corpus', 1, 'fixture-model', "
+            "'v1', 'v1', '2026-01-01T00:00:00Z')"
+        )
         conn.commit()
     finally:
         conn.close()
@@ -191,17 +123,12 @@ def _build_session(path: Path, *, prod: bool = False) -> None:
         conn.close()
 
 
-_WORKFLOW_TABLES_DDL = """CREATE TABLE tasks (
-    task_id TEXT PRIMARY KEY,
-    workflow_id TEXT,
-    workflow_version TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    task_nonce TEXT UNIQUE NOT NULL,
-    created_at TEXT NOT NULL
-)"""
+# Canonical workflow DDL (the fingerprint gate compares the restored
+# copy against exactly this text).
+_WORKFLOW_TABLES_DDL = build_workflow_schema_sql()
 
-# Legacy migration marker tables (compatrm001): seeded only in marker-fixture
-# cases; the current schema creates neither.
+# Extra legacy tables (fingerprint-drift fixtures): seeded only in drift-fixture
+# cases; the current schema creates neither, so they fail the shape gate.
 _SCHEMA_MIGRATIONS_MARKER_DDL = """CREATE TABLE schema_migrations (
     id TEXT PRIMARY KEY,
     applied_at TEXT,
@@ -383,18 +310,18 @@ def test_verify_per_domain_reports_expected_verdicts(
         "integrity": True,
         "required_table_rag": True,
         "rag_consistency": True,
-        "no_legacy_markers": True,
+        "schema_matches": True,
     }
     assert artifacts["session"]["verification"] == {
         "integrity": True,
         "required_table_session": True,
         "session_consistent": True,
-        "no_legacy_markers": True,
+        "schema_matches": True,
     }
     assert artifacts["workflow"]["verification"] == {
         "integrity": True,
         "tasks_table": True,
-        "no_legacy_markers": True,
+        "schema_matches": True,
     }
     assert "eventbus" not in artifacts
 
@@ -460,9 +387,13 @@ def test_rag_broken_fts_fixture_fails_drill(
     paths = _domain_dbs
     conn = _connect(paths["rag"])
     try:
-        conn.execute("INSERT INTO documents (url) VALUES ('https://example.com/1')")
+        conn.execute(
+            "INSERT INTO documents (url, lang, fetched_at) "
+            "VALUES ('https://example.com/1', 'ja', '2026-01-01T00:00:00Z')"
+        )
         cur = conn.execute(
-            "INSERT INTO chunks (doc_id, content) VALUES (1, 'broken fts row')"
+            "INSERT INTO chunks (doc_id, chunk_index, content) "
+            "VALUES (1, 0, 'broken fts row')"
         )
         chunk_id = cur.lastrowid
         conn.execute(
@@ -507,11 +438,12 @@ def _seed_healthy_rag(path: Path) -> int:
     conn = _connect(path)
     try:
         doc = conn.execute(
-            "INSERT INTO documents (url, fetched_at) "
-            "VALUES ('https://example.com/a', '2026-01-01T00:00:00Z')"
+            "INSERT INTO documents (url, lang, fetched_at) "
+            "VALUES ('https://example.com/a', 'ja', '2026-01-01T00:00:00Z')"
         ).lastrowid
         cur = conn.execute(
-            "INSERT INTO chunks (doc_id, content, normalized_content) VALUES (?, ?, ?)",
+            "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content) "
+            "VALUES (?, 0, ?, ?)",
             (doc, "sample rag content", "sample rag content"),
         )
         chunk_id = cur.lastrowid
@@ -632,10 +564,11 @@ def test_session_orphaned_memory_link_fails_drill_with_integrity_ok(
 # ── Audited failure ──────────────────────────────────────────────────────────
 
 
-def test_legacy_marker_is_an_audited_finding(tmp_path: Path) -> None:
-    # A domain database carrying a legacy migration marker table is a drill
-    # finding (compatrm001): the drill fails, yet still writes an artifact for
-    # every domain and leaves the live DB untouched.
+def test_extra_legacy_table_is_a_fingerprint_finding(tmp_path: Path) -> None:
+    # A domain database carrying an extra legacy marker table fails the restored
+    # copy's fingerprint against the canonical schema (REQ-003/REQ-004): the
+    # drill fails with the archive-and-recreate refusal, yet still writes an
+    # artifact for every domain and leaves the live DB untouched.
     paths = {domain: tmp_path / f"{domain}.sqlite" for domain in DOMAINS}
     _build_rag(paths["rag"])
     _build_session(paths["session"])
@@ -649,10 +582,12 @@ def test_legacy_marker_is_an_audited_finding(tmp_path: Path) -> None:
     assert ok is False
     artifacts = {art["domain"]: art for art in _load_artifacts(drill)}
     assert set(artifacts) == set(DOMAINS)  # every artifact still written
-    assert artifacts["workflow"]["verification"].get("no_legacy_markers") is False
-    assert "schema_migrations" in (artifacts["workflow"]["error"] or "")
+    assert artifacts["workflow"]["verification"].get("schema_matches") is False
+    assert "unexpected table 'schema_migrations'" in (
+        artifacts["workflow"]["error"] or ""
+    )
     assert all(
-        art["verification"].get("no_legacy_markers") is True
+        art["verification"].get("schema_matches") is True
         for domain, art in artifacts.items()
         if domain != "workflow"
     )
@@ -706,4 +641,5 @@ def test_cli_exits_nonzero_on_failure(tmp_path: Path) -> None:
     )
     assert result.returncode == 1, result.stderr
     artifacts = _load_artifacts(drill)
-    assert artifacts and artifacts[0]["verification"].get("no_legacy_markers") is False
+    assert artifacts and artifacts[0]["verification"].get("schema_matches") is False
+    assert "workflow_schema_version" in (artifacts[0]["error"] or "")

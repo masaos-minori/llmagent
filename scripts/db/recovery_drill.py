@@ -27,18 +27,26 @@ import time
 from pathlib import Path
 from typing import Any
 
+from shared.schema_fingerprint import assert_matches
+
 from db.config import build_db_config, format_timestamp
 from db.helper import SQLiteHelper
 from db.rag_consistency import check_rag_consistency
 from db.rag_consistency import is_consistent as rag_is_consistent
 from db.recovery import DbCondition, run_integrity_check, verify_domain_identity
 from db.rotation import _archive_db_file, _resolve_archive_dir
+from db.schema_sql import (
+    build_rag_schema_sql,
+    build_session_schema_sql,
+    build_workflow_schema_sql,
+)
 from db.session_consistency import (
     check_session_consistency,
 )
 from db.session_consistency import (
     is_consistent as session_is_consistent,
 )
+from db.store_protocols import get_embedding_dims
 
 logger = logging.getLogger(__name__)
 
@@ -49,30 +57,33 @@ DOMAINS: tuple[str, ...] = ("rag", "session", "workflow")
 EXIT_OK = 0
 EXIT_DRILL_FAILED = 1
 
-#: Legacy migration bookkeeping tables (compatrm001). Their presence in any
-#: domain database is an audited drill finding: the drill reports the archived
-#: copy as legacy and the operator follows the archive-and-recreate procedure.
-LEGACY_MARKER_TABLES: tuple[str, ...] = ("schema_migrations", "workflow_schema_version")
 
-LEGACY_MARKER_FINDING_MESSAGE = (
-    "The database does not match the current schema. Automatic migration and "
-    "version stamping are not supported. Stop the service, archive the existing "
-    "database if required, remove or rename it, and create a new database using "
-    "the current schema."
-)
+def _canonical_ddl(domain: str) -> str:
+    """Canonical DDL text for a drill domain, from the shared accessor family."""
+    if domain == "workflow":
+        return build_workflow_schema_sql()
+    dims = get_embedding_dims()
+    if domain == "rag":
+        return build_rag_schema_sql(dims)
+    return build_session_schema_sql(dims)
 
 
-def _legacy_marker_tables(db_path: Path) -> list[str]:
-    """Return the legacy migration marker tables present in a database file."""
-    conn = sqlite3.connect(str(db_path))
+def _schema_drift_error(domain: str, isolated: Path) -> str | None:
+    """Fingerprint the restored copy against the canonical DDL (REQ-003/REQ-004).
+
+    Returns None when the copy matches the current schema, or the fingerprint
+    refusal text (which already carries the archive-and-recreate guidance) on
+    any shape difference. The copy is opened read-only: nothing is written.
+    """
+    conn = sqlite3.connect(f"file:{isolated}?mode=ro", uri=True)
     try:
-        rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
+        try:
+            assert_matches(conn, _canonical_ddl(domain), label=f"{domain}.sqlite")
+        except RuntimeError as exc:
+            return str(exc)
+        return None
     finally:
         conn.close()
-    names = {row[0] for row in rows}
-    return [marker for marker in LEGACY_MARKER_TABLES if marker in names]
 
 
 def _verify_rag_session(domain: str, isolated: Path, sqlite_vec_so: str = "") -> dict:
@@ -216,16 +227,15 @@ def _drill_one_domain(
     artifact["rpo_seconds"] = round(assumed_failure_ts - archive_ts_epoch, 6)
     artifact["verification"] = verification
 
-    # Legacy migration marker tables in the restored copy are themselves a
-    # finding (compatrm001): the archived source predates the current-schema-only
-    # policy and the operator must archive-and-recreate instead of relying on it.
-    markers = _legacy_marker_tables(isolated)
-    verification["no_legacy_markers"] = not markers
-    if markers:
-        artifact["error"] = (
-            f"Legacy migration marker table(s) present in restored copy: "
-            f"{', '.join(markers)}. {LEGACY_MARKER_FINDING_MESSAGE}"
-        )
+    # Shape gate on the restored copy (REQ-003/REQ-004): the archived copy must
+    # match the current canonical schema. Any drift — a legacy extra table, a
+    # missing table, a column or index difference — is one audited finding via
+    # the fingerprint refusal, and the operator follows the archive-and-recreate
+    # procedure. The live database is never touched.
+    drift_error = _schema_drift_error(domain, isolated)
+    verification["schema_matches"] = drift_error is None
+    if drift_error is not None:
+        artifact["error"] = drift_error
 
     artifact["integrity"] = bool(verification.get("integrity", False))
 
