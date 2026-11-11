@@ -676,7 +676,7 @@ class TestStartupMemoryFailures:
     """
 
     @pytest.mark.asyncio
-    async def test_excluded_tools_log_includes_failure_policy(self) -> None:
+    async def test_excluded_tools_log_lists_unavailable_server_keys(self) -> None:
         srv1_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9999",

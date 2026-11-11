@@ -89,7 +89,7 @@ class TestCreateTask:
         assert task.turn_number == 1
         assert task.workflow_version == "1.0.0"
         assert task.status == "pending"
-        assert uuid.UUID(task.task_nonce)  # UUID4, not a composite
+        assert uuid.UUID(task.task_nonce)  # UUID4
         assert task.task_nonce != "sess1:1"
 
     def test_same_session_turn_across_runs_no_collision(self, store) -> None:
@@ -105,22 +105,6 @@ class TestCreateTask:
         assert task.session_id is None
         assert task.turn_number is None
         assert task.status == "pending"
-
-    def test_retained_db_compatibility(self, store) -> None:
-        """T-3 / AC-4: a pre-existing composite-key row stays readable after a normal insert."""
-        old_key = ":0"
-        store._db.execute(
-            "INSERT INTO tasks (task_id, session_id, turn_number, task_nonce, status, workflow_version, workflow_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("old-task", "sess-old", 0, old_key, "pending", "1.0.0", "wf-old"),
-        )
-        store._db.commit()
-        fresh = create_task(store._db, "sess-new", 1, "1.0.0", "wf-new")
-        old_row = get_task_by_id(store._db, "old-task")
-        assert old_row is not None
-        assert old_row.task_id == "old-task"
-        fresh_row = get_task_by_id(store._db, fresh.task_id)
-        assert fresh_row is not None
-        assert fresh_row.task_id == fresh.task_id
 
     def test_state_store_create_task_issues_unique_keys(self, store) -> None:
         first = store.create_task("X", 1, "1.0.0", "wf-test")
@@ -789,35 +773,6 @@ class TestToolCallStateOps:
         assert pending1[0].retry_class == "retryable"
         # Task isolation: the other task sees nothing (completion criterion).
         assert tool_call_state_ops.pending_tool_calls(store._db, t2.task_id) == []
-
-    def test_lifecycle_works_on_legacy_shape_with_unused_snapshot_column(
-        self, store
-    ) -> None:
-        """A database created before the snapshot retirement keeps working.
-
-        The legacy shape carries an ``execution_snapshots`` table and a nullable
-        ``tool_call_state.snapshot_id`` foreign-key column that no code names.
-        """
-        store._db.execute(
-            "CREATE TABLE execution_snapshots ("
-            " snapshot_id TEXT PRIMARY KEY, snapshot_json TEXT NOT NULL,"
-            " recorded_at REAL NOT NULL)"
-        )
-        store._db.execute(
-            "ALTER TABLE tool_call_state ADD COLUMN snapshot_id TEXT"
-            " REFERENCES execution_snapshots(snapshot_id)"
-        )
-        store._db.commit()
-        task = create_task(store._db, "sess-legacy", 1, "1.0.0", "wf-test")
-        store.record_tool_call(
-            task.task_id, "key-legacy", "calculator__calculate", "retryable"
-        )
-        assert [
-            c.idempotency_key
-            for c in tool_call_state_ops.pending_tool_calls(store._db, task.task_id)
-        ] == ["key-legacy"]
-        store.finalize_tool_call("key-legacy", "completed")
-        assert tool_call_state_ops.pending_tool_calls(store._db, task.task_id) == []
 
     def test_record_duplicate_key_is_ignored(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")

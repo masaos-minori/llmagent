@@ -50,7 +50,6 @@ with design meaning are:
   (ADR-004 Group 4 "Undeterminable component mandatoriness"). A subprocess server that fails to spawn aborts
   startup regardless of `required`
   (see mcp_06_03), so `McpServerConfig` rejects `required = false` with `startup_mode = "subprocess"`.
-- `failure_policy`: reserved for runtime call-failure behavior. Only `fail-fast` exists and nothing branches on it.
 
 **About `tool_names`:** Not used for routing decisions. It is metadata for drift validation (see `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`), used by `validate_tool_names_match()` in `scripts/shared/tool_routing_validation.py`. An empty or omitted list skips validation.
 
