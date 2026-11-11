@@ -65,9 +65,9 @@ Changing the `dlq_outbox` schema or the publish-path validation.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Describe fingerprint-only validation without the version stamp | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Describe fingerprint-only validation without the version stamp | Completed | — | 20261111-150728 | fingerprint-only validation described, user_version stamp and gate removed |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-150728 | check_docs_consistency --domain eventbus passes |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-150728 | line 35 version-6 history note verified as schema history, kept |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
