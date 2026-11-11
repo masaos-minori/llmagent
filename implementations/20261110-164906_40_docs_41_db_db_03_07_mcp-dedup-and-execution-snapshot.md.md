@@ -64,9 +64,9 @@ Deleting the retired-table history or the execution-snapshot keywords.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | State that a legacy table makes startup fail | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | State that a legacy table makes startup fail | Completed | — | 20261111-145450 | line 80 now states a legacy execution_snapshots table fails startup under exact fingerprint matching and is archived and recreated; retired-table rationale kept |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-145451 | check_docs_consistency --domain db: No issues found; no 'harmless' claim remains in docs/41_db or docs/23_agent |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-145451 | documentation-only row; Keywords line 159 still lists execution_snapshots as historical |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
