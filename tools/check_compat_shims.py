@@ -127,10 +127,9 @@ COMPAT_PATTERNS = {
     # compatrm004 patterns — final no-compatibility removed-name set (plan
     # 20261107-064415). The marker-table names (schema_migrations,
     # workflow_schema_version, WORKFLOW_SCHEMA_VERSION) deliberately live in
-    # _REMOVED_NAME_PATTERNS instead of here: scripts/db/recovery_drill.py and
-    # scripts/agent/services/workflow_schema.py name the marker tables in
-    # LEGACY_MARKER_TABLES as live detectors, and COMPAT_PATTERNS has no
-    # historical-context exemption.
+    # _REMOVED_NAME_PATTERNS instead of here: adrrev005 deleted the
+    # LEGACY_MARKER_TABLES detectors (fingerprint matching is the only
+    # mechanism now) and COMPAT_PATTERNS has no historical-context exemption.
     "verify_backup_by_path reference": r"\bverify_backup_by_path\b",
     "shared.db_migrations reference": r"\bshared[./]db_migrations\b",
     "db.migrations_workflow reference": r"\bdb\.migrations_workflow\b|migrations_workflow\.py",
@@ -437,9 +436,10 @@ _REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
     ),
     # compatrm004 (plan 20261107-064415) — marker tables and migration-claim
     # phrases from the removed migration framework (deleted by plan
-    # 20261107-061846). Docs-only stage with the historical-context exemption,
-    # so supersession prose that names the retired machinery passes while
-    # present-tense migration claims do not.
+    # 20261107-061846; adrrev005 deleted the marker-table detectors).
+    # Docs-only stage with the historical-context exemption, so supersession
+    # prose that names the retired machinery passes while present-tense
+    # migration claims do not.
     "schema_migrations reference (confirmed removed — migration framework deleted, per "
     "plans/done/20261107-061846_plan.md compatrm001)": re.compile(
         r"\bschema_migrations\b"
