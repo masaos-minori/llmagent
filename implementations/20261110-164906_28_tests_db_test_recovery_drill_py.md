@@ -66,8 +66,8 @@ Changing the drill itself (`scripts/db/recovery_drill.py`, its row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the marker-table finding with the fingerprint finding | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace the marker-table finding with the fingerprint finding | Completed | — | 20261111-110545 | canonical-derived fixtures via _fallback_from_canonical; marker test renamed to fingerprint finding |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-110545 | 13 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
