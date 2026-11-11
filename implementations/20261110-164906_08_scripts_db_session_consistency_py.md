@@ -56,8 +56,8 @@ Changing session diagnostic/orphan logic.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-111429 | existence-only check replaced by assert_matches(label session.sqlite); drill/verification callers record RuntimeError fail-closed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-111429 | tests/db 363 pass; drill+recovery+init_db gate 94 pass; lint/mypy/imports clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
