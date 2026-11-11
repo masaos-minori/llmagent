@@ -166,6 +166,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | `implementations/20261111-212354_01_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md` | 1, 2, 3, 4, 5 | Procedure | Completed | — | — |
+| `issues/20261111-224650_docsize002_re-record-drifted-docs-size-ceilings.md` | 6 | Issue | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
