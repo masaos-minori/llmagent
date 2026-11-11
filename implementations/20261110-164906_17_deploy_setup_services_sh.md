@@ -54,8 +54,8 @@ Changing which services deploy.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-141604 | REQUIRED_WORKFLOW_TABLES name-loop replaced by a read-only uv-run fingerprint gate (assert_matches vs build_workflow_schema_sql); fail-closed abort kept |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-141605 | bash -n clean; sandbox integration test fixture now seeds from canonical DDL (build_workflow_schema_sql); tests/deploy 36 passed, full suite 12067 passed (uv run), pre-commit green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
