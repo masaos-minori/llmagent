@@ -106,7 +106,7 @@ Every server reports unmet prerequisites through `dependencies` (a non-empty val
 |---|---|
 | web-search-mcp | `details.provider`, `details.browser_provider`; `browser_fetch` state is reported separately from `search_web` |
 | github-mcp, cicd-mcp | `dependencies.github_token` when the token is missing |
-| mdq-mcp | `details` with document, chunk, and FTS row counts, last indexed time, and stale document count (stale detection via `documents.mtime_ns`); verifies the `documents`, `chunks`, `chunks_fts` tables and their sync triggers |
+| mdq-mcp | `details` with document, chunk, and FTS row counts, last indexed time, and stale document count (stale detection via `documents.mtime_ns`); `dependencies.db_schema` is reported when required tables or sync triggers are missing. `mdq.sqlite` is validated at startup against the current canonical schema by the shared fingerprint; a mismatch is refused |
 | shell-mcp | `dependencies.shell` when `sh` is not found; `details.sandbox_backend` (`firejail` or `none`) |
 | file-read/write/delete-mcp | `dependencies.filesystem` when the workspace root is not a directory |
 | rag-pipeline-mcp | `dependencies.embed_url` is `"not configured"` (embedding URL unset), `"unreachable"` (embedding URL configured but the reachability probe fails), or `dependencies.config` is `"check failed"` (failed config check) |
