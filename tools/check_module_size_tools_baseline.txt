@@ -11,4 +11,4 @@ generate_reference_table.py	42781
 generate_workitem.py	28930
 manage_frontmatter.py	31201
 manage_workitem_stage.py	39694
-stale_detector.py	40847
+stale_detector.py	41048

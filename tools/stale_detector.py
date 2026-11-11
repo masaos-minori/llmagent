@@ -157,7 +157,9 @@ _NON_SYMBOL_ALLOWLIST = frozenset(
 
 # Names that cannot appear in a .py file but are cited correctly (see
 # _is_non_python_name): dunder names, lint rule codes (RUF100), sibling-procedure
-# numbers (_01), and documentation chapter ids (agent_04).
+# numbers (_01), and documentation chapter ids (agent_04). The docs-file-name
+# prefix check accepts the {sym}_, {sym}., and {sym}- separators used by the
+# repo's "{chapter_id}-{description}.md" naming convention.
 _DUNDER_RE = re.compile(r"__\w+__")
 _RULE_CODE_RE = re.compile(r"[A-Z]{1,4}\d{2,4}")
 _SIBLING_NUMBER_RE = re.compile(r"_\d+")
@@ -340,7 +342,9 @@ def _is_non_python_name(
     if _CHAPTER_ID_RE.fullmatch(sym):
         if "docs" not in cache:
             cache["docs"] = _docs_file_names(source_dir)
-        if any(name.startswith((f"{sym}_", f"{sym}.")) for name in cache["docs"]):
+        if any(
+            name.startswith((f"{sym}_", f"{sym}.", f"{sym}-")) for name in cache["docs"]
+        ):
             return True
     if "config" not in cache:
         cache["config"] = _configuration_keys(source_dir)
