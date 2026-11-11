@@ -63,9 +63,9 @@ Changing the authorization baseline or DLQ semantics.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the stamp reference | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove the stamp reference | Completed | — | 20261111-150856 | no user_version stamp statements remain; fingerprint-only wording already in place via eventbus_06 cutover; no edit needed |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-150856 | check_docs_consistency --domain eventbus passes |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-150857 | line 98 baseline-hash mention confirmed unrelated and kept |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
