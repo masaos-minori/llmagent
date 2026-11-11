@@ -60,9 +60,9 @@ Changing the workflow/eventbus refusal behavior itself.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the user_version mention | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove the user_version mention | Completed | — | 20261111-145104 | line 32 parenthetical '(legacy migration marker tables present, or a mismatched EventBus PRAGMA user_version)' replaced with fingerprint shape-mismatch basis; refusal-and-archive-and-recreate consequence kept |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-145104 | check_docs_consistency --domain db: No issues found; no other mechanism claims remain in db_01 |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-145104 | documentation-only row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
