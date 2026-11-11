@@ -56,9 +56,9 @@ Changing the drill's artifact schema.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-110544 | marker scan removed; fingerprint gate via read-only conn |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-110544 | verification key schema_matches; artifact error = refusal text |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-110544 | tests/db/test_recovery_drill.py 13 tests pass; ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
