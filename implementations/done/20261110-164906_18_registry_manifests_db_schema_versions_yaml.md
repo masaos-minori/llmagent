@@ -55,7 +55,7 @@ Hand-editing the file.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-084108 | regenerated via --manifests; diff limited to eventbus version: unversioned + hash, plus eventbus_api.yaml summary line from row 49 docstring |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-102849 | 20261111-102849 | adrrev005 batch cutover: full suite 12056 passed, 9 skipped; diff-cover 100%; pre-commit all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

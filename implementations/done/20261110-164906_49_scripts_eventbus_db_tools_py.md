@@ -76,7 +76,7 @@ Deleting `eventbus_schema_fingerprint.py` (row 2) and the schema.py changes (row
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Swap the assert_matches import; drop the removed version helper | Completed | — | 20261111-083915 | Pre-execution evidence (20261111, read-only assert_matches): deployed /opt/llm/db/eventbus.sqlite carries an extra 'schema_migrations' table and will refuse startup with the new assert until the operator archives and recreates it (UNK-03). rag.sqlite and session.sqlite match; workflow.sqlite carries extra 'execution_snapshots'. import swapped to shared.schema_fingerprint; _expected_schema_version dropped; schema_version() derived from in-memory DDL apply (returns 0); ran early after rows 03/04 to restore importability |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-102849 | 20261111-102849 | adrrev005 batch cutover: full suite 12056 passed, 9 skipped; diff-cover 100%; pre-commit all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

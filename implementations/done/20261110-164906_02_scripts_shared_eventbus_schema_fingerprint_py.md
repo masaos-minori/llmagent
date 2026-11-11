@@ -68,7 +68,7 @@ Moving callers (covered by their rows / this Phase's release unit).
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261111-082800 | 20261111-082950 | git rm executed after residue grep confirmed only scheduled importers (rows 03, 21, 49, boundary allowlist row 33, init_db.sh comment row 16, egg-info build artifact). Allowed red state recorded: importers in those files break until their members land (batch mode). |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-102849 | 20261111-102849 | adrrev005 batch cutover: full suite 12056 passed, 9 skipped; diff-cover 100%; pre-commit all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

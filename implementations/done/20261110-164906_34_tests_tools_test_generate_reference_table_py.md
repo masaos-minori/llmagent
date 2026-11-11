@@ -68,7 +68,7 @@ Changing the generator itself (`tools/generate_reference_table.py`, its row).
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Drop the PRAGMA user_version fixture lines | Completed | — | 20261111-092006 | PRAGMA fixture lines dropped; drift driven by structural DDL change; 16 tests + --check pass |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-102849 | 20261111-102849 | adrrev005 batch cutover: full suite 12056 passed, 9 skipped; diff-cover 100%; pre-commit all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -72,7 +72,7 @@ Re-implementing the gate itself (`deploy/init_db.sh`, row 16).
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Update the test to follow the generalized gate | Completed | — | 20261111-090541 | rewritten for delegation contract: init_db ignores eventbus, db_tools verify accepts/refuses; 3 tests pass |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261111-102849 | 20261111-102849 | adrrev005 batch cutover: full suite 12056 passed, 9 skipped; diff-cover 100%; pre-commit all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
