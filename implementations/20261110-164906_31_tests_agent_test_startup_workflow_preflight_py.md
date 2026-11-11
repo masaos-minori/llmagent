@@ -64,8 +64,8 @@ Changing `check_workflow_schema` itself (its row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Follow the check_workflow_schema change | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Follow the check_workflow_schema change | Completed | — | 20261111-144723 | already satisfied by row-10 pull-in: patches target agent.startup_component_init.check_workflow_schema (signature unchanged); schema cases mock SchemaCheckResult(valid/error) matching the fingerprint-backed return contract; docstring left as-is (still accurate, update was optional) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-144723 | tests/agent/test_startup_workflow_preflight.py passed; full suite 12097 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
