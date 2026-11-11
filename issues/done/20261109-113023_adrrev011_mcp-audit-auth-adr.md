@@ -13,6 +13,16 @@ Make every WRITE_DANGEROUS MCP tool leave a server-side audit record (starting w
 - `Explicit in documentation`: ADR-007 still lists "detailed implementation of security authentication (handled by a separate ADR)" as out of scope, and no such ADR exists under `docs/10_adr/`.
 - The `accept_all_for_tests` bypass is handled by the non-strict removal issue in this batch.
 - Related archived: `audit001_move-security-validation-to-each-mcp-server`, `mcp007_register-bearer-auth-in-shell-github-file-mcp-servers`, `mcp006_remove-the-loopback-health-admission-from-the-shared-auth-middleware` under `issues/done/`. Re-verify this issue against current source.
+- Verification result (2026-11-11, adversarial check against current source):
+  - `Confirmed by repository evidence`: `config/agent.toml` `[tool_safety_tiers]` classifies 14 tools as WRITE_DANGEROUS: `delete_file` and `delete_directory` (file-delete-mcp), `github_push_files`, `github_create_or_update_file`, `github_delete_file`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request` (github-mcp), `rag_delete_document` (rag-pipeline-mcp), `trigger_workflow` (cicd-mcp), `git_checkout`, `git_pull`, `git_push` (git-mcp). A tool absent from the table also defaults to WRITE_DANGEROUS (`scripts/shared/runtime_tool.py`). The classification question is therefore resolved.
+  - `Confirmed by repository evidence`: only `rag_delete_document` lacks a server-side audit record. file-delete-mcp, github-mcp, cicd-mcp, and git-mcp each call `_audit_log()` from their `call_tool` handler; `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` `call_tool` calls no audit helper (it discards `session_id` and `request_id`).
+  - `Confirmed by repository evidence`: the dependency on the non-strict removal is satisfied (`cad5e91ea`; `accept_all_for_tests` no longer appears under `scripts/`, `config/`, `tests/`, or `docs/`).
+  - `Confirmed by repository evidence`: two sentences still contradict the all-servers rule: `docs/22_mcp/mcp_06_14_mcp-authentication-setup.md` troubleshooting "Missing secrets via environment variables" (Symptom "The server starts, but health checks fail"), and `docs/22_mcp/mcp_02_02_startup-modes-and-health.md` Bearer Authentication last bullet ("Empty server-side token (a standalone test run only): `attach_auth_middleware()` skips the authentication check"), whereas `attach_auth_middleware()` is fail-closed for an empty token (every request gets 401) and `require_auth_token()` aborts startup.
+  - `Confirmed by repository evidence`: `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md` line 46 also says rag-pipeline-mcp has "no shared or dedicated audit log" and is missing from the issue's target list.
+  - `Confirmed by repository evidence`: `governance_03` currently holds no Canonical Source Conflict entry, so there is nothing to close there; the ledger work belongs to the ledger issue.
+  - `Confirmed by repository evidence`: the audit record (`AuditRecord` in `scripts/mcp_servers/audit.py`) has no `principal` field; the Bearer token is one shared secret per server, so the caller is identified only by `session_id` and `request_id`. "Principal" in Required Changes cannot be met without a format change that Constraints forbid.
+  - `scripts/mcp_servers/audit.py`, `scripts/mcp_servers/dispatch.py`, and `scripts/mcp_servers/rag_pipeline/rag_pipeline_tools.py` need no change (the helper is reused; dispatch already returns `DispatchResult.outcome`); they are reference files.
+  - The next free ADR number is 017 (`docs/10_adr/adr_00_document-guide.md` records ADR-011 as deliberately unassigned).
 
 ## Problem
 - A destructive RAG operation leaves a record only on the Agent side. If the Agent log is lost, or a caller other than the Agent reaches the server, a deletion leaves no trace and an incident cannot be reconstructed.
@@ -68,9 +78,10 @@ Make every WRITE_DANGEROUS MCP tool leave a server-side audit record (starting w
 - Related, recently archived: `audit001`, `mcp007`, and `mcp006_remove-the-loopback-health-admission-from-the-shared-auth-middleware` under `issues/done/`.
 
 ## Unresolved Questions
-- `Needs confirmation`: the complete list of WRITE_DANGEROUS tools and which lack server-side audit.
-- `Needs confirmation`: whether any remaining sentence in `mcp_06_14` or `mcp_02_02` still contradicts the all-servers rule.
-- Maintainer approval is required for the new ADR.
+- Resolved by verification: the WRITE_DANGEROUS list and the audit gap (only `rag_delete_document`); the remaining contradictory sentences (`mcp_06_14` troubleshooting, `mcp_02_02` last Bearer bullet).
+- `Needs confirmation` (maintainer): whether the audit record must carry a principal. Until decided, the plan uses the existing fields only (`session_id`, `request_id`, `tool`, `target`, `outcome`, `server_key`, `error_type`).
+- `Needs confirmation` (maintainer): the authority split for the new ADR (a new decision target for MCP authentication, and the narrowed ADR-007 supplemental limit under `mcp.technical-safety`).
+- Maintainer approval is required for the new ADR and for the ADR-007 decision change.
 
 ## AI Implementation Instruction
 - Start by listing WRITE_DANGEROUS tools and their audit status from code; do not rely on the memo's list.
