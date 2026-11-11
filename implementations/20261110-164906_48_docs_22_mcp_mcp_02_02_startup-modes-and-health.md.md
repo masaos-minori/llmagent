@@ -59,9 +59,9 @@ Changing the mdq auth token or health-response semantics.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Align the mdq startup validation statement | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Align the mdq startup validation statement | Completed | — | 20261111-151259 | mdq row now states fingerprint startup validation; health dependency-report wording kept because the code health diagnostic remains existence-based |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-151259 | check_docs_consistency --domain mcp passes |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261111-151300 | health-response semantics and stale/row-count fields unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
