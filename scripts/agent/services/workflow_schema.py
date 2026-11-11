@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from shared.logger import Logger
+from shared.schema_fingerprint import assert_matches
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -40,43 +41,6 @@ def check_workflow_definition(workflows_dir: Path | None = None) -> None:
             f"Workflow definition invalid: {workflow_file}: {exc}"
         ) from exc
 
-
-# ── Workflow schema constants ─────────────────────────────────────────────────
-
-REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
-    "tasks": ["task_id", "session_id", "workflow_id", "status", "created_at"],
-    "attempts": [
-        "attempt_id",
-        "task_id",
-        "stage_id",
-        "status",
-        "owner_id",
-        "lease_expires_at",
-    ],
-    "processed_events": ["event_id", "task_id"],
-    "artifacts": ["artifact_id", "task_id"],
-    "tool_call_state": [
-        "idempotency_key",
-        "task_id",
-        "tool",
-        "state",
-        "retry_class",
-        "created_at",
-        "updated_at",
-    ],
-}
-
-# Legacy migration bookkeeping tables. Their presence in a database means it
-# was created or carried by the removed migration tooling; the current-schema
-# gate refuses such databases read-only (compatrm001).
-LEGACY_MARKER_TABLES: tuple[str, ...] = ("schema_migrations", "workflow_schema_version")
-
-LEGACY_MARKER_REFUSAL_MESSAGE = (
-    "The database does not match the current schema. Automatic migration and "
-    "version stamping are not supported. Stop the service, archive the existing "
-    "database if required, remove or rename it, and create a new database using "
-    "the current schema."
-)
 
 # ── SchemaCheckResult ─────────────────────────────────────────────────────────
 
@@ -112,37 +76,20 @@ def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
         return SchemaCheckResult(valid=False, error=f"Failed to open workflow DB: {e}")
 
     try:
-        tables = {
-            row[0]
-            for row in db.fetchall(
-                "SELECT name FROM sqlite_master WHERE type='table'", ()
-            )
-        }
-        markers = sorted(marker for marker in LEGACY_MARKER_TABLES if marker in tables)
-        if markers:
-            return SchemaCheckResult(
-                valid=False,
-                error=(
-                    f"Legacy migration marker table(s) present: {', '.join(markers)}. "
-                    + LEGACY_MARKER_REFUSAL_MESSAGE
-                ),
-            )
-        for table, required_cols in REQUIRED_WORKFLOW_TABLES.items():
-            if table not in tables:
-                return SchemaCheckResult(
-                    valid=False,
-                    error=f"Workflow schema missing table {table!r}. Run create_workflow_schema() to initialize.",
-                )
-            existing = {
-                row[1] for row in db.fetchall(f"PRAGMA table_info({table})", ())
-            }
-            for col in required_cols:
-                if col not in existing:
-                    return SchemaCheckResult(
-                        valid=False,
-                        error=f"Workflow schema missing column {table}.{col}. Reinitialize the workflow database.",
-                    )
+        from db.schema_sql import build_workflow_schema_sql
 
+        # adrrev005 REQ-003/REQ-004: full-shape fingerprint gate. Legacy marker
+        # tables (schema_migrations, workflow_schema_version) and any other
+        # deviation are refused here as unexpected/unexpectedly-shaped tables,
+        # with the shared archive-and-recreate refusal text.
+        conn = db.conn
+        if conn is None:
+            return SchemaCheckResult(
+                valid=False, error="Failed to open workflow DB: connection is not open"
+            )
+        assert_matches(conn, build_workflow_schema_sql(), label="workflow.sqlite")
         return SchemaCheckResult(valid=True)
+    except RuntimeError as e:  # canonical fingerprint mismatch: refusal, not a raise
+        return SchemaCheckResult(valid=False, error=str(e))
     finally:
         db.close()

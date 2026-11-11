@@ -1,14 +1,15 @@
-"""Pin the deploy workflow schema gate to the canonical DDL fingerprint (wfaudit003,
+"""Pin the workflow schema gates to the canonical DDL fingerprint (wfaudit003,
 adrrev005 REQ-003).
 
 Historically deploy scripts mirrored REQUIRED_WORKFLOW_TABLES as hardcoded shell
 lists and this test parsed those constants. The shell table-name lists were
 subsumed by the shared fingerprint gate (deploy/init_db.sh now compares
 workflow.sqlite against build_workflow_schema_sql() via shared.schema_fingerprint),
-so parity is expressed directly against the canonical DDL: the canonical shape
-applies and matches cleanly, and every shape mutation — extra table, drifted
-column, missing table — is refused. The agent-side runtime name gate
-(agent.services.workflow_schema.REQUIRED_WORKFLOW_TABLES) keeps its five-table shape.
+and the agent-side runtime gate (agent.services.workflow_schema.check_workflow_schema)
+now runs the same fingerprint check, so REQUIRED_WORKFLOW_TABLES is gone: parity is
+expressed directly against the canonical DDL. The canonical shape applies and
+matches cleanly, and every shape mutation — extra table, drifted column, missing
+table — is refused.
 """
 
 from __future__ import annotations
@@ -16,7 +17,6 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
-from agent.services.workflow_schema import REQUIRED_WORKFLOW_TABLES
 from db.schema_sql import build_workflow_schema_sql
 from shared import schema_fingerprint
 
@@ -74,12 +74,14 @@ class TestWorkflowGateParityViaFingerprint:
 
 
 class TestPythonGateShape:
-    def test_python_gate_has_five_tables(self) -> None:
-        # Post-wfaudit010 five-table shape; execution_snapshots must not return.
-        assert set(REQUIRED_WORKFLOW_TABLES) == {
-            "tasks",
-            "attempts",
-            "processed_events",
-            "artifacts",
-            "tool_call_state",
-        }
+    def test_python_gate_constants_are_gone(self) -> None:
+        # adrrev005 row 10: the name-set gate and its constants were replaced by
+        # the fingerprint check; they must not return.
+        import agent.services.workflow_schema as ws
+
+        for name in (
+            "REQUIRED_WORKFLOW_TABLES",
+            "LEGACY_MARKER_TABLES",
+            "LEGACY_MARKER_REFUSAL_MESSAGE",
+        ):
+            assert not hasattr(ws, name), name

@@ -536,30 +536,16 @@ def _create_workflow_db(
     # Production DBs run in WAL; seed it here so the read-only gate's
     # journal_mode pragma is a no-op and the file hash stays stable.
     conn.execute("PRAGMA journal_mode=WAL")
-    schemas = {
-        "tasks": (
-            "CREATE TABLE tasks (task_id TEXT, session_id TEXT, workflow_id TEXT, status TEXT, created_at TEXT)"
-        ),
-        "attempts": (
-            "CREATE TABLE attempts (attempt_id TEXT, task_id TEXT, stage_id TEXT, "
-            "status TEXT, owner_id TEXT, lease_expires_at TEXT)"
-        ),
-        "processed_events": (
-            "CREATE TABLE processed_events (event_id TEXT, task_id TEXT)"
-        ),
-        "artifacts": "CREATE TABLE artifacts (artifact_id TEXT, task_id TEXT)",
-        "tool_call_state": (
-            "CREATE TABLE tool_call_state (idempotency_key TEXT, task_id TEXT, tool TEXT, "
-            "state TEXT, retry_class TEXT, created_at TEXT, updated_at TEXT)"
-        ),
-    }
-    for table, ddl in schemas.items():
-        if table == exclude_table:
-            continue
-        if missing_column and missing_column[0] == table:
-            col = missing_column[1]
-            ddl = ddl.replace(f", {col} TEXT", "").replace(f"{col} TEXT, ", "")
-        conn.execute(ddl)
+    # adrrev005: build the canonical workflow DDL and mutate one shape element
+    # per negative case; the fingerprint gate is a full-shape comparison.
+    conn.executescript(build_workflow_schema_sql())
+    if exclude_table is not None:
+        conn.execute(f"DROP TABLE {exclude_table}")  # nosec B608 — static fixture table name
+    if missing_column is not None:
+        table, col = missing_column
+        conn.execute(  # nosec B608 — static fixture column name
+            f"ALTER TABLE {table} DROP COLUMN {col}"
+        )
     if marker == "schema_migrations":
         conn.execute(
             "CREATE TABLE schema_migrations (version TEXT NOT NULL, applied_at TEXT NOT NULL)"
@@ -617,7 +603,8 @@ class TestCheckWorkflowSchema:
         db_path = _create_workflow_db(tmp_path, missing_column=("attempts", "owner_id"))
         result = check_workflow_schema(db_path=db_path)
         assert result.valid is False
-        assert result.error is not None and "attempts.owner_id" in result.error
+        assert result.error is not None and "attempts" in result.error
+        assert "owner_id" in result.error
 
     def test_missing_tool_call_state_table_fails(self, tmp_path: Any) -> None:
         # wfaudit003: a workflow DB lacking tool_call_state is refused at startup.
@@ -633,7 +620,9 @@ class TestCheckWorkflowSchema:
         result = check_workflow_schema(db_path=db_path)
         assert result.valid is False
         assert (
-            result.error is not None and "tool_call_state.retry_class" in result.error
+            result.error is not None
+            and "tool_call_state" in result.error
+            and "retry_class" in result.error
         )
 
     def test_fresh_schema_created_database_passes(self, tmp_path: Any) -> None:
