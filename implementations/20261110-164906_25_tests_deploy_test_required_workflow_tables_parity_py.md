@@ -50,9 +50,9 @@ Other deploy tests.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-093338 | pulled into cutover batch; shell-list parity replaced by fingerprint apply/mutate tests; 5 tests pass |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-093339 | covered by batch validation gates (full suite) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | batch validation gates run at unit end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

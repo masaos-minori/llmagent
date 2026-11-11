@@ -57,9 +57,9 @@ Deleting `eventbus_schema_fingerprint.py` (its row) and the `schema.sql` stamp (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-083915 | _init_schema is fingerprint-only (assert_matches with label eventbus.sqlite); _VERSION_RE/_expected_schema_version deleted |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-084928 | test file rewrite owned and executed by member 23 (same target file); fingerprint cases verified passing |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

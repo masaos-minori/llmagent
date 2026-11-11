@@ -21,7 +21,7 @@ from eventbus.config import (
 )
 from eventbus.db_conn import open_db
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
-from eventbus.db_tools import schema_version as eventbus_schema_version
+from shared.schema_fingerprint import assert_matches
 
 
 def test_is_public_host_0000() -> None:
@@ -257,77 +257,73 @@ def test_main_failing_lifespan_exits_without_attributeerror(tmp_path: Path) -> N
             proc.wait(timeout=5.0)
 
 
-# ── Startup schema shape gate (a matching version stamp alone is refused) ──
+# ── Startup schema shape gate (any deviation from the canonical fingerprint is refused) ──
 
 
-def _stamped_database(tmp_path: Path, name: str, ddl: str) -> Path:
-    """Build a database from ddl and stamp it with the current schema version."""
+def _ddl_database(tmp_path: Path, name: str, ddl: str) -> Path:
+    """Build a database from ddl (no version stamp exists anymore)."""
     path = tmp_path / name
     conn = sqlite3.connect(path)
     conn.executescript(ddl)
-    conn.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
     conn.commit()
     conn.close()
     return path
 
 
-def test_canonical_stamped_database_passes_the_startup_shape_gate(
+def test_canonical_database_passes_the_startup_shape_gate(
     tmp_path: Path,
 ) -> None:
-    """A canonical database reopened with a matching stamp passes the shape gate."""
+    """A canonical database reopened by open_db() passes the shared fingerprint check."""
     path = tmp_path / "eventbus.sqlite"
-    open_db(str(path)).close()  # creates the canonical schema and stamps it
-    open_db(str(path)).close()  # found == expected: the shared fingerprint check runs
+    open_db(str(path)).close()  # creates the canonical schema
+    open_db(str(path)).close()  # existing canonical shape: the fingerprint check runs
     conn = sqlite3.connect(path)
-    version = int(conn.execute("PRAGMA user_version").fetchone()[0])
-    tables = {
-        row[0]
-        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    }
-    conn.close()
-    assert version == eventbus_schema_version()
+    try:
+        assert_matches(conn, eventbus_schema_sql())
+        tables = {
+            row[0]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+    finally:
+        conn.close()
     assert "schema_migrations" not in tables  # fresh creation is marker-free (AC-002)
 
 
-def test_unstamped_ddl_only_database_is_refused_and_left_unstamped(
-    tmp_path: Path,
-) -> None:
-    """A DDL-only database (canonical shape, user_version 0) is refused by open_db
-    and stays unstamped: version stamping is not supported (REQ-003)."""
-    path = tmp_path / "eventbus_unstamped.sqlite"
+def test_ddl_only_canonical_database_is_accepted(tmp_path: Path) -> None:
+    """A canonical-shape database built straight from schema.sql (never opened by
+    the service) passes the fingerprint gate: no stamp is required anymore."""
+    path = tmp_path / "eventbus_ddl_only.sqlite"
     conn = sqlite3.connect(path)
     conn.executescript(eventbus_schema_sql())
-    conn.execute("PRAGMA user_version = 0")  # nosec B608 — fixed test int
     conn.commit()
     conn.close()
-    with pytest.raises(RuntimeError, match="does not match the current schema"):
-        open_db(str(path))
+    open_db(str(path)).close()
     conn = sqlite3.connect(path)
-    version = int(conn.execute("PRAGMA user_version").fetchone()[0])
-    conn.close()
-    assert version == 0
+    try:
+        assert_matches(conn, eventbus_schema_sql())
+    finally:
+        conn.close()
 
 
-def test_malformed_stamped_database_missing_index_is_refused(tmp_path: Path) -> None:
-    """A database stamped with the current version but missing a required index is
-    refused at open_db: the stamp alone does not prove the shape."""
+def test_malformed_database_missing_index_is_refused(tmp_path: Path) -> None:
+    """A database missing a required index is refused at open_db: shape is the gate."""
     ddl = eventbus_schema_sql().replace(
         "CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);", ""
     )
-    path = _stamped_database(tmp_path, "eventbus_missing_index.sqlite", ddl)
+    path = _ddl_database(tmp_path, "eventbus_missing_index.sqlite", ddl)
     with pytest.raises(RuntimeError, match="indexes differ"):
         open_db(str(path))
 
 
-def test_malformed_stamped_database_changed_nullability_is_refused(
+def test_malformed_database_changed_nullability_is_refused(
     tmp_path: Path,
 ) -> None:
-    """A stamped database whose column nullability deviates from schema.sql is refused."""
+    """A database whose column nullability deviates from schema.sql is refused."""
     ddl = eventbus_schema_sql().replace(
         "    topic                  TEXT    NOT NULL,",
         "    topic                  TEXT,",
     )
-    path = _stamped_database(tmp_path, "eventbus_nullable.sqlite", ddl)
+    path = _ddl_database(tmp_path, "eventbus_nullable.sqlite", ddl)
     with pytest.raises(RuntimeError, match="columns differ"):
         open_db(str(path))
 
@@ -378,14 +374,14 @@ def _write_subprocess_config(
     return config_path
 
 
-def test_main_malformed_stamped_db_rejected_at_startup(tmp_path: Path) -> None:
-    """A correctly-stamped-but-malformed database must fail the real lifespan:
-    the subprocess exits non-zero with the startup-failure output."""
+def test_main_malformed_db_rejected_at_startup(tmp_path: Path) -> None:
+    """A malformed database must fail the real lifespan: the subprocess exits
+    non-zero with the startup-failure output."""
     port = _free_loopback_port()
     ddl = eventbus_schema_sql().replace(
         "CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);", ""
     )
-    db_path = _stamped_database(tmp_path, "eventbus_malformed.sqlite", ddl)
+    db_path = _ddl_database(tmp_path, "eventbus_malformed.sqlite", ddl)
     config_path = _write_subprocess_config(tmp_path, port=port, db_path=db_path)
 
     proc = _launch_eventbus_subprocess(config_path)
@@ -404,7 +400,7 @@ def test_main_canonical_db_passes_readiness_gate(tmp_path: Path) -> None:
     asserted, mirroring the deploy gate's capacity-only 503 tolerance."""
     port = _free_loopback_port()
     db_path = tmp_path / "eventbus.sqlite"
-    open_db(str(db_path)).close()  # canonical schema, stamped
+    open_db(str(db_path)).close()  # canonical schema
     config_path = _write_subprocess_config(tmp_path, port=port, db_path=db_path)
 
     proc = _launch_eventbus_subprocess(config_path)

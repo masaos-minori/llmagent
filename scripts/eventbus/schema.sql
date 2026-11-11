@@ -58,8 +58,4 @@ CREATE TABLE IF NOT EXISTS dlq_outbox (
 CREATE INDEX IF NOT EXISTS idx_dlq_outbox_status
     ON dlq_outbox(status, next_attempt_at);
 
--- Schema version of this DDL. Bump it whenever the schema changes in a way that
--- requires recreating the database; open_db() refuses a database stamped otherwise,
--- including unstamped (user_version 0) ones: automatic migration and version
--- stamping are not supported, the operator archives and recreates.
-PRAGMA user_version = 6;
+

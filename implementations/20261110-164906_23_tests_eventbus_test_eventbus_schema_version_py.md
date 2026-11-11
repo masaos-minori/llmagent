@@ -54,9 +54,9 @@ Adding new eventbus behaviors.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-084927 | all PRAGMA user_version cases deleted; old-shape/malformed/extra-table cases converted to fingerprint refusals; file name kept for history |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-084928 | test file IS the deliverable |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-084928 | uv run pytest tests/eventbus/test_eventbus_schema_version.py -> 5 passed; full-suite gate rerun at unit end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

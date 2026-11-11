@@ -134,9 +134,7 @@ _DEPLOYMENT_SOURCES: dict[str, str] = {
         "    history_db_path: str | None = None\n"
     ),
     "scripts/db/schema_sql.py": 'WORKFLOW_SCHEMA_VERSION = "1.1.0"\n',
-    "scripts/eventbus/schema.sql": (
-        "CREATE TABLE eventbus_events (id INTEGER);\nPRAGMA user_version = 5;\n"
-    ),
+    "scripts/eventbus/schema.sql": "CREATE TABLE eventbus_events (id INTEGER);\n",
 }
 
 _FULL_SOURCES: dict[str, str] = {
@@ -374,7 +372,7 @@ class TestManifestDrift:
         assert grt.check_drift(["deployment"]) == []
 
         (tmp_path / "scripts/eventbus/schema.sql").write_text(
-            "CREATE TABLE eventbus_events (id INTEGER);\nPRAGMA user_version = 6;\n",
+            "CREATE TABLE eventbus_events (id INTEGER, payload TEXT);\n",
             encoding="utf-8",
         )
         assert grt.check_drift(["deployment"]) == [

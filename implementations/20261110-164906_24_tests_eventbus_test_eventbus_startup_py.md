@@ -53,9 +53,9 @@ New eventbus startup behaviors.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-085101 | stamp helper/tests renamed to ddl-only; assert_matches fingerprint assertions added; canonical-shape DDL-only DB now asserted accepted |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-085101 | test file IS the deliverable |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-085101 | uv run pytest tests/eventbus/test_eventbus_startup.py -> 23 passed; no user_version reference remains; full-suite gate rerun at unit end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

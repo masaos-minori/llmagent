@@ -218,7 +218,7 @@ entries:
   kind: function
   name: schema_version
   signature: def schema_version() -> int
-  summary: Return the schema version that ``schema.sql`` stamps.
+  summary: Return the ``PRAGMA user_version`` the canonical DDL produces.
 - file: scripts/eventbus/db_tools.py
   kind: function
   name: ensure

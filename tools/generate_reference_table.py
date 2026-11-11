@@ -556,14 +556,16 @@ def _schema_version_row(name: str, source: Path, version: int | str) -> dict[str
 
 
 def _db_schema_version_entries() -> list[dict[str, Any]]:
+    # A PRAGMA user_version stamp is no longer required (ADR-02.05 REQ-004):
+    # a stamp-less schema.sql records "unversioned" instead of failing.
     eventbus_text = EVENTBUS_SCHEMA_SQL_SRC.read_text(encoding="utf-8")
     eventbus_match = _PRAGMA_USER_VERSION_RE.search(eventbus_text)
-    if eventbus_match is None:
-        raise ManifestError("eventbus schema.sql does not stamp PRAGMA user_version")
     entries = _db_path_entries()
     entries.append(
         _schema_version_row(
-            "eventbus", EVENTBUS_SCHEMA_SQL_SRC, int(eventbus_match.group(1))
+            "eventbus",
+            EVENTBUS_SCHEMA_SQL_SRC,
+            int(eventbus_match.group(1)) if eventbus_match else "unversioned",
         )
     )
     entries.sort(key=lambda e: (e["kind"], e["name"]))

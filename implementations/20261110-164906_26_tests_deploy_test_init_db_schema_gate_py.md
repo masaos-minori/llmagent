@@ -49,9 +49,9 @@ Other deploy tests.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-091908 | rewritten as fingerprint-gate suite (7 tests pass); marker cases kept as unexpected-table regressions; eventbus delegation pinned; rag/session fixtures canonical+healthy-seeded; prerequisite fix: recovery_drill threads DbConfig.sqlite_vec_so into consistency helpers |
+| 2 | Add or update tests per Validation plan | Pending | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

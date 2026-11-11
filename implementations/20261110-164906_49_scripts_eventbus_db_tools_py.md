@@ -43,8 +43,10 @@ N/A: fallout code row; the wording follows the Plan's settled behavior.
   before editing.
 
 ### Details
-- The `ensure()` refusal path (line 85) already calls `assert_matches`; after the swap it
-  uses the generalized module unchanged.
+- The `ensure()` refusal path already calls `assert_matches`; after the swap it uses the
+  generalized module. The `_check_database` call needed the new ddl argument:
+  `assert_matches(conn, schema_sql(), label=str(path))` (found during the row-27 integration
+  test: the generalized signature requires canonical_ddl).
 
 ## Compatibility considerations
 The CLI `schema_version` subcommand (line 148) and the EventBus test import stay; their
@@ -73,7 +75,7 @@ Deleting `eventbus_schema_fingerprint.py` (row 2) and the schema.py changes (row
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Swap the assert_matches import; drop the removed version helper | Pending | — | — | Pre-execution evidence (20261111, read-only assert_matches): deployed /opt/llm/db/eventbus.sqlite carries an extra 'schema_migrations' table and will refuse startup with the new assert until the operator archives and recreates it (UNK-03). rag.sqlite and session.sqlite match; workflow.sqlite carries extra 'execution_snapshots'. |
+| 1 | Swap the assert_matches import; drop the removed version helper | Completed | — | 20261111-083915 | Pre-execution evidence (20261111, read-only assert_matches): deployed /opt/llm/db/eventbus.sqlite carries an extra 'schema_migrations' table and will refuse startup with the new assert until the operator archives and recreates it (UNK-03). rag.sqlite and session.sqlite match; workflow.sqlite carries extra 'execution_snapshots'. import swapped to shared.schema_fingerprint; _expected_schema_version dropped; schema_version() derived from in-memory DDL apply (returns 0); ran early after rows 03/04 to restore importability |
 | 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log

@@ -8,28 +8,33 @@ EventBus deploy integration test (`REQ-003`).
 
 ## Assumptions
 - `deploy/init_db.sh` now gates EventBus through the generalized `scripts/shared/schema_fingerprint` gate (row 16); this test exercises that same path.
-- The fingerprint ignores `user_version`, so the canonical stamp the fixture writes is
-  harmless (Plan Assumptions).
+- Correction 2026-11-11 (fresh read): the earlier steps 1-2 referenced a stamp at line 59,
+  an equality assertion at lines 76-77, and `test_refuses_shape_drift_at_current_version`;
+  the real file stamps `user_version` in `_provision_databases`, has no version-equality
+  assertion, and its drift cases are `test_init_db_malformed_aborts` /
+  `test_shape_gate_rejects_malformed_isolated_from_create_schema_gate`. The procedure below
+  follows the real file.
+- With the generalized fingerprint gate, rag.sqlite and session.sqlite must exist in the
+  sandbox (the gate checks all three domains), so the fixture provisions them and the stub
+  copies the full scripts tree so the gate's `db.schema_sql`/`db.store_protocols` imports
+  resolve.
 
 ## Design decisions
-- Keep the sandbox driver that copies `scripts/eventbus` and runs the real `init_db.sh`;
-  only the assertions follow the new gate.
-
-## Alternatives considered
-N/A: documentation/test-only row; the wording follows the Plan's settled behavior.
+- Keep the sandbox driver that copies `scripts` and runs the real `init_db.sh`;
+  only the assertions and fixtures follow the new gate.
+- Drop the `PRAGMA user_version` stamp from the fixture: no version mechanism remains.
 
 ## Implementation
 ### Target file
 `tests/deploy/test_init_db_eventbus_schema.py`
 
 ### Procedure
-1. The fixture stamps `PRAGMA user_version` at line 59; leave it (ignored by the
-   fingerprint, harmless per the Plan).
-2. The equality assertion at lines 76-77 still compares against
-   `db_tools.schema_version()`; keep it — the generalized gate does not change the
-   reported current version.
-3. The shape-drift path (`test_refuses_shape_drift_at_current_version`) still raises the
-   archive-and-recreate error through the generalized gate.
+1. Delete the `PRAGMA user_version` stamp in `_provision_databases` and the
+   `eventbus.db_tools.schema_version` import.
+2. Provision rag/session (canonical builders + sqlite-vec extension) in the fixture, and
+   copy the full scripts tree in `_write_stub_scripts` (create_schema.py stays a no-op).
+3. Rename `test_init_db_malformed_stamped_aborts` to `test_init_db_malformed_aborts`; the
+   drift cases keep asserting the abort through the generalized gate.
 
 ### Method
 - Read the fixture and driver helpers (`_provision_databases`, `_write_init_db_driver`)
@@ -41,8 +46,8 @@ N/A: documentation/test-only row; the wording follows the Plan's settled behavio
   `deploy/init_db.sh` (row 16) and this test covers its end-to-end behavior.
 
 ## Compatibility considerations
-The `eventbus.db_tools.schema_version` import at line 26 stays; the generalized gate
-reports the same current version.
+The `eventbus.db_tools.schema_version` import was removed here: the generalized gate
+reports no version, so the fixture no longer stamps one.
 
 ## Security considerations
 None beyond the existing sandbox isolation (`DEPLOY_SCRIPTS`/`DEPLOY_DB` overrides).
@@ -66,8 +71,8 @@ Re-implementing the gate itself (`deploy/init_db.sh`, row 16).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the test to follow the generalized gate | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the test to follow the generalized gate | Completed | — | 20261111-090541 | rewritten for delegation contract: init_db ignores eventbus, db_tools verify accepts/refuses; 3 tests pass |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

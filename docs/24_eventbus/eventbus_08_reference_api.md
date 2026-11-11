@@ -88,7 +88,7 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `check_db` | `def check_db(conn) -> bool` | Return True if the DB connection is usable. |
 | `scripts/eventbus/db_tools.py` | `read_db_path` | `def read_db_path() -> Path` | Return the database path from the EventBus configuration file's ``db_path``. |
 |  | `schema_sql` | `def schema_sql() -> str` | Return the canonical DDL text of ``scripts/eventbus/schema.sql``. |
-|  | `schema_version` | `def schema_version() -> int` | Return the schema version that ``schema.sql`` stamps. |
+|  | `schema_version` | `def schema_version() -> int` | Return the ``PRAGMA user_version`` the canonical DDL produces. |
 |  | `ensure` | `def ensure(db_path) -> Path` | Create the database when absent, or validate it when present. |
 |  | `verify` | `def verify(db_path) -> Path` | Verify integrity and canonical shape of the database; return its path. |
 |  | `rotate` | `def rotate(archive_dir) -> Path` | Write a verified, WAL-consistent archive of the database and return its path. |

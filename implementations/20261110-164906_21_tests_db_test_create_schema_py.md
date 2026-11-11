@@ -11,10 +11,11 @@ cases (`REQ-003`, `REQ-004`).
   longer gates on `user_version`.
 - Verified 2026-11-11: this test also imports `eventbus.db_tools.schema_version` (line 25) and
   `apply_schema_in_memory`, `assert_matches`, `build_fingerprint`, `expected_fingerprint` from
-  `shared.eventbus_schema_fingerprint` (lines 26-31). Row 49 removes `schema_version`; row 02
-  deletes the fingerprint module along with `apply_schema_in_memory` and `expected_fingerprint`.
-  This row must land in the fingerprint-cutover batch BEFORE row 02, or the deletion breaks
-  this test's imports.
+  `shared.eventbus_schema_fingerprint` (lines 26-31). Row 49 KEEPS `schema_version` but re-derives
+  it from an in-memory apply of the stamp-less DDL (correction 20261111: the earlier "row 49
+  removes schema_version" was wrong); row 02 deletes the fingerprint module along with
+  `apply_schema_in_memory` and `expected_fingerprint`. This row must land in the
+  fingerprint-cutover batch BEFORE row 02, or the deletion breaks this test's imports.
 - The EventBus fingerprint block at lines 1007-1044 calls `expected_fingerprint()` and
   `apply_schema_in_memory()`; `test_validator_raises_even_when_user_version_matches` (lines
   1192-1201) stamps `PRAGMA user_version = {eventbus_schema_version()}`.
@@ -70,9 +71,9 @@ Other databases' cases here.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-084802 | imports moved to shared.schema_fingerprint; drift calls pass _CANONICAL_EVENTBUS_DDL; user_version case converted to init-path drift refusal |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261111-084803 | test file IS the deliverable; no separate test work |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-084803 | uv run pytest tests/db/test_create_schema.py -> 66 passed; full-suite gate rerun at unit end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

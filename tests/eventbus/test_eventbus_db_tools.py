@@ -79,28 +79,6 @@ class TestEnsure:
         db_tools.ensure()
         assert _state(db_path) == (version, rows)
 
-    def test_refuses_stale_version(self, db_path: Path) -> None:
-        db_tools.ensure()
-        conn = sqlite3.connect(db_path)
-        conn.execute(f"PRAGMA user_version = {db_tools.schema_version() - 1}")
-        conn.commit()
-        conn.close()
-        before = _state(db_path)
-        with pytest.raises(RuntimeError, match="does not match the current schema"):
-            db_tools.ensure()
-        assert _state(db_path) == before
-
-    def test_refuses_unstamped_existing_database(self, db_path: Path) -> None:
-        db_tools.ensure()
-        conn = sqlite3.connect(db_path)
-        conn.execute("PRAGMA user_version = 0")
-        conn.commit()
-        conn.close()
-        before = _state(db_path)
-        with pytest.raises(RuntimeError, match="user_version 0"):
-            db_tools.ensure()
-        assert _state(db_path) == before
-
     def test_refuses_shape_drift_at_current_version(self, db_path: Path) -> None:
         db_tools.ensure()
         conn = sqlite3.connect(db_path)

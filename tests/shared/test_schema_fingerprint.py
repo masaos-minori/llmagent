@@ -113,10 +113,21 @@ class TestCanonicalBuildsPass:
         finally:
             conn.close()
 
-    def test_in_memory_apply_stamps_pragma(self) -> None:
-        conn = schema_fingerprint.apply_ddl_in_memory(eventbus_schema_sql())
+    def test_in_memory_apply_honours_an_explicit_pragma_stamp(self) -> None:
+        conn = schema_fingerprint.apply_ddl_in_memory(
+            "PRAGMA user_version = 6;\nCREATE TABLE t (id INTEGER);"
+        )
         try:
             assert conn.execute("PRAGMA user_version").fetchone() == (6,)
+        finally:
+            conn.close()
+
+    def test_canonical_eventbus_ddl_leaves_the_database_unstamped(self) -> None:
+        # REQ-004: the canonical eventbus DDL no longer stamps a version; a fresh
+        # apply leaves user_version 0 and the fingerprint gate ignores the value.
+        conn = schema_fingerprint.apply_ddl_in_memory(eventbus_schema_sql())
+        try:
+            assert conn.execute("PRAGMA user_version").fetchone() == (0,)
         finally:
             conn.close()
 

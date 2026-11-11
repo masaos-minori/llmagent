@@ -64,8 +64,8 @@ Changing `db_tools.py` (its row) or `schema.py` (row 3).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the PRAGMA user_version refusal cases | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the PRAGMA user_version refusal cases | Completed | — | 20261111-092050 | deleted stale-version and unstamped refusal tests; shape-drift case kept; 20 tests pass |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

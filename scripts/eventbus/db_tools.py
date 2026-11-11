@@ -22,11 +22,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from shared.eventbus_schema_fingerprint import assert_matches
+from shared.schema_fingerprint import apply_ddl_in_memory, assert_matches
 
 from eventbus.config import get_config_path
 from eventbus.db_conn import open_db
-from eventbus.schema import _SCHEMA_PATH, _expected_schema_version
+from eventbus.schema import _SCHEMA_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +56,17 @@ def schema_sql() -> str:
 
 
 def schema_version() -> int:
-    """Return the schema version that ``schema.sql`` stamps."""
-    return int(_expected_schema_version(schema_sql()))
+    """Return the ``PRAGMA user_version`` the canonical DDL produces.
+
+    ``schema.sql`` no longer stamps a version, so the create path leaves a fresh
+    database at the SQLite default (0); the value is derived from an in-memory
+    apply of the DDL so it stays consistent with that path.
+    """
+    conn = apply_ddl_in_memory(schema_sql())
+    try:
+        return int(conn.execute("PRAGMA user_version").fetchone()[0])
+    finally:
+        conn.close()
 
 
 def ensure(db_path: Path | None = None) -> Path:
@@ -82,7 +91,7 @@ def _check_database(path: Path) -> None:
             result = conn.execute("PRAGMA integrity_check").fetchone()
             if result is None or result[0] != "ok":
                 raise RuntimeError(f"{path}: integrity_check reported {result}")
-            assert_matches(conn, label=str(path))
+            assert_matches(conn, schema_sql(), label=str(path))
         finally:
             conn.close()
     except sqlite3.Error as exc:

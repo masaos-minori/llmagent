@@ -22,9 +22,9 @@ from db.config import DbConfig
 from db.helper import SQLiteHelper
 from db.schema_sql import build_workflow_schema_sql
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
-from eventbus.db_tools import schema_version as eventbus_schema_version
-from shared.eventbus_schema_fingerprint import (
-    apply_schema_in_memory,
+from eventbus.schema import _init_schema as eventbus_init_schema
+from shared.schema_fingerprint import (
+    apply_ddl_in_memory,
     assert_matches,
     build_fingerprint,
     expected_fingerprint,
@@ -1031,17 +1031,19 @@ class TestEventbusSchemaFingerprint:
         raw.close()
         conn = sqlite3.connect(str(db_file))
         try:
-            assert_matches(conn)
-            assert build_fingerprint(conn) == expected_fingerprint()
+            assert_matches(conn, _CANONICAL_EVENTBUS_DDL)
+            assert build_fingerprint(conn) == expected_fingerprint(
+                _CANONICAL_EVENTBUS_DDL
+            )
         finally:
             conn.close()
 
     def test_in_memory_apply_matches_disk_apply(self) -> None:
-        """apply_schema_in_memory() and a disk apply of the same DDL fingerprint identically."""
+        """apply_ddl_in_memory() and a disk apply of the same DDL fingerprint identically."""
         disk = _apply_eventbus_ddl(_CANONICAL_EVENTBUS_DDL)
         try:
             assert build_fingerprint(disk) == build_fingerprint(
-                apply_schema_in_memory()
+                apply_ddl_in_memory(_CANONICAL_EVENTBUS_DDL)
             )
         finally:
             disk.close()
@@ -1057,7 +1059,9 @@ class TestEventbusSchemaFingerprint:
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="consumer_delivery: columns differ"):
-                assert_matches(conn, label="test-missing-column")
+                assert_matches(
+                    conn, _CANONICAL_EVENTBUS_DDL, label="test-missing-column"
+                )
         finally:
             conn.close()
 
@@ -1068,7 +1072,9 @@ class TestEventbusSchemaFingerprint:
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="events: indexes differ"):
-                assert_matches(conn, label="test-missing-index")
+                assert_matches(
+                    conn, _CANONICAL_EVENTBUS_DDL, label="test-missing-index"
+                )
         finally:
             conn.close()
 
@@ -1083,7 +1089,9 @@ class TestEventbusSchemaFingerprint:
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="events: indexes differ"):
-                assert_matches(conn, label="test-missing-redelivered-index")
+                assert_matches(
+                    conn, _CANONICAL_EVENTBUS_DDL, label="test-missing-redelivered-index"
+                )
         finally:
             conn.close()
 
@@ -1095,7 +1103,9 @@ class TestEventbusSchemaFingerprint:
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="events: columns differ"):
-                assert_matches(conn, label="test-changed-nullability")
+                assert_matches(
+                    conn, _CANONICAL_EVENTBUS_DDL, label="test-changed-nullability"
+                )
         finally:
             conn.close()
 
@@ -1110,7 +1120,9 @@ class TestEventbusSchemaFingerprint:
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="events: columns differ"):
-                assert_matches(conn, label="test-changed-default")
+                assert_matches(
+                    conn, _CANONICAL_EVENTBUS_DDL, label="test-changed-default"
+                )
         finally:
             conn.close()
 
@@ -1123,7 +1135,7 @@ class TestEventbusSchemaFingerprint:
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="events: columns differ"):
-                assert_matches(conn, label="test-extra-column")
+                assert_matches(conn, _CANONICAL_EVENTBUS_DDL, label="test-extra-column")
         finally:
             conn.close()
 
@@ -1138,7 +1150,9 @@ class TestEventbusSchemaFingerprint:
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="missing table 'consumer_offsets'"):
-                assert_matches(conn, label="test-missing-table")
+                assert_matches(
+                    conn, _CANONICAL_EVENTBUS_DDL, label="test-missing-table"
+                )
         finally:
             conn.close()
 
@@ -1150,7 +1164,7 @@ class TestEventbusSchemaFingerprint:
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="unexpected table 'audit_log'"):
-                assert_matches(conn, label="test-extra-table")
+                assert_matches(conn, _CANONICAL_EVENTBUS_DDL, label="test-extra-table")
         finally:
             conn.close()
 
@@ -1166,7 +1180,9 @@ class TestEventbusSchemaFingerprint:
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="consumer_delivery.*differ"):
-                assert_matches(conn, label="test-changed-constraint")
+                assert_matches(
+                    conn, _CANONICAL_EVENTBUS_DDL, label="test-changed-constraint"
+                )
         finally:
             conn.close()
 
@@ -1185,23 +1201,25 @@ class TestEventbusSchemaFingerprint:
             with pytest.raises(
                 RuntimeError, match="consumer_delivery: foreign keys differ"
             ):
-                assert_matches(conn, label="test-extra-foreign-key")
+                assert_matches(
+                    conn, _CANONICAL_EVENTBUS_DDL, label="test-extra-foreign-key"
+                )
         finally:
             conn.close()
 
-    def test_validator_raises_even_when_user_version_matches(self) -> None:
-        """A malformed database already stamped with the current version is still
-        rejected: the shape gate does not trust user_version."""
-        conn = _apply_eventbus_ddl(
-            _CANONICAL_EVENTBUS_DDL.replace(
-                "    topic                  TEXT    NOT NULL,",
-                "    topic                  TEXT,",
-            )
-        )
-        conn.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
+    def test_init_path_refuses_shape_drift(self, tmp_path: Path) -> None:
+        """A drifted on-disk database is refused by the eventbus init path: with the
+        version gate gone, fingerprint drift is the only (and sufficient) gate."""
+        db_file = tmp_path / "eventbus_drift.sqlite"
+        raw = sqlite3.connect(str(db_file))
+        raw.executescript(_CANONICAL_EVENTBUS_DDL)
+        raw.execute("CREATE TABLE audit_log (id INTEGER PRIMARY KEY)")
+        raw.commit()
+        raw.close()
+        conn = sqlite3.connect(str(db_file))
         try:
-            with pytest.raises(RuntimeError, match="events: columns differ"):
-                assert_matches(conn, label="test-stamped-but-malformed")
+            with pytest.raises(RuntimeError, match="unexpected table 'audit_log'"):
+                eventbus_init_schema(conn)
         finally:
             conn.close()
 

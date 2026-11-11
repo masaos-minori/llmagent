@@ -11,11 +11,11 @@ entries:
   in_agent_toml: false
   kind: db_path
   name: workflow.sqlite
-- content_hash: 4eff9a281e1567665cf5f8d8689ffe6c456b1c2d6b70d4ce91becf681607ebb2
+- content_hash: e65145911c7249cc8efef94771d2a72ad895e2bef8c7f348f49df4905f5e20cf
   kind: schema
   name: eventbus
   source: scripts/eventbus/schema.sql
-  version: 6
+  version: unversioned
 generated_by: tools/generate_reference_table.py
 manifest: db_schema_versions
 sources:

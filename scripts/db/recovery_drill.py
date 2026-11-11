@@ -75,8 +75,14 @@ def _legacy_marker_tables(db_path: Path) -> list[str]:
     return [marker for marker in LEGACY_MARKER_TABLES if marker in names]
 
 
-def _verify_rag_session(domain: str, isolated: Path) -> dict:
-    """Per-domain checks for the recreate-only rag/session domains."""
+def _verify_rag_session(domain: str, isolated: Path, sqlite_vec_so: str = "") -> dict:
+    """Per-domain checks for the recreate-only rag/session domains.
+
+    ``sqlite_vec_so`` is threaded from the loaded DbConfig: the isolated copies
+    carry vec0 virtual tables, and a helper without the extension path cannot
+    read them (``no such module: vec0``), which the fail-closed logical layer
+    would then report as an inconsistency of a healthy database.
+    """
     condition, _ = run_integrity_check(isolated, domain)
     identity_ok, _ = verify_domain_identity(isolated, domain)
     verification = {
@@ -86,7 +92,7 @@ def _verify_rag_session(domain: str, isolated: Path) -> dict:
     if domain == "rag":
         # Fail-closed logical layer (dbmig001 row 11 + ragverify001): an unverified
         # dimension or an inconsistent report fails the domain in the artifact.
-        with SQLiteHelper("rag", db_path=str(isolated)).open() as db:
+        with SQLiteHelper("rag", db_path=str(isolated), sqlite_vec_so=sqlite_vec_so).open() as db:
             report = check_rag_consistency(db)
         verification["rag_consistency"] = bool(
             not report.fk_unverified
@@ -98,7 +104,7 @@ def _verify_rag_session(domain: str, isolated: Path) -> dict:
         # Fail-closed logical layer (drillmetrics001): an inconsistent report fails
         # the domain in the artifact. Read-only; no write path is added to the live
         # database.
-        with SQLiteHelper("session", db_path=str(isolated)).open() as db:
+        with SQLiteHelper("session", db_path=str(isolated), sqlite_vec_so=sqlite_vec_so).open() as db:
             sess_report = check_session_consistency(db)
         verification["session_consistent"] = session_is_consistent(sess_report)
     return verification
@@ -185,7 +191,7 @@ def _drill_one_domain(
     started = time.time()
     try:
         if domain in ("rag", "session"):
-            verification = _verify_rag_session(domain, isolated)
+            verification = _verify_rag_session(domain, isolated, cfg.sqlite_vec_so)
         else:
             verification = _verify_workflow(isolated)
     except sqlite3.Error as exc:

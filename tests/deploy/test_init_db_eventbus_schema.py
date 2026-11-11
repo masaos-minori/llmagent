@@ -1,8 +1,12 @@
 """tests/deploy/test_init_db_eventbus_schema.py
 
-Integration tests for the deploy/init_db.sh EventBus shape gate (REQ-003): the real
-script aborts when the EventBus database is stamped with the current version but
-structurally malformed, and passes when it is canonical.
+Delegation contract tests for eventbus.sqlite (REQ-003 cutover). After the
+cutover, init_db.sh validates only workflow/rag/session with the shared
+fingerprint gate and no longer creates, resolves, or validates eventbus.sqlite:
+eventbus.sqlite is owned by eventbus.db_tools, whose ensure/verify enforce the
+canonical shape, and deploy.sh delegates to them. These tests pin both sides:
+init_db.sh completes even when a malformed eventbus database sits in the sandbox,
+and eventbus.db_tools verify accepts canonical / refuses malformed databases.
 
 Sandboxing: init_db.sh honors DEPLOY_SCRIPTS/DEPLOY_DB environment overrides, and the
 driver points LLMAGENT_CONFIG_DIR at a rewritten copy of config/ whose db paths target a
@@ -21,13 +25,19 @@ import subprocess
 from collections.abc import Callable
 
 import pytest
-from db.schema_sql import build_workflow_schema_sql
+from db.schema_sql import (
+    build_rag_schema_sql,
+    build_session_schema_sql,
+    build_workflow_schema_sql,
+)
+from db.store_protocols import get_embedding_dims
+from eventbus import db_tools
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
-from eventbus.db_tools import schema_version as eventbus_schema_version
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _INIT_DB = _REPO_ROOT / "deploy" / "init_db.sh"
 _UV_PROJECT = pathlib.Path("/opt/llm/pyproject.toml")
+_VEC_SO = "/opt/llm/sqlite-vec/vec0"
 
 pytestmark = pytest.mark.skipif(
     not _UV_PROJECT.is_file(),
@@ -35,28 +45,28 @@ pytestmark = pytest.mark.skipif(
     "without a deployed uv project cannot run the script",
 )
 
-# One extra column added to events on an otherwise canonical stamped database: the
-# deviation is one DDL re-apply cannot repair (CREATE ... IF NOT EXISTS re-creates
-# missing objects but never removes or alters existing ones) and the version stamp
-# stays intact.
+# One extra column added to events on an otherwise canonical database: the deviation
+# is one DDL re-apply cannot repair (CREATE ... IF NOT EXISTS re-creates missing
+# objects but never removes or alters existing ones).
 _MALFORMED_EXTRA = "ALTER TABLE events ADD COLUMN malformed_extra TEXT"
-_GATE_FATAL = "[FATAL] EventBus database schema is missing or malformed"
 _BANNER = "=== init_db.sh: 完了 ==="
 
 
 def _provision_databases(db_dir: pathlib.Path, *, malformed: bool) -> None:
-    """Create stamped canonical eventbus + workflow databases in the sandbox.
+    """Create canonical eventbus, workflow, rag, and session databases in the sandbox.
 
-    rag.sqlite and session.sqlite are left to the init_db.sh create_schema.py step; the
-    script's own checks for them are passive .tables prints. The eventbus databases are
-    built from the raw canonical DDL (no normalization) so the stamped file matches the
-    shared validator's expected fingerprint exactly.
+    The fingerprint gate checks every deployed domain init_db.sh owns, so the
+    fixture provides rag/session/workflow as well; eventbus is provisioned too to
+    prove the gate and the create_schema.py step ignore it entirely.
+    rag/session are built from the canonical builders with the sqlite-vec extension
+    loaded, exactly as production create_schema.py does. eventbus is built from the
+    raw canonical DDL (no normalization) so the file matches the shared validator's
+    expected fingerprint exactly.
     """
     db_dir.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_dir / "eventbus.sqlite")
     try:
         conn.executescript(eventbus_schema_sql())
-        conn.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
         if malformed:
             conn.execute(_MALFORMED_EXTRA)
         conn.commit()
@@ -68,6 +78,21 @@ def _provision_databases(db_dir: pathlib.Path, *, malformed: bool) -> None:
         conn.commit()
     finally:
         conn.close()
+    dims = get_embedding_dims()
+    builders = {
+        "rag": build_rag_schema_sql(dims),
+        "session": build_session_schema_sql(dims),
+    }
+    for name, ddl in builders.items():
+        conn = sqlite3.connect(db_dir / f"{name}.sqlite")
+        try:
+            conn.enable_load_extension(True)
+            conn.load_extension(_VEC_SO)  # nosec B608 — fixed extension path
+            conn.enable_load_extension(False)
+            conn.executescript(ddl)
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def _write_config(tmp_path: pathlib.Path, db_dir: pathlib.Path) -> pathlib.Path:
@@ -89,24 +114,6 @@ def _write_config(tmp_path: pathlib.Path, db_dir: pathlib.Path) -> pathlib.Path:
     pinned = f'workflow_db_path = "{db_dir / "workflow.sqlite"}"\n'
     agent_toml.write_text(pinned + agent_toml.read_text(encoding="utf-8"))
     return cfg_dir
-
-
-def _write_stub_scripts(tmp_path: pathlib.Path) -> pathlib.Path:
-    """Build a DEPLOY_SCRIPTS stand-in whose create_schema.py is a no-op.
-
-    The shared validator package is copied unchanged so the init_db.sh gate itself
-    resolves exactly as in production; the stub isolates the gate from the
-    create_schema.py shape gate.
-    """
-    stub = tmp_path / "scripts"
-    (stub / "db").mkdir(parents=True)
-    (stub / "db" / "create_schema.py").write_text(
-        '"""No-op stub isolating the init_db.sh EventBus shape gate."""\n',
-        encoding="utf-8",
-    )
-    shutil.copytree(_REPO_ROOT / "scripts" / "shared", stub / "shared")
-    shutil.copytree(_REPO_ROOT / "scripts" / "eventbus", stub / "eventbus")
-    return stub
 
 
 def _write_init_db_driver(
@@ -150,26 +157,14 @@ def _run(
     )
 
 
-def test_init_db_malformed_stamped_aborts(
+def test_init_db_ignores_eventbus_database(
     tmp_path: pathlib.Path, isolated_subprocess_env: Callable[..., dict[str, str]]
 ) -> None:
+    # Delegation contract (REQ-003 cutover): a structurally malformed eventbus
+    # database does not involve init_db.sh — it validates only workflow/rag/session
+    # and must complete without creating, validating, or touching eventbus.sqlite.
     db_dir = tmp_path / "db"
     _provision_databases(db_dir, malformed=True)
-    result = _run(
-        _write_init_db_driver(
-            tmp_path, db_dir=db_dir, scripts_dir=_REPO_ROOT / "scripts"
-        ),
-        isolated_subprocess_env(),
-    )
-    assert result.returncode != 0
-    assert _BANNER not in result.stdout
-
-
-def test_init_db_canonical_passes(
-    tmp_path: pathlib.Path, isolated_subprocess_env: Callable[..., dict[str, str]]
-) -> None:
-    db_dir = tmp_path / "db"
-    _provision_databases(db_dir, malformed=False)
     result = _run(
         _write_init_db_driver(
             tmp_path, db_dir=db_dir, scripts_dir=_REPO_ROOT / "scripts"
@@ -178,21 +173,17 @@ def test_init_db_canonical_passes(
     )
     assert result.returncode == 0
     assert _BANNER in result.stdout
-    assert "matches the canonical EventBus schema" in result.stdout
 
 
-def test_shape_gate_rejects_malformed_isolated_from_create_schema_gate(
-    tmp_path: pathlib.Path, isolated_subprocess_env: Callable[..., dict[str, str]]
-) -> None:
-    # The stub scripts make the create_schema.py step a no-op, so the abort can only
-    # come from the init_db.sh EventBus shape gate itself.
-    db_dir = tmp_path / "db"
-    _provision_databases(db_dir, malformed=True)
-    scripts_dir = _write_stub_scripts(tmp_path)
-    result = _run(
-        _write_init_db_driver(tmp_path, db_dir=db_dir, scripts_dir=scripts_dir),
-        isolated_subprocess_env(),
-    )
-    assert result.returncode != 0
-    assert _GATE_FATAL in result.stderr
-    assert _BANNER not in result.stdout
+def test_db_tools_verify_accepts_canonical(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "eventbus.sqlite"
+    _provision_databases(tmp_path, malformed=False)
+    result = db_tools.verify(tmp_path / "eventbus.sqlite")
+    assert result == tmp_path / "eventbus.sqlite"
+    assert path.is_file()
+
+
+def test_db_tools_verify_refuses_malformed(tmp_path: pathlib.Path) -> None:
+    _provision_databases(tmp_path, malformed=True)
+    with pytest.raises(RuntimeError, match="columns differ"):
+        db_tools.verify(tmp_path / "eventbus.sqlite")

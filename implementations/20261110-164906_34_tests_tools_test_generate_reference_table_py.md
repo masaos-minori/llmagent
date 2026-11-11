@@ -67,8 +67,8 @@ Changing the generator itself (`tools/generate_reference_table.py`, its row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drop the PRAGMA user_version fixture lines | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Drop the PRAGMA user_version fixture lines | Completed | — | 20261111-092006 | PRAGMA fixture lines dropped; drift driven by structural DDL change; 16 tests + --check pass |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
