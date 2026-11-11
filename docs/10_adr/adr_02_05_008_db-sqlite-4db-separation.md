@@ -57,7 +57,7 @@ Without an explicit safety contract, recovery across several SQLite files is dan
 - Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
 - A persistence failure in Workflow or EventBus is not treated as success with only a log entry
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
-- `rag.sqlite` and `session.sqlite` are recreated on a schema change (recreate policy). `workflow.sqlite` and `eventbus.sqlite` follow the same current-only policy: the startup gate accepts only the current canonical schema, refuses any file carrying the legacy migration marker tables, and a refused file is archived and recreated by the operator (see `db_03_architecture_and_schema-migration-and-scaling.md` section 8). Migration mechanism design and schema-version mappings are out of scope for this ADR; no migration mechanism exists.
+- `rag.sqlite` and `session.sqlite` are recreated on a schema change (recreate policy). `workflow.sqlite` and `eventbus.sqlite` follow the same current-only policy: the startup gate accepts only the current canonical schema, refuses any file whose shape does not match the current canonical schema by the shared fingerprint, and a refused file is archived and recreated by the operator (see `db_03_architecture_and_schema-migration-and-scaling.md` section 8). Migration mechanism design and schema-version mappings are out of scope for this ADR; no migration mechanism exists.
 
 ## Assumptions
 
@@ -72,7 +72,7 @@ Without an explicit safety contract, recovery across several SQLite files is dan
 
 ### Amendment (dbmig001, 2026-10-30)
 
-Historical, superseded 2026-11-07 (source compatrm001): plan dbmig001 had extended `workflow.sqlite` and `eventbus.sqlite` with forward-only migrations; that machinery was removed. Current policy: every database must match the current canonical schema at startup; mismatched files are archived and recreated (see Context > Constraints). The separation decision, the per-DB responsibilities and the `rag.sqlite`/`session.sqlite` recreate policy are unchanged.
+Historical, superseded 2026-11-07 (source compatrm001): plan dbmig001 had extended `workflow.sqlite` and `eventbus.sqlite` with forward-only migrations; that machinery was removed. Current policy: every database must match the current canonical schema at startup via the shared fingerprint; mismatched files are archived and recreated (see Context > Constraints). The separation decision, the per-DB responsibilities and the `rag.sqlite`/`session.sqlite` recreate policy are unchanged.
 
 ### Recovery Category Glossary
 
@@ -134,7 +134,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 
 ### Derived Stores Outside the Four Domains
 
-- mdq.sqlite is owned by mdq-mcp and holds only documents, chunks, an FTS5 index and indexing state derived from Markdown files under `allowed_dirs`. It is rebuilt from those files by `index_paths` and `refresh_index`, and it is not backed up or restored by `recover_corruption()` or `rotate_all_dbs()` (Explicit in code — `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/indexer.py`, `scripts/db/recovery.py`, `scripts/db/rotation.py`). Its schema migration is the MDQ service's own responsibility, run every time the service starts (see section 8d of `db_03_architecture_and_schema-migration-and-scaling.md`).
+- mdq.sqlite is owned by mdq-mcp and holds only documents, chunks, an FTS5 index and indexing state derived from Markdown files under `allowed_dirs`. It is rebuilt from those files by `index_paths` and `refresh_index`, and it is not backed up or restored by `recover_corruption()` or `rotate_all_dbs()` (Explicit in code — `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/indexer.py`, `scripts/db/recovery.py`, `scripts/db/rotation.py`). Its schema creation and startup validation are the MDQ service's own responsibility, run every time the service starts: an existing `mdq.sqlite` is accepted only when its shape matches the canonical DDL by the shared fingerprint (see section 8d of `db_03_architecture_and_schema-migration-and-scaling.md`).
 - Adding a store that is a system of record for any data requires extending the Recovery Policy Matrix of this ADR before deployment.
 
 ### Scope
