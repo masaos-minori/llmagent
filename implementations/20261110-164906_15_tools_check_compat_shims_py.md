@@ -54,8 +54,8 @@ Changing the checker's logic.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261111-135643 | both comment blocks reworded: LEGACY_MARKER_TABLES detectors named as deleted by adrrev005, fingerprint matching stated as the single mechanism; no logic change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261111-135643 | uv run python tools/check_compat_shims.py exits 0; pre-commit green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
