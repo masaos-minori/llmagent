@@ -56,8 +56,8 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the audit line (line 46) | Pending | — | — | |
-| 2 | Run `check_docs_quality.py` (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace the audit line (line 46) | Completed | — | 20261112-051032 | line 46 rewritten to match implemented record: server_key=rag_pipeline, target=url for rag_delete_document, disabled-tool rejection writes no record |
+| 2 | Run `check_docs_quality.py` (`rules/toolchain.md`) | Completed | — | 20261112-051032 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
