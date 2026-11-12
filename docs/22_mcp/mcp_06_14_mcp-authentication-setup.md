@@ -50,9 +50,9 @@ the deployment document.
 
 #### Missing secrets via environment variables
 
-**Symptom:** The server starts, but health checks fail due to dependency failures.
+**Symptom:** The MCP server fails to start because its `auth_token` resolves to an empty value.
 
-**Cause:** The environment variable referenced by `auth_token` (`${ENV:...}`) is not set.
+**Cause:** The environment variable referenced by `auth_token` (`${ENV:...}`) is not set. An empty token is fail-closed on the server side: `require_auth_token()` raises `RuntimeError` naming the server and the variable, and the server does not bind. The governing rules (one shared variable per server on both sides, empty token aborts startup on both sides, no bypass, restart required) are defined by [adr_02_03_017_mcp-authentication.md](../10_adr/adr_02_03_017_mcp-authentication.md).
 
 **Solution:** Ensure necessary secrets are available in the agent process environment before starting.
 

@@ -42,6 +42,7 @@ Confirmed deviations are tracked in `docs/00_governance/governance_03_issue-and-
 | Agent Control Plane Boundaries | `adr_02_02_014_agent-control-plane-responsibility-boundaries.md` |
 | Reference Document Class Disposition | `adr_02_07_015_docs-reference-document-class-disposition.md` |
 | ADR Authority Model | `adr_02_07_016_adr-authority-model.md` |
+| MCP Authentication | `adr_02_03_017_mcp-authentication.md` |
 
 ## File Naming
 
@@ -56,7 +57,7 @@ Files in this directory follow `adr_NN_<name>.md`: `adr_00_` is this guide, `adr
 |---|---|---|
 | 01 | platform | 002, 004 |
 | 02 | agent | 001, 003, 014 |
-| 03 | mcp | 007, 012 |
+| 03 | mcp | 007, 012, 017 |
 | 04 | eventbus | 006, 013 |
 | 05 | db | 008 |
 | 06 | rag | 005, 009, 010 |

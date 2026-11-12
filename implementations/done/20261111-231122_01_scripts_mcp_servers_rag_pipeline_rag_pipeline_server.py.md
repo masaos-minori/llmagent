@@ -8,7 +8,7 @@ Close the one verified server-side audit gap: make `rag_delete_document` (and ev
 ## Assumptions
 - The server's existing module-level `logger` (`Logger(__name__, "/opt/llm/logs/rag-mcp.log")`) is the correct sink; the record lands there like cicd-mcp's record lands in its application log (`mcp_06_05` "Layer 2").
 - `extract_request_context(request)` returns `(session_id, request_id, idempotency_key)`; the current code discards the first two (`_, _, idempotency_key = ...`) and must capture them.
-- `DispatchResult.outcome` carries the `ok`/`error` taxonomy; `error_type` stays at its default because `DispatchResult` owns its own failure taxonomy.
+- `DispatchResult.outcome` carries the `ok`/`error` taxonomy. `DispatchResult` exposes `error_type` (`scripts/mcp_servers/dispatch.py:77`, `str | None`), verified at implementation; the audit call passes `error_type=r.error_type or ""` — the existing dispatch taxonomy, no new field and no new taxonomy.
 - "Not found" is reported by `fmt_delete_document` as a normal result (outcome `ok`), so it is audited as `ok`, not `error`.
 - `target` carries the document URL (truncated to 80 chars) only for `rag_delete_document`; query tools carry an empty `target` because query text may contain user content.
 
@@ -43,19 +43,20 @@ Close the one verified server-side audit gap: make `rag_delete_document` (and ev
         target=_target,
         outcome=r.outcome,
         server_key="rag_pipeline",
+        error_type=r.error_type or "",
     )
     return _to_call_tool_response(r)
 ```
 
 ### Details
 - `action=req.name` records the tool name; `server_key="rag_pipeline"` identifies the emitting server.
-- `error_type` is left at its default (`""`) because `DispatchResult` carries its own taxonomy; set it only if `DispatchResult` exposes one (verified at implementation).
+- `DispatchResult` exposes `error_type` (`dispatch.py:77`), so the Plan's "set it only if exposed (verified at implementation)" conditional resolves to set it: `error_type=r.error_type or ""` propagates the dispatch taxonomy (`validation_error`, `unknown_tool`, ...) and is `""` for `ok` outcomes.
 - No argument or result fields other than the truncated URL are recorded, so the record contains no document content (`AC-1`).
 - The audit call sits after `dispatch_tool`, so each request is audited once with its own `request_id`; the replayed `rag_delete_document` (retryable in `config/mcp_dedup.toml`) is audited once per request.
 
 ### Companion test files
 - `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py`
-  - Procedure: add audit-emission assertions under `TestCallToolEndpoint` — capture `logger.info` for `rag_delete_document` success, for "Not found" (outcome `ok`), and for a handler error (outcome `error`); assert no record when the tool is disabled (`TestCallToolDisabledGate`); assert the record carries no document content and carries `server_key="rag_pipeline"`, `session_id`, `request_id`, `tool`, `target`.
+  - Procedure: add audit-emission assertions under `TestCallToolEndpoint` — capture `logger.info` for `rag_delete_document` success, for "Not found" (outcome `ok`), and for a handler error (outcome `error`); assert no record when the tool is disabled (`TestCallToolDisabledGate`); assert the record carries no document content and carries `server_key="rag_pipeline"`, `session_id`, `request_id`, `tool`, `target` (`error_type` carries the dispatch taxonomy in the error case).
   - Validation: `uv run pytest tests/mcp_servers/rag_pipeline -v` passes.
 
 ## Compatibility considerations
@@ -80,6 +81,7 @@ Revert the commit to `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` (
 - `call_tool` calls `_audit_log(...)` exactly once per dispatched call with `server_key="rag_pipeline"`, `session_id`/`request_id` from `extract_request_context()`, `action=req.name`, `target` = the `rag_delete_document` URL truncated to 80 chars (empty otherwise), `outcome=r.outcome`.
 - A disabled tool (rejected before dispatch) writes no record.
 - The captured record contains no document content.
+- On `error` outcomes the record carries the `DispatchResult` taxonomy in `error_type`; `""` on `ok` outcomes.
 
 ## Out of Scope
 - Adding a `principal` field or any other change to the audit record format.
@@ -91,9 +93,9 @@ Revert the commit to `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_audit_log` import and the audit call in `call_tool` (REQ-001) | Pending | — | — | Follows cicd-mcp pattern |
-| 2 | Add audit-emission tests to `test_rag_pipeline_server_endpoints.py` | Pending | — | — | success / not-found / error / disabled / no-content |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `_audit_log` import and the audit call in `call_tool` (REQ-001) | Completed | 20261112-120702 | 20261112-121133 | Follows cicd-mcp pattern Changed: scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py, tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py; 3b correction: error_type propagated (r.error_type or "") after confirming DispatchResult exposes it at dispatch.py:77 Docs update status: N/A: no task-scope mapping applies (docs/00_index.md rows are reference-doc rows; adrrev011 docs updates are procedures 09-13) |
+| 2 | Add audit-emission tests to `test_rag_pipeline_server_endpoints.py` | Completed | 20261112-121133 | 20261112-121735 | success / not-found / error / disabled / no-content |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-121133 | 20261112-121735 | Full suite 12116 passed, 9 skipped. Coverage gate N/A: rag_pipeline_server.py is omitted in pyproject [tool.coverage.run], so diff-cover reports no measurable lines for this diff (not a failure). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

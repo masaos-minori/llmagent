@@ -31,6 +31,7 @@ from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
 
+from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
@@ -338,8 +339,21 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     enabled, reason = _rag_pipeline_tool_availability(_cfg, req.name)
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
-    _, _, idempotency_key = extract_request_context(request)
+    session_id, request_id, idempotency_key = extract_request_context(request)
     r = await _dispatch_rag_tool(req.name, req.args, idempotency_key=idempotency_key)
+    _target = (
+        str(req.args.get("url", ""))[:80] if req.name == "rag_delete_document" else ""
+    )
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action=req.name,
+        target=_target,
+        outcome=r.outcome,
+        server_key="rag_pipeline",
+        error_type=r.error_type or "",
+    )
     return _to_call_tool_response(r)
 
 

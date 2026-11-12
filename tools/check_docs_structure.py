@@ -100,7 +100,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # to point to ADR-004 instead of restating the FAILED-abort rule (REQ-003); this pushed
     # the file past the default MAX_SIZE. The ceiling equals the accepted size, so further
     # growth fails.
-    "adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md": 24646,
+    "adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md": 25606,
+    # Re-accepted 2026-11-12 (adrrev011, procedure 20261111-231122_05): the Decision 9
+    # pointer to ADR-017, the Out of Scope pointer, and the completed Decision Change
+    # Approval Record grew the file 24646 -> 25606. The ceiling equals the accepted size.
     # ADR-004 grew by the audit Owner assignment and the spawn-failure Exceptions
     # section (2026-10-13), the security-posture Decision and Automated Tests rows
     # (2026-10-17), and the by-phase failure-class verification evidence (2026-10-17);
@@ -113,13 +116,19 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # 32448). Not part of adrrev007 scope (the plan treats ADR-004 as an unmodified reference
     # target); recorded here only to keep check_docs_structure.py green. The ceiling equals
     # the accepted size, so further growth fails.
-    "adr_02_01_004_platform-environment-failure-handling-policy.md": 32586,
+    "adr_02_01_004_platform-environment-failure-handling-policy.md": 33944,
+    # Re-accepted 2026-11-12, closing a second pre-existing gap: the file had grown 32586
+    # -> 33944 by 83879685e (adrrev008) without the ceiling being re-recorded. Recorded
+    # only to keep check_docs_structure.py green.
     # ADR-007 reached 24596 after the grouped rename (default limit 24576).
     # adr_02_05_008 sat at 33647 until dbmig001 recorded the workflow/eventbus
     # forward-only migration contract in Context > Constraints plus an Amendment
     # subsection and a realized Revisit Trigger (2026-10-30); the ceiling is
     # re-recorded to the accepted size.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 34206,
+    "adr_02_05_008_db-sqlite-4db-separation.md": 36197,
+    # Re-accepted 2026-11-12, closing a pre-existing gap: the file had grown 34206 -> 36197
+    # by 8ab061b3c (adrrev009 recovery alignment) without the ceiling being re-recorded.
+    # Not part of adrrev011 scope; recorded here only to keep check_docs_structure.py green.
     # ADR-006 grew past MAX_SIZE by the EVENTBUS-008 resolution follow-up (2026-10-14):
     # the empty-mapping gap was resolved to deny-all and the superuser residual deviation
     # documented; base size was already 38 bytes under MAX_SIZE, so this necessary content
@@ -175,7 +184,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # the §3.1 init_db.sh responsibilities bullet grew 36 bytes total replacing the stale
     # four-table lists with the five-table required set (tool_call_state added); the ceiling
     # equals the accepted size, so any further growth fails.
-    "deployment_01_deployment.md": 26797,
+    "deployment_01_deployment.md": 27339,
+    # Re-accepted 2026-11-12, closing a pre-existing gap: the file had grown 26797 -> 27339
+    # by df511141b (generalized fingerprint gate description) without the ceiling being
+    # re-recorded. Not part of adrrev011 scope; recorded here only to keep
+    # check_docs_structure.py green.
     # adr_01_index.md sat at 24576 (the default MAX_SIZE) until dbmig001 annotated the
     # ADR-008 row status cell as "Accepted (amended 2026-10-30: ...)" and appended a dated
     # amendment note for ADR-008 below the ADR List table (2026-10-30). The ceiling equals

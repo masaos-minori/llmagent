@@ -60,8 +60,13 @@ supplemental_adrs = []
 decision_target = "mcp.technical-safety"
 primary_adr = "ADR-012"
 supplemental_adrs = [
-  { adr = "ADR-007", limit = "transport, authentication, and health-check responsibilities" },
+  { adr = "ADR-007", limit = "transport and health-check responsibilities" },
 ]
+
+[[authority]]
+decision_target = "mcp.authentication"
+primary_adr = "ADR-017"
+supplemental_adrs = []
 
 [[authority]]
 decision_target = "eventbus.persistence"
@@ -198,6 +203,13 @@ to = "ADR-004"
 edge_type = "Reference"
 
 [[adr_edge]]
+from = "ADR-007"
+to = "ADR-017"
+edge_type = "Reference"
+intentional = true
+note = "ADR-007 Decision 9 requires Bearer authentication on every MCP server and defers the implementation detail; ADR-017 owns those rules."
+
+[[adr_edge]]
 from = "ADR-008"
 to = "ADR-002"
 edge_type = "Reference"
@@ -261,6 +273,11 @@ edge_type = "Extends"
 from = "ADR-016"
 to = "ADR-015"
 edge_type = "Reference"
+
+[[adr_edge]]
+from = "ADR-017"
+to = "ADR-007"
+edge_type = "Specializes"
 
 # --- Architecture-assumption registry (ADR-016 Decision 4) ---
 # Applicable-ADR lists record where the assumption is stated in ADR Context/Target Environment

@@ -8,6 +8,7 @@ FastAPI wiring:
   - POST /rag_debug_pipeline
   - GET  /v1/tools
   - POST /v1/call_tool (known and unknown tool)
+  - POST /v1/call_tool audit record emission (mcp_tool_exec)
   - RagPipelineMCPServer.dispatch()
 
 These tests lock the current, observed behavior of the thin FastAPI wiring layer before
@@ -21,9 +22,10 @@ to close the coverage gap on rag_pipeline_server.py's own route/dispatch/lifespa
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -98,6 +100,22 @@ class _HangingCaller:
 
     async def get(self, _url: str, timeout: float) -> Any:
         await asyncio.Event().wait()
+
+
+def _capture_audit(monkeypatch: pytest.MonkeyPatch) -> Mock:
+    """Replace the server's logger with a Mock that records audit payloads."""
+    audit_logger = Mock()
+    monkeypatch.setattr(server, "logger", audit_logger)
+    return audit_logger
+
+
+def _audit_records(audit_logger: Mock) -> list[dict[str, Any]]:
+    """Parse the mcp_tool_exec JSON payloads recorded by the mocked logger."""
+    return [
+        json.loads(call.args[0])
+        for call in audit_logger.info.call_args_list
+        if '"mcp_tool_exec"' in call.args[0]
+    ]
 
 
 @pytest.fixture
@@ -473,6 +491,24 @@ class TestCallToolDisabledGate:
         assert "embed_url is not configured" in body["result"]
         handler.assert_not_awaited()
 
+    def test_disabled_tool_writes_no_audit_record(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        audit_logger = _capture_audit(monkeypatch)
+        monkeypatch.setattr(server, "_cfg", RagPipelineConfig(embed_url=""))
+        fake_service._dispatch_table["rag_run_pipeline"] = AsyncMock(
+            return_value="ok result"
+        )
+        resp = client.post(
+            "/v1/call_tool", json={"name": "rag_run_pipeline", "args": {}}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["is_error"] is True
+        assert _audit_records(audit_logger) == []
+
 
 class TestCallToolEndpoint:
     def test_dispatches_known_tool(
@@ -497,6 +533,137 @@ class TestCallToolEndpoint:
         body = resp.json()
         assert body["is_error"] is True
         assert "Unknown tool" in body["result"]
+
+    def test_delete_document_emits_audit_record(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        audit_logger = _capture_audit(monkeypatch)
+        url = "https://example.com/docs/a1b2c3"
+        handler = AsyncMock(return_value=f"Deleted: {url}")
+        fake_service._dispatch_table["rag_delete_document"] = handler
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "rag_delete_document", "args": {"url": url}},
+            headers={"x-session-id": "sess-1"},
+        )
+        assert resp.status_code == 200
+        records = _audit_records(audit_logger)
+        assert len(records) == 1
+        record = records[0]
+        assert record["event"] == "mcp_tool_exec"
+        assert record["tool"] == "rag_delete_document"
+        assert record["outcome"] == "ok"
+        assert record["server_key"] == "rag_pipeline"
+        assert record["session_id"] == "sess-1"
+        assert record["request_id"] not in ("", "-")
+        assert record["target"] == url
+        assert record["error_type"] == ""
+
+    def test_delete_document_target_is_truncated_to_80_chars(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        audit_logger = _capture_audit(monkeypatch)
+        url = "https://example.com/" + "d" * 100
+        handler = AsyncMock(return_value=f"Deleted: {url}")
+        fake_service._dispatch_table["rag_delete_document"] = handler
+        client.post(
+            "/v1/call_tool", json={"name": "rag_delete_document", "args": {"url": url}}
+        )
+        records = _audit_records(audit_logger)
+        assert len(records) == 1
+        assert records[0]["target"] == url[:80]
+
+    def test_delete_not_found_is_audited_as_ok(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        audit_logger = _capture_audit(monkeypatch)
+        url = "https://example.com/docs/missing"
+        handler = AsyncMock(return_value=f"Not found: {url}")
+        fake_service._dispatch_table["rag_delete_document"] = handler
+        resp = client.post(
+            "/v1/call_tool", json={"name": "rag_delete_document", "args": {"url": url}}
+        )
+        assert resp.json()["is_error"] is False
+        records = _audit_records(audit_logger)
+        assert len(records) == 1
+        assert records[0]["outcome"] == "ok"
+        assert records[0]["error_type"] == ""
+
+    def test_handler_error_emits_error_audit_record(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        audit_logger = _capture_audit(monkeypatch)
+        handler = AsyncMock(side_effect=ValueError("bad url"))
+        fake_service._dispatch_table["rag_delete_document"] = handler
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "rag_delete_document", "args": {"url": "https://x"}},
+        )
+        assert resp.json()["is_error"] is True
+        records = _audit_records(audit_logger)
+        assert len(records) == 1
+        assert records[0]["outcome"] == "error"
+        assert records[0]["error_type"] == "validation_error"
+
+    def test_audit_record_carries_no_document_content(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        audit_logger = _capture_audit(monkeypatch)
+        url = "https://example.com/docs/secret"
+        body_marker = "SECRET-DOC-BODY"
+        handler = AsyncMock(return_value=f"Deleted: {url} {body_marker}")
+        fake_service._dispatch_table["rag_delete_document"] = handler
+        client.post(
+            "/v1/call_tool", json={"name": "rag_delete_document", "args": {"url": url}}
+        )
+        records = _audit_records(audit_logger)
+        assert len(records) == 1
+        assert body_marker not in json.dumps(records[0])
+        assert set(records[0]) == {
+            "event",
+            "source",
+            "ts",
+            "session_id",
+            "request_id",
+            "tool",
+            "target",
+            "outcome",
+            "server_key",
+            "error_type",
+        }
+
+    def test_query_tool_record_carries_empty_target(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        audit_logger = _capture_audit(monkeypatch)
+        query = "user-secret-query"
+        handler = AsyncMock(return_value="ok result")
+        fake_service._dispatch_table["rag_run_pipeline"] = handler
+        client.post(
+            "/v1/call_tool", json={"name": "rag_run_pipeline", "args": {"query": query}}
+        )
+        records = _audit_records(audit_logger)
+        assert len(records) == 1
+        assert records[0]["target"] == ""
+        assert query not in json.dumps(records[0])
 
 
 class TestRagPipelineMCPServerDispatch:

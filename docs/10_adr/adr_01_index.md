@@ -57,6 +57,7 @@ This index records no deviations of its own. Open deviations are recorded in the
 | ADR-014 | Responsibility Boundaries of the Agent Control Plane | Accepted | 02 agent | `10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md` |
 | ADR-015 | Reference Document Class Disposition | Accepted | 07 docs | `10_adr/adr_02_07_015_docs-reference-document-class-disposition.md` |
 | ADR-016 | ADR Authority Model | Accepted | 07 docs | `10_adr/adr_02_07_016_adr-authority-model.md` |
+| ADR-017 | MCP Bearer Authentication | Accepted | 03 mcp | `10_adr/adr_02_03_017_mcp-authentication.md` |
 
 The number ADR-011 is unassigned: no ADR file carries it, and it is not referenced as a dependency by any ADR in this list.
 
@@ -78,13 +79,14 @@ ADR-003 → ADR-001, ADR-002, ADR-004
 ADR-004 → ADR-001, ADR-002, ADR-003
 ADR-005 → ADR-002, ADR-004
 ADR-006 → ADR-002, ADR-004, ADR-013
-ADR-007 → ADR-002, ADR-004
+ADR-007 → ADR-002, ADR-004, ADR-017
 ADR-008 → ADR-002, ADR-004, ADR-005, ADR-006, ADR-013
 ADR-009 → ADR-002, ADR-004, ADR-005
 ADR-012 → ADR-007
 ADR-013 → ADR-002, ADR-006
 ADR-014 → ADR-001
 ADR-016 → ADR-015
+ADR-017 → ADR-007
 ```
 <!-- END AUTO-GENERATED -->
 
@@ -105,6 +107,7 @@ ADR-004 --Requires--> ADR-002
 ADR-004 --Extends--> ADR-003
 ADR-013 --Specializes--> ADR-006
 ADR-014 --Extends--> ADR-001
+ADR-017 --Specializes--> ADR-007
 ```
 
 | Decision target | Primary ADR | Supplemental ADRs (authority limit) |
@@ -119,7 +122,8 @@ ADR-014 --Extends--> ADR-001
 | `docs.reference-generation` | ADR-015 | — |
 | `eventbus.authorization` | ADR-013 | ADR-006 — persistence and SSE delivery contract |
 | `eventbus.persistence` | ADR-006 | ADR-013 — authentication and authorization semantics only |
-| `mcp.technical-safety` | ADR-012 | ADR-007 — transport, authentication, and health-check responsibilities |
+| `mcp.authentication` | ADR-017 | — |
+| `mcp.technical-safety` | ADR-012 | ADR-007 — transport and health-check responsibilities |
 | `mcp.transport` | ADR-007 | — |
 | `rag.canonical-data` | ADR-005 | — |
 | `security.posture-contract` | ADR-004 | — |
@@ -137,6 +141,7 @@ Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`.
 - ADR-002 ↔ ADR-004: ADR-004 classifies a Config Isolation violation as a Fail-Fast failure; ADR-002 owns the isolation decision.
 - ADR-003 ↔ ADR-004: ADR-004 defines the failure-classification contract; ADR-003 remains the authority for RuntimeToolRegistry, Tool ownership, and Routing.
 - ADR-006 ↔ ADR-013: ADR-013 owns EventBus authentication and authorization; ADR-006 owns persistence and SSE delivery.
+- ADR-007 ↔ ADR-017: ADR-007 Decision 9 requires Bearer authentication on every MCP server and defers the implementation detail; ADR-017 owns those rules.
 <!-- END AUTO-GENERATED -->
 
 Each pair splits ownership by topic, so neither ADR's decision depends on the other's

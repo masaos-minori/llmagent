@@ -74,7 +74,7 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 6. stdio is not a valid transport value: the configuration schema accepts only `http`. (Explicit in code — `scripts/shared/mcp_config.py` `TransportType`)
 7. Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
 8. MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
-9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Every MCP server, including mdq-mcp, rejects a request without a matching Bearer token on every endpoint. mdq-mcp's `allowed_dirs` is a separate, fail-closed resource-authorization boundary applied only after successful authentication; it neither replaces authentication nor is replaced by it. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`, `scripts/mcp_servers/mdq/mdq_server.py`)
+9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Every MCP server, including mdq-mcp, rejects a request without a matching Bearer token on every endpoint. mdq-mcp's `allowed_dirs` is a separate, fail-closed resource-authorization boundary applied only after successful authentication; it neither replaces authentication nor is replaced by it. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`, `scripts/mcp_servers/mdq/mdq_server.py`) The authentication rules themselves (shared-variable resolution, empty-token startup abort, fail-closed middleware) are recorded in ADR-017 (`adr_02_03_017_mcp-authentication.md`).
 10. The Agent and each MCP server read their own token from their own configuration file (the Agent from `agent.toml`, mdq-mcp from `mdq_mcp_server.toml`); the two values must match, but neither process reads the other's file (ADR-002).
 11. Fault isolation, operational monitoring, independent deployment take priority over the cost of HTTP Serialization and Socket communication.
 12. Each MCP server validates its own security configuration and publishes the result as a security posture on `GET /health`; the Agent validates only that posture's contract version and shape, never the server's configuration file (item 10). How a `FAILED` posture is handled is defined by ADR-004, the single normative authority for posture handling.
@@ -89,7 +89,7 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 
 ### Out of Scope
 
-- Detailed implementation of security authentication (handled by a separate ADR)
+- Detailed implementation of security authentication (recorded in ADR-017: MCP Bearer Authentication)
 - Detailed configuration of metrics collection
 - Detailed logging format
 - Performance benchmark thresholds
@@ -333,6 +333,12 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-15; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
+
+### Decision Change Approval Record
+
+- **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
+- **Approval Date**: 2026-11-12 (date the maintainer statement was given)
+- **Approval Reference**: Reviewed and approved by the repository owner through a task-level approval decision issued 2026-11-12 as part of the MCP audit and authentication documentation task; the decision-scope reduction moves the authentication implementation detail from ADR-007 to ADR-017 without altering Decision item 9's rules (`docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard; `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` ADR-edit row)
 
 ## Related ADRs
 

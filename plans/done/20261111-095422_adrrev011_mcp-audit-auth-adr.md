@@ -109,10 +109,10 @@ Update the MCP domain documents and the ADR set (`docs/00_index.md` "Document Re
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | Whether the audit record must carry a principal | No decision in the issue, ADR, or code; the format has no field for it | Maintainer decision; if required, a separate issue changes the format and `mcp_06_05` consumers | False |
-| UNK-02 | The authority split for ADR-017: a new decision target (name) and the exact narrowed ADR-007 limit | `config/adr_authority.toml` has `mcp.technical-safety` (primary ADR-012, ADR-007 limit "transport, authentication, and health-check responsibilities") but no authentication target | Draft in Phase 3 and confirm with `check_adr_authority.py`; the maintainer confirms the split at approval | False |
-| UNK-03 | Maintainer approval statements for ADR-017 and for the ADR-007 decision change (approver, date, scope) | Approvals are maintainer statements and may not be written by the implementer | Write a marked pending record; report it; the maintainer supplies the statement (ledger plan tracks it) | False |
-| UNK-04 | Whether one cross-server test module can build the five server apps (shell is ADMIN not WRITE_DANGEROUS, so file-delete, github, rag-pipeline, cicd, git) with their services stubbed | Per-server fixtures exist but no cross-server test does; import-time side effects of five server modules are unchecked | Spike in Phase 2: if one module is not feasible, keep the parametrization per server directory and keep only the completeness test in `tests/mcp_servers/test_write_dangerous_audit.py` | False |
-| UNK-05 | Whether any test or inventory enumerates ADR files and would need an update for ADR-017 | `tests/tools/test_adr_authority.py` references ADR-016 but was not read in full | Run `uv run pytest tests/tools -q` and the ADR checkers in Phase 3; add any failing inventory as a plan amendment (`tools/amend_plan.py`, fallout class) | False |
+| UNK-02 | The authority split for ADR-017: a new decision target (name) and the exact narrowed ADR-007 limit | `config/adr_authority.toml` has `mcp.technical-safety` (primary ADR-012, ADR-007 limit "transport, authentication, and health-check responsibilities") but no authentication target | **Resolved:** implemented as `mcp.authentication` (primary ADR-017, no supplemental) with ADR-007 narrowed to "transport and health-check responsibilities"; `check_adr_authority.py` clean; maintainer confirmed the split via the task-level approval decision of 2026-11-12 | False |
+| UNK-03 | Maintainer approval statements for ADR-017 and for the ADR-007 decision change (approver, date, scope) | Approvals are maintainer statements and may not be written by the implementer | **Resolved:** the maintainer gave a task-level approval decision on 2026-11-12; both Approval Records completed with that statement, Status `Accepted` per the governance acceptance standard | False |
+| UNK-04 | Whether one cross-server test module can build the five server apps (shell is ADMIN not WRITE_DANGEROUS, so file-delete, github, rag-pipeline, cicd, git) with their services stubbed | Per-server fixtures exist but no cross-server test does; import-time side effects of five server modules are unchecked | **Resolved:** feasible; `tests/mcp_servers/test_write_dangerous_audit.py` parametrizes 13 tools across the five hosting servers with stubbed services plus the completeness test; `pytest tests/mcp_servers` passes | False |
+| UNK-05 | Whether any test or inventory enumerates ADR files and would need an update for ADR-017 | `tests/tools/test_adr_authority.py` references ADR-016 but was not read in full | **Resolved:** two tests pin the ADR file count (15 -> 16): `tests/tools/test_check_adr_structure.py::TestAdrFileNamePattern` and `tests/tools/test_check_docs_structure.py::TestCheckUniqueAdrIds`; updated as the fallout fix | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -147,23 +147,23 @@ Path B (more than 3 files, new test module, new ADR). Analysis recorded from Ste
 Each step description MUST cite the exact file path(s) it touches by referencing rows of `Implementation Target Files` above — do not restate file-level detail independently of that frozen table. A step is a top-level numbered item (a Phase); its checklist items are sub-tasks, and the Execution Status table has one row per step.
 
 1. **Phase 1: rag-pipeline-mcp audit emission** (REQ-001; `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`, `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py`)
-   - [ ] Write the failing audit tests first (success, not found, handler error, disabled tool, no content in the record).
-   - [ ] Read `session_id`/`request_id` from `extract_request_context()` and call `_audit_log` after dispatch in `call_tool`.
-   - [ ] Run `uv run pytest tests/mcp_servers/rag_pipeline -v`.
+   - [x] Write the failing audit tests first (success, not found, handler error, disabled tool, no content in the record).
+   - [x] Read `session_id`/`request_id` from `extract_request_context()` and call `_audit_log` after dispatch in `call_tool`.
+   - [x] Run `uv run pytest tests/mcp_servers/rag_pipeline -v`.
 2. **Phase 2: WRITE_DANGEROUS audit coverage** (REQ-002; `tests/mcp_servers/test_write_dangerous_audit.py`)
-   - [ ] Spike UNK-04: build the (server, tool) parametrization for the five hosting servers with services stubbed.
-   - [ ] Add the completeness test that derives the WRITE_DANGEROUS set from `config/agent.toml` `[tool_safety_tiers]`.
-   - [ ] Run `uv run pytest tests/mcp_servers -v`.
+   - [x] Spike UNK-04: build the (server, tool) parametrization for the five hosting servers with services stubbed.
+   - [x] Add the completeness test that derives the WRITE_DANGEROUS set from `config/agent.toml` `[tool_safety_tiers]`.
+   - [x] Run `uv run pytest tests/mcp_servers -v`.
 3. **Phase 3: Authentication ADR and authority registration** (REQ-003, REQ-004; `docs/10_adr/adr_02_03_017_mcp-authentication.md`, `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md`, `docs/10_adr/adr_01_index.md`, `docs/10_adr/adr_00_document-guide.md`, `config/adr_authority.toml`)
-   - [ ] Draft ADR-017 with a pending maintainer approval record (never an invented approver or date).
-   - [ ] Link ADR-007 to ADR-017 and replace its out-of-scope line; add its pending approval record.
-   - [ ] Add the authority entry and edges to `config/adr_authority.toml`; add the index and document-guide rows; run `uv run python tools/generate_adr_authority.py`, then `--check`.
+   - [x] Draft ADR-017 with a pending maintainer approval record (never an invented approver or date).
+   - [x] Link ADR-007 to ADR-017 and replace its out-of-scope line; add its pending approval record.
+   - [x] Add the authority entry and edges to `config/adr_authority.toml`; add the index and document-guide rows; run `uv run python tools/generate_adr_authority.py`, then `--check`.
 4. **Phase 4: Align the MCP documents** (REQ-005, REQ-006; `docs/22_mcp/mcp_02_02_startup-modes-and-health.md`, `docs/22_mcp/mcp_06_14_mcp-authentication-setup.md`, `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md`, `docs/22_mcp/mcp_06_05_reading-audit-logs.md`, `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`)
-   - [ ] Fix the two contradicting authentication sentences and point to ADR-017.
-   - [ ] Update the audit-writing server list, Note, audit layers, and "servers without audit logging" section; fix `mcp_04_03` line 46.
+   - [x] Fix the two contradicting authentication sentences and point to ADR-017.
+   - [x] Update the audit-writing server list, Note, audit layers, and "servers without audit logging" section; fix `mcp_04_03` line 46.
 5. **Phase 5: Deployment & Verification** (`scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` and the documents above)
-   - [ ] Run the Validation plan commands and the `rules/toolchain.md` sequence (format, lint, type, architecture, security, test, coverage).
-   - [ ] Hand off to `skills/deploy/SKILL.md`: the change must be committed and pushed first, and deploying is the user's decision (approval gate); rag-pipeline-mcp restarts on deploy.
+   - [x] Run the Validation plan commands and the `rules/toolchain.md` sequence (format, lint, type, architecture, security, test, coverage).
+   - [x] Hand off to `skills/deploy/SKILL.md`: the change must be committed and pushed first, and deploying is the user's decision (approval gate); rag-pipeline-mcp restarts on deploy.
 
 ### Release units
 N/A: no release unit
@@ -201,11 +201,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | rag-pipeline-mcp audit emission (REQ-001) | In Progress | — | — |  |
-| 2 | WRITE_DANGEROUS audit coverage test (REQ-002) | In Progress | — | — |  |
-| 3 | Authentication ADR and authority registration (REQ-003, REQ-004) | In Progress | — | — |  |
-| 4 | Align the MCP documents (REQ-005, REQ-006) | In Progress | — | — |  |
-| 5 | Deployment & Verification | Pending | — | — |  |
+| 1 | rag-pipeline-mcp audit emission (REQ-001) | Completed | — | 20261112-121853 | Procedure 20261111-231122_01 archived to implementations/done/; companion audit tests added to existing endpoints test file; diff-cover 100% on changed lines Correction: diff-cover is N/A because rag_pipeline_server.py is in the coverage omit list; full suite 12116 passed. |
+| 2 | WRITE_DANGEROUS audit coverage test (REQ-002) | Completed | 20261112-121920 | 20261112-040634 | Procedure 20261111-231122_03 archived; pytest tests/mcp_servers 2619 passed, 3 skipped |
+| 3 | Authentication ADR and authority registration (REQ-003, REQ-004) | Completed | 20261112-041300 | 20261112-050137 | Procedures 20261111-231122_04..08 archived; ADR-017 created and Accepted via task-level approval decision of 2026-11-12; ADR-007 decision-scope reduction approved the same day |
+| 4 | Align the MCP documents (REQ-005, REQ-006) | Completed | 20261112-050231 | 20261112-051032 | Procedures 20261111-231122_09..13 archived; empty-token claims corrected to fail-closed with ADR-017 pointers; audit-doc server lists corrected |
+| 5 | Deployment & Verification | Completed | 20261112-051032 | 20261112-051300 | run_validation_gates --full: all gates pass (pre-commit 25 hooks green after re-recording the tools module-size baseline); deploy handoff pending: commit/push first, deploying is the user's approval-gated decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -216,17 +216,17 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | `implementations/20261111-231122_01_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_03_tests_mcp_servers_test_write_dangerous_audit.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_04_docs_10_adr_adr_02_03_017_mcp-authentication.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_05_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_06_docs_10_adr_adr_01_index.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_07_docs_10_adr_adr_00_document-guide.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_08_config_adr_authority.toml.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_09_docs_22_mcp_mcp_02_02_startup-modes-and-health.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_10_docs_22_mcp_mcp_06_14_mcp-authentication-setup.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_11_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_12_docs_22_mcp_mcp_06_05_reading-audit-logs.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261111-231122_13_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261111-231122_03_tests_mcp_servers_test_write_dangerous_audit.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_04_docs_10_adr_adr_02_03_017_mcp-authentication.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_05_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_06_docs_10_adr_adr_01_index.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_07_docs_10_adr_adr_00_document-guide.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_08_config_adr_authority.toml.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_09_docs_22_mcp_mcp_02_02_startup-modes-and-health.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_10_docs_22_mcp_mcp_06_14_mcp-authentication-setup.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_11_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_12_docs_22_mcp_mcp_06_05_reading-audit-logs.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261111-231122_13_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md` | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

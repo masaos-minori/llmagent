@@ -80,7 +80,7 @@ Every HTTP MCP server MUST have a non-empty `McpServerConfig.auth_token`; Agent 
 - **Server-side**: `attach_auth_middleware(app, token)` registers middleware and validates `Authorization: Bearer <token>`. Mismatched requests receive an HTTP 401.
   - Every HTTP MCP server registers this middleware and enforces the configured Bearer token (see `mcp_06_14_mcp-authentication-setup.md`).
 - **Client-side**: `HttpTransport` injects `Authorization: Bearer <token>` into all POST requests.
-- Empty server-side token (a standalone test run only): `attach_auth_middleware()` skips the authentication check and only injects `X-Request-Id`; the shell, github, file, and mdq servers refuse to start with an empty token.
+- Authentication is fail-closed: an empty server-side token makes `attach_auth_middleware()` reject every request with HTTP 401; the full rule (one shared variable per server on both sides, no bypass, restart required) is defined by [adr_02_03_017_mcp-authentication.md](../10_adr/adr_02_03_017_mcp-authentication.md).
 
 ---
 

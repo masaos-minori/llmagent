@@ -53,7 +53,7 @@ grep '"event":"mcp_tool_exec"' <log_dir>/audit.log
 Every server writes an application log `<log_dir>/<server>-mcp.log` (rag-pipeline-mcp writes `rag-mcp.log`). Audit layers:
 
 - Layer 1 (agent-side `tool_exec`): every server.
-- Layer 2 (`mcp_tool_exec` in the server's own application log `<log_dir>/<server>-mcp.log`): all servers except file-read-mcp and rag-pipeline-mcp.
+- Layer 2 (`mcp_tool_exec` in the server's own application log `<log_dir>/<server>-mcp.log`): all servers except file-read-mcp.
 - Layer 3 (dedicated audit file): file-delete-mcp (`delete_audit.log`, `ISO8601 op= path= user=llm-agent`), github-mcp (`github_audit.log`), shell-mcp (`shell_audit.log`).
 - file-write-mcp and file-delete-mcp also record the `_audit_log()` payload in their dedicated application logs.
 - Dedicated audit files carry no `X-Session-Id` / `X-Request-Id`; correlate through the agent-side log.
@@ -62,7 +62,7 @@ Every server writes an application log `<log_dir>/<server>-mcp.log` (rag-pipelin
 
 ### MCP Servers without Audit Logging
 
-file-read-mcp and rag-pipeline-mcp write no audit logs. file-write-mcp and file-delete-mcp emit audit events through `mcp_servers.audit._audit_log()` (session ID, request ID, action, truncated target, `outcome`) on every rejected path (empty `allowed_dirs`, argument validation failure) and on the completed path. Before/after file state and approval correlation are not recorded.
+file-read-mcp writes no audit logs. file-write-mcp and file-delete-mcp emit audit events through `mcp_servers.audit._audit_log()` (session ID, request ID, action, truncated target, `outcome`) on every rejected path (empty `allowed_dirs`, argument validation failure) and on the completed path. Before/after file state and approval correlation are not recorded.
 
 ### Agent-side Audit Logs (Structured Events)
 

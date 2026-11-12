@@ -19,7 +19,7 @@ related:
 
 ## Audit Log Format
 
-Each `POST /v1/call_tool` invocation on a server that writes the shared audit log outputs one JSON-lines audit record. Those servers are web-search-mcp, github-mcp, shell-mcp, cicd-mcp, mdq-mcp, git-mcp, file-write-mcp, and file-delete-mcp. file-read-mcp and rag-pipeline-mcp write no audit log (see the Note below and `mcp_06_05_reading-audit-logs.md`).
+Each `POST /v1/call_tool` invocation on a server that writes the shared audit log outputs one JSON-lines audit record. Those servers are web-search-mcp, github-mcp, shell-mcp, cicd-mcp, mdq-mcp, git-mcp, file-write-mcp, file-delete-mcp, and rag-pipeline-mcp. file-read-mcp writes no audit log (see the Note below and `mcp_06_05_reading-audit-logs.md`).
 
 ```json
 {"event":"mcp_tool_exec","source":"mcp_server","ts":1719500000.0,"session_id":"sess-abc","request_id":"req-uuid","tool":"search_web","target":"example query","outcome":"ok","server_key":"web_search","error_type":""}
@@ -41,7 +41,7 @@ Each `POST /v1/call_tool` invocation on a server that writes the shared audit lo
 | `post_condition` | Serialized repository state after the operation; emitted by git-mcp only | No | Omitted |
 | `requested_target` | Redacted caller-supplied target captured before canonical path resolution; emitted only when the caller supplies it, mirroring the `canonical_target` pattern | No | Omitted |
 
-**Note:** github-mcp, shell-mcp, and file-delete-mcp write to both the shared and a dedicated audit log; file-write-mcp writes only the shared audit log. file-read-mcp and rag-pipeline-mcp do not write audit logs. Dedicated audit logs for github-mcp, shell-mcp, and file-delete-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
+**Note:** github-mcp, shell-mcp, and file-delete-mcp write to both the shared and a dedicated audit log; file-write-mcp and rag-pipeline-mcp write only the shared audit log. file-read-mcp does not write audit logs. Dedicated audit logs for github-mcp, shell-mcp, and file-delete-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
 
 ### Approval correlation
 
