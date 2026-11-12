@@ -80,10 +80,6 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
     - `vec != chunks`: investigate as an embedding or synchronization failure
 11. The ingestion path (`delete_document_chain()`) and the MCP deletion path (`DocumentManager.delete_document()` of the rag_pipeline MCP server) apply the same deletion order (`chunks_vec` before `documents`) through the shared helper.
 
-### Amendment (adrrev016, 2026-11-12)
-
-In force: this rewords Decision 8 and the `RagMaintenanceService.rebuild_fts()` Implementation Note to cite ADR-009 (INV-03, INV-07) instead of restating the text-selection expression. No decision changed: FTS5 synchronization and manual rebuilds still generate from the same rule; ADR-009 owns that text-selection rule (INV-03, INV-07), and this ADR owns only the synchronization and rebuild operations. The removed inline expression `COALESCE(normalized_content, content)` is now referenced through the ADR-009 citation; INV-03 and INV-07 of this ADR are unchanged. Adopted under the task-level approval decision referenced in this Approval Record.
-
 ### Scope
 
 - **Target components**: `DocumentManager` (ingestion), `DocumentManager` (rag_pipeline MCP server), `RagMaintenanceService`, `check_rag_consistency()`
