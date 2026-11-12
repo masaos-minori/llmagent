@@ -69,8 +69,8 @@ Delete the new file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/mcp_servers/test_write_dangerous_audit.py` with parametrization + completeness check | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create `tests/mcp_servers/test_write_dangerous_audit.py` with parametrization + completeness check | Completed | 20261112-122123 | 20261112-123959 | new file tests/mcp_servers/test_write_dangerous_audit.py; 14 tests (13 parametrized + completeness) passed |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-123959 | 20261112-040527 | pytest tests/mcp_servers: 2619 passed, 3 skipped; ruff format/check clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
