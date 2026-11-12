@@ -60,8 +60,8 @@ Revert the commit to restore ADR-007's original out-of-scope line.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Link ADR-017 from Decision 9 and replace the out-of-scope line; add pending approval record | Pending | — | — | Decision change needs governance_05 approval |
-| 2 | Run `check_adr_preservation.py` (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Link ADR-017 from Decision 9 and replace the out-of-scope line; add pending approval record | Completed | — | 20261112-041530 | Decision change needs governance_05 approval Decision 9 pointer + Out of Scope pointer + pending Decision Change Approval Record added |
+| 2 | Run `check_adr_preservation.py` (`rules/toolchain.md`) | Completed | — | 20261112-041530 | check_adr_preservation: only intended changes (Approval ERROR + Decision WARNING = intended signal per procedure); structure/reference: no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
