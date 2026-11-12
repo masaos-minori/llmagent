@@ -61,10 +61,10 @@ Remove the obsolete NACK state-transition row from `docs/24_eventbus/eventbus_12
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-151401 | 20261112-151401 | Changed: docs/24_eventbus/eventbus_12_ack_nack_endpoints.md. Verified promote_single is DB-only (dlq.py docstring) before removing the row; ack_route.py keeps an unreachable except OSError handler (code finding, out of scope) |
+| 2 | Add or update tests per Validation plan | Completed | 20261112-151401 | 20261112-151401 | N/A: documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-151401 | 20261112-151401 | No code changed in this cycle; end-of-batch full suite follows seq 11 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261112-151401 | 20261112-151401 | docs checkers pass (consistency eventbus, content-policy strict, quality, japanese); check_docs_structure only the 3 pre-existing over-ceiling files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

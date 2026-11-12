@@ -63,10 +63,10 @@ Replace line 180 with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-151553 | 20261112-151553 | Changed: docs/24_eventbus/eventbus_03_dlq_operations.md (Failure Behavior Summary cell only). Finding, out of scope: lines in the same document still say 'metered' for the in-process counters eventbus_dlq_* (they exist in dlq.py, but no /metrics route exposes them) |
+| 2 | Add or update tests per Validation plan | Completed | 20261112-151553 | 20261112-151553 | N/A: documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-151553 | 20261112-151553 | No code changed in this cycle; end-of-batch full suite follows seq 11 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261112-151553 | 20261112-151553 | docs checkers pass (consistency eventbus, content-policy strict, quality, japanese); check_docs_structure only the 3 pre-existing over-ceiling files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

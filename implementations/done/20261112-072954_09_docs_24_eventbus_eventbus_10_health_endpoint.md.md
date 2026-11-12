@@ -39,7 +39,7 @@ Document, in `docs/24_eventbus/eventbus_10_health_endpoint.md`, the two new `/he
 > `dlq_outbox_failed` and `dlq_sweep_failing` are real failures: each returns HTTP 503 like every other degraded reason, but neither changes `liveness` or `readiness`. They are not capacity-only reasons; they indicate a genuine DLQ problem (stuck failed events or a repeatedly failing sweep).
 
 ### Details
-- `terminal_failed_outbox` is `null` when the count query raised `sqlite3.Error`; in that case the route reports `db_unavailable` instead and omits the reason (see seq 03).
+- `terminal_failed_outbox` is `null` when the count query raised `sqlite3.Error`; the route then adds no outbox reason (Step 3a correction: `db_unavailable` comes only from the database connectivity check, not from the count query; see seq 03).
 - `last_dlq_sweep.result == "not_run"` (before any sweep in this process) does not fire `dlq_sweep_failing`.
 - Keep the descriptions terse and parallel to the existing rows.
 
@@ -71,10 +71,10 @@ Document, in `docs/24_eventbus/eventbus_10_health_endpoint.md`, the two new `/he
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-151457 | 20261112-151457 | Changed: docs/24_eventbus/eventbus_10_health_endpoint.md; wording matches the implemented route and its tests (null count adds no reason) |
+| 2 | Add or update tests per Validation plan | Completed | 20261112-151457 | 20261112-151457 | N/A: documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-151457 | 20261112-151457 | No code changed in this cycle; end-of-batch full suite follows seq 11 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261112-151457 | 20261112-151457 | docs checkers pass (consistency eventbus, content-policy strict, quality, japanese); check_docs_structure only the 3 pre-existing over-ceiling files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

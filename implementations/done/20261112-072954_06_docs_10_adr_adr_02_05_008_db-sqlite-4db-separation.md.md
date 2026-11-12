@@ -67,10 +67,10 @@ Extend ADR-008's `eventbus.sqlite` contents line (Decision Detail #4, line 117) 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-151147 | 20261112-151147 | Changed: docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md (Decision Detail 4 + pending approval line; plan ID omitted from doc text) |
+| 2 | Add or update tests per Validation plan | Completed | 20261112-151147 | 20261112-151147 | N/A: documentation-only; tests/tools passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-151147 | 20261112-151147 | ADR structure/authority/matrix/reference, check_db_separation, known-deviation-sync pass; preservation reports only the intended Decision/Approval change; check_docs_structure: ADR-008 stays over its ceiling (36570 vs 34206), pre-existing (was 36197) and not re-recorded per user decision |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261112-151147 | 20261112-151147 | docs checkers pass (quality, content-policy strict, japanese, consistency eventbus) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

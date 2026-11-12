@@ -3,7 +3,7 @@
 Report, from `/health`, the number of terminal-failed `dlq_outbox` rows and the result and time of the last `_dlq_loop` cycle, adding two degraded reasons (`dlq_outbox_failed` (new), `dlq_sweep_failing` (new)) that return HTTP 503 like every existing reason while leaving `liveness`, `readiness`, and role checks unchanged (`REQ-005`).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: eventbus-health-observability (user-approved 2026-11-12: the count function, loop recording, route, and tests cannot be validated alone; full suite and diff-cover run once after seq 04)
 
 ## Assumptions
 - `scripts/eventbus/dlq_repo.py` gains `count_failed_outbox(db)` (sibling procedure, seq 01); import it here.
@@ -25,29 +25,29 @@ Report, from `/health`, the number of terminal-failed `dlq_outbox` rows and the 
 `scripts/eventbus/health_route.py`
 
 ### Procedure
-1. Import `count_failed_outbox` from `eventbus.dlq_repo` (add to the `from eventbus.*` imports).
+1. Import `count_failed_outbox` from `eventbus.dlq_repo` in isort order among the `from eventbus.*` imports, and add `import sqlite3` to the standard-library imports (Step 3b correction: the module does not import `sqlite3` today, and the new `except sqlite3.Error` needs it).
 2. In `health_check`, after `degraded_reasons.extend(capacity_degraded_reasons)` (line 105) and before the tiered health checks (line 107), insert the terminal-failed count + last-sweep read and the two new reason appends.
 3. Add the two new fields to the returned `JSONResponse` content dict, after `"dlq_task": dlq_task_status,` (line 117).
 4. Do not rename or remove any existing field, key, or reason.
 
 ### Method
-1. Add the import (after the `route_helpers` import block, before `logger`):
+1. Add the imports (Step 3b correction; `ruff check --fix` places them in isort order):
 ```python
+import sqlite3
+
 from eventbus.dlq_repo import count_failed_outbox
 ```
 2. Insert after line 105 (`degraded_reasons.extend(capacity_degraded_reasons)`):
 ```python
     # Terminal-failed outbox rows and a failing sweep cycle (REQ-005): real
     # failures, HTTP 503 like every other degraded reason, outside liveness and
-    # readiness. A count-query failure reports db_unavailable (above) and omits
-    # the count rather than raising.
-    terminal_failed = None
+    # readiness. A failed count query leaves the count None and adds no reason:
+    # database health is judged by check_db above.
+    terminal_failed: int | None = None
     try:
-        terminal_failed = await run_with_db_lock(
-            lambda: count_failed_outbox(db)
-        )
+        terminal_failed = await run_with_db_lock(lambda: count_failed_outbox(db))
     except sqlite3.Error:
-        terminal_failed = None
+        logger.warning("health: terminal-failed outbox count unavailable", exc_info=True)
     last_result = getattr(request.app.state, "last_dlq_cycle_result", "not_run")
     last_time = getattr(request.app.state, "last_dlq_cycle_time", None)
     if terminal_failed and terminal_failed > 0:
@@ -62,7 +62,7 @@ from eventbus.dlq_repo import count_failed_outbox
 ```
 
 ### Details
-- `run_with_db_lock` runs the sync `count_failed_outbox` inside the DB lock via `asyncio.to_thread` and re-raises; the `except sqlite3.Error` catches that and sets `None`, so the route never propagates a count failure.
+- `run_with_db_lock` runs the sync `count_failed_outbox` inside the DB lock via `asyncio.to_thread` and re-raises; the `except sqlite3.Error` catches that, logs a warning, and leaves `None`, so the route never propagates a count failure. Step 3a correction: a failed count does NOT add `db_unavailable` (that reason comes only from `check_db`), so `terminal_failed_outbox` is `null` with no outbox reason.
 - `lambda: count_failed_outbox(db)` closes over the route's `db` (`get_db(request)`); no new argument is needed.
 - `getattr` defaults (`"not_run"`, `None`) mean the very first `/health` before any sweep reports `last_dlq_sweep.result == "not_run"` and no `dlq_sweep_failing` (new) reason.
 - The two new reasons are ordinary entries in `degraded_reasons`; they flow into `overall` (line 111) and `status_code` (line 112) unchanged, preserving the documented 503-for-any-degraded rule.
@@ -101,10 +101,10 @@ from eventbus.dlq_repo import count_failed_outbox
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-141655 | 20261112-141655 | Changed: scripts/eventbus/health_route.py. Step 3b: added import sqlite3; count failure logs a warning and leaves None |
+| 2 | Add or update tests per Validation plan | Completed | 20261112-144314 | 20261112-144314 | N/A: tests for this route change are added by seq 04 (same release unit) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-141655 | 20261112-144314 | 3e passed; health/auth/deploy targeted tests 67 passed; full suite and diff-cover at end of unit End-of-unit run (seq 01-04): full suite 12101 passed, 3 failed (tests/mcp_servers mdq-server import tests: mdq database schema message, unrelated, failed in every run); one earlier run also failed tests/eventbus/test_eventbus_dlq_outbox.py::test_restart_with_pending_rows (timing, not reproducible: 20 isolated runs pass, passed in the final run); diff-cover 100% (23 lines) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261112-144314 | 20261112-144314 | N/A: documentation is covered by sibling procedures seq 09, 10, 11 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

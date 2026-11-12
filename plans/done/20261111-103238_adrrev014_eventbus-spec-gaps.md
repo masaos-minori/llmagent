@@ -192,9 +192,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document current behavior (REQ-001 to REQ-004) | In Progress | — | — |  |
-| 2 | `/health` outbox and sweep reporting (REQ-005) | In Progress | — | — |  |
-| 3 | Health documentation and generated reference (REQ-006, REQ-007) | In Progress | — | — |  |
+| 1 | Document current behavior (REQ-001 to REQ-004) | Completed | — | 20261112-155345 |  |
+| 2 | `/health` outbox and sweep reporting (REQ-005) | Completed | — | 20261112-144328 |  |
+| 3 | Health documentation and generated reference (REQ-006, REQ-007) | Completed | — | 20261112-155345 |  |
 | 4 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -205,17 +205,17 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261112-072954_01_scripts_eventbus_dlq_repo.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-072954_02_scripts_eventbus_app.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-072954_03_scripts_eventbus_health_route.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-072954_04_tests_eventbus_test_eventbus_health.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-072954_05_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261112-072954_06_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261112-072954_07_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261112-072954_08_docs_24_eventbus_eventbus_12_ack_nack_endpoints.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261112-072954_09_docs_24_eventbus_eventbus_10_health_endpoint.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-072954_10_docs_24_eventbus_eventbus_03_dlq_operations.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-072954_11_docs_24_eventbus_eventbus_08_reference_api.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-072954_01_scripts_eventbus_dlq_repo.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-072954_02_scripts_eventbus_app.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-072954_03_scripts_eventbus_health_route.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-072954_04_tests_eventbus_test_eventbus_health.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-072954_05_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261112-072954_06_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261112-072954_07_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261112-072954_08_docs_24_eventbus_eventbus_12_ack_nack_endpoints.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261112-072954_09_docs_24_eventbus_eventbus_10_health_endpoint.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261112-072954_10_docs_24_eventbus_eventbus_03_dlq_operations.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261112-072954_11_docs_24_eventbus_eventbus_08_reference_api.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

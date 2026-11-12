@@ -10,6 +10,9 @@ Document, in `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-deli
 - The current Scope `Target data` bullet (line 91) lists DLQ state as `events.dlq_at` and deadletter files but omits the `dlq_outbox` table; the Data Ownership block (lines 215-221) likewise does not name it.
 - `/replay` and `/subscribe` behavior is confirmed from code (below); the ADR must describe it, not invent it.
 
+- Step 3a corrections (2026-11-12, source-verified): (1) the current `Target data` bullet reads `... DLQ state (`events.dlq_at` and deadletter files)`, so the edit extends that text; (2) `tests/eventbus/test_eventbus_dlq_promotion.py::...test_nack_increments_consumer_delivery_failure_count` does not exercise `dlq_outbox`, so the outbox row cites `tests/eventbus/test_eventbus_dlq_outbox.py::test_terminal_failed_after_bound` and `::test_restart_with_pending_rows`; (3) the replay-start precedence is verified by `tests/eventbus/test_eventbus_subscribe.py::test_since_seq_takes_precedence_over_consumer_offset`, `::test_consumer_offset_used_when_since_seq_is_zero`, and `::test_last_event_id_fallback_when_since_seq_and_offset_are_zero`, and the Operator-only rule by `tests/eventbus/test_eventbus_auth.py::test_replay_with_publisher_token_is_rejected`; (4) no automated test asserts that `/replay` leaves offsets unchanged, so the ADR states it as code behavior and records that gap, instead of citing the health test as the draft did; (5) active documents carry no plan IDs (Current-Specification-Only Policy), so the pending approval lines say `tracked by the ADR approval ledger` without the plan name.
+- Size gate (user-approved scope extension): the edit grows the ADR past its recorded ceiling in `tools/check_docs_structure.py`, so that ceiling (and `tools/check_module_size_tools_baseline.txt` if the tool grows) is re-recorded in this cycle.
+
 ## Design decisions
 - Extend the existing Scope `Target data` and Data Ownership bullets rather than adding a new subsection, so the additions sit beside the DLQ wording that already exists.
 - Add a dedicated `### Replay Contract` subsection under `Context` (or after the Invariants) stating the `/replay` and `/subscribe` rules, and map them into the Automated Tests invariant matrix.
@@ -87,10 +90,10 @@ Document, in `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-deli
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-145718 | 20261112-145718 | Changed: docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md; tools/check_docs_structure.py and tools/check_module_size_tools_baseline.txt (ceiling re-record, user-approved). Step 3b corrections recorded in Assumptions |
+| 2 | Add or update tests per Validation plan | Completed | 20261112-145718 | 20261112-145718 | N/A: documentation-only change (tests/tools check_docs_structure 82 passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-145718 | 20261112-145718 | Full suite 12101 passed, 3 unrelated mdq failures; ADR checkers pass; check_adr_preservation reports only intended test-citation and Approval changes (ERROR by design); ruff/mypy/bandit/size gate for tools file pass; check_docs_structure: ADR-006 passes, 3 pre-existing over-ceiling files unrelated |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261112-145718 | 20261112-145718 | docs checkers: quality, content-policy --strict, japanese, consistency eventbus, known-deviation-sync pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

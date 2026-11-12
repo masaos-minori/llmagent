@@ -68,10 +68,10 @@ If `--check` still reports drift after regeneration, inspect whether `count_fail
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-155343 | 20261112-155343 | docs/24_eventbus/eventbus_08_reference_api.md was already regenerated in seq 01 (same tool call, user-approved scope extension); regeneration and --check re-run here: file byte-identical, no drift; count_failed_outbox row present |
+| 2 | Add or update tests per Validation plan | Completed | 20261112-155343 | 20261112-155343 | N/A: generated document |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-155343 | 20261112-155343 | End-of-batch full suite: 12101 passed, 3 unrelated mdq failures |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261112-155343 | 20261112-155343 | docs checkers pass (consistency eventbus, content-policy strict, quality, japanese, needs-confirmation); check_docs_structure only the 3 pre-existing over-ceiling files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

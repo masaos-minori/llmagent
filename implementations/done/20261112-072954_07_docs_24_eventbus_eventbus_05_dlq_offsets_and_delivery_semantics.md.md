@@ -81,10 +81,10 @@ Replace lines 181-193 with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-151301 | 20261112-151301 | Changed: docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md. Step 3b: added PRAGMA foreign_keys = ON to the SQL block (a manual sqlite3 session does not enforce foreign keys by default); documented order verified against schema.sql in an in-memory database |
+| 2 | Add or update tests per Validation plan | Completed | 20261112-151301 | 20261112-151301 | N/A: documentation-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-151301 | 20261112-151301 | No code changed in this cycle; end-of-batch full suite follows seq 11 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261112-151301 | 20261112-151301 | check_docs_consistency eventbus, content-policy strict, quality, japanese pass; check_docs_structure only the 3 pre-existing over-ceiling files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -3,7 +3,7 @@
 Record the result and wall-clock time of every `_dlq_loop` cycle on `app.state`, so `/health` can report the last DLQ sweep outcome instead of a permanently `running` task that may be failing silently (`REQ-005`).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: eventbus-health-observability (user-approved 2026-11-12: the count function, loop recording, route, and tests cannot be validated alone; full suite and diff-cover run once after seq 04)
 
 ## Assumptions
 - Each cycle is one sweep + `process_outbox` + reconciliation pass; its "result" is `ok` when the try body completes and `failed` when the per-cycle `except (OSError, sqlite3.Error)` fires (the existing swallow point).
@@ -24,13 +24,13 @@ Record the result and wall-clock time of every `_dlq_loop` cycle on `app.state`,
 `scripts/eventbus/app.py`
 
 ### Procedure
-1. Add the `now_iso` import next to the other `eventbus.*` imports.
+1. Add the `now_iso` import in isort order among the `eventbus.*` imports (after `eventbus.health_route`, before `eventbus.publish_route`).
 2. In `lifespan`, initialize the two `app.state` keys just before `app.state.dlq_task = asyncio.create_task(_dlq_loop(app))`.
 3. In `_dlq_loop`, record the cycle result at the end of the successful try body (before `await asyncio.sleep(_DLQ_INTERVAL)`) and in the `except` block.
 4. Do not rename or remove any existing `app.state` key.
 
 ### Method
-1. Add the import (after the `eventbus.route_helpers` import block, before `subscribe_route`):
+1. Add the import in isort order (Step 3b correction: after `from eventbus.health_route import router as health_router`, before `from eventbus.publish_route import router as publish_router`; `ruff check` enforces the order):
 ```python
 from eventbus.json_utils import now_iso
 ```
@@ -93,8 +93,8 @@ from eventbus.json_utils import now_iso
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record each `_dlq_loop` cycle result and time on `app.state` (REQ-005) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Record each `_dlq_loop` cycle result and time on `app.state` (REQ-005) | Completed | 20261112-141555 | 20261112-141555 | Changed: scripts/eventbus/app.py. Import placed in isort order (Step 3b) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-141555 | 20261112-144314 | 3e passed (ruff, mypy, lint-imports, bandit, size gate, reference --check); tests/eventbus 515 passed; full suite and diff-cover at end of unit End-of-unit run (seq 01-04): full suite 12101 passed, 3 failed (tests/mcp_servers mdq-server import tests: mdq database schema message, unrelated, failed in every run); one earlier run also failed tests/eventbus/test_eventbus_dlq_outbox.py::test_restart_with_pending_rows (timing, not reproducible: 20 isolated runs pass, passed in the final run); diff-cover 100% (23 lines) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

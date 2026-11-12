@@ -3,13 +3,15 @@
 Add one read-only repository function that counts the terminal-failed `dlq_outbox` rows, so `/health` can report how many outbox generations reached a terminal `failed` state (`REQ-005`).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit
+**Release unit**: eventbus-health-observability (user-approved 2026-11-12: the count function, loop recording, route, and tests cannot be validated alone; full suite and diff-cover run once after seq 04)
 
 ## Assumptions
 - A terminal-failed row is any `dlq_outbox` row with `status = 'failed'` (schema CHECK values: `pending`, `done`, `failed`); the count is a gauge, not a per-event list.
 - The `status` column carries an index in `scripts/eventbus/schema.sql`, so `WHERE status = 'failed'` is an indexed lookup, not a table scan — the count adds negligible lock time under `run_with_db_lock` (resolves UNK-06).
 - The function is pure and side-effect free: it takes a connection and returns an int, matching the existing `get_outbox_state` / `done_outbox_event_ids` signatures. It must not open its own connection or commit.
-- `scripts/eventbus/_constants.py` owns the `dlq_outbox` status strings; reuse the existing status literal `'failed'` rather than introducing a new constant, so the count and the promotion path agree on the terminal value.
+- Step 3a correction (2026-11-12): `scripts/eventbus/_constants.py` holds no `dlq_outbox` status constant; the terminal value is the literal `"failed"` that `record_attempt_failure()` in this same module writes. Reuse that literal rather than introducing a new constant, so the count and the writer agree on the terminal value.
+
+- Step 3b scope extension (2026-11-12, user-approved after the full-suite run): the generated manifest `registry/manifests/eventbus_api.yaml` became stale when `count_failed_outbox` was added, failing `tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift`. It is outside this procedure's target and the archived Plan cannot be amended, so the user approved regenerating it in this cycle with `uv run python tools/generate_reference_table.py --manifests`. That one command also rewrote the guarded block of `docs/24_eventbus/eventbus_08_reference_api.md` (the target of sibling procedure seq 11); the result is identical to seq 11's own regeneration and is verified and closed there.
 
 ## Design decisions
 - Name the function `count_failed_outbox(db)` (new) and place it immediately after `done_outbox_event_ids`, grouped with the other read-only `dlq_outbox` selectors, so callers and readers find it beside its peers.
@@ -44,7 +46,7 @@ def count_failed_outbox(db: sqlite3.Connection) -> int:
 
 ### Details
 - Signature mirrors `done_outbox_event_ids(db)` and `get_outbox_state(db)` — a single `sqlite3.Connection`, no `now`/`event_id` arguments, no commit.
-- The predicate reuses the string literal `'failed'` that `dlq.py` `promote_single()` writes as the terminal status; if `_constants.py` ever gains a named constant for that terminal status, bind to it here and in `dlq.py` together so the two never diverge.
+- The predicate reuses the string literal `'failed'` that `record_attempt_failure()` (this module) writes as the terminal status; if a named constant for that status is ever added, bind to it in both places together so the two never diverge.
 - `int(row[0])` unwraps the single-column `COUNT(*)` result; an empty table returns `0`, never `None`.
 - No new import, dataclass, or module-level constant; the function is self-contained.
 
@@ -78,8 +80,8 @@ def count_failed_outbox(db: sqlite3.Connection) -> int:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `count_failed_outbox(db)` (new) to `dlq_repo.py` (REQ-005) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `count_failed_outbox(db)` (new) to `dlq_repo.py` (REQ-005) | Completed | 20261112-131233 | 20261112-132907 | Changed: scripts/eventbus/dlq_repo.py (count_failed_outbox added) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261112-144314 | Step 3b: corrected Assumptions/Details (terminal status written by record_attempt_failure, no _constants entry) Step 3e passed (ruff, mypy, lint-imports, bandit, size gate). Step 4 full suite: tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift fails: registry/manifests/eventbus_api.yaml (manifest stale) -- file outside procedure scope; plan is archived and cannot be amended. 3 mdq-server failures are unrelated (database schema message on import). User approved manifest regeneration; registry/manifests/eventbus_api.yaml and eventbus_08 block regenerated; re-running targeted and full suite Release unit (user-approved): full suite ran once (only 3 unrelated mdq failures: mdq database schema message); diff-cover 33% pending sibling test; end-of-unit run after seq 04 decides End-of-unit run (seq 01-04): full suite 12101 passed, 3 failed (tests/mcp_servers mdq-server import tests: mdq database schema message, unrelated, failed in every run); one earlier run also failed tests/eventbus/test_eventbus_dlq_outbox.py::test_restart_with_pending_rows (timing, not reproducible: 20 isolated runs pass, passed in the final run); diff-cover 100% (23 lines) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
