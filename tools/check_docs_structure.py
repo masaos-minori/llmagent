@@ -116,7 +116,9 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # 32448). Not part of adrrev007 scope (the plan treats ADR-004 as an unmodified reference
     # target); recorded here only to keep check_docs_structure.py green. The ceiling equals
     # the accepted size, so further growth fails.
-    "adr_02_01_004_platform-environment-failure-handling-policy.md": 33944,
+    # Re-accepted at 34555 (2026-11-12): adrrev015 doc 06 added the INV-14 test citations
+    # and one pending approval line.
+    "adr_02_01_004_platform-environment-failure-handling-policy.md": 34555,
     # Re-accepted 2026-11-12, closing a second pre-existing gap: the file had grown 32586
     # -> 33944 by 83879685e (adrrev008) without the ceiling being re-recorded. Recorded
     # only to keep check_docs_structure.py green.
@@ -143,7 +145,9 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 28672 (2026-11-12): adrrev014 doc 05 added the dlq_outbox durable
     # promotion record, the Replay Contract subsection, two verification rows, and two
     # pending approval lines; the ceiling equals the accepted size.
-    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 28672,
+    # Re-accepted at 29504 (2026-11-12): adrrev015 doc 04 re-mapped three verification rows,
+    # reworded INV-13, named the requeue error text, and added one pending approval line.
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 29504,
     # The generated agent-class reference table was already 24961 bytes (2026-10-24), over
     # MAX_SIZE before any new plan touched it. `plans/20261023-072425_plan.md` REQ-005
     # regenerates it with a longer `mask_args` summary row, which lands at 24972 bytes. The
