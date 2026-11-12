@@ -71,13 +71,14 @@ ACK state is per consumer; there is no event-level ACK column.
 | Initial ACK | 200 | Sets `consumer_delivery.acked` and advances the consumer offset |
 | Duplicate ACK | 200 (`already_acked: true`) | No new delivery state; the offset never moves backwards |
 | Initial NACK | 200 | Per-consumer failure count increases; the event is promoted to the DLQ under the ADR-006 INV-13 rule |
-| Initial NACK, inline DLQ file write failed | 200 (no `dlq_promoted`) | Per-consumer failure count increases; the event stays live (`dlq_at` NULL) and the next sweep promotes it |
 | Duplicate NACK (same delivery attempt) | 200 | No-op: a NACK repeating the stored `consumer_last_nack_attempt` leaves counters unchanged |
 | NACK followed by ACK | 200 | ACK succeeds because NACK does not set `acked`; the failure count keeps the value from the NACK |
 | ACK followed by NACK (same consumer) | 409 `event already acknowledged` | NACK rejected; counters unchanged |
 | Unknown event ID (ACK or NACK) | 404 | None |
 | ACK or NACK on a DLQ event | 409 `event already in dead letter queue` | None: no delivery state or offset is written |
 | Simultaneous ACK/NACK | 200, or 200 and 409 | Both are serialized under the DB lock; the second call observes the first call's committed state, so a NACK that runs after the ACK returns 409 and an ACK that runs after the NACK returns 200 |
+
+DLQ promotion on NACK is a database transaction that stamps `dlq_at` and writes the `dlq_outbox` row; the dead-letter artifact is generated later by the outbox worker, so a NACK never fails on a DLQ file write. Outbox generation failures are recorded on the outbox row and reported through `/health` (see `eventbus_03_dlq_operations.md`).
 
 **NACK idempotency key scope and retention.** Deduplication is latest-key-only:
 only the most recent `consumer_last_nack_attempt` per `(consumer_id, event_id)` is

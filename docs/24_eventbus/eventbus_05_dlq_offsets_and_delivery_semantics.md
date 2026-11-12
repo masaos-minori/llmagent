@@ -178,7 +178,7 @@ Events are retained in SQLite until they are explicitly deleted or the database 
 
 Event deletion is a manual operator action outside the EventBus runtime; EventBus itself never deletes events (ADR-006). Before running the statement, stop the EventBus service and back up `eventbus.sqlite`.
 
-The schema defines no foreign keys, so the statement affects related data as follows:
+The EventBus connection enforces foreign keys (`PRAGMA foreign_keys=ON` in `scripts/eventbus/schema.py`), and `dlq_outbox.event_id` references `events(event_id)` (`scripts/eventbus/schema.sql`). The statement below therefore deletes the dependent `dlq_outbox` rows before the `events` rows, inside one transaction, so the constraint holds and no orphan outbox row is left behind. A manual `sqlite3` session does not enforce foreign keys unless the pragma is set, so the command sets it first.
 
 - `consumer_delivery` rows for the deleted events are not removed and remain as orphans.
 - DLQ rows (`events.dlq_at IS NOT NULL`) with a `seq` at or below the cutoff are deleted like any other event and can no longer be requeued.
@@ -187,10 +187,14 @@ The schema defines no foreign keys, so the statement affects related data as fol
 Use the following SQL command:
 
 ```sql
+PRAGMA foreign_keys = ON;
+BEGIN;
+DELETE FROM dlq_outbox WHERE event_id IN (SELECT event_id FROM events WHERE seq <= ?);
 DELETE FROM events WHERE seq <= ?;
+COMMIT;
 ```
 
-Replace `?` with the desired cutoff sequence number. After deletion, run `VACUUM` to reclaim disk space.
+Replace each `?` with the same cutoff sequence number. After deletion, run `VACUUM` to reclaim disk space.
 
 ### JSONL Archive Retention
 

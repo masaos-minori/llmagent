@@ -114,7 +114,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 1. `rag.sqlite`: the authoritative database file of the RAG corpus. It holds the canonical `documents` and `chunks` tables and the derived FTS5 and Vector Index, which are rebuilt from `chunks`. Owned by the RAG layer.
 2. `session.sqlite`: canonical store for Agent Sessions, Messages, and conversation state. Owned by the Agent layer.
 3. `workflow.sqlite`: canonical store for Tasks, Attempts, Artifacts, and processed Events. Owned by the workflow engine in the Agent layer.
-4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, and the DLQ. Owned by the EventBus service.
+4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, the `dlq_outbox` durable promotion record, and the DLQ. Owned by the EventBus service.
 5. Reasons for DB separation: differences in write characteristics, lock contention, failure isolation, retention periods, recovery methods, and extension-loading scope.
 6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 7. Logical IDs such as Session ID, Workflow ID, and Event ID identify the same entity across databases and are used to join related rows at query time. This is a static logical reference, not a live EventBus publish/consume path (see Decision Detail #8).
@@ -383,6 +383,7 @@ See Implementation References for the current file/symbol list.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-19, including the amendment of the sqlite-vec scope to `rag.sqlite` and `session.sqlite`; individual reviewer names are not recorded.
+- **Current Decision Approval (pending)**: Naming the `dlq_outbox` durable promotion record among the `eventbus.sqlite` contents in Decision Detail 4 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
 - **Amendment Approval Mapping**: the dbmig001 Amendment (2026-10-30, plan dbmig001; no separate approval named) and its supersession (2026-11-07, plan compatrm001, which required an approval record, now the ADR index entry) both postdate the 2026-10-19 coverage above; no per-amendment approval record exists beyond the index entry and the task-level decision.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.

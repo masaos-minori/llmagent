@@ -84,11 +84,17 @@ The EventBus has multiple data stores (SQLite, JSONL archive) with different rol
 13. The ACK Offset is a high-water mark of acknowledged `seq` values, not a contiguous low-water mark. On resume, the position is the lowest unacknowledged `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1`; no unacknowledged event is skipped, and already-acknowledged events are fast-forwarded. Consumers need not ACK in strict `seq` order.
 14. The EventBus service is kept (planned future integration), per the repository owner instruction of 2026-11-09; it currently has no defined producers or consumers, and that absence is intentional. The producer and consumer model is not yet defined (UNK-01): the defining component and integration timing are left as a marked pending item for the maintainer to complete through `governance_03_issue-and-uncertainty-management.md`.
 
+### Replay Contract
+
+- **`/replay` is Operator-only.** Only a caller holding the `Operator` role may read through `/replay` (`scripts/eventbus/replay_route.py`). It reads any `seq` range and advances no Consumer offset: a replay is a read-only view, so repeated replays never move a stored position.
+- **`/subscribe` start position.** The start `seq` is `since_seq` when it is non-zero, then the Consumer's stored resume position, then the `Last-Event-ID` header (`scripts/eventbus/subscribe_route.py`). `since_seq=0` means unspecified, so a `consumer_id` with a stored offset resumes from that offset and cannot replay from the start through `/subscribe`; `since_seq` greater than zero overrides the stored position. Reading from the start uses `/replay` with `since_seq=0`.
+- **Open decision.** Whether `/subscribe` should support replay from the start for a Consumer with a stored offset is not decided; this ADR records the current behavior and `/replay` as the alternative.
+
 ### Scope
 
 - **Target components**: `EventBroker`, the publish, subscribe and ACK/NACK routes, offset handling (`delivery_repo.py`), and DLQ handling (`dlq.py`, `dlq_repo.py`, `dlq_route.py`)
 - **Target processes**: the EventBus process
-- **Target data**: the `events` table, the `consumer_delivery` and `consumer_offsets` tables, DLQ state (`events.dlq_at` and deadletter files)
+- **Target data**: the `events` table, the `consumer_delivery` and `consumer_offsets` tables, DLQ state (`events.dlq_at`, the `dlq_outbox` durable promotion record, and deadletter files)
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `POST /publish`, `GET /subscribe`, `POST /events/{event_id}/ack`, `POST /nack`, `POST /dlq/{event_id}/requeue`
 
@@ -220,6 +226,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - **Persistence**: SQLite file system
 - **Transaction Boundary**: per Event
 - **Recovery Source**: SQLite (canonical store)
+- **Durable promotion record**: the `dlq_outbox` table (`scripts/eventbus/schema.sql`) records each Event promoted to the DLQ with its request time, `status` (`pending`, `done`, or `failed`), attempt count, and next attempt time; it is the outbox the background loop consumes to generate deadletter files. `done` rows are kept as the generation record, and the EventBus does not delete them.
 - **Deletion Rule**: the EventBus does not delete Events; DLQ promotion marks the `events` row (`dlq_at`) and writes a deadletter file (Explicit in code — `scripts/eventbus/dlq.py` `promote_single()`)
 
 ## Verification
@@ -242,6 +249,8 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 | A non-loopback host is rejected at configuration validation | INV-15 | Unit | Yes | `tests/eventbus/test_eventbus_config.py::test_non_loopback_host_raises_value_error` |
 | A publish whose JSONL append fails still succeeds after the SQLite commit (persistence precedes the secondary paths) | INV-02 | Integration | Yes | `tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::test_publish_succeeds_if_jsonl_append_fails` |
 | A SQLite insert or commit failure on `POST /publish` returns a non-success response, leaves no committed Event, and triggers neither the JSONL append nor the SSE broker notification | INV-02 | Integration | Yes | `tests/eventbus/test_eventbus_publish.py::test_publish_sqlite_write_failure_reports_failure_without_side_effects` |
+| DLQ promotion records a durable outbox row whose attempts are bounded and end in a terminal `failed` status, and pending rows survive a restart | INV-13 | Integration | Yes | `tests/eventbus/test_eventbus_dlq_outbox.py::test_terminal_failed_after_bound`, `tests/eventbus/test_eventbus_dlq_outbox.py::test_restart_with_pending_rows` |
+| `/subscribe` starts from `since_seq`, then the stored resume position, then `Last-Event-ID`; `/replay` rejects a caller without the Operator role | Replay Contract | Integration | Yes | `tests/eventbus/test_eventbus_subscribe.py::test_since_seq_takes_precedence_over_consumer_offset`, `tests/eventbus/test_eventbus_subscribe.py::test_consumer_offset_used_when_since_seq_is_zero`, `tests/eventbus/test_eventbus_subscribe.py::test_last_event_id_fallback_when_since_seq_and_offset_are_zero`, `tests/eventbus/test_eventbus_auth.py::test_replay_with_publisher_token_is_rejected` (no automated test asserts that `/replay` leaves Consumer offsets unchanged) |
 
 ### Startup Validation
 
@@ -312,6 +321,8 @@ Not applicable
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner) covers the current decision (2026-10-15).
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-11-09, including the keep decision and the producer/consumer model stated as not yet defined; individual reviewer names are not recorded.
+- **Current Decision Approval (pending)**: The addition of the `dlq_outbox` durable promotion record to the Scope and Data Ownership is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: The Replay Contract (`/replay` Operator-only and offset-preserving; `/subscribe` start position order) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

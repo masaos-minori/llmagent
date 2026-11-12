@@ -33,7 +33,7 @@ Returned when all subsystems are healthy.
 
 ### Response Content
 
-The body reports overall `status` (`"ok"` or `"degraded"`), database and DLQ sweep task state, broker counters (active subscribers, maximum queue depth, slow consumers, overflow disconnects, duplicate connection rejections), `degraded_reasons` (empty when healthy) and lock-contention metrics under `metrics`. The exact schema is in `scripts/eventbus/health_route.py`.
+The body reports overall `status` (`"ok"` or `"degraded"`), database and DLQ sweep task state, broker counters (active subscribers, maximum queue depth, slow consumers, overflow disconnects, duplicate connection rejections), `degraded_reasons` (empty when healthy) and lock-contention metrics under `metrics`. It also reports `terminal_failed_outbox` (the count of `dlq_outbox` rows in the terminal `failed` status, or `null` when the count query failed) and `last_dlq_sweep` (`{"result": "ok" | "failed" | "not_run", "time": <ISO-8601 string | null>}`), the outcome of the last background sweep cycle; the sweep state is kept in memory, so it reads `not_run` until the first cycle after a start. The exact schema is in `scripts/eventbus/health_route.py`.
 
 ## Degraded Response
 
@@ -53,6 +53,8 @@ HTTP 503 is returned for any degraded reason, including the capacity-only reason
 |--------|-------------|
 | `db_unavailable` | Database connectivity check failed |
 | `dlq_task_stopped` | DLQ sweep background task has stopped |
+| `dlq_outbox_failed` | Terminal-failed `dlq_outbox` rows exist (`terminal_failed_outbox` is greater than zero) |
+| `dlq_sweep_failing` | The last background sweep cycle failed (`last_dlq_sweep.result` is `"failed"`) |
 | `broker_unavailable` | The event broker is not initialized |
 | `broker_queue_backlog_high` | Queue backlog exceeds `backlog_health_threshold` |
 | `slow_consumers_detected` | One or more slow consumers detected |
@@ -68,6 +70,8 @@ The response includes two boolean health-tier fields:
 |-------|---------|
 | `liveness` | The DLQ sweep task is running |
 | `readiness` | The database is connectable (`check_db`) |
+
+`dlq_outbox_failed` and `dlq_sweep_failing` are real failures: each returns HTTP 503 like every other degraded reason, but neither changes `liveness` or `readiness`, so the readiness gate below still holds. They are not capacity-only reasons; they indicate stuck failed DLQ artifacts or a repeatedly failing sweep. A `null` `terminal_failed_outbox` adds no outbox reason; database connectivity is reported separately by `db_unavailable`.
 
 The deployment readiness gate is `liveness and readiness` (`is_ready()` in `scripts/eventbus/health_route.py`); `deploy/setup_services.sh` reads exactly these two fields. The broker is not part of the gate. Schema integrity is checked at startup, not reported here.
 

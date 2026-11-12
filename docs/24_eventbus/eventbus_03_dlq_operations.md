@@ -177,7 +177,7 @@ Failure behavior of the other endpoints is in their reference documents above.
 | Subscriber queue full | Subscriber disconnected; client must reconnect using its last committed offset |
 | DLQ file missing after promotion | Rebuild from SQLite via background reconciliation, or quarantine |
 | DLQ file corrupt after promotion | Quarantine (`*.corrupt`); manual review required |
-| DLQ artifact generation failure | Attempt recorded on the outbox row with exponential backoff; terminal `failed` after `outbox_max_attempts`; metered, logged, never blocks other events |
+| DLQ artifact generation failure | Attempt recorded on the outbox row with exponential backoff; terminal `failed` after `outbox_max_attempts`; reported through `/health` (`terminal_failed_outbox` counts terminal-failed rows and adds the `dlq_outbox_failed` degraded reason; `last_dlq_sweep.result` is `"failed"` when the sweep cycle fails and adds `dlq_sweep_failing`; both return HTTP 503), logged, never blocks other events |
 
 ## Keywords
 
