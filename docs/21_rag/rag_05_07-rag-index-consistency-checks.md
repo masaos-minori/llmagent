@@ -23,6 +23,7 @@ On every agent startup, a read-only RAG consistency check runs via `check_rag_co
 
 - **Degraded findings** (FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency) print a console warning per finding with its repair action; startup proceeds.
 - **Fatal findings** (duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema, unverifiable corpus generation) register a `rag_consistency` fatal finding and abort startup, with the repair action in the message. No config path may downgrade a fatal finding (AC-4).
+- **Ingest-time embedding-dimension mismatch** (outside the startup check): ingestion skips the affected chunk and logs a WARNING; the same mismatch at startup is the Fatal finding listed above.
 - **A failed or timed-out check** prints an identity-unverified warning and lets startup continue. The local corpus identity is read from the local corpus metadata per request and surfaces as the `corpus_generation` diagnostic; an unreadable identity is reported as unverified.
 
 ```text
@@ -91,7 +92,7 @@ Use `/session rag-consistency` to detect issues. The report includes identifiers
 |---|---|---|---|
 | `fts_gap > 0` | Degraded | `rebuild_fts` | Run `/session rag-rebuild-fts` — rebuilds `chunks_fts` from `chunks` because FTS entries are missing. |
 | `fts_orphan_count > 0` | Degraded | `rebuild_fts` | Run `/session rag-rebuild-fts` — removes extra FTS entries (data-loss risk; urgent). |
-| `orphan_vec_count > 0` | Degraded | `rebuild_vec` | Run `/session rag-rebuild-vec` (or `ingester.py --force`) for the affected URL — `chunks_vec` rows with no matching `chunks` row. |
+| `orphan_vec_count > 0` | Degraded | `rebuild_vec` | Run `/session rag-rebuild-vec` for the affected URL — `chunks_vec` rows with no matching `chunks` row. |
 | `vec != chunks` | Degraded | `rebuild_vec` | Run `ingester.py --force` for the affected URL. |
 | chunks without vector rows | Degraded | `rebuild_vec` | Run `ingester.py --force` for the affected chunks. |
 | documents without chunks | Degraded | `rebuild_vec` | Re-run ingestion for the affected documents. |

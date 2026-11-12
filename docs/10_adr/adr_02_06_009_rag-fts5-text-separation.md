@@ -158,20 +158,19 @@ Keeping `content` as a separate, never-replaced field guarantees that every stor
 - INV-01: `chunks.content` is the only text used for the LLM Context.
 - INV-02: `chunks.normalized_content` is used only for the FTS5 Index.
 - INV-03: FTS5 indexes `COALESCE(normalized_content, content)`.
-- INV-04: For English, code, and text not subject to normalization, `normalized_content = NULL`, falling back to `content`.
+- INV-04: For English, code, and text not subject to normalization — including Markdown heading chunks — `normalized_content = NULL`, falling back to `content`.
 - INV-05: A normalization failure never alters `content`: normalized text never replaces it, and a source file whose Japanese normalization fails produces no chunks.
 - INV-06: The original text is not restored from `normalized_content`.
 - INV-07: The FTS Trigger and manual rebuilds use the same text-selection rule.
 - INV-08: Changes to the Tokenizer or normalization method do not change the original LLM-facing text.
-- INV-09: Text that is not Japanese-normalized, including Markdown heading chunks, has `normalized_content = NULL` and is indexed by `content`.
 - INV-10: AugmentStage outputs only `content` and does not output `normalized_content` to the LLM Context.
 - INV-11: A sentence whose normalized text is empty keeps its original text in `content` with `normalized_content = NULL`.
 
 ## Failure Policy
 
-### Fail-Fast Conditions
+### Failure Conditions
 
-- When Japanese normalization fails (`TokenizationError`), chunking of that source file stops and no chunk is written for it; the failure is logged and the remaining source files are still processed (Explicit in code — `scripts/rag/ingestion/chunk_japanese.py` `_normalize_ja_sentence()`, `scripts/rag/ingestion/chunk_splitter.py` `ChunkSplitter.process_all()`)
+- When Japanese normalization fails (`TokenizationError`), chunking of that source file stops and no chunk is written for it; the failure is logged, the remaining source files are still processed, and chunks already stored for that file are left unchanged. This is a file-level skip, not a Fail-Fast abort of the ingestion run (Explicit in code — `scripts/rag/ingestion/chunk_japanese.py` `_normalize_ja_sentence()`, `scripts/rag/ingestion/chunk_splitter.py` `ChunkSplitter.process_all()`)
 - When an FTS Trigger fails, the statement on `chunks` that fired it fails with it (SQLite trigger semantics)
 
 ### Fail-Open or Degraded Conditions
@@ -184,7 +183,7 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ### Fallback Policy
 
-Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, content)` rule is a data-selection rule for chunks that have no `normalized_content`, not a Fallback for a failed normalization; a failed normalization never produces a chunk (see Fail-Fast Conditions).
+Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, content)` rule is a data-selection rule for chunks that have no `normalized_content`, not a Fallback for a failed normalization; a failed normalization never produces a chunk (see Failure Conditions).
 
 ## Data Ownership and Persistence
 
@@ -231,7 +230,7 @@ Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, c
 
 - Investigation of consistency-check mismatches
 - Consistency-check verification before deployment
-- INV-05, INV-06, INV-08, INV-09, INV-11 have no dedicated automated test
+- INV-05, INV-06, INV-08, INV-11 have no dedicated automated test
 
 ## Implementation Notes
 
@@ -275,6 +274,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-08; individual reviewer names are not recorded.
+- **Current Decision Approval (pending)**: Approver not recorded; date not recorded; scope: folding INV-09 into INV-04 and the Failure Conditions relabel and normalization-failure and existing-chunk reword. Pending maintainer approval; no approval or reviewer name is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

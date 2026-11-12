@@ -76,9 +76,9 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 10. The following operational decisions are reflected in Operations:
     - `fts_gap > 0`: rebuild FTS5
     - `fts_orphan_count > 0`: rebuild FTS5
-    - `orphan_vec_count > 0`: re-ingest the target documents
+    - `orphan_vec_count > 0`: rebuild vec (`rebuild_vec`)
     - `vec != chunks`: investigate as an embedding or synchronization failure
-11. The ingestion path (`delete_document_chain()`) and the MCP deletion path (`DocumentManager.delete_document()` of the rag_pipeline MCP server) apply the same deletion order (`chunks_vec` before `documents`). The MCP path issues the same statements itself rather than calling the shared helper.
+11. The ingestion path (`delete_document_chain()`) and the MCP deletion path (`DocumentManager.delete_document()` of the rag_pipeline MCP server) apply the same deletion order (`chunks_vec` before `documents`) through the shared helper.
 
 ### Scope
 
@@ -179,7 +179,7 @@ Because the indexes can be rebuilt even if FTS5 or the Vector Engine is replaced
 
 ### Fail-Open or Degraded Conditions
 
-- The startup consistency check records each mismatch as a warning and does not abort startup; a timeout or an unexpected failure of the check skips it (Explicit in code — `scripts/agent/startup_validation.py`)
+- The startup consistency check routes each finding on the severity and startup policy owned by `rag_05_07` (`docs/21_rag/rag_05_07-rag-index-consistency-checks.md`); this ADR does not restate that policy or the timeout behavior (Explicit in code — `scripts/agent/startup_validation.py`)
 - The post-ingestion consistency check logs each issue as a warning and does not fail the ingestion run (Explicit in code — `scripts/rag/ingestion/document_manager.py` `DocumentManager.check_consistency()`)
 
 ### Retry Policy
@@ -281,6 +281,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Current Decision Approval (pending)**: Approver not recorded; date not recorded; scope: the Decision 10 remediation for `orphan_vec_count > 0`, the Decision 11 shared-helper sentence, and the startup-check bullet reword under Fail-Open or Degraded Conditions. Pending maintainer approval; no approval or reviewer name is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

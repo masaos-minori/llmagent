@@ -223,10 +223,10 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 | Scenario | Degraded State | Recovery |
 |---|---|---|
 | Embedding API down (HTTP 503) at runtime | Affected searches fall back to FTS; memory circuit open means degraded | Restart embed-llm |
-| Embedding dimension mismatch | Chunk skipped, WARNING logged | Verify the embedding model's output matches `scripts/db/store_protocols.py::get_embedding_dims()` (a fixed code-level constant, not a config key) |
+| Embedding dimension mismatch | At ingest time, chunk skipped, WARNING logged | Verify the embedding model's output matches `scripts/db/store_protocols.py::get_embedding_dims()` (a fixed code-level constant, not a config key) |
 | Vector store corruption | RAG unavailable | Restore from backup |
 | FTS index desync (`fts_gap != 0`) | Search results incomplete | Run `/session rag-consistency` to inspect (`scripts/db/rag_consistency.py` is a library module, not a CLI entry point) |
-| Orphan vector rows (`orphan_vec_count > 0`) | Search returns stale results | Run `ingester.py --force` |
+| Orphan vector rows (`orphan_vec_count > 0`) | Search returns stale results | Run `/session rag-rebuild-vec` |
 | Crawler timeout | URL skipped, WARNING logged | Retry crawler execution |
 
 When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
