@@ -66,9 +66,9 @@ Revert the commit; the file is regenerated/validated by the tooling.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `mcp.authentication` decision target (primary ADR-017) | Pending | — | — | |
-| 2 | Narrow the ADR-007 supplemental limit and add typed ADR edges | Pending | — | — | |
-| 3 | Run `generate_adr_authority.py`, `check_adr_authority.py`, `tests/tools` (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the `mcp.authentication` decision target (primary ADR-017) | Completed | — | 20261112-045550 |  |
+| 2 | Narrow the ADR-007 supplemental limit and add typed ADR edges | Completed | — | 20261112-045550 | pair typed per ADR-016 INV-02: Specializes 017->007 + intentional Reference 007->017; procedure example (pure bidirectional Reference) would violate INV-02 |
+| 3 | Run `generate_adr_authority.py`, `check_adr_authority.py`, `tests/tools` (`rules/toolchain.md`) | Completed | — | 20261112-045550 | authority OK; tests/tools 1867 passed (ADR count pins 15->16 as UNK-05 fallout fix) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
