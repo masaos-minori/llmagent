@@ -6,10 +6,10 @@ Add ADR-017 to the document guide's ADR enumeration in `adr_00_document-guide.md
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- Line 61 states ADR-011 is unassigned and enumerates the ADR list; ADR-017 is added in number order alongside the other MCP-group ADRs.
+- (Corrected during adversarial verification, 2026-11-12: the guide has no per-ADR enumeration line at line 61 and no "ADR-011 is unassigned" statement — that statement lives in `adr_01_index.md` line 61. The guide's ADR enumeration is the `Reading Order` table, lines 27-44, plus the group registry table, lines 55-63.) ADR-017 is added in number order to both tables.
 
 ## Design decisions
-- Add one enumerated entry for ADR-017 to match the existing per-ADR entries; do not renumber or reorder.
+- Add one `Reading Order` row for ADR-017 after the ADR-012 row (number order) and extend the group registry `03 mcp` row `007, 012` to `007, 012, 017`; do not renumber or reorder.
 
 ## Alternatives considered
 - Regenerating the guide from a tool: the enumeration is hand-maintained in this guide. Rejected: edit the enumeration directly.
@@ -19,13 +19,14 @@ Add ADR-017 to the document guide's ADR enumeration in `adr_00_document-guide.md
 `docs/10_adr/adr_00_document-guide.md`
 
 ### Procedure
-1. Add an ADR-017 entry to the ADR enumeration (after the ADR-016 entry), matching the existing entry format.
+1. Add a `Reading Order` table row `| MCP Authentication | `adr_02_03_017_mcp-authentication.md` |` after the `Git MCP Server-Side Write` row (ADR-012), matching the existing row format.
+2. Extend the group registry row `| 03 | mcp | 007, 012 |` to `| 03 | mcp | 007, 012, 017 |`.
 
 ### Method
-- One-line addition to the enumeration; verify with `tools/check_docs_structure.py`.
+- Two-line addition to the two enumeration tables; verify with `tools/check_docs_structure.py`.
 
 ### Details
-- The guide still records ADR-011 as unassigned; that fact is unchanged.
+- The guide carries no ADR-011 statement (the unassigned-number note is in `adr_01_index.md`); nothing to update there.
 
 ### Companion test files
 N/A.
@@ -55,8 +56,8 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the ADR-017 entry to the ADR enumeration | Pending | — | — | |
-| 2 | Run `check_docs_structure.py` (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the ADR-017 entry to the ADR enumeration | Completed | — | 20261112-050137 | Reading Order row + group registry 007, 012, 017; row appended in true number order (after ADR-016), procedure line-placement note stale |
+| 2 | Run `check_docs_structure.py` (`rules/toolchain.md`) | Completed | — | 20261112-050137 | check_docs_structure green after re-recording 4 size ceilings (adr_007 25606; pre-existing adr_004 33944, adr_008 36197, deployment_01 27339) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
