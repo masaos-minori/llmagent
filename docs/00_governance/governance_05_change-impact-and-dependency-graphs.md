@@ -99,7 +99,7 @@ function.
 
 **Cycles prohibited**: no circular dependencies are allowed among these 5 nodes.
 Enforced automatically by `tools/check_dependency_graph_cycles.py` (see
-`docs/00_governance/governance_04_documentation-checks.md` "18. Area Dependency Graph
+`docs/00_governance/governance_04_documentation-checks.md` "19. Area Dependency Graph
 Validation").
 
 Confirmed edges (direct source evidence: `scripts/agent/services/mcp_tool_discovery_fetch.py`

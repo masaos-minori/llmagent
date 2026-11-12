@@ -855,6 +855,7 @@ class TestUnknownTopLevelKeyRejection:
             {
                 "llm_url": "http://localhost:8080",
                 "allowed_root": "/opt/llm",
+                "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
             }
         )
         assert len(result.errors) == 0

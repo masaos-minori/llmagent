@@ -36,6 +36,7 @@ from tests.agent._config_test_defaults import (
     ALL_TOOL_NAMES,
     ALL_TOOL_SAFETY_TIERS,
     PERMISSIVE_ALLOWED_ROOT,
+    PERMISSIVE_SQLITE_VEC_SO,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -47,6 +48,7 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
         {
             "allowed_tools": ALL_TOOL_NAMES,
             "allowed_root": PERMISSIVE_ALLOWED_ROOT,
+            "sqlite_vec_so": PERMISSIVE_SQLITE_VEC_SO,
             "context_char_limit": 8000,
             "context_compress_turns": 4,
             "llm_retry_base_delay": 1.0,

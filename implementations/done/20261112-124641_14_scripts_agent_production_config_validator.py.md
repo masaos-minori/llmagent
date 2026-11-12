@@ -60,10 +60,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing tests first and confirm they fail | Pending | — | — | |
-| 2 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the affected suites and the validation sequence (`rules/toolchain.md`) for the changed files | Pending | — | — | |
-| 4 | Hand off to `skills/deploy/SKILL.md` after commit and push (the user decides on deployment) | Pending | — | — | |
+| 1 | Write the failing tests first and confirm they fail | Completed | 20261112-204830 | 20261112-204830 |  |
+| 2 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-204830 | 20261112-204830 |  |
+| 3 | Run the affected suites and the validation sequence (`rules/toolchain.md`) for the changed files | Completed | 20261112-204830 | 20261112-204830 |  |
+| 4 | Hand off to `skills/deploy/SKILL.md` after commit and push (the user decides on deployment) | Completed | 20261112-204830 | 20261112-204830 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -1,33 +1,33 @@
 ## Goal
-Add the `events.jsonl` line-count note to the Cleanup Procedure of `eventbus_05` (`REQ-003` / `AC-3`).
+Add the `dlq_outbox` query to the section 11a EventBus inventory and say four tables (`REQ-001` / `AC-1`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
 - Line numbers have drifted from the Plan; locate each passage by its quoted text, and skip and report it if it is already correct (Phase 1 rule).
-- The Cleanup Procedure deletes from `events` in SQLite only; `events.jsonl` (secondary store) is not pruned, and the retention paragraph says the file grows until the operator rotates it (checked).
-- Overlap: adrrev014 (row 07 of its procedures) and `plans/20261112-121134_rmcompat005_eventbus-dlq-leftovers.md` edit other passages of this file; edit this paragraph after them.
-- Execute after the adrrev017 procedures (this Plan `Depends on` them) so each passage is edited once on cleaned text.
+- `scripts/eventbus/schema.sql` defines `events`, `consumer_delivery`, `consumer_offsets`, and `dlq_outbox`; the block queries the first three and the lead-in says `its three tables` (checked).
+- Overlap: adrrev017 row 10 removes history notes elsewhere in this file; compatible.
 
 ## Design decisions
-- One bullet in the effects list of the Cleanup Procedure.
+- Extend the existing bash block by one statement in the same form.
 
 ## Alternatives considered
 N/A: the Plan fixes the approach for this row.
 
 ## Implementation
 ### Target file
-`docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
+`docs/41_db/db_07_api_and_operations-recovery-and-reference.md`
 
 ### Procedure
-1. Add a bullet: manual deletion does not touch `{storage_dir}/events.jsonl`, so after a cleanup the archive has more lines than `events` has rows; the archive is not a source for counts.
+1. Change the comment `column names of its three tables` to `four tables`.
+2. Add `SELECT group_concat(name) FROM pragma_table_info('dlq_outbox');`.
 
 ### Method
-- Place it after the `consumer_offsets` bullet; keep the SQL block unchanged.
+- Keep the read-only `mode=ro` connection form and the statement style of the neighbours.
 
 ### Details
-- Do not describe a rotation tool that does not exist.
+- Verify the table names against `schema.sql` before writing.
 
 ## Compatibility considerations
 N/A: documentation-only change; no code, config, or schema impact.
@@ -39,23 +39,23 @@ N/A: no authorization, secret, or trust-boundary change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_docs_consistency.py --domain eventbus` — pass.
+- `uv run python tools/check_docs_consistency.py --domain db` — pass.
 - `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py --strict`, `check_docs_japanese.py` — pass.
 - `uv run python tools/check_needs_confirmation_inventory.py` — pass.
 
 ## Completion criteria
-- The Cleanup Procedure states the `events.jsonl` line-count effect.
+- The inventory block queries four tables and says four.
 
 ## Out of Scope
-- JSONL retention policy.
+- Other 11a text.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-204830 | 20261112-204830 |  |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-204830 | 20261112-204830 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -69,10 +69,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-003` — manual deletion leaves `events.jsonl` longer than the database
+- **Requirement ID**: `REQ-001` — EventBus inventory lists four tables
 - **Source issue**: issues/20261109-113421_adrrev019_docs-stale-statements.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261111-112439_adrrev019_docs-stale-statements.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261112-124641
-- **Related target files**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
+- **Related target files**: `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`

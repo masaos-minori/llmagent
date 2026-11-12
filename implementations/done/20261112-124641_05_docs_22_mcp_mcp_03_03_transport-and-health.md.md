@@ -1,32 +1,33 @@
 ## Goal
-Clarify the EventBus `liveness` field against the MCP `liveness` flag with a cross-reference (`REQ-003` / `AC-3`).
+Add `DEGRADED` to the `mcp_03_03` state-transition diagram, and `UNKNOWN` to the state table if the code uses it (`REQ-002` / `AC-2`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
 - Line numbers have drifted from the Plan; locate each passage by its quoted text, and skip and report it if it is already correct (Phase 1 rule).
-- EventBus: `liveness` means `The DLQ sweep task is running`; MCP (`mcp_02_02`): `liveness` defaults to `true` and subclasses may override it for critical internal states (checked).
-- Overlap: adrrev014 edits health fields elsewhere in this file; compatible.
+- Code (`scripts/shared/mcp_health.py`): `McpServerHealthState` has `HEALTHY`, `DEGRADED` (failing but not yet unavailable), `UNAVAILABLE`, `HALF_OPEN`, `UNKNOWN`; the diagram goes `HEALTHY -> UNAVAILABLE` only; the table lists four states (checked). Verify whether `UNKNOWN` is ever returned (`get_state` returns `HEALTHY` for unknown keys per the doc) before adding it.
+- Overlap: adrrev017 row 12 edits another passage; adrrev014/016 do not touch this diagram.
 
 ## Design decisions
-- Extend the table cell; add one sentence with a link to `mcp_02_02_startup-modes-and-health.md`.
+- Extend the ASCII diagram with a `DEGRADED` node between `HEALTHY` and `UNAVAILABLE`; keep every existing edge.
 
 ## Alternatives considered
 N/A: the Plan fixes the approach for this row.
 
 ## Implementation
 ### Target file
-`docs/24_eventbus/eventbus_10_health_endpoint.md`
+`docs/22_mcp/mcp_03_03_transport-and-health.md`
 
 ### Procedure
-1. Edit the `liveness` row: `The DLQ sweep task is running (EventBus-specific; not the MCP server process-state flag described in mcp_02_02)`.
+1. Add `HEALTHY ──(failure < threshold)──→ DEGRADED`, `DEGRADED ──(failure × threshold)──→ UNAVAILABLE`, and `DEGRADED ──(record_success)──→ HEALTHY`.
+2. If `UNKNOWN` is a reachable state, add its row; otherwise leave the table and state the reason in the progress report.
 
 ### Method
-- Use the existing link style of the file; add the document to front matter `related` only if the checker requires it.
+- Redraw the diagram in the existing `text` code fence; confirm against `record_failure` and `record_success` semantics in the paragraph below the table.
 
 ### Details
-- Do not change the readiness row or the gate sentence.
+- Do not change the semantics paragraph.
 
 ## Compatibility considerations
 N/A: documentation-only change; no code, config, or schema impact.
@@ -38,23 +39,23 @@ N/A: no authorization, secret, or trust-boundary change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_docs_consistency.py --domain eventbus` — pass.
+- `uv run python tools/check_docs_consistency.py --domain mcp` — pass.
 - `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py --strict`, `check_docs_japanese.py` — pass.
 - `uv run python tools/check_needs_confirmation_inventory.py` — pass.
 
 ## Completion criteria
-- The two meanings are distinguished with a cross-reference.
+- The diagram shows `DEGRADED` with its transitions and agrees with the state table.
 
 ## Out of Scope
-- MCP health text.
+- Registry behavior; other diagrams.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-204830 | 20261112-204830 |  |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-204830 | 20261112-204830 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -68,10 +69,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-003` — EventBus `liveness` versus MCP `liveness`
+- **Requirement ID**: `REQ-002` — state diagram includes `DEGRADED`
 - **Source issue**: issues/20261109-113421_adrrev019_docs-stale-statements.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261111-112439_adrrev019_docs-stale-statements.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261112-124641
-- **Related target files**: `docs/24_eventbus/eventbus_10_health_endpoint.md`
+- **Related target files**: `docs/22_mcp/mcp_03_03_transport-and-health.md`

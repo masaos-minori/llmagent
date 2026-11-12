@@ -373,3 +373,64 @@ class TestSQLiteHelperVecExtensionLoading:
         with patch("db.helper.build_db_config", return_value=cfg):
             with SQLiteHelper("workflow").open() as db:
                 assert db.conn is not None
+
+
+class TestBuildDbConfigVecSoRequirement:
+    """REQ-005: build_db_config() rejects an empty or absent sqlite_vec_so.
+
+    Written first and shown failing before scripts/db/config.py gains the check.
+    """
+
+    @staticmethod
+    def _patch_loader(monkeypatch: pytest.MonkeyPatch, values: dict[str, str]) -> None:
+        class _FakeLoader:
+            def load(self, _name: str) -> dict[str, str]:
+                return values
+
+        monkeypatch.setattr("db.config.ConfigLoader", _FakeLoader)
+
+    def test_empty_vec_so_raises_value_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An empty sqlite_vec_so makes build_db_config() raise naming the key."""
+        from db.config import build_db_config
+
+        self._patch_loader(monkeypatch, {"sqlite_vec_so": ""})
+        with pytest.raises(ValueError, match="sqlite_vec_so"):
+            build_db_config()
+
+    def test_absent_key_raises_value_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A missing sqlite_vec_so makes build_db_config() raise naming the key."""
+        from db.config import build_db_config
+
+        self._patch_loader(monkeypatch, {})
+        with pytest.raises(ValueError, match="sqlite_vec_so"):
+            build_db_config()
+
+    def test_non_empty_missing_file_is_accepted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A non-empty sqlite_vec_so naming a missing file is accepted (existence is not checked)."""
+        from db.config import build_db_config
+
+        self._patch_loader(
+            monkeypatch,
+            {
+                "rag_db_path": str(tmp_path / "rag.sqlite"),
+                "session_db_path": str(tmp_path / "session.sqlite"),
+                "workflow_db_path": str(tmp_path / "workflow.sqlite"),
+                "sqlite_vec_so": str(tmp_path / "missing" / "vec0.so"),
+            },
+        )
+        cfg = build_db_config()
+        assert cfg.sqlite_vec_so == str(tmp_path / "missing" / "vec0.so")
+
+    def test_target_based_helper_surfaces_the_failure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SQLiteHelper('session') wraps the build_db_config() error as its RuntimeError."""
+        self._patch_loader(monkeypatch, {"sqlite_vec_so": ""})
+        with pytest.raises(RuntimeError, match="DbConfig load failed"):
+            SQLiteHelper("session")

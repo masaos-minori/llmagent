@@ -129,11 +129,12 @@ To see which schema a database has without changing it, open the file read-only 
 sqlite3 "file:<workflow_db_path>?mode=ro" \
   "SELECT group_concat(name) FROM sqlite_master WHERE type='table';"
 
-# eventbus.sqlite: column names of its three tables
+# eventbus.sqlite: column names of its four tables
 sqlite3 "file:<eventbus db_path from config/eventbus.toml>?mode=ro" \
   "SELECT group_concat(name) FROM pragma_table_info('events');
    SELECT group_concat(name) FROM pragma_table_info('consumer_delivery');
-   SELECT group_concat(name) FROM pragma_table_info('consumer_offsets');"
+   SELECT group_concat(name) FROM pragma_table_info('consumer_offsets');
+   SELECT group_concat(name) FROM pragma_table_info('dlq_outbox');"
 
 # mdq.sqlite: first column of the chunk table
 sqlite3 "file:<mdq_db_path>?mode=ro" \

@@ -453,5 +453,29 @@ class TestRemovedKeysRejected:
 
     def test_clean_production_config_has_no_errors(self) -> None:
         # The canonical production shape validates without errors.
-        result = ProductionConfigValidator().validate({"allowed_root": "/opt/llm"})
+        result = ProductionConfigValidator().validate(
+            {"allowed_root": "/opt/llm", "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so"}
+        )
+        assert result.errors == []
+
+
+class TestProductionConfigValidatorVecSoRequirement:
+    """REQ-005: validate() reports an empty or absent sqlite_vec_so.
+
+    Written first and shown failing before
+    scripts/agent/production_config_validator.py gains the check.
+    """
+
+    def test_empty_vec_so_reports_error(self) -> None:
+        result = ProductionConfigValidator().validate({"sqlite_vec_so": ""})
+        assert any("sqlite_vec_so" in err for err in result.errors)
+
+    def test_absent_key_reports_error(self) -> None:
+        result = ProductionConfigValidator().validate({})
+        assert any("sqlite_vec_so" in err for err in result.errors)
+
+    def test_non_empty_missing_file_reports_none(self) -> None:
+        result = ProductionConfigValidator().validate(
+            {"allowed_root": "/opt/llm", "sqlite_vec_so": "/nonexistent/vec0.so"}
+        )
         assert result.errors == []

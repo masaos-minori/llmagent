@@ -35,11 +35,11 @@ Each `POST /v1/call_tool` invocation on a server that writes the shared audit lo
 | `detail` | Optional supplementary info | No | Omitted |
 | `server_key` | Server identifier (e.g., `"web_search"`, `"cicd"`, `"mdq"`, `"shell"`, `"github"`) | Yes | `""` |
 | `error_type` | Error classification for transport failures | Yes | `""` |
-| `requested_target` | Caller-supplied resource path as received, before resolution, redacted by the caller; emitted by git-mcp only | No | Omitted |
+| `requested_target` | Redacted caller-supplied target captured before canonical path resolution; emitted only when the caller supplies it, by git-mcp only, mirroring the `canonical_target` pattern | No | Omitted |
 | `canonical_target` | Resolved canonical repository path; emitted by git-mcp only | No | Omitted |
 | `pre_condition` | Serialized repository state before the operation; emitted by git-mcp only | No | Omitted |
 | `post_condition` | Serialized repository state after the operation; emitted by git-mcp only | No | Omitted |
-| `requested_target` | Redacted caller-supplied target captured before canonical path resolution; emitted only when the caller supplies it, mirroring the `canonical_target` pattern | No | Omitted |
+
 
 **Note:** github-mcp, shell-mcp, and file-delete-mcp write to both the shared and a dedicated audit log; file-write-mcp and rag-pipeline-mcp write only the shared audit log. file-read-mcp does not write audit logs. Dedicated audit logs for github-mcp, shell-mcp, and file-delete-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
 

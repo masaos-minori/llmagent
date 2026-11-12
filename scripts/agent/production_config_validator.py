@@ -277,6 +277,17 @@ class ProductionConfigValidator:
             )
             self._record(errors, warnings, msg)
 
+        # sqlite_vec_so: processes that open rag.sqlite or session.sqlite need the
+        # sqlite-vec library path; an empty or absent value breaks those processes.
+        sqlite_vec_so = config.get("sqlite_vec_so")
+        if not (isinstance(sqlite_vec_so, str) and sqlite_vec_so.strip()):
+            msg = (
+                "sqlite_vec_so is empty or absent (required for processes that open "
+                "rag.sqlite or session.sqlite; set the sqlite-vec library path in "
+                "agent.toml)"
+            )
+            self._record(errors, warnings, msg)
+
         # Unknown top-level key rejection
         unknown_keys = ProductionConfigValidator._check_unknown_production_keys(config)
         if unknown_keys:

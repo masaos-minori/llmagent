@@ -28,6 +28,7 @@ from shared.json_utils import dumps as _json_dumps
 from tests.agent._config_test_defaults import (
     ALL_TOOL_NAMES,
     PERMISSIVE_ALLOWED_ROOT,
+    PERMISSIVE_SQLITE_VEC_SO,
 )
 
 
@@ -57,6 +58,7 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
                 }
             },
             "allowed_root": PERMISSIVE_ALLOWED_ROOT,
+            "sqlite_vec_so": PERMISSIVE_SQLITE_VEC_SO,
             **overrides,
         }
     )

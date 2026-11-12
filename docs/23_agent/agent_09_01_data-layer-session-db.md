@@ -77,7 +77,7 @@ Residual risk: pattern detection is best-effort, and the filter-failure path per
 
 ## Responsibility Boundary
 
-- **Canonical Source**: `agent/diagnostic_store.py`, `db/maintenance.py`
+- **Implementation**: `agent/diagnostic_store.py`, `db/maintenance.py`
 - **Schema**: `schema_sql.py` (authority for detailed schema definitions)
 
 ## Key Constraints

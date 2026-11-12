@@ -33,6 +33,7 @@ The schema is created from `schema.sql` when the database is new. An existing da
 
 - Identity contract: canonical identity is the structural fingerprint (tables, views, columns, indexes including partial-index predicates, table-level constraints, foreign keys, triggers) compared by `assert_matches` in `shared/schema_fingerprint.py`; any shape deviation is refused before any write.
 - `dlq_outbox` carries a single inline `PRIMARY KEY REFERENCES events(event_id)` and no table-level `FOREIGN KEY`, so `PRAGMA foreign_key_list(dlq_outbox)` returns exactly one entry.
+- EventBus-generated timestamps are UTC strings in the form `YYYY-MM-DDTHH:MM:SSZ` (the `%Y-%m-%dT%H:%M:%SZ` format of `now_iso()` in `scripts/eventbus/json_utils.py`); examples are `dlq_at` (events) and `requested_at` (dlq_outbox). `published_at` is publisher-supplied and stored unchanged, so it may carry any valid RFC 3339 offset, not necessarily `Z`.
 
 Recreate procedure:
 

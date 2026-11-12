@@ -1,33 +1,32 @@
 ## Goal
-Add `DEGRADED` to the `mcp_03_03` state-transition diagram, and `UNKNOWN` to the state table if the code uses it (`REQ-002` / `AC-2`).
+Correct the cross-reference `18. Area Dependency Graph Validation` to section 19 (`REQ-001` / `AC-1`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
 - Line numbers have drifted from the Plan; locate each passage by its quoted text, and skip and report it if it is already correct (Phase 1 rule).
-- Code (`scripts/shared/mcp_health.py`): `McpServerHealthState` has `HEALTHY`, `DEGRADED` (failing but not yet unavailable), `UNAVAILABLE`, `HALF_OPEN`, `UNKNOWN`; the diagram goes `HEALTHY -> UNAVAILABLE` only; the table lists four states (checked). Verify whether `UNKNOWN` is ever returned (`get_state` returns `HEALTHY` for unknown keys per the doc) before adding it.
-- Overlap: adrrev017 row 12 edits another passage; adrrev014/016 do not touch this diagram.
+- `governance_04` numbers the section `### 19. Area Dependency Graph Validation` (checked).
+- Overlap: adrrev016 row 11 edits the Agent ↔ RAG statement of this file (another passage); compatible.
 
 ## Design decisions
-- Extend the ASCII diagram with a `DEGRADED` node between `HEALTHY` and `UNAVAILABLE`; keep every existing edge.
+- Change the number only.
 
 ## Alternatives considered
 N/A: the Plan fixes the approach for this row.
 
 ## Implementation
 ### Target file
-`docs/22_mcp/mcp_03_03_transport-and-health.md`
+`docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`
 
 ### Procedure
-1. Add `HEALTHY ──(failure < threshold)──→ DEGRADED`, `DEGRADED ──(failure × threshold)──→ UNAVAILABLE`, and `DEGRADED ──(record_success)──→ HEALTHY`.
-2. If `UNKNOWN` is a reachable state, add its row; otherwise leave the table and state the reason in the progress report.
+1. Replace `"18. Area Dependency Graph Validation"` with `"19. Area Dependency Graph Validation"`.
 
 ### Method
-- Redraw the diagram in the existing `text` code fence; confirm against `record_failure` and `record_success` semantics in the paragraph below the table.
+- `rg -n 'Area Dependency Graph Validation' docs/00_governance/` confirms one match with `19.` in `governance_05`.
 
 ### Details
-- Do not change the semantics paragraph.
+- Keep the quoted section name unchanged.
 
 ## Compatibility considerations
 N/A: documentation-only change; no code, config, or schema impact.
@@ -39,23 +38,23 @@ N/A: no authorization, secret, or trust-boundary change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_docs_consistency.py --domain mcp` — pass.
+- `uv run python tools/check_docs_consistency.py --domain overview` — pass.
 - `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py --strict`, `check_docs_japanese.py` — pass.
 - `uv run python tools/check_needs_confirmation_inventory.py` — pass.
 
 ## Completion criteria
-- The diagram shows `DEGRADED` with its transitions and agrees with the state table.
+- The cross-reference cites section 19.
 
 ## Out of Scope
-- Registry behavior; other diagrams.
+- Other governance statements.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-204830 | 20261112-204830 |  |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-204830 | 20261112-204830 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -69,10 +68,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-002` — state diagram includes `DEGRADED`
+- **Requirement ID**: `REQ-001` — correct the section cross-reference
 - **Source issue**: issues/20261109-113421_adrrev019_docs-stale-statements.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261111-112439_adrrev019_docs-stale-statements.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261112-124641
-- **Related target files**: `docs/22_mcp/mcp_03_03_transport-and-health.md`
+- **Related target files**: `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`

@@ -213,6 +213,7 @@ def _write_cli_config(config_dir: Path, paths: dict[str, Path]) -> None:
         f'rag_db_path = "{config_dir / "rag.sqlite"}"\n'
         f'session_db_path = "{config_dir / "session.sqlite"}"\n'
         f'workflow_db_path = "{paths["workflow"]}"\n'
+        f'sqlite_vec_so = "{config_dir / "vec0.so"}"\n'
         "sqlite_timeout = 30\n"
         "sqlite_busy_timeout_ms = 30000\n",
         encoding="utf-8",

@@ -43,6 +43,7 @@ _MIN_CFG: dict = {
     },
     "embed_url": "http://127.0.0.1:9999",
     "allowed_root": "/opt/llm",
+    "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
 }
 
 # ── _build_llm_config ─────────────────────────────────────────────────────────

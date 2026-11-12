@@ -4,8 +4,8 @@
 Base class for MCP (Model Context Protocol) servers.
 Provides HTTP launch logic shared by all MCP server scripts.
 
-Tool dispatch helpers live in mcp/dispatch.py.
-Audit log helpers live in mcp/audit.py.
+Tool dispatch helpers live in mcp_servers/dispatch.py.
+Audit log helpers live in mcp_servers/audit.py.
 """
 
 from __future__ import annotations
@@ -106,6 +106,10 @@ def attach_auth_middleware(
     (scripts/agent/startup_validation.py) rejects an MCP server configuration
     with an empty auth_token before this middleware would ever run for a real
     Agent-managed server.
+
+    Unlike eventbus.auth.attach_auth_middleware, which injects only X-Request-Id and
+    performs no authentication, this function authenticates a Bearer token and fails
+    closed on an empty token.
     """
     from fastapi import Request  # noqa: F401 — used in closure type annotations below
     from fastapi.responses import JSONResponse

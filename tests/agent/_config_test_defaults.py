@@ -2,7 +2,7 @@
 
 Shared overrides for tests that call build_agent_config()/ProductionConfigValidator
 against a minimal config dict. ProductionConfigValidator unconditionally requires
-a non-empty allowed_tools and a non-empty allowed_root
+a non-empty allowed_tools, a non-empty allowed_root, and a non-empty sqlite_vec_so
 (scripts/agent/production_config_validator.py), so any minimal test config dict
 must merge these in unless the test specifically exercises the missing/empty
 error path (see tests/agent/test_config_builders.py's _MIN_CFG, which
@@ -16,6 +16,12 @@ from shared.tool_registry import get_registry
 # exercise the jail pass their own root. An empty allowed_root now denies
 # every path-bearing tool call.
 PERMISSIVE_ALLOWED_ROOT: str = "/"
+
+# Mirrors config/agent.toml's sqlite_vec_so. ProductionConfigValidator now
+# requires a non-empty sqlite_vec_so (the sqlite-vec library path) for any
+# config that reaches build_agent_config(), so minimal test configs must merge
+# this in. Tests that exercise the empty/absent error path pass their own value.
+PERMISSIVE_SQLITE_VEC_SO: str = "/opt/llm/sqlite-vec/vec0.so"
 
 # Mirrors config/agent.toml's [approval_risk_rules] table. ProductionConfigValidator
 # requires git_checkout/git_pull/git_push to resolve to an effective risk of

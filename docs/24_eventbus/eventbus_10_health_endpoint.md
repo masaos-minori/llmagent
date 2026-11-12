@@ -68,7 +68,7 @@ The response includes two boolean health-tier fields:
 
 | Field | Meaning |
 |-------|---------|
-| `liveness` | The DLQ sweep task is running |
+| `liveness` | The DLQ sweep task is running (EventBus-specific; not the MCP server process-state flag described in [mcp_02_02](mcp_02_02_startup-modes-and-health.md)) |
 | `readiness` | The database is connectable (`check_db`) |
 
 `dlq_outbox_failed` and `dlq_sweep_failing` are real failures: each returns HTTP 503 like every other degraded reason, but neither changes `liveness` or `readiness`, so the readiness gate below still holds. They are not capacity-only reasons; they indicate stuck failed DLQ artifacts or a repeatedly failing sweep. A `null` `terminal_failed_outbox` adds no outbox reason; database connectivity is reported separately by `db_unavailable`.

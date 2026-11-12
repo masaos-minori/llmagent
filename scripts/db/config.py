@@ -6,7 +6,8 @@ DbConfig dataclass and builder for SQLite database paths.
 Separated from agent/config.py so that db/ layer modules can reference
 database configuration without importing from agent/.
 embed_url belongs to the embedding service layer (agent/config.py), not here.
-sqlite_vec_so is optional; empty string means vec extension is not required.
+sqlite_vec_so is required for processes that read this configuration; explicit-db_path
+helpers may construct DbConfig with an empty value to skip the vec extension.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ class DbConfig:
     rag_db_path: str
     session_db_path: str
     workflow_db_path: str = "/opt/llm/db/workflow.sqlite"
-    sqlite_vec_so: str = ""  # empty = vec extension not required
+    sqlite_vec_so: str = ""  # empty skips the vec extension; build_db_config() rejects empty (explicit db_path helpers may keep it)
     sqlite_timeout: int = 30
     sqlite_busy_timeout_ms: int = 30000
 
@@ -62,11 +63,17 @@ def format_timestamp() -> str:
 def build_db_config() -> DbConfig:
     """Construct DbConfig from agent.toml; raises ValueError if agent.toml is missing or malformed."""
     cfg = ConfigLoader().load("agent.toml")
+    vec_so = cfg.get("sqlite_vec_so", "")
+    if not isinstance(vec_so, str) or not vec_so.strip():
+        raise ValueError(
+            "sqlite_vec_so is empty or absent in agent.toml (required for processes "
+            "that open rag.sqlite or session.sqlite; set the path of the sqlite-vec library)"
+        )
     return DbConfig(
         rag_db_path=cfg.get("rag_db_path", ""),
         session_db_path=cfg.get("session_db_path", ""),
         workflow_db_path=cfg.get("workflow_db_path", "/opt/llm/db/workflow.sqlite"),
-        sqlite_vec_so=cfg.get("sqlite_vec_so", ""),
+        sqlite_vec_so=vec_so,
         sqlite_timeout=int(cfg.get("sqlite_timeout", 30)),
         sqlite_busy_timeout_ms=int(cfg.get("sqlite_busy_timeout_ms", 30000)),
     )

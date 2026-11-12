@@ -456,6 +456,8 @@ def attach_auth_middleware(app: Any) -> None:
 
     Authentication is delegated to endpoint dependencies via resolve_principal().
     This middleware only injects X-Request-Id into responses.
+    Unlike mcp_servers.server.attach_auth_middleware, which authenticates a Bearer
+    token, this function performs no authentication.
     """
 
     from fastapi import (

@@ -21,6 +21,7 @@ from tests.agent._config_test_defaults import (
     ALL_TOOL_SAFETY_TIERS,
     GIT_RISK_FLOOR,
     PERMISSIVE_ALLOWED_ROOT,
+    PERMISSIVE_SQLITE_VEC_SO,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
             "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
             "allowed_root": PERMISSIVE_ALLOWED_ROOT,
+            "sqlite_vec_so": PERMISSIVE_SQLITE_VEC_SO,
             **overrides,
         }
     )

@@ -70,13 +70,16 @@ The canonical and only import path is `shared/mcp_health.py`.
 **State Transitions:**
 
 ``` text
-HEALTHY ──(failure × threshold)──→ UNAVAILABLE
-   ↑                                    │
-   │                            (cooldown elapsed)
-   │                                    ↓
-   └──(record_success)────────── HALF_OPEN (trial probe)
-                                         │
-                               (failure)─┘ → UNAVAILABLE (cooldown reset)
+HEALTHY ──(failure < threshold)──→ DEGRADED ──(failure × threshold)──→ UNAVAILABLE
+   ▲                │                                                      │
+   │            (record_success)                                (cooldown elapsed)
+   │                │                                                      ↓
+   └──(record_success)────────── HALF_OPEN (trial probe) ──────────────────┘
+                                     │
+                                   (failure)
+                                     │
+                                     ↓
+                          UNAVAILABLE (cooldown reset)
 ```
 
 | State | Condition |

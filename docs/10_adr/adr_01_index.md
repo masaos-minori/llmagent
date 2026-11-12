@@ -37,7 +37,7 @@ definitions, ID format rules, and section header conventions are defined once in
 
 ## Known Deviations
 
-This index records no deviations of its own. Open deviations are recorded in the `## Known Deviations` section of the individual ADR that owns them (for example ADR-006).
+This index records no deviations of its own. Open deviations are recorded in the `## Known Deviations` section of the individual ADR that owns them.
 
 ## ADR List
 

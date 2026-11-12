@@ -33,6 +33,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_shell_safe_prefixes": ["/bin/", "/usr/bin/"],
         "approval_github_allowed_repos": [],
         "allowed_root": "/opt/llm",
+        "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
         "memory_local_only": True,
         "memory_embed_enabled": False,
         "mcp_servers": {

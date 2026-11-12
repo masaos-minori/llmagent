@@ -34,7 +34,7 @@ The Event Bus uses an in-memory pub/sub broker (`EventBroker`) for live event de
 
 - **Live Delivery**: `EventBroker` provides topic-based fan-out via `asyncio.Queue`.
 - **Replay**: Past events are replayed from SQLite through the `/replay` and `/subscribe` endpoints.
-- **Persistence**: All events are stored in SQLite, and DLQ events are written as JSONL files.
+- **Persistence**: All events are stored in SQLite, and each DLQ event is also written as a per-event JSON file (`{event_id}.json`) in the dead-letter directory.
 - **Offset Management**: Offsets are persisted in SQLite (`consumer_offsets` table) to facilitate consumer recovery.
 
 ## Security Model
