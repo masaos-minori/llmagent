@@ -225,10 +225,7 @@ class TestConcurrentRecoverSingleWinner:
         lock = threading.Lock()
 
         def worker() -> None:
-            with patch(
-                "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
-            ):
-                s = StateStore()
+            s = StateStore()
             try:
                 count = s.recover_stale_attempts()
             finally:
@@ -236,11 +233,17 @@ class TestConcurrentRecoverSingleWinner:
             with lock:
                 results.append(count)
 
-        threads = [threading.Thread(target=worker) for _ in range(4)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        # Patch once in the main thread. unittest.mock's save/restore stack is
+        # not thread-safe: per-thread nested patches save each other's mocks
+        # and leak a MagicMock into db.helper when the threads interleave.
+        with patch(
+            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
+        ):
+            threads = [threading.Thread(target=worker) for _ in range(4)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
 
         assert sorted(results) == [0, 0, 0, 1]
         assert _attempt_row(workflow_db, "att-race")["status"] == "failed"
