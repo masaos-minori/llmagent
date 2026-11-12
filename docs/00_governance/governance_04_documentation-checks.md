@@ -39,7 +39,9 @@ Checks all documents under `docs/*.md` for quality issues.
 **Custom rules:**
 - Dynamically loaded from `config/doc_quality_rules.json`
 - Specific change-history forms in active documents are rejected (ERROR): `(Added <date>` annotations, `issues/`/`plans/`/`implementations/` `done/` paths, `REQ-NNN` identifiers, `- **Resolved**:` bullets, strikethrough text, and `Traceability` headings. These rules are not exempted by historical-context words, and the allowlist in section 4 does not apply to them
+- Change-history phrasing (`history_phrasing_in_active_doc`): amendment annotations carrying dates, supersession annotations carrying dates, claims that one design replaces an earlier one, past-removal wording, and former-state wording are rejected (ERROR); likewise not exempted by historical-context words
 - Unverified-claim wording outside the Needs Confirmation inventory is reported (WARNING)
+- Lexical signatures of the resolved ADR contradictions are rejected (ERROR, not exempted by historical-context words): `dlq_threshold_exceeded_operator` (the exceeded-max_retry wording — ADR-006 conditions DLQ promotion on `>= max_retry`), `offset_strictly_monotonic` (the strictly-monotonic offsets claim — ADR-006 guarantees non-decreasing stored offsets), `empty_token_startup_statement` (empty-token startup wording — ADR-017 makes an empty token a fatal startup misconfiguration). Free-text contradictions are detected only by these lexical signatures; semantic comparison is out of scope
 
 ### 2. Domain Consistency Check (`check_docs_consistency.py`)
 
@@ -156,9 +158,12 @@ Validates structural conventions for `docs/*.md`:
 
 Checks all `docs/*.md` for implementation-detail content the docs content
 policy prohibits: full file trees, per-file descriptions embedded in a tree
-or table, class/function/method index tables, implementation-location
+or table, class/function/method index tables — including inventory tables
+whose header starts with a `File` or `Module` column and ends with a
+`Signature`, `Description`, or `Summary` column — implementation-location
 mappings, and literal port numbers (see `skills/DESIGN.md` Docs content
-policy — remove). `--strict` exits 1 on any warning (CI); see `GV-018`.
+policy — remove). Auto-generated guarded blocks are exempt. `--strict` exits
+1 on any warning (CI); see `GV-018`.
 
 ### 10. ADR Structure Check (`check_adr_structure.py`)
 
@@ -172,9 +177,9 @@ Validates `docs/10_adr/*.md` structure:
 
 ### 11. Known Deviation Sync Check (`check_known_deviation_sync.py`)
 
-Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), that a Known Issue whose `Target` is an ADR is cited in that ADR's `## Known Deviations` (the reverse direction, Warning), rejects resolved-item bullets in `## Known Deviations` (Error), and rejects a Known Issue ID cited anywhere else under `docs/` that has no entry in Part 1 (Error; typically an ID deleted when the issue was resolved). The ID prefixes are read from Part 1's own ordering convention.
+Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), that a Known Issue whose `Target` is an ADR is cited in that ADR's `## Known Deviations` (the reverse direction, Warning), rejects resolved-item bullets in `## Known Deviations` (Error), rejects a top-level `## Known Deviations` bullet that cites no Known Issue ID (Error; an open deviation must cite its ledger ID), and rejects a Known Issue ID cited anywhere else under `docs/` that has no entry in Part 1 (Error; typically an ID deleted when the issue was resolved). The ID prefixes are read from Part 1's own ordering convention.
 
-**Enforcement:** pre-commit (`known-deviation-sync`) and `.github/workflows/governance-docs-consistency.yml`. Rule ID `GV-022`: an Error (resolved-item bullet) fails the run; a Warning (dangling reference in an ADR's Known Deviations, or a Known Issue missing from its Target ADR's Known Deviations) does not.
+**Enforcement:** pre-commit (`known-deviation-sync`) and `.github/workflows/governance-docs-consistency.yml`. Rule ID `GV-022`: an Error (resolved-item bullet, or a Known Deviations bullet without a Known Issue ID) fails the run; a Warning (dangling reference in an ADR's Known Deviations, or a Known Issue missing from its Target ADR's Known Deviations) does not.
 
 ### 12. ADR Invariant Matrix Checks (`check_adr_invariant_matrix.py`, `check_adr_reference.py`)
 
@@ -294,11 +299,11 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Existing | None |
 | GV-016 | No unnecessary Metadata or Status fields added | Meta | Auto | `check_metadata_field_policy.py` | Pre-commit | Warning | Existing | Run by pre-commit and CI (warning, non-blocking) |
 | GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Existing | Opt-in by design (--check-removed-names); not promoted to default-on; context-aware case: Accepted Limit |
-| GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py --strict` | PR | Blocking | Existing | None |
+| GV-018 | Docs content policy violation (implementation detail in docs/*.md; index-table detection includes `File`/`Module`-first inventory headers) | Chk | Auto | `check_docs_content_policy.py --strict` | PR | Blocking | Existing | None |
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
 | GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
-| GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no Known Issue ID cited outside the ledger that lacks a ledger entry (Error; dangling ID in an ADR's Known Deviations: Warning), every Known Issue targeting an ADR is cited in that ADR's Known Deviations (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking (Error) / Warning | Existing | None |
+| GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no top-level Known Deviations bullet without a Known Issue ID (Error), no Known Issue ID cited outside the ledger that lacks a ledger entry (Error; dangling ID in an ADR's Known Deviations: Warning), every Known Issue targeting an ADR is cited in that ADR's Known Deviations (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking (Error) / Warning | Existing | None |
 | GV-023 | Agent command docs match `_COMMANDS` by name, subcommand, and argument | Chk | Auto | `check_docs_consistency.py --domain agent` | PR | Blocking | Existing | None |
 | GV-024 | ADR authority model: one primary ADR per governed decision target, resolvable ADR IDs, acyclic authority graph, intentional reference pairs flagged with ownership-split notes, `config-check` assumptions match live configuration | Adr | Auto | `check_adr_authority.py` | PR | Blocking | Existing | None |
 | GV-025 | ADR index graph sections match the generated output of `config/adr_authority.toml`; hand edits inside the guard comments are detected as drift | Adr | Auto | `generate_adr_authority.py --check` | PR | Blocking | Existing | None |

@@ -69,3 +69,31 @@ claim_type = "security-policy"
 source_paths = ["registry/component_mandatoriness.yaml"]
 area = "MCP"
 notes = "Machine-readable required/non-required classification of each MCP server (ADR-004 Decision Group 3 item 13); the agent_08_04 table is generated from it."
+
+[[canonical_sources]]
+decision_target = "agent.posture-failure-handling"
+claim_type = "architecture-decision"
+source_paths = ["docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md"]
+area = "Agent"
+notes = "ADR-004 fixes the failure-handling policy per environment posture (fail-closed in production, fail-open in development)."
+
+[[canonical_sources]]
+decision_target = "mcp.empty-token-handling"
+claim_type = "architecture-decision"
+source_paths = ["docs/10_adr/adr_02_03_017_mcp-authentication.md"]
+area = "MCP"
+notes = "ADR-017 fixes an empty configured authentication token as a fatal startup misconfiguration; mirrors the mcp.authentication entry in config/adr_authority.toml without replacing it (ADR-016)."
+
+[[canonical_sources]]
+decision_target = "eventbus.dlq-promotion-threshold"
+claim_type = "architecture-decision"
+source_paths = ["docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md"]
+area = "EventBus"
+notes = "ADR-006 fixes DLQ promotion at attempts >= max_retry."
+
+[[canonical_sources]]
+decision_target = "eventbus.offset-monotonicity"
+claim_type = "architecture-decision"
+source_paths = ["docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md"]
+area = "EventBus"
+notes = "ADR-006 fixes stored event offsets as non-decreasing."

@@ -5,7 +5,7 @@ Update `tools/TOOL_DESCRIPTIONS.md` for the changed checkers and list the new he
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- `check_tool_descriptions_sync.py` requires a row for each `tools/*.py`, including `_docs_content_policy_helpers.py`; rows for `check_docs_content_policy.py` (lines 86 and 180) and `check_known_deviation_sync.py` (lines 93 and 170) need the new behavior.
+- `check_tool_descriptions_sync.py` requires a row for each `tools/*.py`, including `_docs_content_policy_helpers.py`; rows for `check_docs_content_policy.py` (lines 86 and 180) and `check_known_deviation_sync.py` (lines 93 and 170) need the new behavior (verified 2026-11-12; both tools appear in a summary table and a detail table).
 - Overlap: `plans/20261112-122408_rmcompat008_compat-checker-patterns.md` also edits this file (different rows; compatible).
 
 ## Design decisions
@@ -52,8 +52,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-223108 | 20261112-224437 | Helper row added to the Index table and the shared-base detail table; check_docs_content_policy.py rows (Index and detail) and check_known_deviation_sync.py rows (Index and detail) updated for the widened header shape and the bullet-without-ID ERROR; no other rows touched |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-224437 | 20261112-224437 | check_tool_descriptions_sync.py: No issues found (exit 0); full suite 12167 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

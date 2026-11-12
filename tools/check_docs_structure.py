@@ -210,7 +210,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # governance_04 reached 25281 when adrauth001 documented the ADR authority validator and
     # generator checks (2026-10-30), over the default MAX_SIZE; the ceiling equals the
     # accepted size.
-    "governance_04_documentation-checks.md": 25281,
+    # Re-accepted at 26711 (2026-11-12): adrrev018 documented the four new custom rules
+    # (history phrasing + the three contradiction signatures with the lexical-only limit),
+    # the widened GV-018 inventory-header shape, and the GV-022 bullet-without-ID ERROR.
+    "governance_04_documentation-checks.md": 26711,
     # ADR-013 reached 27185 when the authz-generation change (2026-11-01) recorded the
     # generation, TTL sweep and restart-baseline decisions and their evidence, over the
     # default MAX_SIZE; the ceiling equals the accepted size.

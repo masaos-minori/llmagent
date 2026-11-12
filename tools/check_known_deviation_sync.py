@@ -4,7 +4,7 @@
 Every ADR's `## Known Deviations` section cites Known Issue IDs (e.g. `EVENTBUS-008`)
 that are tracked in
 `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
-Two failure modes are reported:
+Five failure modes are reported:
 
   1. A `- **Resolved**:` bullet appears in an ADR's Known Deviations. The
      Current-Specification-Only Policy keeps no resolved items in active
@@ -20,6 +20,8 @@ Two failure modes are reported:
      typically an ID that was deleted when the issue was resolved, whose references
      were not cleaned up (ERROR). The ID prefixes come from the canonical document's
      own ordering convention.
+  5. A top-level bullet in an ADR's `## Known Deviations` cites no Known Issue
+     ID -- an open deviation recorded without its canonical ledger ID (ERROR).
 
 Rule ID: GV-022 (docs/00_governance/governance_04_documentation-checks.md).
 
@@ -108,6 +110,13 @@ _RESOLVED_BULLET_RE = re.compile(
     r"^\s*-\s+(?:\*\*Resolved[^*]*\*\*:|\*\*Status\*\*:\s*Resolved\b)",
     re.IGNORECASE,
 )
+# A `## Known Deviations` bullet must start at column 0: indented `- ` lines are
+# sub-bullets, and indented prose is a continuation line — neither is checked
+# for a missing ID.
+_TOP_LEVEL_BULLET_RE = re.compile(r"^- ")
+# The section's `- Not applicable` bullet form (the corpus's prose form needs no
+# regex: it is not a bullet).
+_NOT_APPLICABLE_BULLET_RE = re.compile(r"^-\s*Not applicable\b", re.IGNORECASE)
 
 
 # "entries are grouped by ID-prefix (RAG-*, DESIGN-*, ...)" in the canonical document's
@@ -372,6 +381,41 @@ def find_resolved_bullets(files: list[DocFile]) -> list[Issue]:
     return issues
 
 
+def find_bullets_without_id(files: list[DocFile]) -> list[Issue]:
+    """Report top-level bullets in each ADR's `## Known Deviations` that cite no
+    ledger ID (ERROR).
+
+    An ID is detected with `_ID_LOOKAHEAD_RE.search` on the whole line — not
+    `_LABELED_BULLET_RE` and not the anchored `match` used by
+    `parse_adr_references()` — because the corpus uses both the
+    `- **Known Issue**: <ID>` and `- **Known Issue:** <ID>` label forms.
+    Indented lines (continuation lines and sub-bullets) are not top-level
+    bullets; the `Not applicable` marker is not a bullet.
+    """
+    issues: list[Issue] = []
+    for doc in files:
+        for line_no, line in _section_body(doc.lines, "## Known Deviations", 2):
+            if not _TOP_LEVEL_BULLET_RE.match(line):
+                continue
+            if _NOT_APPLICABLE_BULLET_RE.match(line):
+                continue
+            if _ID_LOOKAHEAD_RE.search(line):
+                continue
+            issues.append(
+                Issue(
+                    file=f"adr/{doc.rel_path}",
+                    line_no=line_no,
+                    severity="ERROR",
+                    message=(
+                        "Known Deviations bullet has no Known Issue ID; every "
+                        "open deviation must cite its canonical ledger ID (or "
+                        "the section must state `Not applicable`)"
+                    ),
+                )
+            )
+    return issues
+
+
 # ---------------------------------------------------------------------------
 # Cross-check
 # ---------------------------------------------------------------------------
@@ -484,6 +528,7 @@ def collect_issues() -> list[Issue]:
     adr_refs = parse_adr_references(adr_docs)
     issues = list(parse_issues)
     issues.extend(find_resolved_bullets(adr_docs))
+    issues.extend(find_bullets_without_id(adr_docs))
     issues.extend(cross_check(canonical, adr_refs))
     issues.extend(
         reverse_cross_check(parse_canonical_adr_targets(canonical_docs), adr_refs)

@@ -31,6 +31,30 @@
       "pattern": "`/db\\b|`/rag search\\b|/db (?:health|vacuum|consistency|rag)\\b|/rag search\\b",
       "severity": "ERROR",
       "description": "removed slash command (there is no /db or /rag command; use /session health, /session vacuum, /session rag-consistency, /session rag-rebuild-fts or /session rag-rebuild-vec)"
+    },
+    "history_phrasing_in_active_doc": {
+      "pattern": "Amendment\\s*\\([^)]*\\d{4}-\\d{2}-\\d{2}|superseded\\s+\\d{4}-\\d{2}-\\d{2}|replaces the previous|\\b(?:was|were)\\s+removed\\s+(?:at|in|by)\\b|\\bformerly\\b",
+      "severity": "ERROR",
+      "exempt_historical_context": false,
+      "description": "amendment/supersession/removal history phrasing in an active document (Current-Specification-Only Policy); state the current behavior instead"
+    },
+    "dlq_threshold_exceeded_operator": {
+      "pattern": "\\bexceeded\\s+max_retry\\b",
+      "severity": "ERROR",
+      "exempt_historical_context": false,
+      "description": "DLQ promotion phrased as 'exceeded max_retry'; the normative condition (ADR-006) is attempts >= max_retry"
+    },
+    "offset_strictly_monotonic": {
+      "pattern": "(?i)offsets?[^.|]*\\bstrictly\\s+monotonic",
+      "severity": "ERROR",
+      "exempt_historical_context": false,
+      "description": "offsets phrased as 'strictly monotonic'; the normative guarantee (ADR-006) is non-decreasing stored offsets"
+    },
+    "empty_token_startup_statement": {
+      "pattern": "starts, but health checks fail|skips the authentication check",
+      "severity": "ERROR",
+      "exempt_historical_context": false,
+      "description": "empty-token startup phrasing contradicts ADR-017 (empty configured token is a fatal startup misconfiguration, not a runtime auth skip)"
     }
   }
 }

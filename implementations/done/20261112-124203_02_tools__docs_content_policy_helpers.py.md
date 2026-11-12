@@ -54,9 +54,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the module and receive the extracted nodes | Pending | — | — | |
-| 2 | Run the tests that import the moved names | Pending | — | — | |
-| 3 | Run the validation sequence for the new tool: ruff, mypy, bandit, size gate | Pending | — | — | |
+| 1 | Create the module and receive the extracted nodes | Completed | — | 20261112-211726 | 4 nodes extracted verbatim via module_nodes.py extract; compare identical; docstring + from __future__ import annotations added; helper imports only stdlib (no cycle) |
+| 2 | Run the tests that import the moved names | Completed | 20261112-211726 | 20261112-211726 | tests importing DocFile/check_* pass (43 passed) - DocFile re-exported through the checker |
+| 3 | Run the validation sequence for the new tool: ruff, mypy, bandit, size gate | Completed | 20261112-211726 | 20261112-211726 | ruff/mypy/bandit(-ll) clean; 1.5KB helper does not trip the 24576 size gate (no baseline row needed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

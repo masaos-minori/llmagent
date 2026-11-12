@@ -83,6 +83,43 @@ def test_index_table_detected() -> None:
     assert "index table" in issues[0].message
 
 
+def test_index_table_file_class_signature_summary_flagged_outside_guard() -> None:
+    """`| File | Class/Function | Signature | Summary |` is an index-table header."""
+    doc = _doc(
+        "### `tools/eventbus.py`\n"
+        "\n"
+        "| File | Class/Function | Signature | Summary |\n"
+        "|---|---|---|---|\n"
+        "| eventbus.py | publish() | publish(event: DomainEvent) -> None | Emit |\n"
+    )
+    issues = check_index_table([doc])
+    assert len(issues) == 1
+    assert "index table" in issues[0].message
+
+
+def test_index_table_file_class_signature_summary_exempt_inside_guard() -> None:
+    doc = _doc(
+        "<!-- AUTO-GENERATED: generate_reference_table.py api-reference -->\n"
+        "| File | Class/Function | Signature | Summary |\n"
+        "|---|---|---|---|\n"
+        "| eventbus.py | publish() | publish(event: DomainEvent) -> None | Emit |\n"
+        "<!-- END AUTO-GENERATED -->\n"
+    )
+    issues = check_index_table([doc])
+    assert issues == []
+
+
+def test_index_table_file_purpose_description_not_flagged() -> None:
+    """Negative control: a responsibility table, not an index table."""
+    doc = _doc(
+        "| File | Purpose | Description |\n"
+        "|---|---|---|\n"
+        "| eventbus.py | Event routing | Publishes domain events |\n"
+    )
+    issues = check_index_table([doc])
+    assert issues == []
+
+
 def test_location_mapping_detected() -> None:
     doc = _doc("# Files ingested into DB (moved by ingester.py)\n")
     issues = check_location_mapping([doc])

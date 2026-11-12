@@ -5,7 +5,7 @@ Describe the extended GV-018 table pattern, the new custom rules, and the Known 
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- Custom-rules paragraph near line 39, the GV-018 row near line 297, and the GV-022 text near line 177 (checked); describe only the rules that remain after the Phase 4 smoke run.
+- Custom-rules paragraph at lines 39-40, the GV-018 matrix row at line 297 (its prose at line 161), and the GV-022 enforcement text at line 177 with its matrix row at line 301 (verified 2026-11-12). Describe only the rules that remain: the plan-ID rule is not kept (row 04 Assumptions), so it must not appear here.
 - Execute last, after rows 01 to 06 settle which rules are kept.
 
 ## Design decisions
@@ -52,8 +52,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-221159 | 20261112-223048 | Custom-rules paragraph, section 9 GV-018 prose and row, and section 11 GV-022 prose and row updated; no plan-ID rule described; wording deliberately avoids self-matching the new lexical patterns (first draft triggered 3 self-findings, reworded); deviation: the file passed its recorded 25281-byte ceiling, so SIZE_EXCEPTIONS was re-accepted at 26711 with a dated comment in tools/check_docs_structure.py (repo's documented mechanism, precedent adrauth001 and adrrev010) and its tools baseline row re-recorded 29654 -> 29922; check_docs_quality, check_docs_structure, check_docs_content_policy --strict, check_docs_japanese all pass; full suite 12167 pass |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-223049 | 20261112-223049 | Executed and validated 2026-11-12; governance text describes kept rules only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

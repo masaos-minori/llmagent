@@ -5,7 +5,7 @@ Lower the recorded size of `check_docs_content_policy.py` in the tools size base
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- The line is `check_docs_content_policy.py<TAB>33240`; the baseline only shrinks, and a stale or too-high entry fails the gate (checked).
+- The line is `check_docs_content_policy.py<TAB>33240` (verified 2026-11-12, line 6 of the baseline file); the baseline only shrinks, and a stale or too-high entry fails the gate.
 - Execute after rows 01 and 02, when the final byte size is known (`wc -c tools/check_docs_content_policy.py`).
 
 ## Design decisions
@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the recorded size | Pending | — | — | |
-| 2 | Run the tools size gate | Pending | — | — | |
+| 1 | Update the recorded size | Completed | — | 20261112-211726 | wc -c = 32102; line 6 updated 33240 -> 32102, tab separator and sort order kept; other entries untouched |
+| 2 | Run the tools size gate | Completed | 20261112-211726 | 20261112-211726 | check_module_size.py: OK - no new violations (14 baselined modules) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

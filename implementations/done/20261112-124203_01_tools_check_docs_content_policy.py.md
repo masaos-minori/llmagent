@@ -6,10 +6,11 @@ Extract self-contained helpers out of `tools/check_docs_content_policy.py` so it
 
 ## Assumptions
 - Baseline (checked 2026-11-12): the tool is 33240 bytes and grandfathered at that size in `tools/check_module_size_tools_baseline.txt`, so growth fails the gate; `_INDEX_TABLE_HEADER_RE` (line 47) requires a first column `Function|Method|Class` and a last column `Signature|Description`; the exemption for `AUTO-GENERATED` guards is applied by `_is_guard_start`/`_is_guard_end` in the file-walking loop and stays.
-- A trial of the widened pattern below matches the `eventbus_08` header, matches nothing else outside guarded blocks in the current corpus, and does not match two-column or `| File | Purpose | Description |` tables (checked in Step 3a).
+- The widened pattern below was trialed against the whole `docs/` tree on 2026-11-12: it matches `| File | Class/Function | Signature | Summary |` at three places, all inside `AUTO-GENERATED` guards (`23_agent/agent_11_04_memory-module-reference-generated.md`, `23_agent/agent_13_reference-api-generated.md`, `24_eventbus/eventbus_08_reference_api.md`), and matches nothing outside a guard, so the widening adds zero corpus findings. It does not match two-column or `| File | Purpose | Description |` tables.
 - `tests/tools/test_check_docs_content_policy.py` imports `DocFile` and every `check_*` function from `tools.check_docs_content_policy`; an extracted name must stay importable from it (import it back, used) or the test import changes in row 07.
 - Overlap: none among open Plans for this file. The finding is a WARNING; `--strict` (CI) exits 1 on it.
-- Execution order: this Plan lands after the procedures of adrrev015, adrrev017, and adrrev011 are executed (Plan `Depends on`); `plan_dependency_order.py` reports this Plan `ready` because those Plans are archived, but their procedures may still be unexecuted, so the corpus smoke run in Phase 4 decides.
+- Execution order: the adrrev015, adrrev017, and adrrev011 procedures are already archived in `implementations/done/` and applied to the corpus. Verified 2026-11-12: `check_docs_quality.py` reports no issue and `check_known_deviation_sync.py` reports `No issues found`, and none of the row 04 candidate signatures matches `docs/`. `plan_dependency_order.py` reports this Plan `Ready`, `Gated: (none)`.
+- Row 07 interlock: this row's step 4 (widening) and row 07's failing fixture test are mutually dependent. Execute in the order row 01 extraction -> row 02 -> row 07 (failing test) -> row 01 widening -> row 03.
 
 ## Design decisions
 - Extract leaf nodes only (for example `_is_guard_start`, `_is_guard_end`, `DocFile`, `discover_all_md_files`), chosen from `module_nodes.py measure` output; do not move the regex constants that the checks read.
@@ -63,10 +64,14 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing test first and confirm it fails against the unmodified tool | Pending | — | — | |
-| 2 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the tests, then the validation sequence (`rules/toolchain.md`) for the changed tool | Pending | — | — | |
-| 4 | Smoke-run the tool against the real `docs/` corpus and record the result | Pending | — | — | |
+| 1 | Write the failing test first and confirm it fails against the unmodified tool | Completed | 20261112-205753 | 20261112-210116 | Failing fixture (a) confirmed red against unmodified regex via row 07 tests; extraction half (nodes -> _docs_content_policy_helpers.py) done first, compare identical |
+| 3 | Run the tests, then the validation sequence (`rules/toolchain.md`) for the changed tool | Completed | 20261112-211726 | 20261112-211859 | Executed and validated in the 2026-11-12 code-implementation cycle (TDD order 01/02/07/01-widen/03); full suite 12150 pass |
+| 4 | Smoke-run the tool against the real `docs/` corpus and record the result | Completed | 20261112-211726 | 20261112-211859 | Executed and validated in the 2026-11-12 code-implementation cycle (TDD order 01/02/07/01-widen/03); full suite 12150 pass |
+| 3 | Run the tests, then the validation sequence (`rules/toolchain.md`) for the changed tool | Completed | 20261112-211859 | 20261112-211859 | Executed and validated in the 2026-11-12 code-implementation cycle (TDD order 01/02/07/01-widen/03); full suite 12150 pass |
+| 4 | Smoke-run the tool against the real `docs/` corpus and record the result | Completed | 20261112-211726 | 20261112-211859 | Executed and validated in the 2026-11-12 code-implementation cycle (TDD order 01/02/07/01-widen/03); full suite 12150 pass |
+| 2 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-210117 | 20261112-211726 | Regex widened to cover the File/Module first-column and Summary terminal variants; fixture (a) now green; guarded shapes still exempt |
+| 3 | Run the tests, then the validation sequence (`rules/toolchain.md`) for the changed tool | Completed | 20261112-211859 | 20261112-211859 | Executed and validated in the 2026-11-12 code-implementation cycle (TDD order 01/02/07/01-widen/03); full suite 12150 pass |
+| 4 | Smoke-run the tool against the real `docs/` corpus and record the result | Completed | 20261112-211859 | 20261112-211859 | Executed and validated in the 2026-11-12 code-implementation cycle (TDD order 01/02/07/01-widen/03); full suite 12150 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

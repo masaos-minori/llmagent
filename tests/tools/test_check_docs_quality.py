@@ -504,6 +504,84 @@ class TestUncertaintyPhraseRule:
         assert _run_live_rule("uncertainty_phrase_outside_inventory", lines) == []
 
 
+class TestHistoryPhrasingRule:
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "Amendment (2026-02-03): the retry policy changed.",
+            "Wording superseded 2026-02-03 by the current spec.",
+            "The new registry replaces the previous router table.",
+            "The legacy flag was removed in the 2026 cleanup.",
+            "The formerly synchronous path now returns a task.",
+        ],
+    )
+    def test_history_phrasing_is_reported(self, line: str) -> None:
+        issues = _run_live_rule("history_phrasing_in_active_doc", [line])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_current_state_wording_is_not_reported(self) -> None:
+        lines = [
+            "The registry owns tool routing for the agent process.",
+            "The retry policy uses max_retry attempts before the DLQ.",
+        ]
+        assert _run_live_rule("history_phrasing_in_active_doc", lines) == []
+
+
+class TestDlqThresholdRule:
+    def test_exceeded_max_retry_phrasing_is_reported(self) -> None:
+        issues = _run_live_rule(
+            "dlq_threshold_exceeded_operator",
+            ["An event exceeded max_retry and moved to the DLQ."],
+        )
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_operator_and_reached_wording_is_not_reported(self) -> None:
+        lines = [
+            "Events with attempts >= max_retry move to the DLQ.",
+            "An event that reached max_retry is dead-lettered.",
+        ]
+        assert _run_live_rule("dlq_threshold_exceeded_operator", lines) == []
+
+
+class TestOffsetMonotonicRule:
+    def test_strictly_monotonic_offset_phrasing_is_reported(self) -> None:
+        issues = _run_live_rule(
+            "offset_strictly_monotonic",
+            ["The event offsets are strictly monotonic per stream."],
+        )
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_non_decreasing_phrasing_is_not_reported(self) -> None:
+        lines = [
+            "Stored offsets are non-decreasing per stream.",
+            "The cursor advances monotonically in stored order.",
+        ]
+        assert _run_live_rule("offset_strictly_monotonic", lines) == []
+
+
+class TestEmptyTokenRule:
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "The MCP server starts, but health checks fail without a token.",
+            "The server skips the authentication check when the token is absent.",
+        ],
+    )
+    def test_empty_token_startup_phrasing_is_reported(self, line: str) -> None:
+        issues = _run_live_rule("empty_token_startup_statement", [line])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_required_token_phrasing_is_not_reported(self) -> None:
+        lines = [
+            "The MCP server requires a non-empty bearer token at startup.",
+        ]
+        assert _run_live_rule("empty_token_startup_statement", lines) == []
+
+
 class TestExemptHistoricalContextOption:
     def test_default_rule_skips_lines_with_historical_marker(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

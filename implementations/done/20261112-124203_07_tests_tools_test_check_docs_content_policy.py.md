@@ -5,8 +5,9 @@ Add fixture tests in `tests/tools/test_check_docs_content_policy.py` that flag t
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- The file tests `check_index_table` and the other `check_*` functions with `DocFile` fixtures (checked); it also names `check_docs_content_policy.py` in row 01 and 02, so it keeps its own procedure rather than being a companion.
+- The file tests `check_index_table` and the other `check_*` functions with `DocFile` fixtures (verified 2026-11-12); it also names `check_docs_content_policy.py` in row 01 and 02, so it keeps its own procedure rather than being a companion.
 - Write these tests before the regex change (row 01) and show them failing.
+- Verified 2026-11-12: `| File | Class/Function | Signature | Summary |` occurs three times in `docs/`, each inside an `AUTO-GENERATED` guard, so the fixture must synthesize the shape rather than read a real document.
 
 ## Design decisions
 - Three cases: (a) `| File | Class/Function | Signature | Summary |` outside a guard is reported; (b) inside `<!-- AUTO-GENERATED ... -->` is exempt; (c) a `| File | Purpose | Description |` table is not reported.
@@ -51,9 +52,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the three fixture tests and show (a) failing | Pending | — | — | |
-| 2 | Run after the regex change in row 01: all pass | Pending | — | — | |
-| 3 | Run ruff format/check and mypy on the test file | Pending | — | — | |
+| 1 | Write the three fixture tests and show (a) failing | Completed | — | 20261112-211726 | 3 fixture tests added; (a) flagged-outside-guard failed 0==1 against unmodified regex; (b)(c) passed both times |
+| 2 | Run after the regex change in row 01: all pass | Completed | 20261112-211726 | 20261112-211726 | 43 passed after row 01 regex widening |
+| 3 | Run ruff format/check and mypy on the test file | Completed | 20261112-211726 | 20261112-211726 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

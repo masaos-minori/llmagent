@@ -5,9 +5,9 @@ Register the posture-failure, empty-token, DLQ promotion threshold, and offset m
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- The registry holds 10 `[[canonical_sources]]` entries today (the Plan said 11), none ADR-sourced; `check_canonical_source_registry.py` requires an Accepted status for an ADR-sourced path and one source path for each non-exempt claim type (checked).
-- UNK-04: the empty-token source is ADR-007 because no authentication ADR exists yet (ADR-017 has not been created; adrrev011's procedures are unexecuted); the maintainer confirms listing in both this registry and `config/adr_authority.toml`.
-- Targets mirror existing names where `config/adr_authority.toml` has them (for example `eventbus.persistence`).
+- The registry holds 10 `[[canonical_sources]]` entries (verified 2026-11-12), none ADR-sourced; `check_canonical_source_registry.py` requires `Accepted` under `## Status` for every `source_paths` entry of an `architecture-decision` claim, and one source path for each non-exempt claim type (`SINGLE_SOURCE_EXEMPTIONS` covers only `runtime-behavior`) (verified). `ADR-004`, `ADR-006`, and `ADR-017` all read `## Status` → `Accepted`.
+- UNK-04 (resolved 2026-11-12 by maintainer decision): the empty-token source is `ADR-017` (`docs/10_adr/adr_02_03_017_mcp-authentication.md`, Accepted). The earlier "ADR-017 does not exist yet, default to ADR-007" premise is stale — the adrrev011 procedures created it, and `config/adr_authority.toml` lists `mcp.authentication` → `ADR-017`. Registering in `config/documentation_canonical_sources.toml` mirrors, and does not replace, that authority entry (ADR-016).
+- Targets mirror existing names where `config/adr_authority.toml` has them (for example `eventbus.persistence`); `mcp.empty-token-handling`, `agent.posture-failure-handling`, `eventbus.dlq-promotion-threshold`, and `eventbus.offset-monotonicity` are narrower sub-targets and are new in both registries.
 
 ## Design decisions
 - Four entries, each `source_paths` one ADR file, `claim_type` from `VALID_CLAIM_TYPES` (`architecture-decision` for the decision text; do not invent a type).
@@ -25,7 +25,7 @@ N/A: the Plan fixes the approach for this row.
 
 ### Method
 - `agent.posture-failure-handling` -> `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`, area `Agent`.
-- `mcp.empty-token-handling` -> `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md`, area `MCP`.
+- `mcp.empty-token-handling` -> `docs/10_adr/adr_02_03_017_mcp-authentication.md`, area `MCP`.
 - `eventbus.dlq-promotion-threshold` and `eventbus.offset-monotonicity` -> `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`, area `EventBus`.
 - `claim_type = "architecture-decision"` for all four; add a `notes` line naming the ADR decision.
 
@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the four entries | Pending | — | — | |
-| 2 | Run `uv run python tools/check_canonical_source_registry.py` and `check_canonical_source_conflicts.py` | Pending | — | — | |
+| 1 | Append the four entries | Completed | 20261112-215716 | 20261112-221114 | 4 entries appended with claim_type architecture-decision and notes naming the ADR decision; the two EventBus entries sharing one source path were accepted (no fold needed) |
+| 2 | Run `uv run python tools/check_canonical_source_registry.py` and `check_canonical_source_conflicts.py` | Completed | 20261112-221114 | 20261112-221114 | check_canonical_source_registry.py: Registry validation passed; check_canonical_source_conflicts.py exit 0; 25 registry tests pass; full suite 12167 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

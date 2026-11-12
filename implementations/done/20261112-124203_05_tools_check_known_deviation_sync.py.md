@@ -7,7 +7,8 @@ Add an ERROR to `tools/check_known_deviation_sync.py` for a `## Known Deviations
 ## Assumptions
 - Size (checked): 21410 bytes, 3166 bytes under the 24576 gate, not in the tools baseline; the new check must stay under the gate.
 - Existing helpers: `_section_body(lines, heading, level)`, `_LABELED_BULLET_RE` (`- **Known Issue**: ...`), `_ID_LOOKAHEAD_RE`, `_RESOLVED_BULLET_RE`, `find_resolved_bullets`; `collect_issues()` aggregates them.
-- Corpus: after `adrrev009`, ADR-008 cites `SHARED-001` and `SHARED-002`; other ADRs read `Not applicable`; a labeled bullet without an ID is the only new failure (verify with a smoke run).
+- Corpus (verified 2026-11-12): every ADR `## Known Deviations` section reads `Not applicable` except `adr_02_05_008_db-sqlite-4db-separation.md`, whose two bullets read `- **Known Issue:** SHARED-001 ...` and `- **Known Issue:** SHARED-002 ...` — the colon is inside the bold, so `_LABELED_BULLET_RE` (`- **Known Issue**: ...`) does not match them. `check_known_deviation_sync.py` reports `No issues found` today (the SHARED-001/002 ledger entries have no `Target` field, so the reverse check does not flag them either).
+- Finding to report, not fixed by this row: because of that label form, ADR-008's citations are invisible to `parse_adr_references`, `cross_check`, and `reverse_cross_check`. The new check must therefore detect the ID in the bullet text itself, not through `_LABELED_BULLET_RE`.
 - The exempt text is the `Not applicable` marker only.
 
 ## Design decisions
@@ -28,7 +29,7 @@ N/A: the Plan fixes the approach for this row.
 4. Smoke-run the tool against real `docs/`.
 
 ### Method
-- For each doc, for each line of `_section_body(doc.lines, "## Known Deviations", 2)`: if it is a top-level bullet (`^\s*-\s`) that is not `Not applicable` and has no ID matched by `_ID_LOOKAHEAD_RE.search` after the label, add `Issue(file=f"adr/{doc.rel_path}", line_no=n, severity="ERROR", message=...)`.
+- For each doc, for each line of `_section_body(doc.lines, "## Known Deviations", 2)`: if it is a top-level bullet (`^\s*-\s`) that is not the `Not applicable` marker and `_ID_LOOKAHEAD_RE.search` finds no ID token anywhere in the line, add `Issue(file=f"adr/{doc.rel_path}", line_no=n, severity="ERROR", message=...)`. Use `search` on the whole line, not `_LABELED_BULLET_RE` and not the anchored `match` used by `parse_adr_references`: the corpus uses both `- **Known Issue**: <ID>` and `- **Known Issue:** <ID>` label forms (see Assumptions).
 - Keep existing behavior: a dangling ID stays a WARNING, an uncited target ADR stays a WARNING, a resolved bullet stays an ERROR; exit 1 only on ERROR.
 
 ### Details
@@ -66,10 +67,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing test first and confirm it fails against the unmodified tool | Pending | — | — | |
-| 2 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the tests, then the validation sequence (`rules/toolchain.md`) for the changed tool | Pending | — | — | |
-| 4 | Smoke-run the tool against the real `docs/` corpus and record the result | Pending | — | — | |
+| 1 | Write the failing test first and confirm it fails against the unmodified tool | Completed | 20261112-212054 | 20261112-213725 | 4 new TestBulletWithoutId tests added first; collection failed with ImportError (find_bullets_without_id missing) against the unmodified tool |
+| 2 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-213725 | 20261112-213725 | find_bullets_without_id added, called from collect_issues after find_resolved_bullets; docstring failure-mode list now five modes (intro count fixed Two -> Five) |
+| 3 | Run the tests, then the validation sequence (`rules/toolchain.md`) for the changed tool | Completed | 20261112-213725 | 20261112-213725 | 20 targeted tests pass; full suite 12154 pass; ruff/mypy/bandit(-ll) clean; size 23492B under the 24576 gate |
+| 4 | Smoke-run the tool against the real `docs/` corpus and record the result | Completed | 20261112-213725 | 20261112-213725 | check_known_deviation_sync.py: No issues found (exit 0); corpus ADR-008 colon-inside-label bullets pass via whole-line search |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

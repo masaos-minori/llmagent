@@ -25,13 +25,18 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools._docs_consistency_lib import Issue, report_and_exit
+from tools._docs_content_policy_helpers import (
+    DocFile,
+    _is_guard_end,
+    _is_guard_start,
+    discover_all_md_files,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
@@ -45,7 +50,9 @@ _HEADINGS_WINDOW = 10
 _INLINE_COMMENT_DESCRIPTION_RE = re.compile(r"[├│└].*#\s*\S")
 _TABLE_DESCRIPTION_RE = re.compile(r"^\s*\|.*\|.*\|.*\|\s*$")
 _INDEX_TABLE_HEADER_RE = re.compile(
-    r"^\s*\|\s*(?:Function|Method|Class)\s*\|.*\|\s*(?:Signature|Description)\s*\|",
+    r"^\s*\|\s*(?:(?:Function|Method|Class)\s*\|.*"
+    r"|(?:File|Module)\s*\|\s*(?:Class|Function)[^|]*\|.*)\|"
+    r"\s*(?:Signature|Description|Summary)\s*\|",
     re.IGNORECASE,
 )
 _LOCATION_MAPPING_RE = re.compile(
@@ -118,43 +125,6 @@ _CODE_FALLBACK_PHRASE_RE = re.compile(
     r"|\b(?:operational|production)\b.*\b(?:code\s+default|code\s+fallback)\b",
     re.IGNORECASE,
 )
-
-
-def _is_guard_start(line: str) -> bool:
-    """Return True if *line* opens an auto-generated guarded block.
-
-    Recognizes any line starting with `<!-- AUTO-GENERATED` — not only the
-    exact bare `<!-- AUTO-GENERATED -->` string — so the real guard-comment
-    format `tools/generate_reference_table.py` emits (e.g. `<!--
-    AUTO-GENERATED: generate_reference_table.py port-tool-reference -->`) is
-    recognized.
-    """
-    return line.strip().startswith("<!-- AUTO-GENERATED")
-
-
-def _is_guard_end(line: str) -> bool:
-    """Return True if *line* closes an auto-generated guarded block."""
-    return line.strip().startswith("<!-- END AUTO-GENERATED")
-
-
-@dataclass(frozen=True)
-class DocFile:
-    """A single documentation file with its contents."""
-
-    path: Path
-    rel_path: str  # relative to docs/
-    lines: list[str] = field(default_factory=list)
-
-
-def discover_all_md_files(docs_dir: Path) -> list[DocFile]:
-    """Return every `.md` file under *docs_dir*, recursively, sorted for determinism."""
-    result: list[DocFile] = []
-    for p in sorted(docs_dir.rglob("*.md")):
-        rel = str(p.relative_to(docs_dir))
-        content = p.read_text(encoding="utf-8")
-        lines = content.splitlines()
-        result.append(DocFile(path=p, rel_path=rel, lines=lines))
-    return result
 
 
 def check_full_file_tree(files: list[DocFile]) -> list[Issue]:

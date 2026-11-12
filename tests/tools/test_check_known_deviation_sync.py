@@ -18,6 +18,7 @@ from tools.check_known_deviation_sync import (
     CanonicalStatus,
     cross_check,
     discover_known_issue_prefixes,
+    find_bullets_without_id,
     find_dangling_general_references,
     find_resolved_bullets,
     parse_adr_references,
@@ -383,3 +384,57 @@ class TestDanglingGeneralReferences:
         )
         findings = find_dangling_general_references(docs, canonical, prefixes)
         assert [f.message.split()[0] for f in findings] == ["RAG-010"]
+
+
+class TestBulletWithoutId:
+    """A top-level Known Deviations bullet with no ledger ID is an ERROR."""
+
+    def test_id_less_bullet_is_error(self, tmp_path: Path) -> None:
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "adr_02_004_example.md",
+            "## Known Deviations\n\n"
+            "- **Known Issue**: The timeout is wrong somewhere.\n"
+            "- A plain bullet with no label at all.\n",
+        )
+        findings = find_bullets_without_id(_discover(adr_dir))
+        assert [f.line_no for f in findings] == [3, 4]
+        assert all(f.severity == "ERROR" for f in findings)
+        assert all(f.file == "adr/adr_02_004_example.md" for f in findings)
+        assert "no Known Issue ID" in findings[0].message
+
+    def test_not_applicable_marker_has_no_finding(self, tmp_path: Path) -> None:
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "adr_02_005_example.md",
+            "## Known Deviations\n\nNot applicable\n",
+        )
+        assert find_bullets_without_id(_discover(adr_dir)) == []
+
+    def test_bullet_with_id_is_clean_in_both_label_forms(self, tmp_path: Path) -> None:
+        """The corpus uses `**Known Issue**:` and `**Known Issue:**` forms."""
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "adr_02_006_example.md",
+            "## Known Deviations\n\n"
+            "- **Known Issue**: SHARED-001 — cited with ID\n"
+            "- **Known Issue:** SHARED-002 — colon-inside-label form\n",
+        )
+        assert find_bullets_without_id(_discover(adr_dir)) == []
+
+    def test_continuation_lines_and_sub_bullets_are_not_bullets(
+        self, tmp_path: Path
+    ) -> None:
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "adr_02_007_example.md",
+            "## Known Deviations\n\n"
+            "- **Known Issue**: ID-001 — open item\n"
+            "  continuation text with no ID on this line\n"
+            "  - nested sub-bullet with no ID\n",
+        )
+        assert find_bullets_without_id(_discover(adr_dir)) == []
