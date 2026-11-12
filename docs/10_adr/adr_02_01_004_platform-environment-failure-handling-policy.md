@@ -288,7 +288,7 @@ The unconditional startup checks enforce INV-01 and INV-02 at startup time:
 - Review of changes to the failure policy
 - Review of component mandatoriness classification
 - No automated test directly verifies INV-01 (single common failure handling policy); INV-02 and INV-13 have no dedicated entry in the list above
-- INV-14 (no startup continuation with undefined mandatoriness) verified by unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`)
+- INV-14 (no startup continuation with undefined mandatoriness) verified by unit tests: the default `required` handling (`tests/shared/test_mcp_config.py::TestRequiredDefault`), the registry loader and its unknown-component error (`tests/shared/test_component_mandatoriness.py`), and the unmocked startup abort for an unknown configured server and a missing or invalid registry (`tests/agent/test_startup_validation.py::TestComponentMandatorinessAbort`)
 - INV-15/INV-16 cross-cutting audit (no fallback exists in `scripts/`):
   - **Why not automated**: "fallback" appears throughout production code in defensive patterns (default-value substitution, best-effort cleanup) not Destination substitution; pattern-based detector would produce unmanageable false positives.
   - **Procedure**: search production sources for fallback paths and classify each as a Destination substitution (a violation; file a follow-up issue) or a defensive default/within-component degradation (outside this ADR's scope).
@@ -344,6 +344,7 @@ Re-evaluate when:
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13, except Decision Group 10 ("Fallback prohibited without exception"), whose amendment is Pending maintainer statement; individual reviewer names are not recorded.
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) of 2026-11-10 (option B) covers the Group 7/INV-09 applicability statement added here; individual reviewer names are not recorded.
+- **Current Decision Approval (pending)**: The INV-14 verification text that cites the startup-abort and registry tests is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

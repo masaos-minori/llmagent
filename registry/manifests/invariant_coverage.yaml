@@ -105,6 +105,8 @@ entries:
   timing: Startup
 - adr: ADR-004
   cited:
+  - tests/agent/test_startup_validation.py::TestComponentMandatorinessAbort
+  - tests/shared/test_component_mandatoriness.py::test_unknown_component_raises_typed_error
   - tests/shared/test_mcp_config.py::TestRequiredDefault::test_required_default_true_from_toml_absent_key
   - tests/shared/test_mcp_config.py::TestRequiredDefault::test_required_default_true_on_direct_construction
   gate: Startup Validation

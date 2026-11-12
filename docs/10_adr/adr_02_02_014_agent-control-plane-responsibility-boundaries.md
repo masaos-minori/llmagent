@@ -125,7 +125,7 @@ The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are a
 ## Invariants
 
 - INV-01: Components other than the Workflow Engine (`Orchestrator`, `LlmTurnExecutor`, `ToolExecutor`) do not themselves decide persistent Task/Attempt state, stage transitions, or retries. These are decided only under the management of the Workflow Engine.
-- INV-02: Creation of `LlmTurnExecutor` instances is centralized in the one component that actually drives the LLM/Tool Call round-trip loop. No other component holds unused or duplicate `LlmTurnExecutor` instances.
+- INV-02: Creation of the `LlmTurnExecutor` instance is centralized in the `Orchestrator`, which constructs exactly one and passes it to the Workflow Engine side, the logical owner of the LLM/Tool Call round-trip loop. No other component holds unused or duplicate `LlmTurnExecutor` instances.
 - INV-03: The technical safety judgments of external operations that the MCP Server is responsible for (allowlist validation, path validation, sandboxed execution, resource limits, argument validation) are not taken over or duplicated in the Orchestrator layer or the ToolExecutor layer.
 
 ## Verification
@@ -192,6 +192,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-14; individual reviewer names are not recorded.
+- **Current Decision Approval (pending)**: The INV-02 wording that names the `Orchestrator` as the single creator of the `LlmTurnExecutor` instance is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

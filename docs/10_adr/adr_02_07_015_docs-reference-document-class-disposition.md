@@ -7,6 +7,7 @@ tags:
   - reference
 related:
   - governance_01_documentation-policy.md
+  - agent_08_04_configuration-mcp-approval-obs.md
   - agent_11_04_memory-module-reference-generated.md
   - agent_13_reference-api-generated.md
   - deployment_01_deployment.md
@@ -121,6 +122,7 @@ Documents carrying a generated guarded block (Explicit in code — `tools/genera
 - `agent` — `docs/23_agent/agent_13_reference-api-generated.md`
 - `eventbus` — `docs/24_eventbus/eventbus_08_reference_api.md`
 - `memory` — `docs/23_agent/agent_11_04_memory-module-reference-generated.md`
+- `mandatoriness` — `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`
 
 See Implementation References for the tool list.
 
@@ -128,9 +130,10 @@ See Implementation References for the tool list.
 
 `generate_reference_table.py` manifest mode extends this document class with machine-readable outputs: `registry/manifests/*.yaml` (schema `schemas/contract_manifest.json`) hold the entries that the guarded Markdown blocks are rendered from, so the guard-block renderers consume manifests instead of regenerating tables directly. Manifests follow the same rule as the blocks — generated from live code, never hand-edited, drift-checked by the same tool: `--check` fails when a committed manifest diverges from its live sources or a guarded block diverges from its committed manifest.
 
-- Fact manifests: `tool_ownership`, `mcp_endpoints`, `eventbus_route_roles`, `db_schema_versions`, `config_ownership`, `health_contracts`, `invariant_coverage`.
+- Fact manifests: `tool_ownership`, `mcp_endpoints`, `eventbus_route_roles`, `db_schema_versions`, `config_ownership`, `health_contracts`, `invariant_coverage`, `component_mandatoriness`.
 - Rendering manifests for the symbol reference documents (`agent_api`, `eventbus_api`, `memory_api`) are internal to the class mechanism; they are inputs to the guarded blocks, not separate published outputs.
-- Deferred manifests (`component_mandatoriness`, `adr_authority`, `architecture_assumptions`) are added only when their source modules land (mcpgate001 / adrauth001); their absence is an explicit deferred-state, not a pipeline failure.
+- The `component_mandatoriness` manifest renders the component-mandatoriness table of `agent_08_04`; `adr_authority` has its source (`config/adr_authority.toml`) and no manifest, and whether one is produced is a maintainer decision.
+- The `architecture_assumptions` manifest is deferred until its source module lands; its absence is an explicit deferred-state, not a pipeline failure.
 
 ## Known Deviations
 
@@ -152,6 +155,7 @@ Not applicable
 - **Approval Date**: 2026-09-19
 - **Approval Reference**: Reviewed and approved by the repository owner via chat, content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-08; individual reviewer names are not recorded.
+- **Current Decision Approval (pending)**: The correction of the manifest status (the `component_mandatoriness` manifest is produced, the `adr_authority` manifest is undecided) and the addition of `agent_08_04` to the generated-document list are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by the ADR approval ledger. No approval is recorded here.
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 

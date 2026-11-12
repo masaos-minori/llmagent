@@ -187,7 +187,7 @@ An approval stage placed after the `execute` stage cannot prevent anything: when
 | Startup-failure test when the workflow definition is missing | INV-01 | Integration | Yes | `tests/agent/test_startup_workflow_preflight.py::TestComponentInitializerWorkflowPreflight::test_aborts_on_missing_workflow_definition`, `tests/agent/test_orchestrator.py::TestWorkflowLoadFailureIsFatal` |
 | Startup-failure test when the workflow definition is invalid | INV-05 | Integration | Yes | `tests/agent/test_startup_workflow_preflight.py::TestComponentInitializerWorkflowPreflight::test_aborts_on_invalid_workflow_json`, `tests/agent/test_repl_health.py::TestCheckWorkflowDefinition` |
 | Startup-failure test when the required DB Schema is inconsistent | INV-06 | Integration | Yes | `tests/agent/test_startup_workflow_preflight.py::TestComponentInitializerWorkflowPreflight::test_aborts_on_invalid_workflow_schema`, `tests/agent/test_repl_health.py::TestCheckWorkflowSchema` |
-| Test that no external state-change path bypasses the Workflow Engine | INV-02 | Regression | Yes | Not verified (no automated test asserts that no external state-change path bypasses the Workflow Engine) |
+| Test that no external state-change path bypasses the Workflow Engine | INV-02 | Regression | No | Not verified (no automated test asserts that no external state-change path bypasses the Workflow Engine) |
 | `test_execute_success_verify_failure_marks_task_failed` (confirms that when verify fails after a successful execute, the task state becomes `failed`, not `completed`) | INV-03 | Unit | Yes | `tests/agent/workflow/test_workflow_engine.py::TestRunStageWithRetryGeneralization::test_execute_success_verify_failure_marks_task_failed` |
 | Optimistic-locking and recovery behavior test for `recover_stale_attempts()` | INV-07 | Unit | Yes | `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_stale_recovery_lease.py` |
 | `test_begin_stage_if_new_idempotent` (confirms that a double start of `begin_stage_if_new()` with the same event_id is rejected, passing) | INV-08 | Unit | Yes | `tests/agent/workflow/test_workflow_stage_persistence.py` |
@@ -265,6 +265,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-14; individual reviewer names are not recorded.
+- **Current Decision Approval (pending)**: Changing the INV-02 verification row from Blocking to Non-Blocking, because no automated test verifies it, is a decision-text change awaiting maintainer approval (the maintainer may instead supply a test and keep the row Blocking); the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
