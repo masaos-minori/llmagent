@@ -5,7 +5,7 @@ Cite every newly registered ADR-008-targeted Known Issue in ADR-008 `## Known De
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- Conversion re-verification 2026-11-12 (plan Background): the only live Phase 3 candidate is the governance_02 Part 4 empty-token contradiction (Target: governance_02, not ADR-008); the Dry Run versus WAL gap is already registered as SHARED-001 and already cited in this ADR.
+- Conversion re-verification 2026-11-12, re-checked 2026-11-12: the live Phase 3 candidates are the MCP empty-token documentation contradiction (mcp_02_02 and mcp_06_14 vs `scripts/mcp_servers/server.py`; neither target is ADR-008) and the RAG unverifiable-handling contradiction (a Part 3 Canonical Source Conflict targeting ADR-010, not a Part 1 Known Issue targeting ADR-008); the Dry Run versus WAL gap is already registered as SHARED-001 and already cited in this ADR. No new ADR-008-targeted Part 1 entry is expected, so the no-op outcome is expected unless procedure 01's implementation-time re-verification registers one.
 - Procedure 01 (`implementations/20261112-062831_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md`) decides whether any new ADR-008-targeted Part 1 entry is registered.
 
 ## Design decisions
@@ -53,8 +53,8 @@ The Part 1 registration itself (procedure 01), all ADR-008 sections other than `
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append citations for newly registered ADR-008-targeted Known Issues, or report the no-op (REQ-004) | Pending | — | — | Gated: plans/20261111-095422_adrrev011_mcp-audit-auth-adr.md phase all - only live Phase 3 candidate (MCP empty-token documentation contradiction (mcp_02_02 and mcp_06_14 vs scripts/mcp_servers/server.py), REQ-003) is expected to be landed or updated by adrrev011's procedure; no new ADR-008-targeted candidate is expected |
-| 2 | Run the documentation checkers in the Validation plan | Pending | — | — | Gated: plans/20261111-095422_adrrev011_mcp-audit-auth-adr.md phase all - only live Phase 3 candidate (MCP empty-token documentation contradiction (mcp_02_02 and mcp_06_14 vs scripts/mcp_servers/server.py), REQ-003) is expected to be landed or updated by adrrev011's procedure |
+| 1 | Append citations for newly registered ADR-008-targeted Known Issues, or report the no-op (REQ-004) | Completed | — | 20261112-055020 | Gated: plans/20261111-095422_adrrev011_mcp-audit-auth-adr.md phase all - only live Phase 3 candidate (MCP empty-token documentation contradiction (mcp_02_02 and mcp_06_14 vs scripts/mcp_servers/server.py), REQ-003) is expected to be landed or updated by adrrev011's procedure; no new ADR-008-targeted candidate is expected no-op confirmed: procedure _01 registered no Part 1 entries (CSC-001 is a Part 3 conflict, not a Known Issue); ADR-008 Known Deviations keeps its existing SHARED-001/002 citations untouched |
+| 2 | Run the documentation checkers in the Validation plan | Completed | — | 20261112-055020 | Gated: plans/20261111-095422_adrrev011_mcp-audit-auth-adr.md phase all - only live Phase 3 candidate (MCP empty-token documentation contradiction (mcp_02_02 and mcp_06_14 vs scripts/mcp_servers/server.py), REQ-003) is expected to be landed or updated by adrrev011's procedure check_known_deviation_sync + check_adr_structure: no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
