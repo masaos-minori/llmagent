@@ -138,7 +138,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # decision + producer/consumer "not yet defined", a Positive Consequences bullet, and a
     # Current Decision Approval line; the ceiling equals the accepted size, so further growth
     # fails.
-    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 25651,
+    # Re-accepted at 28672 (2026-11-12): adrrev014 doc 05 added the dlq_outbox durable
+    # promotion record, the Replay Contract subsection, two verification rows, and two
+    # pending approval lines; the ceiling equals the accepted size.
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 28672,
     # The generated agent-class reference table was already 24961 bytes (2026-10-24), over
     # MAX_SIZE before any new plan touched it. `plans/20261023-072425_plan.md` REQ-005
     # regenerates it with a longer `mask_args` summary row, which lands at 24972 bytes. The
