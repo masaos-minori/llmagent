@@ -1,32 +1,31 @@
 ## Goal
-Remove the `ragcorpus001` and `adrrag002` Amendment sections from ADR-010; the Withdrawal record stays (`REQ-001` / `AC-1`).
+Remove `EBAUTHGEN001` and the `deliberate breaking change ... (owner decision 2026-10-30)` wording from ADR-013 Decision Detail 12, keeping the 409 and 422 rules (`REQ-001` / `AC-1`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
 - Line numbers have drifted from the Plan (other Plans edited these files); locate each passage by its quoted text.
-- UNK-02 (assumed yes): the maintainer decision covers ADR-010 amendments too; if the maintainer says otherwise, drop this row by plan amendment.
-- UNK-03 checked in Step 3a: item 11 already records the detection contract the first Amendment describes, and INV-01, INV-04, INV-07, INV-09 carry the rewording the second one lists, so both are rationale-only.
-- Overlap: `plans/20261112-120011_rmcompat003_rag-corpus-identity-decision.md` edits the Withdrawn bullet and the Withdrawal record, not these sections (compatible).
+- The rule text stays: every request carries `expected_generation`; a mismatch is HTTP 409 `generation_conflict`; a missing or non-integer value is HTTP 422; an accepted update publishes `generation + 1` with the additive response fields.
+- Overlap: adrrev016 adds an Implementation column to the Automated Tests table; `rmcompat004` and adrrev010 edit other regions (compatible).
+- This edit shortens the file; the size ceiling (28647) is not at risk from it.
 
 ## Design decisions
-- Delete both sections whole; the Withdrawal Approval Record and every decision stay.
+- Rewrite as: `Optimistic concurrency: every request MUST carry `expected_generation` ... A missing or non-integer `expected_generation` is rejected with HTTP 422, so callers that omit the field are rejected. ...`
 
 ## Alternatives considered
 N/A: the Plan fixes the approach for this row.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_02_06_010_rag-fallback.md`
+`docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`
 
 ### Procedure
-1. Compare each Amendment with item 11 and INV-01/04/07/09 (UNK-03).
-2. Delete `### Amendment (ragcorpus001, 2026-10-31)` and `### Amendment (adrrag002, 2026-11-08)`.
-3. Confirm no `ragcorpus001`, `adrrag002`, or `RAGCORPUS001` mention remains in the Amendment-derived text.
+1. Remove `(EBAUTHGEN001)` from the Optimistic concurrency sentence.
+2. Replace `this is a deliberate breaking change for callers that omit the field (owner decision 2026-10-30)` with a present-tense statement.
 
 ### Method
-- `rg -n 'ragcorpus001|adrrag002|RAGCORPUS001' docs/10_adr/adr_02_06_010_rag-fallback.md` before and after; a match in the Withdrawal record is classified as legitimate, not edited.
+- `rg -n 'EBAUTHGEN001|owner decision|breaking change' docs/10_adr/adr_02_04_013_*.md` before and after.
 
 ### Details
 - Removing history is a wording edit, not a decision change (`governance_05`), so no approval record is added; any decision hidden in the passage is first confirmed present in the current sections (UNK-03).
@@ -46,18 +45,18 @@ N/A: revert the commit.
 - `uv run python tools/check_known_deviation_sync.py`, `check_needs_confirmation_inventory.py` — pass (UNK-05).
 
 ## Completion criteria
-- No Amendment section remains; the Withdrawal record is untouched; the checkers pass.
+- No plan ID or decision date remains in Decision Detail 12; the 409 and 422 rules are unchanged.
 
 ## Out of Scope
-- The Withdrawal record and any other ADR-010 content; corpus identity decision text (rmcompat003).
+- The Automated Tests table (adrrev016); the Approval and Known Deviations sections.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-175741 | 20261112-175741 | docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-175741 | 20261112-175741 | checkers pass; preservation WARNING is the intended wording change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -71,10 +70,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-001` — remove ADR-010's two Amendment sections
+- **Requirement ID**: `REQ-001` — remove the plan ID and the dated owner-decision note
 - **Source issue**: issues/20261109-113318_adrrev017_docs-history-wording.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261111-110144_adrrev017_docs-history-wording.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261112-123928
-- **Related target files**: `docs/10_adr/adr_02_06_010_rag-fallback.md`
+- **Related target files**: `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`

@@ -61,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-175548 | 20261112-175548 | docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-175548 | 20261112-175548 | checkers pass; preservation ERROR (Approval) and WARNING (Decision) are the intended Amendment removals |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

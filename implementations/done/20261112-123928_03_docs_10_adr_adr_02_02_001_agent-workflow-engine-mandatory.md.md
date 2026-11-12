@@ -1,33 +1,32 @@
 ## Goal
-Remove the `amended ...` and `superseded ...` parentheticals from the ADR-004, ADR-006, ADR-008, and ADR-013 Status cells and the ADR-008 amendment paragraph, leaving the Status value and the generated sections untouched (`REQ-002`, `REQ-006` / `AC-2`, `AC-6`).
+Remove ADR-001's `Amendment (wflease001, 2026-11-01)` section (`REQ-001` / `AC-1`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
 - Line numbers have drifted from the Plan (other Plans edited these files); locate each passage by its quoted text.
-- Status cells read `Accepted (amended 2026-11-10: ...)` for ADR-004, ADR-006, ADR-013 and `Accepted (amended 2026-10-30; superseded 2026-11-07: ...)` for ADR-008; the paragraph starting `ADR-008 (amended 2026-10-30, source dbmig001; superseded ...)` follows the ADR table.
-- Execute after rows 02 to 06 (ADR bodies) and after the adrrev015/adrrev016 index edits when they land, then regenerate nothing by hand (`generate_adr_authority.py --check` only).
-- Overlap with other open Plans is judged compatible in the Plan's Assumptions; touch only the history passages named here.
+- UNK-03 checked in Step 3a: Decision Details item 11 already states the lease-expiry rule (`owner_id`, `lease_expires_at`, `recover_stale_attempts()` recovers only lease-expired rows); the Amendment only records its rationale, so no rule is lost.
+- The rationale sentence (a wall-clock rule compared host-local timestamps and could steal a live owner's attempt) is history; it is dropped, not moved.
+- Overlap: adrrev015 edits the INV-02 table row of this ADR; different region.
 
 ## Design decisions
-- Status cell becomes `Accepted`; the paragraph is deleted, or rewritten as a current-tense sentence only if it holds a rule not in ADR-008.
+- Delete the section whole; keep Decision Details item 11 unchanged.
 
 ## Alternatives considered
 N/A: the Plan fixes the approach for this row.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_01_index.md`
+`docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`
 
 ### Procedure
-1. Set the four Status cells to `Accepted`.
-2. Delete the ADR-008 amendment paragraph after confirming ADR-008 states the current-only schema policy.
-3. Run `generate_adr_authority.py --check`.
+1. Confirm item 11 states the rule.
+2. Delete the `### Amendment (wflease001, ...)` section.
+3. Confirm `wflease001` appears nowhere else in the ADR.
 
 ### Method
-- Do not edit text between the `AUTO-GENERATED` guards.
-- `rg -n 'amended|superseded' docs/10_adr/adr_01_index.md` afterwards: classify any remaining match.
+- `rg -n 'wflease001|Amendment' docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` before and after.
 
 ### Details
 - Removing history is a wording edit, not a decision change (`governance_05`), so no approval record is added; any decision hidden in the passage is first confirmed present in the current sections (UNK-03).
@@ -47,18 +46,18 @@ N/A: revert the commit.
 - `uv run python tools/check_known_deviation_sync.py`, `check_needs_confirmation_inventory.py` — pass (UNK-05).
 
 ## Completion criteria
-- The four Status cells read `Accepted`; the amendment paragraph is gone; the generated sections are unchanged and `--check` passes.
+- No Amendment section or plan ID remains; item 11 and all invariants are unchanged.
 
 ## Out of Scope
-- Matrix rows (adrrev015); authority sections (adrrev016); other index edits (adrrev019).
+- The INV-02 row (adrrev015); approval records.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-175620 | 20261112-175620 | docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-175620 | 20261112-175620 | checkers pass; preservation WARNING is the intended Amendment removal |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -72,10 +71,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-002` / `REQ-006` — remove amendment history from the index
+- **Requirement ID**: `REQ-001` — remove the `wflease001` Amendment
 - **Source issue**: issues/20261109-113318_adrrev017_docs-history-wording.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261111-110144_adrrev017_docs-history-wording.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261112-123928
-- **Related target files**: `docs/10_adr/adr_01_index.md`
+- **Related target files**: `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`

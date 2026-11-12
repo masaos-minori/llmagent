@@ -1,33 +1,32 @@
 ## Goal
-Remove `regardless of Profile` from the context bullet and Decision Detail 7 of ADR-003 (`REQ-001` / `AC-1`).
+Remove `This replaces the previous per-call random key: before this change ...` from `mcp_03_03`, keeping the current key derivation (`REQ-004` / `AC-4`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
 - Line numbers have drifted from the Plan (other Plans edited these files); locate each passage by its quoted text.
-- ADR-004 applies one failure-handling policy to every environment and mentions Profile only in a rejected alternative (checked); the `Target Environment Profile` line stays because it is a metadata field.
-- The edit leaves the sentence's meaning intact: duplicate Tool names make routing unclear, and startup fails.
+- The retained fact: an identical logical call re-derives the byte-identical key across retries, processes, and restarts (derived from the call content and a caller-stable `uid`).
+- Overlap: adrrev019 edits another passage (compatible).
 
 ## Design decisions
-- Drop the trailing clause only.
+- Delete the two history sentences; keep the derivation and the re-derivation guarantee.
 
 ## Alternatives considered
 N/A: the Plan fixes the approach for this row.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`
+`docs/22_mcp/mcp_03_03_transport-and-health.md`
 
 ### Procedure
-1. Context bullet: `... it becomes unclear which one to route to` (remove `, regardless of Profile`).
-2. Decision Detail 7: `... startup fails.` (remove `regardless of Profile`).
+1. Delete from `This replaces the previous per-call random key` through the end of that narrative sentence (`... carried a fresh key.`).
 
 ### Method
-- `rg -n 'regardless of Profile' docs/10_adr/adr_02_02_003_*.md` returns no match afterwards.
+- Re-read the paragraph after the edit to confirm it still explains why a retried call is deduplicated.
 
 ### Details
-- Removing history is a wording edit, not a decision change (`governance_05`), so no approval record is added; any decision hidden in the passage is first confirmed present in the current sections (UNK-03).
+- No `before this change` wording remains.
 
 ## Compatibility considerations
 N/A: documentation-only change; no code, config, or schema impact.
@@ -39,23 +38,23 @@ N/A: no authorization, secret, or trust-boundary change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_adr_structure.py`, `check_adr_invariant_matrix.py`, `check_adr_authority.py`, `check_adr_preservation.py`, `generate_adr_authority.py --check` — pass; preservation reports only the removed Amendment text.
+- `uv run python tools/check_docs_consistency.py --domain mcp` — pass.
 - `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py --strict`, `check_docs_japanese.py` — pass.
 - `uv run python tools/check_known_deviation_sync.py`, `check_needs_confirmation_inventory.py` — pass (UNK-05).
 
 ## Completion criteria
-- No `regardless of Profile` wording remains; no decision or invariant changes.
+- The paragraph describes only the current key derivation.
 
 ## Out of Scope
-- The `Target Environment Profile` line; ADR-004.
+- Dispatch code; other `mcp_03_*` documents.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-180038 | 20261112-180038 | docs/22_mcp/mcp_03_03_transport-and-health.md |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-180038 | 20261112-180038 | checkers and check_docs_consistency --domain mcp pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -69,10 +68,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-001` — remove `regardless of Profile` leftovers
+- **Requirement ID**: `REQ-004` — remove the `replaces the previous` narrative
 - **Source issue**: issues/20261109-113318_adrrev017_docs-history-wording.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261111-110144_adrrev017_docs-history-wording.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261112-123928
-- **Related target files**: `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`
+- **Related target files**: `docs/22_mcp/mcp_03_03_transport-and-health.md`

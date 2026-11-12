@@ -20,6 +20,7 @@ N/A: the Plan fixes the approach for this row.
 
 ### Procedure
 1. Replace the sentence with `there is no db.store re-export module; do not add one.`
+2. Step 3a finding: line 30 (the `db/` layout sentence) still says the store protocols and implementations are `re-exported through `store.py``, which contradicts the rule and `scripts/db/` (no `store.py`); remove that clause in the same edit.
 
 ### Method
 - Keep the link to `db_04` section 1a unchanged.
@@ -52,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-175840 | 20261112-175840 | docs/41_db/db_01_architecture_and_schema-overview-and-config.md (3b: also removed stale store.py re-export clause, line 30) |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-175840 | 20261112-175840 | checkers and check_docs_consistency --domain db pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

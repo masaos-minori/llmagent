@@ -53,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-175456 | 20261112-175456 | docs/00_governance/governance_01_documentation-policy.md |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-175456 | 20261112-175456 | all docs checkers pass; adr_00_document-guide.md:19 now stale (out of scope, reported) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

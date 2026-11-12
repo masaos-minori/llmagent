@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-175944 | 20261112-175944 | docs/41_db/db_07_api_and_operations-recovery-and-reference.md (rpo/rto definitions already in table rows; blockquote removed) |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-175944 | 20261112-175944 | checkers and check_docs_consistency --domain db pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

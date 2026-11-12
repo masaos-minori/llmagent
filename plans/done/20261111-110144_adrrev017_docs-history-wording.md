@@ -187,9 +187,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Confirmation and baseline | Pending | — | — |  |
-| 2 | Policy and ADR bodies (REQ-001, REQ-003) | In Progress | — | — |  |
-| 3 | ADR index (REQ-002) | In Progress | — | — |  |
-| 4 | Reference documents and runtime statements (REQ-004, REQ-005) | In Progress | — | — |  |
+| 2 | Policy and ADR bodies (REQ-001, REQ-003) | Completed | — | 20261112-180145 |  |
+| 3 | ADR index (REQ-002) | Completed | — | 20261112-180145 |  |
+| 4 | Reference documents and runtime statements (REQ-004, REQ-005) | Completed | — | 20261112-180145 |  |
 | 5 | Verification (REQ-006) | Pending | — | — |  |
 
 ### Blocker Log
@@ -200,20 +200,20 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261112-123928_01_docs_00_governance_governance_01_documentation-policy.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-123928_02_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-123928_03_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-123928_04_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-123928_05_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-123928_06_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-123928_07_docs_10_adr_adr_01_index.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-123928_08_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261112-123928_09_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261112-123928_10_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261112-123928_11_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261112-123928_12_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261112-123928_13_docs_22_mcp_mcp_06_09_startup-validation-behavior-tool_definitions_strict.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261112-123928_14_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-123928_01_docs_00_governance_governance_01_documentation-policy.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-123928_02_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-123928_03_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-123928_04_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-123928_05_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-123928_06_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-123928_07_docs_10_adr_adr_01_index.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261112-123928_08_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261112-123928_09_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261112-123928_10_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261112-123928_11_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261112-123928_12_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261112-123928_13_docs_22_mcp_mcp_06_09_startup-validation-behavior-tool_definitions_strict.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261112-123928_14_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

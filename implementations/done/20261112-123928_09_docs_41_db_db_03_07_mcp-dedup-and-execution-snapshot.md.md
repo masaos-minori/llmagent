@@ -55,8 +55,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-175914 | 20261112-175914 | docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md (toolexec001 line 26 and the 'former' wording at line 29 left: outside the four named passages, reported) |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-175914 | 20261112-175914 | checkers and check_docs_consistency --domain db pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
