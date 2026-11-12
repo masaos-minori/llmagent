@@ -241,7 +241,7 @@ Not applicable (no Fallback exists: a mismatch is reported and repaired through 
 ## Implementation Notes
 
 - Schema triggers on `chunks` keep `chunks_fts` synchronized and clean `chunks_vec` as a backstop for direct `chunks` deletes; `chunks_vec` rows are written explicitly by the ingestion pipeline.
-- `delete_document_chain()` deletes the `chunks_vec` rows of a document, then the `documents` row; the cascade removes `chunks`. The rag_pipeline MCP server's `DocumentManager.delete_document()` issues the same two statements in the same order.
+- `delete_document_chain()` deletes the `chunks_vec` rows of a document, then the `documents` row; the cascade removes `chunks`. The rag_pipeline MCP server's `DocumentManager.delete_document()` calls this same helper, so both paths apply the order through one implementation.
 - `RagMaintenanceService.rebuild_fts()` regenerates `chunks_fts` with `COALESCE(normalized_content, content)`, the same rule as the triggers.
 - `check_rag_consistency()` computes the counts and mismatches from `chunks`; the startup check and `/session rag-consistency` report them.
 

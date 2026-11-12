@@ -7,6 +7,7 @@ tags:
 related:
   - rag_00_document-guide.md
   - rag_05_01-configuration-reference.md
+  - rag_02_04_ingestion_pipeline-ingester.md
   - adr_02_06_005_rag-source-derived-index-relationships.md
 ---
 
@@ -29,12 +30,14 @@ Exposed through the `rag_delete_document` MCP tool of the rag-pipeline MCP serve
 
 See `delete_document()` in `scripts/mcp_servers/rag_pipeline/document_manager.py` for the current signature.
 
-**Deletion Order (Important):** This method enforces a strict deletion order to prevent orphaned records.
+**Deletion Order (Important):** This method delegates the deletion to the shared `delete_document_chain()` helper and issues no `DELETE` statement of its own. The helper enforces a strict deletion order to prevent orphaned records.
 
 1. First, explicitly delete rows from `chunks_vec` (the embedding vectors corresponding to the document's chunks).
 2. Delete the row from `documents` (`ON DELETE CASCADE` handles the cascading deletion of `chunks` rows, which in turn triggers synchronization of `chunks_fts`).
 
 This order is necessary because `chunks_vec` does not have a foreign key constraint pointing to `chunks`. Explicit `DELETE` statements for the `chunks` table do not exist in the code (see [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md) for details).
+
+The same helper backs the ingestion pipeline path, so the deletion order has one implementation shared by both paths — see [rag_02_04_ingestion_pipeline-ingester.md section 4.2.1](rag_02_04_ingestion_pipeline-ingester.md#421-immutable-deletion-order).
 
 Other derivative records (e.g., rows in the `chunks` table) depend on cascading deletes or triggers where applicable.
 
