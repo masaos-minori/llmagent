@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-170434 | 20261112-170434 | Changed: docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md. Step 3a/3b: also added agent_08_04 to the front matter related list (the structure checker requires it for a referenced document), added component_mandatoriness to the Fact manifests list, and omitted plan IDs from the new text; pending approval line added, no approval recorded |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-170434 | 20261112-170434 | ADR structure/authority/matrix/reference, known-deviation-sync, docs quality/content-policy strict/japanese/structure pass; check_adr_preservation reports only the intended front matter and Approval changes (ERROR by design); generate_reference_table --check runs with seq 03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -192,10 +192,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Startup-abort test for ADR-004 INV-14 (REQ-005) | In Progress | — | — |  |
-| 2 | ADR-015 and the generated document (REQ-001, REQ-008) | In Progress | — | — |  |
-| 3 | ADR bodies (REQ-002 to REQ-006, REQ-008) | In Progress | — | — |  |
-| 4 | Index and generated sections (REQ-007) | In Progress | — | — |  |
+| 1 | Startup-abort test for ADR-004 INV-14 (REQ-005) | Completed | — | 20261112-170344 |  |
+| 2 | ADR-015 and the generated document (REQ-001, REQ-008) | Completed | — | 20261112-170503 |  |
+| 3 | ADR bodies (REQ-002 to REQ-006, REQ-008) | Completed | — | 20261112-173649 |  |
+| 4 | Index and generated sections (REQ-007) | Completed | — | 20261112-173649 |  |
 | 5 | Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -206,14 +206,14 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261112-123307_01_tests_agent_test_startup_validation.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261112-123307_02_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-123307_03_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-123307_04_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-123307_05_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-123307_06_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-123307_07_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-123307_08_docs_10_adr_adr_01_index.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-123307_01_tests_agent_test_startup_validation.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261112-123307_02_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-123307_03_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-123307_04_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261112-123307_05_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261112-123307_06_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261112-123307_07_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261112-123307_08_docs_10_adr_adr_01_index.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

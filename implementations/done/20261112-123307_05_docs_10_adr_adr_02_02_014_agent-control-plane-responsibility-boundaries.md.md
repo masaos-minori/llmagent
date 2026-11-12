@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-171455 | 20261112-171455 | Changed: docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md. Step 3a: Decision text (line 58 and the Implementation paragraph) already names the Orchestrator as constructor and the Workflow Engine side as logical owner, so only INV-02 was reworded; pending approval line added without plan name |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-171455 | 20261112-171455 | ADR checkers, docs checkers pass; preservation reports only the intended INV-02 and Approval changes (ERROR by design); tests/agent/test_orchestrator.py 135 passed (INV-02 test row unchanged) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

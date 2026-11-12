@@ -52,8 +52,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-170503 | 20261112-170503 | Changed: docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md (front matter class: Reference only; same position as sibling generated documents) |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-170503 | 20261112-170503 | generate_reference_table --check: no drift; docs structure/quality/content-policy strict/japanese/consistency agent, frontmatter check pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

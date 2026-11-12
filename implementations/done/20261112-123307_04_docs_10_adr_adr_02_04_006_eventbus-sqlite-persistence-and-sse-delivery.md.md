@@ -10,6 +10,8 @@ Make ADR-006 INV-13 say `>= max_retry`, re-map the INV-04, INV-07, and publish-r
 - `already_redelivered` and `not_in_dlq` both map to HTTP 409 with `ERR_EVENT_NOT_IN_DLQ` (`event is not in DLQ`) in `scripts/eventbus/dlq_route.py`; `route_helpers.py` defines the text.
 - Overlap: adrrev014 (Scope, Data Ownership, Replay Contract), adrrev016 (front matter, INV-15), and `plans/20261112-121134_rmcompat005_eventbus-dlq-leftovers.md` edit other regions; this document edits INV-13, the test rows, and the requeue paragraph only — compatible. Locate by text, not line number.
 
+- Step 3a/3b corrections (2026-11-12): (1) the Implementation Notes bullet that said `INV-07 is enforced by content comparison logic in insert_event()` is updated to INV-06, so the body agrees with the re-mapped publish-retry row (UNK-03: the maintainer confirms the mapping at approval); (2) the INV-04 row cites `tests/eventbus/test_eventbus_restart_resume.py::test_same_consumer_id_resumes_from_last_acked_offset` and `::test_resume_from_sqlite_offset`; (3) the requeue paragraph states the HTTP 409 error text `event is not in DLQ`, which `dlq_route.py` returns for both `not_in_dlq` and `already_redelivered`; (4) the pending approval line omits the plan name (no plan IDs in active documents); (5) the ADR had zero headroom under its size ceiling, so the ceiling (and the tools baseline) is re-recorded at 29504 in this cycle (user-approved scope extension: `tools/check_docs_structure.py`, `tools/check_module_size_tools_baseline.txt`).
+
 ## Design decisions
 - Change wording only; no invariant is renumbered, so index citations by `ADR-NNN INV-NN` stay valid.
 - INV-04 gets the restart-resume tests; the unacked-replay test moves to INV-07; the publish-retry tests move to INV-06.
@@ -64,8 +66,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-171410 | 20261112-171410 | Changed: docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md; tools/check_docs_structure.py and tools/check_module_size_tools_baseline.txt (ceiling re-record, user-approved) |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-171410 | 20261112-173642 | ADR checkers, docs checkers, tools gates pass; preservation reports only intended changes (ERROR by design); end-of-batch full suite pending End-of-batch full suite: 12129 passed, 3 failed (mdq-server import tests: database schema message, unrelated, failed in every run). One earlier run also failed the pinned citation-count test, fixed by the user-approved update to tests/test_run_cited_adr_tests.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

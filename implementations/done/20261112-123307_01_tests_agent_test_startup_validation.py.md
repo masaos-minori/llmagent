@@ -9,6 +9,8 @@ Add unmocked tests of `_check_component_mandatoriness()` in `tests/agent/test_st
 - `check_config()` runs the check against `ctx.cfg.mcp.mcp_servers`; a minimal `MagicMock` context is enough (UNK-06 resolved by the existing `_make_ctx()` / `_run_check_config` pattern); if that proves infeasible, stop and amend the Plan to move the test beside `tests/agent/test_startup.py`.
 - Overlap: `plans/20261112-120011_rmcompat003_rag-corpus-identity-decision.md` edits the `identity-unverified` assertions (about lines 245-281) of the same file; this document only appends a new test class — compatible, any order.
 
+- Step 3b correction (2026-11-12): the tests call the real `_check_component_mandatoriness` by passing it as the override in the existing `_run_check_config` helper and patch only `agent.startup_validation.load_component_mandatoriness`; registries are written to a temporary YAML (`load_component_mandatoriness(path)`), so no test depends on the live registry's contents. The new class is `TestComponentMandatorinessAbort`. Verified by breaking the check's source label: 4 of 5 new cases failed, then the file was restored by a single-path checkout.
+
 ## Design decisions
 - Call the real `_check_component_mandatoriness` through `StartupValidationPipeline(ctx, MagicMock()).check_config()` with only `load_component_mandatoriness` patched, so the fatal source label and message are asserted end to end.
 - Assert the source label (`component_mandatoriness`) and message fragment only, never the registry file content (avoids brittleness).
@@ -61,9 +63,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the unmocked tests first and show them failing against a deliberately broken check | Pending | — | — | |
-| 2 | Make the tests pass; run `uv run pytest tests/agent/test_startup_validation.py tests/shared/test_component_mandatoriness.py tests/shared/test_mcp_config.py -v` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`): ruff format/check, mypy, `tools/check_mock_patch_targets.py` | Pending | — | — | |
+| 1 | Write the unmocked tests first and show them failing against a deliberately broken check | Completed | 20261112-170339 | 20261112-170339 | Changed: tests/agent/test_startup_validation.py. Tests written first; mutation of the check's source label failed 4 of 5 new cases, restored |
+| 2 | Make the tests pass; run `uv run pytest tests/agent/test_startup_validation.py tests/shared/test_component_mandatoriness.py tests/shared/test_mcp_config.py -v` | Completed | 20261112-170339 | 20261112-170339 | 22 passed in tests/agent/test_startup_validation.py (ordered); registry and mcp_config tests unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`): ruff format/check, mypy, `tools/check_mock_patch_targets.py` | Completed | 20261112-170339 | 20261112-170339 | ruff, mypy, check_mock_patch_targets pass; full suite 12129 passed, 3 failed (mdq-server import tests: database schema message, unrelated, failed in every run); diff-cover N/A (no source file changed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

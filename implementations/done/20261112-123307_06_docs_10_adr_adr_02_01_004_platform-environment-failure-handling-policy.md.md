@@ -9,6 +9,8 @@ Make ADR-004's INV-14 verification text cite the new startup-abort test and the 
 - The new test class is created by the `tests/agent/test_startup_validation.py` procedure (seq 01) and must exist before `check_adr_invariant_matrix.py` can pass on the new citation; the node id below follows that procedure's class name.
 - Registry tests: `tests/shared/test_component_mandatoriness.py` (`UnknownComponentError` for `ghost_server`).
 
+- Step 3a/3b corrections (2026-11-12): the INV-14 bullet is now at the Manual Review section's second-last bullet (the Plan's line number had drifted); the pending approval line omits the plan name; the ADR had zero headroom under its ceiling, so the ceiling (and the tools baseline) is re-recorded at 34555 in this cycle (user-approved scope extension: `tools/check_docs_structure.py`, `tools/check_module_size_tools_baseline.txt`). The cited test class exists (seq 01 is archived).
+
 ## Design decisions
 - Keep `TestRequiredDefault` cited and add the abort evidence; do not claim more than the tests prove.
 
@@ -55,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-171538 | 20261112-171538 | Changed: docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md; tools/check_docs_structure.py and tools/check_module_size_tools_baseline.txt (ceiling re-record, user-approved) |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-171538 | 20261112-173642 | ADR checkers (incl. matrix: cited nodes exist), docs checkers, tools gates pass; preservation reports only the intended test citation and Approval changes (ERROR by design); end-of-batch full suite pending End-of-batch full suite: 12129 passed, 3 failed (mdq-server import tests: database schema message, unrelated, failed in every run). One earlier run also failed the pinned citation-count test, fixed by the user-approved update to tests/test_run_cited_adr_tests.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

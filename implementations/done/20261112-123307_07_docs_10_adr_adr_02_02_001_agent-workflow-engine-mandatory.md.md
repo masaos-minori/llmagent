@@ -55,8 +55,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-171605 | 20261112-171605 | Changed: docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md (INV-02 row Blocking Yes -> No; only ADR-001 row that was Blocking and Not verified); pending approval line added without plan name, mentioning the maintainer's option to supply a test |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-171605 | 20261112-171605 | ADR checkers, docs checkers pass; preservation reports only the Approval-section change (ERROR by design) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
