@@ -1,5 +1,3 @@
-> **PAUSED** — superseded by adrrev009 (20261111-193537). Implementation halted until adrrev009 lands; its overlapping ADR-008 scope is now owned by adrrev009.
-
 ## Goal
 Remove change-history passages from the current-specification documents (amendment sections and narratives, "replaces the previous", renamed-field notes, plan and issue IDs, dates in parentheses), align the policy text that still allows ADR Amendments, and correct the two runtime statements that contradict ADR-004 and the code (the subprocess retry wording in `security_01` and the definition of FATAL in `mcp_06_09`), without changing any normative decision, approval record, or invariant.
 
@@ -97,6 +95,7 @@ All fourteen documents above change; locate them through `docs/00_index.md` "Doc
 - Removing an Amendment is a wording edit, not a decision change (`governance_05`: an ADR edit that does not change the decision does not reopen approval), so no new approval record is required; `check_adr_preservation.py` reports the removed Approval-section bullet as an ERROR, which is the intended, explained change.
 - Where an Amendment holds a still-valid rule, the rule is already in the current sections (ADR-008 line 60 states the current-only schema policy; ADR-001 Decision Detail 11 states lease expiry); the implementer confirms this per Amendment before removing it and rewrites in current tense where it is not.
 - Overlap judgment (`tools/check_plan_target_overlaps.py`): ADR-008 and the ADR index are also targeted by other ADR Plans (recovery, ledger, EventBus specification, index matrix, authority format), ADR-013 by the EventBus authorization and authority-format Plans, `db_07` by the recovery and RAG consistency Plans, and `security_01` by the RAG consistency Plan; compatible, because this Plan edits only the history passages and Status wording, not the decision text or tables those Plans change.
+- Step 3a (2026-11-12): the PAUSED banner was removed; adrrev009 has landed (`plans/done`) and edited only ADR-008 Decision Detail #7 and Known Deviations, so the Amendment, Review Trigger, and Approval Mapping passages are unchanged. Every passage named in the Plan was re-found (line numbers have drifted by one to three lines; procedures locate by text). UNK-03 resolved for ADR-001, ADR-008, and ADR-010: each Amendment's rule is already in the current sections (ADR-001 item 11; ADR-008 Context > Constraints; ADR-010 item 11 and INV-01/04/07/09), so removal loses no rule. `check_docs_content_policy.py --strict` reports no finding today, so the policy checker does not yet detect these passages (adrrev018 hardens it).
 - The `/reload` and `DiagnosticStore` live-read contradiction with ADR-002 is not resolved here; the documents keep their current statements until the maintainer decides (UNK-01).
 
 ## Unknowns
@@ -187,11 +186,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirmation and baseline | Pending | — | — | |
-| 2 | Policy and ADR bodies (REQ-001, REQ-003) | Pending | — | — | |
-| 3 | ADR index (REQ-002) | Pending | — | — | |
-| 4 | Reference documents and runtime statements (REQ-004, REQ-005) | Pending | — | — | |
-| 5 | Verification (REQ-006) | Pending | — | — | |
+| 1 | Confirmation and baseline | Pending | — | — |  |
+| 2 | Policy and ADR bodies (REQ-001, REQ-003) | In Progress | — | — |  |
+| 3 | ADR index (REQ-002) | In Progress | — | — |  |
+| 4 | Reference documents and runtime statements (REQ-004, REQ-005) | In Progress | — | — |  |
+| 5 | Verification (REQ-006) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -201,7 +200,20 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261112-123928_01_docs_00_governance_governance_01_documentation-policy.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-123928_02_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-123928_03_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-123928_04_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-123928_05_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-123928_06_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-123928_07_docs_10_adr_adr_01_index.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-123928_08_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-123928_09_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-123928_10_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-123928_11_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-123928_12_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-123928_13_docs_22_mcp_mcp_06_09_startup-validation-behavior-tool_definitions_strict.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-123928_14_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -232,3 +244,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Required Changes: define FATAL as "startup is aborted" in `mcp_06_09` and `agent_10_01` | `docs/22_mcp/mcp_06_09_startup-validation-behavior-tool_definitions_strict.md` | Step 4 | AC-5 | `check_docs_consistency.py --domain mcp` | Confirmed by repository evidence |
 | REQ-005 | Required Changes: correct the retry wording in `security_01` | `docs/91_security/security_01_architecture-and-trust-boundaries.md` | Step 4 | AC-5 | `check_docs_consistency.py --domain overview` | Confirmed by repository evidence |
 | REQ-006 | Required Changes: re-run the search and remove every passage found | `docs/10_adr/adr_01_index.md` | Step 5 | AC-6 | `check_compat_shims.py --check-removed-names`, `check_docs_content_policy.py --strict` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261112-123928 -->

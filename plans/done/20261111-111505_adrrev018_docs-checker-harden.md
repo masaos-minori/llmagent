@@ -47,7 +47,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `tools/check_module_size_tools_baseline.txt` | Modify | Lower the recorded size of `check_docs_content_policy.py` to its size after extraction (the baseline only shrinks) | REQ-007 / AC-7 | Line `check_docs_content_policy.py	33240` (checked in Step 3) | `uv run python tools/check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt` | Verified |
 | `config/doc_quality_rules.json` | Modify | Add the history-phrasing, plan-ID, and contradiction-signature rules | REQ-002, REQ-003 / AC-2, AC-3 | Six existing named rules (`history_marker_in_active_doc`, ...) with `pattern`, `severity`, `description`; no path scoping (checked in Step 2) | `tests/tools/test_check_docs_quality.py` | Verified |
 | `tools/check_known_deviation_sync.py` | Modify | Add the "bullet without a ledger ID" ERROR check (21410 bytes, headroom 3166 bytes to the 24576 gate) | REQ-004 / AC-4 | Checks 1-4 documented in the module docstring; a dangling ID is a WARNING and exit code 1 only on ERROR (lines 12-21, 544); every ADR Known Deviations section reads "Not applicable" (checked in Step 2) | `tests/tools/test_check_known_deviation_sync.py` | Verified |
-| `config/documentation_canonical_sources.toml` | Modify | Register the four decision targets with their normative ADR sources | REQ-005 / AC-5 | Registry holds 11 `[[canonical_sources]]` entries, none ADR-sourced; claim types `runtime-behavior` and `security-policy` are valid (`VALID_CLAIM_TYPES`) (checked in Step 2) | `uv run python tools/check_canonical_source_registry.py`, `tests/tools/test_check_canonical_source_registry.py` | Verified |
+| `config/documentation_canonical_sources.toml` | Modify | Register the four decision targets with their normative ADR sources | REQ-005 / AC-5 | Registry holds 10 `[[canonical_sources]]` entries (Step 3a: the Plan said 11), none ADR-sourced; claim types `runtime-behavior` and `security-policy` are valid (`VALID_CLAIM_TYPES`) (checked in Step 2) | `uv run python tools/check_canonical_source_registry.py`, `tests/tools/test_check_canonical_source_registry.py` | Verified |
 | `tests/tools/test_check_docs_content_policy.py` | Modify | Add the fixture with the `eventbus_08` table shape (flagged outside a guarded block, exempt inside one) | REQ-001, REQ-006 / AC-1, AC-6 | File exists and tests the content-policy checker (checked in Step 3) | itself | Verified |
 | `tests/tools/test_check_docs_quality.py` | Modify | Add regression tests per new rule using the existing `_run_live_rule(...)` helper (line 471 pattern) | REQ-002, REQ-003, REQ-006 / AC-2, AC-3, AC-6 | Existing live-rule tests for `history_marker_in_active_doc` at lines 441-480 (checked in Step 3) | itself | Verified |
 | `tests/tools/test_check_known_deviation_sync.py` | Modify | Add tests for the new ERROR and pin the existing WARNING and ERROR behaviors | REQ-004, REQ-006 / AC-4, AC-6 | `test_unresolvable_id_is_reported_as_dangling` (line 104) and `test_uncited_target_adr_is_reported` (line 307) exist (checked in Step 3) | itself | Verified |
@@ -102,7 +102,8 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - Severity of the new history and plan-ID rules, and of the Known Deviation bullet check, is ERROR once the corpus is clean (the issue leaves Blocking versus Warning to the maintainer; UNK-01).
 - The generic plan-ID shape is acceptable because it has no match in non-plan prose today; a future legitimate token of that shape is handled by rewording or by narrowing the rule (UNK-02).
 - The registry entries mirror, and do not replace, the decision targets of `config/adr_authority.toml` (ADR-016); the maintainer confirms that listing them in both registries is wanted (UNK-04).
-- Overlap judgment (`tools/check_plan_target_overlaps.py`): `docs/00_governance/governance_04_documentation-checks.md` and the tool files are not targets of other open Plans; compatible.
+- Overlap judgment (`tools/check_plan_target_overlaps.py`): `docs/00_governance/governance_04_documentation-checks.md` and the tool files are not targets of other open Plans, except `tools/TOOL_DESCRIPTIONS.md`, which `plans/20261112-122408_rmcompat008_compat-checker-patterns.md` also edits (different rows; compatible).
+- Step 3a (2026-11-12): the Plan's claims were re-verified. The corpus is not yet clean: history phrasings, `exceeded max_retry`, `strictly monotonic`, and the empty-token sentences still match until the procedures of adrrev015, adrrev017, and adrrev011 are executed (the `Depends on` lines cover this). The plan-ID shape also matches documents that no open Plan edits (`agent_10_01`, `governance_03`, `db_03_07` for toolexec001/adrrev008, `agent_04_03`, `mcp_06_06`); the Phase 4 smoke run decides whether the rule is kept, narrowed, or those documents are assigned to a Plan (UNK-02). ADR-017 does not exist yet, so the empty-token source defaults to ADR-007 (UNK-04). `check_known_deviation_sync.py` is no longer run against an empty ledger (ADR-008 cites SHARED-001/002 since adrrev009). `tests/tools/test_check_docs_quality.py` and `tests/tools/test_check_known_deviation_sync.py` are companions of their rows' procedures (04 and 05).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -189,11 +190,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extract helpers to make room (REQ-001, REQ-007) | Pending | — | — | |
-| 2 | Inventory-table pattern (REQ-001, REQ-006) | Pending | — | — | |
-| 3 | Known Deviation check (REQ-004, REQ-006) | Pending | — | — | |
-| 4 | Rules and registry (REQ-002, REQ-003, REQ-005, REQ-006) | Pending | — | — | |
-| 5 | Documentation and verification (REQ-007) | Pending | — | — | |
+| 1 | Extract helpers to make room (REQ-001, REQ-007) | In Progress | — | — |  |
+| 2 | Inventory-table pattern (REQ-001, REQ-006) | In Progress | — | — |  |
+| 3 | Known Deviation check (REQ-004, REQ-006) | In Progress | — | — |  |
+| 4 | Rules and registry (REQ-002, REQ-003, REQ-005, REQ-006) | In Progress | — | — |  |
+| 5 | Documentation and verification (REQ-007) | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -203,7 +204,15 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261112-124203_01_tools_check_docs_content_policy.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261112-124203_02_tools__docs_content_policy_helpers.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261112-124203_03_tools_check_module_size_tools_baseline.txt.md | 1 | Procedure | Pending | — | — |
+| implementations/20261112-124203_04_config_doc_quality_rules.json.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-124203_05_tools_check_known_deviation_sync.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-124203_06_config_documentation_canonical_sources.toml.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-124203_07_tests_tools_test_check_docs_content_policy.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124203_10_docs_00_governance_governance_04_documentation-checks.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261112-124203_11_tools_TOOL_DESCRIPTIONS.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -231,3 +240,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-007 | Documentation Impact: `governance_04` describes the new checks | `docs/00_governance/governance_04_documentation-checks.md` | Step 5 | AC-7 | `check_docs_quality.py`, `check_docs_structure.py` | Explicit in issue |
 | REQ-007 | Constraints: update `tools/TOOL_DESCRIPTIONS.md` in the same change | `tools/TOOL_DESCRIPTIONS.md` | Step 5 | AC-7 | `check_tool_descriptions_sync.py` | Explicit in issue |
 | REQ-007 | Constraints: module size baseline records the reduced size | `tools/check_module_size_tools_baseline.txt` | Step 1 | AC-7 | `check_module_size.py --scripts-dir tools` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261112-124203 -->

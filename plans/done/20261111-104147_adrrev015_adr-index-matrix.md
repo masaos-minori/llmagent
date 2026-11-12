@@ -45,7 +45,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` | Modify | Add `class: Reference` to the front matter (front matter only) | REQ-001 / AC-1 | Front matter at lines 1-14 has no `class:`; the other five generated documents have it; `tools/generate_reference_table.py:108` targets this file (checked in Step 2) | `tools/check_docs_structure.py`, `uv run python tools/generate_reference_table.py --check` | Verified |
 | `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` | Modify | INV-13 wording (line 186), INV-04/INV-07 test mapping and the publish-retry row (lines 232, 240), requeue paragraph (line 276) | REQ-002, REQ-003, REQ-008 / AC-2, AC-3 | INV-13 "has exceeded max_retry" versus Implementation Notes line 273 `>= max_retry`; `dlq.py` `_PROMOTABLE_CONDITION` blocks at `< max_retry`; rows at lines 232 and 240 (checked in Step 2) | `tools/check_adr_invariant_matrix.py`, `tools/check_adr_structure.py` | Verified |
 | `docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md` | Modify | Name `Orchestrator` as the creator in INV-02 and the Decision (lines 58, 128) | REQ-004, REQ-008 / AC-4 | Line 58 "logical owner ... is the WorkflowEngine side ... `Orchestrator` is the construction owner"; INV-02 "the one component that actually drives the ... loop"; single construction site `scripts/agent/orchestrator.py:121` (checked in Step 2) | `tools/check_adr_structure.py` | Verified |
-| `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` | Modify | INV-14 verification text (line 289) to cite the startup-abort and registry tests | REQ-005, REQ-008 / AC-5 | Line 289 cites only `TestRequiredDefault` (checked in Step 2) | `tools/check_adr_invariant_matrix.py` | Verified |
+| `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` | Modify | INV-14 verification text (line 289) to cite the startup-abort and registry tests | REQ-005, REQ-008 / AC-5 | Line 291 (the Plan's line 289 drifted by two) cites only `TestRequiredDefault` (checked in Step 3a) | `tools/check_adr_invariant_matrix.py` | Verified |
 | `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` | Modify | INV-02 row (line 190): Blocking "Yes" with "Not verified" becomes Non-Blocking | REQ-006, REQ-008 / AC-6 | Line 190 "Regression \| Yes \| Not verified (no automated test asserts ...)"; the index states a "Not verified" row is Non-Blocking (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_adr_invariant_matrix.py` | Verified |
 | `docs/10_adr/adr_01_index.md` | Modify | "non-decreasing" wording, ADR-004 INV-14 row evidence, three row moves, matrix-membership note, regenerate guarded sections | REQ-005, REQ-007 / AC-5, AC-7 | Rows 13/14-15, 29/30, 31/32 out of ADR order; row "ADR-006 INV-05, INV-09 \| EventBus offsets strictly monotonic"; ADR-004 INV-14 row cites `TestRequiredDefault` (checked in Step 2) | `tools/check_adr_invariant_matrix.py`, `tools/generate_adr_authority.py --check`, `tools/check_adr_structure.py` | Verified |
 
@@ -100,6 +100,7 @@ ADR-001, ADR-004, ADR-006, ADR-014, ADR-015, the ADR index, and the `agent_08_04
 - Publish-retry idempotency tests map to INV-06 (Event IDs assigned so consumers can process idempotently) because INV-07 is the at-least-once baseline; if the maintainer prefers another invariant, only the row mapping changes (UNK-03).
 - ADR-001 INV-02 becomes Non-Blocking (the index rule: a gate cannot be enforced without verification) unless the maintainer supplies a test (UNK-02); no new Blocking matrix rows are created for ADR-004 INV-11/INV-12 because the ADR records them as Non-Blocking, and the index records the reason.
 - Overlap judgment (`tools/check_plan_target_overlaps.py`): ADR-006 is also targeted by the EventBus specification Plan (adrrev014: Scope, Data Ownership, `/replay` contract), and `docs/10_adr/adr_01_index.md` is also targeted by the MCP audit and authentication Plan (adrrev011: it adds the ADR-017 row and the authority sections, while this Plan edits other rows); compatible, because this Plan edits INV-13, the test rows, and the requeue paragraph of ADR-006 and different sections elsewhere.
+- Step 3a (2026-11-12): re-verified against current source; the claims hold. ADR-006 INV-04 currently cites the unacked-replay test and INV-07 the publish-retry tests, as the Plan states; ADR-001 INV-02, ADR-014 INV-02, and ADR-015 text match. The new test node id is `tests/agent/test_startup_validation.py::TestComponentMandatorinessAbort`. `tests/agent/test_startup_validation.py` is also targeted by `rmcompat003` (a different region, compatible).
 - Keeping the invariant numbers stable: no invariant is renumbered, so index citations by `ADR-NNN INV-NN` stay valid.
 
 ## Unknowns
@@ -191,11 +192,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Startup-abort test for ADR-004 INV-14 (REQ-005) | Pending | — | — | |
-| 2 | ADR-015 and the generated document (REQ-001, REQ-008) | Pending | — | — | |
-| 3 | ADR bodies (REQ-002 to REQ-006, REQ-008) | Pending | — | — | |
-| 4 | Index and generated sections (REQ-007) | Pending | — | — | |
-| 5 | Verification | Pending | — | — | |
+| 1 | Startup-abort test for ADR-004 INV-14 (REQ-005) | In Progress | — | — |  |
+| 2 | ADR-015 and the generated document (REQ-001, REQ-008) | In Progress | — | — |  |
+| 3 | ADR bodies (REQ-002 to REQ-006, REQ-008) | In Progress | — | — |  |
+| 4 | Index and generated sections (REQ-007) | In Progress | — | — |  |
+| 5 | Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -205,7 +206,14 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261112-123307_01_tests_agent_test_startup_validation.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261112-123307_02_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-123307_03_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-123307_04_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-123307_05_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-123307_06_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-123307_07_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-123307_08_docs_10_adr_adr_01_index.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -232,3 +240,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-006 | Required Changes: ADR-001 INV-02 as Blocking or record why not; no row combines "Not verified" with Blocking | `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` | Step 3 | AC-6 | `check_adr_structure.py` | Confirmed by repository evidence |
 | REQ-007 | Required Changes: "non-decreasing", row order, matrix membership of ADR-004 INV-11/12 | `docs/10_adr/adr_01_index.md` | Step 4 | AC-7 | `generate_adr_authority.py --check`, `check_adr_invariant_matrix.py` | Confirmed by repository evidence |
 | REQ-008 | Constraints: ADR amendments need approval records; the implementer must not fabricate approvals | `docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md` | Step 5 | AC-8 | `check_adr_preservation.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261112-123307 -->

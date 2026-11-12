@@ -105,6 +105,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - The empty-value check lives in `ProductionConfigValidator.validate()` (Agent startup) and `build_db_config()` (other processes) because the helper is built per use and cannot give a startup error; explicit-`db_path` helpers and the EventBus are not changed, so components that run without the extension keep working.
 - Documenting `Z` as the EventBus timestamp format follows the code and the issue's assumption; the maintainer confirms it (UNK-04).
 - Overlap judgment (`tools/check_plan_target_overlaps.py`): `eventbus_05`, `eventbus_06`, and `eventbus_10` are also edited by the EventBus specification Plan (adrrev014: cleanup procedure, health fields) and the history-wording Plan; `mcp_02_03` by the MCP audit Plan (adrrev011: audit-writing server list); `db_07` and `db_01` by the recovery, RAG consistency, and history-wording Plans; `governance_05` by the authority-format Plan (adrrev016: the Agent-to-RAG statement); the ADR index by several ADR Plans; compatible, because this Plan edits other passages, and the shared `eventbus_05` Cleanup Procedure paragraph is edited after the EventBus specification Plan lands.
+- Step 3a (2026-11-12): every Plan claim was re-checked against source and holds, with these corrections: the ADR index sentence is wrong only in its `(for example ADR-006)` example, because the claim that every ADR reads `Not applicable` is stale (ADR-008 cites SHARED-001 and SHARED-002 since adrrev009), so the fix names no ADR; `db_01` section 2 also says the store modules are `re-exported through store.py`, a file that does not exist, fixed in the same procedure; `McpServerHealthState` also has `UNKNOWN`, to be added to the `mcp_03_03` table only if it is reachable; the existing `validate()` tests that assert `errors == []` with a minimal config need `sqlite_vec_so` added (UNK-05, in the companion test file). `scripts/eventbus/auth.py` is also edited by `rmcompat004` and `rmcompat007` and `scripts/agent/production_config_validator.py` by `rmcompat007` (other passages; compatible). `tests/db/test_sqlite_helper.py` and `tests/agent/test_production_config_validator.py` are companions of their code rows.
 - The `agent_09_01` plaintext-diagnostics decision stays as is and is reported as a pending item (UNK-01), because moving it needs an ADR and a maintainer approval.
 
 ## Unknowns
@@ -201,11 +202,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirmation and baseline | Pending | — | — | |
-| 2 | Documentation fixes (REQ-001, REQ-002, REQ-003, REQ-006) | Pending | — | — | |
-| 3 | Docstrings (REQ-004) | Pending | — | — | |
-| 4 | Empty `sqlite_vec_so` startup error (REQ-005, REQ-006) | Pending | — | — | |
-| 5 | Deployment & Verification (REQ-007) | Pending | — | — | |
+| 1 | Confirmation and baseline | Pending | — | — |  |
+| 2 | Documentation fixes (REQ-001, REQ-002, REQ-003, REQ-006) | In Progress | — | — |  |
+| 3 | Docstrings (REQ-004) | In Progress | — | — |  |
+| 4 | Empty `sqlite_vec_so` startup error (REQ-005, REQ-006) | In Progress | — | — |  |
+| 5 | Deployment & Verification (REQ-007) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -215,7 +216,21 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261112-124641_01_docs_24_eventbus_eventbus_01_system-overview.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_02_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_03_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_04_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_05_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_06_docs_10_adr_adr_01_index.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_07_docs_23_agent_agent_09_01_data-layer-session-db.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_08_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_09_docs_24_eventbus_eventbus_10_health_endpoint.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_10_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261112-124641_11_scripts_mcp_servers_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-124641_12_scripts_eventbus_auth.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261112-124641_13_scripts_db_config.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-124641_14_scripts_agent_production_config_validator.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-124641_17_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -250,3 +265,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-006 | Required Changes: inventories (`db_01`) and the `sqlite_vec_so` requirement | `docs/41_db/db_01_architecture_and_schema-overview-and-config.md` | Step 2 | AC-6 | `check_docs_consistency.py --domain db` | Needs confirmation |
 | REQ-006 | Same; the module documentation calls the key optional | `scripts/db/config.py` | Step 4 | AC-6 | `tests/db/test_sqlite_helper.py` | Confirmed by repository evidence |
 | REQ-007 | AI Implementation Instruction: confirm each item, skip items already fixed, list open questions in the report | `docs/23_agent/agent_09_01_data-layer-session-db.md` | Step 5 | AC-7 | final report content | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261112-124641 -->
