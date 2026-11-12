@@ -74,10 +74,10 @@ Any config value or file list beyond the one sentence.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | N/A: documentation-only change | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | documentation checkers above |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-215935 | 20261112-215935 | STEP: archived after verifying committed implementation (041a7beb9) |
+| 2 | Add or update tests per Validation plan | Completed | 20261112-215927 | 20261112-215927 | N/A: documentation-only change (no tests) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261112-215935 | 20261112-215935 | STEP: archived after verifying committed implementation (041a7beb9) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261112-215935 | 20261112-215935 | STEP: archived after verifying committed implementation (041a7beb9) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

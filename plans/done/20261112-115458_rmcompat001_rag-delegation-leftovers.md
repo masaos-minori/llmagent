@@ -195,13 +195,13 @@ Test-file rows share one mechanical edit (delete one keyword or dict entry), so 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reject the removed key (validator, its tests, `rag_05_01`) | Pending | — | — | |
-| 2 | Remove the key from the RAG configuration model | Pending | — | — | Release unit rag-config-field-removal with step 3 |
-| 3 | Update tests that construct the configuration | Pending | — | — | Release unit rag-config-field-removal with step 2 |
-| 4 | Ingester cleanup (`ingester.py`, `ingester.toml`, its test) | Pending | — | — | |
-| 5 | Direct attribute access in `augment.py` | Pending | — | — | |
-| 6 | Reword startup warnings in `startup_validation.py` | Pending | — | — | |
-| 7 | Deployment hand-off and verification | Pending | — | — | |
+| 1 | Reject the removed key (validator, its tests, `rag_05_01`) | Completed | — | 20261112-215935 |  |
+| 2 | Remove the key from the RAG configuration model | Completed | — | 20261112-215935 | Release unit rag-config-field-removal with step 3 |
+| 3 | Update tests that construct the configuration | Completed | — | 20261112-215935 | Release unit rag-config-field-removal with step 2 |
+| 4 | Ingester cleanup (`ingester.py`, `ingester.toml`, its test) | Completed | — | 20261112-215935 |  |
+| 5 | Direct attribute access in `augment.py` | Completed | — | 20261112-215935 |  |
+| 6 | Reword startup warnings in `startup_validation.py` | Completed | — | 20261112-215935 |  |
+| 7 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
