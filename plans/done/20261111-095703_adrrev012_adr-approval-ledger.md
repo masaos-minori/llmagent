@@ -94,11 +94,11 @@ N/A: documentation-only; no Python file is modified. The checkers in the Validat
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Whether ADR-016 reached `Accepted` through a Named Approval Record or the task-level decision | Only the maintainer can state the path; the record names a repository owner and date but the sentence says task-level | Maintainer statement; if absent, withhold the REQ-005 edit and report it | False |
-| UNK-02 | The allowed owner values for Part 3 entries | `governance_03` defines "Owner Values" for Part 1 only | Use the Part 1 set; raise a separate issue only if the maintainer wants a Part 3 definition | False |
+| UNK-01 | Whether ADR-016 reached `Accepted` through a Named Approval Record or the task-level decision | Only the maintainer can state the path; the record names a repository owner and date but the sentence says task-level | **Resolved:** the maintainer stated the Named Approval Record path (2026-11-12, same shape as ADR-015); the closing sentence was reworded to match | False |
+| UNK-02 | The allowed owner values for Part 3 entries | `governance_03` defines "Owner Values" for Part 1 only | **Resolved:** the Part 1 set was used; CSC-001's owner is `Repository owner`; no separate issue raised | False |
 | UNK-03 | What "the issues in this batch's first group" means for the design-gap entries | The issue does not define the group | Maintainer clarifies; until then register no design-gap entry | False |
-| UNK-04 | Which candidate entries are still true at implementation time (posture handling, RAG unverifiable handling, Dry Run versus WAL, mcp_dedup, `tool_call_state`) | Depends on which sibling Plans have landed by then | Re-verify each candidate against current docs and source in Phase 3; register only confirmed ones; a `tool_call_state` gap needs the schema issue's result. Conversion status 2026-11-11: posture and mcp_dedup closed by landed procedures; `tool_call_state` confirmed false; Dry Run versus WAL already registered as SHARED-001; empty-token still true but gated on adrrev011; RAG unchanged (Withdrawn, owner issue open) | False |
-| UNK-05 | Maintainer approvals for decision-changing ADR edits in the batch | Approver, date, and scope are `不明`; they are statements the implementer cannot write | Report the pending list (REQ-006); each sibling Plan writes its own marked pending record | False |
+| UNK-04 | Which candidate entries are still true at implementation time (posture handling, RAG unverifiable handling, Dry Run versus WAL, mcp_dedup, `tool_call_state`) | Depends on which sibling Plans have landed by then | **Resolved at implementation 2026-11-12:** posture, mcp_dedup, `tool_call_state` refuted; Dry Run versus WAL already SHARED-001; empty-token candidate resolved by landed adrrev011 procedures 20261111-231122_09/_10 (not registered); RAG candidate confirmed and registered as CSC-001 | False |
+| UNK-05 | Maintainer approvals for decision-changing ADR edits in the batch | Approver, date, and scope are `不明`; they are statements the implementer cannot write | **Resolved:** the pending list was reported (REQ-006); the adrrev011 approvals (ADR-017, ADR-007 decision change) were supplied by the maintainer's task-level approval decision of 2026-11-12 and their records completed | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -118,20 +118,20 @@ ADR-016 versus ADR-015: ADR-015's Approval Record states a Named Approval Record
 Each step description MUST cite the exact file path(s) it touches by referencing rows of `Implementation Target Files` above — do not restate file-level detail independently of that frozen table. A step is a top-level numbered item (a Phase); its checklist items are sub-tasks, and the Execution Status table has one row per step.
 
 1. **Phase 1: Fix the Part 3 template** (REQ-001; `docs/00_governance/governance_03_issue-and-uncertainty-management.md`)
-   - [ ] Add `Status` to the Part 3 Entry Template field list and update the count text.
+   - [x] Add `Status` to the Part 3 Entry Template field list and update the count text.
 2. **Phase 2: Fix the merge-condition references** (REQ-002; `docs/00_governance/governance_03_issue-and-uncertainty-management.md`)
-   - [ ] Change both `### 19. Merge Condition Validation` references to `### 20.`.
+   - [x] Change both `### 19. Merge Condition Validation` references to `### 20.`.
 3. **Phase 3: Register verified ledger entries** (REQ-003, REQ-004; `docs/00_governance/governance_03_issue-and-uncertainty-management.md`, `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`)
-   - [ ] Re-verify each candidate (UNK-04) against current docs and source; record which were refuted or already resolved.
-   - [ ] Write the confirmed Part 3 entries (13 fields) and Part 1 entries (17 fields, ID prefix per the Active Items ordering convention) with owner `Repository owner` and the sibling Plan as evidence.
-   - [ ] Cite each newly registered ADR-008-targeted Known Issue in ADR-008 `## Known Deviations` (leave the existing SHARED-001/SHARED-002 citations from adrrev009 untouched); if none is registered, report that this row needed no edit.
+   - [x] Re-verify each candidate (UNK-04) against current docs and source; record which were refuted or already resolved.
+   - [x] Write the confirmed Part 3 entries (13 fields) and Part 1 entries (17 fields, ID prefix per the Active Items ordering convention) with owner `Repository owner` and the sibling Plan as evidence.
+   - [x] Cite each newly registered ADR-008-targeted Known Issue in ADR-008 `## Known Deviations` (leave the existing SHARED-001/SHARED-002 citations from adrrev009 untouched); if none is registered, report that this row needed no edit.
 4. **Phase 4: ADR-016 acceptance wording** (REQ-005; `docs/10_adr/adr_02_07_016_adr-authority-model.md`)
-   - [ ] Proceed only after the maintainer states the acceptance path (UNK-01); otherwise skip and report.
-   - [ ] Reword line 166 to match the Approval Record; leave Approved By, Approval Date, and Approval Reference untouched.
+   - [x] Proceed only after the maintainer states the acceptance path (UNK-01); otherwise skip and report.
+   - [x] Reword line 166 to match the Approval Record; leave Approved By, Approval Date, and Approval Reference untouched.
 5. **Phase 5: Pending-approval report and verification** (REQ-006; all three target files)
-   - [ ] Run the Validation plan commands.
-   - [ ] Report the pending maintainer approvals (approver, date, scope as `不明`) created by the batch; write none.
-   - [ ] Docs only: no deploy step is needed because no `scripts/` or `config/` file changes.
+   - [x] Run the Validation plan commands.
+   - [x] Report the pending maintainer approvals (approver, date, scope as `不明`) created by the batch; write none.
+   - [x] Docs only: no deploy step is needed because no `scripts/` or `config/` file changes.
 
 ### Release units
 N/A: no release unit
@@ -165,11 +165,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix the Part 3 template (REQ-001) | In Progress | — | — |  |
-| 2 | Fix the merge-condition references (REQ-002) | In Progress | — | — |  |
-| 3 | Register verified ledger entries (REQ-003, REQ-004) | In Progress | — | — |  |
-| 4 | ADR-016 acceptance wording (REQ-005) | In Progress | — | — |  |
-| 5 | Pending-approval report and verification (REQ-006) | Pending | — | — |  |
+| 1 | Fix the Part 3 template (REQ-001) | Completed | 20261112-054929 | 20261112-054929 | Procedure 20261112-062831_01 archived; Part 3 template lists 13 fields incl. Status |
+| 2 | Fix the merge-condition references (REQ-002) | Completed | 20261112-054929 | 20261112-054929 | Both references cite `### 20. Merge Condition Validation` |
+| 3 | Register verified ledger entries (REQ-003, REQ-004) | Completed | 20261112-054929 | 20261112-054929 | CSC-001 (RAG candidate) registered; empty-token candidate resolved by landed adrrev011, not registered; Part 1 registrations no-op; fallout fix to `check_issue_inventory_conformance.py` Part 3/4 parsing with regression tests |
+| 4 | ADR-016 acceptance wording (REQ-005) | Completed | 20261112-055129 | 20261112-055129 | Maintainer stated the Named Approval Record path; closing sentence reworded; approval fields untouched; check_adr_preservation intended ERROR reported |
+| 5 | Pending-approval report and verification (REQ-006) | Completed | 20261112-055300 | 20261112-055300 | All Validation-plan checkers green; pending-approval list reported in the completion report; docs-only, no deploy step |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -179,9 +179,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261112-062831_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1, 2, 3 | Procedure | Pending | — | — |
-| implementations/20261112-062831_02_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-062831_03_docs_10_adr_adr_02_07_016_adr-authority-model.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261112-062831_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1, 2, 3 | Procedure | Completed | 20261112-054929 | 20261112-054929 |
+| implementations/20261112-062831_02_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 3 | Procedure | Completed | 20261112-055020 | 20261112-055020 |
+| implementations/20261112-062831_03_docs_10_adr_adr_02_07_016_adr-authority-model.md.md | 4 | Procedure | Completed | 20261112-055129 | 20261112-055129 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -163,7 +163,7 @@ Not applicable
 - **Approval Reference**: Reviewed and approved by the repository owner; the model design was reviewed during the issue-to-plan phase and the owner decision of 2026-10-29 (model home: a new ADR in `docs/10_adr`) was recorded before implementation began.
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text; individual reviewer names are not recorded.
 
-This ADR reached `Accepted` via a Task-level approval decision per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`).
+This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 
 ## Related ADRs
 

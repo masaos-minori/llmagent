@@ -195,7 +195,7 @@ An inventory of active canonical source conflicts, so conflicting claims are tra
 
 ### Entry Template
 
-Each active Canonical Source Conflict entry must contain these 12 fields: ID, Decision target, Claim type, Canonical source, Conflicting source or evidence, Conflict category, Impact, Severity (`High`/`Medium`/`Low`), Blocking status (`Blocking`/`Non-blocking`), Required action, Owner, Validation evidence.
+Each active Canonical Source Conflict entry must contain these 13 fields: ID, Decision target, Claim type, Canonical source, Conflicting source or evidence, Conflict category, Impact, Severity (`High`/`Medium`/`Low`), Blocking status (`Blocking`/`Non-blocking`), Required action, Owner, Validation evidence, Status.
 
 ### Status Values
 
@@ -206,7 +206,21 @@ An item is removed from this active inventory once it is resolved (exactly one n
 
 ### Active Items
 
-No active Canonical Source Conflict items remain.
+#### CSC-001
+
+- **ID:** CSC-001
+- **Decision target:** Acceptance of a RAG fallback result under an unverifiable corpus identity
+- **Claim type:** Present-behavior claim retained in a Withdrawn ADR
+- **Canonical source:** `docs/10_adr/adr_02_06_010_rag-fallback.md` `## Status` (`Withdrawn`) and its withdrawal note ("The text below remains as the record of the withdrawn decision")
+- **Conflicting source or evidence:** The same ADR's Decision item 11 and the failure-outcome table row `Identity unverifiable (either identity absent)` still state the identity-comparison and unverifiable-handling contract in the present tense
+- **Conflict category:** Internal contradiction in one canonical source: withdrawn status vs surviving normative wording
+- **Impact:** Readers of the normative sections can take the withdrawn fallback's identity handling as current behavior while the owning decision is still open
+- **Severity:** High
+- **Blocking status:** Blocking
+- **Required action:** `issues/20261110-170753_rmcompat003_rag-corpus-identity-decision.md` decides the current corpus-identity handling; the surviving normative wording in ADR-010 is then moved to the withdrawn record or removed
+- **Owner:** Repository owner
+- **Validation evidence:** `issues/20261110-170753_rmcompat003_rag-corpus-identity-decision.md` (open)
+- **Status**: open
 
 ## Part 4: Configuration Drift
 
@@ -247,7 +261,7 @@ Applies to any automated check finding classified `Warning` (not `Blocking`) in
 — for example, `GV-017`'s removed-name reintroduction findings. A `Warning`
 finding does not block merge by itself, but leaving it neither fixed nor formally
 excepted is not a complete review (see `docs/00_governance/governance_04_documentation-checks.md`
-`### 19. Merge Condition Validation`).
+`### 20. Merge Condition Validation`).
 
 ### Exception Record Fields
 
@@ -261,7 +275,7 @@ Record the exception inline, next to the flagged line, as:
 
 An exception past its expiration date is treated as an unexplained finding (see
 `docs/00_governance/governance_04_documentation-checks.md`
-`### 19. Merge Condition Validation`) — not as still-covered.
+`### 20. Merge Condition Validation`) — not as still-covered.
 
 ## Non-Goals
 

@@ -5,7 +5,8 @@ Conformance checker for docs/00_governance/governance_03_issue-and-uncertainty-m
 
 Validates:
   (a) Vocabulary conformance — Status/Type/Severity/Area/Owner against defined value sets
-   (b) Template field-count — 17 fields per Part 1 entry, 15 per Part 2 entry; exempt removal placeholders.
+   (b) Template field-count — 17 fields per Part 1 entry, 15 per Part 2 entry,
+      13 per Part 3 entry, 6 per Part 4 entry; exempt removal placeholders.
   (c) Orphaned bullets — - **Field:** bullets after removal placeholders
   (d) Closing-summary consistency — Part 1 closing ID list vs. actual headings
   (e) Referential integrity — Related/Related NC/Target ID resolution
@@ -110,6 +111,10 @@ def parse_entries(doc: DocFile) -> list[Entry]:
             current_part = "Part 1"
         elif line.startswith("## Part 2"):
             current_part = "Part 2"
+        elif line.startswith("## Part 3"):
+            current_part = "Part 3"
+        elif line.startswith("## Part 4"):
+            current_part = "Part 4"
 
         # A section heading (## or ###) ends the current entry, so field-style
         # bullets in later sections are not attributed to the last entry.
@@ -310,15 +315,19 @@ def check_status_values(doc: DocFile) -> list[Issue]:
 
 
 def check_template_field_count(doc: DocFile) -> list[Issue]:
-    """Count - **Field:** bullets per entry; require 17 (Part 1) / 15 (Part 2); exempt placeholders."""
+    """Count - **Field:** bullets per entry; require 17/15/13/6 per Part; exempt placeholders."""
     issues: list[Issue] = []
     entries = parse_entries(doc)
+
+    required_by_part = {"Part 1": 17, "Part 2": 15, "Part 3": 13, "Part 4": 6}
 
     for entry in entries:
         if entry.is_removal_placeholder:
             continue
 
-        required_fields = 17 if entry.part == "Part 1" else 15
+        required_fields = required_by_part.get(entry.part)
+        if required_fields is None:
+            continue
         actual_fields = len(entry.fields)
 
         if actual_fields != required_fields:

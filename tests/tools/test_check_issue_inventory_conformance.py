@@ -527,6 +527,41 @@ class TestTemplateFieldCountViolation:
             "Valid Part 2 entry should have exactly 15 fields"
         )
 
+    @staticmethod
+    def _part3_doc(extra: bool = False) -> DocFile:
+        fields = [
+            "ID",
+            "Decision target",
+            "Claim type",
+            "Canonical source",
+            "Conflicting source or evidence",
+            "Conflict category",
+            "Impact",
+            "Severity",
+            "Blocking status",
+            "Required action",
+            "Owner",
+            "Validation evidence",
+            "Status",
+        ]
+        if extra:
+            fields.append("Extra")
+        body = "\n".join(f"- **{name}**: v" for name in fields)
+        text = f"## Part 3: Canonical Source Conflict\n\n#### CSC-001\n\n{body}\n"
+        return DocFile(
+            Path("x.md"), rel_path=GOVERNANCE_DOC_NAME, lines=text.splitlines()
+        )
+
+    def test_part3_entry_with_13_fields_passes(self) -> None:
+        """A 13-field Part 3 entry must not be checked against the Part 2 count."""
+        assert check_template_field_count(self._part3_doc()) == []
+
+    def test_part3_entry_with_wrong_field_count_detected(self) -> None:
+        issues = check_template_field_count(self._part3_doc(extra=True))
+        assert any("expected 13 fields" in i.message for i in issues), (
+            "A 14-field Part 3 entry should be detected"
+        )
+
     def test_removal_placeholder_exempt_from_field_count(
         self, orphaned_bullet_doc: Path
     ) -> None:
