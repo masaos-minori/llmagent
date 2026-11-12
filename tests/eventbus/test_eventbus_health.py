@@ -7,10 +7,17 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+import types
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+
+from tests.eventbus.eventbus_helpers import (
+    eventbus_auth_headers,
+    make_eventbus_client,
+)
 
 
 @pytest.fixture
@@ -37,6 +44,53 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     with TestClient(eb_app.app) as c:
         c.headers["Authorization"] = "Bearer test-token"
         yield c
+
+
+@pytest.fixture
+def real_dlq_loop() -> Any:
+    """Return the production ``_dlq_loop`` before any test replaces it."""
+    from eventbus import app as eb_app
+
+    return eb_app._dlq_loop
+
+
+@pytest.fixture
+def monitoring_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, real_dlq_loop: Any
+):
+    """Monitoring-role client whose background DLQ loop is replaced by an idle task.
+
+    The real loop records a cycle result shortly after startup; replacing it keeps
+    ``app.state.last_dlq_cycle_*`` under the test's control (``dlq_task`` still runs,
+    so liveness stays true).
+    """
+    from eventbus import app as eb_app
+
+    async def _idle_dlq_loop(app: Any) -> None:
+        await asyncio.sleep(3600)
+
+    monkeypatch.setattr(eb_app, "_dlq_loop", _idle_dlq_loop)
+    with make_eventbus_client(tmp_path, monkeypatch, default_role="monitoring") as c:
+        yield c
+
+
+def _insert_failed_outbox(db: Any) -> None:
+    """Insert one event and a terminal 'failed' dlq_outbox row (under the DB lock)."""
+    from eventbus.db_conn import get_db_lock
+    from eventbus.json_utils import now_iso
+
+    with get_db_lock():
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) "
+            "VALUES ('evt-health-failed', 't', '{}', 'test', ?)",
+            (now_iso(),),
+        )
+        db.execute(
+            "INSERT INTO dlq_outbox (event_id, requested_at, status, attempts) "
+            "VALUES ('evt-health-failed', ?, 'failed', 3)",
+            (now_iso(),),
+        )
+        db.commit()
 
 
 class TestHealth:
@@ -220,3 +274,135 @@ class TestHealth:
             assert body["status"] == "degraded"
             assert "broker_unavailable" in body["degraded_reasons"]
             mock_get_broker.assert_called_once()
+
+    def test_health_reports_no_failures_before_first_sweep(
+        self, monitoring_client: TestClient
+    ) -> None:
+        resp = monitoring_client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["terminal_failed_outbox"] == 0
+        assert body["last_dlq_sweep"] == {"result": "not_run", "time": None}
+        assert body["degraded_reasons"] == []
+
+    def test_health_reports_terminal_failed_outbox(
+        self, monitoring_client: TestClient
+    ) -> None:
+        from eventbus import app as eb_app
+
+        _insert_failed_outbox(eb_app.app.state.db)
+        resp = monitoring_client.get("/health")
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["terminal_failed_outbox"] >= 1
+        assert "dlq_outbox_failed" in body["degraded_reasons"]
+        # A terminal outbox failure is a real failure, not a gate change.
+        assert body["liveness"] is True
+        assert body["readiness"] is True
+
+    def test_health_reports_failing_sweep(self, monitoring_client: TestClient) -> None:
+        from eventbus import app as eb_app
+        from eventbus.json_utils import now_iso
+
+        eb_app.app.state.last_dlq_cycle_result = "failed"
+        eb_app.app.state.last_dlq_cycle_time = now_iso()
+        try:
+            resp = monitoring_client.get("/health")
+        finally:
+            eb_app.app.state.last_dlq_cycle_result = "not_run"
+            eb_app.app.state.last_dlq_cycle_time = None
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["last_dlq_sweep"]["result"] == "failed"
+        assert body["last_dlq_sweep"]["time"] is not None
+        assert "dlq_sweep_failing" in body["degraded_reasons"]
+
+    def test_new_degraded_reasons_do_not_change_liveness_or_readiness(
+        self, monitoring_client: TestClient
+    ) -> None:
+        from eventbus import app as eb_app
+        from eventbus.health_route import is_ready
+
+        _insert_failed_outbox(eb_app.app.state.db)
+        eb_app.app.state.last_dlq_cycle_result = "failed"
+        try:
+            body = monitoring_client.get("/health").json()
+        finally:
+            eb_app.app.state.last_dlq_cycle_result = "not_run"
+        assert "dlq_outbox_failed" in body["degraded_reasons"]
+        assert "dlq_sweep_failing" in body["degraded_reasons"]
+        assert body["liveness"] is True
+        assert body["readiness"] is True
+        assert is_ready(body["liveness"], body["readiness"]) is True
+
+    def test_health_leaves_count_null_when_count_query_fails(
+        self, monitoring_client: TestClient
+    ) -> None:
+        from unittest.mock import patch
+
+        with patch(
+            "eventbus.health_route.count_failed_outbox",
+            side_effect=sqlite3.OperationalError("count failed"),
+        ):
+            resp = monitoring_client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["terminal_failed_outbox"] is None
+        assert "dlq_outbox_failed" not in body["degraded_reasons"]
+
+    def test_health_rejects_non_monitoring_role(
+        self, monitoring_client: TestClient
+    ) -> None:
+        resp = monitoring_client.get(
+            "/health", headers=eventbus_auth_headers("operator")
+        )
+        assert resp.status_code == 403
+
+
+class TestDlqLoopRecording:
+    """The loop records the result and time of each cycle on app.state."""
+
+    @staticmethod
+    def _run_one_cycle(
+        eb_app: Any, real_dlq_loop: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class _StopLoop(Exception):
+            pass
+
+        async def _stop(_seconds: float) -> None:
+            raise _StopLoop
+
+        # Replace only this module's asyncio, and only for the one cycle, so the
+        # loop's sleep ends the run and the app's shutdown sees the real module.
+        with monkeypatch.context() as patch:
+            patch.setattr(eb_app, "asyncio", types.SimpleNamespace(sleep=_stop))
+            with pytest.raises(_StopLoop):
+                asyncio.run(real_dlq_loop(eb_app.app))
+
+    def test_clean_cycle_records_ok_and_time(
+        self,
+        monitoring_client: TestClient,
+        real_dlq_loop: Any,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from eventbus import app as eb_app
+
+        self._run_one_cycle(eb_app, real_dlq_loop, monkeypatch)
+        assert eb_app.app.state.last_dlq_cycle_result == "ok"
+        assert eb_app.app.state.last_dlq_cycle_time.endswith("Z")
+
+    def test_failing_cycle_records_failed_and_time(
+        self,
+        monitoring_client: TestClient,
+        real_dlq_loop: Any,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from eventbus import app as eb_app
+
+        def _boom(*_args: Any, **_kwargs: Any) -> int:
+            raise sqlite3.OperationalError("sweep failed")
+
+        monkeypatch.setattr(eb_app, "sweep_orphans", _boom)
+        self._run_one_cycle(eb_app, real_dlq_loop, monkeypatch)
+        assert eb_app.app.state.last_dlq_cycle_result == "failed"
+        assert eb_app.app.state.last_dlq_cycle_time.endswith("Z")
