@@ -2,12 +2,14 @@
 """scripts/eventbus/health_route.py — Health check endpoint handler."""
 
 import logging
+import sqlite3
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from eventbus.auth import Principal, Role, require_role
 from eventbus.db_conn import check_db
+from eventbus.dlq_repo import count_failed_outbox
 from eventbus.route_helpers import (
     _db_lock_contention,
     _db_lock_wait_time,
@@ -104,6 +106,24 @@ async def health_check(
 
     degraded_reasons.extend(capacity_degraded_reasons)
 
+    # Terminal-failed outbox rows and a failing sweep cycle are real failures: HTTP
+    # 503 like every other degraded reason, outside liveness and readiness. A failed
+    # count query leaves the count None and adds no reason; database health is
+    # judged by check_db above.
+    terminal_failed: int | None = None
+    try:
+        terminal_failed = await run_with_db_lock(lambda: count_failed_outbox(db))
+    except sqlite3.Error:
+        logger.warning(
+            "health: terminal-failed outbox count unavailable", exc_info=True
+        )
+    last_result = getattr(request.app.state, "last_dlq_cycle_result", "not_run")
+    last_time = getattr(request.app.state, "last_dlq_cycle_time", None)
+    if terminal_failed is not None and terminal_failed > 0:
+        degraded_reasons.append("dlq_outbox_failed")
+    if last_result == "failed":
+        degraded_reasons.append("dlq_sweep_failing")
+
     # Tiered health checks (REQ-005): the deployment gate is is_ready(liveness, readiness)
     liveness = dlq_task_status == "running"
     readiness = db_ok
@@ -115,6 +135,8 @@ async def health_check(
             "status": overall,
             "db": db_status,
             "dlq_task": dlq_task_status,
+            "terminal_failed_outbox": terminal_failed,
+            "last_dlq_sweep": {"result": last_result, "time": last_time},
             "active_subscribers": active_subscribers,
             "max_queue_depth": max_queue_depth,
             "slow_consumers": slow_consumers,

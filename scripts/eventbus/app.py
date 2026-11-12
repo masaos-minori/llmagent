@@ -43,6 +43,7 @@ from eventbus.dlq import (
 )
 from eventbus.dlq_route import router as dlq_router
 from eventbus.health_route import router as health_router
+from eventbus.json_utils import now_iso
 from eventbus.publish_route import router as publish_router
 from eventbus.replay_route import router as replay_router
 from eventbus.route_helpers import (
@@ -90,6 +91,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.envelope_schema = orjson.loads(get_schema_path().read_bytes())
     Path(app.state.config.storage_dir).mkdir(parents=True, exist_ok=True)
     app.state.broker = EventBroker(app.state.config)
+    # Last DLQ loop-cycle outcome and time, reported by /health. Initialized so a
+    # /health request before the first cycle reads 'not_run' instead of failing.
+    app.state.last_dlq_cycle_result = "not_run"
+    app.state.last_dlq_cycle_time = None
     app.state.dlq_task = asyncio.create_task(_dlq_loop(app))
     app.state.authz_sweep_task = asyncio.create_task(authz_sweep_loop(app))
     if _is_public_host(app.state.config.host):
@@ -208,8 +213,12 @@ async def _dlq_loop(app: FastAPI) -> None:
                     reconciled["interrupted_tmp"],
                     reconciled["mismatch"],
                 )
+            app.state.last_dlq_cycle_result = "ok"
+            app.state.last_dlq_cycle_time = now_iso()
         except (OSError, sqlite3.Error):
             logger.exception("dlq_loop error")
+            app.state.last_dlq_cycle_result = "failed"
+            app.state.last_dlq_cycle_time = now_iso()
         await asyncio.sleep(_DLQ_INTERVAL)
 
 

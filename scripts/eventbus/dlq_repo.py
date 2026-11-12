@@ -216,3 +216,13 @@ def done_outbox_event_ids(db: sqlite3.Connection) -> set[str]:
         str(row[0])
         for row in db.execute("SELECT event_id FROM dlq_outbox WHERE status = 'done'")
     }
+
+
+def count_failed_outbox(db: sqlite3.Connection) -> int:
+    """Return the number of dlq_outbox rows in the terminal 'failed' status.
+
+    Read-only; the status filter uses the leading column of idx_dlq_outbox_status,
+    so it is safe to call under run_with_db_lock.
+    """
+    cursor = db.execute("SELECT COUNT(*) FROM dlq_outbox WHERE status = 'failed'")
+    return int(cursor.fetchone()[0])

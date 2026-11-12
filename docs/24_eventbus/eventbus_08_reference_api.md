@@ -113,6 +113,7 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `record_attempt_failure` | `def record_attempt_failure(db, event_id, last_error, next_attempt_at, terminal) -> None` | Persist one failed generation attempt for an outbox row. |
 |  | `get_outbox_state` | `def get_outbox_state(db, event_id) -> sqlite3.Row \| None` | Return the dlq_outbox row for one event, or None when absent. |
 |  | `done_outbox_event_ids` | `def done_outbox_event_ids(db) -> set[str]` | Return event ids whose outbox row is done — the orphan classifier's set. |
+|  | `count_failed_outbox` | `def count_failed_outbox(db) -> int` | Return the number of dlq_outbox rows in the terminal 'failed' status. |
 | `scripts/eventbus/dlq_route.py` | `dlq_list` | `async def dlq_list(request, limit, offset, _principal) -> dict[str, Any]` | List dead-letter queue entries with pagination support (one snapshot). |
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id, principal) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active event queue. |
 | `scripts/eventbus/event_repo.py` | `insert_event` | `def insert_event(conn, event_id, topic, payload_str, producer, published_at) -> tuple[int \| None, bool, str]` | INSERT OR IGNORE. Returns (seq, inserted, status). |

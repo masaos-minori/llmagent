@@ -349,6 +349,11 @@ entries:
   signature: def done_outbox_event_ids(db) -> set[str]
   summary: "Return event ids whose outbox row is done \u2014 the orphan classifier's\
     \ set."
+- file: scripts/eventbus/dlq_repo.py
+  kind: function
+  name: count_failed_outbox
+  signature: def count_failed_outbox(db) -> int
+  summary: Return the number of dlq_outbox rows in the terminal 'failed' status.
 - file: scripts/eventbus/dlq_route.py
   kind: async function
   name: dlq_list
