@@ -490,12 +490,14 @@ class TestUnknownTopLevelKeyRejection:
         from agent.production_config_validator import ProductionConfigValidator
 
         # llm_url is a field name in LLMConfig; allowed_root is required by
-        # the production validator.
+        # the production validator; sqlite_vec_so is a required non-empty value
+        # for processes that open rag.sqlite or session.sqlite.
         validator = ProductionConfigValidator()
         result = validator.validate(
             {
                 "llm_url": "http://localhost:8080",
                 "allowed_root": "/opt/llm",
+                "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
             }
         )
         assert len(result.errors) == 0
