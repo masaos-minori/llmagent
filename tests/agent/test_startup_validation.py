@@ -9,15 +9,25 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import ExitStack
+from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import yaml
 from agent.shared.health_models import (
     HealthCheckResult,
     StartupCheckStatus,
     StartupValidationResult,
 )
-from agent.startup_validation import StartupValidationPipeline
+from agent.startup_validation import (
+    StartupValidationPipeline,
+    _check_component_mandatoriness,
+)
+from shared.component_mandatoriness import (
+    ComponentMandatorinessError,
+    load_component_mandatoriness,
+)
 from shared.mcp_config import (
     McpServerConfig,
     StartupMode,
@@ -431,3 +441,113 @@ class TestMcpAuthDisabledServers:
         assert outcomes[0].status == StartupCheckStatus.FATAL
         assert "web" in outcomes[0].message
         assert "optional_srv" not in outcomes[0].message
+
+
+def _write_registry(tmp_path: Path, *component_ids: str) -> Path:
+    """Write a minimal valid registry classifying every id as ``required``."""
+    entries = [
+        {
+            "component_id": cid,
+            "classification": "required",
+            "failure_category": "safety-integrity",
+            "safety_role": "Baseline safety role.",
+            "safely_disableable_functions": [],
+            "startup_consequence": "abort_startup",
+            "observability": ["ServiceWarning"],
+            "owner": "agent-architecture-owner",
+            "authority_adr": "ADR-004",
+            "rationale": "Baseline rationale text.",
+        }
+        for cid in component_ids
+    ]
+    path = tmp_path / "component_mandatoriness.yaml"
+    path.write_text(
+        yaml.safe_dump({"version": 1, "entries": entries}), encoding="utf-8"
+    )
+    return path
+
+
+def _server(*, required: bool) -> MagicMock:
+    return MagicMock(required=required, auth_token="valid-token", is_disabled=False)
+
+
+def _run_mandatoriness_check(
+    servers: dict[str, object], *, side_effect: Any
+) -> StartupValidationResult:
+    """Run the real config stage with the real mandatoriness check unmocked.
+
+    Only the registry loader is patched, so the fatal source label and message
+    are asserted end to end through ``check_config()``.
+    """
+    with patch(
+        "agent.startup_validation.load_component_mandatoriness", side_effect=side_effect
+    ):
+        return _run_check_config(
+            _make_ctx(),
+            mcp_servers=servers,
+            _check_component_mandatoriness=_check_component_mandatoriness,
+        )
+
+
+def _mandatoriness_fatals(result: StartupValidationResult) -> list[str]:
+    return [
+        o.message
+        for o in result.outcomes
+        if o.source == "component_mandatoriness"
+        and o.status == StartupCheckStatus.FATAL
+    ]
+
+
+class TestComponentMandatorinessAbort:
+    """ADR-004 INV-14: startup does not continue when a component's mandatoriness
+    is undefined. These tests run the real check, not a mock of it."""
+
+    def test_unknown_configured_server_is_fatal(self, tmp_path: Path) -> None:
+        registry_path = _write_registry(tmp_path, "shell")
+        result = _run_mandatoriness_check(
+            {"ghost": _server(required=True)},
+            side_effect=lambda: load_component_mandatoriness(registry_path),
+        )
+
+        fatals = _mandatoriness_fatals(result)
+        assert len(fatals) == 1
+        assert "ghost" in fatals[0]
+        assert result.has_fatal
+
+    def test_conflicting_required_value_is_fatal(self, tmp_path: Path) -> None:
+        registry_path = _write_registry(tmp_path, "shell")
+        result = _run_mandatoriness_check(
+            {"shell": _server(required=False)},
+            side_effect=lambda: load_component_mandatoriness(registry_path),
+        )
+
+        fatals = _mandatoriness_fatals(result)
+        assert len(fatals) == 1
+        assert "shell" in fatals[0]
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ComponentMandatorinessError("registry is invalid"),
+            FileNotFoundError("registry file missing"),
+        ],
+    )
+    def test_missing_or_invalid_registry_is_fatal(self, error: Exception) -> None:
+        result = _run_mandatoriness_check(
+            {"shell": _server(required=True)}, side_effect=error
+        )
+
+        fatals = _mandatoriness_fatals(result)
+        assert len(fatals) == 1
+        assert "Undeterminable component mandatoriness" in fatals[0]
+        assert result.has_fatal
+
+    def test_consistent_registry_adds_no_fatal(self, tmp_path: Path) -> None:
+        registry_path = _write_registry(tmp_path, "shell")
+        result = _run_mandatoriness_check(
+            {"shell": _server(required=True)},
+            side_effect=lambda: load_component_mandatoriness(registry_path),
+        )
+
+        assert _mandatoriness_fatals(result) == []
+        assert not result.has_fatal

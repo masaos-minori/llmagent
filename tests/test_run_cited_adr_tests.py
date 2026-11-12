@@ -136,5 +136,7 @@ class TestRealMatrixRegression:
         # 49 after 2026-11-10: the ADR-010 verification rows and the ADR-004 marker-guard
         # citation left the matrix when ADR-010 was withdrawn (adrrev003); earlier,
         # ADR-014 INV-02 gained its second counting-test citation.
+        # 51 after 2026-11-12: the ADR-004 INV-14 row cites the registry loader's
+        # unknown-component test and the unmocked startup-abort tests.
         lines = helper.ADR_INDEX.read_text(encoding="utf-8").splitlines()
-        assert len(helper.extract_cited_node_ids(lines)) == 49
+        assert len(helper.extract_cited_node_ids(lines)) == 51
