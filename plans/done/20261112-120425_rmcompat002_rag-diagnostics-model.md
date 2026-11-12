@@ -165,10 +165,10 @@ This table is the canonical, frozen source of implementation scope for this Plan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Single `SearchDiagnostics`, `PipelineDiagnostics` cleanup, `get_diagnostics()`, search stage | Pending | — | — | Release unit single-diagnostics-model with step 2 |
-| 2 | Update the diagnostics tests and `__new__` construction | Pending | — | — | Release unit single-diagnostics-model with step 1 |
-| 3 | Update the two documents | Pending | — | — | |
-| 4 | Deployment hand-off and verification | Pending | — | — | |
+| 1 | Single `SearchDiagnostics`, `PipelineDiagnostics` cleanup, `get_diagnostics()`, search stage | In Progress | — | — | Release unit single-diagnostics-model with step 2 |
+| 2 | Update the diagnostics tests and `__new__` construction | In Progress | — | — | Release unit single-diagnostics-model with step 1 |
+| 3 | Update the two documents | In Progress | — | — |  |
+| 4 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -178,7 +178,15 @@ This table is the canonical, frozen source of implementation scope for this Plan
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261113-070042_01_scripts_rag_models_result.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261113-070042_02_scripts_rag_diagnostics.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261113-070042_03_scripts_rag_pipeline.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261113-070042_04_scripts_rag_stages_search.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261113-070042_07_tests_rag_test_diagnostics.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261113-070042_09_tests_rag_test_fusion_mode_diagnostics.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261113-070042_10_tests_rag_test_pipeline_refiner_fallback_counters.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261113-070042_05_docs_21_rag_rag_03_03_query_pipeline-context-and-diagnostics.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261113-070042_06_docs_21_rag_rag_04_dto-models-types.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -204,3 +212,5 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | REQ-005 | Testing Expectations (`__new__` replacement); `test_pipeline_refiner_fallback_counters.py:21` | `tests/rag/test_pipeline_refiner_fallback_counters.py` | 2 | AC-5 | itself | Explicit in issue |
 | REQ-006 | Documentation Impact; `rag_03_03:41,45` | `docs/21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md` | 3 | AC-6 | docs checkers | Explicit in issue |
 | REQ-006 | Documentation Impact; `rag_04:90` | `docs/21_rag/rag_04_dto-models-types.md` | 3 | AC-6 | docs checkers | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261113-070042 -->
