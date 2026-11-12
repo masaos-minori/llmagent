@@ -16,6 +16,7 @@ related:
   - governance_03_issue-and-uncertainty-management.md
   - adr_02_01_004_platform-environment-failure-handling-policy.md
   - adr_02_04_013_eventbus-authentication-authorization.md
+  - adr_02_05_008_db-sqlite-4db-separation.md
   - governance_01_documentation-policy.md
 ---
 
@@ -191,7 +192,7 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 - INV-12: When ACK persistence fails, an error response is returned, the delivery state and offset are not advanced, and the Event stays eligible for redelivery.
 - INV-13: DLQ promotion prefers inline promotion; the background loop only supplements it. An Event promotes only when every attempting consumer's failure count (`consumer_delivery_failure_count`) has reached max_retry (`>= max_retry`) and none has ACKed, so one consumer's NACKs never promote an Event shared by others; `events.dlq_at` stays event-level.
 - INV-14: When switching from Replay to Live, Consumers are required to process idempotently by event_id.
-- INV-15: The EventBus binds only to a loopback address; a non-loopback host fails configuration validation.
+- INV-15: The EventBus binds only to a loopback address (this ADR owns the decision; ADR-013 layers authentication on top); a non-loopback host fails configuration validation.
 - INV-16: The Delivery-State UPSERT and the Offset advancement in `ack_event_for_consumer()` are committed within a single transaction, and if either fails, both are rolled back.
 
 ## Failure Policy
@@ -325,6 +326,7 @@ Not applicable
 - **Current Decision Approval (pending)**: The addition of the `dlq_outbox` durable promotion record to the Scope and Data Ownership is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
 - **Current Decision Approval (pending)**: The Replay Contract (`/replay` Operator-only and offset-preserving; `/subscribe` start position order) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
 - **Current Decision Approval (pending)**: The INV-13 wording (`>= max_retry`), the re-mapping of the INV-04, INV-06, and INV-07 verification rows, and the requeue error text are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: Adding ADR-008 to the front matter `related` and Related ADRs and stating in INV-15 that ADR-006 owns the loopback-binding decision (ADR-013 layers authentication on top) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -332,6 +334,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-004: Failure Handling Policy Across Environments
+- ADR-008: Separating SQLite into Four Databases
 - ADR-013: EventBus Authentication and Authorization
 
 ## Implementation References

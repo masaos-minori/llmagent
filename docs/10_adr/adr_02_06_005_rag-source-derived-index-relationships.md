@@ -71,7 +71,7 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 5. Canonical data is not updated from derived indexes. Direct INSERT/UPDATE into `chunks_fts` is prohibited outside the schema triggers and the `RagMaintenanceService` maintenance operations (rebuild through `/session rag-rebuild-fts`, per-URL reconciliation). (Explicit in code — `tools/check_chunks_fts_invariant.py` sanctioned paths)
 6. Consistency checks detect differences using `chunks` as the reference.
 7. When a document is deleted, the target `chunks_vec` rows are deleted first, then `documents` (CASCADE also deletes `chunks`; the triggers synchronize `chunks_fts` and clean `chunks_vec` as a backstop).
-8. Normal FTS5 synchronization and manual rebuilds use the same generation rule (`COALESCE(normalized_content, content)`).
+8. FTS5 synchronization and manual rebuilds follow the text-selection rule owned by ADR-009 (INV-03, INV-07); this ADR owns only the synchronization and rebuild operations.
 9. Even if FTS5 or the Vector Engine is replaced, the indexes can be rebuilt from `documents` and `chunks`.
 10. The following operational decisions are reflected in Operations:
     - `fts_gap > 0`: rebuild FTS5
@@ -79,6 +79,10 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
     - `orphan_vec_count > 0`: rebuild vec (`rebuild_vec`)
     - `vec != chunks`: investigate as an embedding or synchronization failure
 11. The ingestion path (`delete_document_chain()`) and the MCP deletion path (`DocumentManager.delete_document()` of the rag_pipeline MCP server) apply the same deletion order (`chunks_vec` before `documents`) through the shared helper.
+
+### Amendment (adrrev016, 2026-11-12)
+
+In force: this rewords Decision 8 and the `RagMaintenanceService.rebuild_fts()` Implementation Note to cite ADR-009 (INV-03, INV-07) instead of restating the text-selection expression. No decision changed: FTS5 synchronization and manual rebuilds still generate from the same rule; ADR-009 owns that text-selection rule (INV-03, INV-07), and this ADR owns only the synchronization and rebuild operations. The removed inline expression `COALESCE(normalized_content, content)` is now referenced through the ADR-009 citation; INV-03 and INV-07 of this ADR are unchanged. Adopted under the task-level approval decision referenced in this Approval Record.
 
 ### Scope
 
@@ -242,7 +246,7 @@ Not applicable (no Fallback exists: a mismatch is reported and repaired through 
 
 - Schema triggers on `chunks` keep `chunks_fts` synchronized and clean `chunks_vec` as a backstop for direct `chunks` deletes; `chunks_vec` rows are written explicitly by the ingestion pipeline.
 - `delete_document_chain()` deletes the `chunks_vec` rows of a document, then the `documents` row; the cascade removes `chunks`. The rag_pipeline MCP server's `DocumentManager.delete_document()` calls this same helper, so both paths apply the order through one implementation.
-- `RagMaintenanceService.rebuild_fts()` regenerates `chunks_fts` with `COALESCE(normalized_content, content)`, the same rule as the triggers.
+- `RagMaintenanceService.rebuild_fts()` regenerates `chunks_fts` under the ADR-009 text-selection rule, the same as the triggers.
 - `check_rag_consistency()` computes the counts and mismatches from `chunks`; the startup check and `/session rag-consistency` report them.
 
 See Implementation References for the current file/symbol list.
@@ -282,6 +286,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval (pending)**: Approver not recorded; date not recorded; scope: the Decision 10 remediation for `orphan_vec_count > 0`, the Decision 11 shared-helper sentence, and the startup-check bullet reword under Fail-Open or Degraded Conditions. Pending maintainer approval; no approval or reviewer name is recorded here.
+- **Current Decision Approval (pending)**: Rewriting Decision 8 and the `RagMaintenanceService.rebuild_fts()` Implementation Note to reference ADR-009 (INV-03, INV-07) instead of restating the text-selection expression is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

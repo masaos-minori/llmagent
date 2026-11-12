@@ -59,13 +59,13 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112 | 20261112 | implemented per Procedure/Method: ADR-008 added to front matter related + Related ADRs; INV-15 ADR-006 ownership clause; pending approval line added |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112 | 20261112 | adr structure/inv-matrix/reference/authority/quality/content_policy--strict/japanese pass. preservation: 4 intended ERRORs (front matter, INV-15, Related ADRs ADR-008, Approval) + Invariants WARNING, all explained. docs structure: size-gate 29228>28672 non-blocking per Details |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | `check_docs_structure.py` size gate: ADR-006 grew 28672 -> 29228 bytes, over the 28672 ceiling. Non-blocking per Procedure > Details; the ceiling re-record is a separate docsize chore (the ceiling table is not edited here). New size 29228 reported for human confirmation. | no (non-blocking) | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -31,11 +31,11 @@ N/A: the Plan fixes the approach for this row.
 ### Method
 - `rag.fts-text-selection`: primary `ADR-009`; supplemental `{ adr = "ADR-005", limit = "FTS synchronization and rebuild operations only" }`.
 - `eventbus.network-binding`: primary `ADR-006`; supplemental `{ adr = "ADR-013", limit = "authentication layered on top of the loopback binding" }`.
-- Edge `ADR-006 -> ADR-008`, `edge_type = "Reference"`, `intentional = true`, note: ADR-008 owns the database separation; ADR-006 owns the event store use of it.
+- Edge `ADR-006 -> ADR-008`, `edge_type = "Reference"`, `intentional = true`, note: ADR-008 owns the database separation; ADR-006 owns the event store use of it. The pre-existing reverse `ADR-008 -> ADR-006` was a plain `Reference` with no reverse before this change; INV-02 needs exactly one non-`Reference` side per bidirectional pair, so convert it to `edge_type = "Governs"` (ADR-008's four-database separation governs where ADR-006 places its event store). ADR-008's front matter already lists ADR-006, so INV-04 stays satisfied without a docs edit.
 - Edges `ADR-014 -> ADR-002`, `ADR-014 -> ADR-003`, `ADR-014 -> ADR-004`, `edge_type = "Reference"` (not intentional: no reverse edge).
 
 ### Details
-- Count after the change: the generated `Intentional Circular References` section lists five pairs today; with the new pair it lists six. Write the comment count from the regenerated list, not from this document.
+- Count after the change: the generated `Intentional Circular References` section lists six pairs today (checked 2026-11-12: ADR-001↔004, ADR-001↔014, ADR-002↔004, ADR-003↔004, ADR-006↔013, ADR-007↔017); with the new ADR-006↔ADR-008 pair it lists seven. Write the comment count from the regenerated list, not from this document.
 - If an existing fixture in `tests/tools/test_adr_authority.py` breaks, stop and amend the Plan (`tools/amend_plan.py`, fallout class); do not edit the test here.
 
 ## Compatibility considerations
@@ -61,9 +61,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the two `[[authority]]` targets | Pending | — | — | |
-| 2 | Add the ADR-006/ADR-008 intentional pair and the ADR-014 edges; update the pair-count comment | Pending | — | — | |
-| 3 | Run `uv run pytest tests/tools/test_adr_authority.py -v`, `check_adr_authority.py`, and `check_adr_reference.py` (after rows 05, 07, 09) | Pending | — | — | |
+| 1 | Add the two `[[authority]]` targets | Completed | 2026-11-12 | 2026-11-12 | Added rag.fts-text-selection (primary ADR-009, supplemental ADR-005) and eventbus.network-binding (primary ADR-006, supplemental ADR-013) |
+| 2 | Add the ADR-006/ADR-008 intentional pair and the ADR-014 edges; update the pair-count comment | Completed | 2026-11-12 | 2026-11-12 | Added ADR-006->ADR-008 intentional Reference pair; converted pre-existing plain Reference ADR-008->ADR-006 to Governs to satisfy ADR-016 INV-02 (one non-Reference side per pair); added three ADR-014 Reference edges; pair-count comment updated to seven from the regenerated list |
+| 3 | Run `uv run pytest tests/tools/test_adr_authority.py -v`, `check_adr_authority.py`, and `check_adr_reference.py` (after rows 05, 07, 09) | Completed | 2026-11-12 | 2026-11-12 | check_adr_authority.py, check_adr_reference.py, generate_adr_authority.py --check, test_adr_authority.py (26), check_docs_structure.py, check_adr_structure.py, check_adr_invariant_matrix.py, check_known_deviation_sync.py, check_needs_confirmation_inventory.py all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

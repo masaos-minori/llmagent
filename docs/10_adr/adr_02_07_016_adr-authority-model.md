@@ -28,7 +28,7 @@ Accepted
 
 ## Summary
 
-ADR precedence across the ADR set is today prose-based: the ADR index lists dependencies and six intentional circular pairs, but nothing machine-checkable states which ADR is primary for a governed decision target. This ADR adopts a machine-readable authority model: `config/adr_authority.toml` records exactly one primary ADR per governed decision target (with explicitly limited supplemental ADRs), typed dependency edges, and a shared architecture-assumption registry. The informational ADR reference graph keeps allowing the six intentional cycles; the authority graph (typed edges only) must be acyclic. Index graph sections become generated artifacts under the ADR-015 generated-content discipline. ADR bodies remain the normative decisions; the model is an index of who owns what and never a second source of decision content.
+ADR precedence across the ADR set is today prose-based: the ADR index lists dependencies and seven intentional circular pairs, but nothing machine-checkable states which ADR is primary for a governed decision target. This ADR adopts a machine-readable authority model: `config/adr_authority.toml` records exactly one primary ADR per governed decision target (with explicitly limited supplemental ADRs), typed dependency edges, and a shared architecture-assumption registry. The informational ADR reference graph keeps allowing the seven intentional cycles; the authority graph (typed edges only) must be acyclic. Index graph sections become generated artifacts under the ADR-015 generated-content discipline. ADR bodies remain the normative decisions; the model is an index of who owns what and never a second source of decision content.
 
 ## Context
 
@@ -44,7 +44,7 @@ Plans and checkers increasingly depend on ADR-governed contracts (DB migration w
 
 - ADR bodies remain normative; the model must not restate or re-decide their content (it is index-only).
 - Invariant evidence stays in the ADR Invariant Verification Matrix (`tools/check_adr_invariant_matrix.py`); canonical source paths stay in `config/documentation_canonical_sources.toml`. Neither registry is merged into the model.
-- The reference graph today contains six bidirectional pairs that are documented as intentional ownership splits, so a blanket "no cycles" rule cannot apply to it.
+- The reference graph today contains seven bidirectional pairs that are documented as intentional ownership splits, so a blanket "no cycles" rule cannot apply to it.
 
 ## Assumptions
 
@@ -61,7 +61,7 @@ Plans and checkers increasingly depend on ADR-governed contracts (DB migration w
 3. **Closed edge taxonomy**: dependency edges are typed in the closed set `Requires`, `Governs`, `Specializes`, `Extends`, `Exception-to`, `Reference`. `Reference` is the informational edge reproducing today's `A → B` meaning; the other five are normative edges.
 4. **Graph split**: the reference graph (all edges) may contain bidirectional pairs only when the `Reference` direction carries `intentional = true` and an ownership-split `note`. The authority graph (non-`Reference` edges only) must be acyclic; a cycle there is an `AUTHORITY_CYCLE` finding and fails CI. In each intentional bidirectional pair, exactly one direction carries a non-`Reference` type.
 5. **Assumption registry**: shared architecture assumptions are registered as `[[assumption]]` entries (ID `ARCH-NNN`, name, current value, applicable ADRs, validation method `config-check` or `manual-review`, owner, review triggers). A `config-check` assumption whose recorded value no longer matches live configuration is an `ASSUMPTION_DRIFT` finding and fails CI.
-6. **Generated index sections**: the ADR index Reference Graph, Authority Graph, and Intentional Circular References sections are generated artifacts produced only by `tools/generate_adr_authority.py` between guard comments, following the ADR-015 INV-01 discipline; hand edits inside the guards are prohibited and drift is detected by `--check` (exit 1).
+6. **Generated index sections**: the ADR index ADR Dependency Graph, Authority Graph, and Intentional Circular References sections are generated artifacts produced only by `tools/generate_adr_authority.py` between guard comments, following the ADR-015 INV-01 discipline; hand edits inside the guards are prohibited and drift is detected by `--check` (exit 1).
 7. **Front matter/model consistency**: every ADR front matter `related` entry naming another ADR file must exist in the model as an edge; every non-`Reference` model edge must appear in the owning ADR's front matter. A model-only `Reference` edge is permitted (the model is the superset the generated graph renders). Divergence in either direction is a `FRONTMATTER_DIVERGENCE` finding detected by `tools/check_adr_reference.py`.
 8. **Registration duty**: adding an ADR, changing its front matter `related`, or changing a governed target's authority requires a matching `config/adr_authority.toml` change in the same change set; dangling ADR IDs are a `DANGLING_ADR` finding and fail CI. The uniqueness rules are items 1 and 2; the coverage statement is item 9.
 9. **Coverage**: the registry is selective in practice. It was derived from the ownership statements of the ADR index, it names a primary ADR only for the decision targets it lists, and some ADRs are the primary of no listed target. It does not claim to cover every decision of every ADR, and no per-ADR inventory is kept in this ADR; `config/adr_authority.toml` is the inventory. Inclusion criteria: a decision target is registered when more than one ADR makes or constrains a decision about it, or when contributors need one named owner to resolve a conflict between ADRs; a decision that only one ADR makes and no other ADR constrains needs no entry.
@@ -137,7 +137,7 @@ TOML registry (like `documentation_canonical_sources.toml`), guarded generated b
 
 - Model file: `config/adr_authority.toml` (authority matrix, typed edges, assumption registry; `version = "1"`).
 - Shared validator core: `tools/_adr_authority_core.py`, imported by `tools/check_adr_authority.py` (standalone CI validator) and `tools/check_adr_reference.py` (front matter cross-check).
-- Generator: `tools/generate_adr_authority.py` writes three guarded sections into `docs/10_adr/adr_01_index.md`: Reference Graph (`adr-reference-graph`), Authority Graph (`adr-authority-graph`), Intentional Circular References (`adr-intentional-cycles`).
+- Generator: `tools/generate_adr_authority.py` writes three guarded sections into `docs/10_adr/adr_01_index.md`: ADR Dependency Graph (`adr-reference-graph`), Authority Graph (`adr-authority-graph`), Intentional Circular References (`adr-intentional-cycles`).
 - The `governance_05` area-graph cycle prohibition remains limited to area nodes; the acyclicity rule of INV-02 is this ADR's own rule over the ADR authority graph.
 
 ## Known Deviations
@@ -162,6 +162,7 @@ Not applicable
 - **Approval Date**: 2026-10-29
 - **Approval Reference**: Reviewed and approved by the repository owner; the model design was reviewed during the issue-to-plan phase and the owner decision of 2026-10-29 (model home: a new ADR in `docs/10_adr`) was recorded before implementation began.
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text; individual reviewer names are not recorded.
+- **Current Decision Approval (pending)**: Renaming the generated index section `Reference Graph` to `ADR Dependency Graph` in Decision Detail 6 and the Implementation Notes, and updating the intentional pair count from six to seven in the Summary and Problem sections, are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger (adrrev012). No approval is recorded here.
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 

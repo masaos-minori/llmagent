@@ -21,6 +21,7 @@ related:
   - adr_02_04_013_eventbus-authentication-authorization.md
   - adr_02_02_014_agent-control-plane-responsibility-boundaries.md
   - adr_02_07_015_docs-reference-document-class-disposition.md
+  - adr_02_07_016_adr-authority-model.md
   - governance_03_issue-and-uncertainty-management.md
   - governance_05_change-impact-and-dependency-graphs.md
 ---
@@ -76,13 +77,13 @@ ADR-002 → ADR-001, ADR-004
 ADR-003 → ADR-001, ADR-002, ADR-004
 ADR-004 → ADR-001, ADR-002, ADR-003
 ADR-005 → ADR-002, ADR-004
-ADR-006 → ADR-002, ADR-004, ADR-013
+ADR-006 → ADR-002, ADR-004, ADR-008, ADR-013
 ADR-007 → ADR-002, ADR-004, ADR-017
 ADR-008 → ADR-002, ADR-004, ADR-005, ADR-006, ADR-013
 ADR-009 → ADR-002, ADR-004, ADR-005
 ADR-012 → ADR-007
 ADR-013 → ADR-002, ADR-006
-ADR-014 → ADR-001
+ADR-014 → ADR-001, ADR-002, ADR-003, ADR-004
 ADR-016 → ADR-015
 ADR-017 → ADR-007
 ```
@@ -103,6 +104,7 @@ Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`.
 ADR-001 --Requires--> ADR-004
 ADR-004 --Requires--> ADR-002
 ADR-004 --Extends--> ADR-003
+ADR-008 --Governs--> ADR-006
 ADR-013 --Specializes--> ADR-006
 ADR-014 --Extends--> ADR-001
 ADR-017 --Specializes--> ADR-007
@@ -119,11 +121,13 @@ ADR-017 --Specializes--> ADR-007
 | `db.recovery-separation` | ADR-008 | — |
 | `docs.reference-generation` | ADR-015 | — |
 | `eventbus.authorization` | ADR-013 | ADR-006 — persistence and SSE delivery contract |
+| `eventbus.network-binding` | ADR-006 | ADR-013 — authentication layered on top of the loopback binding |
 | `eventbus.persistence` | ADR-006 | ADR-013 — authentication and authorization semantics only |
 | `mcp.authentication` | ADR-017 | — |
 | `mcp.technical-safety` | ADR-012 | ADR-007 — transport and health-check responsibilities |
 | `mcp.transport` | ADR-007 | — |
 | `rag.canonical-data` | ADR-005 | — |
+| `rag.fts-text-selection` | ADR-009 | ADR-005 — FTS synchronization and rebuild operations only |
 | `security.posture-contract` | ADR-004 | — |
 <!-- END AUTO-GENERATED -->
 
@@ -138,6 +142,7 @@ Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`.
 - ADR-001 ↔ ADR-014: ADR-014 extends the responsibility boundaries to the components other than the Workflow Engine; ADR-001 owns the Workflow Engine's mandatoriness.
 - ADR-002 ↔ ADR-004: ADR-004 classifies a Config Isolation violation as a Fail-Fast failure; ADR-002 owns the isolation decision.
 - ADR-003 ↔ ADR-004: ADR-004 defines the failure-classification contract; ADR-003 remains the authority for RuntimeToolRegistry, Tool ownership, and Routing.
+- ADR-006 ↔ ADR-008: ADR-008 owns the database separation; ADR-006 owns the event store use of it.
 - ADR-006 ↔ ADR-013: ADR-013 owns EventBus authentication and authorization; ADR-006 owns persistence and SSE delivery.
 - ADR-007 ↔ ADR-017: ADR-007 Decision 9 requires Bearer authentication on every MCP server and defers the implementation detail; ADR-017 owns those rules.
 <!-- END AUTO-GENERATED -->
@@ -197,7 +202,7 @@ Invariants that stay out of this matrix are Non-Blocking and need no gate: ADR-0
 | ADR-008 INV-01 | Each DB has its own schema creation and recovery target path; supports the ownership checked by the static row above | Unit Test | CI | Blocking | Confirmed (`tests/db/test_create_schema.py::TestCreateSchemaWrapper`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations`) |
 | ADR-009 INV-07 | FTS5 rebuild rules followed | Integration Test | CI | Blocking | Confirmed (`tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`, `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_rebuild_fts_preserves_normalized_content_semantics`, `tests/agent/services/test_rag_index_integrity.py::test_rebuild_fts_uses_coalesce`) |
 | ADR-009 INV-10 | `normalized_content` must not appear in LLM output | Unit Test | CI | Blocking | Confirmed (`tests/rag/test_rag_pipeline_stage.py::TestAugmentStage::test_augment_stage_content_only_invariant`, `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_real_normalized_content_attribute_excluded`, passing) |
-| ADR-012 INV-01, INV-02, INV-03, INV-04 | Git MCP write operations enforced server-side: safe ref/remote patterns, no forced update through the normal `git_push` path, protected-branch enforcement on the changed branch, and independence from Agent-side approval | Unit/Integration Test | CI | Blocking | Confirmed (`tests/mcp_servers/git/`, passing). INV-01 covered by the write-tool allow-list rejection suite (`test_git_service_dispatch.py`) plus the retained read-tool option-injection tests; INV-02 covered by the push refspec rejection tests (`tests/mcp_servers/git/test_git_service_dispatch.py::TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot`, `tests/mcp_servers/git/test_git_service_dispatch.py::TestWriteRefAllowlist::test_rejected_branch_forms`); INV-03 covered by the destination-based protected-branch tests (`tests/mcp_servers/git/test_repository_state.py::TestStage3DestinationProtection`, `tests/mcp_servers/git/test_git_service_dispatch.py::TestDestinationBasedProtection`) plus the existing protected-branch suite; INV-04 covered by the independence tests under `tests/mcp_servers/git/`. |
+| ADR-012 INV-01, INV-02, INV-03, INV-04 | Git MCP write operations enforced server-side: safe ref/remote patterns, no forced update through the normal `git_push` path, protected-branch enforcement on the changed branch, and independence from Agent-side approval | Unit/Integration Test | CI | Blocking | Confirmed (`tests/mcp_servers/git/`, passing). INV-01 covered by the write-tool allow-list rejection suite (`test_git_service_dispatch.py`) plus the retained read-tool option-injection tests (`tests/mcp_servers/git/test_git_security_compliance.py`); INV-02 covered by the push refspec rejection tests (`tests/mcp_servers/git/test_git_service_dispatch.py::TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot`, `tests/mcp_servers/git/test_git_service_dispatch.py::TestWriteRefAllowlist::test_rejected_branch_forms`); INV-03 covered by the destination-based protected-branch tests (`tests/mcp_servers/git/test_repository_state.py::TestStage3DestinationProtection`, `tests/mcp_servers/git/test_git_service_dispatch.py::TestDestinationBasedProtection`) plus the existing protected-branch suite (`tests/mcp_servers/git/test_git_security_compliance.py`); INV-04 covered by the independence tests under `tests/mcp_servers/git/`. |
 | ADR-013 INV-02, INV-07 | Every Consumer-route principal is explicitly bound to authorized `consumer_id` and topic values; shared and admin credentials have no Consumer-route bypass, and a rejected Subscribe, ACK, or NACK changes no delivery state | Integration Test | CI | Blocking | Confirmed (`tests/eventbus/test_eventbus_consumer_authorization.py::TestSharedAndAdminTokensHaveNoConsumerBypass`, `tests/eventbus/test_eventbus_consumer_authorization.py::TestConsumerPrincipalBinding`, `tests/eventbus/test_eventbus_auth.py::TestFailClosedConsumerAuthorization::test_shared_and_admin_tokens_have_no_consumer_bypass`, passing) |
 | ADR-014 INV-01 | Non-WorkflowEngine components (Orchestrator, LlmTurnExecutor, ToolExecutor) do not decide persistent Task/Attempt state, stage transitions, or retries | Manual Review | Code Review | Non-Blocking | Manual — procedure: code review. `Orchestrator.handle_turn()` delegates to `WorkflowEngineAdapter.execute_turn()` (Explicit in code — `scripts/agent/orchestrator.py`, `scripts/agent/workflow_engine_adapter.py`); no automated test. Cadence: every change to Orchestrator, LlmTurnExecutor, or ToolExecutor. Expected evidence: the code-review record showing no persistent Task/Attempt state, stage transition, or retry decision outside WorkflowEngine. Owner: Repository owner |
 | ADR-014 INV-02 | `LlmTurnExecutor` instance construction is centralized in the `Orchestrator`, which passes the one instance to the Workflow Engine side that owns the LLM/tool-call loop; no other component holds an unused or duplicate instance | Unit Test | CI | Non-Blocking | Confirmed (`tests/agent/test_orchestrator.py::TestSingleLlmTurnExecutorOwnership::test_orchestrator_creates_single_shared_llm_turn_executor`, `tests/agent/test_orchestrator.py::TestSingleLlmTurnExecutorOwnership::test_orchestrator_constructs_llm_executor_exactly_once`, passing) |

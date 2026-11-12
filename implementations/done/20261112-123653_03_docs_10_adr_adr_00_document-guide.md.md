@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-12 | 2026-11-12 | Rewrote the finding-code bullet to list all six codes; five from tools/check_adr_authority.py (DUP_PRIMARY, DANGLING_ADR, AUTHORITY_CYCLE, EDGE_UNKNOWN_TYPE, ASSUMPTION_DRIFT) and FRONTMATTER_DIVERGENCE from tools/check_adr_reference.py, with where each runs |
+| 2 | Run the documentation checkers per Validation plan | Completed | 2026-11-12 | 2026-11-12 | check_docs_quality.py (175), check_docs_structure.py, check_docs_content_policy.py --strict, check_docs_japanese.py all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

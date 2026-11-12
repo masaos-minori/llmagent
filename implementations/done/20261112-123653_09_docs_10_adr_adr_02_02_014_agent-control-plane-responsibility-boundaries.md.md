@@ -53,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-12 | 2026-11-12 | — |
+| 2 | Run the documentation checkers per Validation plan | Completed | 2026-11-12 | 2026-11-12 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

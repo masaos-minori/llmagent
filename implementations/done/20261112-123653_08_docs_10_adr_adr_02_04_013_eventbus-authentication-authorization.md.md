@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-182557 | 20261112-182609 | Implementation column added to Automated Tests table; all cited test paths verified to exist. Size gate: adr_02_04_013 now 31572 bytes (ceiling 28647), exceeds by 2925 — non-blocking Needs confirmation, ceiling re-record is a separate chore (procedure: do not edit the tool). |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-182557 | 20261112-182609 | check_adr_{structure,invariant_matrix,reference,authority,preservation}, check_docs_{quality,content_policy,japanese} pass. check_adr_preservation adr_02_04_013 test-citation additions are intended; adr_02_05_008/06_005 findings are prior uncommitted changes. check_docs_structure size gate non-blocking (see step 1 notes). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

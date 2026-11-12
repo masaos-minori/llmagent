@@ -239,27 +239,27 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ### Automated Tests
 
-| Test | Verifies | Type | Blocking |
-|---|---|---|---|
-| Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) | INV-01 | Integration | Yes (the fixture-app tests are complemented by `TestProductionRouteWiring`, which checks the production app's route dependencies and the 401/403/200 behavior of `/health` and `/publish`) |
-| Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) | INV-03 (operator-gated routes) | Integration | Yes |
-| consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`) | INV-02 (topic access) | Unit | Yes |
-| empty `consumer_authorization`/`topic_authorization` mappings resolve to deny-all and reject every `consumer_id` (`test_empty_mappings_deny_all_consumers`) | INV-02 empty-mapping case | Unit | Yes |
-| `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) | Decision Details #7 | Unit | Yes |
-| `load_config()` rejects unknown TOML keys (`test_load_config_rejects_unknown_key`) | INV-04 | Unit | Yes |
-| `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) | INV-04 | Unit | Yes |
-| `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) | INV-06 | Regression | Yes |
-| audit records do not include token values (`test_no_credential_leakage_in_audit_records`) | INV-05 | Unit | Yes |
-| `auth_token` and `admin_token` receive 403 on Subscribe, ACK, and NACK, and hold no Consumer or Publisher role (`TestSharedAndAdminTokensHaveNoConsumerBypass::test_subscribe_ack_and_nack_return_403`, `test_shared_and_admin_tokens_have_no_consumer_bypass`) | INV-02, INV-07 | Integration | Yes |
-| a Consumer token with an authorized `consumer_id` succeeds; an unauthorized `consumer_id` or topic returns 403; an empty `consumer_authorization` mapping denies every `consumer_id`; a principal without a topic binding is rejected (`TestConsumerPrincipalBinding`, `test_principal_without_topic_binding_is_rejected`) | INV-02, INV-07 | Integration | Yes |
-| a rejected ACK or NACK leaves delivery state, offset, failure count, and DLQ state unchanged (`TestSharedAndAdminTokensHaveNoConsumerBypass::test_rejected_ack_and_nack_change_no_delivery_state`) | INV-02, INV-07 | Integration | Yes |
-| One-generation publish: no empty-map window during principal map rebuild | INV-01 | Unit | Yes |
-| Failed rebuild preserves previous generation's principals | INV-01 | Unit | Yes |
-| Runtime-only persistence: `persistent: false` in admin response | Decision Details #10 (runtime-only persistence) | Integration | Yes |
-| Empty body rejected with 422 | Decision Details #12 (empty body case) | Integration | Yes |
-| No-op detected: `changed: false` when config unchanged | Decision Details #12 (no-op case) | Integration | Yes |
-| Audit emitted on effective change | INV-05 | Integration | Yes |
-| Audit not emitted on no-op | INV-05 | Integration | Yes |
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) | INV-01 | Integration | Yes (the fixture-app tests are complemented by `TestProductionRouteWiring`, which checks the production app's route dependencies and the 401/403/200 behavior of `/health` and `/publish`) | `tests/eventbus/test_eventbus_auth.py::TestPublishAuth::test_publish_without_token`, `tests/eventbus/test_eventbus_auth.py::TestSubscribeAuth::test_subscribe_without_token`, `tests/eventbus/test_eventbus_auth.py::TestProductionRouteWiring` |
+| Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) | INV-03 (operator-gated routes) | Integration | Yes | `tests/eventbus/test_eventbus_auth.py::TestSubscribeAuth::test_subscribe_as_wrong_role`, `tests/eventbus/test_eventbus_auth.py::TestNackAuth::test_nack_with_publisher_token_is_rejected`, `tests/eventbus/test_eventbus_auth.py::TestDlqListAuth::test_dlq_list_with_publisher_token_is_rejected`, `tests/eventbus/test_eventbus_auth.py::TestDlqRequeueAuth::test_dlq_requeue_with_publisher_token_is_rejected`, `tests/eventbus/test_eventbus_auth.py::TestReplayAuth::test_replay_with_publisher_token_is_rejected` |
+| consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`) | INV-02 (topic access) | Unit | Yes | `tests/eventbus/test_eventbus_auth.py::TestRequireConsumerIdentityTopicSemantics::test_non_empty_topic_restriction_is_enforced_and_returned` |
+| empty `consumer_authorization`/`topic_authorization` mappings resolve to deny-all and reject every `consumer_id` (`test_empty_mappings_deny_all_consumers`) | INV-02 empty-mapping case | Unit | Yes | `tests/eventbus/test_eventbus_auth.py::TestFailClosedConsumerAuthorization::test_empty_mappings_deny_all_consumers` |
+| `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) | Decision Details #7 | Unit | Yes | `tests/eventbus/test_eventbus_config.py::test_load_config_rejects_empty_auth_token` |
+| `load_config()` rejects unknown TOML keys (`test_load_config_rejects_unknown_key`) | INV-04 | Unit | Yes | `tests/eventbus/test_eventbus_config.py::test_load_config_rejects_unknown_key` |
+| `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) | INV-04 | Unit | Yes | `tests/eventbus/test_eventbus_config.py::test_load_config_rejects_wrong_type` |
+| `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) | INV-06 | Regression | Yes | `tests/eventbus/test_eventbus_config.py::test_non_loopback_host_raises_value_error` |
+| audit records do not include token values (`test_no_credential_leakage_in_audit_records`) | INV-05 | Unit | Yes | `tests/eventbus/test_eventbus_auth.py::TestFailClosedConsumerAuthorization::test_no_credential_leakage_in_audit_records` |
+| `auth_token` and `admin_token` receive 403 on Subscribe, ACK, and NACK, and hold no Consumer or Publisher role (`TestSharedAndAdminTokensHaveNoConsumerBypass::test_subscribe_ack_and_nack_return_403`, `test_shared_and_admin_tokens_have_no_consumer_bypass`) | INV-02, INV-07 | Integration | Yes | `tests/eventbus/test_eventbus_consumer_authorization.py::TestSharedAndAdminTokensHaveNoConsumerBypass::test_subscribe_ack_and_nack_return_403`, `tests/eventbus/test_eventbus_auth.py::TestFailClosedConsumerAuthorization::test_shared_and_admin_tokens_have_no_consumer_bypass` |
+| a Consumer token with an authorized `consumer_id` succeeds; an unauthorized `consumer_id` or topic returns 403; an empty `consumer_authorization` mapping denies every `consumer_id`; a principal without a topic binding is rejected (`TestConsumerPrincipalBinding`, `test_principal_without_topic_binding_is_rejected`) | INV-02, INV-07 | Integration | Yes | `tests/eventbus/test_eventbus_consumer_authorization.py::TestConsumerPrincipalBinding`, `tests/eventbus/test_eventbus_auth.py::TestRequireConsumerIdentityTopicSemantics::test_principal_without_topic_binding_is_rejected` |
+| a rejected ACK or NACK leaves delivery state, offset, failure count, and DLQ state unchanged (`TestSharedAndAdminTokensHaveNoConsumerBypass::test_rejected_ack_and_nack_change_no_delivery_state`) | INV-02, INV-07 | Integration | Yes | `tests/eventbus/test_eventbus_consumer_authorization.py::TestSharedAndAdminTokensHaveNoConsumerBypass::test_rejected_ack_and_nack_change_no_delivery_state` |
+| One-generation publish: no empty-map window during principal map rebuild | INV-01 | Unit | Yes | `tests/eventbus/test_eventbus_auth.py::TestAtomicPublishAndFailedRebuild::test_atomic_publish_no_empty_map_window` |
+| Failed rebuild preserves previous generation's principals | INV-01 | Unit | Yes | `tests/eventbus/test_eventbus_auth.py::TestAtomicPublishAndFailedRebuild::test_failed_rebuild_preserves_previous_generation` |
+| Runtime-only persistence: `persistent: false` in admin response | Decision Details #10 (runtime-only persistence) | Integration | Yes | `tests/eventbus/test_admin_topics_authorization.py::TestAdminGating::test_response_includes_persistent_and_changed` |
+| Empty body rejected with 422 | Decision Details #12 (empty body case) | Integration | Yes | `tests/eventbus/test_admin_topics_authorization.py::TestAdminGating::test_empty_body_rejected` |
+| No-op detected: `changed: false` when config unchanged | Decision Details #12 (no-op case) | Integration | Yes | `tests/eventbus/test_admin_topics_authorization.py::TestAdminGating::test_response_changed_false_when_noop` |
+| Audit emitted on effective change | INV-05 | Integration | Yes | `tests/eventbus/test_admin_topics_authorization.py::TestAdminGating::test_audit_emitted_on_effective_change` |
+| Audit not emitted on no-op | INV-05 | Integration | Yes | `tests/eventbus/test_admin_topics_authorization.py::TestAdminGating::test_audit_not_emitted_on_noop` |
 
 ## Implementation Notes
 

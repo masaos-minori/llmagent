@@ -66,8 +66,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112-181217 | 20261112-181217 | ADR-012 verification table gained an Implementation column (INV-01..INV-10 mapped, cited tests resolved to existing file paths); Approval Record gained two pending-approval lines; adr_01_index.md INV-01/INV-03 citations updated for invariant-matrix agreement |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112-181217 | 20261112-181217 | check_adr_structure/invariant_matrix/reference/authority and check_docs_quality/content_policy --strict/japanese and check_known_deviation_sync pass; check_docs_structure size gate is non-blocking; check_adr_preservation reports only intended changes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

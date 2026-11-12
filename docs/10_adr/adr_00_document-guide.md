@@ -69,7 +69,7 @@ ADR precedence is recorded in the machine-readable model `config/adr_authority.t
 
 - Every governed decision target has exactly one primary ADR; supplemental ADRs carry an explicit authority limit.
 - Dependency edges are typed: `Requires`, `Governs`, `Specializes`, `Extends`, `Exception-to` are normative; `Reference` is informational. The authority graph (normative edges) must stay acyclic; the reference graph may contain documented intentional bidirectional pairs.
-- Adding an ADR, changing its front matter `related` list, or changing a target's authority requires a matching `config/adr_authority.toml` change in the same change set; CI reports violations as `DUP_PRIMARY`, `DANGLING_ADR`, `AUTHORITY_CYCLE`, or `FRONTMATTER_DIVERGENCE` findings.
+- Adding an ADR, changing its front matter `related` list, or changing a target's authority requires a matching `config/adr_authority.toml` change in the same change set; `tools/check_adr_authority.py` (the CI `lint` job) reports `DUP_PRIMARY`, `DANGLING_ADR`, `AUTHORITY_CYCLE`, `EDGE_UNKNOWN_TYPE`, and `ASSUMPTION_DRIFT`, and `tools/check_adr_reference.py` (the `adr-reference-scoped` pre-commit hook that CI runs with `pre-commit run --all-files`) reports `FRONTMATTER_DIVERGENCE`.
 - The graph sections of `adr_01_index.md` sit between generated-content guard comments and are refreshed only by the generator; hand-editing inside the guards is prohibited and fails the CI drift check.
 
 The normative decision, edge semantics, and invariant list are in [ADR-016](adr_02_07_016_adr-authority-model.md).

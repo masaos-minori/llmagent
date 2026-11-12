@@ -230,6 +230,7 @@ entries:
   timing: CI
 - adr: ADR-012
   cited:
+  - tests/mcp_servers/git/test_git_security_compliance.py
   - tests/mcp_servers/git/test_git_service_dispatch.py::TestDestinationBasedProtection
   - tests/mcp_servers/git/test_git_service_dispatch.py::TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot
   - tests/mcp_servers/git/test_git_service_dispatch.py::TestWriteRefAllowlist::test_rejected_branch_forms

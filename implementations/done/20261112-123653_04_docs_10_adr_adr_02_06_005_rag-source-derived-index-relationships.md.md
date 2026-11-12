@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261112 | 20261112 | implemented per Procedure/Method/Decision 8 + rebuild_fts() Note -> ADR-009 (INV-03,INV-07), Amendment subsection + pending approval line added |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261112 | 20261112 | all checkers pass (preservation: Approval ERROR + Decision WARNING are the intended explained changes) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

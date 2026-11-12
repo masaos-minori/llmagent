@@ -7,6 +7,9 @@ tags:
   - architecture
 related:
   - adr_02_02_001_agent-workflow-engine-mandatory.md
+  - adr_02_01_002_platform-config-isolation.md
+  - adr_02_02_003_agent-runtime-tool-registry-routing-authority.md
+  - adr_02_01_004_platform-environment-failure-handling-policy.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
   - agent_03_02_turn-processing-flow-llm-tool-loop.md
   - governance_01_documentation-policy.md
@@ -199,6 +202,9 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ## Related ADRs
 
 - ADR-001: Mandatory Workflow Engine
+- ADR-002: Per-Process Configuration Ownership and Config Isolation
+- ADR-003: RuntimeToolRegistry as the Sole Routing Authority
+- ADR-004: Failure Handling Policy Across Environments
 
 ## Implementation References
 
