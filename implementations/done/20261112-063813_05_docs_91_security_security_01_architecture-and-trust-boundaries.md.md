@@ -9,7 +9,7 @@ Bring `security_01` into line with `rag_05_07`: set the orphan-vector remediatio
 - Line 226 (embedding dimension mismatch) currently says "Chunk skipped, WARNING logged"; it describes ingest-time behavior but does not label it as such.
 - Line 229 (orphan vector rows) currently says "Run `ingester.py --force`".
 - `security_01` is also targeted by `plans/20261111-110144_adrrev017_docs-history-wording.md`; this edit changes only the two orphan-vector/dimension-mismatch rows.
-- Gated: `issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md` phase all — sequence this Plan after it.
+- Gate resolved 2026-11-12: the identity-gate removal landed (`b217f999b`); the frozen rmcompat001 Plan (`plans/20261112-115458_rmcompat001_rag-delegation-leftovers.md`) lists `rag_05_07` as a reference file only, not a target; `tools/plan_dependency_order.py` reports this Plan Ready with no gate.
 
 ## Design decisions
 - Change line 229's remediation to `rebuild_vec` (matching `rag_05_07`); drop `ingester.py --force` for this finding.
@@ -56,13 +56,13 @@ Evidence checked: line 226 ("Chunk skipped, WARNING logged"), line 229 ("Run `in
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - edits rag_05_07 wording it rewrites; sequence this Plan after it |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - sequence after it |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | rmcompat001 phase-all gate (`rag_05_07` startup-paragraph rewrite) | Yes | 2026-11-12 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

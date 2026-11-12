@@ -98,9 +98,9 @@ RAG, DB, security, and ADR documents (`docs/00_index.md` "Document References by
 |---|---|---|---|---|
 | UNK-01 | On a startup check timeout or failure, abort startup or register an ADR-004 exception | Maintainer decision; ADR-004 holds no exception and code warns and continues | Maintainer decides; this Plan documents the current behavior and any code or ADR-004 change becomes a follow-up issue | False |
 | UNK-02 | Classification of a normalization failure (item-level skip versus Fail-Fast) and whether stored chunks of a re-normalization-failed file are kept | The ADR says Fail-Fast but code continues; stored chunks stay because the failure precedes the force prune | Maintainer confirms; Phase 5 words ADR-009 to match code and marks the approval record pending | False |
-| UNK-03 | Whether `mcp_servers` importing `rag.ingestion.document_manager` is acceptable layering | `.importlinter` has no contract against it, but its comment says `mcp_servers -> db, shared` | Run `lint-imports` in Phase 3; if it fails or the maintainer objects, move the helper to the `db` layer as a plan amendment | False |
-| UNK-04 | Whether `check_adr_structure.py` and the invariant matrix accept a gap after folding INV-09 into INV-04, and whether the index cites ADR-009 INV-04/INV-09 | The index excerpt cites INV-07 and INV-10; line 207 lists were not read in full | Run the ADR checkers after the edit; add `docs/10_adr/adr_01_index.md` through `tools/amend_plan.py` (fallout) if it needs an update | False |
-| UNK-05 | Maintainer approval statements for the ADR-005 and ADR-009 decision-text edits | Approvals are maintainer statements | Write marked pending records and report them (ledger plan tracks them) | False |
+| UNK-03 | Whether `mcp_servers` importing `rag.ingestion.document_manager` is acceptable layering | `.importlinter` has no contract against it, but its comment says `mcp_servers -> db, shared` | Run `lint-imports` in Phase 3; if it fails or the maintainer objects, move the helper to the `db` layer as a plan amendment  Resolved 2026-11-12: `lint-imports` reports 6 contracts kept, 0 broken; `rag_pipeline_server.py` / `rag_pipeline_service.py` already import `rag.*`. |
+| UNK-04 | Whether `check_adr_structure.py` and the invariant matrix accept a gap after folding INV-09 into INV-04, and whether the index cites ADR-009 INV-04/INV-09 | The index excerpt cites INV-07 and INV-10; line 207 lists were not read in full | Run the ADR checkers after the edit; add `docs/10_adr/adr_01_index.md` through `tools/amend_plan.py` (fallout) if it needs an update  Resolved 2026-11-12: the index cites only ADR-009 INV-07/INV-10; the checkers passed with INV-09 folded into INV-04 and no renumbering. |
+| UNK-05 | Maintainer approval statements for the ADR-005 and ADR-009 decision-text edits | Approvals are maintainer statements | Write marked pending records and report them (ledger plan tracks them)  2026-11-12: marked `Current Decision Approval (pending)` lines added to ADR-005 and ADR-009; no approval or reviewer name was written. |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -178,11 +178,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | MCP delete path through the shared helper (REQ-004, REQ-005) | In Progress | — | — |  |
-| 2 | Policy source and remediation standardization (REQ-001, REQ-002) | In Progress | — | — |  |
-| 3 | ADR-005 and db_07 alignment (REQ-002, REQ-003, REQ-004) | In Progress | — | — |  |
-| 4 | ADR-009 invariants and failure wording (REQ-006) | In Progress | — | — |  |
-| 5 | Deployment & Verification | Pending | — | — |  |
+| 1 | MCP delete path through the shared helper (REQ-004, REQ-005) | Completed | 2026-11-12 | 2026-11-12 | helper-usage tests red first, then green (2 tests added) |
+| 2 | Policy source and remediation standardization (REQ-001, REQ-002) | Completed | 2026-11-12 | 2026-11-12 | rag_05_07, security_01, rag_05_02 standardized; timed-out policy confirmed already present |
+| 3 | ADR-005 and db_07 alignment (REQ-002, REQ-003, REQ-004) | Completed | 2026-11-12 | 2026-11-12 | ADR-005 Decision 10/11 and startup bullet reworded with pending approval lines; db_07 confirmed no-op (already aligned) |
+| 4 | ADR-009 invariants and failure wording (REQ-006) | Completed | 2026-11-12 | 2026-11-12 | INV-09 folded into INV-04; Failure Conditions relabel; pending approval line added |
+| 5 | Deployment & Verification | Completed | 2026-11-12 | 2026-11-12 | Validation sequence green 2026-11-12 (preservation reports only the intended ADR-005/ADR-009 changes); handoff per Phase 5: change committed and pushed first; production deploy is the user's decision (approval gate), rag-pipeline-mcp restarts on deploy |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -192,13 +192,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261112-063813_01_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-063813_02_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-063813_03_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261112-063813_04_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261112-063813_05_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-063813_06_docs_21_rag_rag_05_02-execution-guide.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261112-063813_07_scripts_mcp_servers_rag_pipeline_document_manager.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261112-063813_01_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-063813_02_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261112-063813_03_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261112-063813_04_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261112-063813_05_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-063813_06_docs_21_rag_rag_05_02-execution-guide.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261112-063813_07_scripts_mcp_servers_rag_pipeline_document_manager.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

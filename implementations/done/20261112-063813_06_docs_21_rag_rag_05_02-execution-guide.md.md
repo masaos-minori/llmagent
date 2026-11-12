@@ -8,7 +8,7 @@ Standardize `rag_05_02`'s `orphan_vec_count > 0` remediation on `rebuild_vec`, m
 ## Assumptions
 - Line 72 currently reads: "`orphan_vec_count > 0` indicates a failure in the vec trigger. This can be fixed by re-running `ingester.py --force` for the affected URLs."
 - This row was missing from the issue's original target list and was discovered during verification.
-- Gated: `issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md` phase all — sequence this Plan after it.
+- Gate resolved 2026-11-12: the identity-gate removal landed (`b217f999b`); the frozen rmcompat001 Plan (`plans/20261112-115458_rmcompat001_rag-delegation-leftovers.md`) lists `rag_05_07` as a reference file only, not a target; `tools/plan_dependency_order.py` reports this Plan Ready with no gate.
 
 ## Design decisions
 - Replace "re-running `ingester.py --force`" with `rebuild_vec` (run `/session rag-rebuild-vec`) for the `orphan_vec_count > 0` finding.
@@ -54,13 +54,13 @@ Evidence checked: line 72. Leave the surrounding read-only-function notes intact
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - edits rag_05_07 wording it rewrites; sequence this Plan after it |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - sequence after it |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | rmcompat001 phase-all gate (`rag_05_07` startup-paragraph rewrite) | Yes | 2026-11-12 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

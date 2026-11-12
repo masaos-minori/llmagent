@@ -10,7 +10,7 @@ Bring ADR-005 into line with `rag_05_07`: set the `orphan_vec_count > 0` remedia
 - The startup-check paragraph (line 182) currently says "does not abort startup; a timeout or an unexpected failure of the check skips it".
 - Decision 11 (line 81) currently says "The MCP path issues the same statements itself rather than calling the shared helper".
 - Decision-text edits require a maintainer approval record in the same change (`governance_05`); the record is marked pending, never fabricated (`UNK-05`).
-- Gated: `issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md` phase all — sequence this Plan after it.
+- Gate resolved 2026-11-12: the identity-gate removal landed (`b217f999b`); the frozen rmcompat001 Plan (`plans/20261112-115458_rmcompat001_rag-delegation-leftovers.md`) lists `rag_05_07` as a reference file only, not a target; `tools/plan_dependency_order.py` reports this Plan Ready with no gate.
 
 ## Design decisions
 - Change Decision 10's `orphan_vec_count > 0` line to `rebuild_vec` (matching `rag_05_07`).
@@ -36,6 +36,7 @@ Evidence checked: line 79 ("re-ingest the target documents"), line 182 ("does no
 ### Details
 - The startup-check reword states current behavior (code warns and continues) without approving a fail-open ADR-004 does not allow (`UNK-01`).
 - Approval record is marked pending and reported, never written as a maintainer statement (`UNK-05`).
+- Verified 2026-11-12: the three evidence lines (79, 81, 182) match the current file. Record pattern (adrrev016 precedent): a clearly marked `Current Decision Approval (pending)` line in the ADR's Approval Record; approver, date, and scope are not recorded and no reviewer name is written. Overlap: `implementations/20261112-123653_04_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md` (adrrev016) adds its own separate pending line for Decision 8; different decisions, compatible.
 
 ## Compatibility considerations
 - N/A: ADR decision-text clarification; cross-checked against the invariant matrix and index.
@@ -60,13 +61,13 @@ Evidence checked: line 79 ("re-ingest the target documents"), line 182 ("does no
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - edits rag_05_07 wording it rewrites; sequence this Plan after it |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - sequence after it |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | rmcompat001 phase-all gate (`rag_05_07` startup-paragraph rewrite) | Yes | 2026-11-12 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

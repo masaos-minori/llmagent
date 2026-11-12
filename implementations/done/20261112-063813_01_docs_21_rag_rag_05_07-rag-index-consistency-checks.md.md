@@ -8,8 +8,8 @@ Make `rag_05_07` the single policy source for RAG index consistency findings: st
 ## Assumptions
 - Current line 94 reads "`rebuild_vec` ... (or `ingester.py --force`)"; the `(or \`ingester.py --force\`)` clause is the only place in this file that still offers it for this finding.
 - The dimension-mismatch startup behavior is a Fatal abort in `scripts/db/rag_consistency.py` / `scripts/agent/startup_validation.py`; ingest-time behavior skips the chunk and logs a warning.
-- `rag_05_07` is also edited by `issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md` (identity-gate wording) and `issues/20261110-170753_rmcompat003_rag-corpus-identity-decision.md` (corpus identity); this edit touches different sentences.
-- Gated: `issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md` phase all — this is the file rmcompat001 rewrites; sequence this Plan after it.
+- Verified 2026-11-12: `rag_05_07` no longer carries identity-gate wording (the removal landed as `b217f999b`), and the frozen rmcompat001 Plan lists it as a reference file only. `issues/20261110-170753_rmcompat003_rag-corpus-identity-decision.md` (corpus identity) touches other sentences; no overlap with this edit.
+- Gate resolved 2026-11-12: the identity-gate removal landed (`b217f999b`); the frozen rmcompat001 Plan (`plans/20261112-115458_rmcompat001_rag-delegation-leftovers.md`) lists `rag_05_07` as a reference file only, not a target; `tools/plan_dependency_order.py` reports this Plan Ready with no gate.
 
 ## Design decisions
 - Add two explicit statements to `rag_05_07`: one for ingest-time dimension mismatch (chunk skipped, warning logged) and one for startup (Fatal abort, startup stops). Do not change any severity.
@@ -33,6 +33,7 @@ Read the current severity table (lines 44-45) and the `orphan_vec_count > 0` row
 ### Details
 - Evidence checked: line 94 currently offers `(or \`ingester.py --force\`)`; lines 44-45 severity table; lines 22-26 startup handling.
 - No severity is changed (`vec != chunks` stays Degraded); only the remediation wording and the dimension-mismatch dimension are clarified.
+- Verified 2026-11-12: the failed/timed-out check already reads as the single policy (line 26: identity-unverified warning, startup continues), and the Fatal startup dimension-mismatch statements exist (lines 25, 45, 101); procedure step 2 is a confirmation, not an edit. The missing piece is the ingest-time dimension-mismatch statement.
 
 ## Compatibility considerations
 - N/A: documentation clarification only; no code or behavior change.
@@ -58,13 +59,13 @@ Read the current severity table (lines 44-45) and the `orphan_vec_count > 0` row
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - edits rag_05_07 startup paragraph it rewrites; sequence this Plan after it |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - sequence after it |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | rmcompat001 phase-all gate (`rag_05_07` startup-paragraph rewrite) | Yes | 2026-11-12 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -8,8 +8,8 @@ Route `DocumentManager.delete_document()` through the shared `delete_document_ch
 ## Assumptions
 - `self._make_helper().open(write_mode=True)` yields a `SQLiteHelper` matching the helper's `db` parameter type (`scripts/rag/ingestion/document_manager.py` line 18 signature).
 - The helper issues the two `DELETE` statements in the same order (`chunks_vec` before `documents`), so ADR-005 INV-02/INV-05 hold unchanged.
-- An `mcp_servers → rag` import is allowed: `.importlinter` forbids no such contract, though its comment records `mcp_servers → db, shared` (`UNK-03`; verify with `lint-imports`).
-- Gated: `issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md` phase all — this Plan edits `rag_05_07` wording that rmcompat001 rewrites; sequence this Plan after it to avoid a paragraph conflict.
+- An `mcp_servers → rag` import is allowed and verified 2026-11-12: the `.importlinter` contract list (`shared-is-leaf`, `db-only-uses-shared`, `rag-no-agent-or-mcp_servers`, `mcp_servers-no-agent`, `eventbus-is-isolated`, `agent-mcp-config-models`) forbids no such edge, and `rag_pipeline_server.py` / `rag_pipeline_service.py` already import `rag.*` (`UNK-03` resolved; `lint-imports` rerun in validation).
+- Gate resolved 2026-11-12: the identity-gate removal landed (`b217f999b`); the frozen rmcompat001 Plan (`plans/20261112-115458_rmcompat001_rag-delegation-leftovers.md`) lists `rag_05_07` as a reference file only, not a target; `tools/plan_dependency_order.py` reports this Plan Ready with no gate.
 
 ## Design decisions
 - Replace the two inline `db.execute("DELETE ...")` calls with one `delete_document_chain(db, doc_id)` call inside the existing `with ... as db:` block; keep the `SELECT doc_id` lookup and the final `db.commit()` untouched.
@@ -27,6 +27,7 @@ Route `DocumentManager.delete_document()` through the shared `delete_document_ch
 2. In `delete_document()`, replace the two inline `DELETE` statements with a single `delete_document_chain(db, doc_id)` call.
 3. Leave the `SELECT doc_id` lookup, the `with self._make_helper().open(write_mode=True) as db:` context, and the trailing `db.commit()` as-is.
 4. Write the companion test first and confirm it fails before the replacement.
+5. Update the module docstring `Dependency direction` line to include `rag.ingestion.document_manager`.
 
 ### Method
 `delete_document` spans lines 66-81: the `if row is None: return False` guard, then `db.execute("DELETE FROM chunks_vec WHERE chunk_id IN (...)")` followed by `db.execute("DELETE FROM documents WHERE doc_id = ?")`, then `db.commit()`. Substitute the two `execute` calls with one helper call passing the same `db` handle and the resolved `doc_id`.
@@ -62,14 +63,14 @@ Route `DocumentManager.delete_document()` through the shared `delete_document_ch
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - edits rag_05_07 wording it rewrites; sequence this Plan after it |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - sequence after it |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - sequence after it |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log); `delete_document()` now calls `delete_document_chain()`; docstring dependency line updated |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-12 | 2026-11-12 | 2 tests added (`test_delete_document_calls_shared_helper`, `test_delete_document_missing_url_skips_shared_helper`); red first, then green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-12 | 2026-11-12 | ruff format/check, mypy, bandit, mock-patch-targets, `lint-imports` (6 contracts kept), rag_pipeline + delete-chain tests green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | rmcompat001 phase-all gate (`rag_05_07` startup-paragraph rewrite) | Yes | 2026-11-12 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

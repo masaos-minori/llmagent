@@ -11,7 +11,7 @@ Resolve the overlapping invariant pair and the mismatched failure label in ADR-0
 - Stored chunks of a re-normalization-failed file are left unchanged (the failure precedes the force prune).
 - Folding INV-09 into INV-04 keeps the other invariant numbers stable; the index cites invariants by number (`UNK-04`).
 - Decision-text edits need a pending maintainer approval record, never fabricated (`UNK-05`).
-- Gated: `issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md` phase all — sequence this Plan after it.
+- Gate resolved 2026-11-12: the identity-gate removal landed (`b217f999b`); the frozen rmcompat001 Plan (`plans/20261112-115458_rmcompat001_rag-delegation-leftovers.md`) lists `rag_05_07` as a reference file only, not a target; `tools/plan_dependency_order.py` reports this Plan Ready with no gate.
 
 ## Design decisions
 - Delete INV-09 and fold its content into INV-04 (extend INV-04 to cover Markdown heading chunks explicitly). Do not renumber the remaining invariants.
@@ -33,6 +33,7 @@ Resolve the overlapping invariant pair and the mismatched failure label in ADR-0
 
 ### Method
 Evidence checked: INV-04 line 161, INV-09 line 166, Failure Policy lines 172-175. Confirm the ADR index (`docs/10_adr/adr_01_index.md`) cites INV-04/INV-09; if the merge leaves a dangling citation, add the index through `tools/amend_plan.py` (fallout, `UNK-04`).
+- Verified 2026-11-12: the index cites only ADR-009 INV-07 and INV-10, so folding INV-09 leaves no dangling citation (`UNK-04`; the checkers confirm). The cross-reference near line 187 ("see Fail-Fast Conditions") must be updated to the relabeled section name.
 
 ### Details
 - The relabel documents current code behavior; changing that behavior is out of scope.
@@ -61,13 +62,13 @@ Evidence checked: INV-04 line 161, INV-09 line 166, Failure Policy lines 172-175
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - edits rag_05_07 wording it rewrites; sequence this Plan after it |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - sequence after it |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | rmcompat001 phase-all gate (`rag_05_07` startup-paragraph rewrite) | Yes | 2026-11-12 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -6,10 +6,10 @@ Replace `db_07`'s startup-consistency bullet that asserts the check is skippable
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- Line 96 currently reads: "At startup, a failed RAG *logical* consistency check (unrelated to physical corruption) is treated as a non-critical, skippable finding and does not stop startup (`agent/startup.py`)."
+- Refuted by verification 2026-11-12: the startup-consistency bullet no longer reads "non-critical, skippable finding and does not stop startup"; it already names `rag_05_07` as the single severity policy and states that Fatal startup findings may abort startup. This procedure is a confirmed no-op; step 1 is a verification pass against the Completion criteria, with no file edit.
 - This bullet overlaps with ADR-005's startup-check claim, which this Plan also corrects.
 - `db_07` is also targeted by `plans/20261111-110144_adrrev017_docs-history-wording.md` and `plans/20261111-112439_adrrev019_docs-stale-statements.md`; this edit changes only the line-96 startup-consistency bullet.
-- Gated: `issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md` phase all — sequence this Plan after it.
+- Gate resolved 2026-11-12: the identity-gate removal landed (`b217f999b`); the frozen rmcompat001 Plan (`plans/20261112-115458_rmcompat001_rag-delegation-leftovers.md`) lists `rag_05_07` as a reference file only, not a target; `tools/plan_dependency_order.py` reports this Plan Ready with no gate.
 
 ## Design decisions
 - Reword the line-96 bullet to state what `db_07` owns (physical-corruption versus logical-consistency handling) and reference `rag_05_07` for severity and startup behavior, removing the assertion that the check "does not stop startup".
@@ -55,13 +55,13 @@ Evidence checked: line 96. Keep the surrounding physical-corruption context inta
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - edits rag_05_07 wording it rewrites; sequence this Plan after it |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261110-170632_rmcompat001_rag-delegation-leftovers.md phase all - sequence after it |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log); no-op verified 2026-11-12: the startup-consistency bullet already references `rag_05_07`; no file edit |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-12 | 2026-11-12 | Gate resolved 2026-11-12 (see Blocker Log) implemented 2026-11-12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | rmcompat001 phase-all gate (`rag_05_07` startup-paragraph rewrite) | Yes | 2026-11-12 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
