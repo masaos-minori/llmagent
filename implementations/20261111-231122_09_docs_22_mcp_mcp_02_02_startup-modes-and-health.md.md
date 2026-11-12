@@ -56,8 +56,8 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace line 83 with an ADR-017 pointer | Pending | — | — | |
-| 2 | Run `check_docs_consistency.py --domain mcp` (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace line 83 with an ADR-017 pointer | Completed | — | 20261112-050231 |  |
+| 2 | Run `check_docs_consistency.py --domain mcp` (`rules/toolchain.md`) | Completed | — | 20261112-050231 | check_docs_consistency --domain mcp: no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
