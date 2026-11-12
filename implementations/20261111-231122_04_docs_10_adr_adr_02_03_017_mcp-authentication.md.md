@@ -68,8 +68,8 @@ Delete the new ADR file; ADR-007 reverts to its out-of-scope line when row 05 is
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Draft ADR-017 with a pending maintainer approval record | Pending | — | — | Never invent an approver/date |
-| 2 | Run the ADR checkers (`rules/toolchain.md`) | Pending | — | — | `check_adr_structure.py`, `check_adr_authority.py` |
+| 1 | Draft ADR-017 with a pending maintainer approval record | Completed | — | 20261112-041300 | Never invent an approver/date new file docs/10_adr/adr_02_03_017_mcp-authentication.md; approval record pending per UNK-05 |
+| 2 | Run the ADR checkers (`rules/toolchain.md`) | Completed | — | 20261112-041300 | `check_adr_structure.py`, `check_adr_authority.py` check_adr_structure/reference/authority: no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
