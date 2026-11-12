@@ -24,5 +24,4 @@ embed_workers = 1
 # `strict` argument, so the Python default `strict=True` always applies regardless
 # of this setting. Re-add only alongside an implementation that reads it.
 
-# Base URL of the rag-pipeline MCP server for cache invalidation
-rag_pipeline_service_url = "http://127.0.0.1:8010"
+

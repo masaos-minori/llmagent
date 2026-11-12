@@ -41,7 +41,6 @@ def _make_cfg(**overrides):
         "sqlite_busy_timeout_ms": 5000,
         "embed_retry": 3,
         "embed_workers": 4,
-        "rag_pipeline_service_url": None,
         "mqe_prompt_template": "Expand query: {query}",
         "mqe_n_queries": 3,
         "rerank_prompt_template": "Rerank results for: {query}",
@@ -87,7 +86,6 @@ def test_returns_rag_config_impl_directly(mock_validator):
         sqlite_busy_timeout_ms=5000,
         embed_retry=3,
         embed_workers=4,
-        rag_pipeline_service_url=None,
         mqe_prompt_template="Expand query: {query}",
         mqe_n_queries=3,
         rerank_prompt_template="Rerank results for: {query}",
@@ -213,7 +211,6 @@ def _adapter_cfg(**overrides) -> SimpleNamespace:
         sqlite_vec_so="/opt/llm/sqlite-vec/vec0.so",
         embed_retry=3,
         embed_workers=4,
-        rag_pipeline_service_url=None,
         mqe_prompt_template="Expand query: {query}",
         rerank_prompt_template="Rerank results for: {query}",
     )

@@ -246,18 +246,17 @@ class StartupValidationPipeline:
             pipeline.add_warning(
                 "rag_consistency",
                 "RAG identity-unverified: consistency check timed out after 30s; "
-                "startup continues but the gate refuses fallback while unverified "
-                "(REQ-007).",
+                "startup continues with the corpus identity unverified.",
             )
         except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup;
-            # the unverified state is fail-closed at the gate (REQ-007), not here.
+            # the unverified state is fail-closed downstream, not here.
             category = _classify_rag_failure(exc)
             logger.warning("RAG consistency check failed: %s", exc)
             pipeline.add_warning(
                 "rag_consistency",
                 "RAG identity-unverified: "
-                f"{category} ({type(exc).__name__}): {exc}; startup continues but "
-                "the gate refuses fallback while unverified (REQ-007).",
+                f"{category} ({type(exc).__name__}): {exc}; startup continues "
+                "with the corpus identity unverified.",
             )
 
         return pipeline

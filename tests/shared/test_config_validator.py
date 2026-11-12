@@ -193,7 +193,12 @@ class TestRemovedRagDelegationKeys:
 
     @pytest.mark.parametrize(
         "key",
-        ["rag_query_service_url", "rag_auth_token", "rag_identity_mismatch_policy"],
+        [
+            "rag_query_service_url",
+            "rag_auth_token",
+            "rag_identity_mismatch_policy",
+            "rag_pipeline_service_url",
+        ],
     )
     def test_removed_rag_delegation_keys_are_rejected(self, key: str) -> None:
         result = self.validator.validate({key: "x"})
@@ -207,6 +212,7 @@ class TestRemovedRagDelegationKeys:
                 "rag_query_service_url": "http://x",
                 "rag_auth_token": "t",
                 "rag_identity_mismatch_policy": "reject",
+                "rag_pipeline_service_url": "http://y",
             }
         )
         assert len(result.errors) == 1
@@ -214,8 +220,11 @@ class TestRemovedRagDelegationKeys:
             "rag_query_service_url",
             "rag_auth_token",
             "rag_identity_mismatch_policy",
+            "rag_pipeline_service_url",
         ):
             assert key in result.errors[0]
 
     def test_config_without_removed_keys_stays_valid(self) -> None:
-        assert self.validator.validate({"rag_pipeline_service_url": "http://x"}).ok
+        result = self.validator.validate({})
+        assert result.ok is True
+        assert len(result.errors) == 0

@@ -75,7 +75,6 @@ def _make_ingester(
         "embed_url": embed_url,
         "embed_retry": 1,
         "embed_workers": 2,
-        "rag_pipeline_service_url": "",
     }
     return RagIngester(config=cfg)
 

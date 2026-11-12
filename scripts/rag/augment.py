@@ -51,7 +51,7 @@ class AugmentRefiner:
     @property
     def last_stage_results(self) -> list[StageResult]:
         """Return accumulated stage results."""
-        return getattr(self, "_last_stage_results", [])
+        return self._last_stage_results
 
     @last_stage_results.setter
     def last_stage_results(self, value: list[StageResult]) -> None:

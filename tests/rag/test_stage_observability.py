@@ -33,7 +33,6 @@ def _make_cfg(**overrides: object) -> SimpleNamespace:
         sqlite_busy_timeout_ms=5000,
         embed_retry=3,
         embed_workers=4,
-        rag_pipeline_service_url=None,
         mqe_prompt_template="Expand query: {query}",
         mqe_n_queries=3,
         rerank_prompt_template="Rerank results for: {query}",

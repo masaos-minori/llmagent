@@ -94,6 +94,7 @@ class RagConfigValidator:
                 "rag_query_service_url",
                 "rag_auth_token",
                 "rag_identity_mismatch_policy",
+                "rag_pipeline_service_url",
             )
         )
         found = [k for k in rag if k in removed_keys]

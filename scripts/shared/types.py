@@ -106,7 +106,6 @@ class RagConfig(Protocol):
     sqlite_busy_timeout_ms: int
     embed_retry: int
     embed_workers: int
-    rag_pipeline_service_url: str | None
     mqe_prompt_template: str
     mqe_n_queries: int
     rerank_prompt_template: str

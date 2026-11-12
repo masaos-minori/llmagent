@@ -120,7 +120,6 @@ class RagIngester:
         self._sqlite_busy_timeout_ms: int = int(
             cfg.get("sqlite_busy_timeout_ms", 30000)
         )
-        self._rag_pipeline_service_url: str = cfg.get("rag_pipeline_service_url", "")
         self._client = httpx.Client(timeout=60)
         # Extracted classes
         self._embedding_service = EmbeddingService(
@@ -134,14 +133,6 @@ class RagIngester:
     def close(self) -> None:
         """Close the underlying HTTP client."""
         self._client.close()
-
-    def __del__(self) -> None:
-        try:
-            client = getattr(self, "_client", None)
-            if client is not None:
-                client.close()
-        except OSError:
-            pass
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -389,26 +380,6 @@ class RagIngester:
         """Read and validate a chunk JSON file; returns ChunkDocument."""
         return read_chunk_json(path)  # type: ignore[no-any-return]  # — read_chunk_json() is correctly typed -> ChunkDocument; mypy loses this across the rag.* vs scripts.rag.* dual module-path resolution (see scripts/shared/tool_constants.py's confirmed duplicate-module-name issue)
 
-    def _log_ingest_failure(self, doc_id: int, path: Path, e: Exception) -> None:
-        """Log a chunk ingestion failure."""
-        chunk_url = ""
-        try:
-            chunk_data = read_chunk_json(path)
-            chunk_url = chunk_data.url or ""
-        except ChunkFormatError:
-            pass
-        logger.error(
-            "Failed to ingest %s: %s",
-            path,
-            e,
-            extra={
-                "doc_id": doc_id,
-                "url": chunk_url,
-                "source_type": "file",
-                "stage_name": "ingester",
-            },
-        )
-
     def commit_url_group(
         self,
         db: SQLiteHelper,
@@ -509,7 +480,10 @@ def main() -> None:
     args = parser.parse_args()
 
     ingester = RagIngester()
-    ingester.ingest_all(args.force)
+    try:
+        ingester.ingest_all(args.force)
+    finally:
+        ingester.close()
 
 
 if __name__ == "__main__":
