@@ -301,7 +301,7 @@ changed decision affects.
 
 An ADR records decisions, their rationale, the alternatives considered, and the core invariants with their verification. It does not replace a document class: no specification class exists, and the authority rules stay in ADR-015 and ADR-016, which an ADR references without restating.
 
-Every current-contract section of an ADR (Decision, Invariants, Failure Policy, Verification) must be complete without its Amendment, so a requirement that exists only in an Amendment is first moved into the current sections. An ADR Amendment is the one exception to the Current-Specification-Only Policy: it may remain as a record of rationale, marked either in force (it only records the rationale of text already in the current sections) or superseded (a historical record only).
+Every current-contract section of an ADR (Decision, Invariants, Failure Policy, Verification) must be complete on its own; an ADR holds no Amendment section, and history stays in version control.
 
 Content moves out of an ADR only when a maintenance benefit is demonstrated and the destination has exactly one authoritative owner; an essential safety or recovery guarantee stays in the ADR even when detailed.
 

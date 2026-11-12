@@ -91,14 +91,6 @@ This problem applies only to a process that delegates over HTTP. No production p
 
 14. Identity sources: the remote identity is parsed from the `corpus_identity` object of a successful response and is absent after a failed call, so it is always absent on the fallback path; the local identity is read from the local corpus metadata at fallback time. Both are evaluated per request, never cached, and the remote value is self-reported by the authenticated service and not independently verified.
 
-### Amendment (ragcorpus001, 2026-10-31)
-
-In force: this records the rationale of Decision Details item 11. It previously stated that result consistency between the external and local RAG "is not guaranteed" with no way to detect a divergence. The RAGCORPUS001 identity-contract plan replaced that with the detection contract now recorded as item 11: a fallback result is accepted only after the remote and local corpus identities are compared (`rag_05_07-rag-index-consistency-checks.md`); a mismatch between two present identities is enforced per `rag_identity_mismatch_policy` (`rag_05_01-configuration-reference.md`, `reject` default), while an unverifiable identity proceeds and is recorded. It is a detection contract, not corpus synchronization. The availability-first trade-off and the Alternative C rejection are unchanged. Adopted under the task-level approval decision referenced in this Approval Record and links `20261030-013620_ragcorpus001_rag-corpus-identity.md`.
-
-### Amendment (adrrag002, 2026-11-08)
-
-In force: this rewords INV-01, INV-04, INV-07, INV-09 and the pipeline-models Implementation Reference. No decision changed: INV-01 and the reference use the current key `rag_query_service_url`; INV-04 and INV-07 carry the item 13 fallback conditions (including `is_error=true` and a non-string `result`); INV-09 separates database sharing (a convention, not enforced), corpus identity (compared at fallback) and search-result equivalence (never promised). The earlier "not guaranteed, no detection" wording is superseded by the amendment above.
-
 ### Scope
 
 - **Target components**: `RagPipeline`, `AugmentRefiner`, `AugmentStage`, and the removed HTTP augment and remote call components

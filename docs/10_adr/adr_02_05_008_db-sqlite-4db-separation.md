@@ -70,10 +70,6 @@ Without an explicit safety contract, recovery across several SQLite files is dan
 
 ## Decision
 
-### Amendment (dbmig001, 2026-10-30)
-
-Historical, superseded 2026-11-07 (source compatrm001): plan dbmig001 had extended `workflow.sqlite` and `eventbus.sqlite` with forward-only migrations; that machinery was removed. Current policy: every database must match the current canonical schema at startup via the shared fingerprint; mismatched files are archived and recreated (see Context > Constraints). The separation decision, the per-DB responsibilities and the `rag.sqlite`/`session.sqlite` recreate policy are unchanged.
-
 ### Recovery Category Glossary
 
 - **initialization**: Creating a fresh, empty database or required schema when no valid database exists (`scripts/db/create_schema.py`; section 11 "DB Recreation Procedure").
@@ -362,7 +358,7 @@ See Implementation References for the current file/symbol list.
 - sqlite-vec is needed in a database other than `rag.sqlite` and `session.sqlite`
 - A store that is a system of record is added outside the four domains, mdq.sqlite starts holding data that cannot be rebuilt, or two domains are merged (a recovery policy must then be defined for it)
 - Persistent storage moves to something other than files
-- A migration mechanism is proposed again (the forward-only machinery was removed by compatrm001) or replicated storage is introduced
+- A schema migration mechanism is proposed for any of the four databases, or replicated storage is introduced
 - The backup strategy changes from periodic file copies to another method
 - An operator-restore trigger is proposed
 - The recovery policy for `workflow.sqlite`/`eventbus.sqlite` changes from manual handling to an automated path
@@ -384,7 +380,6 @@ See Implementation References for the current file/symbol list.
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-19, including the amendment of the sqlite-vec scope to `rag.sqlite` and `session.sqlite`; individual reviewer names are not recorded.
 - **Current Decision Approval (pending)**: Naming the `dlq_outbox` durable promotion record among the `eventbus.sqlite` contents in Decision Detail 4 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
-- **Amendment Approval Mapping**: the dbmig001 Amendment (2026-10-30, plan dbmig001; no separate approval named) and its supersession (2026-11-07, plan compatrm001, which required an approval record, now the ADR index entry) both postdate the 2026-10-19 coverage above; no per-amendment approval record exists beyond the index entry and the task-level decision.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

@@ -27,7 +27,7 @@ Describes the `db/` layer responsibilities, DB file separation, `DbConfig` bound
 
 ## 2. DB Layer Overall Structure
 
-`db/` separates connection lifecycle (`helper.py`), idempotent DDL creation (`create_schema.py`), store protocols and their SQLite implementations (`store_protocols.py`, `store_impl.py`, re-exported through `store.py`), and maintenance operations (`maintenance.py`: WAL checkpoint, VACUUM, purge, rotate, recover).
+`db/` separates connection lifecycle (`helper.py`), idempotent DDL creation (`create_schema.py`), store protocols and their SQLite implementations (`store_protocols.py`, `store_impl.py`), and maintenance operations (`maintenance.py`: WAL checkpoint, VACUUM, purge, rotate, recover).
 
 The `workflow` database is validated against the current schema at startup and health check; `eventbus.sqlite` is created and validated by the EventBus service and its own tool (`eventbus_06_persistence_schema_and_replay.md`). A database that does not match the current schema (shape mismatch against the canonical DDL by the shared fingerprint) is refused with an explicit error and never modified, archived, or deleted automatically; the operator archives the file and recreates it from the current canonical DDL. Automatic migration is not supported.
 
@@ -35,7 +35,7 @@ Four DB files exist; `rag.sqlite` and `session.sqlite` have their own path keys 
 
 A fifth store, `mcp_dedup.sqlite` (the dispatcher's `tool_call_state` dedup ledger, `scripts/shared/mcp_dedup.py` `DedupStore`), lives outside these four domains: it is a disposable cache owned by the shared MCP dispatcher, recreated after loss or corruption, and not backed up or served by `SQLiteHelper`. Its schema/dependency overview and lifecycle are in `db_03_07` and `db_08`.
 
-**Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers import contracts and helpers from `db.store_protocols` and SQLite implementations from `db.store_impl`; the `db.store` re-export facade was deleted (2026-11-07) and must not be reintroduced.
+**Import Boundaries:** For complete import rules, see [db_04 section 1a](db_04_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries). Callers import contracts and helpers from `db.store_protocols` and SQLite implementations from `db.store_impl`; there is no `db.store` re-export module; do not add one.
 
 ---
 

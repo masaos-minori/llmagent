@@ -55,10 +55,6 @@ This system executes tasks planned by the LLM. Some tools have side effects, som
 
 ## Decision
 
-### Amendment (wflease001, 2026-11-01)
-
-In force: this Amendment records the rationale of Decision Details item 11. The previous elapsed-time rule compared host-local timestamps (a timezone defect) and could steal a legitimately long-running attempt from a live owner, so "interrupted" was refined to lease expiry. The recover-as-`failed` outcome and the never-repairs-task-status guarantee of INV-07 are unchanged. It was adopted by plan wflease001.
-
 ### Decision Details
 
 1. The WorkflowEngine is mandatory. The workflow definition file is a mandatory deployment artifact. If it is missing or fails validation, Agent startup is aborted.

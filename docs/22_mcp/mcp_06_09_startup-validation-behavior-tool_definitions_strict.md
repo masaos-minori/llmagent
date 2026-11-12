@@ -33,7 +33,7 @@ Example: optional server discovery failed.
 Displayed via `write_warning()` with `[warn]` prefix.
 
 #### FATAL
-A critical issue that prevents normal operation. The system may be partially functional.
+A condition that prevents startup: startup is aborted after the checks of the failing stage complete (ADR-004).
 Displayed via `write_fatal()` with `[fatal]` prefix for visual distinction.
 Example: required server discovery failed.
 

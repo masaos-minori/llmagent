@@ -47,9 +47,8 @@ Contract details (all owned by `scripts/shared/mcp_dedup.py`):
   `ConfigParseError`.
 - Bootstrap: the store creates its own table and indexes on open (`CREATE TABLE IF NOT EXISTS`),
   stamps `PRAGMA user_version = 1` as its current schema-shape marker. There is no migration
-  registry: the former migration machinery was removed by the compatrm001 plan, so a future
-  schema change to this file
-  lands as a new canonical DDL and the file is archived and recreated (see Adoption Path below).
+  registry: a future schema change to this file lands as a new canonical DDL and the file is
+  archived and recreated (see Adoption Path below).
 - Concurrency: WAL journal mode, `PRAGMA busy_timeout` (default 5000 ms), `synchronous = NORMAL`,
   one held connection guarded by a `threading.Lock`, and every write runs under `BEGIN IMMEDIATE`.
   Cross-process writers rely on the busy timeout; a `sqlite3.Error` rolls back and is re-raised.
@@ -77,13 +76,11 @@ restarts, and a failed load is not cached.
 
 ## `tool_call_state` (workflow.sqlite); `execution_snapshots` retired
 
-The `execution_snapshots` table and the `tool_call_state.snapshot_id` foreign key were never written by any code path and are retired (wfaudit010). Fresh databases no longer create them; a legacy database that still carries the empty table fails startup under exact fingerprint matching and is archived and recreated by the operator.
+The `execution_snapshots` table and the `tool_call_state.snapshot_id` foreign key are never written by any code path and are retired. Fresh databases do not create them; a legacy database that still carries the empty table fails startup under exact fingerprint matching and is archived and recreated by the operator.
 
 `tool_call_state` lives in `workflow.sqlite`, defined in the canonical create-path DDL
-`db/schema_sql.py` and created at database creation. (Historical note: it was originally
-added by a per-database migration step that the compatrm001 plan later removed;
-fresh-created databases and the removed step produced byte-identical shapes, which is what the
-fingerprint gate compares against.) Column definitions (canonical DDL:
+`db/schema_sql.py` and created at database creation; the fingerprint gate compares the
+database shape against that canonical DDL. Column definitions (canonical DDL:
 `scripts/db/schema_sql.py::build_workflow_schema_sql`):
 
 - `tool_call_state`: `idempotency_key` (TEXT PK), `task_id` (TEXT NOT NULL),
@@ -142,8 +139,7 @@ Side notes:
 ## Adoption Path (Current-Only Policy)
 
 `mcp_dedup.sqlite` bootstraps with `CREATE TABLE IF NOT EXISTS` + `PRAGMA user_version`
-and carries no version ledger or migration step: the per-database migration mechanism
-established by dbmig001 was removed by the compatrm001 plan. A future schema change to this file lands as a new canonical DDL in
+and carries no version ledger or migration step. A future schema change to this file lands as a new canonical DDL in
 `scripts/shared/mcp_dedup.py`, and an existing file matching the previous shape is archived
 and recreated. Until such a change, recovery for this file is recreating it: the store is a
 disposable cache, and a fresh empty store only means the next call of each key runs for real.

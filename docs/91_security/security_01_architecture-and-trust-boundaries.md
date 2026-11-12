@@ -185,7 +185,7 @@ Prompt injection responsibility is distributed across layers:
 
 | Category | Impact | Recovery |
 |---|---|---|
-| MCP server unavailable | Capability unavailable | Automatic retry (subprocess), manual restart (persistent) |
+| MCP server unavailable | Capability unavailable | One startup retry, then restart on the next tool dispatch (subprocess); manual restart (persistent) |
 | MCP server degraded | Capability degraded | Operator intervention required |
 | Workflow schema missing | Agent startup fails | Run `bash deploy/init_db.sh` |
 | Workflow definition invalid | Agent startup fails | Fix JSON per validation error |

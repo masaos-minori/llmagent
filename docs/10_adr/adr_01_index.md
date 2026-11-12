@@ -45,23 +45,21 @@ This index records no deviations of its own. Open deviations are recorded in the
 | ADR-001 | Mandatory Workflow Engine | Accepted | 02 agent | `10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` |
 | ADR-002 | Per-Process Configuration Ownership and Config Isolation | Accepted | 01 platform | `10_adr/adr_02_01_002_platform-config-isolation.md` |
 | ADR-003 | RuntimeToolRegistry as the Sole Routing Authority | Accepted | 02 agent | `10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` |
-| ADR-004 | Failure Handling Policy Across Environments | Accepted (amended 2026-11-10: Group 7 and INV-09 applicability note) | 01 platform | `10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` |
+| ADR-004 | Failure Handling Policy Across Environments | Accepted | 01 platform | `10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` |
 | ADR-005 | Relationship Between RAG Canonical Data and Derived Indexes | Accepted | 06 rag | `10_adr/adr_02_06_005_rag-source-derived-index-relationships.md` |
-| ADR-006 | EventBus SQLite Persistence and SSE Delivery | Accepted (amended 2026-11-10: EventBus keep decision recorded) | 04 eventbus | `10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` |
+| ADR-006 | EventBus SQLite Persistence and SSE Delivery | Accepted | 04 eventbus | `10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` |
 | ADR-007 | Adoption of HTTP MCP and Non-Support of stdio | Accepted | 03 mcp | `10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md` |
-| ADR-008 | Separating SQLite into Four Databases | Accepted (amended 2026-10-30; superseded 2026-11-07: the forward-only migration contract for workflow/eventbus was removed — current-only schema policy) | 05 db | `10_adr/adr_02_05_008_db-sqlite-4db-separation.md` |
+| ADR-008 | Separating SQLite into Four Databases | Accepted | 05 db | `10_adr/adr_02_05_008_db-sqlite-4db-separation.md` |
 | ADR-009 | Separating RAG FTS5 Search Text from LLM Presentation Text | Accepted | 06 rag | `10_adr/adr_02_06_009_rag-fts5-text-separation.md` |
 | ADR-010 | In-Process Fallback When External RAG Execution Fails | Withdrawn | 06 rag | `10_adr/adr_02_06_010_rag-fallback.md` |
 | ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | 03 mcp | `10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md` |
-| ADR-013 | EventBus Authentication and Authorization | Accepted (amended 2026-11-10: caller model status recorded) | 04 eventbus | `10_adr/adr_02_04_013_eventbus-authentication-authorization.md` |
+| ADR-013 | EventBus Authentication and Authorization | Accepted | 04 eventbus | `10_adr/adr_02_04_013_eventbus-authentication-authorization.md` |
 | ADR-014 | Responsibility Boundaries of the Agent Control Plane | Accepted | 02 agent | `10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md` |
 | ADR-015 | Reference Document Class Disposition | Accepted | 07 docs | `10_adr/adr_02_07_015_docs-reference-document-class-disposition.md` |
 | ADR-016 | ADR Authority Model | Accepted | 07 docs | `10_adr/adr_02_07_016_adr-authority-model.md` |
 | ADR-017 | MCP Bearer Authentication | Accepted | 03 mcp | `10_adr/adr_02_03_017_mcp-authentication.md` |
 
 The number ADR-011 is unassigned: no ADR file carries it, and it is not referenced as a dependency by any ADR in this list.
-
-- ADR-008 (amended 2026-10-30, source dbmig001; superseded 2026-11-07, source compatrm001): the forward-only migrations adopted for `workflow.sqlite` and `eventbus.sqlite` were removed; all four databases now require the current canonical schema at startup, and mismatched files are archived and recreated. See the ADR-008 Amendment.
 
 ## ADR Dependency Graph
 

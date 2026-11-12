@@ -44,7 +44,7 @@ When routing from a Tool name to an MCP server happens through multiple paths, o
 - If both `ToolRegistry` (static definitions) and `RuntimeToolRegistry` (live Discovery) have routing authority, ownership of the same Tool name can conflict
 - If the `tool_names` list in a configuration file acts as a routing input, mismatches between configuration and Discovery results cause unexpected routing
 - Routing an unregistered Tool by inferring from naming conventions allows Security Controls to be bypassed
-- When multiple MCP servers expose the same Tool name, it becomes unclear which one to route to, regardless of Profile
+- When multiple MCP servers expose the same Tool name, it becomes unclear which one to route to
 - Tool definition existence, Discovery, LLM visibility, Routing ownership, static configuration-derived availability, dynamic server health, approval state, and execution eligibility are distinct concepts; when they are implicitly merged into a single "enabled/disabled" flag, code references the wrong concept, or documentation describes processing stages as filtering when they actually do not
 
 ### Constraints
@@ -74,7 +74,7 @@ When routing from a Tool name to an MCP server happens through multiple paths, o
 4. The static `ToolRegistry`, Tool name lists in configuration, and Tool definitions in the LLM Prompt are not used for runtime Routing.
 5. If static definitions are kept, they are limited to tests, expected values, and documentation generation.
 6. Unregistered Tools are not routed by inferring from naming conventions. There is no Fallback to the static Registry.
-7. When multiple MCP servers expose the same Tool name, startup fails regardless of Profile.
+7. When multiple MCP servers expose the same Tool name, startup fails.
 8. Safety Tier and Write attributes reference the same `RuntimeTool` in Routing, approval, and auditing.
 9. Registry updates are limited to policy application (`RuntimeToolRegistry.apply_policy()`), which builds a complete replacement mapping and installs it in a single assignment, so lookups never observe a partially updated Registry. (Explicit in code — `scripts/shared/runtime_tool_registry.py`)
 10. Defined, Discoverable, Owned, LLM-visible, Statically available, Dynamically available, Routable, Approved, and Executable are distinct concepts and are not merged, without distinction, into a single "enabled/disabled" flag.

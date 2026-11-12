@@ -39,9 +39,7 @@ re-derive it). The key is deterministic — `derive_idempotency_key(method, tool
 computes a sha256 over the method, tool name, canonical JSON of the arguments (sorted keys),
 and a caller-stable `uid` (the transport session id, falling back to the auth-token hash) —
 so an identical logical call re-derives the byte-identical key across retries, processes, and
-restarts. This replaces the previous per-call random key: before this change a retried or
-re-sent side-effecting call was invisible to server-side dedup because each attempt carried a
-fresh key.
+restarts, so a retried or re-sent side-effecting call is recognized by server-side dedup.
 
 Server side (`scripts/mcp_servers/dispatch.py`), a caller-supplied non-empty key takes
 precedence over any derived value (caller-key precedence). For side-effecting tools the key
