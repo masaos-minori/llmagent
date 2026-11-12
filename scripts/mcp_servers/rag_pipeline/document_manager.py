@@ -3,7 +3,7 @@
 
 Document management for rag_pipeline MCP service.
 
-Dependency direction: mcp_servers.rag_pipeline.document_manager → db.helper, shared.types
+Dependency direction: mcp_servers.rag_pipeline.document_manager → db.helper, rag.ingestion.document_manager, shared.types
 Import from here:  from mcp_servers.rag_pipeline.document_manager import DocumentManager
 """
 
@@ -12,6 +12,7 @@ from __future__ import annotations
 import sqlite3
 
 from db.helper import SQLiteHelper
+from rag.ingestion.document_manager import delete_document_chain
 
 from mcp_servers.rag_pipeline.rag_pipeline_models import (
     DocumentItem,
@@ -72,10 +73,6 @@ class DocumentManager:
             if row is None:
                 return False
             doc_id = row[0]
-            db.execute(
-                "DELETE FROM chunks_vec WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
-                (doc_id,),
-            )
-            db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+            delete_document_chain(db, doc_id)
             db.commit()
         return True

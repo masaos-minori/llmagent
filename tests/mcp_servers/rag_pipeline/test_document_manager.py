@@ -13,6 +13,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import mcp_servers.rag_pipeline.document_manager as document_manager
 import pytest
 from mcp_servers.rag_pipeline.document_manager import DocumentManager
 
@@ -291,3 +292,32 @@ class TestDeleteDocument:
 
         assert mgr.delete_document("https://example.com/a") is True
         assert mgr.delete_document("https://example.com/a") is False
+
+    def test_delete_document_calls_shared_helper(
+        self, rag_db: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[int] = []
+
+        def fake_helper(db: object, doc_id: int) -> None:
+            calls.append(doc_id)
+
+        monkeypatch.setattr(document_manager, "delete_document_chain", fake_helper)
+        mgr = DocumentManager(rag_db_path=rag_db)
+        doc_id = _insert_document(rag_db, url="https://example.com/a")
+
+        assert mgr.delete_document("https://example.com/a") is True
+        assert calls == [doc_id]
+
+    def test_delete_document_missing_url_skips_shared_helper(
+        self, rag_db: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[int] = []
+
+        def fake_helper(db: object, doc_id: int) -> None:
+            calls.append(doc_id)
+
+        monkeypatch.setattr(document_manager, "delete_document_chain", fake_helper)
+        mgr = DocumentManager(rag_db_path=rag_db)
+
+        assert mgr.delete_document("https://example.com/missing") is False
+        assert calls == []
