@@ -266,7 +266,34 @@ This table is the canonical, frozen source of implementation scope for this Plan
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261112-223151_01_docs_10_adr_adr_02_06_010_rag-fallback.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_02_scripts_rag_pipeline.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_03_scripts_rag_models_result.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_04_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_05_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_06_scripts_rag_ingestion_ingester.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_07_scripts_agent_services_rag_maintenance_service.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_08_scripts_rag_corpus_identity.py.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_09_scripts_rag_identity_gate.py.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_10_scripts_db_rag_consistency_queries.py.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_11_scripts_db_rag_consistency.py.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_12_scripts_db_models.py.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_13_scripts_db_schema_sql.py.md` | 8 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_14_tools_check_db_separation.py.md` | 8 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_15_scripts_agent_startup_validation.py.md` | 9 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_16_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md` | 9 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_17_docs_21_rag_rag_01_system_overview.md.md` | 9 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_18_docs_21_rag_rag_03_03_query_pipeline-context-and-diagnostics.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_19_docs_21_rag_rag_04_dto-models-types.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_20_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_23_tests_rag_ingestion_test_ingester_index_generation.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_24_tests_mcp_servers_rag_pipeline_test_rag_pipeline_server_identity.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_25_tests_mcp_servers_rag_pipeline_test_rag_pipeline_server_endpoints.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_28_tests_db_test_rag_consistency.py.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_31_tests_db_test_recovery_drill.py.md` | 8 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_32_tests_deploy_test_init_db_schema_gate.py.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_34_tests_agent_test_startup.py.md` | 9 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_35_tests_agent_test_startup_severity_classification.py.md` | 9 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -315,3 +342,5 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | REQ-010 | `rag_03_03...:41` | `docs/21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md` | 2 | AC-10 | docs checkers | Derived from confirmed evidence |
 | REQ-010 | `rag_04...:90` | `docs/21_rag/rag_04_dto-models-types.md` | 2 | AC-10 | docs checkers | Derived from confirmed evidence |
 | REQ-010 | `db_06...:50` | `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md` | 7 | AC-10 | docs checkers | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261112-223151 -->
