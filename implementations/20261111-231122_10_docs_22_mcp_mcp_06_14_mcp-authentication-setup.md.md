@@ -58,8 +58,8 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the "Missing secrets" Symptom and defer to ADR-017 | Pending | — | — | |
-| 2 | Run `check_docs_consistency.py --domain mcp` (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Correct the "Missing secrets" Symptom and defer to ADR-017 | Completed | — | 20261112-050312 |  |
+| 2 | Run `check_docs_consistency.py --domain mcp` (`rules/toolchain.md`) | Completed | — | 20261112-050312 | check_docs_consistency --domain mcp: no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
