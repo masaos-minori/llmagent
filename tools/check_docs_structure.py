@@ -125,10 +125,12 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # forward-only migration contract in Context > Constraints plus an Amendment
     # subsection and a realized Revisit Trigger (2026-10-30); the ceiling is
     # re-recorded to the accepted size.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 36197,
+    "adr_02_05_008_db-sqlite-4db-separation.md": 36570,
     # Re-accepted 2026-11-12, closing a pre-existing gap: the file had grown 34206 -> 36197
     # by 8ab061b3c (adrrev009 recovery alignment) without the ceiling being re-recorded.
     # Not part of adrrev011 scope; recorded here only to keep check_docs_structure.py green.
+    # Re-accepted 36570 (2026-11-12): adrrev014 doc 06 names the dlq_outbox durable
+    # promotion record in Decision Detail 4 and adds a pending approval line.
     # ADR-006 grew past MAX_SIZE by the EVENTBUS-008 resolution follow-up (2026-10-14):
     # the empty-mapping gap was resolved to deny-all and the superuser residual deviation
     # documented; base size was already 38 bytes under MAX_SIZE, so this necessary content
