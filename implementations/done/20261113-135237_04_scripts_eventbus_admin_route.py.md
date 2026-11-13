@@ -24,14 +24,15 @@ Delete the validator and every `topic_authorization` path, then replace the audi
 Text deletion plus one call-site replacement; the route registration and response shape are unchanged.
 ### Details
 - Delete `_validate_topic_authorization` (64-90) and its uses: the body-key read (137-141), the replacement entry (193-194), and the changed-count block (206-212).
+- Delete the `topic_authorization` loop in `_authorization_pairs` (97-98) (verified 2026-11-13; it was missing from this document — the loop raises AttributeError once row 01 removes the field, and it keeps the name in the file against AC-2).
 - Update the 422 empty-body text (128) to name only `consumer_authorization` (and note `expected_generation` is mandatory); update the docstring summary (107) to name only `consumer_authorization`.
 - Keep the `expected_generation` validation and the generation-conflict response (143-166) unchanged.
 - In the audit block (263-276): drop the `gen:` detail part (266), call `log_authorization_change` (row 03) with `previous_generation=current_gen.generation` and `new_generation=new_generation_number` as required kwargs, and keep `target="topics_authorization"` (271) and the remaining detail parts (REQ-004).
-- Update the import (12) to `log_authorization_change` alongside `log_privileged_action` if any non-generation call remains in this file.
+- Update the import (12) to `log_authorization_change`: verified 2026-11-13 — the only `log_privileged_action` call in this file is the audit block at 267, so the import is fully replaced (no `log_privileged_action` import remains).
 
 ### Companion test files
 - `tests/eventbus/test_admin_topics_authorization.py`
-  - Procedure: replace the `log_privileged_action` generation-kwarg assertions (397-414) with `log_authorization_change` assertions; drop the `gen:` detail assertion (208); add the every-record test asserting both generation fields on each authorization record; remove the `topic_authorization` request cases and assert the empty-body 422 names only `consumer_authorization` (610).
+  - Procedure (claims re-verified 2026-11-13): change every `patch("eventbus.admin_route.log_privileged_action")` (lines 194, 221, 254, 348, 405, 421) to `patch("eventbus.admin_route.log_authorization_change")`; the `gen:` detail assertion is the equality block at 206-209 (line 208 carries the suffix) — rewrite it to the suffix-free detail; the generation-kwarg assertions at 412-414 (class `TestAuditGenerationFields`, 396-429) move to the new function's kwargs; add the every-record test asserting both generation fields on each authorization record; remove the `topic_authorization` request case (fixture at 610) and assert the empty-body 422 names only `consumer_authorization` and `expected_generation`; reword the docstring at 190 that names `log_privileged_action`.
   - Validation: `uv run pytest tests/eventbus/test_admin_topics_authorization.py`
 
 ## Compatibility considerations
@@ -61,10 +62,10 @@ Text deletion plus one call-site replacement; the route registration and respons
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-13 | 2026-11-13 | — |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-13 | 2026-11-13 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-13 | 2026-11-13 | unit-2 targeted+full suites green; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-13 | 2026-11-13 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

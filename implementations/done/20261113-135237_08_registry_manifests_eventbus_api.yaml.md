@@ -23,7 +23,8 @@ Refresh the manifest with the generator after the source docstrings change.
 Run `uv run python tools/generate_reference_table.py --type eventbus`; verify with `--check`.
 ### Details
 - The endpoint entry summary (line 25: "Update `consumer_authorization`/`topic_authorization` at runtime and ...") is taken from `admin_route.py`'s docstring; it updates automatically once row 04 removes the second name.
-- Confirm the audit row signatures (from `audit.py`) reflect the new `log_authorization_change` and the trimmed `log_privileged_action` from row 03.
+- Confirm the audit row signatures (from `audit.py`) reflect the new `log_authorization_change` and the trimmed `log_privileged_action` from row 03. Verified 2026-11-13: the current manifest carries `log_privileged_action` at lines 45-46 with the generation kwargs in the signature; the generator will add a `log_authorization_change` row and trim this one.
+- Allowed-red note (verification 2026-11-13): between unit 1/2 completion and this row's regeneration, `generate_reference_table.py --check` is expected to report drift; treat it as an allowed transient state (Plan Phase 7 ordering), and run this row only after rows 01-07 (including row 03) have landed, then confirm `--check` is clean at the end-of-Phase-7 validation.
 - The generator reads `_ROUTE_ROLE_MAP` (`auth.py:75` via AST at `tools/generate_reference_table.py:572-574`); row 02 keeps it, so role columns are unchanged.
 
 ## Compatibility considerations
@@ -50,10 +51,10 @@ Run `uv run python tools/generate_reference_table.py --type eventbus`; verify wi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-13 | 2026-11-13 | generator --type eventbus --manifests run; --check clean |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-13 | 2026-11-13 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-13 | 2026-11-13 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-13 | 2026-11-13 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

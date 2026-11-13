@@ -22,14 +22,14 @@ Delete the topic-pair rebuild and count, then replace the sweep's audit call.
 ### Method
 Text deletion plus one call-site replacement.
 ### Details
-- In `_removal_config` (37-68): delete the `topic_authorization` rebuild (51-61) and the `topic_authorization=` constructor argument (67); keep the `consumer_authorization` rebuild.
-- In the sweep report (110-131): delete the topic-pair collection (117) and `counts["topic_authorization"]` (126).
+- In `_removal_config` (37-68): delete the `topic_authorization` rebuild (51-63; the procedure's original 51-61 was re-verified 2026-11-13 — the second dict comprehension ends at 63) and the `topic_authorization=` constructor argument (67); keep the `consumer_authorization` rebuild (40-50); reword the function docstring (38-39) — it says "dropping expired pairs from both authorization mappings" and must describe the single mapping.
+- In the sweep report (110-131): delete the `old_topic_pairs` collection block (115-119; original claim "117" is inside this block) and `counts["topic_authorization"]` (124-126).
 - Drop the `gen:` detail part (130) and call `log_authorization_change` (row 03) with `previous_generation=gen.generation` and `new_generation=new_gen.generation` as required kwargs (REQ-004); keep the `persistent:false` part (129) and the remaining detail assembly (128).
-- Update the import (17) accordingly.
+- Update the import (17) accordingly: verified 2026-11-13 — the only audit call in this file is at 131, so the import is fully replaced with `log_authorization_change`.
 
 ### Companion test files
 - `tests/eventbus/test_authz_generation_ttl.py`
-  - Procedure: drop the `topic_authorization` fixture entries (147-148); assert the sweep record's `previous_generation`/`new_generation` through `log_authorization_change` and assert no `gen:` in `detail` (310-320).
+  - Procedure (claims re-verified 2026-11-13; the original document had them swapped): the sweep-record assertions are patch-based — change `patch("eventbus.authz_ttl.log_privileged_action")` at 132, 165, and 203 to `log_authorization_change`, and the generation-kwarg assertions at 147-148 to the new function's kwargs; the `topic_authorization` fixture entries are at 310, 315, 320 (delete or convert to `consumer_authorization` entries); the startup-record patch at 269 targets `eventbus.app.log_privileged_action` and stays unchanged. There is currently no `gen:` detail assertion in this file (the original claim must not be implemented as a "replacement"); the no-`gen:` coverage lands in `test_admin_topics_authorization.py` and optionally as a new assertion here.
   - Validation: `uv run pytest tests/eventbus/test_authz_generation_ttl.py`
 
 ## Compatibility considerations
@@ -57,10 +57,10 @@ Text deletion plus one call-site replacement.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-13 | 2026-11-13 | — |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-13 | 2026-11-13 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-13 | 2026-11-13 | unit-2 targeted+full suites green; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-13 | 2026-11-13 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

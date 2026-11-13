@@ -14,7 +14,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from eventbus.audit import log_privileged_action
+from eventbus.audit import log_authorization_change
 from eventbus.auth import (
     AuthzGeneration,
     _build_principal_map,
@@ -35,8 +35,8 @@ def _expired_entries(
 
 
 def _removal_config(config: Any, expired_pairs: set[tuple[str, str]]) -> Any:
-    """Build the post-removal EventBusConfig, dropping expired pairs from both
-    authorization mappings and any mapping entry left empty."""
+    """Build the post-removal EventBusConfig, dropping expired pairs from the
+    authorization mapping and any mapping entry left empty."""
     consumer_authorization = {
         consumer_id: [
             topic for topic in topics if (consumer_id, topic) not in expired_pairs
@@ -48,23 +48,9 @@ def _removal_config(config: Any, expired_pairs: set[tuple[str, str]]) -> Any:
         for consumer_id, topics in consumer_authorization.items()
         if topics
     }
-    topic_authorization = {
-        topic: {
-            consumer_id
-            for consumer_id in consumer_ids
-            if (consumer_id, topic) not in expired_pairs
-        }
-        for topic, consumer_ids in (config.topic_authorization or {}).items()
-    }
-    topic_authorization = {
-        topic: consumer_ids
-        for topic, consumer_ids in topic_authorization.items()
-        if consumer_ids
-    }
     return dataclasses.replace(
         config,
         consumer_authorization=consumer_authorization,
-        topic_authorization=topic_authorization,
     )
 
 
@@ -112,23 +98,14 @@ def sweep_expired_authorizations(
         for consumer_id, topics in (gen.config.consumer_authorization or {}).items()
         for topic in topics
     }
-    old_topic_pairs = {
-        (consumer_id, topic)
-        for topic, consumer_ids in (gen.config.topic_authorization or {}).items()
-        for consumer_id in consumer_ids
-    }
     counts: dict[str, int] = {}
     removed_consumer = len(expired_pairs & old_consumer_pairs)
     if removed_consumer:
         counts["consumer_authorization"] = removed_consumer
-    removed_topic = len(expired_pairs & old_topic_pairs)
-    if removed_topic:
-        counts["topic_authorization"] = removed_topic
 
     detail_parts = [f"{name}:{count}" for name, count in counts.items()]
     detail_parts.append("persistent:false")
-    detail_parts.append(f"gen:{gen.generation}->{new_gen.generation}")
-    log_privileged_action(
+    log_authorization_change(
         consumer_id="system",
         request_id="",
         route="/ttl_sweep",

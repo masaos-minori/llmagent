@@ -300,7 +300,6 @@ class TestConsumerMappingConfigPath:
             'auth_token = "shared-auth-token"\n'
             'consumer_token = "consumer-token"\n'
             'consumer_authorization = { "c1" = ["topicA"] }\n'
-            'topic_authorization = { "topicA" = ["c1"] }\n'
         )
         cfg = eb_config.load_config(toml_path)
         assert cfg.consumer_authorization == {"c1": ["topicA"]}

@@ -129,7 +129,7 @@ class TestTTLExpirySweep:
         assert current_generation() is granted
 
         advance(3601)
-        with patch("eventbus.authz_ttl.log_privileged_action") as mock_log:
+        with patch("eventbus.authz_ttl.log_authorization_change") as mock_log:
             new_gen = sweep_expired_authorizations(gen_client.app, clock)
 
         assert new_gen is not None
@@ -162,7 +162,7 @@ class TestTTLExpirySweep:
         assert resp.status_code == 200
         granted = _require_generation()
         clock, _ = injectable_clock(start=resp.json()["effective_at"])
-        with patch("eventbus.authz_ttl.log_privileged_action") as mock_log:
+        with patch("eventbus.authz_ttl.log_authorization_change") as mock_log:
             assert sweep_expired_authorizations(gen_client.app, clock) is None
         assert mock_log.call_count == 0
         assert current_generation() is granted
@@ -200,7 +200,7 @@ class TestTTLExpirySweep:
         assert resp.status_code == 200
         granted = _require_generation()
         advance(3601)
-        with patch("eventbus.authz_ttl.log_privileged_action") as mock_log:
+        with patch("eventbus.authz_ttl.log_authorization_change") as mock_log:
             result = sweep_expired_authorizations(gen_client.app, clock)
 
         assert result is None
@@ -300,24 +300,20 @@ class TestRestartBaselineAudit:
 
 class TestBaselineHashInvariance:
     def test_permuted_pair_sets_hash_equal(self, tmp_path: Path) -> None:
-        """Plan Risk: the baseline hash is invariant to pair ordering and to
-        how the same pair set is split across the two mappings."""
+        """Plan Risk: the baseline hash is invariant to pair ordering in the mapping."""
         base = eventbus_test_config(tmp_path)
 
         cfg_a = dataclasses.replace(
             base,
             consumer_authorization={"c1": ["t1", "t2"]},
-            topic_authorization={},
         )
         cfg_b = dataclasses.replace(
             base,
             consumer_authorization={"c1": ["t2", "t1"]},
-            topic_authorization={},
         )
         cfg_c = dataclasses.replace(
             base,
-            consumer_authorization={"c1": ["t1"]},
-            topic_authorization={"t2": {"c1"}},
+            consumer_authorization={"c1": ["t1", "t2"]},
         )
         assert authorization_baseline_hash(cfg_a) == authorization_baseline_hash(cfg_b)
         assert authorization_baseline_hash(cfg_a) == authorization_baseline_hash(cfg_c)

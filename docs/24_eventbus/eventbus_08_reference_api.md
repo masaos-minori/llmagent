@@ -50,11 +50,13 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 | `scripts/eventbus/ack_route.py` | `authorize_event_pair` | `async def authorize_event_pair(request, db, principal, event_id, consumer_id) -> None` | Authorize the (consumer_id, event topic) pair before any delivery write. |
 |  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
 |  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
-| `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request, principal) -> dict[str, Any] \| JSONResponse` | Update `consumer_authorization`/`topic_authorization` at runtime and |
+| `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request, principal) -> dict[str, Any] \| JSONResponse` | Update `consumer_authorization` at runtime and |
 | `scripts/eventbus/app.py` | `lifespan` | `async def lifespan(app) -> AsyncGenerator[None]` | FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown. |
 | `scripts/eventbus/audit.py` | `AuditRecord` | `class AuditRecord` | Structured payload for one EventBus audit record. |
+|  | `AuthzChangeRecord` | `class AuthzChangeRecord` | Audit record for an authorization change; both generations are required. |
 |  | `log_auth_failure` | `def log_auth_failure(consumer_id, request_id, route, target, error_type, detail) -> None` | Emit one JSON-lines audit record for an authorization failure. |
-|  | `log_privileged_action` | `def log_privileged_action(consumer_id, request_id, route, target, detail, actor, *, previous_generation, new_generation) -> None` | Emit one JSON-lines audit record for a privileged action. |
+|  | `log_privileged_action` | `def log_privileged_action(consumer_id, request_id, route, target, detail, actor) -> None` | Emit one JSON-lines audit record for a privileged action. |
+|  | `log_authorization_change` | `def log_authorization_change(consumer_id, request_id, route, target, detail, actor, *, previous_generation, new_generation) -> None` | Emit one JSON-lines audit record for an authorization change. |
 | `scripts/eventbus/auth.py` | `Role` | `class Role` | — |
 |  | `Principal` | `class Principal` | Authenticated identity carrying roles, consumer grants, and token fingerprint. |
 |  | `AuthzGeneration` | `class AuthzGeneration` | Immutable authorization generation snapshot (EBAUTHGEN001). |

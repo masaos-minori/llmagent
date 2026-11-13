@@ -207,13 +207,13 @@ This table is the canonical, frozen source of implementation scope for this Plan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Single validation in `__post_init__` and its tests | In Progress | — | — |  |
-| 2 | Remove `topic_authorization` from the server code and `eventbus.toml` | In Progress | — | — | Release unit single-authorization-format with step 3 |
-| 3 | Remove it from the client and update tests | In Progress | — | — | Release unit single-authorization-format with step 2 |
-| 4 | Strict attribute reads and dead table in `auth.py` | In Progress | — | — |  |
-| 5 | Authorization-change audit function, constants, call sites | In Progress | — | — | Release unit authorization-audit-record with step 6 |
-| 6 | Audit tests | In Progress | — | — | Release unit authorization-audit-record with step 5 |
-| 7 | Documents and generated manifest | In Progress | — | — |  |
+| 1 | Single validation in `__post_init__` and its tests | Completed | 20261113-164012 | 20261113-164012 |  |
+| 2 | Remove `topic_authorization` from the server code and `eventbus.toml` | Completed | 20261113-164012 | 20261113-164012 | Release unit single-authorization-format with step 3 |
+| 3 | Remove it from the client and update tests | Completed | 20261113-164012 | 20261113-164012 | Release unit single-authorization-format with step 2 |
+| 4 | Strict attribute reads and dead table in `auth.py` | Completed | 20261113-164012 | 20261113-164012 |  |
+| 5 | Authorization-change audit function, constants, call sites | Completed | 20261113-164012 | 20261113-164012 | Release unit authorization-audit-record with step 6 |
+| 6 | Audit tests | Completed | 20261113-164012 | 20261113-164012 | Release unit authorization-audit-record with step 5 |
+| 7 | Documents and generated manifest | Completed | 20261113-164012 | 20261113-164012 | manifest regenerated; ADR-013, eventbus_07/03/08 updated; adr_006 WI-01 reword included |
 | 8 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log

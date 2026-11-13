@@ -26,7 +26,7 @@ auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
 # Each token grants only its own role:
 #   - publisher_token → PUBLISHER role (can publish events)
 #   - consumer_token → CONSUMER role (can subscribe, ack, nack); it requires
-#     consumer_authorization (and optionally topic_authorization) below
+#     consumer_authorization below
 #   - operator_token → OPERATOR role (can manage DLQ, replay)
 #   - monitoring_token → MONITORING role (can access /health)
 #   - admin_token → operator, monitoring, and admin roles (no publisher or consumer role)
@@ -36,21 +36,19 @@ operator_token = ""
 monitoring_token = ""
 admin_token = ""
 
-# Authorization mappings (optional, documentation example only — not active keys).
+# Authorization mapping (optional, documentation example only — not active keys).
 # consumer_token above requires consumer_authorization when set. Shape:
 #   consumer_authorization = { "<consumer_id>" = [ "<topic>", ... ] }
-#   topic_authorization      = { "<topic>" = [ "<consumer_id>", ... ] }
 # Example (replace placeholders; do not commit real values):
 # consumer_authorization = { "svc-checkout" = [ "orders/*", "inventory/*" ] }
-# topic_authorization      = { "orders/*"   = [ "svc-checkout", "svc-frontend" ] }
 
-# REQ-007: SSE lifecycle configuration
+# SSE lifecycle configuration
 # Heartbeat interval in seconds (default: 30.0)
 sse_heartbeat_interval = 30.0
 # Idle timeout in seconds (default: 60.0)
 sse_idle_timeout = 60.0
 
-# REQ-005: authorization TTL bounds
+# Authorization TTL bounds
 # Maximum ttl_seconds accepted by POST /admin/topics/authorization (seconds).
 authz_max_ttl_seconds = 86400
 # Interval between TTL expiry sweep cycles (seconds).

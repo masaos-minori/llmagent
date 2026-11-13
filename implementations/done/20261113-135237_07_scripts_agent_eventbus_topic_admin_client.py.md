@@ -23,13 +23,13 @@ Delete the parameter and its body entry.
 ### Method
 Signature and body edit; the request/response plumbing is otherwise unchanged.
 ### Details
-- Remove the `topic_authorization` parameter from `update_topics_authorization` (55-60).
-- Update the docstring (60-62) to describe `consumer_authorization` only.
-- Delete the `body["topic_authorization"]` assignment (66-67).
+- Remove the `topic_authorization` parameter from `update_topics_authorization` (signature 55-59; the parameter line is 58, verified 2026-11-13).
+- Update the docstring (60-63) to describe `consumer_authorization` only; the "Both parameters are optional" sentence at 62 must be reworded to a single parameter.
+- Delete the `body["topic_authorization"]` assignment (67-68; the procedure's original 66-67 was re-verified 2026-11-13 — the consumer assignment is at 65-66 and stays).
 
 ### Companion test files
 - `tests/agent/test_eventbus_topic_admin_client.py`
-  - Procedure: remove the `topic_authorization` cases (57, 65, 84); assert the posted body contains no `topic_authorization` key.
+  - Procedure (claims verified 2026-11-13): remove the `topic_authorization` cases (argument at 57, expected body entry at 65, and the `assert "topic_authorization" not in kwargs["json"]` at 84 — keep that final assertion pattern since it directly locks AC-2 for the client); the remaining tests (28, 39, 69, 89, 111, 126) already pass `consumer_authorization` only.
   - Validation: `uv run pytest tests/agent/test_eventbus_topic_admin_client.py`
 
 ## Compatibility considerations
@@ -56,10 +56,10 @@ Signature and body edit; the request/response plumbing is otherwise unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-13 | 2026-11-13 | client consumer-only; companion tests 6 passed |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-13 | 2026-11-13 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-13 | 2026-11-13 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-13 | 2026-11-13 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
