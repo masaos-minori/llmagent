@@ -1,36 +1,30 @@
 """scripts/eventbus/audit.py
 
-Structured audit logging helper for EventBus authorization failures and privileged actions.
-
-Mirrors scripts/mcp_servers/audit.py::AuditRecord's structured-fields style,
-reimplemented locally per the eventbus-is-isolated import-linter contract.
-
-Precedent: scripts/mcp_servers/audit.py::AuditRecord
+Structured audit logging helper for EventBus authorization failures,
+authorization changes, and privileged actions.
 
 Error Type Vocabulary
 ---------------------
-The ``error_type`` field carries a short identifier for the failure mode.
-Two vocabularies currently exist:
+The ``error_type`` field carries a lowercase-snake identifier for the failure
+mode, drawn from the module constants:
 
-1. ``mdq``: Python exception-class names (e.g., ``"MdqValidationError"``,
-   ``"MdqAuthorizationError"``). Source: ``type(exc).__name__``.
-2. ``web_search``: lowercase-snake identifiers (e.g., ``"validation_error"``,
-   ``"authorization_error"``, ``"timeout"``). Preferred for new code.
+1. ``AUTHENTICATION_FAILED``: the caller's credential check failed.
+2. ``AUTHORIZATION_FAILED``: an authenticated caller lacks the required role.
+3. ``CONSUMER_IDENTITY_REJECTED``: the consumer identity does not match the
+   credential's grants.
+4. ``TOPIC_AUTHORIZATION_REJECTED``: the caller's consumer grants do not
+   cover the requested topic.
 
-Recommendation: Adopt the ``web_search`` style for new MCP servers.
-Rationale: more stable across Python versions, more readable in log queries,
-and consistent with RFC 7807 Problem Details conventions.
-
-Successful privileged-action records carry ``error_type=""``.
+Successful privileged-action and authorization-change records carry
+``error_type=""``.
 
 Detail Field Semantics
 ----------------------
 The ``detail`` field (optional, ``NotRequired[str]``) contains machine-parseable
 key=value pairs when present. Never emit an empty string — omit the field entirely
-when there is nothing to report. Examples::
+when there is nothing to report. Example::
 
-    detail="duration_ms=42 result_count=5"
-    detail="latency_ms=120 query_preview='search term'"
+    detail="previous_generation=3 new_generation=4"
 """
 
 from __future__ import annotations
@@ -42,6 +36,11 @@ from typing import NotRequired, TypedDict
 import orjson
 
 logger = logging.getLogger(__name__)
+
+AUTHENTICATION_FAILED = "authentication_failed"
+AUTHORIZATION_FAILED = "authorization_failed"
+CONSUMER_IDENTITY_REJECTED = "consumer_identity_rejected"
+TOPIC_AUTHORIZATION_REJECTED = "topic_authorization_rejected"
 
 
 class AuditRecord(TypedDict):
@@ -58,8 +57,13 @@ class AuditRecord(TypedDict):
     error_type: str
     detail: NotRequired[str]
     actor: NotRequired[str]
-    previous_generation: NotRequired[int]
-    new_generation: NotRequired[int]
+
+
+class AuthzChangeRecord(AuditRecord):
+    """Audit record for an authorization change; both generations are required."""
+
+    previous_generation: int
+    new_generation: int
 
 
 def _build_audit_record(
@@ -81,7 +85,7 @@ def _build_audit_record(
         route: Route being accessed.
         target: Resource identifier (event_id, topic, etc.).
         outcome: One of "rejected", "allowed".
-        error_type: Failure-mode identifier (see module docstring for vocabularies).
+        error_type: Failure-mode identifier (see the module constants).
         detail: Optional key=value pairs (omit when empty).
     """
     record: AuditRecord = {
@@ -105,7 +109,7 @@ def log_auth_failure(
     request_id: str,
     route: str,
     target: str,
-    error_type: str = "authorization_failed",
+    error_type: str = AUTHORIZATION_FAILED,
     detail: str = "",
 ) -> None:
     """Emit one JSON-lines audit record for an authorization failure.
@@ -138,9 +142,6 @@ def log_privileged_action(
     target: str,
     detail: str = "",
     actor: str = "",
-    *,
-    previous_generation: int | None = None,
-    new_generation: int | None = None,
 ) -> None:
     """Emit one JSON-lines audit record for a privileged action.
 
@@ -151,12 +152,6 @@ def log_privileged_action(
         target: Resource identifier (event_id, topic, etc.).
         detail: Optional key=value pairs (omit when empty).
         actor: Non-secret token fingerprint of the acting principal.
-        previous_generation: Generation number in force before this action;
-            omitted from the record when None (EBAUTHGEN001, additive).
-        new_generation: Generation number published by this action; omitted
-            from the record when None.
-
-    The gen:<prev>-><new> detail suffix is composed by the callers, not here.
     """
     record = _build_audit_record(
         event="privileged_action",
@@ -170,8 +165,50 @@ def log_privileged_action(
     )
     if actor:
         record["actor"] = actor
-    if previous_generation is not None:
-        record["previous_generation"] = previous_generation
-    if new_generation is not None:
-        record["new_generation"] = new_generation
+    logger.info(orjson.dumps(record, option=orjson.OPT_SORT_KEYS).decode())
+
+
+def log_authorization_change(
+    consumer_id: str,
+    request_id: str,
+    route: str,
+    target: str,
+    detail: str = "",
+    actor: str = "",
+    *,
+    previous_generation: int,
+    new_generation: int,
+) -> None:
+    """Emit one JSON-lines audit record for an authorization change.
+
+    The record keeps the "privileged_action" event type and every audit key,
+    plus the two required generation fields.
+
+    Args:
+        consumer_id: Caller's consumer identity (if available).
+        request_id: Request identity for correlation.
+        route: Route being accessed.
+        target: Resource identifier (topic, etc.).
+        detail: key=value pairs (omit when empty).
+        actor: Non-secret token fingerprint of the acting principal.
+        previous_generation: Generation number in force before this change.
+        new_generation: Generation number published by this change.
+    """
+    base = _build_audit_record(
+        event="privileged_action",
+        consumer_id=consumer_id,
+        request_id=request_id,
+        route=route,
+        target=target,
+        outcome="allowed",
+        error_type="",
+        detail=detail,
+    )
+    record: AuthzChangeRecord = {
+        **base,
+        "previous_generation": previous_generation,
+        "new_generation": new_generation,
+    }
+    if actor:
+        record["actor"] = actor
     logger.info(orjson.dumps(record, option=orjson.OPT_SORT_KEYS).decode())

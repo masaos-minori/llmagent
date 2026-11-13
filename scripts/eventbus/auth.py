@@ -14,13 +14,16 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from eventbus.audit import log_auth_failure
+from eventbus.audit import (
+    AUTHENTICATION_FAILED,
+    AUTHORIZATION_FAILED,
+    CONSUMER_IDENTITY_REJECTED,
+    TOPIC_AUTHORIZATION_REJECTED,
+    log_auth_failure,
+)
 from eventbus.config import EventBusConfig, authorization_baseline_hash
 
 logger = logging.getLogger(__name__)
-
-# Precedent: scripts/mcp_servers/server.py::attach_auth_middleware()
-# Precedent: scripts/mcp_servers/audit.py::AuditRecord (mirrored conceptually)
 
 HTTPBearerDep = HTTPBearer(auto_error=False)
 
@@ -85,10 +88,6 @@ _ROUTE_ROLE_MAP: dict[str, set[Role]] = {
     "/admin/*": {Role.ADMIN},
 }
 
-# Consumer identity allowlist: consumer_id -> set of permitted topics
-# Populated from config at startup; empty means any consumer_id is valid for that caller
-_CONSUMER_ID_ALLOWLIST: dict[str, set[str]] = {}
-
 # The one AuthzGeneration in force; None until the lifespan publishes the baseline.
 _CURRENT_GENERATION: AuthzGeneration | None = None
 
@@ -141,7 +140,7 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
 
         return hashlib.sha256(token.encode()).hexdigest()[:16]
 
-    # Duplicate-non-empty-token guard (REQ-003): reject any two distinct token
+    # Duplicate-non-empty-token guard: reject any two distinct token
     # fields that share a non-empty value before the principal map is built. Name
     # the colliding fields only; never interpolate or log the values.
     seen: dict[str, list[str]] = {}
@@ -153,7 +152,7 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
         "monitoring_token",
         "admin_token",
     ):
-        value = getattr(config, field, None)
+        value = getattr(config, field)
         if value:
             seen.setdefault(value, []).append(field)
     for fields in seen.values():
@@ -171,40 +170,37 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
     # only the Operator, Monitoring, and Admin roles. They never hold the Consumer
     # role (ADR-013 INV-02/INV-07), so no superuser bypasses consumer identity or
     # topic authorization, and they carry no Publisher role either.
-    if hasattr(config, "auth_token") and config.auth_token:
+    if config.auth_token:
         new_map[config.auth_token] = Principal(
             roles=_CONTROL_PLANE_ROLES,
             consumer_grants=frozenset(),
             token_fingerprint=_fingerprint(config.auth_token),
         )
 
-    # consumer_authorization/topic_authorization are expanded into explicit
-    # (consumer_id, topic) pairs and granted to the CONSUMER-role token only; the
-    # config schema has no per-token consumer_id mapping. A pair is granted when
-    # either mapping lists it, so a consumer is never granted another consumer's topic.
-    consumer_authorization = getattr(config, "consumer_authorization", None)
-    topic_authorization = getattr(config, "topic_authorization", None)
+    # consumer_authorization is expanded into explicit (consumer_id, topic)
+    # pairs and granted to the CONSUMER-role token only; the config schema has
+    # no per-token consumer_id mapping, so a consumer is never granted another
+    # consumer's topic.
+    consumer_authorization = config.consumer_authorization
 
-    consumer_token = getattr(config, "consumer_token", None)
+    consumer_token = config.consumer_token
     if consumer_token and consumer_authorization is None:
         raise ValueError(
             "consumer_token is configured but consumer_authorization is missing. "
             "Add consumer_authorization to config/eventbus.toml before starting."
         )
 
-    # Both mappings empty yields frozenset() (deny-all), distinct from a missing
+    # An empty mapping yields frozenset() (deny-all), distinct from a missing
     # key, which still raises above.
     pairs: set[tuple[str, str]] = set()
     for consumer_id, consumer_topics in (consumer_authorization or {}).items():
         pairs.update((consumer_id, topic) for topic in consumer_topics)
-    for topic, consumer_ids in (topic_authorization or {}).items():
-        pairs.update((consumer_id, topic) for consumer_id in consumer_ids)
     consumer_grants = frozenset(pairs)
 
     # Each per-role token grants only its own role. Grants are attached only to a
     # principal holding the CONSUMER role; any other principal is bound to nothing.
     for field, role in _PER_ROLE_TOKEN_FIELDS:
-        token = getattr(config, field, None)
+        token = getattr(config, field)
         if not token:
             continue
         new_map[token] = Principal(
@@ -214,7 +210,7 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
         )
 
     # admin_token holds the same control-plane roles as auth_token and no Consumer role.
-    admin_token = getattr(config, "admin_token", None)
+    admin_token = config.admin_token
     if admin_token:
         new_map[admin_token] = Principal(
             roles=_CONTROL_PLANE_ROLES,
@@ -267,7 +263,7 @@ def current_generation() -> AuthzGeneration | None:
 
 def get_auth_token(config: Any) -> str:
     """Return the auth_token from EventBusConfig, or raise ValueError if missing."""
-    token = getattr(config, "auth_token", None)
+    token = config.auth_token
     if not token:
         raise ValueError(
             "auth_token is required but not configured. "
@@ -309,7 +305,7 @@ async def resolve_principal(
             request_id=request.state.request_id,
             route=request.url.path,
             target="token",
-            error_type="authentication_failed",
+            error_type=AUTHENTICATION_FAILED,
             detail="",
         )
         raise HTTPException(
@@ -346,7 +342,7 @@ def require_role(role: Role):
                 request_id=request.state.request_id,
                 route=request.url.path,
                 target=role.value,
-                error_type="authorization_failed",
+                error_type=AUTHORIZATION_FAILED,
                 detail="",
             )
             raise HTTPException(
@@ -378,7 +374,7 @@ def authorize_consumer_access(
             request_id=request.state.request_id,
             route=request.url.path,
             target=consumer_id,
-            error_type="consumer_identity_rejected",
+            error_type=CONSUMER_IDENTITY_REJECTED,
             detail="",
         )
         raise HTTPException(
@@ -396,7 +392,7 @@ def authorize_consumer_access(
             request_id=request.state.request_id,
             route=request.url.path,
             target=consumer_id,
-            error_type="consumer_identity_rejected",
+            error_type=CONSUMER_IDENTITY_REJECTED,
             detail="",
         )
         raise HTTPException(
@@ -418,7 +414,7 @@ def authorize_consumer_access(
                 request_id=request.state.request_id,
                 route=request.url.path,
                 target=topic,
-                error_type="topic_authorization_rejected",
+                error_type=TOPIC_AUTHORIZATION_REJECTED,
                 detail="",
             )
             raise HTTPException(

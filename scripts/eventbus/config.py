@@ -37,52 +37,17 @@ def _is_public_host(host: str) -> bool:
     return host not in ("127.0.0.1", "::1")
 
 
-def _validate_cross_field(cfg: EventBusConfig) -> None:
-    """Validate cross-field relationships after per-key validation passes."""
-    _validate_token_combinations(cfg)
-    _validate_deployment_mode(cfg)
-
-
-def _validate_token_combinations(cfg: EventBusConfig) -> None:
-    """Validate that required tokens are present based on enabled capabilities."""
-    has_any_token = bool(cfg.auth_token) or any(
-        [
-            cfg.publisher_token,
-            cfg.consumer_token,
-            cfg.operator_token,
-            cfg.monitoring_token,
-            cfg.admin_token,
-        ]
-    )
-
-    if not has_any_token:
-        raise ValueError("At least one authentication token must be configured")
-
-
-def _validate_deployment_mode(cfg: EventBusConfig) -> None:
-    """Validate deployment mode consistency."""
-    if _is_public_host(cfg.host):
-        raise ValueError(
-            f"Event Bus bound to non-loopback address {cfg.host} without "
-            "authentication configured; set auth_token or bind to loopback."
-        )
-    if not cfg.auth_token:
-        raise ValueError("auth_token is required but not configured")
-
-
 def authorization_baseline_hash(cfg: EventBusConfig) -> str:
     """Return a SHA-256 hex digest over the canonical authorization pair set.
 
     The digest covers only the union of (consumer_id, topic) pairs derived from
-    consumer_authorization and topic_authorization, never the whole config. Pairs
-    are canonically sorted before hashing, so the digest is invariant under any
-    permutation of either mapping (EBAUTHGEN001 AC-2).
+    consumer_authorization, never the whole config. Pairs are canonically sorted
+    before hashing, so the digest is invariant under any permutation of the
+    mapping (EBAUTHGEN001 AC-2).
     """
     pairs: set[tuple[str, str]] = set()
     for consumer_id, consumer_topics in (cfg.consumer_authorization or {}).items():
         pairs.update((consumer_id, topic) for topic in consumer_topics)
-    for topic, consumer_ids in (cfg.topic_authorization or {}).items():
-        pairs.update((consumer_id, topic) for consumer_id in consumer_ids)
     canonical = json.dumps(sorted(pairs))
     return hashlib.sha256(canonical.encode()).hexdigest()
 
@@ -118,7 +83,6 @@ class EventBusConfig:
     consumer_authorization: dict[str, list[str]] | None = (
         None  # consumer_id -> [topics]
     )
-    topic_authorization: dict[str, set[str]] | None = None  # topic -> [consumer_ids]
     sse_heartbeat_interval: float = 30.0
     sse_idle_timeout: float = (
         60.0  # Default matches current implicit DEFAULT_SSE_IDLE_TIMEOUT
@@ -144,8 +108,8 @@ class EventBusConfig:
             raise ValueError(f"max_retry must be >= 1, got {self.max_retry}")
         if _is_public_host(self.host):
             raise ValueError(
-                f"Event Bus bound to non-loopback address {self.host} without "
-                "authentication configured; set auth_token or bind to loopback."
+                f"Event Bus bound to non-loopback address {self.host}; "
+                "only loopback addresses (127.0.0.1, ::1) are allowed."
             )
         if not self.auth_token:
             raise ValueError("auth_token is required but not configured")
@@ -219,23 +183,6 @@ class EventBusConfig:
                             f"consumer_authorization topic must be string, got {type(topic).__name__}"
                         )
 
-        # Validate topic_authorization if provided
-        if self.topic_authorization is not None:
-            for topic, consumers in self.topic_authorization.items():
-                if not isinstance(topic, str):
-                    raise ValueError(
-                        f"topic_authorization key must be string, got {type(topic).__name__}"
-                    )
-                if not isinstance(consumers, (list, set)):
-                    raise ValueError(
-                        f"topic_authorization value must be list/set, got {type(consumers).__name__}"
-                    )
-                for consumer_id in consumers:
-                    if not isinstance(consumer_id, str):
-                        raise ValueError(
-                            f"topic_authorization consumer_id must be string, got {type(consumer_id).__name__}"
-                        )
-
 
 _KNOWN_CONFIG_KEYS = frozenset(
     (
@@ -263,7 +210,6 @@ _KNOWN_CONFIG_KEYS = frozenset(
         "subscriber_count",
         "publish_rate",
         "consumer_authorization",
-        "topic_authorization",
         "authz_max_ttl_seconds",
         "authz_sweep_interval_seconds",
     )
@@ -374,20 +320,11 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         if isinstance(value, str):
             data[key] = resolve_env_ref(value)
 
-    # Validate auth_token is non-empty
-    if not data["auth_token"]:
-        raise ValueError("eventbus config 'auth_token' must not be empty.")
-
     # Normalize authorization-mapping value types to the EventBusConfig annotations
-    # (REQ-002): topic_authorization values become set[str]; consumer_authorization
-    # values stay list[str]. A missing key stays None so the empty-vs-missing
-    # distinction build_and_publish_generation() depends on is preserved.
+    # (REQ-002): consumer_authorization values stay list[str]. A missing key stays
+    # None so the empty-vs-missing distinction build_and_publish_generation()
+    # depends on is preserved.
     consumer_authorization = data.get("consumer_authorization")
-    topic_authorization = data.get("topic_authorization")
-    if topic_authorization is not None:
-        topic_authorization = {
-            topic: set(consumers) for topic, consumers in topic_authorization.items()
-        }
 
     cfg = EventBusConfig(
         port=data["port"],
@@ -406,7 +343,6 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         monitoring_token=data.get("monitoring_token", ""),
         admin_token=data.get("admin_token", ""),
         consumer_authorization=consumer_authorization,
-        topic_authorization=topic_authorization,
         sse_heartbeat_interval=float(data.get("sse_heartbeat_interval", 30.0)),
         sse_idle_timeout=float(data.get("sse_idle_timeout", 60.0)),
         slow_consumer_threshold=int(data.get("slow_consumer_threshold", 100)),
@@ -420,7 +356,5 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         outbox_backoff_base_seconds=int(data.get("outbox_backoff_base_seconds", 30)),
         outbox_backoff_max_seconds=int(data.get("outbox_backoff_max_seconds", 900)),
     )
-
-    _validate_cross_field(cfg)
 
     return cfg

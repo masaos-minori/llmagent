@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from eventbus.audit import log_privileged_action
+from eventbus.audit import log_authorization_change
 from eventbus.auth import (
     AuthzGeneration,
     Principal,
@@ -61,41 +61,11 @@ def _changed_count[T](old: dict[str, T], new: dict[str, T]) -> int:
     return sum(1 for k in set(old) | set(new) if old.get(k) != new.get(k))
 
 
-def _validate_topic_authorization(value: Any) -> dict[str, list[str]]:
-    """Validate a `topic_authorization` value per EventBusConfig's own rules:
-    string keys, list/set values of strings.
-    """
-    if not isinstance(value, dict):
-        raise HTTPException(
-            status_code=422, detail="topic_authorization must be an object"
-        )
-    for topic, consumer_ids in value.items():
-        if not isinstance(topic, str):
-            raise HTTPException(
-                status_code=422,
-                detail=f"topic_authorization key must be string, got {type(topic).__name__}",
-            )
-        if not isinstance(consumer_ids, (list, set)):
-            raise HTTPException(
-                status_code=422,
-                detail=f"topic_authorization value must be list/set, got {type(consumer_ids).__name__}",
-            )
-        for consumer_id in consumer_ids:
-            if not isinstance(consumer_id, str):
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"topic_authorization consumer_id must be string, got {type(consumer_id).__name__}",
-                )
-    return value
-
-
 def _authorization_pairs(cfg: Any) -> set[tuple[str, str]]:
-    """Return the union of (consumer_id, topic) pairs a config grants."""
+    """Return the set of (consumer_id, topic) pairs a config grants."""
     pairs: set[tuple[str, str]] = set()
     for consumer_id, consumer_topics in (cfg.consumer_authorization or {}).items():
         pairs.update((consumer_id, topic) for topic in consumer_topics)
-    for topic, consumer_ids in (cfg.topic_authorization or {}).items():
-        pairs.update((consumer_id, topic) for consumer_id in consumer_ids)
     return pairs
 
 
@@ -104,7 +74,7 @@ async def update_topics_authorization(
     request: Request,
     principal: Principal = Depends(require_role(Role.ADMIN)),
 ) -> dict[str, Any] | JSONResponse:
-    """Update `consumer_authorization`/`topic_authorization` at runtime and
+    """Update `consumer_authorization` at runtime and
     publish the result as a new AuthzGeneration (EBAUTHGEN001).
 
     Validates the request body fully before mutating any state, so an
@@ -125,19 +95,13 @@ async def update_topics_authorization(
     if not body:
         raise HTTPException(
             status_code=422,
-            detail="request body must contain at least one of: consumer_authorization, topic_authorization",
+            detail="request body must contain consumer_authorization (expected_generation is mandatory)",
         )
 
     new_consumer_authorization = None
     if "consumer_authorization" in body:
         new_consumer_authorization = _validate_consumer_authorization(
             body["consumer_authorization"]
-        )
-
-    new_topic_authorization = None
-    if "topic_authorization" in body:
-        new_topic_authorization = _validate_topic_authorization(
-            body["topic_authorization"]
         )
 
     # expected_generation is mandatory and must be a plain integer (REQ-002)
@@ -190,8 +154,6 @@ async def update_topics_authorization(
     replacements: dict[str, Any] = {}
     if new_consumer_authorization is not None:
         replacements["consumer_authorization"] = new_consumer_authorization
-    if new_topic_authorization is not None:
-        replacements["topic_authorization"] = new_topic_authorization
 
     # Determine if the update is a no-op by comparing against current config
     changed = False
@@ -203,13 +165,6 @@ async def update_topics_authorization(
             counts["consumer_authorization"] = _changed_count(
                 current, new_consumer_authorization
             )
-    if new_topic_authorization is not None:
-        # Convert list values to sets for comparison (config stores set[str])
-        new_as_sets = {t: set(cids) for t, cids in new_topic_authorization.items()}
-        current = config.topic_authorization or {}
-        if new_as_sets != current:
-            changed = True
-            counts["topic_authorization"] = _changed_count(current, new_as_sets)
 
     if not changed:
         logger.info("admin: topics authorization no-op; nothing published")
@@ -260,11 +215,10 @@ async def update_topics_authorization(
 
     logger.info("admin: topics authorization updated")
 
-    # Emit privileged-action audit record for effective changes
+    # Emit authorization-change audit record for effective changes
     detail_parts = [f"{name}:{count}" for name, count in counts.items()]
     detail_parts.append("persistent:false")
-    detail_parts.append(f"gen:{current_gen.generation}->{new_generation_number}")
-    log_privileged_action(
+    log_authorization_change(
         consumer_id="admin",
         request_id=request.state.request_id,
         route="/admin/topics/authorization",

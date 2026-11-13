@@ -55,17 +55,14 @@ class EventBusTopicAdminClient:
     async def update_topics_authorization(
         self,
         consumer_authorization: dict[str, list[str]] | None = None,
-        topic_authorization: dict[str, list[str]] | None = None,
     ) -> EventBusTopicAdminResult:
-        """Update consumer_authorization/topic_authorization on Event Bus.
+        """Update consumer_authorization on Event Bus.
 
-        Both parameters are optional — omit one to leave it unchanged.
+        The parameter is optional — omit it to leave the mapping unchanged.
         """
         body: dict[str, object] = {}
         if consumer_authorization is not None:
             body["consumer_authorization"] = consumer_authorization
-        if topic_authorization is not None:
-            body["topic_authorization"] = topic_authorization
 
         headers = {"Authorization": f"Bearer {self._config.admin_token}"}
         try:
