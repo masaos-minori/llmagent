@@ -193,12 +193,12 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove `deadletter_dir` from promotion and sweep, remove the unreachable handler, update tests | In Progress | — | — |  |
-| 2 | Reduce `RequeueResult` and its test assertions | In Progress | — | — |  |
-| 3 | Remove `dlq_requeue_count` and `consumer_id` (schema, writes, reads, constants, tests) | In Progress | — | — |  |
-| 4 | Use the public Counter API and fix the shebang | In Progress | — | — |  |
-| 5 | Update the documents, regenerate the reference block and manifest | In Progress | — | — |  |
-| 6 | Deployment hand-off and verification | Pending | — | — |  |
+| 1 | Remove `deadletter_dir` from promotion and sweep, remove the unreachable handler, update tests | Completed | — | 20261114-004959 | rows 01-03 executed 2026-11-13/14 (dlq.py, ack_route.py, app.py); targeted tests pass |
+| 2 | Reduce `RequeueResult` and its test assertions | Completed | — | 20261114-004959 | row 04 executed; RequeueResult reduced to status/new_event_id/new_seq |
+| 3 | Remove `dlq_requeue_count` and `consumer_id` (schema, writes, reads, constants, tests) | Completed | — | 20261114-005000 | rows 05-08 executed; column reads/writes/constants removed and events DDL dropped both columns (fingerprint-gate hand-off recorded) |
+| 4 | Use the public Counter API and fix the shebang | Completed | — | 20261114-005000 | row 07 executed; public Counter API used, pseudo-shebang deleted |
+| 5 | Update the documents, regenerate the reference block and manifest | Completed | — | 20261114-005000 | rows 09-14,16-18 executed; manifest+reference block regenerated (delta: two dlq.py signatures), docs updated, all 18 procedures archived |
+| 6 | Deployment hand-off and verification | Pending | — | — | operator hand-off (UNK-01): deployed eventbus.sqlite must be archived and recreated; deployment timing is a maintainer decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
