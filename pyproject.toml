@@ -144,6 +144,7 @@ addopts = "-v --tb=short"
 asyncio_mode = "auto"
 markers = [
     "integration: integration tests that start real subprocesses (deselect with -m 'not integration')",
+    "repo_scan: tests that scan the whole repository (iteration runs deselect them with -m 'not repo_scan')",
 ]
 
 [tool.coverage.run]
