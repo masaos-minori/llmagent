@@ -293,7 +293,7 @@ entries:
 - file: scripts/eventbus/dlq.py
   kind: function
   name: sweep_orphans
-  signature: def sweep_orphans(db, deadletter_dir, max_retry) -> int
+  signature: def sweep_orphans(db, max_retry) -> int
   summary: Sweep events that meet the promotion rule but were not promoted inline.
 - file: scripts/eventbus/dlq.py
   kind: function
@@ -303,8 +303,7 @@ entries:
 - file: scripts/eventbus/dlq.py
   kind: function
   name: promote_single
-  signature: def promote_single(db, deadletter_dir, event_id, consumer_failure_count)
-    -> bool
+  signature: def promote_single(db, event_id, consumer_failure_count) -> bool
   summary: Promote one event to DLQ immediately (inline on nack threshold).
 - file: scripts/eventbus/dlq.py
   kind: async function
