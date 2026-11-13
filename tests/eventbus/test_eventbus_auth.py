@@ -18,6 +18,12 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from eventbus.audit import (
+    AUTHENTICATION_FAILED,
+    AUTHORIZATION_FAILED,
+    CONSUMER_IDENTITY_REJECTED,
+    TOPIC_AUTHORIZATION_REJECTED,
+)
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
@@ -872,7 +878,6 @@ class TestFailClosedConsumerAuthorization:
             admin_token="admin-token",
             consumer_token="consumer-token",
             consumer_authorization={"consumer-a": ["topic-a"]},
-            topic_authorization={},
         )
         build_and_publish_generation(cfg)
         mock_request = MagicMock()
@@ -928,7 +933,6 @@ class TestFailClosedConsumerAuthorization:
             auth_token="shared-token",
             consumer_token=token,
             consumer_authorization={},
-            topic_authorization={},
         )
         build_and_publish_generation(cfg)
         principal = current_principals()[token]
@@ -972,7 +976,6 @@ class TestFailClosedConsumerAuthorization:
             auth_token="shared-token",
             consumer_token=token,
             consumer_authorization={"consumer_a": ["test"], "consumer_b": ["test"]},
-            topic_authorization={"test": {"consumer_a", "consumer_b"}},
         )
         build_and_publish_generation(cfg)
         principal = current_principals()[token]
@@ -1055,7 +1058,7 @@ class TestAuditRecordValidation:
         assert "outcome" in audit_record
         assert "error_type" in audit_record
 
-        assert audit_record["error_type"] == "authentication_failed"
+        assert audit_record["error_type"] == AUTHENTICATION_FAILED
         assert audit_record["outcome"] == "rejected"
 
         assert "invalid-token" not in str(audit_record)
@@ -1091,7 +1094,7 @@ class TestAuditRecordValidation:
         assert "outcome" in audit_record
         assert "error_type" in audit_record
 
-        assert audit_record["error_type"] == "authorization_failed"
+        assert audit_record["error_type"] == AUTHORIZATION_FAILED
         assert audit_record["outcome"] == "rejected"
 
         assert "publisher-token" not in str(audit_record)
@@ -1127,7 +1130,7 @@ class TestAuditRecordValidation:
         assert "outcome" in audit_record
         assert "error_type" in audit_record
 
-        assert audit_record["error_type"] == "consumer_identity_rejected"
+        assert audit_record["error_type"] == CONSUMER_IDENTITY_REJECTED
         assert audit_record["outcome"] == "rejected"
 
         assert "consumer-token" not in str(audit_record)
@@ -1163,7 +1166,7 @@ class TestAuditRecordValidation:
         assert "outcome" in audit_record
         assert "error_type" in audit_record
 
-        assert audit_record["error_type"] == "topic_authorization_rejected"
+        assert audit_record["error_type"] == TOPIC_AUTHORIZATION_REJECTED
         assert audit_record["outcome"] == "rejected"
 
         assert "consumer-token" not in str(audit_record)
@@ -1251,6 +1254,7 @@ class TestAuditRecordValidation:
         audit_record = privileged_records[-1]
         assert audit_record["previous_generation"] == before.generation
         assert audit_record["new_generation"] == before.generation + 1
+        assert "gen:" not in audit_record.get("detail", "")
 
         for token_value in (
             self.cfg.auth_token,
@@ -1514,7 +1518,6 @@ class TestDuplicateTokenBinding:
             monitoring_token="monitoring-token",
             admin_token="admin-token",
             consumer_authorization={"consumer_a": ["test"]},
-            topic_authorization={"test": {"consumer_a"}},
         )
         build_and_publish_generation(cfg)
         assert current_principals()["auth-token"].roles == frozenset(

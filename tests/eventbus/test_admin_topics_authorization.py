@@ -187,11 +187,11 @@ class TestAdminGating:
         assert data["changed"] is False
 
     def test_audit_emitted_on_effective_change(self, admin_client: TestClient) -> None:
-        """Effective change emits one redacted log_privileged_action; no-op emits none."""
+        """Effective change emits one redacted log_authorization_change; no-op emits none."""
         from unittest.mock import patch
 
         before = _require_generation()
-        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+        with patch("eventbus.admin_route.log_authorization_change") as mock_log:
             resp = post_topics_authorization(
                 admin_client,
                 {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
@@ -205,8 +205,10 @@ class TestAdminGating:
             assert call_args.kwargs["target"] == "topics_authorization"
             assert (
                 call_args.kwargs["detail"]
-                == f"consumer_authorization:1;persistent:false;gen:{before.generation}->{before.generation + 1}"
+                == "consumer_authorization:1;persistent:false"
             )
+            assert call_args.kwargs["previous_generation"] == before.generation
+            assert call_args.kwargs["new_generation"] == before.generation + 1
 
     def test_audit_not_emitted_on_noop(self, admin_client: TestClient) -> None:
         """No-op does not emit audit record."""
@@ -218,7 +220,7 @@ class TestAdminGating:
             {"consumer_authorization": {"c1": ["topicA"]}},
             headers=ADMIN_HEADERS,
         )
-        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+        with patch("eventbus.admin_route.log_authorization_change") as mock_log:
             resp = post_topics_authorization(
                 admin_client,
                 {"consumer_authorization": {"c1": ["topicA"]}},
@@ -251,7 +253,7 @@ class TestGenerationConflict:
         assert ok.status_code == 200
 
         state_before = _require_generation()
-        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+        with patch("eventbus.admin_route.log_authorization_change") as mock_log:
             conflict = post_topics_authorization(
                 admin_client,
                 {"consumer_authorization": {"c1": ["topicA", "topicC"]}},
@@ -345,7 +347,7 @@ class TestTTLValidation:
         before = _require_generation()
         from unittest.mock import patch
 
-        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+        with patch("eventbus.admin_route.log_authorization_change") as mock_log:
             resp = post_topics_authorization(
                 admin_client,
                 {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
@@ -402,7 +404,7 @@ class TestAuditGenerationFields:
         from unittest.mock import patch
 
         before = _require_generation()
-        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+        with patch("eventbus.admin_route.log_authorization_change") as mock_log:
             resp = post_topics_authorization(
                 admin_client,
                 {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
@@ -418,7 +420,7 @@ class TestAuditGenerationFields:
     ) -> None:
         from unittest.mock import patch
 
-        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+        with patch("eventbus.admin_route.log_authorization_change") as mock_log:
             resp = post_topics_authorization(
                 admin_client,
                 {"consumer_authorization": {"c1": ["topicA"]}},
@@ -427,6 +429,24 @@ class TestAuditGenerationFields:
         assert resp.status_code == 200
         assert resp.json()["changed"] is False
         assert mock_log.call_count == 0
+
+    def test_every_authorization_record_carries_both_generation_fields(
+        self, admin_client: TestClient
+    ) -> None:
+        """AC-4: every authorization-change record carries both generation fields."""
+        from unittest.mock import patch
+
+        with patch("eventbus.admin_route.log_authorization_change") as mock_log:
+            resp = post_topics_authorization(
+                admin_client,
+                {"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+                headers=ADMIN_HEADERS,
+            )
+        assert resp.status_code == 200
+        assert resp.json()["changed"] is True
+        kwargs = mock_log.call_args.kwargs
+        assert "previous_generation" in kwargs
+        assert "new_generation" in kwargs
 
 
 class TestUpdateTakesEffect:
@@ -607,7 +627,6 @@ class TestOneRolePerTokenAdminRebuild:
                 monitoring_token="monitoring-token",
                 admin_token="admin-token",
                 consumer_authorization={"c1": ["topicA"]},
-                topic_authorization={"topicA": {"c1"}},
             )
             build_and_publish_generation(cfg)
             assert set(current_principals()["auth-token"].roles) == {

@@ -54,7 +54,6 @@ class TestSuccessfulUpdate:
         client = EventBusTopicAdminClient(config, mock_http)
         await client.update_topics_authorization(
             consumer_authorization={"c1": ["topicA"]},
-            topic_authorization={"topicB": ["c2"]},
         )
 
         args, kwargs = mock_http.post.call_args
@@ -62,7 +61,6 @@ class TestSuccessfulUpdate:
         assert kwargs["headers"]["Authorization"] == "Bearer test-admin-token"
         assert kwargs["json"] == {
             "consumer_authorization": {"c1": ["topicA"]},
-            "topic_authorization": {"topicB": ["c2"]},
         }
 
     @pytest.mark.asyncio

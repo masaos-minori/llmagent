@@ -601,10 +601,10 @@ auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
         load_config(config_file)
 
 
-def test_load_config_shared_token_env_reference_empty_hits_non_empty_check(
+def test_load_config_shared_token_env_reference_empty_hits_required_token_check(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """an empty referenced value falls through to the non-empty check (docs/24_eventbus/eventbus_07_configuration-and-operations.md)."""
+    """an empty referenced value falls through to the required-token check (docs/24_eventbus/eventbus_07_configuration-and-operations.md)."""
     monkeypatch.setenv("EVENTBUS_AUTH_TOKEN", "")
     config_file = tmp_path / "eventbus.toml"
     config_file.write_text("""
@@ -616,7 +616,7 @@ max_retry = 3
 host = "127.0.0.1"
 auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
 """)
-    with pytest.raises(ValueError, match="must not be empty"):
+    with pytest.raises(ValueError, match="auth_token is required but not configured"):
         load_config(config_file)
 
 
@@ -695,11 +695,9 @@ def test_load_config_surfaces_authorization_mappings(tmp_path) -> None:
         'auth_token = "test-token"\n'
         'consumer_token = "consumer-token"\n'
         'consumer_authorization = { "svc-a" = [ "orders/*" ] }\n'
-        'topic_authorization = { "orders/*" = [ "svc-a" ] }\n'
     )
     cfg = load_config(config_file)
     assert cfg.consumer_authorization is not None
-    assert cfg.topic_authorization is not None
 
 
 def test_load_config_normalizes_mapping_types(tmp_path) -> None:
@@ -714,13 +712,27 @@ def test_load_config_normalizes_mapping_types(tmp_path) -> None:
         'auth_token = "test-token"\n'
         'consumer_token = "consumer-token"\n'
         'consumer_authorization = { "svc-a" = [ "orders/*", "inventory/*" ] }\n'
-        'topic_authorization = { "orders/*" = [ "svc-a", "svc-b" ] }\n'
     )
     cfg = load_config(config_file)
-    assert cfg.topic_authorization is not None
     assert cfg.consumer_authorization is not None
-    assert all(isinstance(v, set) for v in cfg.topic_authorization.values())
     assert all(isinstance(v, list) for v in cfg.consumer_authorization.values())
+
+
+def test_load_config_rejects_removed_topic_authorization_key(tmp_path) -> None:
+    """A config that still carries topic_authorization fails load with the unknown-key error (REQ-002, AC-2)."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text(
+        "port = 8015\n"
+        'db_path = "/tmp/e.sqlite"\n'
+        'storage_dir = "/tmp/storage"\n'
+        'deadletter_dir = "/tmp/deadletter"\n'
+        "max_retry = 3\n"
+        'host = "127.0.0.1"\n'
+        'auth_token = "test-token"\n'
+        'topic_authorization = { "orders/*" = [ "svc-a" ] }\n'
+    )
+    with pytest.raises(ValueError, match="unknown key.*topic_authorization"):
+        load_config(config_file)
 
 
 def test_load_config_duplicate_token_via_load_path_raises(tmp_path) -> None:
