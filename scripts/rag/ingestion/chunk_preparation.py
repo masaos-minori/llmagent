@@ -11,10 +11,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import httpx
+from shared.logger import Logger
+
 from rag.exceptions import IngestionFailureReason
 from rag.ingestion.embedding import EmbeddingService
 from rag.models_data import PreparedChunk
-from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 
@@ -77,7 +78,7 @@ class ChunkFactory:
         self, doc_id: int, path: Path
     ) -> PreparedChunk | IngestionFailureReason:
         """Embed one chunk without DB access; returns PreparedChunk or failure reason."""
-        return self._embed_service.embed_and_store(doc_id, path)  # type: ignore[no-any-return]  # — embed_and_store() is correctly typed -> PreparedChunk | IngestionFailureReason; mypy loses this across the rag.* vs scripts.rag.* dual module-path resolution (see scripts/shared/tool_constants.py's confirmed duplicate-module-name issue)
+        return self._embed_service.embed_and_store(doc_id, path)
 
     def _log_ingest_failure(self, doc_id: int, path: Path, error: Exception) -> None:
         """Log an ingest failure with context."""

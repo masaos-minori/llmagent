@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urldefrag, urljoin, urlparse
 
 import httpx
+
 from rag.ingestion.crawler_utils import (
     host_is_public,
     redirect_allowed,
@@ -24,6 +25,7 @@ from rag.ingestion.crawler_utils import (
 
 if TYPE_CHECKING:
     from db.helper import SQLiteHelper
+
     from rag.ingestion.robots import RobotsCache
 
 logger = logging.getLogger(__name__)
@@ -164,7 +166,9 @@ class HttpFetcher:
         """
         origin_host = urlparse(origin).hostname if origin else None
         url_host = urlparse(url).hostname
-        if origin_host is not None and url_host == origin_host:
+        if url_host is None:
+            return False, "non-public destination"
+        if origin and origin_host is not None and url_host == origin_host:
             if not redirect_allowed(origin, url):
                 return False, "same-host downgrade refused"
         elif not await host_is_public(url_host):

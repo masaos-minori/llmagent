@@ -14,7 +14,7 @@ Medium
 Re-verified 2026-11-12 (Step 2 and Step 3):
 - The four suppressions are at `ingester.py:390` (`read_chunk_json`), `crawler.py:127` (`CrawlPersister.save`), `chunk_preparation.py:80` (`embed_and_store`), and `chunk_splitter.py:252` (`read_crawl_json`); each blames a "rag.* vs scripts.rag.* dual module-path resolution" and cites `scripts/shared/tool_constants.py`, which contains no such explanation.
 - `rg -n "from scripts\.|import scripts\." scripts tests tools` finds two imports, both in `tests/shared/test_schema_fingerprint.py` (`scripts.db`, `scripts.shared`); none names `scripts.rag`, so no second import name exists for `rag`.
-- Measured 2026-11-12 on a scratch copy (outside the repository: `pyproject.toml`, `scripts/`, `tests/eventbus`, `tools/`), with the CI invocation `mypy --no-namespace-packages --no-incremental scripts/ tests/eventbus tools`: after adding an `__init__.py` to `scripts/rag/ingestion/` and removing the four comments, the four `no-any-return` errors disappear, and exactly two new errors appear, both in `scripts/rag/ingestion/http_fetcher.py` (line 168 `redirect_allowed(origin, url)` and line 170 `host_is_public(url_host)`, `arg-type`: `str | None` where `str` is expected). No `unused-ignore` error appears.
+- Measured 2026-11-12 on a scratch copy (outside the repository: `pyproject.toml`, `scripts/`, `tests/eventbus`, `tools/`), with the CI invocation `mypy --no-namespace-packages --no-incremental scripts/ tests/eventbus tools`: the current tree (no `__init__.py`) passes mypy cleanly, so the four suppressions are actively hiding four `no-any-return` errors (the wrapped returns resolve to `Any` while `rag.ingestion` is a package without a marker). After adding an `__init__.py` to `scripts/rag/ingestion/`, the returns resolve to their real types, the four suppressions become `unused-ignore`, and exactly two new errors appear, both `arg-type` in `scripts/rag/ingestion/http_fetcher.py` (line 168 `redirect_allowed(origin, url)` and line 170 `host_is_public(url_host)`, `str | None` where `str` is expected). Removing the four comments clears the four `unused-ignore` errors; fixing `http_fetcher.py` clears the two `arg-type` errors. Re-verified in-repository 2026-11-13.
 - Cause of the `Any`: `scripts/rag/ingestion/` is the only package directory under `scripts/` without an `__init__.py` (a search of every directory found no other). With `--no-namespace-packages`, mypy cannot resolve `rag.ingestion.<module>` imports, and `ignore_missing_imports = true` turns them into `Any`, which `warn_return_any = true` then reports at each return. The same gap makes `[tool.setuptools.packages.find]` (`where = ["scripts"]`, `include = [..., "rag*", ...]`) skip `rag.ingestion` when building a distribution.
 - `host_is_public(None)` fails closed today: `getaddrinfo(None, None)` raises `socket.gaierror`, which `host_is_public` catches and returns `False`. `origin` is truthy whenever `origin_host` is not `None` (line 164), so the `redirect_allowed(origin, url)` call never receives `None`.
 - `crawler.py` reads `getattr(args, "targets_file", None)` at lines 200 and 205 although `--targets-file` is always added to the parser (lines 192-196), and imports `ConfigLoader` at line 34 and again at line 224; `chunk_splitter.py` imports it at line 33 and again at line 425. The module docstrings name `Crawler.py`, `ChunkSplitter.py`, and `RagIngester.py` (`crawler.py:5,10`, `chunk_splitter.py:4,12`, `ingester.py:8`). The "bypass" comments are at `crawler.py:95` and `ingester.py:116`.
@@ -26,6 +26,7 @@ Corrections found against the Issue's claims:
 - The test the Issue asks for (`--url` together with `--targets-file` exits with the parser error) already exists (`tests/rag/ingestion/test_crawler_targets_file.py`, lines 64-100), so no new entry-point test is added.
 - No document names the old file names or the "bypass" model for these tools (search of `docs`, `rules`, `skills`); the `SQLiteHelper` "bypasses `build_db_config()`" sentences describe a different, current behavior and stay.
 - `chunk_splitter.py` carries the same duplicate `ConfigLoader` import as the crawler, which the Issue did not name; it is in the same target file and the same defect class, so it is included.
+- AC-5 and REQ-006 originally used `bypasses? build_db_config`; the `s?` binds the trailing `s`, so the pattern matched only "bypasses" and never "bypass", missing `ingester.py:115`. Corrected both to `bypass(es)? build_db_config` (verified: it matches both current comment lines).
 
 ## Problem
 Suppressions that rest on an unverifiable claim hide a missing package marker, and the same gap leaves `rag.ingestion` untyped for every caller and out of the built distribution. A tolerant `getattr` read turns a renamed CLI argument into a silent `None`. Docstrings that name files that do not exist send readers to commands that fail; "bypass" wording makes the normal configuration model look unusual.
@@ -44,7 +45,7 @@ The current-only policy (`compatrm001`) and the suppression rules in `rules/codi
 - `REQ-003`: `crawler.py` `main()` reads `args.targets_file` directly and imports `ConfigLoader` once; `chunk_splitter.py` imports it once.
 - `REQ-004`: The module docstrings of `crawler.py`, `chunk_splitter.py`, and `ingester.py` name the real modules and commands.
 - `REQ-005`: The "bypass" comments in `crawler.py` and `ingester.py` say the settings come from `crawler.toml` / `ingester.toml` (ADR-002).
-- `REQ-006`: `rg -n "rag\.\* vs scripts\.rag\.\*|getattr\(args|Crawler\.py|ChunkSplitter\.py|RagIngester\.py|bypasses? build_db_config" scripts/rag/ingestion/` returns nothing, and the existing ingestion and crawler tests pass.
+- `REQ-006`: `rg -n "rag\.\* vs scripts\.rag\.\*|getattr\(args|Crawler\.py|ChunkSplitter\.py|RagIngester\.py|bypass(es)? build_db_config" scripts/rag/ingestion/` returns nothing, and the existing ingestion and crawler tests pass.
 
 ## Implementation Target Files
 **Freeze status**: Frozen
@@ -77,7 +78,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 - AC-2 (REQ-002): the same mypy run reports no error in `http_fetcher.py`; the new redirect test passes.
 - AC-3 (REQ-003): `rg -n "getattr\(args" scripts/rag/ingestion/` returns nothing; each of `crawler.py` and `chunk_splitter.py` has one `from shared.config_loader import ConfigLoader`.
 - AC-4 (REQ-004): `rg -n "Crawler\.py|ChunkSplitter\.py|RagIngester\.py" scripts/rag/ingestion/` returns nothing.
-- AC-5 (REQ-005): `rg -n "bypasses? build_db_config" scripts/rag/ingestion/` returns nothing.
+- AC-5 (REQ-005): `rg -n "bypass(es)? build_db_config" scripts/rag/ingestion/` returns nothing. (Corrected from `bypasses?`: the original `s?` binds the trailing `s`, so it matched only "bypasses" and never "bypass", missing `ingester.py:115`.)
 - AC-6 (REQ-006): `uv run pytest tests/rag/ingestion` passes and `uv run python tools/check_suppression_justification.py` passes.
 
 ## Tests
@@ -155,9 +156,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the package marker, remove the four suppressions, fix the two typing gaps | Pending | — | — | |
-| 2 | Direct `targets_file` read, single import, real names, reworded comments | Pending | — | — | |
-| 3 | Deployment hand-off and verification | Pending | — | — | |
+| 1 | Add the package marker, remove the four suppressions, fix the two typing gaps | Completed | 20261113-201242 | 20261113-204236 | docs 01-06 executed; mypy 0 errors, pytest 353 passed |
+| 2 | Direct `targets_file` read, single import, real names, reworded comments | Completed | 20261113-201242 | 20261113-204236 | AC-1/3/4/5 clear; lint-imports 0 broken; docstrings no new finding |
+| 3 | Deployment hand-off and verification | Completed | 20261113-201242 | 20261113-204236 | non-release-unit change; CI gates (mypy/ruff/lint-imports/bandit/pytest) green; no deploy.sh change needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -196,3 +197,5 @@ N/A: no release unit
 | REQ-005 | Required Changes 6; `crawler.py:95` | `scripts/rag/ingestion/crawler.py` | 2 | AC-5 | acceptance search | Explicit in issue |
 | REQ-005 | Required Changes 6; `ingester.py:116` | `scripts/rag/ingestion/ingester.py` | 2 | AC-5 | acceptance search | Explicit in issue |
 | REQ-006 | Acceptance Criteria 1 and 5 | `scripts/rag/ingestion/crawler.py` | 2 | AC-6 | `uv run pytest tests/rag/ingestion` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261113-201242 -->

@@ -2,12 +2,12 @@
 """scripts/rag/ingestion/crawler.py
 
 BFS web crawler that saves extracted text and code blocks to rag-src/.
-Entry point: python Crawler.py [--url URL ...] [--lang {en,ja}]
+Entry point: uv run python scripts/rag/ingestion/crawler.py [--url URL ...] [--lang {en,ja}]
 
 Output: rag-src/{timestamp}-{slug}.json — JSON payload (not plain text).
 Fields: url, title, lang, fetched_at, content, code_blocks, etag, last_modified.
 
-Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
+Pipeline position: crawler → chunk_splitter → ingester
 
 Refactored: WebCrawler reduced to thin composition facade delegating to
 HttpFetcher, ContentExtractor, LinkDiscovery, LanguageResolver, and
@@ -19,6 +19,9 @@ import asyncio
 from pathlib import Path
 
 import httpx
+from shared.config_loader import ConfigLoader
+from shared.logger import Logger
+
 from rag.ingestion.content_extractor import ContentExtractor
 from rag.ingestion.crawl_persister import CrawlPersister
 from rag.ingestion.crawler_utils import (
@@ -31,8 +34,6 @@ from rag.ingestion.language_resolver import LanguageResolver
 from rag.ingestion.link_discovery import LinkDiscovery
 from rag.ingestion.orchestrator import CrawlOrchestrator
 from rag.ingestion.robots import RobotsCache
-from shared.config_loader import ConfigLoader
-from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/crawl.log", structured_log=True)
 
@@ -92,7 +93,7 @@ class WebCrawler:
         # Skip cross-origin links when True (default: True = same-origin only)
         self._skip_external: bool = bool(cfg.get("skip_external", True))
         self._respect_robots: bool = bool(cfg.get("respect_robots", False))
-        # DB settings for conditional-header cache lookups (bypasses build_db_config)
+        # DB settings loaded from crawler.toml for conditional-header cache lookups
         self._rag_db_path: str = str(cfg.get("rag_db_path", ""))
         self._sqlite_timeout: int = int(cfg.get("sqlite_timeout", 30))
         self._sqlite_busy_timeout_ms: int = int(
@@ -124,7 +125,7 @@ class WebCrawler:
 
     def crawl_file(self, path: Path, lang: str) -> int:
         """Save a local file as a crawl result JSON in rag-src/; .py files stored as code blocks; returns 1 on success, 0 on failure."""
-        return self.crawl_persister.save(path, lang)  # type: ignore[no-any-return]  # — CrawlPersister.save() is correctly typed -> int; mypy loses this across the rag.* vs scripts.rag.* dual module-path resolution (see scripts/shared/tool_constants.py's confirmed duplicate-module-name issue)
+        return self.crawl_persister.save(path, lang)
 
     async def crawl_site(self, start_url: str, hint_lang: str) -> None:
         """Crawl a single site starting from start_url with optional language hint."""
@@ -197,12 +198,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.url and getattr(args, "targets_file", None):
+    if args.url and args.targets_file:
         parser.error("--url and --targets-file are mutually exclusive")
 
     crawler = WebCrawler()
 
-    if getattr(args, "targets_file", None):
+    if args.targets_file:
         try:
             targets = parse_targets_file(Path(args.targets_file))
         except FileNotFoundError as e:
@@ -221,7 +222,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    from shared.config_loader import ConfigLoader
-
     ConfigLoader.restrict_to("crawler.toml")
     main()

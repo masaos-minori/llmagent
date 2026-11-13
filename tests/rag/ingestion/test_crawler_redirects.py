@@ -24,6 +24,7 @@ import respx
 from httpx import Response
 from rag.ingestion.crawler import WebCrawler
 from rag.ingestion.crawler_utils import host_is_public, redirect_allowed
+from rag.ingestion.http_fetcher import HttpFetcher
 
 START = "http://example.com/start"
 UPGRADE_TARGET = "https://example.com/landing"
@@ -174,6 +175,20 @@ class TestHostIsPublicPolicy:
     async def test_unknown_host_fails_closed(self, stub_dns):
         """A name with no resolution fails closed (not public)."""
         assert await host_is_public("nope.test") is False
+
+    @pytest.mark.asyncio
+    async def test_hop_without_host_refused_without_dns(self, monkeypatch):
+        """A hop whose target URL has no host is refused as non-public without DNS."""
+
+        async def failing_getaddrinfo(self, *args, **kwargs):
+            raise AssertionError("getaddrinfo must not be called for a host-less hop")
+
+        monkeypatch.setattr(
+            asyncio.base_events.BaseEventLoop, "getaddrinfo", failing_getaddrinfo
+        )
+        fetcher = HttpFetcher({})
+        allowed, reason = await fetcher._hop_policy(START, "http:///x")
+        assert (allowed, reason) == (False, "non-public destination")
 
 
 # ── Integration tests (mock transport through crawl_site) ─────────────────────

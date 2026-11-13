@@ -5,7 +5,7 @@ Thin orchestrator delegating to 7 concern-specific classes:
    FileRouter, EmbeddingService, ChunkFactory, DocumentStore,
    TransactionManager, ChunkGroupingStrategy
 
-Pipeline position: Crawler.py -> ChunkSplitter.py -> RagIngester.py
+Pipeline position: crawler -> chunk_splitter -> ingester
 """
 
 import argparse
@@ -17,6 +17,10 @@ from pathlib import Path
 import httpx
 from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
+from shared.config_loader import ConfigLoader
+from shared.llm_client import build_embed_url
+from shared.logger import Logger
+
 from rag.exceptions import ChunkFormatError, IngestionFailureReason
 from rag.ingestion.chunk_grouping import ChunkGeneration, ChunkGroupingStrategy
 from rag.ingestion.chunk_preparation import ChunkFactory
@@ -27,9 +31,6 @@ from rag.ingestion.file_routing import FileRouter
 from rag.ingestion.pipeline_utils import read_chunk_json
 from rag.ingestion.transaction_commit import TransactionManager
 from rag.models_data import ChunkDocument, PreparedChunk
-from shared.config_loader import ConfigLoader
-from shared.llm_client import build_embed_url
-from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log", structured_log=True)
 
@@ -112,7 +113,7 @@ class RagIngester:
         self._embed_url: str = build_embed_url(cfg["embed_url"])
         self._embed_retry: int = int(cfg["embed_retry"])
         self._embed_workers: int = int(cfg.get("embed_workers", 4))
-        # DB settings stored explicitly to bypass build_db_config() / agent.toml
+        # DB settings loaded from ingester.toml
         self._rag_db_path: str = str(cfg.get("rag_db_path", ""))
         self._sqlite_vec_so: str = str(cfg.get("sqlite_vec_so", ""))
         self._sqlite_timeout: int = int(cfg.get("sqlite_timeout", 30))
@@ -370,7 +371,7 @@ class RagIngester:
 
     def _read_chunk_json(self, path: Path) -> ChunkDocument:
         """Read and validate a chunk JSON file; returns ChunkDocument."""
-        return read_chunk_json(path)  # type: ignore[no-any-return]  # — read_chunk_json() is correctly typed -> ChunkDocument; mypy loses this across the rag.* vs scripts.rag.* dual module-path resolution (see scripts/shared/tool_constants.py's confirmed duplicate-module-name issue)
+        return read_chunk_json(path)
 
     def commit_url_group(
         self,
