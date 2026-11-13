@@ -167,9 +167,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: agent lifecycle tests (tests/agent/test_http_lifecycle_integration.py, tests/agent/test_lifecycle.py) | In Progress | — | — |  |
-| 2 | Phase 2: deploy script tests (tests/deploy/test_setup_services_eventbus.py) | In Progress | — | — |  |
-| 3 | Phase 3: eventbus tests (tests/eventbus/test_eventbus_subscribe.py, tests/eventbus/test_eventbus_slow_consumer.py) | In Progress | — | — |  |
+| 1 | Phase 1: agent lifecycle tests (tests/agent/test_http_lifecycle_integration.py, tests/agent/test_lifecycle.py) | Completed | — | 20261113-113641 |  |
+| 2 | Phase 2: deploy script tests (tests/deploy/test_setup_services_eventbus.py) | Completed | — | 20261113-113641 |  |
+| 3 | Phase 3: eventbus tests (tests/eventbus/test_eventbus_subscribe.py, tests/eventbus/test_eventbus_slow_consumer.py) | Completed | — | 20261113-113641 |  |
 | 4 | Phase 4: verification and change record (all five target files) | Pending | — | — |  |
 
 ### Blocker Log
@@ -180,11 +180,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261113-101644_01_tests_agent_test_http_lifecycle_integration.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261113-101644_02_tests_agent_test_lifecycle.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261113-101644_03_tests_deploy_test_setup_services_eventbus.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261113-101644_04_tests_eventbus_test_eventbus_subscribe.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261113-101644_05_tests_eventbus_test_eventbus_slow_consumer.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261113-101644_01_tests_agent_test_http_lifecycle_integration.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261113-101644_02_tests_agent_test_lifecycle.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261113-101644_03_tests_deploy_test_setup_services_eventbus.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261113-101644_04_tests_eventbus_test_eventbus_subscribe.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261113-101644_05_tests_eventbus_test_eventbus_slow_consumer.py.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

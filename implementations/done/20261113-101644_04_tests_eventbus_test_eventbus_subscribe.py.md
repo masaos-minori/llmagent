@@ -62,10 +62,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-111526 | 20261113-112606 | Changed tests/eventbus/test_eventbus_subscribe.py (test_multi_batch_replay_no_duplicates: replay_batch_size set to 20 through the config, page_size of 10 replaces the literal 100 in the /replay query, stop check, and offset step). Cost was publish volume (1005 posts), measured 5.71 s alone; now 0.32 s. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-112606 | 20261113-112606 | File: 25 passed serially and twice with -n auto; the exactly-once assertion over 3 pages is unchanged. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-112606 | 20261113-112606 | ruff clean; mypy on tests/eventbus clean (38 files). Full suite serial 12159 passed, 3 failed: the known mdq cases (unrelated, Plan testspeed004). diff-cover N/A: no source file changed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-112606 | 20261113-112606 | N/A: no docs/00_index.md task-scope mapping for tests/eventbus/test_eventbus_subscribe.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

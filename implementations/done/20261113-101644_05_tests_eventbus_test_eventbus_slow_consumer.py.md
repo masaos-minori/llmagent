@@ -62,10 +62,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-112616 | 20261113-113629 | Changed tests/eventbus/test_eventbus_slow_consumer.py (new fixture small_queue_client with queue size 20, slow_consumer_threshold 10, backlog_health_threshold 20; test_overflow_disconnects_subscriber and test_reconnect_after_overflow_disconnect_resumes_from_offset use it and derive the publish count from the config). Cost was publish volume; the file went from 10.3 s to 2.5 s. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-113629 | 20261113-113629 | File: 12 passed serially and twice with -n auto; the full-queue, overflow-count, and disconnect assertions are unchanged (queue.full() holds after 21 publishes, so the small queue is in effect). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-113629 | 20261113-113629 | ruff clean; mypy on tests/eventbus clean (38 files). Full suite serial 12159 passed, 3 failed: the known mdq cases (unrelated, Plan testspeed004). diff-cover N/A: no source file changed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-113629 | 20261113-113629 | N/A: no docs/00_index.md task-scope mapping for tests/eventbus/test_eventbus_slow_consumer.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

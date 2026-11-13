@@ -65,10 +65,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-110434 | 20261113-111509 | Changed tests/deploy/test_setup_services_eventbus.py (_run_setup gained a retries argument, default 15; the connection-failure test passes retries=3; interval stays 1 because the script multiplies it in bash integer arithmetic). |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-111509 | 20261113-111509 | File: 7 passed serially, twice with -n auto. Durations: connection_failure 17.0 s to 4.5 s (floor: 3 retries x 1 s plus real eventbus child start). Tests still above 2 s are kept with that reason, not marked integration: healthy_start 4.7 s, process_exit 2.6, accepts_real_health_payload 2.5, missing_liveness 2.3, status_not_ok 2.1, malformed_body 2.1; each starts a real eventbus child. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-111509 | 20261113-111509 | ruff and mypy clean. Full suite serial 12159 passed, 3 failed: the known mdq cases (unrelated, Plan testspeed004). diff-cover N/A: no source file changed. No file under deploy/ changed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-111509 | 20261113-111509 | N/A: no docs/00_index.md task-scope mapping for tests/deploy/test_setup_services_eventbus.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

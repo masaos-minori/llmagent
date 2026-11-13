@@ -61,10 +61,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-104046 | 20261113-105121 | Changed tests/agent/test_http_lifecycle_integration.py (test_restart_clears_stderr_file: startup_timeout_sec=1 plus a comment). Stale check clean at Step 2; call time 30.11 s to 1.01 s. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-105121 | 20261113-105121 | Targeted file 53 passed serially and twice with -n auto; the change is the test itself. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-105121 | 20261113-105121 | ruff clean. mypy on this file reports 4 errors at lines 40, 67, 1181, 1183 that exist at HEAD (unrelated; the file is outside the CI mypy scope). Full suite serial 12159 passed, 3 failed: the known mdq cases of tests/mcp_servers (unrelated, Plan testspeed004). diff-cover N/A: no source file changed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-105121 | 20261113-105121 | N/A: no docs/00_index.md task-scope mapping for tests/agent/test_http_lifecycle_integration.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
