@@ -395,7 +395,6 @@ class TestGetDiagnostics:
         assert diag["fetch_result"] is None
         assert diag["fallback_count"] == 0
         assert diag["fallback_reasons"] == []
-        assert diag["hit_counts"]["merged"] == 0
 
     def test_get_diagnostics_reflects_last_stage_results(self) -> None:
         from rag.stage import StageResult

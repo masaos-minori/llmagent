@@ -17,15 +17,40 @@ from rag.types import PipelineRunResult
 
 
 def _make_pipeline() -> RagPipeline:
-    """Return a RagPipeline with mocked dependencies (bypasses __init__)."""
-    pipeline = RagPipeline.__new__(RagPipeline)
-    pipeline._cfg = MagicMock()
-    pipeline._cfg.use_rrf = True
-    pipeline.last_stage_results = []
-    pipeline.last_timings = {}
-    pipeline.last_fetch_result = None
-    pipeline.last_search_diagnostics = SearchDiagnostics()
-    return pipeline
+    """Return a RagPipeline built through __init__ with a stub config."""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from rag.pipeline import RagPipeline
+
+    cfg = SimpleNamespace(
+        use_search=True,
+        use_refiner=False,
+        use_mqe=False,
+        use_rerank=False,
+        use_rrf=True,
+        rrf_k=60,
+        top_k_search=5,
+        rag_top_k=3,
+        top_k_rerank=10,
+        rag_min_score=0.0,
+        max_chunks_per_doc=3,
+        refiner_max_tokens=256,
+        refiner_max_chars_per_chunk=500,
+        refiner_timeout=10.0,
+        llm_url="http://localhost:8000/v1/chat/completions",
+        embed_url="http://localhost:8000/v1/embeddings",
+        rag_db_path=":memory:",
+        sqlite_vec_so="/opt/llm/sqlite-vec/vec0.so",
+        sqlite_timeout=5,
+        sqlite_busy_timeout_ms=5000,
+        embed_retry=3,
+        embed_workers=4,
+        mqe_prompt_template="Expand query: {query}",
+        mqe_n_queries=3,
+        rerank_prompt_template="Rerank results for: {query}",
+    )
+    return RagPipeline(MagicMock(), cfg)
 
 
 @pytest.mark.asyncio
