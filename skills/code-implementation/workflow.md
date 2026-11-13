@@ -419,7 +419,7 @@ failure's cause is not immediately obvious, load and apply
 `skills/python-debug-root-cause/SKILL.md` now.
 
 - Determine the targeted test scope via `uv run pytest --testmon-forceselect -m "not
-  integration and not production_paths_allowed" tests/` (impact-based selection that
+  integration and not production_paths_allowed and not repo_scan" tests/` (impact-based selection that
   survives the `-m` filter, see `skills/python-test-and-fix/workflow.md` Step 10). Only
   when testmon cannot run, use tests under the same module path as each changed file,
   plus any test found via `rg` to import a changed symbol, and record the reason in the

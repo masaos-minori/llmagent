@@ -304,13 +304,19 @@ MUST NOT commit `.testmondata` (`.gitignore` already lists `.testmondata` and
 
 ```bash
 uv run pytest --testmon-noselect -m "not integration and not production_paths_allowed" tests/          # run everything, prioritising likely failures, update DB
-uv run pytest --testmon-forceselect -m "not integration and not production_paths_allowed" tests/       # select only tests affected by changes, on top of -k/-m filters
+uv run pytest --testmon-forceselect -m "not integration and not production_paths_allowed and not repo_scan" tests/       # select only tests affected by changes, on top of -k/-m filters
 ```
 
 Plain `--testmon` is deactivated whenever `-m` is given (testmon prints "selection
 automatically deactivated because -m was used") and then runs every test, so always pair `-m`
 with `--testmon-forceselect`. `--testmon-noselect` is the testmon option that deselects nothing;
 `--testmon-forceselect` narrows the selection, so it is not a full run.
+
+The `repo_scan` marker labels tests that scan the whole repository, so their result depends
+on the repository and not on the change under test. Iteration runs deselect them with
+`and not repo_scan`; the final full run above, the coverage run in Step 11, pre-commit, and CI
+still run them. A per-test-path command for flaky investigation or bisect must not carry the
+exclusion, so the test under investigation is not deselected.
 
 ## Step 11: Regression Quality Analysis
 
