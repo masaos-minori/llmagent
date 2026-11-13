@@ -55,10 +55,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113-215835 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-215835 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-215835 | 20261113-221853 | mypy 0 errors; full suite 12176 passed 1 failed = registry/manifests/eventbus_api.yaml manifest-stale resolved by rows 09+14 regeneration per plan dependency order; diff-cover 100 percent gate 90 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-215835 | N/A docs out of scope, handled by row 14 regeneration |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -9,6 +9,7 @@ Delete the three unused column constants `_COL_DLQ_REQUEUE_COUNT`, `_COL_REDISTR
 - Verified 2026-11-13: the only user of `_COL_DLQ_REQUEUE_COUNT` is the requeue `UPDATE` being deleted by row 04; `_COL_REDISTRIBUTED_FROM` and `_COL_CONSUMER_ID` have no user in `scripts`, `tests`, `tools`, `docs`, `registry`, or `deploy`.
 - Run this document after row 04 (`dlq_repo.py`) so the last `_COL_DLQ_REQUEUE_COUNT` user is gone before the constant is deleted.
 - The Plan judges deletion (not rename) as the intent of the Issue's naming request; the acceptance search `rg -n "REDISTRIBUTED" scripts/` is met either way (Plan Corrections).
+- Verification pass 2026-11-13 (adversarial re-check): `scripts/eventbus/schema.sql:11` still carries the literal `dlq_requeue_count` until row 08 runs, and schema.sql lives under `scripts/`; this document's AC-4 search `rg -n "dlq_requeue_count|_COL_CONSUMER_ID" scripts` therefore evaluates clean only after rows 04-06 AND 08. Run it at the cycle-18 group gate, not immediately after this row's edits. The zero-reference searches of step 1 re-confirmed: the only `_COL_DLQ_REQUEUE_COUNT` user is `dlq_repo.py` (rows 16, 89, removed by row 04); `_COL_REDISTRIBUTED_FROM` and `_COL_CONSUMER_ID` have no code user.
 
 ## Design decisions
 - Delete instead of rename: a renamed constant would still have no user (`compatrm001` forbids keeping stale names).
@@ -58,10 +59,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113-232757 | zero-reference search re-run first: all three constants only in _constants.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-232757 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-232757 | REDISTRIBUTED search clean; pytest tests/eventbus 525 passed; ruff/format/mypy/lint-imports clean; dlq_requeue_count literal only in schema.sql:11 pending row 08, full AC-4 search gate evaluated at group gate after row 08 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-232757 | N/A docs out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

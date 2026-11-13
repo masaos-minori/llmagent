@@ -8,7 +8,7 @@ Make `get_counter_value` in `scripts/eventbus/route_helpers.py` read only the pu
 - Line numbers are from the 2026-11-13 plan revalidation; locate each passage by its quoted text and skip and report it if it is already correct.
 - Verified 2026-11-13 with the installed `prometheus_client` (Plan Corrections probe): a `Counter` family name is `<name>` and its sample is `<name>_total`, and `collect()` exposes the family through the loop variable `metric` already present in `get_counter_value` (`for metric in metrics:`), so `metric.name + "_total"` replaces `counter._name + "_total"` (line 66) with identical selection.
 - Line 1 is `# /usr/bin/env python3` — a commented shebang (not executable intent); the module is imported, never run directly (verified: no `if __name__` entry).
-- The only caller of `get_counter_value` is `health_route.py:94` (Plan Design scan); the health test covers it through the lock-contention metric (Plan Tests REQ-005).
+- The only caller of `get_counter_value` is `health_route.py:96` (re-verified 2026-11-13; import at `health_route.py:19`; the Plan Design scan cited line 94 — line drift only); the health test covers it through the lock-contention metric (Plan Tests REQ-005).
 
 ## Design decisions
 - Remove the shebang line rather than convert it to `#!...`: the module is never an entry point, and the Plan accepts "a valid shebang or none" (AC-5).
@@ -57,10 +57,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113-234400 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-234401 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-234401 | AC-5 clean; health tests 18 passed; ruff/format/mypy/bandit(exit 0) clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-234401 | N/A docs out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

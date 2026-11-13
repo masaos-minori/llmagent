@@ -62,10 +62,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-201821 | 20261113-203143 | Changed: scripts/eventbus/dlq.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-203143 | N/A: no test change in this row; call sites updated by rows 15-18 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-203143 | 20261113-221853 | Pass: ruff, bandit -ll (no issues), lint-imports (6 kept), check_module_size, AC-1 rg (5 keep-functions only). Deferred to cycle 18: mypy (78 errors, all at old call sites in ack_route/app/tests fixed by rows 02-03/15-18), targeted pytest, full suite, coverage gate (procedure Validation plan: integration tests pass only after rows 15-18). Not run: ast-grep (not installed) mypy 0 errors; full suite 12176 passed 1 failed = registry/manifests/eventbus_api.yaml manifest-stale resolved by rows 09+14 regeneration per plan dependency order; diff-cover 100 percent gate 90 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-203143 | N/A: eventbus docs updates carried by plan rows 09-14 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

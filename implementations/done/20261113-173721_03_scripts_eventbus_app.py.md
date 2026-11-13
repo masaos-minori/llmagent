@@ -61,10 +61,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-204923 | 20261113-205554 | Changed: scripts/eventbus/app.py, tests/eventbus/test_eventbus_shutdown.py (companion) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-205555 | Targeted run: uv run pytest tests/eventbus/test_eventbus_shutdown.py -q -> 10 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-205555 | 20261113-221853 | Pass: ruff, bandit -ll app.py (no issues). Deferred to cycle 18: mypy, full suite, coverage gate (red intermediate call sites in tests fixed by rows 15-18). Not run: ast-grep (not installed) mypy 0 errors; full suite 12176 passed 1 failed = registry/manifests/eventbus_api.yaml manifest-stale resolved by rows 09+14 regeneration per plan dependency order; diff-cover 100 percent gate 90 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-205555 | N/A: eventbus docs updates carried by plan rows 09-14 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

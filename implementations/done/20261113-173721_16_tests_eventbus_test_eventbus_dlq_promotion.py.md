@@ -6,7 +6,7 @@ Update `sweep_orphans` call sites, rename the requeue audit test to its lineage 
 
 ## Assumptions
 - Call-site count (2026-11-13 verification): 11 `sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)` sites at lines 164, 195, 229, 276, 300, 331, 400, 415, 429, 443, 701.
-- `TestRequeueAuditField::test_dlq_requeue_increments_dlq_requeue_count_not_consumer_delivery_failure_count` (line 205) is the test ADR-006's INV-08 verification row cites; the new name is fixed by this document and consumed by row 10 (`20261113-173721_10_docs_10_adr_...md`), which must run after this one.
+- `TestDLQPromotionSemantics::test_dlq_requeue_increments_dlq_requeue_count_not_consumer_delivery_failure_count` (line 205) is the test ADR-006's INV-08 verification row cites; the new name is fixed by this document and consumed by row 10 (`20261113-173721_10_docs_10_adr_...md`), which must run after this one.
 - Run after rows 01-02 (`dlq.py`, `ack_route.py`).
 
 ## Design decisions
@@ -22,7 +22,7 @@ Update `sweep_orphans` call sites, rename the requeue audit test to its lineage 
 
 ### Procedure
 1. Mechanical: all 11 `sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)` calls become `sweep_orphans(db, max_retry=2)`. Leave `_drain_outbox(db, str(tmp_path / "deadletter"))` calls unchanged.
-2. `TestDLQPromotionSemantics` (the test at line 205): rename the test to `test_dlq_requeue_records_lineage_not_consumer_delivery_failure_count` (new); update its docstring to "DLQ requeue records the descendant lineage but does NOT modify consumer_delivery_failure_count."; replace the `SELECT dlq_requeue_count FROM events ...` / `assert orig_row["dlq_requeue_count"] == 1` block (lines 215-218) with the descendant assertion `SELECT redelivered_from FROM events WHERE event_id = ?` on `new_event_id`, `assert new_row["redelivered_from"] == body["event_id"]`, plus `SELECT COUNT(*) FROM events WHERE redelivered_from = ?` on the original id == 1; keep the unchanged `consumer_delivery_failure_count == 2` assertion and the original row's `dlq_at is not None` assertion.
+2. `TestDLQPromotionSemantics` (the test at line 205 `test_dlq_requeue_increments_dlq_requeue_count_not_consumer_delivery_failure_count`): rename to `test_dlq_requeue_records_lineage_not_consumer_delivery_failure_count` (new); update its docstring (line 208) to "DLQ requeue records the descendant lineage but does NOT modify consumer_delivery_failure_count."; replace lines 253–255 (`dlq_requeue_count = _get_field(client, body["event_id"], "dlq_requeue_count")` and its `assert dlq_requeue_count == 1` with message) with descendant-lineage assertions using the requeue response already issued at lines 238–242 (`new_event_id = resp.json()["new_event_id"]`, key confirmed at `dlq_route.py:89`) and the test's existing `db` handle: `SELECT redelivered_from FROM events WHERE event_id = ?` on `new_event_id`, `assert new_row["redelivered_from"] == body["event_id"]`, plus `SELECT COUNT(*) FROM events WHERE redelivered_from = ?` on `body["event_id"]` == 1. Keep the unchanged counter-isolation assertion `assert cdfc_after == cdfc_before` (lines 249–251) and its `cdfc_before`/`cdfc_after` reads; this test has no `dlq_at` assertion to keep. Also update the module docstring (line 5, "that dlq_requeue_count increments on requeue") to describe descendant lineage, so the step-4 residual search returns no match.
 3. `TestPromotionFailurePaths::test_nack_with_failing_writer_still_promotes_and_outbox_generates` (lines 531-597): rename to `test_nack_promotes_db_only_and_outbox_generates_artifact` (new); remove the `monkeypatch` fixture parameter, the `dlq._atomic_write` capture, the `_raise` writer, and both `monkeypatch.setattr` calls; keep the two-nack sequence, `dlq_promoted is True`, `dlq_at is not None`, outbox row `status == "pending"`, "no inline file" and post-`_drain_outbox` file-exists assertions unchanged; update the docstring to state promotion is DB-only by design (no writer-failure scenario remains to patch).
 
 ### Method
@@ -59,10 +59,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113-212828 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-212828 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-212828 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-212947 | N/A docs out of scope, handled by row 14 regeneration |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

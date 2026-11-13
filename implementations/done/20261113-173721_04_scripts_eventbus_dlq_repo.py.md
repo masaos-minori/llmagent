@@ -23,7 +23,7 @@ Reduce `RequeueResult` in `scripts/eventbus/dlq_repo.py` to `status`, `new_event
 
 ### Procedure
 1. Delete `_COL_DLQ_REQUEUE_COUNT,` from the `_constants` import block (line 16).
-2. In `class RequeueResult` (line 24): delete the fields `original_event_exists: bool` and `already_redelivered: bool` (lines 38-39) and the docstring lines describing them (including the `already_redelivered` bullet at line 31); keep `status`, `new_event_id`, `new_seq`.
+2. In `class RequeueResult` (line 24): delete the field declarations `original_event_exists: bool` and `already_redelivered: bool` (lines 38-39); keep `status`, `new_event_id`, `new_seq`. No docstring edit: re-verified 2026-11-13 — no docstring line describes the two removed fields; the bullet at line 31 (`"already_redelivered": a descendant row with redelivered_from = event_id exists.`) documents the `status` string value, which stays (Assumption 4).
 3. Update every `RequeueResult(...)` construction to the three remaining positional arguments (verified construction points: lines 82 and 119 use `RequeueResult("already_redelivered", True, True, None, None)` → `RequeueResult("already_redelivered", None, None)`; the success and `not_in_dlq` constructions drop their two boolean arguments).
 4. Delete the counter `UPDATE events SET {_COL_DLQ_REQUEUE_COUNT} = ...` statement (line 89) from the requeue transaction; the descendant INSERT and the rowcount/IntegrityError handling stay.
 
@@ -62,10 +62,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113-230307 | companion test change found during execution: _RacingConn injected on the requeue UPDATE which this row deletes; injection point migrated to the descendant INSERT (startswith INSERT INTO EVENTS) plus stale-comment fixes in test_eventbus_requeue_edge_cases.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-230307 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-230307 | pytest tests/eventbus 525 passed; ruff/format/bandit/lint-imports/module-size clean; mypy dlq_repo.py clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-230308 | N/A docs out of scope, handled by rows 11-14 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

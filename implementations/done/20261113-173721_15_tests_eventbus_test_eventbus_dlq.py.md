@@ -5,7 +5,7 @@ Update all `promote_single`/`sweep_orphans` call sites to the new signatures and
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- Call-site counts (2026-11-13 verification): 17 `sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=...)` sites (lines 129-1227) and 8 `promote_single(db, str(tmp_path / "deadletter"), ...)` sites (lines 240-732); every site passes `str(tmp_path / "deadletter")` as the second positional argument.
+- Call-site counts (2026-11-13 verification): 21 `sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=...)` sites (lines 129-1227, some prefixed `dlq.sweep_orphans`) and 4 `promote_single` sites (single-line at 240, 242, 552; multi-line at 732-735, whose first arg is `_CommitFailingConn(db)`); every site passes `str(tmp_path / "deadletter")` as the second positional argument. The `deadletter_dir=str(tmp_path / "deadletter")` kwarg at line 26 is out of scope.
 - File-presence tests already call the local `_drain_outbox(db, str(tmp_path / "deadletter"))` helper after a sweep or nack (test-file lines 87-110), so DB-only promotion does not change file assertions; `_drain_outbox`/`process_outbox` keep their `deadletter_dir` argument (out of this plan's scope).
 - Run after rows 01-02 (`dlq.py`, `ack_route.py`).
 
@@ -25,7 +25,7 @@ Update all `promote_single`/`sweep_orphans` call sites to the new signatures and
 3. `test_requeue_non_dlq_event_fails` (line 474): replace the block at lines 488-493 (`SELECT dlq_requeue_count ... assert row["dlq_requeue_count"] == 0`) with `SELECT COUNT(*) FROM events WHERE redelivered_from = ?` on the original id and assert the count is `0` (rejected requeue leaves no descendant).
 
 ### Method
-- Step 1 is a single uniform textual transform (scriptable: replace `, str(tmp_path / "deadletter"),` only inside `sweep_orphans(`/`promote_single(` call openings); verify completeness with `rg -n 'sweep_orphans\(db, str\(|promote_single\(db, str\(' tests/eventbus/test_eventbus_dlq.py` returning no match.
+- Step 1 is a single uniform textual transform (scriptable: replace `, str(tmp_path / "deadletter"),` inside `sweep_orphans(`/`promote_single(` call openings; for the multi-line `dlq.promote_single(` call at 732-735, delete the standalone `str(tmp_path / "deadletter"),` line). Verify with `rg -n 'str\(tmp_path / "deadletter"\)' tests/eventbus/test_eventbus_dlq.py`: every remaining hit must be an out-of-scope site only (the `deadletter_dir=` kwarg at line 26 and `_drain_outbox(...)` calls); no hit inside a `sweep_orphans`/`promote_single` call.
 
 ### Details
 - After step 2's rename, no `dlq_requeue_count` string remains anywhere in this file (verified sites are only 301-333 and 488-493).
@@ -43,7 +43,7 @@ N/A: revert the commit.
 | Target | Testing strategy | Tool / command | Expected outcome |
 |---|---|---|---|
 | Call sites | Test | `uv run pytest tests/eventbus/test_eventbus_dlq.py -q` | All pass |
-| Residual old signature | Search | `rg -n 'sweep_orphans\(db, str\(|promote_single\(db, str\(' tests/eventbus/test_eventbus_dlq.py` | No match |
+| Residual old signature | Search | `rg -n 'str\(tmp_path / "deadletter"\)' tests/eventbus/test_eventbus_dlq.py` | No hit inside any `sweep_orphans`/`promote_single` call (only the line 26 kwarg and `_drain_outbox` calls remain) |
 | Column removal | Search | `rg -n "dlq_requeue_count" tests/eventbus/test_eventbus_dlq.py` | No match |
 
 ## Completion criteria
@@ -57,10 +57,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-210040 | 20261113-210826 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-210826 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-210826 | targeted pytest 33 passed; mypy/coverage/full-suite deferred to cycle 18 per group-1 deferral note |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-215941 | N/A docs out of scope, handled by row 14 regeneration |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

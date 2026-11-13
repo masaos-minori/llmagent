@@ -19,8 +19,8 @@ Regenerate the guarded reference-API block so the `sweep_orphans`/`promote_singl
 `docs/24_eventbus/eventbus_08_reference_api.md`
 
 ### Procedure
-1. Run `uv run python tools/generate_reference_table.py --type eventbus` after rows 01-08 have been executed (the two signatures change with row 01 `dlq.py`, and the `RequeueResult` row follows row 04 `dlq_repo.py`).
-2. Confirm the regenerated rows: `sweep_orphans` without `deadletter_dir`, `promote_single` without `deadletter_dir`, and the `RequeueResult` description reflecting `status` / `new_event_id` / `new_seq` only.
+1. Run `uv run python tools/generate_reference_table.py --type eventbus` after rows 01-08 have been executed (the two signatures change with row 01 `dlq.py`; the `RequeueResult` row is affected by row 04 `dlq_repo.py` only in that it must remain unchanged — see step 2).
+2. Confirm the regenerated rows: `sweep_orphans` without `deadletter_dir` and `promote_single` without `deadletter_dir` are the only expected changes. The `RequeueResult` row must stay unchanged: the generator emits only the class signature line (`class RequeueResult`) and the class docstring's first line ("Typed result of a redeliver_event() call..."), and row 04 removes the `original_event_exists` and `already_redelivered` dataclass fields while keeping both of those intact (verification pass 2026-11-13: row 04 edits two field declarations, neither is the class signature line or the docstring; the status vocabulary, including `"already_redelivered"`, survives per REQ-003). A changed `RequeueResult` row would indicate the docstring was edited out of scope.
 3. (rmcompat007 handoff) Re-run the same command after rmcompat007's code rows are applied, so the block reflects both plans' final source state.
 
 ### Method

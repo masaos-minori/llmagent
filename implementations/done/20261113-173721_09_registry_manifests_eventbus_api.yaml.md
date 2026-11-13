@@ -6,7 +6,7 @@ Regenerate `registry/manifests/eventbus_api.yaml` so it carries the new `sweep_o
 
 ## Assumptions
 - Line numbers are from the 2026-11-13 plan revalidation; locate each passage by its quoted text and skip and report it if it is already correct.
-- Verified 2026-11-13: the manifest is a generated artifact (`generate_reference_table.py`); its `scripts/eventbus/dlq.py` block contains `signature: def sweep_orphans(db, deadletter_dir, max_retry) -> int` (lines 293-294) and the `promote_single` entry; the `/nack` endpoint block is already query-parameter based with no body schema, so the Issue's "advertises a JSON body" wording does not apply to the current manifest.
+- Re-verified 2026-11-13: the manifest is a generated artifact (`generate_reference_table.py`); its `scripts/eventbus/dlq.py` block contains `signature: def sweep_orphans(db, deadletter_dir, max_retry) -> int` (lines 295-296) and the `promote_single` entry at lines 305-307 (its signature wraps `-> bool` onto the continuation line); the `/nack` endpoint block is already query-parameter based with no body schema, so the Issue's "advertises a JSON body" wording does not apply to the current manifest. The manifest carries no `dlq_requeue_count` or `events.consumer_id` reference outside function parameter names, so the regeneration delta is signature-only.
 - Run this document after rows 01-08 (all eventbus code changes) so one regeneration settles all entries; the file MUST NOT be hand-edited (Plan Assumptions on generated artifacts).
 - `plans/20261112-122030_rmcompat007_history-comment-sweep.md` also regenerates this manifest later (judged compatible in the Plan Assumptions); its regeneration will supersede cleanly.
 
@@ -55,10 +55,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114-002020 | 20261114-002155 | generate_reference_table.py --manifests --type eventbus; delta limited to sweep_orphans/promote_single signatures |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261114-002155 | no test changes needed (generated artifact) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261114-002155 | --check --type eventbus No drift; tests/tools/test_generate_reference_table.py 16 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261114-002155 | eventbus_08_reference_api.md re-rendered in the same cycle; db_schema_versions.yaml content_hash regenerated as the row-08 companion (was stale after the schema.sql DDL edit) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

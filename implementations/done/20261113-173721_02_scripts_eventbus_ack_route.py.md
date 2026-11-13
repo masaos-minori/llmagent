@@ -22,7 +22,7 @@ In the `/nack` handler of `scripts/eventbus/ack_route.py`, call `promote_single`
 `scripts/eventbus/ack_route.py`
 
 ### Procedure
-1. In `_nack_and_promote` (handler `POST /nack`, line 137), replace the block
+1. In `_nack_and_promote` (handler `POST /nack`, line 138; verified 2026-11-13), replace the block
 
    ```python
    try:
@@ -74,17 +74,17 @@ N/A: revert the commit.
 - AC-1 and AC-2 hold; promotion on `/nack` is a single DB-only expression.
 
 ## Out of Scope
-- The `/ack` handler and other `OSError` uses in the file that wrap real filesystem or audit code (Plan AC-2 limits the search to the `/nack` handler).
+- The `/ack` handler is untouched. Verified 2026-11-13: the `except OSError` at line 216 is the only `OSError` in this module, so after the removal `rg -n "OSError" scripts/eventbus/ack_route.py` matches nothing at all (Plan AC-2's narrower phrasing remains satisfied).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-203921 | 20261113-204315 | Changed: scripts/eventbus/ack_route.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-204315 | N/A: no test change in this row; test replacement carried by row 16 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-204315 | 20261113-221853 | Pass: ruff, bandit -ll (no issues), AC-2 rg (zero OSError matches in module), lint-imports/check_module_size passed in cycle 01 and unaffected (no import change, file smaller). Deferred to cycle 18: mypy, targeted pytest, full suite, coverage gate. Not run: ast-grep (not installed) mypy 0 errors; full suite 12176 passed 1 failed = registry/manifests/eventbus_api.yaml manifest-stale resolved by rows 09+14 regeneration per plan dependency order; diff-cover 100 percent gate 90 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-204315 | N/A: eventbus docs updates carried by plan rows 09-14 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
