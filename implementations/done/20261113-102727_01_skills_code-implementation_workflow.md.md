@@ -69,8 +69,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-134615 | 20261113-135405 | Changed skills/code-implementation/workflow.md: a Documentation-only case as the first Step 4 bullet (changed-file set under docs/, issues/, plans/, implementations/ only; no test run; the routing.md checkers for each file Step 3d changed; Notes wording N/A: documentation-only change; replaced by {checkers run}); a sentence naming it the fifth scoped exception to exactly once per cycle; Row mapping rows 2 and 3 and the Final Report fourth-step description aligned. Numstat 15 insertions, 4 deletions; the other Step 4 bullets, the coverage command, and the repo_scan command from the earlier Plan are unchanged. routing.md is referenced, not copied. |
+| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Completed | 20261113-135405 | 20261113-135405 | check_skills_references and check_skills_heading_cycles: No issues found; run_validation_gates exit 0 with no Fail or Blocked. Dry application (read-only) to the 14 procedures implementations/done/20261112-123928_*: each names one docs/ file as its target and has no companion test files, so each classifies as documentation-only. Because this change itself is under skills/, outside the new path set, the full suite ran once as before: serial 12151 passed, 3 failed, the known mdq cases (unrelated, Plan testspeed004). diff-cover N/A: no source file changed. The Plan for testspeed004 also edits Step 4 (full-suite and coverage wording) and is not yet implemented: its procedure must re-read Step 4 first. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -153,8 +153,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: the documentation-only case (skills/code-implementation/workflow.md) | In Progress | — | — |  |
-| 2 | Phase 2: keep the skill summary consistent (skills/code-implementation/SKILL.md) | In Progress | — | — |  |
+| 1 | Phase 1: the documentation-only case (skills/code-implementation/workflow.md) | Completed | — | 20261113-140203 |  |
+| 2 | Phase 2: keep the skill summary consistent (skills/code-implementation/SKILL.md) | Completed | — | 20261113-140203 |  |
 | 3 | Phase 3: verification and dry application (skills/code-implementation/workflow.md, skills/code-implementation/SKILL.md) | Pending | — | — |  |
 
 ### Blocker Log
@@ -165,8 +165,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261113-102727_01_skills_code-implementation_workflow.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261113-102727_02_skills_code-implementation_SKILL.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261113-102727_01_skills_code-implementation_workflow.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261113-102727_02_skills_code-implementation_SKILL.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-135413 | 20261113-140155 | Changed skills/code-implementation/SKILL.md: row 4 of the phase overview and the Core Execution Rules full-suite bullet each gained one reference to the documentation-only case defined in workflow.md Step 4. The path definition and the replacement are not restated here. |
+| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Completed | 20261113-140155 | 20261113-140155 | check_skills_references and check_skills_heading_cycles: No issues found; run_validation_gates exit 0 with no Fail or Blocked; the two files read consistently (the rule lives in workflow.md Step 4 only). Full suite serial 12151 passed, 3 failed: the known mdq cases (unrelated, Plan testspeed004); diff-cover N/A: no source file changed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
