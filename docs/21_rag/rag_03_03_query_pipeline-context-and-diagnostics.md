@@ -38,11 +38,11 @@ stage-populated field is written by a specific pipeline stage:
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
-Field definitions: `SearchDiagnostics` in `scripts/rag/models_result.py` (summary in [rag_04_dto-models-types.md](rag_04_dto-models-types.md)). Its fields are the local-execution counters (`embed_ok`, `embed_failed`, `fts_errors`, `degraded`) and `fallback_reason`.
+Field definitions: `SearchDiagnostics` in `scripts/rag/models_result.py` (summary in [rag_04_dto-models-types.md](rag_04_dto-models-types.md)). Its fields are the local-execution counters (`embed_ok`, `embed_failed`, `fts_errors`, `degraded`).
 
 ### 4.3 get_diagnostics() Return Value (`RagPipeline.get_diagnostics()`)
 
-`RagPipeline.get_diagnostics()` returns a dict that groups: per-stage results and timings (`stage_results`, `timings`), the fetch result (`fetch_result`), the fusion mode (`fusion_mode`: `"rrf"` or `"dedup_only"`), fallback counters (`fallback_count`, `fallback_reasons`), refiner counters (see [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md)), `hit_counts`, and the `search_diagnostics` summary including `degraded`. The authoritative key set is the method itself.
+`RagPipeline.get_diagnostics()` returns a dict that groups: per-stage results and timings (`stage_results`, `timings`), the fetch result (`fetch_result`), the fusion mode (`fusion_mode`: `"rrf"` or `"dedup_only"`), fallback counters (`fallback_count`, `fallback_reasons`), refiner counters (see [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md)), and the `search_diagnostics` summary including `degraded`. The authoritative key set is the method itself.
 
 > **Note:** `fetch_result` is populated by `RagPipeline.run()` only. The `POST /v1/call_tool` result of the rag-pipeline MCP server has only `result` and `is_error`; the structured `selected_hits` field exists only on the direct `POST /rag_run_pipeline` response (see `mcp_04_03_rag-pipeline-and-cicd.md`).
 

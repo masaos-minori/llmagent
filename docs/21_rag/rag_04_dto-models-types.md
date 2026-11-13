@@ -87,7 +87,7 @@ Every DTO in this module is `@dataclass(frozen=True)`, following the DTO-layer i
 
 The remaining result DTOs (`ExpandedQuerySet`, `SkipInfo`, `RagSearchRequest`, `RagSearchResult`, `PipelineExecutionResult`, `SearchDocsResult`) have their fields and defaults defined in `scripts/rag/models_result.py`. `SanitizeResult` is the audit trail returned by `sanitize_document_full()` (sanitized text, whether it was modified, and the detected patterns).
 
-**SearchDiagnostics** — Diagnostic counters for a single search call: the local-execution counters (`embed_ok`, `embed_failed`, `fts_errors`, `degraded`) and `fallback_reason`. Defaults are defined in `scripts/rag/models_result.py::SearchDiagnostics`.
+**SearchDiagnostics** — Diagnostic counters for a single search call: the local-execution counters (`embed_ok`, `embed_failed`, `fts_errors`, `degraded`). Defaults are defined in `scripts/rag/models_result.py::SearchDiagnostics`.
 
 ## types.py (`scripts/rag/types.py`)
 
