@@ -102,9 +102,9 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `get_resume_position` | `def get_resume_position(conn, consumer_id) -> int` | Compute the resume position for a reconnecting consumer. |
 | `scripts/eventbus/dlq.py` | `DlqEventRecord` | `class DlqEventRecord` | A single event record written to the dead-letter queue as a JSON file on disk. |
 |  | `is_promotable` | `def is_promotable(db, event_id, max_retry) -> bool` | Return True if the event is not yet in the DLQ and meets the promotion rule. |
-|  | `sweep_orphans` | `def sweep_orphans(db, deadletter_dir, max_retry) -> int` | Sweep events that meet the promotion rule but were not promoted inline. |
+|  | `sweep_orphans` | `def sweep_orphans(db, max_retry) -> int` | Sweep events that meet the promotion rule but were not promoted inline. |
 |  | `reconcile_missing_dlq_files` | `def reconcile_missing_dlq_files(db, deadletter_dir) -> dict[str, int]` | Detect and rebuild lost DLQ files, and classify outbox inconsistencies. |
-|  | `promote_single` | `def promote_single(db, deadletter_dir, event_id, consumer_failure_count) -> bool` | Promote one event to DLQ immediately (inline on nack threshold). |
+|  | `promote_single` | `def promote_single(db, event_id, consumer_failure_count) -> bool` | Promote one event to DLQ immediately (inline on nack threshold). |
 |  | `process_outbox` | `async def process_outbox(db, deadletter_dir, cfg, run_locked) -> dict[str, int]` | Consume due dlq_outbox rows and durably generate their DLQ artifacts. |
 |  | `archive_dlq_record` | `def archive_dlq_record(deadletter_dir, event_id) -> bool` | Move {deadletter_dir}/{event_id}.json to {deadletter_dir}/requeued/{event_id}_{timestamp}.json. |
 | `scripts/eventbus/dlq_repo.py` | `RequeueResult` | `class RequeueResult` | Typed result of a redeliver_event() call (replaces the (bool, str \| None) tuple). |
