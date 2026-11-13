@@ -1,9 +1,12 @@
 """Unit tests for agent.secrets_masker._mask_secrets."""
 
 import os
+import random
+import re
+import time
 
 import pytest
-from agent.secrets_masker import _mask_secrets
+from agent.secrets_masker import SECRET_PATTERNS, _mask_secrets
 
 
 class TestMaskSecrets:
@@ -344,3 +347,80 @@ class TestExtendedShapeMasking:
         result = _mask_secrets(payload)
         assert isinstance(result, str)
         assert _mask_secrets(result) == result
+
+
+# The URL userinfo pattern as it was before it was anchored to the start of a
+# scheme-character run. It is kept only to check that the anchored pattern masks the
+# same text; it is quadratic on long input, so run it on short inputs only.
+_PRE_FIX_URL_USERINFO = re.compile(
+    r"(?i)([a-z][a-z0-9+.-]*://(?:[^/\s:@]+:)?)([^/\s@]+)(?=@)"
+)
+_URL_USERINFO = next(p for p in SECRET_PATTERNS if "://" in p.pattern)
+
+
+def _sub(pattern: re.Pattern[str], text: str) -> str:
+    return pattern.sub(lambda m: m.group(1) + "***MASKED***", text)
+
+
+class TestUrlUserinfoParity:
+    """The anchored URL userinfo pattern masks exactly what the pre-fix pattern did."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "postgres://admin:s3cr3tpw@db:5432/x",
+            "https://LONECRED@h/p",
+            "HTTP://USER:PW@HOST/x",
+            "1http://u:p@h",
+            "9+8-7.x://u:p@h",
+            "a+b.c-d://user:pw@h",
+            "see https://u:p@h and ftp://v:q@g",
+            "no scheme u:p@h",
+            "://u:p@h",
+            "http://host/path",
+            "http://host:80@",
+            "",
+            "x" * 50 + "://u:p@h",
+        ],
+    )
+    def test_fixed_forms_match_pre_fix_output(self, text: str) -> None:
+        assert _sub(_URL_USERINFO, text) == _sub(_PRE_FIX_URL_USERINFO, text), repr(
+            text
+        )
+
+    def test_userinfo_is_masked_by_the_anchored_pattern(self) -> None:
+        masked = _sub(_URL_USERINFO, "postgres://admin:s3cr3tpw@db:5432/x")
+        assert masked == "postgres://admin:***MASKED***@db:5432/x"
+
+    def test_generated_corpus_matches_pre_fix_output(self) -> None:
+        rng = random.Random(20261113)
+        pieces = list("abxX12+.-:/@ ") + ["://", "http", "@h", "u:p@"]
+        for _ in range(20_000):
+            text = "".join(rng.choice(pieces) for _ in range(rng.randint(0, 30)))
+            assert _sub(_URL_USERINFO, text) == _sub(_PRE_FIX_URL_USERINFO, text), repr(
+                text
+            )
+
+
+def _best_time(pattern: re.Pattern[str], text: str, repeats: int = 3) -> float:
+    best = float("inf")
+    for _ in range(repeats):
+        start = time.perf_counter()
+        _sub(pattern, text)
+        best = min(best, time.perf_counter() - start)
+    return best
+
+
+class TestUrlUserinfoScaling:
+    """The URL userinfo scan stays linear on a long run of scheme characters."""
+
+    @pytest.mark.parametrize("unit", ["x", "1", "a."])
+    def test_cost_is_not_superlinear_in_run_length(self, unit: str) -> None:
+        small = (unit * 10_000)[:10_000]
+        large = (unit * 20_000)[:20_000]
+        t_small = _best_time(_URL_USERINFO, small)
+        t_large = _best_time(_URL_USERINFO, large)
+        # Doubling the input costs about 2x when linear and about 4x when quadratic;
+        # the additive slack keeps millisecond-scale timings from failing the ratio.
+        assert t_large <= 3 * t_small + 0.05, (t_small, t_large)
+        assert t_large < 2.0, t_large
