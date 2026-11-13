@@ -58,6 +58,8 @@ LLM returns tool_call
 
 The `X-Idempotency-Key` request header gives a logical call a stable identity on the server: it drives server-side de-duplication of state-mutating calls and lets the Agent reuse one key across that call's retries.
 
+In addition to this transport key, the Agent also records a separate audit-side key in the `tool_exec` event's `idempotency_key` field — the workflow-scoped logical-call identity (`workflow_id:task_id:turn_id:call_id`) — which identifies the logical call for the audit log and is **not** used for server-side de-duplication.
+
 - **Key ownership:** the caller/Agent generates one idempotency key per logical call. `HttpTransport.call()` emits it as the `X-Idempotency-Key` header and reuses the same value on every retry of that call, so a re-sent write keeps a single identity.
 - **Audit key (separate):** the Agent's `tool_exec` audit event records its own workflow-scoped logical-call identity (workflow, task, turn, and call id joined by colons) in its `idempotency_key` field. This value is never sent to a server, is not the `X-Idempotency-Key`, and no de-duplication keys on it; to follow one call across the Agent and a server, join on the request id (see [mcp_02_03](mcp_02_03_audit-logging-and-errors.md)).
 - **Empty-key rule:** a call with no key (empty or `None`) is never de-duplicated — it always executes and is never stored. The guard applies to side-effecting tools.

@@ -158,13 +158,14 @@ def _resolve_path_keys(
     cfg: AgentConfig,
     tool_name: str,
     registry: RuntimeToolRegistry | None,
-) -> list[str]:
+) -> list[str] | None:
     """Return the checked path argument names: configured path_keys unioned with the
     registered tool's declared resource_scope_keys (REQ-001).
 
-    `registry=None` or a `KeyError` (unregistered tool) falls back to the configured
-    keys only — an unknown tool never bypasses the configured checks and no lookup
-    error escapes the policy (REQ-003). Order is stable: configured keys first.
+    `registry=None` returns the configured keys only (optional-registry callers/tests
+    keep configured-key behavior). A supplied registry whose tool is unregistered
+    (`KeyError`) returns `None` so the caller fails closed; no lookup error escapes the
+    policy (REQ-003). Order is stable: configured keys first.
     """
     keys = list(cfg.approval.approval_resource_keys.get("path_keys", []))
     if registry is None:
@@ -172,9 +173,18 @@ def _resolve_path_keys(
     try:
         tool = registry.get(tool_name)
     except KeyError:
-        return keys
+        return None
     keys.extend(key for key in tool.resource_scope_keys if key not in keys)
     return keys
+
+
+def _configured_path_keys(cfg: AgentConfig) -> list[str]:
+    """The configured ``approval_resource_keys.path_keys`` with no registry lookup.
+
+    Used to validate a path argument when the tool is unregistered: the declared
+    scope is unknown, so only configured keys can be checked.
+    """
+    return list(cfg.approval.approval_resource_keys.get("path_keys", []))
 
 
 def _iter_path_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[str]:
@@ -323,10 +333,12 @@ def _escalate_for_path(
     if base == RiskLevel.HIGH:
         return None
     protected = cfg.approval.approval_protected_paths
+    keys = _resolve_path_keys(cfg, tool_name, registry)
+    if keys is None:
+        # Unregistered tool: declared scope unknown; check configured keys only.
+        keys = _configured_path_keys(cfg)
     try:
-        for val in _iter_path_arg_values(
-            args, _resolve_path_keys(cfg, tool_name, registry)
-        ):
+        for val in _iter_path_arg_values(args, keys):
             if any(val.startswith(p) for p in protected):
                 return RiskLevel.HIGH
     except _NotInspectablePathValueError:
@@ -467,13 +479,17 @@ def check_allowed_root(
     call that carries a path argument (nothing can be confined); a call with no
     path argument passes.
     """
+    keys = _resolve_path_keys(cfg, tool_name, registry)
+    if keys is None:
+        # Unregistered tool: declared scope unknown. Deny when it carries a path
+        # argument (cannot be verified against declared scope); a path-less call
+        # passes the root-jail check.
+        for _ in _iter_path_arg_values(args, _configured_path_keys(cfg)):
+            return False
+        return True
     if not cfg.approval.allowed_root:
         try:
-            next(
-                _iter_path_arg_values(
-                    args, _resolve_path_keys(cfg, tool_name, registry)
-                )
-            )
+            next(_iter_path_arg_values(args, keys))
         except StopIteration:
             return True
         except _NotInspectablePathValueError:
@@ -481,9 +497,7 @@ def check_allowed_root(
         return False
     root = Path(cfg.approval.allowed_root).resolve()
     try:
-        for val in _iter_path_arg_values(
-            args, _resolve_path_keys(cfg, tool_name, registry)
-        ):
+        for val in _iter_path_arg_values(args, keys):
             try:
                 resolved = Path(val).resolve()
             except (ValueError, OSError):
