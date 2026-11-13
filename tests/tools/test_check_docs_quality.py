@@ -381,6 +381,8 @@ class TestContentSimilarityTemplateSections:
 # ---------------------------------------------------------------------------
 
 
+# Both tests run the checker over the full docs/ tree; iteration runs deselect them.
+@pytest.mark.repo_scan
 class TestRegressionFullDocsTree:
     def test_no_new_false_positives_on_full_docs_tree(self):
         """Run checker against full docs/ tree → confirm no false-positive noise on numeric subsections."""

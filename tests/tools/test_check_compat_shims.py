@@ -766,6 +766,8 @@ class TestProductionCategoryZero:
         assert result.returncode == 1
         assert "bad-entry" in result.stderr
 
+    # Scans the whole repository in a subprocess; iteration runs deselect it.
+    @pytest.mark.repo_scan
     def test_real_repo_manifest_passes(self) -> None:
         result = subprocess.run(
             [

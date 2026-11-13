@@ -87,6 +87,8 @@ class TestProductionExceptionZero:
         assert checker_path in self_ref.get("paths", [])
 
 
+# Scans the whole repository; iteration runs deselect it.
+@pytest.mark.repo_scan
 class TestNoLiveReferences:
     """AC-004: zero live references to the consolidated retired names outside
     fixture-manifest paths (done/ archives and the checker itself excluded)."""
@@ -137,6 +139,8 @@ class TestCheckerBlocking:
         "The workflow database migrates forward on startup to the target schema.\n"
     )
 
+    # Runs the checker over the whole repository; iteration runs deselect it.
+    @pytest.mark.repo_scan
     def test_repo_root_run_passes(self) -> None:
         result = subprocess.run(
             [
