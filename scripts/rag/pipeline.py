@@ -225,16 +225,12 @@ class RagPipeline:
         Safe to call before ``run()`` / ``augment()`` — returns empty/zero values.
         Callers should serialize with ``orjson.dumps(pipeline.get_diagnostics())``.
         """
-        diagnostics = PipelineDiagnostics.to_dict(
-            PipelineDiagnostics.from_run_result(
-                embed_ok=self.last_search_diagnostics.embed_ok,
-                embed_failed=self.last_search_diagnostics.embed_failed,
-                fts_errors=self.last_search_diagnostics.fts_errors,
+        return PipelineDiagnostics.to_dict(
+            PipelineDiagnostics(
+                search_diagnostics=self.last_search_diagnostics,
                 stage_results=self.last_stage_results,
                 timings=self.last_timings,
                 fetch_result=self.last_fetch_result,
                 use_rrf=self._cfg.use_rrf,
-                rrf_k=self._cfg.rrf_k,
             )
         )
-        return diagnostics

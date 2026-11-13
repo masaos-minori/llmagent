@@ -7,14 +7,12 @@ Result DTOs for the RAG and ingestion layers.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from rag.diagnostics import (
-        PipelineDiagnostics,  # noqa: F401 — re-exported for consumers
-    )
+from typing import TYPE_CHECKING
 
 from rag.enums import MqeStatus
+
+if TYPE_CHECKING:
+    from shared.types import RankedHit
 
 
 @dataclass(frozen=True)
@@ -46,7 +44,7 @@ class RagSearchResult:
     """Result of a RAG search operation."""
 
     query: str
-    hits: list[Any]  # list[RankedHit] — typed after Phase 3-1
+    hits: list[RankedHit]
     context_str: str
 
 
@@ -85,5 +83,16 @@ class SearchDiagnostics:
     embed_ok: int = 0
     embed_failed: int = 0
     fts_errors: int = 0
-    degraded: bool = False
-    fallback_reason: str | None = None
+
+    @property
+    def degraded(self) -> bool:
+        """True when any embedding or FTS error occurred during the run."""
+        return self.embed_failed > 0 or self.fts_errors > 0
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "embed_ok": self.embed_ok,
+            "embed_failed": self.embed_failed,
+            "fts_errors": self.fts_errors,
+            "degraded": self.degraded,
+        }

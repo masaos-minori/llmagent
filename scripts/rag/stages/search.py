@@ -116,14 +116,10 @@ async def _search_all_queries(
         fts_errors += int(fts_failed)
         if fts_hits:
             all_results.append(fts_hits)
-    # degraded reflects whether any embedding or FTS error occurred during this run.
-    # This matches the calculation in rag.diagnostics.SearchDiagnostics.from_run_result().
-    degraded = embed_failed > 0 or fts_errors > 0
     return all_results, SearchDiagnostics(
         embed_ok=embed_ok,
         embed_failed=embed_failed,
         fts_errors=fts_errors,
-        degraded=degraded,
     )
 
 
