@@ -113,10 +113,10 @@ defines (`rules/toolchain.md`, CI workflows); MUST NOT invent one.
 Do not enable `--reruns` (`pytest-rerunfailures`) here: a failure that passes on rerun
 would be reported as a pass and hide the flakiness Step 4 must classify.
 
-Run pytest the way CI does (`.github/workflows/ci.yml`: `uv run pytest -v`, and
-`uv run coverage run -m pytest tests/` for coverage): one process, no `-n`. Do not add
-`-n` (`pytest-xdist`) in Step 3 or Step 4; it changes test ordering relative to the
-`--randomly-seed` recorded here.
+Run pytest the way CI does (`.github/workflows/ci.yml`:
+`uv run coverage run -m pytest -v tests/`, which also collects coverage): one process,
+no `-n`. Do not add `-n` (`pytest-xdist`) in Step 3 or Step 4; it changes test ordering
+relative to the `--randomly-seed` recorded here.
 
 If `rules/toolchain.md` defines a coverage command sequence, include it as a candidate
 in Step 1. Once Step 2 clears it, it MUST serve as the run of the test suite it wraps —
