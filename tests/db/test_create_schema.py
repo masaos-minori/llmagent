@@ -1119,10 +1119,13 @@ class TestEventbusSchemaFingerprint:
 
     def test_extra_column_raises(self) -> None:
         ddl = _CANONICAL_EVENTBUS_DDL.replace(
-            "    consumer_id            TEXT\n);",
-            "    consumer_id            TEXT,\n"
+            "    dlq_at                 TEXT\n);",
+            "    dlq_at                 TEXT,\n"
             "    created_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);",
         )
+        # Fail loudly if the anchor above ever drifts: a no-op replace would
+        # otherwise pass this test without injecting the extra column.
+        assert ddl != _CANONICAL_EVENTBUS_DDL
         conn = _apply_eventbus_ddl(ddl)
         try:
             with pytest.raises(RuntimeError, match="events: columns differ"):
