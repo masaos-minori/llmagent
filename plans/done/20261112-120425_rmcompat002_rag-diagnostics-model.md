@@ -165,10 +165,10 @@ This table is the canonical, frozen source of implementation scope for this Plan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Single `SearchDiagnostics`, `PipelineDiagnostics` cleanup, `get_diagnostics()`, search stage | In Progress | — | — | Release unit single-diagnostics-model with step 2 |
-| 2 | Update the diagnostics tests and `__new__` construction | In Progress | — | — | Release unit single-diagnostics-model with step 1 |
-| 3 | Update the two documents | In Progress | — | — |  |
-| 4 | Deployment hand-off and verification | Pending | — | — |  |
+| 1 | Single `SearchDiagnostics`, `PipelineDiagnostics` cleanup, `get_diagnostics()`, search stage | Completed | 20261113-160336 | 20261113-160336 | Release unit single-diagnostics-model with step 2 |
+| 2 | Update the diagnostics tests and `__new__` construction | Completed | 20261113-160336 | 20261113-160336 | Release unit single-diagnostics-model with step 1 |
+| 3 | Update the two documents | Completed | 20261113-160336 | 20261113-160336 |  |
+| 4 | Deployment hand-off and verification | Completed | 20261113-160336 | 20261113-160336 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

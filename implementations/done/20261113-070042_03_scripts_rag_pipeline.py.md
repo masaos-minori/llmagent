@@ -6,7 +6,7 @@ Make `RagPipeline.get_diagnostics()` build `PipelineDiagnostics` directly from `
 **Release unit**: single-diagnostics-model
 
 ## Assumptions
-- `rmcompat003` (`plans/done/20261112-120011_rmcompat003_rag-corpus-identity-decision.md`) has landed first: `SCHEMA_VERSION`, `compute_local_identity`, `_last_corpus_generation`, the augment() compute block, and the post-hoc `corpus_generation` append in `get_diagnostics()` are all gone. This procedure edits a `get_diagnostics()` that only wraps `PipelineDiagnostics(...)`.
+- `rmcompat003` (`plans/done/20261112-120011_rmcompat003_rag-corpus-identity-decision.md`) has landed first: `SCHEMA_VERSION`, the corpus-identity compute block, and its post-hoc append in `get_diagnostics()` are all gone. This procedure edits a `get_diagnostics()` that only wraps `PipelineDiagnostics(...)`.
 - The surviving `PipelineDiagnostics` (this Plan's sibling `diagnostics.py`) takes a `search_diagnostics` object and derives every output key from it; `rrf_k` is no longer a field, so construction omits it.
 - `last_search_diagnostics` is already a `SearchDiagnostics` with `embed_ok`/`embed_failed`/`fts_errors`/`degraded`, so passing the object replaces the four copied counters.
 - `test_rag_pipeline.py` (companion) drops its `hit_counts` assertion because `to_dict()` no longer emits that key.
@@ -32,7 +32,7 @@ Make `RagPipeline.get_diagnostics()` build `PipelineDiagnostics` directly from `
 Edit `scripts/rag/pipeline.py` in place; no new symbols.
 
 ### Details
-- **Precondition (do not skip):** confirm `corpus_generation`, `_last_corpus_generation`, and `compute_local_identity` are absent from `pipeline.py` and that `get_diagnostics()` has no `diagnostics["..."] = getattr(...)` append. If any remain, `rmcompat003` has not landed; stop and order it first.
+- **Precondition (do not skip):** confirm the corpus-identity compute block and its post-hoc append are absent from `pipeline.py` and that `get_diagnostics()` has no `diagnostics["..."] = getattr(...)` append. If any remain, `rmcompat003` has not landed; stop and order it first.
 - In `get_diagnostics()`, replace the `PipelineDiagnostics.to_dict(PipelineDiagnostics.from_run_result(embed_ok=..., embed_failed=..., fts_errors=..., stage_results=..., timings=..., fetch_result=..., use_rrf=..., rrf_k=...))` call with a direct construction:
   ```python
   def get_diagnostics(self) -> dict:
@@ -51,14 +51,14 @@ Edit `scripts/rag/pipeline.py` in place; no new symbols.
           )
       )
   ```
-  Drop the trailing `diagnostics["corpus_generation"] = getattr(...)` block if it is still present (it must already be gone after `rmcompat003`; if present it belongs to that Plan, not this one).
+  Drop the trailing `diagnostics["..."] = getattr(...)` block if it is still present (it must already be gone after `rmcompat003`; if present it belongs to that Plan, not this one).
 - Module docstring: review the `Module layout:` line describing `rag/diagnostics.py` (currently `— PipelineDiagnostics structured diagnostics`). Correct it only if it no longer describes the final `PipelineDiagnostics`; otherwise leave it unchanged.
 
 ### Companion test files
 - `tests/rag/test_rag_pipeline.py` (companion of this source file): remove the `hit_counts` assertion in `test_get_diagnostics_returns_empty_before_run` (`diag["hit_counts"]["merged"] == 0`). `to_dict()` no longer emits `hit_counts`; the zero-value assertions around it stay. This edit is required by the sibling `diagnostics.py` change (which drops `hit_counts`).
 
 ## Compatibility considerations
-- No `scripts/` caller of `get_diagnostics()` exists outside `tests/`; the output keys are unchanged except the never-appended `corpus_generation` (removed by `rmcompat003`).
+- No `scripts/` caller of `get_diagnostics()` exists outside `tests/`; the output keys are unchanged except the never-appended corpus-identity key (removed by `rmcompat003`).
 - `test_rag_pipeline.py::TestGetDiagnostics` keeps building the pipeline normally (`RagPipeline(http, cfg)`); only the `hit_counts` line is dropped.
 
 ## Security considerations
@@ -77,17 +77,17 @@ Revert the commit; the rewrite is inside the release unit.
 `get_diagnostics()` constructs `PipelineDiagnostics` from `last_search_diagnostics` and returns `to_dict()` with no key added and no `getattr`; `rrf_k` is gone; the companion `hit_counts` assertion is removed; AC-3 matches; the sequence passes.
 
 ## Out of Scope
-The second `SearchDiagnostics` (diagnostics.py sibling), `rrf_k`/`hit_counts` deletion (diagnostics.py sibling), `corpus_generation` removal (`rmcompat003`), and comment sweeping (`rmcompat007`).
+The second `SearchDiagnostics` (diagnostics.py sibling), `rrf_k`/`hit_counts` deletion (diagnostics.py sibling), the corpus-identity removal (`rmcompat003`), and comment sweeping (`rmcompat007`).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-160336 | 20261113-160336 | PROC-03 applied: get_diagnostics() now constructs PipelineDiagnostics(search_diagnostics=...) directly; dropped from_run_result() wrapper, rrf_k arg, and the four copied counters; returns to_dict() inline (no key appended). Companion test hit_counts assertion removed. AC-3 verified. ruff clean; mypy pipeline.py clean (only search.py:122 remains, proc 04); lint-imports 6 kept; bandit 0 med/high. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-160336 | 20261113-160336 | Companion test_rag_pipeline.py: 48 passed (incl. test_get_diagnostics_*). No test change beyond dropping hit_counts assertion. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-160336 | 20261113-160336 | ruff clean; mypy 1 error in search.py:122 (degraded= keyword, proc 04 allowed-red); pipeline.py clean; lint-imports 6 kept 0 broken; bandit 0 med/high. Gated on end-of-unit full suite. End-of-unit full suite: 12161 passed. diff-cover 100% on changed source. mypy success (560 files); lint-imports 6 kept 0 broken; bandit 0 med/high. 4 suite failures pre-existing mdq.sqlite env (reproduced on base). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-160336 | 20261113-160336 | N/A: no docs/00_index.md task-scope mapping; module docstring line 17 still accurate (PipelineDiagnostics exists). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

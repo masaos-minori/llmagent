@@ -40,7 +40,7 @@ Edit `scripts/rag/diagnostics.py` in place; delete code, add one import.
 - Replace the class docstring's "Mirrors get_diagnostics()'s current dict keys exactly, excluding cumulative counters ..." with a current-behavior sentence; replace both `to_dict()` docstrings' "Produce the exact same dict shape as the current get_diagnostics()." with a plain description; drop "mirroring get_diagnostics()'s current dict keys exactly" from the module docstring.
 
 ## Compatibility considerations
-- No `scripts/` or `tests/` caller uses `PipelineDiagnostics.from_run_result()` or reads `.rrf_k`; confirm with `rg` before deleting.
+- The sole `scripts/` caller is `pipeline.py:get_diagnostics()` (line 229), which the sibling `pipeline.py` edit (proc 03) removes; `tests/rag/test_diagnostics.py::TestPipelineDiagnosticsFromRunResult` calls `PipelineDiagnostics.from_run_result()` and is rewritten by proc 07. Once both land, no caller remains. Confirm with `rg` before deleting.
 - `test_diagnostics.py` (this Plan's test procedure) drops the `hit_counts` assertion and the `from_run_result()` calls.
 
 ## Security considerations
@@ -59,17 +59,17 @@ Revert the commit; the deletions are inside the release unit.
 The second `SearchDiagnostics` is gone, `rrf_k` and `hit_counts` are removed, both `from_run_result()` methods are deleted, the shape-mirroring wording is gone, and the surviving class is imported from `rag.models_result`; AC-2 matches and the sequence passes.
 
 ## Out of Scope
-The surviving `SearchDiagnostics` (models_result.py sibling), `corpus_generation` (rmcompat003), the `get_diagnostics()` rewrite (pipeline.py sibling), and comment sweeping (rmcompat007).
+The surviving `SearchDiagnostics` (models_result.py sibling), the `get_diagnostics()` rewrite (pipeline.py sibling), and comment sweeping (rmcompat007). (The corpus-identity removal, rmcompat003, already landed upstream.)
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-160336 | 20261113-160336 | PROC-02 applied: deleted second SearchDiagnostics; dropped PipelineDiagnostics.rrf_k + hit_counts; deleted both from_run_result(); stripped shape-mirroring docstring wording; imported SearchDiagnostics from rag.models_result. ruff clean; mypy diagnostics.py clean; lint-imports 6 kept; bandit 0 med/high. AC-2 verified (no mirroring wording). |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-160336 | 20261113-160336 | Targeted run: 26 failures in TestSearchDiagnosticsFromRunResult + TestPipelineDiagnosticsFromRunResult. AttributeError: from_run_result gone (proc 01 removed it on models_result.SearchDiagnostics; proc 02 removed it on PipelineDiagnostics). Allowed red, attributed to proc 07 (rewrite to direct construction). Gated on end-of-unit suite. Companion test_diagnostics.py (proc 07) rewritten to direct construction; 26 passed. End-of-unit suite green. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-160336 | 20261113-160336 | ruff clean; mypy 2 errors in OTHER files only: search.py:122 (degraded= keyword, proc 04) + pipeline.py:229 (from_run_result, proc 03); diagnostics.py clean; lint-imports 6 kept 0 broken; bandit 0 med/high. Gated on end-of-unit full suite. End-of-unit full suite: 12161 passed. diff-cover 100% on changed source. mypy success (560 files); lint-imports 6 kept 0 broken; bandit 0 med/high. 4 suite failures pre-existing mdq.sqlite env (reproduced on base). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-160336 | 20261113-160336 | N/A: no docs/00_index.md task-scope mapping for scripts/rag/diagnostics.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

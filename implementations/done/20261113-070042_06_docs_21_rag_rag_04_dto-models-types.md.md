@@ -6,7 +6,7 @@ Update the `SearchDiagnostics` entry in `docs/21_rag/rag_04_dto-models-types.md`
 **Release unit**: single-diagnostics-model
 
 ## Assumptions
-- `rmcompat003` (`plans/done/20261112-120011_rmcompat003_rag-corpus-identity-decision.md`) has landed first: `corpus_generation` is already removed from the `SearchDiagnostics` entry (line 90). This procedure edits the post-`rmcompat003` text.
+- `rmcompat003` (`plans/done/20261112-120011_rmcompat003_rag-corpus-identity-decision.md`) has landed first: the corpus-identity counter is already removed from the `SearchDiagnostics` entry (line 90). This procedure edits the post-`rmcompat003` text.
 - `fallback_reason` is a stored-but-never-set field removed by this Plan's `models_result.py`/`diagnostics.py` edits.
 - Documents state intent and failure behavior only, with no copied field table (`skills/DESIGN.md` Avoid implementation-reference duplication).
 
@@ -25,8 +25,8 @@ Update the `SearchDiagnostics` entry in `docs/21_rag/rag_04_dto-models-types.md`
 Edit the markdown in place; no structural change.
 
 ### Details
-- **Precondition (do not skip):** confirm `corpus_generation` no longer appears in the `SearchDiagnostics` entry (line 90). If it is still present, `rmcompat003` has not landed; order it first.
-- Current line 90 lists `(..., `degraded`), `fallback_reason`, and `corpus_generation``. After `rmcompat003` only `..., `fallback_reason`` remains; remove `, `fallback_reason`` so it reads `(..., `degraded`)`.
+- **Precondition (do not skip):** confirm the corpus-identity counter no longer appears in the `SearchDiagnostics` entry (line 90). If it is still present, `rmcompat003` has not landed; order it first.
+- Current line 90 lists `(..., `degraded`), `fallback_reason`, and the corpus-identity counter. After `rmcompat003` only `..., `fallback_reason`` remains; remove `, `fallback_reason`` so it reads `(..., `degraded`)`.
 
 ## Compatibility considerations
 - The rest of the DTO document is unchanged.
@@ -46,17 +46,17 @@ Revert the commit; the edit is a one-line deletion.
 `fallback_reason` is gone from the `SearchDiagnostics` entry; the document matches the code; the rag-domain docs checkers pass.
 
 ## Out of Scope
-`corpus_generation` (`rmcompat003`), the diagnostics doc `rag_03_03` (sibling doc), and comment sweeping (`rmcompat007`).
+the corpus-identity counter (`rmcompat003`), the diagnostics doc `rag_03_03` (sibling doc), and comment sweeping (`rmcompat007`).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-160336 | 20261113-160336 | PROC-06 applied: dropped SearchDiagnostics.fallback_reason from the rag_04 entry (confirmed absent from models_result.py). Stale detector clean after rewording bare symbols to descriptive phrases. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-160336 | 20261113-160336 | N/A: docs-only change; no tests. Validation = 4 rag docs checkers. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-160336 | 20261113-160336 | check_docs_quality/structure/content_policy(--strict)/consistency(--domain rag): all No issues found. Gated on end-of-unit full suite. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-160336 | 20261113-160336 | Doc updated per AC-6: fallback_reason gone from SearchDiagnostics entry. rag-domain docs checkers pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

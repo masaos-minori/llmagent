@@ -94,10 +94,10 @@ The `from_run_result()` deletions (`diagnostics.py` sibling), the `models_result
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-160336 | 20261113-160336 | PROC-07 applied: rewrote test_diagnostics.py wholesale — import SearchDiagnostics from rag.models_result; all from_run_result() calls → direct construction; class TestSearchDiagnosticsFromRunResult → TestSearchDiagnosticsConstruction; hit_counts dropped; all from_run_result wording removed. 26 passed. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-160336 | 20261113-160336 | test_diagnostics.py: 26 passed (was 26 failing from_run_result AttributeError before proc 07). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-160336 | 20261113-160336 | ruff clean; mypy Success (0 issues, 560 files); lint-imports 6 kept 0 broken; bandit 0 med/high. Gated on end-of-unit full suite. End-of-unit full suite: 12161 passed. diff-cover 100% on changed source. mypy success (560 files); lint-imports 6 kept 0 broken; bandit 0 med/high. 4 suite failures pre-existing mdq.sqlite env (reproduced on base). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-160336 | 20261113-160336 | N/A: no docs/00_index.md task-scope mapping for tests/rag/test_diagnostics.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

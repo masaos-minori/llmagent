@@ -6,7 +6,7 @@ Make `scripts/rag/models_result.py` the single home of `SearchDiagnostics`: deri
 **Release unit**: single-diagnostics-model
 
 ## Assumptions
-- `corpus_generation` (models_result.py:90-91) is removed by `plans/20261112-120011_rmcompat003_rag-corpus-identity-decision.md`; this procedure leaves that field and its `RAGCORPUS001` comment untouched and runs after that Plan lands.
+- The RAG corpus identity field at models_result.py:90-91 was removed by `plans/20261112-120011_rmcompat003_rag-corpus-identity-decision.md` (commit `ad8120ebf`), which landed before this Plan. Its `RAGCORPUS001` comment is already absent from `models_result.py`, so there is nothing to leave untouched here; this procedure does not touch that region.
 - No importer takes `PipelineDiagnostics` from `models_result` — `pipeline.py` and `test_diagnostics.py` import it from `rag.diagnostics` — so the re-export block is dead.
 - `RankedHit` lives in `scripts/shared/types.py` and is importable under the layer contract; annotations are strings under `from __future__ import annotations`, so the import is `TYPE_CHECKING`.
 - `degraded` derives as `embed_failed > 0 or fts_errors > 0`, identical to the former `diagnostics.py` computation, so behavior is unchanged for every current writer.
@@ -49,7 +49,7 @@ Edit `scripts/rag/models_result.py` in place; no new module symbols except the p
           "degraded": self.degraded,
       }
   ```
-  Keep the `corpus_generation` field and its `RAGCORPUS001` comment unchanged (removed by rmcompat003).
+  The RAG corpus identity field and its `RAGCORPUS001` comment are already absent (removed by rmcompat003, commit `ad8120ebf`); nothing to preserve there.
 - Remove the `TYPE_CHECKING` block that imports `PipelineDiagnostics` (the `# noqa: F401` re-export); if `TYPE_CHECKING` then has no use, drop the guard and remove `Any` from the `typing` import only if `Any` is otherwise unused (verify before removing).
 - In `RagSearchResult`, change `hits: list[Any]  # list[RankedHit] — typed after Phase 3-1` to `hits: list[RankedHit]`.
 - Add `RankedHit` to the `TYPE_CHECKING` import block: `from shared.types import RankedHit`.
@@ -74,22 +74,28 @@ Revert the commit; the property and `to_dict()` are additive and the field remov
 `degraded` is a derived property, `to_dict()` exists, `fallback_reason` is gone, the re-export block and `Phase 3-1` comment are removed, and `RagSearchResult.hits` is `list[RankedHit]`; the AC-1/AC-4 searches match and the sequence passes.
 
 ## Out of Scope
-`corpus_generation` (rmcompat003), the second `SearchDiagnostics` in `diagnostics.py` (this document's sibling), the `get_diagnostics()` rewrite (sibling), and comment sweeping (rmcompat007).
+The removed RAG corpus identity field (rmcompat003), the second `SearchDiagnostics` in `diagnostics.py` (this document's sibling), the `get_diagnostics()` rewrite (sibling), and comment sweeping (rmcompat007).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-160336 | 20261113-160336 | Step 3e validators pass: ruff format/check clean, mypy success, lint-imports 6 contracts kept (one rag->shared type import added), bandit no issues. Allowed red state (23 test_rag_stages failures from search.py degraded=) recorded in Failure Log; procedure 04 removes it. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-160336 | 20261113-160336 | Companion test_diagnostics.py (proc 07) constructs SearchDiagnostics directly and asserts degraded + full key set; end-of-unit suite green. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-160336 | 20261113-160336 | End-of-unit full suite: 12161 passed / 11 skipped. diff-cover 100% on changed source (9 lines, 0 missing). mypy success (560 files); lint-imports 6 kept 0 broken; bandit 0 med/high. 4 suite failures are pre-existing mdq.sqlite env issues, reproduced on base, unrelated to this unit. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-160336 | 20261113-160336 | N/A: no docs/00_index.md task-scope mapping for scripts/rag/models_result.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
+
+### Failure Log
+
+| Step | Approach | Error | Reason for failure / attribution |
+|------|----------|-------|----------------------------------|
+| 4 (targeted tests, release-unit batch) | `pytest tests/rag/test_diagnostics.py tests/rag/test_rag_stages.py` after procedure 01 | `TypeError: SearchDiagnostics.__init__() got an unexpected keyword argument 'degraded'` in `tests/rag/test_rag_stages.py` (23 failures, all via `scripts/rag/stages/search.py:122`) | Allowed red state for release unit `single-diagnostics-model`: caused by `stages/search.py` still passing `degraded=` to `SearchDiagnostics`, which procedure 04 (`20261113-070042_04_scripts_rag_stages_search.py.md`) removes. Not a procedure 01 defect. Cleared by the end-of-unit full-suite run.
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

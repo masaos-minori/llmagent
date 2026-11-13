@@ -71,10 +71,10 @@ The surviving `SearchDiagnostics` property (`models_result.py` sibling), the sec
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-160336 | 20261113-160336 | PROC-04 applied: deleted the duplicate degraded= calc + its 2-line comment in search.py; dropped degraded= from the SearchDiagnostics(...) ctor. AC-3 verified. ruff clean; mypy Success (0 issues, 560 files); lint-imports 6 kept 0 broken; bandit 0 med/high. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-160336 | 20261113-160336 | test_rag_stages.py: 74 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-160336 | 20261113-160336 | ruff clean; mypy Success (0 issues, 560 files) — all unit mypy errors resolved; lint-imports 6 kept 0 broken; bandit 0 med/high. Gated on end-of-unit full suite. End-of-unit full suite: 12161 passed. diff-cover 100% on changed source. mypy success (560 files); lint-imports 6 kept 0 broken; bandit 0 med/high. 4 suite failures pre-existing mdq.sqlite env (reproduced on base). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-160336 | 20261113-160336 | N/A: no docs/00_index.md task-scope mapping for scripts/rag/stages/search.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
