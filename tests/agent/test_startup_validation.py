@@ -252,7 +252,7 @@ class TestRagConsistencyTimeout:
 
     @pytest.mark.asyncio
     async def test_rag_check_timeout_enforced(self) -> None:
-        """REQ-002: a timed-out RAG consistency check warns identity-unverified, not fatal."""
+        """REQ-002: a timed-out RAG consistency check warns with a WARNING, not fatal."""
         rag_service = MagicMock()
         result = await _run_check_services(
             rag_service,
@@ -262,7 +262,6 @@ class TestRagConsistencyTimeout:
         assert _rag_outcomes(result) == [StartupCheckStatus.WARNING]
         warned = [o for o in result.outcomes if o.source == "rag_consistency"]
         assert "timed out" in warned[0].message
-        assert "identity-unverified" in warned[0].message
         assert not result.has_fatal
 
     @pytest.mark.asyncio
@@ -288,7 +287,6 @@ class TestRagConsistencyTimeout:
         warned = [o for o in result.outcomes if o.source == "rag_consistency"]
         assert "PROGRAMMING_ERROR" in warned[0].message
         assert "KeyError" in warned[0].message
-        assert "identity-unverified" in warned[0].message
         assert not result.has_fatal
 
     @pytest.mark.asyncio

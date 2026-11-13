@@ -515,7 +515,7 @@ class TestCheckServicesSeverityClassification:
 
     @pytest.mark.asyncio
     async def test_rag_consistency_unverified_warning_on_check_failure(self) -> None:
-        """A check failure marks the corpus identity-unverified via a WARNING (never
+        """A check failure marks RAG consistency unverified via a WARNING (never
         SKIPPED, never FATAL); the gate enforces fail-closed (REQ-007)."""
         ctx = _make_startup_ctx()
         rag_service = MagicMock()
@@ -527,5 +527,4 @@ class TestCheckServicesSeverityClassification:
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.WARNING
-        assert "identity-unverified" in outcomes[0].message
         assert "DATABASE_OR_IO" in outcomes[0].message

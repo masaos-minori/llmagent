@@ -551,7 +551,7 @@ class TestCheckServicesSeverityClassification:
 class TestRagConsistencySeverityStartup:
     """Startup routes RAG findings by structural severity (docs 05/03/04/06/07):
     a FATAL finding aborts startup, DEGRADED findings warn with the repair action
-    named, and a timeout or unexpected failure marks the corpus identity-unverified
+    named, and a timeout or unexpected failure marks RAG consistency unverified
     without aborting (the gate enforces fail-closed, REQ-007)."""
 
     @staticmethod
@@ -640,7 +640,6 @@ class TestRagConsistencySeverityStartup:
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.WARNING
-        assert "identity-unverified" in outcomes[0].message
 
     @pytest.mark.asyncio
     async def test_unexpected_exception_marks_unverified(self) -> None:
@@ -654,7 +653,6 @@ class TestRagConsistencySeverityStartup:
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.WARNING
-        assert "identity-unverified" in outcomes[0].message
         # _classify_rag_failure maps sqlite3.Error to DATABASE_OR_IO, retained verbatim.
         assert "DATABASE_OR_IO" in outcomes[0].message
 

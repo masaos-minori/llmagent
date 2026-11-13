@@ -98,14 +98,6 @@ def _build_rag(path: Path, *, prod: bool = False) -> None:
             conn.executescript(build_rag_schema_sql(EMBED_DIMS))
         else:
             conn.executescript(_RAG_DDL)
-        # The canonical rag schema carries the single-row rag_corpus_meta table;
-        # a healthy fixture verifies it (present-but-empty is the fatal class).
-        conn.execute(
-            "INSERT INTO rag_corpus_meta (rowid, corpus_id, index_generation, "
-            "embedding_model_id, normalization_version, chunking_policy_version, "
-            "updated_at) VALUES (1, 'fixture-corpus', 1, 'fixture-model', "
-            "'v1', 'v1', '2026-01-01T00:00:00Z')"
-        )
         conn.commit()
     finally:
         conn.close()
@@ -366,7 +358,6 @@ def test_rag_unverified_dimension_fails_drill(
         fts_gap=0,
         fts_orphan_count=0,
         read_smoke_test_ok=True,
-        corpus_meta_verified=True,
         fk_unverified=True,
     )
     with (

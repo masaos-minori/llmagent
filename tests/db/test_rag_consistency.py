@@ -72,12 +72,6 @@ def _make_rag_db() -> _FakeSQLiteHelper:
     conn.executescript(
         _RAG_SCHEMA
     )  # executescript handles trigger bodies with semicolons
-    conn.execute(
-        "INSERT INTO rag_corpus_meta (corpus_id, index_generation, embedding_model_id,"
-        " normalization_version, chunking_policy_version, updated_at)"
-        " VALUES ('fixture-corpus', 1, 'fixture-model', '1', '1',"
-        " '2026-01-01T00:00:00Z')"
-    )
     conn.commit()
     return _FakeSQLiteHelper(conn)
 
@@ -649,9 +643,6 @@ def _report(**overrides: Any) -> RagConsistencyReport:
         "fts_gap": 0,
         "fts_orphan_count": 0,
         "read_smoke_test_ok": True,
-        # New fatal-class fields default clean so the baseline report only ever
-        # surfaces the single issue *overrides* introduces.
-        "corpus_meta_verified": True,
     }
     base.update(overrides)
     base.setdefault("vec", base["chunks"])
@@ -1133,7 +1124,6 @@ class TestVerificationStatusContract:
             fts_gap=0,
             fts_orphan_count=0,
             read_smoke_test_ok=True,
-            corpus_meta_verified=True,
             **flags,
         )
 

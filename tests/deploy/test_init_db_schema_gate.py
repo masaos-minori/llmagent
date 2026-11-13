@@ -36,7 +36,6 @@ from db.schema_sql import (
 )
 from db.store_protocols import get_embedding_dims
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
-from rag.corpus_identity import ensure_corpus_meta
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _INIT_DB = _REPO_ROOT / "deploy" / "init_db.sh"
@@ -118,8 +117,7 @@ def _provision_canonical_vec_db(name: str, path: pathlib.Path) -> None:
     and the recovery drill's fail-closed logical layer (check_rag_consistency /
     check_session_consistency) must pass on the fixtures, so the databases are
     built exactly as production create_schema.py builds them and seeded with one
-    healthy row set per domain (rag additionally seeds the single-row
-    rag_corpus_meta corpus identity, whose absence is a fatal finding).
+    healthy row set per domain.
     """
     dims = get_embedding_dims()
     builders = {
@@ -139,9 +137,6 @@ def _provision_canonical_vec_db(name: str, path: pathlib.Path) -> None:
     helper.open()
     try:
         if name == "rag":
-            ensure_corpus_meta(
-                helper, embedding_model_id="test-model", schema_version="1"
-            )
             helper.execute(
                 "INSERT INTO documents (url, lang, fetched_at) "
                 "VALUES ('https://example.com/a', 'ja', '2026-01-01T00:00:00Z')"

@@ -34,8 +34,6 @@ from rag.models_data import PreparedChunk
 # Canonical rag.sqlite DDL (scripts/db/schema_sql.py _RAG_SCHEMA_TEMPLATE), with the
 # vec0 virtual table replaced by a plain stand-in: the schema fingerprint compares
 # virtual tables by NAME only, so a plain `chunks_vec` is equivalent in fixtures.
-# rag_corpus_meta is seeded because a present-but-empty corpus-meta table is a fatal
-# state for the consistency checks.
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS documents (
     doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,16 +58,6 @@ CREATE TABLE IF NOT EXISTS chunks (
     CHECK (chunk_index >= 0),
     CHECK (chunk_type IN ('text', 'code')),
     CHECK (length(content) > 0)
-);
-CREATE TABLE IF NOT EXISTS rag_corpus_meta (
-    corpus_id                TEXT    NOT NULL,
-    index_generation         INTEGER NOT NULL,
-    embedding_model_id       TEXT    NOT NULL,
-    normalization_version    TEXT    NOT NULL,
-    chunking_policy_version  TEXT    NOT NULL,
-    updated_at               TEXT    NOT NULL,
-    -- Single-row: the corpus identity is a single configuration row.
-    CHECK (rowid = 1)
 );
 CREATE TABLE IF NOT EXISTS chunks_vec (
     chunk_id  INTEGER PRIMARY KEY,
@@ -102,10 +90,6 @@ CREATE TRIGGER IF NOT EXISTS chunks_vec_ad
 AFTER DELETE ON chunks BEGIN
     DELETE FROM chunks_vec WHERE chunk_id = old.chunk_id;
 END;
-INSERT OR IGNORE INTO rag_corpus_meta (
-    rowid, corpus_id, index_generation, embedding_model_id,
-    normalization_version, chunking_policy_version, updated_at
-) VALUES (1, 'fixture-corpus', 1, 'fixture-model', 'v1', 'v1', '2026-01-01T00:00:00Z');
 """
 
 _DIM = get_embedding_dims()

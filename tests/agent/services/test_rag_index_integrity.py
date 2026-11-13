@@ -9,8 +9,6 @@ Covers:
 - TEST-DESIGN3-04: deletion order invariant (chunks_vec -> chunks -> documents)
 - TEST-DESIGN3-05: check_rag_consistency() detects FTS desynchronization
 - reconcile_url() FTS deletion does not raise OperationalError (bug fix regression)
-- corpus_identity() returns a verified CorpusIdentity when rag_corpus_meta exists
-- corpus_identity() returns None when rag_corpus_meta is absent (pre-migration DB)
 
 Resolves: DESIGN-3 missing tests (a per-area known-issues document since consolidated and removed)
 """
@@ -76,26 +74,10 @@ AFTER DELETE ON chunks BEGIN
 END;
 """
 
-# rag_corpus_meta is created by the db schema DDL (doc 02), not here; this extra DDL
-# mirrors that single-row table so the corpus_identity() wrapper can be exercised
-# against a present table (verified identity) and an absent table (None).
-_RAG_META_EXTRA = """
-CREATE TABLE IF NOT EXISTS rag_corpus_meta (
-    corpus_id                TEXT    NOT NULL,
-    index_generation         INTEGER NOT NULL,
-    embedding_model_id       TEXT    NOT NULL,
-    normalization_version    TEXT    NOT NULL,
-    chunking_policy_version  TEXT    NOT NULL,
-    updated_at               TEXT    NOT NULL,
-    CHECK (rowid = 1)
-);
-"""
-
 
 # Canonical rag.sqlite DDL (scripts/db/schema_sql.py _RAG_SCHEMA_TEMPLATE) with the
 # vec0 table as a plain stand-in (the fingerprint compares virtual tables by NAME
-# only) and rag_corpus_meta seeded, for the consistency-report test that must pass
-# the schema-fingerprint gate.
+# only), for the consistency-report test that must pass the schema-fingerprint gate.
 _SCHEMA_SQL_CANONICAL = """
 CREATE TABLE IF NOT EXISTS documents (
     doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,15 +102,6 @@ CREATE TABLE IF NOT EXISTS chunks (
     CHECK (chunk_index >= 0),
     CHECK (chunk_type IN ('text', 'code')),
     CHECK (length(content) > 0)
-);
-CREATE TABLE IF NOT EXISTS rag_corpus_meta (
-    corpus_id                TEXT    NOT NULL,
-    index_generation         INTEGER NOT NULL,
-    embedding_model_id       TEXT    NOT NULL,
-    normalization_version    TEXT    NOT NULL,
-    chunking_policy_version  TEXT    NOT NULL,
-    updated_at               TEXT    NOT NULL,
-    CHECK (rowid = 1)
 );
 CREATE TABLE IF NOT EXISTS chunks_vec (
     chunk_id INTEGER PRIMARY KEY,
@@ -161,10 +134,6 @@ CREATE TRIGGER IF NOT EXISTS chunks_vec_ad
 AFTER DELETE ON chunks BEGIN
     DELETE FROM chunks_vec WHERE chunk_id = old.chunk_id;
 END;
-INSERT OR IGNORE INTO rag_corpus_meta (
-    rowid, corpus_id, index_generation, embedding_model_id,
-    normalization_version, chunking_policy_version, updated_at
-) VALUES (1, 'fixture-corpus', 1, 'fixture-model', 'v1', 'v1', '2026-01-01T00:00:00Z');
 """
 
 
@@ -527,52 +496,3 @@ def test_rebuild_vec_removes_orphaned_chunks_vec_rows(db: _FakeSQLiteHelper) -> 
         db.fetchall("SELECT chunk_id FROM chunks WHERE embedding IS NOT NULL")
     )
     assert count == expected_count
-
-
-# ── corpus_identity(): meta ensure/read wrapper (RAGCORPUS001 doc 06 p2) ─────────
-
-from rag.corpus_identity import CorpusIdentity
-
-
-def _rag_conn(with_meta: bool) -> sqlite3.Connection:
-    """Return a fresh in-memory rag schema connection, optionally with rag_corpus_meta."""
-    conn = sqlite3.connect(":memory:")
-    conn.execute("PRAGMA foreign_keys=ON")
-    conn.row_factory = sqlite3.Row
-    conn.executescript(_SCHEMA_SQL + (_RAG_META_EXTRA if with_meta else ""))
-    conn.commit()
-    return conn
-
-
-def test_corpus_identity_returns_verified_identity_when_meta_table_present() -> None:
-    """corpus_identity() returns a verified CorpusIdentity when rag_corpus_meta exists."""
-    db = _FakeSQLiteHelper(_rag_conn(with_meta=True))
-    with patch(
-        "agent.services.rag_maintenance_service.SQLiteHelper"
-    ) as mock_helper_cls:
-        mock_helper_cls.return_value.open.return_value.__enter__.return_value = db
-        mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
-        identity = RagMaintenanceService().corpus_identity(
-            embedding_model_id="embed-v1", schema_version="1"
-        )
-
-    assert isinstance(identity, CorpusIdentity)
-    assert identity.verified is True
-    assert identity.embedding_model_id == "embed-v1"
-    assert identity.schema_version == "1"
-    assert identity.corpus_id  # fresh uuid4 stamped by ensure_corpus_meta
-
-
-def test_corpus_identity_returns_none_when_meta_table_absent() -> None:
-    """corpus_identity() returns None when rag_corpus_meta is absent (pre-migration DB)."""
-    db = _FakeSQLiteHelper(_rag_conn(with_meta=False))
-    with patch(
-        "agent.services.rag_maintenance_service.SQLiteHelper"
-    ) as mock_helper_cls:
-        mock_helper_cls.return_value.open.return_value.__enter__.return_value = db
-        mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
-        identity = RagMaintenanceService().corpus_identity(
-            embedding_model_id="embed-v1", schema_version="1"
-        )
-
-    assert identity is None
