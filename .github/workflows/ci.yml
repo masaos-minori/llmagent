@@ -78,9 +78,8 @@ jobs:
           # Pinned to the release production runs, so the extension does not drift.
           SQLITE_VEC_REF=v0.1.10-alpha.4 bash deploy/build_sqlite_vec.sh
       - name: Run tests
-        run: uv run pytest -v
+        run: uv run coverage run -m pytest -v tests/
       - name: Coverage report
         run: |
-          uv run coverage run -m pytest tests/
           uv run coverage xml
           uv run diff-cover coverage.xml --compare-branch=origin/master --fail-under=90
