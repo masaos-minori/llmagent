@@ -115,7 +115,6 @@ class RagConsistencyReport:
     fk_inconsistency_count: int = 0
     dimension_mismatch: int = 0
     unknown_schema: int = 0
-    corpus_meta_verified: bool = False
     # Verification-status flags: set by check_rag_consistency (db/rag_consistency.py) when the
     # corresponding probe raises sqlite3.Error. An unverified dimension is never a healthy zero.
     fk_unverified: bool = False  # FK probe raised sqlite3.Error

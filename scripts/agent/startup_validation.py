@@ -245,8 +245,8 @@ class StartupValidationPipeline:
             logger.warning("RAG consistency check timed out after 30s")
             pipeline.add_warning(
                 "rag_consistency",
-                "RAG identity-unverified: consistency check timed out after 30s; "
-                "startup continues with the corpus identity unverified.",
+                "RAG consistency check timed out after 30s; startup continues "
+                "with RAG consistency unverified.",
             )
         except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup;
             # the unverified state is fail-closed downstream, not here.
@@ -254,9 +254,9 @@ class StartupValidationPipeline:
             logger.warning("RAG consistency check failed: %s", exc)
             pipeline.add_warning(
                 "rag_consistency",
-                "RAG identity-unverified: "
+                "RAG consistency check failed: "
                 f"{category} ({type(exc).__name__}): {exc}; startup continues "
-                "with the corpus identity unverified.",
+                "with RAG consistency unverified.",
             )
 
         return pipeline

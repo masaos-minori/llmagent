@@ -34,7 +34,6 @@ from rag.config_resolution import resolve_rag_config
 from rag.db_connection import RagDatabaseConnection
 from rag.diagnostics import PipelineDiagnostics
 from rag.exceptions import RagPipelineError
-from rag.identity_gate import compute_local_identity
 from rag.llm_client import RagLLM
 from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
@@ -47,12 +46,6 @@ from rag.stages.augment import (
 from rag.types import PipelineRunResult
 
 logger = logging.getLogger(__name__)
-
-# Schema version is not persisted in the ``rag_corpus_meta`` table (no column for it), so
-# the pipeline supplies it as a module-level constant rather than reading it from
-# configuration (no runtime config source exists). It participates in identity equality;
-# bump only on a breaking corpus-schema change so existing corpora keep a stable identity.
-SCHEMA_VERSION = "1"
 
 
 class RagPipeline:
@@ -87,9 +80,6 @@ class RagPipeline:
         # Cumulative search failure counters across all run() calls on this instance
         self.stat_search_embed_failed: int = 0
         self.stat_search_fts_errors: int = 0
-        # RAGCORPUS001 (REQ-004): corpus generation of the last accepted result, surfaced by
-        # get_diagnostics(); None when no verified local corpus produced the result.
-        self._last_corpus_generation: int | None = None
 
         # Resolve configuration via delegate
         self._cfg = resolve_rag_config(cfg, module_cfg=module_cfg)
@@ -197,13 +187,6 @@ class RagPipeline:
                 sqlite_timeout=self._sqlite_timeout,
                 sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
             ) as db:
-                # REQ-004: record the generation of the corpus that serves the result.
-                local_identity = compute_local_identity(
-                    db, schema_version=SCHEMA_VERSION
-                )
-                self._last_corpus_generation = (
-                    local_identity.index_generation if local_identity.verified else None
-                )
                 pipeline_result = await self.run(
                     query,
                     db,
@@ -253,13 +236,5 @@ class RagPipeline:
                 use_rrf=self._cfg.use_rrf,
                 rrf_k=self._cfg.rrf_k,
             )
-        )
-        # RAGCORPUS001 (REQ-004): surface the accepted corpus generation. Added here
-        # rather than in PipelineDiagnostics.to_dict()
-        # so the frozen diagnostics contract in tests/rag/test_diagnostics.py stays
-        # byte-for-byte stable. getattr defaults keep this safe when called before
-        # augment() (some tests build the pipeline via RagPipeline.__new__).
-        diagnostics["corpus_generation"] = getattr(
-            self, "_last_corpus_generation", None
         )
         return diagnostics

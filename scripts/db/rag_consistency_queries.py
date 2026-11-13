@@ -8,8 +8,8 @@ report is built from:
   _query_ids_or_none / _query_pairs: top-10 identifier readers
   _collect_affected_identifiers: the affected-identifier set for each consistency rule
   _check_read_smoke_test: one COUNT(*) read per required RAG table
-  _check_fk_consistency / _check_embedding_dimension / _check_schema_recognition /
-  _check_corpus_meta: the fatal-class probes added for RAGCORPUS001
+  _check_fk_consistency / _check_embedding_dimension / _check_schema_recognition: the
+  fatal-class probes added for RAGCORPUS001
 
 Extracted from rag_consistency.py so that module keeps report assembly, the `_CHECKS`
 rule registry, and issue rendering only. Each query is read-only: it returns None or an
@@ -278,23 +278,3 @@ def _check_schema_recognition(db: SQLiteHelper) -> bool:
         raise RuntimeError("rag_consistency_queries: database connection is not open")
     assert_matches(conn, build_rag_schema_sql(get_embedding_dims()), label="rag.sqlite")
     return True
-
-
-def _check_corpus_meta(db: SQLiteHelper) -> bool:
-    """Return True when the single-row rag_corpus_meta table is well formed.
-
-    Presence of exactly one row with a non-null corpus_id marks a verifiable
-    corpus generation. A missing or multi-row table is the unverifiable-generation
-    fatal class; a missing table is reported as False rather than raised so
-    check_rag_consistency can apply the ledger-based pre-migration tolerance.
-    """
-    try:
-        row_count = db.execute("SELECT COUNT(*) FROM rag_corpus_meta").fetchone()[0]
-    except sqlite3.Error:
-        return False
-    if row_count != 1:
-        return False
-    corpus_id = db.execute("SELECT corpus_id FROM rag_corpus_meta LIMIT 1").fetchone()[
-        0
-    ]
-    return corpus_id is not None

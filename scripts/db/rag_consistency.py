@@ -8,7 +8,6 @@ from collections.abc import Callable, Iterable, Sequence
 from db.helper import SQLiteHelper
 from db.models import ConsistencyFinding, FindingSeverity, RagConsistencyReport
 from db.rag_consistency_queries import (
-    _check_corpus_meta,
     _check_embedding_dimension,
     _check_fk_consistency,
     _check_read_smoke_test,
@@ -108,8 +107,6 @@ def check_rag_consistency(
     except sqlite3.Error as e:
         schema_unverified = True
         diagnostic_errors.append(f"Schema recognition probe failed: {e}")
-    corpus_meta_verified = _corpus_meta_verifiable(db)
-
     report = RagConsistencyReport(
         chunks=chunks,
         fts=fts,
@@ -134,7 +131,6 @@ def check_rag_consistency(
         fk_inconsistency_count=fk_inconsistency_count,
         dimension_mismatch=dimension_mismatch,
         unknown_schema=unknown_schema,
-        corpus_meta_verified=corpus_meta_verified,
         fk_unverified=fk_unverified,
         embedding_unverified=embedding_unverified,
         schema_unverified=schema_unverified,
@@ -371,34 +367,6 @@ def _unknown_schema_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     )
 
 
-def _unverifiable_corpus_issue(report: RagConsistencyReport) -> ConsistencyFinding:
-    """The single-row rag_corpus_meta table is missing or malformed."""
-    return ConsistencyFinding(
-        severity=FindingSeverity.FATAL,
-        message=(
-            f"[CRITICAL] Unverifiable corpus generation detected"
-            f" (corpus_meta_verified={int(report.corpus_meta_verified)})."
-        ),
-        repair_action="restore_from_backup",
-    )
-
-
-def _corpus_meta_verifiable(db: SQLiteHelper) -> bool:
-    """True when rag_corpus_meta verifies one corpus or is absent (pre-migration).
-
-    `_check_corpus_meta` reports a missing table as False; here absence is tolerated
-    until the rag corpus migration runs, while a present-but-malformed table (zero,
-    multiple, or id-less rows) stays the unverifiable-generation fatal class.
-    """
-    if _check_corpus_meta(db):
-        return True
-    try:
-        db.execute("SELECT 1 FROM rag_corpus_meta LIMIT 1")
-    except sqlite3.Error:
-        return True  # table absent before the migration runs
-    return False  # present but malformed
-
-
 @dataclasses.dataclass(frozen=True)
 class _ConsistencyCheck:
     """One consistency rule: the predicate that says it is clean, and its message.
@@ -443,9 +411,6 @@ _CHECKS: tuple[_ConsistencyCheck, ...] = (
         lambda report: report.dimension_mismatch == 0, _embedding_dimension_issue
     ),
     _ConsistencyCheck(lambda report: report.unknown_schema == 0, _unknown_schema_issue),
-    _ConsistencyCheck(
-        lambda report: report.corpus_meta_verified, _unverifiable_corpus_issue
-    ),
     _ConsistencyCheck(lambda report: not report.diagnostic_errors),
     _ConsistencyCheck(lambda report: report.read_smoke_test_ok),
     # Fail closed: a probe that could not run marks its dimension unverified, and an

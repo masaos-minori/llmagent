@@ -87,5 +87,3 @@ class SearchDiagnostics:
     fts_errors: int = 0
     degraded: bool = False
     fallback_reason: str | None = None
-    # Corpus identity field (RAGCORPUS001 REQ-004): the selected corpus ``index_generation``.
-    corpus_generation: int | None = None

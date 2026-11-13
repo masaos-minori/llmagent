@@ -17,7 +17,6 @@ from pathlib import Path
 import httpx
 from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
-from rag.corpus_identity import bump_index_generation
 from rag.exceptions import ChunkFormatError, IngestionFailureReason
 from rag.ingestion.chunk_grouping import ChunkGeneration, ChunkGroupingStrategy
 from rag.ingestion.chunk_preparation import ChunkFactory
@@ -172,13 +171,6 @@ class RagIngester:
                 on_ingest_complete=on_ingest_complete,
             )
             total_success = sum(r.n_success for r in results)
-            # RAGCORPUS001 REQ-001: advance the corpus index generation once this run
-            # has actually written content (n_success > 0 for at least one group).
-            # Best-effort — a failed bump leaves the previous generation in force and
-            # never breaks ingestion completion. Runs that only failed or only skipped
-            # wrote nothing and leave the generation untouched.
-            if total_success > 0:
-                bump_index_generation(db)
 
         total_failed = sum(r.n_failed for r in results if r.n_failed > 0)
         total_embed_failed = sum(
