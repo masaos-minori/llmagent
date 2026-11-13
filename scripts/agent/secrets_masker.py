@@ -35,7 +35,12 @@ SECRET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(
         r"(?i)()(?<![\w.-])eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
     ),
-    re.compile(r"(?i)([a-z][a-z0-9+.-]*://(?:[^/\s:@]+:)?)([^/\s@]+)(?=@)"),
+    # The lookbehind starts a match only at the beginning of a scheme-character run;
+    # without it every start position rescans the whole run (quadratic on long input).
+    re.compile(
+        r"(?i)((?<![a-z0-9+.-])[0-9+.-]*[a-z][a-z0-9+.-]*://(?:[^/\s:@]+:)?)"
+        r"([^/\s@]+)(?=@)"
+    ),
 ]
 
 
