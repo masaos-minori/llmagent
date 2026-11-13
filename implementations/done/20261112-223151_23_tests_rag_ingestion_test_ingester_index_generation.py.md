@@ -37,7 +37,10 @@ N/A: no security-relevant behavior change.
 Revert the commit: restore the file from the prior commit.
 
 ## Validation plan
-- `rg -n "bump_index_generation|index_generation" scripts tests` returns nothing.
+- `rg -n "bump_index_generation|index_generation" scripts/rag/ingestion tests/rag/ingestion`
+  returns nothing in the same cycle as seq 06. The name legitimately remains in
+  `scripts/rag/corpus_identity.py`, `scripts/rag/identity_gate.py`, `scripts/db/schema_sql.py`
+  and fixture seeds until the release unit (phases 6-8) removes them.
 - `uv run pytest tests/rag/ingestion` passes.
 
 ## Completion criteria
@@ -51,10 +54,10 @@ The ingester bump call (`REQ-004`, seq 06).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-101936 | 20261113-102229 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-102229 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-102229 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-102229 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

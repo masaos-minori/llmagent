@@ -36,9 +36,9 @@ N/A: the Plan fixes removal; keeping a zeroed generation would contradict Option
 ### Method
 Five localized deletions; verify no remaining reference to each removed symbol after editing.
 ### Details
-- After removing the append, `get_diagnostics()` returns the same shape minus one key; the
-  frozen diagnostics contract in `tests/rag/test_diagnostics.py` is updated by that test's
-  expectations, not by extra code.
+- After removing the append, `get_diagnostics()` returns the same shape minus one key;
+  `tests/rag/test_diagnostics.py` was verified not to pin `corpus_generation`, so no test
+  edit is needed for this file.
 - `SCHEMA_VERSION` removal must be confirmed against the server document so both go together.
 
 ## Compatibility considerations
@@ -52,7 +52,9 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "SCHEMA_VERSION|_last_corpus_generation|corpus_generation|compute_local_identity" scripts/rag` returns nothing.
+- `rg -n "SCHEMA_VERSION|_last_corpus_generation|corpus_generation|compute_local_identity" scripts/rag/pipeline.py` returns nothing.
+  (Scoped to this file: `scripts/rag/identity_gate.py` legitimately still matches until the
+  release-unit documents remove it in phase 6.)
 - `uv run pytest tests/rag` passes.
 
 ## Completion criteria
@@ -68,10 +70,10 @@ The MCP server identity view (`REQ-003`), the ingester bump call (`REQ-004`), an
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-095937 | 20261113-100523 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-100523 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-100523 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-100523 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -6,9 +6,14 @@ the suite no longer asserts the removed warning prefix (`REQ-009`).
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
+## Verification Findings (2026-11-13)
+- Current references: line 518 is the test docstring ("A check failure marks the corpus
+  identity-unverified via a WARNING (never ...)") — reword it; line 530 is the single
+  `assert "identity-unverified" in outcomes[0].message` assertion to delete.
+
 ## Assumptions
-- Two assertions check the `identity-unverified` prefix at lines 518, 530; the rest of the
-  test keeps its severity-classification assertions.
+- One assertion checks the `identity-unverified` prefix (line 530) plus one docstring mention
+  (line 518); the rest of the test keeps its severity-classification assertions.
 
 ## Design decisions
 - Remove only the `identity-unverified` assertion(s); keep the severity-classification
@@ -21,10 +26,11 @@ N/A: removal is the decided Option B; the prefix names a removed concept.
 ### Target file
 `tests/agent/test_startup_severity_classification.py`
 ### Procedure
-- Remove the `identity-unverified` assertions at lines 518, 530; keep the surrounding
-  severity-classification assertions.
+- Reword the test docstring at lines 518-519 to drop the `identity-unverified` mention.
+- Remove the `identity-unverified` assertion at line 530; keep the WARNING-status and
+  `DATABASE_OR_IO` assertions.
 ### Method
-Assertion deletion(s); keep every other assertion in the test.
+One assertion deletion plus one docstring reword; keep every other assertion in the test.
 ### Details
 - The warning prefix is stripped by seq 15; delete together so the assertions match the new
   message text.
@@ -39,7 +45,8 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "identity-unverified" scripts tests docs` returns nothing.
+- Scoped: `rg -n "identity-unverified" tests/agent/test_startup_severity_classification.py`
+  returns nothing. The cross-file search over `scripts tests docs` runs at phase 9 end (AC-9).
 - `uv run pytest tests/agent/test_startup_severity_classification.py` passes.
 
 ## Completion criteria
@@ -55,10 +62,10 @@ seq 33, standalone seq 34).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113 | cycle G 20261113 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113 | cycle G 20261113 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113 | cycle G 20261113 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113 | cycle G 20261113 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

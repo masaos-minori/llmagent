@@ -7,10 +7,13 @@ matches the DDL that no longer creates the table (`REQ-008`).
 **Release unit**: corpus-meta-removal
 
 ## Assumptions
-- `tools/check_db_separation.py` owns the canonical `TABLE_OWNERSHIP` mapping; ADR-008's
-  line-409 inventory already lists four RAG tables and matches Option B.
-- The checker verifies ownership after the change; the inventory must match the canonical
-  DDL (seq 13).
+- `tools/check_db_separation.py` owns the canonical `TABLE_OWNERSHIP` mapping; ADR-008
+  (`docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, line 407) already lists exactly
+  four RAG tables and matches Option B, so the ADR is not edited.
+- The checker compares DDL-created tables and the inventory in both directions
+  (`tools/check_db_separation.py:154-164`): it fails if the inventory drops the name while
+  the DDL still creates it, and vice versa. Run seq 13 and seq 14 in the same cycle and run
+  the checker only after both land.
 
 ## Design decisions
 - Remove `"rag_corpus_meta"` from the `"rag"` frozenset; keep the other four tables.
@@ -54,10 +57,10 @@ The DDL table (`REQ-008`, seq 13) and the ADR-008 inventory (already matches, no
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Static check only |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113 | Static check only seq13 lockstep cycle 20261113 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

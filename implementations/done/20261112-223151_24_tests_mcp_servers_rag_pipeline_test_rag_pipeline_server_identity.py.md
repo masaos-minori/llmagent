@@ -38,7 +38,11 @@ N/A: no security-relevant behavior change.
 Revert the commit: restore the file from the prior commit.
 
 ## Validation plan
-- `rg -n "corpus_identity|_identity_payload" scripts/mcp_tests tests` returns nothing.
+- `rg -n "corpus_identity|_identity_payload" scripts/mcp_servers tests/mcp_servers` returns
+  nothing in the same cycle as seq 04, 05, and 25.
+- Standalone `SCHEMA_VERSION` check: `rg -n "\bSCHEMA_VERSION\b" scripts/mcp_servers tests/mcp_servers`
+  returns nothing (word boundary: `MCP_TOOL_SCHEMA_VERSION` in `scripts/mcp_servers/server.py`
+  is a different constant and must not be touched).
 - `uv run pytest tests/mcp_servers/rag_pipeline` passes.
 
 ## Completion criteria
@@ -52,10 +56,10 @@ The server identity view (`REQ-003`, seq 04) and the endpoint-test trim (seq 25)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-100607 | 20261113-100819 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-100819 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-100819 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-100819 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -7,10 +7,11 @@ longer carries a corpus generation (`REQ-002`).
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- `SearchDiagnostics.corpus_generation` is written only by `pipeline.py` (sibling document,
-  seq 02); deleting the field there removes the only writer.
-- No serializer or caller reads this field outside the diagnostics dict already covered by
-  seq 02.
+- Verified against current source: no `SearchDiagnostics(...)` construction anywhere passes
+  `corpus_generation` (dataclass field at `scripts/rag/models_result.py` ~lines 90-91 has no
+  writer); the only same-named writer is the diagnostics **dict** key appended in
+  `pipeline.py` `get_diagnostics()` (sibling document, seq 02), and the MCP server reads
+  that dict key, not the DTO field. Deleting both removes all uses.
 
 ## Design decisions
 - Delete the dataclass field and its comment; the frozen dataclass keeps its other fields.
@@ -39,8 +40,11 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "corpus_generation" scripts/rag` returns nothing.
-- `uv run pytest tests/rag` passes.
+- `rg -n "corpus_generation" scripts/rag/models_result.py` returns nothing.
+  (Scoped to this file: `scripts/rag/identity_gate.py` docstring legitimately still mentions
+  the name until the release-unit documents remove it in phase 6.)
+- `uv run pytest tests/rag` passes. Verified: no test under `tests/rag` asserts the
+  `corpus_generation` key or the DTO field.
 
 ## Completion criteria
 `SearchDiagnostics` has no `corpus_generation` field; no remaining reference exists.
@@ -53,10 +57,10 @@ The pipeline diagnostics append (`REQ-002`, seq 02) and the MCP wire field (`REQ
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-095937 | 20261113-100523 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-100523 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-100523 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-100523 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

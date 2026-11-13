@@ -20,8 +20,9 @@ N/A: removal is the decided Option B; the class tests a removed view.
 ### Target file
 `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py`
 ### Procedure
-- Delete the identity-wiring test class that patches `_identity_payload` and asserts the
-  `corpus_identity` key (~lines 209-227).
+- Delete the whole `TestCorpusIdentityExposure` class (class definition at ~line 225, last
+  assertion at ~line 301; re-read exact bounds before editing) that patches
+  `_identity_payload` and asserts the `corpus_identity` key.
 ### Method
 Class deletion; confirm no remaining reference to `_identity_payload` or `corpus_identity`.
 ### Details
@@ -38,7 +39,10 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "corpus_identity|_identity_payload" scripts/mcp_servers tests` returns nothing.
+- `rg -n "corpus_identity|_identity_payload" scripts/mcp_servers tests/mcp_servers` returns
+  nothing in the same cycle as seq 04, 05, and 24. Broader `corpus_identity` matches outside
+  `mcp_servers` (`scripts/rag/corpus_identity.py`, its tests, the gate test) are removed by
+  the release unit in phases 5-6 and are not this cycle's scope.
 - `uv run pytest tests/mcp_servers/rag_pipeline` passes.
 
 ## Completion criteria
@@ -52,10 +56,10 @@ The server identity view (`REQ-003`, seq 04) and the deleted identity-view test 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-100607 | 20261113-100819 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-100819 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-100819 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-100819 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

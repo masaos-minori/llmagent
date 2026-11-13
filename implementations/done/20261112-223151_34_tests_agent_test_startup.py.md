@@ -6,6 +6,11 @@ longer asserts the removed warning prefix (`REQ-009`).
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
+## Verification Findings (2026-11-13)
+- Current references: line 554 is a docstring sentence ("... a timeout or unexpected failure
+  marks the corpus identity-unverified ...") — reword it; lines 643 and 657 are the two
+  `assert "identity-unverified" in outcomes[0].message` assertions to delete.
+
 ## Assumptions
 - Three assertions check the `identity-unverified` prefix at lines 554, 643, 657; the rest
   of each test keeps its severity and continue-startup assertions.
@@ -21,10 +26,11 @@ N/A: removal is the decided Option B; the prefix names a removed concept.
 ### Target file
 `tests/agent/test_startup.py`
 ### Procedure
-- Remove the `identity-unverified` assertions at lines 554, 643, 657; keep the surrounding
+- Reword the docstring at line 554 to drop the `identity-unverified` mention.
+- Remove the `identity-unverified` assertions at lines 643 and 657; keep the surrounding
   category and timeout-text assertions.
 ### Method
-Three assertion deletions; keep every other assertion in each test.
+Two assertion deletions plus one docstring reword; keep every other assertion in each test.
 ### Details
 - The warning prefix is stripped by seq 15; delete together so the assertions match the new
   message text.
@@ -39,7 +45,9 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "identity-unverified" scripts tests docs` returns nothing.
+- Scoped: `rg -n "identity-unverified" tests/agent/test_startup.py` returns nothing. The
+  cross-file search over `scripts tests docs` runs at phase 9 end (seq 15, 16, 17, 18, 19, 20,
+  35 and the seq 15 companion must all land first; AC-9).
 - `uv run pytest tests/agent/test_startup.py` passes.
 
 ## Completion criteria
@@ -48,17 +56,18 @@ assertions intact.
 
 ## Out of Scope
 The startup warning prefix (`REQ-009`, seq 15) and the other two startup test files
-(seq 33 companion, seq 35).
+(`tests/agent/test_startup_validation.py`, covered as the seq 15 companion; `tests/agent/
+test_startup_severity_classification.py`, seq 35).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113 | cycle G 20261113 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113 | cycle G 20261113 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113 | cycle G 20261113 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113 | cycle G 20261113 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

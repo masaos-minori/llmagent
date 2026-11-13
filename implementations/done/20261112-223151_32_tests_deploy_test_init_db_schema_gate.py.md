@@ -6,6 +6,21 @@ Remove the `ensure_corpus_meta` import and its seed from the fingerprint-gate te
 ## Scope
 **Release unit**: corpus-meta-removal
 
+## Verification Findings (2026-11-13)
+- Execution coupling (proven 2026-11-13): applying this document while the seq 10 probe and
+  the seq 13 DDL still exist makes `test_recovery_drill_runs_under_flag_and_leaves_fixtures_untouched`
+  fail FATAL — the provisioned fixture has the table but no meta row, and the drill's
+  logical layer treats that as fatal. The import removal is likewise bound to the seq 08
+  module deletion. Therefore this whole document executes in the seq 13 cycle (modules 08/09
+  deleted, seed dropped together with the table). An early attempt was applied and reverted
+  (`git checkout tests/deploy/test_init_db_schema_gate.py`).
+- Import: line 39 `from rag.corpus_identity import ensure_corpus_meta`.
+- Docstring mention: `_provision_canonical_vec_db` docstring (lines 121-122) names the seeded
+  `rag_corpus_meta` corpus identity — reword it along with the seed deletion.
+- Seed: the actual seed is the `ensure_corpus_meta(helper, embedding_model_id="test-model",
+  schema_version="1")` call at lines 142-144 inside `if name == "rag":`; the documents/chunks/
+  chunks_vec inserts that follow stay.
+
 ## Assumptions
 - `tests/deploy/test_init_db_schema_gate.py` imports `ensure_corpus_meta` and seeds the
   `rag_corpus_meta` table to exercise the fingerprint gate (lines 39, 122).
@@ -20,8 +35,11 @@ N/A: removal is the decided Option B; the seed references a table the DDL no lon
 ### Target file
 `tests/deploy/test_init_db_schema_gate.py`
 ### Procedure
-- Remove the `ensure_corpus_meta` import (~line 39).
-- Remove the `rag_corpus_meta` seed (~line 122).
+- Remove the `ensure_corpus_meta` import (line 39).
+- Remove the `ensure_corpus_meta(...)` seed call (lines 142-144), keeping the `if name ==
+  "rag":` branch and its remaining inserts.
+- Reword the `_provision_canonical_vec_db` docstring (lines 121-122) to drop the
+  `rag_corpus_meta` sentence.
 ### Method
 Import plus seed deletion; confirm no remaining reference to `ensure_corpus_meta`.
 ### Details
@@ -38,8 +56,9 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "corpus_identity|rag_corpus_meta|bump_index_generation" scripts tests` returns
-  nothing (excluding the preserved ADR-010 text).
+- Scoped: `rg -n "corpus_meta|ensure_corpus_meta" tests/deploy/test_init_db_schema_gate.py`
+  returns nothing. The cross-file search over `scripts tests` only passes at release-unit end
+  (fixtures in other unit members still hold those names mid-unit).
 - `uv run pytest tests/deploy` passes.
 
 ## Completion criteria
@@ -53,10 +72,10 @@ The identity module (`REQ-006`, seq 08) and the DDL table (seq 13).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

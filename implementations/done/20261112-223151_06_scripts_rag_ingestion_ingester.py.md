@@ -23,9 +23,10 @@ N/A: removal is the decided Option B; keeping a no-op call would import a delete
 ### Target file
 `scripts/rag/ingestion/ingester.py`
 ### Procedure
-- Remove `from rag.corpus_identity import bump_index_generation` (import line, ~line 20).
-- Remove the `if total_success > 0:` block that calls `bump_index_generation(db)` (~lines
-  183-190); keep the surrounding result aggregation that follows.
+- Remove `from rag.corpus_identity import bump_index_generation` (import line, line 20).
+- Remove the `if total_success > 0:` block that calls `bump_index_generation(db)` together
+  with its RAGCORPUS001 comment block (~lines 175-181); keep `total_success` (line 174) and
+  the result aggregation that follows (line 183 onward).
 ### Method
 Two localized deletions; confirm no remaining reference to `bump_index_generation` or the
 removed import.
@@ -45,7 +46,11 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "bump_index_generation|index_generation" scripts tests` returns nothing.
+- `rg -n "bump_index_generation|index_generation" scripts/rag/ingestion tests/rag/ingestion`
+  returns nothing after `tests/rag/ingestion/test_ingester_index_generation.py` is deleted
+  by seq 23 in the same cycle. (Scoped to the ingestion paths: `scripts/rag/corpus_identity.py`
+  and `scripts/rag/identity_gate.py` legitimately still match until the release unit removes
+  them in phase 6.)
 - `uv run pytest tests/rag/ingestion` passes.
 
 ## Completion criteria
@@ -53,10 +58,12 @@ Revert the commit.
 ingestion tests pass.
 
 ### Companion test files
-- `tests/rag/ingestion/test_ingester.py`
-  - Procedure: remove the seeded `rag_corpus_meta` DDL and the row it inserts (the own DDL
-    copy at lines 37, 64-71, 105).
-  - Validation: `uv run pytest tests/rag/ingestion` passes without the seed.
+- `tests/rag/ingestion/test_ingester.py` — DEFERRED to the seq 13 cycle (2026-11-13
+  verification): the fixture runs `DocumentManager.check_consistency` →
+  `check_rag_consistency` → `verify_schema_fingerprint`, which compares the fixture DB
+  against the canonical rag DDL (`shared.schema_fingerprint`). The fixture's own
+  `rag_corpus_meta` DDL copy (lines 37, 64-71) and seeded row (line 105) must therefore be
+  removed in the same cycle as the canonical DDL table (seq 13), not here.
 
 ## Out of Scope
 The deleted index-generation test (`tests/rag/ingestion/test_ingester_index_generation.py`,
@@ -67,10 +74,10 @@ seq 23) and the maintenance wrapper (`REQ-005`, seq 07).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covers companion `test_ingester.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-101936 | 20261113-102229 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-102229 | Covers companion `test_ingester.py` companion test_ingester.py deferred to seq 13 cycle (fingerprint coupling) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-102229 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-102229 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

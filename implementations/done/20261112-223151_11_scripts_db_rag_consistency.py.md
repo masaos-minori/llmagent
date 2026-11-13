@@ -28,8 +28,8 @@ N/A: removal is the decided Option B; keeping a dead check would reference a rem
 - Remove `corpus_meta_verified = _corpus_meta_verifiable(db)` and the
   `corpus_meta_verified=corpus_meta_verified` argument in the `RagConsistencyReport(...)`
   call (~lines 111, 137).
-- Delete the `_corpus_meta_verifiable()` function (~lines 374-392) and
-  `_unverifiable_corpus_issue()` (~lines 374-387).
+- Delete `_unverifiable_corpus_issue()` (lines 374-382) and `_corpus_meta_verifiable()`
+  (lines 386-399).
 - Remove the `_ConsistencyCheck(lambda report: report.corpus_meta_verified,
   _unverifiable_corpus_issue)` entry from `_CHECKS` (~line 447).
 ### Method
@@ -49,8 +49,12 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "corpus_meta|unverifiable corpus" scripts tests` returns nothing.
-- `uv run pytest tests/db` passes.
+- `rg -n "_corpus_meta_verifiable|_unverifiable_corpus_issue|_check_corpus_meta" scripts tests`
+  returns nothing (the seq 10 probe removal lands in the same cycle).
+  `corpus_meta_verified` remains only until the seq 12 `models.py` field removal; the table
+  name `rag_corpus_meta` remains in `schema_sql.py` and fixture seeds until phase 8 (seq 13).
+- `uv run pytest tests/db` passes only after seq 10/12 and companion test rows (seq 28,
+  `test_db_recovery.py`) land in the same cycle.
 
 ## Completion criteria
 The unverifiable-corpus-generation class is gone; `is_consistent()` keeps every other rule;
@@ -65,10 +69,10 @@ The report field (`REQ-007`, seq 12), the DDL table (seq 13), and the test trimm
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113 | seq10-12 cycle 20261113 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113 | seq10-12 cycle 20261113 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113 | seq10-12 cycle 20261113 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113 | seq10-12 cycle 20261113 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

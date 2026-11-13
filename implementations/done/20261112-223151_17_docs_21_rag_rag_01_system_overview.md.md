@@ -23,10 +23,13 @@ N/A: removal is the decided Option B; leaving the wording would contradict REQ-0
 ### Target file
 `docs/21_rag/rag_01_system_overview.md`
 ### Procedure
-- Remove the identity-comparison sentence ("Divergence is detected: the corpus identity is
-  computed ... before accepting a fallback") from the paragraph (~line 180); keep the
-  configuration-divergence point that precedes it.
-- Remove `corpus identity` from the Keywords list (~line 189).
+- Remove the whole identity clause from the Note paragraph (line 180): from "Divergence is
+  detected: the corpus identity is computed ..." through "... recording the unverifiable
+  state." Verified: this clause names `rag_identity_mismatch_policy`, which is now a
+  rejected config key (`scripts/shared/config_validator.py:96`), so the entire clause is
+  dead wording. Keep the preceding configuration-risk sentence and the following "The startup
+  RAG index consistency check additionally reports ..." sentence.
+- Remove `corpus identity` from the Keywords list (line 189).
 ### Method
 Two localized deletions; confirm no `corpus identity` or identity-comparison wording remains.
 ### Details
@@ -42,7 +45,10 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "corpus identity" docs` returns nothing.
+- `rg -n "corpus identity" docs/21_rag` returns nothing (AC-10 scope: the five target docs).
+  Verified remaining hits elsewhere are preserved historical text in `docs/10_adr/adr_02_06_010_rag-fallback.md`
+  (lines 76, 160) and a decision-ledger entry in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`
+  (line 212); neither is in the Plan's frozen target table and neither is edited here.
 - `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`,
   `check_docs_content_policy.py`, `check_docs_consistency.py --domain rag` report no
   findings.
@@ -59,10 +65,10 @@ The startup warnings (`REQ-009`, seq 15) and the consistency-checks doc (seq 16)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Documentation checkers only |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113 | cycle G 20261113 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113 | cycle G 20261113 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113 | Documentation checkers only cycle G 20261113 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113 | cycle G 20261113 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

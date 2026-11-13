@@ -191,30 +191,30 @@ This table is the canonical, frozen source of implementation scope for this Plan
 
 ## Implementation steps
 1. **Phase 1: Decision record**
-   - [ ] Extend the Withdrawn bullet and the Withdrawal Approval Record; leave approval pending (REQ-001; `docs/10_adr/adr_02_06_010_rag-fallback.md`)
+   - [x] Extend the Withdrawn bullet and the Withdrawal Approval Record; leave approval pending (REQ-001; `docs/10_adr/adr_02_06_010_rag-fallback.md`)
 2. **Phase 2: Pipeline diagnostics**
-   - [ ] Remove identity use and the `corpus_generation` field (REQ-002; `scripts/rag/pipeline.py`, `scripts/rag/models_result.py`)
-   - [ ] Remove the field mention from the two docs (REQ-010; `docs/21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md`, `docs/21_rag/rag_04_dto-models-types.md`)
+   - [x] Remove identity use and the `corpus_generation` field (REQ-002; `scripts/rag/pipeline.py`, `scripts/rag/models_result.py`)
+   - [x] Remove the field mention from the two docs (REQ-010; `docs/21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md`, `docs/21_rag/rag_04_dto-models-types.md`)
 3. **Phase 3: MCP server identity view**
-   - [ ] Delete `_identity_payload` and the wire field (REQ-003; `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py`)
-   - [ ] Delete and trim tests (REQ-003; `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_identity.py`, `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py`)
+   - [x] Delete `_identity_payload` and the wire field (REQ-003; `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py`)
+   - [x] Delete and trim tests (REQ-003; `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_identity.py`, `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py`)
 4. **Phase 4: Ingester**
-   - [ ] Remove the bump call (REQ-004; `scripts/rag/ingestion/ingester.py`)
-   - [ ] Delete the index-generation tests (REQ-004; `tests/rag/ingestion/test_ingester_index_generation.py`)
+   - [x] Remove the bump call (REQ-004; `scripts/rag/ingestion/ingester.py`)
+   - [x] Delete the index-generation tests (REQ-004; `tests/rag/ingestion/test_ingester_index_generation.py`)
 5. **Phase 5: Maintenance wrapper**
-   - [ ] Remove the wrapper and its tests (REQ-005; `scripts/agent/services/rag_maintenance_service.py`, `tests/agent/services/test_rag_index_integrity.py`)
+   - [x] Remove the wrapper and its tests (REQ-005; `scripts/agent/services/rag_maintenance_service.py`, `tests/agent/services/test_rag_index_integrity.py`)
 6. **Phase 6: Delete identity modules**
-   - [ ] Delete the modules and their tests (REQ-006; `scripts/rag/corpus_identity.py`, `scripts/rag/identity_gate.py`, `tests/rag/test_corpus_identity.py`, `tests/rag/test_identity_gate.py`)
-   - [ ] Remove the import and seed (REQ-006; `tests/deploy/test_init_db_schema_gate.py`)
+   - [x] Delete the modules and their tests (REQ-006; `scripts/rag/corpus_identity.py`, `scripts/rag/identity_gate.py`, `tests/rag/test_corpus_identity.py`, `tests/rag/test_identity_gate.py`)
+   - [x] Remove the import and seed (REQ-006; `tests/deploy/test_init_db_schema_gate.py`)
 7. **Phase 7: Consistency class removal**
-   - [ ] Remove the probe, the finding, the report field (REQ-007; `scripts/db/rag_consistency_queries.py`, `scripts/db/rag_consistency.py`, `scripts/db/models.py`)
-   - [ ] Update tests and the doc rule list (REQ-007, REQ-010; `tests/db/test_rag_consistency.py`, `tests/db/test_db_recovery.py`, `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`)
+   - [x] Remove the probe, the finding, the report field (REQ-007; `scripts/db/rag_consistency_queries.py`, `scripts/db/rag_consistency.py`, `scripts/db/models.py`)
+   - [x] Update tests and the doc rule list (REQ-007, REQ-010; `tests/db/test_rag_consistency.py`, `tests/db/test_db_recovery.py`, `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`)
 8. **Phase 8: DDL and inventory**
-   - [ ] Remove the table and the inventory entry (REQ-008; `scripts/db/schema_sql.py`, `tools/check_db_separation.py`)
-   - [ ] Update schema, drill, and ingester fixtures (REQ-008; `tests/db/test_create_schema.py`, `tests/db/test_recovery_drill.py`, `tests/rag/ingestion/test_ingester.py`)
+   - [x] Remove the table and the inventory entry (REQ-008; `scripts/db/schema_sql.py`, `tools/check_db_separation.py`)
+   - [x] Update schema, drill, and ingester fixtures (REQ-008; `tests/db/test_create_schema.py`, `tests/db/test_recovery_drill.py`, `tests/rag/ingestion/test_ingester.py`)
 9. **Phase 9: Startup warnings and documents**
-   - [ ] Remove the prefix (REQ-009; `scripts/agent/startup_validation.py`, `tests/agent/test_startup_validation.py`, `tests/agent/test_startup.py`, `tests/agent/test_startup_severity_classification.py`)
-   - [ ] Update the documents (REQ-010; `docs/21_rag/rag_05_07-rag-index-consistency-checks.md`, `docs/21_rag/rag_01_system_overview.md`)
+   - [x] Remove the prefix (REQ-009; `scripts/agent/startup_validation.py`, `tests/agent/test_startup_validation.py`, `tests/agent/test_startup.py`, `tests/agent/test_startup_severity_classification.py`)
+   - [x] Update the documents (REQ-010; `docs/21_rag/rag_05_07-rag-index-consistency-checks.md`, `docs/21_rag/rag_01_system_overview.md`)
 10. **Phase 10: Deployment and verification**
     - [ ] Hand off to `skills/deploy/SKILL.md` after the change is committed and pushed; deploying is the user's decision (approval gate). State the prerequisite that an existing `rag.sqlite` with the old table must be archived and recreated by the operator (UNK-04). Run the acceptance searches, validation sequence, and docs and ADR checkers (REQ-001 to REQ-010)
 
@@ -247,53 +247,54 @@ This table is the canonical, frozen source of implementation scope for this Plan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the Option B decision in ADR-010 (approval pending) | Pending | — | — | |
-| 2 | Remove corpus generation from the pipeline and two docs | Pending | — | — | |
-| 3 | Remove the MCP server identity view and its tests | Pending | — | — | |
-| 4 | Remove the ingester bump call and its tests | Pending | — | — | |
-| 5 | Remove the maintenance wrapper and its tests | Pending | — | — | |
-| 6 | Delete the identity modules and their tests | Pending | — | — | Release unit corpus-meta-removal with steps 7, 8 |
-| 7 | Remove the unverifiable-generation consistency class | Pending | — | — | Release unit corpus-meta-removal with steps 6, 8 |
-| 8 | Remove the DDL table, the inventory entry, and fixtures | Pending | — | — | Release unit corpus-meta-removal with steps 6, 7 |
-| 9 | Remove the startup prefix and update the documents | Pending | — | — | |
-| 10 | Deployment hand-off and verification | Pending | — | — | |
+| 1 | Record the Option B decision in ADR-010 (approval pending) | Completed | — | 20261113 | executed 20261113 via implementations/done procedures |
+| 2 | Remove corpus generation from the pipeline and two docs | Completed | — | 20261113 | executed 20261113 via implementations/done procedures |
+| 3 | Remove the MCP server identity view and its tests | Completed | — | 20261113 | executed 20261113 via implementations/done procedures |
+| 4 | Remove the ingester bump call and its tests | Completed | — | 20261113 | executed 20261113 via implementations/done procedures |
+| 5 | Remove the maintenance wrapper and its tests | Completed | — | 20261113 | executed 20261113 via implementations/done procedures |
+| 6 | Delete the identity modules and their tests | Completed | — | 20261113 | Release unit corpus-meta-removal with steps 7, 8 executed 20261113 via implementations/done procedures |
+| 7 | Remove the unverifiable-generation consistency class | Completed | — | 20261113 | Release unit corpus-meta-removal with steps 6, 8 executed 20261113 via implementations/done procedures |
+| 8 | Remove the DDL table, the inventory entry, and fixtures | Completed | — | 20261113 | Release unit corpus-meta-removal with steps 6, 7 executed 20261113 via implementations/done procedures |
+| 9 | Remove the startup prefix and update the documents | Completed | — | 20261113 | executed 20261113 via implementations/done procedures |
+| 10 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | ADR checkers rejected two edits in seq 01: Approval-section text change (`check_adr_preservation.py`) and a `REQ-001` citation in the Withdrawn bullet (`check_docs_quality.py` `history_marker_in_active_doc`); both edits reverted, details in the archived seq 01 Blocker Log | Yes | 2026-11-13 |
+| 6, 7 | Reordering (not a defect): dropping any fixture seed before the DDL/probe removal makes the fail-closed logical layer report a fatal missing meta row — proven when `test_init_db_schema_gate`'s drill failed FATAL after an early seed removal; the edit was reverted and the whole seed group (seq 28/31/32, integrity canonical, ingester mirror) was re-scheduled into the seq 13 lockstep cycle | Yes | 2026-11-13 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261112-223151_01_docs_10_adr_adr_02_06_010_rag-fallback.md.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_02_scripts_rag_pipeline.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_03_scripts_rag_models_result.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_04_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_05_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_06_scripts_rag_ingestion_ingester.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_07_scripts_agent_services_rag_maintenance_service.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_08_scripts_rag_corpus_identity.py.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_09_scripts_rag_identity_gate.py.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_10_scripts_db_rag_consistency_queries.py.md` | 7 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_11_scripts_db_rag_consistency.py.md` | 7 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_12_scripts_db_models.py.md` | 7 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_13_scripts_db_schema_sql.py.md` | 8 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_14_tools_check_db_separation.py.md` | 8 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_15_scripts_agent_startup_validation.py.md` | 9 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_16_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md` | 9 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_17_docs_21_rag_rag_01_system_overview.md.md` | 9 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_18_docs_21_rag_rag_03_03_query_pipeline-context-and-diagnostics.md.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_19_docs_21_rag_rag_04_dto-models-types.md.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_20_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md` | 7 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_23_tests_rag_ingestion_test_ingester_index_generation.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_24_tests_mcp_servers_rag_pipeline_test_rag_pipeline_server_identity.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_25_tests_mcp_servers_rag_pipeline_test_rag_pipeline_server_endpoints.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_28_tests_db_test_rag_consistency.py.md` | 7 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_31_tests_db_test_recovery_drill.py.md` | 8 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_32_tests_deploy_test_init_db_schema_gate.py.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_34_tests_agent_test_startup.py.md` | 9 | Procedure | Pending | — | — |
-| `implementations/20261112-223151_35_tests_agent_test_startup_severity_classification.py.md` | 9 | Procedure | Pending | — | — |
+| `implementations/20261112-223151_01_docs_10_adr_adr_02_06_010_rag-fallback.md.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_02_scripts_rag_pipeline.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_03_scripts_rag_models_result.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_04_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_05_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_06_scripts_rag_ingestion_ingester.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_07_scripts_agent_services_rag_maintenance_service.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_08_scripts_rag_corpus_identity.py.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_09_scripts_rag_identity_gate.py.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_10_scripts_db_rag_consistency_queries.py.md` | 7 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_11_scripts_db_rag_consistency.py.md` | 7 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_12_scripts_db_models.py.md` | 7 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_13_scripts_db_schema_sql.py.md` | 8 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_14_tools_check_db_separation.py.md` | 8 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_15_scripts_agent_startup_validation.py.md` | 9 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_16_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md` | 9 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_17_docs_21_rag_rag_01_system_overview.md.md` | 9 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_18_docs_21_rag_rag_03_03_query_pipeline-context-and-diagnostics.md.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_19_docs_21_rag_rag_04_dto-models-types.md.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_20_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md` | 7 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_23_tests_rag_ingestion_test_ingester_index_generation.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_24_tests_mcp_servers_rag_pipeline_test_rag_pipeline_server_identity.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_25_tests_mcp_servers_rag_pipeline_test_rag_pipeline_server_endpoints.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_28_tests_db_test_rag_consistency.py.md` | 7 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_31_tests_db_test_recovery_drill.py.md` | 8 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_32_tests_deploy_test_init_db_schema_gate.py.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_34_tests_agent_test_startup.py.md` | 9 | Procedure | Completed | — | — |
+| `implementations/20261112-223151_35_tests_agent_test_startup_severity_classification.py.md` | 9 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

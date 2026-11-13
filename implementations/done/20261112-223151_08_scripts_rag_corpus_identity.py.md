@@ -6,6 +6,12 @@ Delete `scripts/rag/corpus_identity.py`, the corpus identity module, with its te
 ## Scope
 **Release unit**: corpus-meta-removal
 
+## Verification Findings (2026-11-13)
+- Sole remaining importer of `rag.corpus_identity`: `tests/deploy/test_init_db_schema_gate.py`
+  (import line 39, seed call 142-144). Its cleanup is gated on the seq 13 DDL cycle (see seq
+  32 findings), so this deletion executes in the seq 13 cycle together with seq 09 and seq 32,
+  not before.
+
 ## Assumptions
 - `corpus_identity.py` exposes `compute_identity()` and `ensure_corpus_meta()`; it is
   imported by `pipeline` (via `identity_gate`), `ingester` (seq 06, `bump_index_generation`),
@@ -30,9 +36,12 @@ N/A: removal is the decided Option B; keeping an empty module would contradict i
 Two file deletions via `git rm`; confirm no remaining reference to the module's public
 names (`compute_identity`, `ensure_corpus_meta`, `bump_index_generation`) anywhere.
 ### Details
-- This is one release unit with seq 11 (consistency class) and seq 13 (DDL): delete the
-  modules before removing the consistency class and the DDL so the last three form the
-  `corpus-meta-removal` unit.
+- This document is the first member of the `corpus-meta-removal` release unit (seq 08, 09,
+  32, 10, 11, 12, 28, 20, 13, 14, 31 plus companion rows): delete the modules before
+  removing the consistency class and the DDL. All importers of this module are already
+  removed by earlier phases (seq 02 pipeline, 04 server, 06 ingester, 07 maintenance), so
+  the deletion is safe once seq 32 (gate-test import) and seq 21 (its test module) land in
+  the same cycle.
 
 ## Compatibility considerations
 N/A: the module verified only the removed table; the fingerprint gate covers schema
@@ -45,9 +54,12 @@ N/A: no security-relevant behavior change.
 Revert the commit: restore both files from the prior commit.
 
 ## Validation plan
-- `rg -n "corpus_identity|rag_corpus_meta|bump_index_generation" scripts tests` returns
-  nothing (excluding the preserved ADR-010 text).
-- `uv run pytest tests/rag` passes.
+- `rg -n "corpus_identity|ensure_corpus_meta|bump_index_generation|compute_identity" scripts tests tools`
+  returns nothing once seq 09 (identity_gate) and seq 32 (gate test import) land in the
+  same cycle. The table name `rag_corpus_meta` legitimately still appears in the phase 7/8
+  files (`scripts/db/schema_sql.py`, `rag_consistency*.py`, fixture seeds) until the rest of
+  the release unit lands.
+- `uv run pytest tests/rag tests/deploy` passes.
 
 ## Completion criteria
 Both files are gone; no importer references the deleted names.
@@ -66,10 +78,10 @@ The identity-gate reader (`scripts/rag/identity_gate.py`, seq 09) and the consis
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covers companion `test_corpus_identity.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113 | Covers companion `test_corpus_identity.py` seq13 lockstep cycle 20261113 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113 | seq13 lockstep cycle 20261113 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

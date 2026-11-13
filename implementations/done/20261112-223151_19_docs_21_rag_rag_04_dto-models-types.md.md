@@ -36,7 +36,9 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "corpus_generation" docs` returns nothing.
+- Document-scoped: `rg -n "corpus_generation" docs/21_rag/rag_04_dto-models-types.md` returns
+  nothing. The cross-file acceptance search over `docs/21_rag docs/41_db` runs at phase 9 end
+  (after seq 16) and excludes the ADR-010 removal record (seq 01) per the preservation rule.
 - `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`,
   `check_docs_content_policy.py`, `check_docs_consistency.py --domain rag` report no
   findings.
@@ -52,10 +54,10 @@ The model field (`REQ-002`, seq 03) and the diagnostics doc (seq 18).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Documentation checkers only |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-095937 | 20261113-100523 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-100523 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-100523 | Documentation checkers only |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-100523 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

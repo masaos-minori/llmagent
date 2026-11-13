@@ -7,15 +7,16 @@ model no longer declares a corpus identity (`REQ-003`).
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- The field lives on `RagRunResponse` (`scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`,
-  seq 04), which `RagDebugResponse` subclasses; deleting it from the parent removes it from
-  both.
+- The field lives on `RagRunResponse` in this file (`rag_pipeline_models.py`, lines 248-262,
+  field at 259-262), which `RagDebugResponse` (line 265) subclasses; deleting it from the
+  parent removes it from both. The server-side wiring is owned by seq 04.
 - No other module reads this field (`UNK-03`): the server sets it only via the deleted
   `_identity_payload()`.
 
 ## Design decisions
-- Delete the `corpus_identity: dict[str, Any] = Field(...)` attribute from `RagRunResponse`
-  and its description line; the frozen dataclass keeps its other fields.
+- Delete the `corpus_identity: dict[str, Any] = Field(default_factory=dict, ...)` field and
+  its 4-line `Field(...)` block (lines 259-262) from `RagRunResponse`; the pydantic
+  `BaseModel` keeps its other fields, and `RagDebugResponse` inherits the removal.
 
 ## Alternatives considered
 N/A: removal is the decided Option B; a present-but-empty field would keep dead wire state.
@@ -27,7 +28,9 @@ N/A: removal is the decided Option B; a present-but-empty field would keep dead 
 - Delete the `corpus_identity: dict[str, Any] = Field(default_factory=dict, ...)` attribute
   and its description from `RagRunResponse` (`rag_pipeline_models.py`, around line 259).
 ### Method
-Single attribute deletion in a frozen dataclass; confirm no other module references the name.
+Single field deletion in a pydantic `BaseModel`; confirm no other module references the name.
+Run seq 04 (server wiring) and the companion test rows (seq 24 delete, seq 25 edit) in the
+same cycle so the validation below passes at cycle end.
 ### Details
 - Leave the rest of the DTO untouched; the field was additive and documented as such.
 
@@ -55,10 +58,10 @@ The server's `_identity_payload()` and its call sites (`REQ-003`, seq 04).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-100607 | 20261113-100819 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-100819 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-100819 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-100819 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -36,7 +36,9 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "corpus_meta_verified" docs` returns nothing.
+- Document-scoped: `rg -n "corpus_meta_verified" docs/41_db` returns nothing. The cross-file
+  search over all `docs` also hits `docs/21_rag/rag_05_07-rag-index-consistency-checks.md`
+  (line 34) until seq 16 (phase 9) lands; run the full search at phase 9 end (AC-10).
 - `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`,
   `check_docs_content_policy.py`, `check_docs_consistency.py --domain db` report no
   findings.
@@ -52,10 +54,10 @@ The report field (`REQ-007`, seq 12) and the consistency class (seq 11).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Documentation checkers only |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113 | seq10-12 cycle 20261113 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113 | seq10-12 cycle 20261113 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113 | Documentation checkers only seq10-12 cycle 20261113 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113 | seq10-12 cycle 20261113 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -42,8 +42,12 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "corpus_meta|unverifiable corpus" scripts tests` returns nothing.
-- `uv run pytest tests/db` passes.
+- `rg -n "_check_corpus_meta" scripts tests` returns nothing (the seq 11 caller removal
+  lands in the same cycle). The table name `rag_corpus_meta` legitimately remains in
+  `scripts/db/schema_sql.py` and fixture seeds until phase 8 (seq 13) completes.
+- `uv run pytest tests/db` passes only after the seq 11/12 class removals and the companion
+  test trims (seq 28, `test_db_recovery.py`) land in the same cycle; the release unit runs
+  them together and runs `uv run pytest tests/db tests/deploy` at unit end.
 
 ## Completion criteria
 `_check_corpus_meta` is gone from the query layer; no caller references it.
@@ -57,10 +61,10 @@ The finding and report field (`REQ-007`, seq 11/12) and the test trimming (stand
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261113 | seq10-12 cycle 20261113 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113 | seq10-12 cycle 20261113 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113 | seq10-12 cycle 20261113 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113 | seq10-12 cycle 20261113 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

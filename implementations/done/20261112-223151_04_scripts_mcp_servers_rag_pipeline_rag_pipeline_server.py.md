@@ -32,10 +32,12 @@ N/A: removal is the decided Option B; a present-but-empty field would keep dead 
 - Delete `result.corpus_identity = _identity_payload()` from `rag_run_pipeline`.
 - Delete `result.corpus_identity = _identity_payload()` from `rag_debug_pipeline`.
 - Delete `details["corpus_identity"] = _identity_payload()` from the `/health` handler.
-- In `rag_pipeline_models.py`, delete the `corpus_identity` field from `RagRunResponse`.
+- Do not edit `rag_pipeline_models.py` here: the `corpus_identity` field deletion (lines
+  259-262) is owned by the sibling document (seq 05). Run seq 04 and seq 05 in the same
+  cycle so the validation `rg` below returns nothing only after both are applied.
 ### Method
-Four deletions in the server plus one field deletion in the model; confirm no remaining
-reference to `_identity_payload` or `corpus_identity`.
+Four deletions in the server; confirm no remaining reference to `_identity_payload` or
+`corpus_identity` in the server file.
 ### Details
 - The `/health` handler still builds `details` for `make_health_response`; keep everything
   else in that dict.
@@ -51,8 +53,12 @@ N/A: no security-relevant behavior change.
 Revert the commit.
 
 ## Validation plan
-- `rg -n "corpus_identity|_identity_payload" scripts/mcp_servers` returns nothing.
-- `uv run pytest tests/mcp_servers/rag_pipeline` passes.
+- `rg -n "corpus_identity|_identity_payload" scripts/mcp_servers` returns nothing (after the
+  seq 05 model removal is also applied in the same cycle).
+- `uv run pytest tests/mcp_servers/rag_pipeline` passes only after the companion test rows
+  are handled in the same cycle: delete `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_identity.py`
+  (seq 24) and strip `corpus_identity` assertions from `test_rag_pipeline_server_endpoints.py`
+  (seq 25).
 
 ## Completion criteria
 No `_identity_payload` or `corpus_identity` remains in the server or model; the endpoint
@@ -67,10 +73,10 @@ The pipeline diagnostics identity (`REQ-002`, seq 02) and the deleted identity-v
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-100607 | 20261113-100819 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261113-100819 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261113-100819 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261113-100819 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
