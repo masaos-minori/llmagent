@@ -13,6 +13,15 @@ The CI workflow runs the whole pytest suite twice on every push to master and ev
 - `[tool.coverage.run]` in `pyproject.toml` sets `source` and `omit` and has no `parallel` or `concurrency` setting. The local Step 4 of `skills/code-implementation/workflow.md` already feeds the coverage gate from one `coverage run -m pytest tests/` run so that the suite runs once.
 - The CI run results themselves were not checked (the `gh` tool is not authenticated on this machine, according to `rules/toolchain.md`).
 
+Verified on 2026-11-13:
+- `git log -S` shows both steps (`uv run pytest -v` and `coverage run -m pytest tests/`) were added together in the initial CI commit `f54755d56` (2026-07-11); no later commit message or file records a reason for running the suite twice. The two runs differ in verbosity: `addopts` holds `-v`, so the first run (`uv run pytest -v`) runs at verbosity 2 and the second (`coverage run -m pytest tests/`) at verbosity 1 (measured through pytest's config parser). Verbosity 2 prints unabridged assertion diffs, so it is the more informative failure output; the merged step must keep `-v` to keep it. `testpaths = ["tests"]` makes `pytest` and `pytest tests/` select the same tree.
+- In GitHub Actions a failing step stops the later steps of the job, so today the second run only executes when the first run passed; a failing suite is never run twice and never reaches the coverage step.
+- `coverage run -m pytest` propagates pytest's exit status (a failing test gives 1, no selected test gives 5; measured on a scratch test), so a failing test still fails the merged step.
+- `skills/test-audit/workflow.md` states that CI runs `uv run pytest -v` and `uv run coverage run -m pytest tests/`; that sentence becomes stale once the steps are merged. `tools/check_ci_results.py` reads `FAILED <nodeid>` lines from the failed-run log and does not depend on step names, so it is unaffected; keep the step names `Run tests` and `Coverage report`.
+- No other workflow under `.github/workflows/` runs pytest; the `lint` job runs a separate cited-ADR test script (`.github/run_cited_adr_tests.py`), which is outside this issue.
+- `tox.ini`'s `tests` environment runs one `uv run pytest {posargs}` and no coverage step, so it has no duplicate run and needs no change.
+- The two CI steps use compare branch `origin/master`; the local sequences in `rules/toolchain.md` section 7 and `skills/code-implementation/workflow.md` Step 4 use `master`. Keep each as it is.
+
 ## Problem
 Each CI run pays the full test cost twice for no additional verification: the second run executes the same tests and only adds coverage data, and a failure in either one fails the job.
 
@@ -24,7 +33,8 @@ Keep one test step that runs the suite under `coverage run`, then the existing `
 
 ## Target Files or Areas
 - `.github/workflows/ci.yml` (test and coverage steps)
-- `tox.ini` (`tests` environment runs `uv run pytest {posargs}`; check whether it needs the same treatment)
+- `tox.ini` (read only: the `tests` environment runs one `uv run pytest {posargs}` with no coverage step, so no change is expected)
+- `skills/test-audit/workflow.md` (the sentence that quotes the two CI test commands; keep it true after the merge)
 
 ## Required Changes
 - Replace the two steps with a single step that runs `uv run coverage run -m pytest tests/` (keeping whichever verbosity flags are needed for CI diagnosis), followed by `coverage xml` and `diff-cover` as today.
@@ -60,9 +70,10 @@ None expected. If `rules/toolchain.md` section 7 describes the CI steps, keep it
 - `issues/20261112-183922_testspeed004_adopt-parallel-test-execution.md`: related; if parallel workers are adopted there, a follow-up must add coverage parallel settings to CI. Not blocking this issue.
 
 ## Unresolved Questions
-- Whether the first run (`pytest -v`) was kept intentionally, for example as a second random-order run or for the verbose log: 不明. No record was found in the files read.
+- Whether the first run (`pytest -v`) was kept intentionally, for example as a second random-order run or for the verbose log: 不明. No record was found in the files read or in the git history of `ci.yml` (both steps came in one commit).
+- Whether running the whole suite under `coverage run` (settrace overhead) changes any test's behavior or timing compared with a plain run: 不明. Not measured; the local Step 4 already runs the suite this way.
 - CI wall time for the test steps: 不明. Not available without CI access.
-- Whether `-v` output is needed for diagnosis in CI: 不明; default is to keep a short failure summary (`--tb=short` is already in `addopts`).
+- Resolved (2026-11-13): the first run's `-v` gives verbosity 2 (unabridged assertion diffs); keep `-v` in the merged step so the failure output stays as informative as today.
 
 ## AI Implementation Instruction
 Change only the test and coverage steps of the workflow. Do not touch other jobs or steps. Keep the gate commands identical. If you find a reason the duplicate run was intentional, stop and report it instead of removing it.
@@ -74,4 +85,4 @@ Change only the test and coverage steps of the workflow. Do not touch other jobs
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261112-183953
-- **Related target files**: `.github/workflows/ci.yml`, `tox.ini`
+- **Related target files**: `.github/workflows/ci.yml`, `tox.ini`, `skills/test-audit/workflow.md`

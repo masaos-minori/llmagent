@@ -13,6 +13,11 @@ Scrubbing a single 100,000-character string with the content-pattern secrets mas
 - `scripts/agent/secrets_masker.py` holds a list of case-insensitive regular expressions, several ending in `(\S+)` and one starting with `[a-z][a-z0-9+.-]*://`. `rg` shows six other modules under `scripts/agent/` reference the masker (`startup_mcp_starter.py`, `shared/retry_helper.py`, `http_lifecycle_health_checker.py`, `http_lifecycle_errors.py`, `diagnostic_store.py`, and the formatter), so a slow scrub can affect more than this one call site.
 - The test name says "terminates", so the original intent was a guard against a non-terminating scrub; today it terminates but slowly.
 
+Verified on 2026-11-13 (per-pattern timing of `SECRET_PATTERNS` on `"x" * n`, one `re.sub` per pattern):
+- Exactly one pattern is superlinear: index 13, the URL userinfo pattern `([a-z][a-z0-9+.-]*://(?:[^/\s:@]+:)?)([^/\s@]+)(?=@)`. Its time was 0.77 s at 5,000 characters, 2.5 s at 10,000 and 9.7 s at 20,000, which is quadratic (each doubling costs about 4x). All other patterns together took under 0.05 s at 20,000. The cause is repeated start-position scanning, not backtracking: the scheme class `[a-z0-9+.-]*` matches the whole run from every start position and then fails for lack of `://`.
+- `SECRET_PATTERNS` holds 14 patterns and `tests/agent/test_secrets_masker.py::TestJsonSecretMasking::test_pattern_count_matches_inventory` pins that count at 14, so the fix must change the pattern in place or guard the call, not add a pattern. `test_large_input_terminates` already exists in that file (a 10,000-character mixed payload, idempotence check), so a new regression check is additional to it.
+- Call sites of `mask_args`: `scripts/agent/tool_runner.py` (after results are produced, before logging), `scripts/agent/tool_audit.py`, and `scripts/agent/tool_approval.py` (builds the masked approval preview, which runs before the user approves the call). `scripts/agent/shared/retry_helper.py` defines its own `_mask_secrets` wrapper over the masker. So a long argument can delay the approval prompt and the audit write, not tool execution itself.
+
 ## Problem
 A 100 KB string argument costs about a minute of CPU in a function that sits on the logging and audit path. Whether a real tool call can carry such a string (for example a large file body) and block on this cost is not established, but the measured cost is far above what a linear scan of 100,000 characters would take.
 
@@ -29,7 +34,8 @@ First find the cause by timing each pattern in the masker against the input (a p
 - `tests/agent/test_secrets_masker.py`
 
 ## Required Changes
-- Measure the time each masker pattern takes on the 100,000-character input and record which ones are superlinear.
+- Measure the time each masker pattern takes on a long input and record which ones are superlinear (the profile above is the baseline; repeat it after the fix and also for other input shapes).
+- Keep `len(SECRET_PATTERNS) == 14`, or change that pinned test with a stated reason.
 - Rewrite or guard the responsible pattern(s) so scrub time is near-linear in input length.
 - Keep `test_large_string_terminates` and add a regression check that fails if cost becomes superlinear again (for example a bounded run with `pytest-timeout`, or comparing 100,000 and 200,000 characters), without depending on machine speed.
 - Add cases to `test_secrets_masker.py` proving the detection results are unchanged for the existing secret forms on short strings.
@@ -63,8 +69,8 @@ None expected (no `docs/` behavior change). If a docs page states performance ch
 N/A: none
 
 ## Unresolved Questions
-- Root cause: 不明. Only the timing was measured; the patterns were not profiled individually.
-- Whether `mask_args` runs synchronously before a tool executes, so that a large argument delays the call: 不明. Not traced through `scripts/agent/`.
+- Resolved (2026-11-13): the root cause is the URL userinfo pattern (see Background); `mask_args` runs before the approval preview and before audit writes, not before tool execution.
+- Whether other input shapes (long whitespace runs, long digit runs) make another pattern superlinear: 不明. Only a long run of letters was profiled.
 - Realistic maximum size of a string argument in production: 不明.
 
 ## AI Implementation Instruction

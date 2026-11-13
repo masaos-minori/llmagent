@@ -16,6 +16,11 @@ Measured on 2026-11-12 (8-way parallel run of the non-integration suite, 12129 p
 
 Together the first four groups account for about 65 s of call time. Only `tests/agent/test_lifecycle.py` lines 761, 793 and 825 carry `@pytest.mark.integration`; the tests above do not, so they run in every non-integration run. The mechanism for the 30 s test (a deadline-based wait loop that keeps spinning while `asyncio.sleep` is patched out) is a hypothesis; the code was not read to confirm it.
 
+Verified on 2026-11-13:
+- The 30 s mechanism is confirmed. The wait loop is `while time.monotonic() < deadline` in `scripts/agent/http_lifecycle_health_checker.py` (not in `scripts/agent/http_lifecycle.py`, which only computes `deadline = time.monotonic() + cfg.startup_timeout_sec` and passes it on). With `asyncio.sleep` patched to return at once, the loop busy-spins until the real monotonic clock passes the 30 s deadline. Other tests in `tests/agent/test_http_lifecycle_integration.py` already shorten the same loop by patching `time.monotonic` with a counting `fake_monotonic`, so the pattern exists in the file; `test_restart_clears_stderr_file` does not use it.
+- The 8 s cost of `test_raises_on_timeout` is derived, not measured: `timeout=1` plus `HEALTH_POLL_INTERVAL_SEC` (0.5) plus `TERMINATE_TIMEOUT_SEC` (5.0), both module constants of `scripts/agent/http_lifecycle.py` passed to the poll loop and to the terminate-on-timeout call, which a mocked process never satisfies. Both constants can be patched from a test, so no production change is needed to test this; the measured split is a step of the work.
+- `deploy/setup_services.sh` reads `LLM_HEALTH_RETRIES` and `LLM_HEALTH_INTERVAL` (defaults 30 and 5) and sleeps `LLM_HEALTH_INTERVAL` between attempts; `tests/deploy/test_setup_services_eventbus.py::_run_setup` sets 15 and 1, so the test controls the values already and the failure path waits the full 15 attempts.
+
 ## Problem
 Tests that only need to see that a timeout or retry limit produces the right error instead wait for the real timeout, or for a real script to exhaust its retries. They contribute a fixed cost to every run and, because each is a single test, limit how much parallel execution can help.
 
@@ -30,7 +35,7 @@ For each test, find what the wait is for and make the duration a test-controlled
 - `tests/agent/test_lifecycle.py`
 - `tests/deploy/test_setup_services_eventbus.py`
 - `tests/eventbus/test_eventbus_subscribe.py`, `tests/eventbus/test_eventbus_subscribe_transition.py`, `tests/eventbus/test_eventbus_slow_consumer.py` (inspect first; may be legitimately real-time)
-- `scripts/agent/http_lifecycle.py` (read only, to find what clock the wait loop uses; change only if an injection point is missing and the Plan approves it)
+- `scripts/agent/http_lifecycle_health_checker.py` (read only: the wait loop and its clock) and `scripts/agent/http_lifecycle.py` (read only: the `HEALTH_POLL_INTERVAL_SEC` and `TERMINATE_TIMEOUT_SEC` constants); no injection point is missing, so no production change is expected
 
 ## Required Changes
 - For each test listed in Background, determine why it takes that long and record the cause.
@@ -66,8 +71,7 @@ None expected. If a test is reclassified to `integration`, no docs change; the m
 - `issues/20261112-183738_testspeed001_mark-repo-scan-tests.md`: related, not blocking. Both add test-selection markers or classifications; if a test here is classified by marker, reuse the marker conventions from that issue.
 
 ## Unresolved Questions
-- Why `test_raises_on_timeout` takes 8 s with `timeout=1` and mocked process and client: 不明. Not read.
-- Whether the 30 s test waits on a deadline loop (hypothesis) or on something else: 不明.
+- Resolved (2026-11-13): the 30 s test waits on the deadline loop; the 8 s test is explained by the constants above (the exact split is unmeasured).
 - Whether the `tests/eventbus/` timings are real-time requirements of the behavior under test (such as a replay-to-live transition) or avoidable waits: 不明.
 
 ## AI Implementation Instruction
@@ -80,4 +84,4 @@ Read each test and the code path it drives before changing anything, and record 
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261112-183849
-- **Related target files**: `tests/agent/test_http_lifecycle_integration.py`, `tests/agent/test_lifecycle.py`, `tests/deploy/test_setup_services_eventbus.py`, `tests/eventbus/test_eventbus_subscribe.py`, `tests/eventbus/test_eventbus_subscribe_transition.py`, `tests/eventbus/test_eventbus_slow_consumer.py`, `scripts/agent/http_lifecycle.py`
+- **Related target files**: `tests/agent/test_http_lifecycle_integration.py`, `tests/agent/test_lifecycle.py`, `tests/deploy/test_setup_services_eventbus.py`, `tests/eventbus/test_eventbus_subscribe.py`, `tests/eventbus/test_eventbus_subscribe_transition.py`, `tests/eventbus/test_eventbus_slow_consumer.py`, `scripts/agent/http_lifecycle.py`, `scripts/agent/http_lifecycle_health_checker.py`

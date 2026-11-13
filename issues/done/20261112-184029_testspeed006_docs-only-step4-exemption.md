@@ -11,6 +11,7 @@ Medium
 - For a documentation-only change, impact-based selection (`--testmon-forceselect`) selects nothing, so the 0-collected rule makes the targeted run a non-pass by the text, while the full suite takes minutes (3m47s wall time with 8 workers on 2026-11-12) for a change that cannot touch `scripts/`.
 - `templates/implementation-procedure.md` "Lightweight fill" says a documentation-only row drops the "Add or update tests" step and keeps the documentation checkers named in `routing.md` as the validation step. That covers the procedure document, not the workflow's Step 4.
 - In the 2026-11-12 run of 14 documentation-only procedures (`implementations/done/20261112-123928_*`), the executor ran the documentation checkers and did not run Step 4. The workflow text does not state that this is permitted, so it was a judgment call.
+- Verified on 2026-11-13: the quoted Step 4 text, Row 3's condition, and the `SKILL.md` full-suite rule exist as stated in `skills/code-implementation/workflow.md` and `skills/code-implementation/SKILL.md`. The Step 4 coverage command (`coverage run -m pytest tests/`) carries no `-m` filter, and the single-directory batch rule already makes the full-suite run shared for a `tools/` plus `tests/tools/` batch, so a docs-only rule is a fifth scoped exception to "exactly once per cycle". All 14 archived procedures `implementations/done/20261112-123928_*` name one `docs/` file as their target file.
 - The same run showed that checkers and tests can differ in coverage: the pre-commit hook `check-compat-shims` (which includes the opt-in removed-name check) failed on a wording change that the documentation checkers named in the procedure's Validation plan had passed. A heuristic search finds 17 files under `tests/` that build paths into `docs/` or `skills/`, so some tests do read those trees.
 
 ## Problem
@@ -62,7 +63,7 @@ Yes, limited to `skills/code-implementation/workflow.md` and `skills/code-implem
 - Adding or removing tests.
 
 ## Dependencies
-- `issues/20261112-183738_testspeed001_mark-repo-scan-tests.md`: related; if a repository-scan marker is added there, the replacement verification here may include running the marked tests for changes under `docs/` and `skills/`. Not blocking.
+- `issues/20261112-183738_testspeed001_mark-repo-scan-tests.md`: related; if a repository-scan marker is added there, the replacement verification here may include running the marked tests for changes under `docs/` and `skills/`. Not blocking, but the marker name and its meaning come from that issue, so write its Plan first. Both issues edit Step 4 of `skills/code-implementation/workflow.md`, and `issues/20261112-183922_testspeed004_adopt-parallel-test-execution.md` edits the same Step 4 command lines; settle the order of those edits at planning time.
 
 ## Unresolved Questions
 - Whether the replacement should include running the 17 (heuristically found) test files that read `docs/` or `skills/`, or only the checkers: 不明. Their contents were not read.
