@@ -15,13 +15,14 @@ Re-verified 2026-11-12 (Step 2 and Step 3):
 - `tools/check_compat_shims.py` runs `COMPAT_PATTERNS` (line-based, case-insensitive, every scanned file), `ADR_PROHIBITED_PATTERNS`, two syntax-tree rules, and (with `--check-removed-names`) `check_removed_name_reintroduction()`, which is the only user of `_HISTORICAL_CONTEXT_MARKERS` (line 494, docs only). `COMPAT_PATTERNS` has no historical-context exemption. The default scan is `scripts/`, `docs/`, `tests/`, and `tools/` (`*.py` and `*.md`; `*.md` under `done/` skipped); `config/*.toml` is not scanned.
 - The checker passes today (`All checks passed`, per the Issue).
 - Measured on the live repository on 2026-11-12 (case-insensitive, same files as the checker), lines per directory (scripts / docs / tests / tools): "Extracted from" 59 / 6 / 3 / 1; "Refactored:" 2 / 0 / 0 / 0; "Precedent:" 3 / 0 / 3 / 0; "signature stability" 3 / 0 / 0 / 0; "re-exported for" 1 / 0 / 0 / 1; "predates" 0 / 1 / 0 / 0; "user-approved" 0 / 0 / 0 / 0; "pre-migration gate|database" 2 / 0 / 0 / 1; "additive (wire) field" 1 / 2 / 0 / 0; "bypass(es) build_db_config" 3 / 0 / 1 / 0 (the `scripts` matches are `ingester.py:116`, `crawler.py:95`, and the documented current behavior of `SQLiteHelper` at `scripts/db/helper.py:77`); "replaces the old|previous|former|legacy" 1 / 1 / 1 / 2; bare "bypass" 23 / 55 / 82 / 5 and bare "replaces the" 7 / 10 / 50 / 5; "mirror... exactly" 1 / 0 / 1 / 0.
-- `tools/check_compat_shims.py` is 36243 bytes; the tools size baseline records 36263 (`tools/check_module_size_tools_baseline.txt:4`) and only shrinks, so new code cannot be added to the module.
+- Re-measured on 2026-11-14 against the current tree (same scope): "Extracted from" 59 / 6 / 3 / 0 — the six `docs/` matches are reference-doc prose and stay outside the scripts-only pattern scope; "Refactored:" 2 / 0 / 0 / 0; "Precedent:" 0 / 0 / 3 / 0 (the two colon-less lowercase `precedent` docstrings under `scripts/mcp_servers/` do not match the `Precedent:` pattern); "signature stability" and "re-exported for" are now zero in every scope, removed by the landed rmcompat003 and rmcompat004 procedures; "predates" 0 / 1 / 0 / 0 (the `docs/` match is troubleshooting prose at `docs/22_mcp/mcp_06_14_mcp-authentication-setup.md:69`); "user-approved" zero; "pre-migration gate|database" 0 / 0 / 0 / 1 (the tools match is the checker's own retired-claim pattern at `tools/check_compat_shims.py:467`, covered by `[checker_self_reference]`); "replaces the old|previous|former|legacy" 1 script match at `scripts/eventbus/auth.py:133` (the UNK-03 residual, moved from 134). The size baseline now records 36243 bytes, equal to the checker's current size, so the helper module remains required.
+- `tools/check_compat_shims.py` is 36243 bytes; the tools size baseline records 36243 (`tools/check_module_size_tools_baseline.txt:4`) and only shrinks, so new code cannot be added to the module.
 - Measured by running `check_removed_name_reintroduction()` over every non-`done` document with each marker removed in turn and with subsets: no findings with only `legacy` and `removed`; the greedy minimal cover is exactly those two; with an empty set there are 9 findings. The Japanese markers are not needed (documents are English only, `tools/check_docs_japanese.py`).
 - `tests/tools/test_check_compat_shims.py` is already a `fixture` exemption (`tools/compat_exceptions.toml:169`); the checker's own source is exempt through `[checker_self_reference]`.
 
 Corrections found against the Issue's claims:
 - Patterns apply to every scanned file, not only `scripts/` and `docs/`: unscoped phrases would also hit `tests/` (for example three "Extracted from" and three "Precedent:" lines) and `tools/` (including the checker's own pattern text), which the Issue forbids exempting. The patterns are therefore scoped by path prefix.
-- The Issue's open question "how to scope bypass, additive, and replaces the" is answered from the measurements above: "bypass" is scoped to the ingestion modules' meaning (`scripts/rag/`), because `SQLiteHelper`'s documented bypass is current behavior; "additive" is scoped to "additive wire field"; "replaces the" is deferred because one residual `scripts/` match (`scripts/eventbus/auth.py:134`, a docstring history note) needs a source edit that this Issue forbids.
+- The Issue's open question "how to scope bypass, additive, and replaces the" is answered from the measurements above: "bypass" is scoped to the ingestion modules' meaning (`scripts/rag/`), because `SQLiteHelper`'s documented bypass is current behavior; "additive" is scoped to "additive wire field"; "replaces the" is deferred because one residual `scripts/` match (`scripts/eventbus/auth.py:133`, a docstring history note) needs a source edit that this Issue forbids.
 - The Issue says `_HISTORICAL_CONTEXT_MARKERS` "lets a historical note pass"; it does so only for the opt-in removed-name check in documents, not for the compatibility patterns, so the trim cannot let a new leftover through or block one.
 - A new module is required (the size baseline), and the existing pre-commit hook (`files:` regex) and CI workflow (`paths:` lists) name `tools/check_compat_shims.py` and `tools/compat_exceptions.toml` only; without adding the helper there, a change to the helper alone would not run the check. The Issue lists CI wiring as out of scope; the two edits only extend the path filters and change no behavior (UNK-02).
 - `docs/00_governance/governance_04_documentation-checks.md` section 4 describes the check by scanned directories and intent and lists no patterns, so it needs no change.
@@ -52,18 +53,18 @@ This table is the canonical, frozen source of implementation scope for this Plan
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `tools/_compat_leftover_phrases.py` | Leftover phrase table and check | New file: the path-scoped patterns and `check_leftover_phrases()` including the adjacent-line join | REQ-001, REQ-002 / AC-1, AC-2 | the checker is 36243 bytes against a 36263-byte baseline, so new code cannot go in it (`tools/check_module_size_tools_baseline.txt:4`); `tools/` contains private helpers such as `_contract_manifests.py` (checked in Step 3) | `tests/tools/test_check_compat_shims.py` | Verified |
+| `tools/_compat_leftover_phrases.py` | Leftover phrase table and check | New file: the path-scoped patterns and `check_leftover_phrases()` including the adjacent-line join | REQ-001, REQ-002 / AC-1, AC-2 | the checker is 36243 bytes against a 36243-byte baseline, so new code cannot go in it (`tools/check_module_size_tools_baseline.txt:4`); `tools/` contains private helpers such as `_contract_manifests.py` (checked in Step 3) | `tests/tools/test_check_compat_shims.py` | Verified |
 | `tools/check_compat_shims.py` | Checker | Import and call the helper in `check_all`; reduce `_HISTORICAL_CONTEXT_MARKERS` to `legacy` and `removed` | REQ-001, REQ-004 / AC-1, AC-4 | `check_all` lines 657-689; markers lines 344-363; sole marker use line 494 (checked in Step 2) | `tests/tools/test_check_compat_shims.py` | Verified |
 | `tests/tools/test_check_compat_shims.py` | Checker tests | Add the pattern, scope, negative, and marker tests; move the three fixtures that use other markers | REQ-003, REQ-004 / AC-3, AC-4 | fixtures at lines 386-402, 427-432, 511-514 use `resolved` and `historical`; file is a `fixture` exemption at `compat_exceptions.toml:169` (checked in Step 3) | itself | Verified |
-| `tools/TOOL_DESCRIPTIONS.md` | Tool documentation | Update the two `check_compat_shims.py` rows; add the private-helper row | REQ-006 / AC-6 | rows at lines 83 and 178; private-helper rows such as line 116 (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
+| `tools/TOOL_DESCRIPTIONS.md` | Tool documentation | Update the two `check_compat_shims.py` rows; add the private-helper row | REQ-006 / AC-6 | rows at lines 84 and 180; private-helper rows such as line 117 (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
 | `.pre-commit-config.yaml` | Hook path filter | Add the helper to the `files:` regex of `check-compat-shims` | REQ-005 / AC-5 | line 41 names only `check_compat_shims.py` and `compat_exceptions.toml` (checked in Step 2) | `tools/check_tool_descriptions_sync.py` | Verified |
-| `.github/workflows/backward-compat-check.yml` | CI path filter | Add the helper to the `push` and `pull_request` `paths:` lists | REQ-005 / AC-5 | lines 9-10 and 16-17 (checked in Step 2) | `tools/check_tool_descriptions_sync.py` | Verified |
+| `.github/workflows/backward-compat-check.yml` | CI path filter | Add the helper to the `push` and `pull_request` `paths:` lists | REQ-005 / AC-5 | lines 6-7 and 13-14 (checked in Step 2) | `tools/check_tool_descriptions_sync.py` | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
 | `tools/compat_exceptions.toml` | Fixture-only manifest and `[checker_self_reference]`; not edited (self-safe regexes and concatenated fixtures need no entry) | REQ-003, REQ-007 |
-| `tools/check_module_size_tools_baseline.txt` | Records the 36263-byte ceiling for `check_compat_shims.py` | REQ-001 |
+| `tools/check_module_size_tools_baseline.txt` | Records the 36243-byte ceiling for `check_compat_shims.py` | REQ-001 |
 | `docs/00_governance/governance_04_documentation-checks.md` | Section 4 describes the check by scope and intent only; no pattern list to update | REQ-006 |
 | `plans/20261111-111505_adrrev018_docs-checker-harden.md` | Owns the documentation history-phrasing rules in `config/doc_quality_rules.json`; avoids double ownership | REQ-001 |
 | `scripts/db/helper.py` | The documented current "bypass" of `build_db_config()` that the scoped pattern must not flag | REQ-001 |
@@ -98,7 +99,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 |---|---|---|---|---|
 | UNK-01 | Whether the maintainer agrees with the scoped meaning and the `scripts/`-only scope of each pattern (and whether any should also cover `docs/`) | Maintainer decision | The Plan fixes a default from measurements; the user can adjust a row before the procedure step | False |
 | UNK-02 | Whether adding the helper to the hook and workflow path filters is acceptable although the Issue lists CI wiring as out of scope | User decision | The edits only extend path filters (fallout); if rejected, put the table in a file those filters already watch | False |
-| UNK-03 | How to handle "replaces the old/previous/...": one residual `scripts/` match (`scripts/eventbus/auth.py:134`) needs a source edit outside this Issue | Decision which Plan edits it | Deferred; extend the sweep Plan's patterns or fix the line in the EventBus Plan, then add the pattern | False |
+| UNK-03 | How to handle "replaces the old/previous/...": one residual `scripts/` match (`scripts/eventbus/auth.py:133`) needs a source edit outside this Issue | Decision which Plan edits it | Deferred; extend the sweep Plan's patterns or fix the line in the EventBus Plan, then add the pattern | False |
 | UNK-04 | Whether the checker passes on the repository after the sweep Plan lands (residual matches in `scripts/`) | The state after the sweep | Measured by the smoke run at the procedure step; any residual match removes that pattern from this change and is reported | False |
 
 ## Affected areas
@@ -115,7 +116,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 - Consumer scan: the checker's callers are the pre-commit hook, the CI workflow, and `tools/run_validation_gates.py` (its `check_compat_shims` gate runs the checker with defaults and has no path patterns, so the new helper needs no mapping there; `routing.md` lists the same default invocation); the change adds a new finding source and keeps the exit-code contract (non-zero on any issue). A text search of `tools/` and `.github/` found no other reference to `_HISTORICAL_CONTEXT_MARKERS` than line 494.
 - Helper shape: `LEFTOVER_PHRASES: dict[str, tuple[re.Pattern[str], tuple[str, ...], bool]]` mapping a name to a compiled regex, path prefixes relative to the repository root, and a multi-line flag; `check_leftover_phrases(content, filepath, allowlist)` returns issue strings in the same format as `check_compat_patterns`, skips allowlisted files and files outside every prefix, and for a multi-line pattern tests each stripped line joined with the next. `check_all` calls it after `check_adr_prohibited_patterns`.
 - Size: moving the check into the helper keeps `check_compat_shims.py` below its baseline (net change is an import and a call line against the removal of ten marker entries and a comment block).
-- Alternatives rejected: putting the table in `check_compat_shims.py` (exceeds the 36263-byte baseline); unscoped phrases (hit `tests/` and `tools/` and force exemptions); bare "bypass", "additive", and "replaces the" (hundreds of ordinary uses).
+- Alternatives rejected: putting the table in `check_compat_shims.py` (exceeds the 36243-byte baseline); unscoped phrases (hit `tests/` and `tools/` and force exemptions); bare "bypass", "additive", and "replaces the" (hundreds of ordinary uses).
 - Architecture: `tools/` is checked by `lint-imports` only through `scripts` roots; the helper imports the standard library only. `radon`, `vulture`, and `bandit` baselines are recorded in the rmcompat001 Plan Design; `bandit` runs on the new file. No persisted schema, port, process, or dependency change (`rules/persisted-schema-change.md`, `ss`, `fuser`, `pip-audit` N/A). Churn above from `git log --since=30.days`; bus factor not measured.
 
 ## Implementation steps
@@ -140,7 +141,7 @@ N/A: no release unit
 |---|---|---|---|
 | Checker and helper | Unit | `uv run pytest tests/tools/test_check_compat_shims.py` | Pass |
 | Changed tool files | Static | `uv run ruff format tools/_compat_leftover_phrases.py tools/check_compat_shims.py`, `uv run ruff check ...`, `uv run mypy tools/_compat_leftover_phrases.py tools/check_compat_shims.py`, `uv run bandit tools/_compat_leftover_phrases.py tools/check_compat_shims.py` | Clean |
-| Size gates | Static | `uv run python tools/check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt` | `check_compat_shims.py` at or below 36263; helper below 24576 |
+| Size gates | Static | `uv run python tools/check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt` | `check_compat_shims.py` at or below 36243; helper below 24576 |
 | Tool documentation | Consistency | `uv run python tools/check_tool_descriptions_sync.py` | No findings |
 | Live repository | Smoke | `uv run python tools/check_compat_shims.py --check-removed-names --check-doc-symbols` | Exit 0 after the sweep Plan lands |
 | Markers | Measurement | one-off run of `check_removed_name_reintroduction()` over `docs/` with the reduced set | 0 findings |
@@ -158,9 +159,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reduce the historical-context markers and update their fixtures | Pending | — | — | |
-| 2 | Add the leftover phrase helper, its call, tests, and path filters | Pending | — | — | |
-| 3 | Update the tool documentation and run the tool validation | Pending | — | — | |
+| 1 | Reduce the historical-context markers and update their fixtures | In Progress | 20261114-083958 | — | procedures generated 2026-11-14 (pass 20261114-083958); execution pending |
+| 2 | Add the leftover phrase helper, its call, tests, and path filters | In Progress | 20261114-083958 | — | procedures seq 01-03, 05-06 generated 2026-11-14 (pass 20261114-083958); execution pending |
+| 3 | Update the tool documentation and run the tool validation | In Progress | 20261114-083958 | — | procedures seq 04 generated 2026-11-14 (pass 20261114-083958); execution pending |
 | 4 | Smoke run on the live repository after the sweep Plan | Pending | — | — | Gated by the sweep Plan |
 
 ### Blocker Log
@@ -172,6 +173,12 @@ N/A: no release unit
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
+| `implementations/20261114-083958_01_tools__compat_leftover_phrases.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-083958_02_tools_check_compat_shims.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261114-083958_03_tests_tools_test_check_compat_shims.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-083958_04_tools_TOOL_DESCRIPTIONS.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-083958_05_.pre-commit-config.yaml.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-083958_06_.github_workflows_backward-compat-check.yml.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -191,8 +198,10 @@ N/A: no release unit
 | REQ-003 | Required Changes 2 | `tests/tools/test_check_compat_shims.py` | 2 | AC-3 | itself | Explicit in issue |
 | REQ-004 | Required Changes 3; marker measurement | `tools/check_compat_shims.py` | 1 | AC-4 | `tests/tools/test_check_compat_shims.py` | Confirmed by repository evidence |
 | REQ-004 | Derived from the fixtures at lines 386-402, 427-432, 511-514 | `tests/tools/test_check_compat_shims.py` | 1 | AC-4 | itself | Derived from confirmed evidence |
-| REQ-005 | Derived from the 36263-byte baseline forcing a new module | `.pre-commit-config.yaml` | 2 | AC-5 | `tools/check_tool_descriptions_sync.py` | Derived from confirmed evidence |
-| REQ-005 | Derived from the 36263-byte baseline forcing a new module | `.github/workflows/backward-compat-check.yml` | 2 | AC-5 | `tools/check_tool_descriptions_sync.py` | Derived from confirmed evidence |
+| REQ-005 | Derived from the 36243-byte baseline forcing a new module | `.pre-commit-config.yaml` | 2 | AC-5 | `tools/check_tool_descriptions_sync.py` | Derived from confirmed evidence |
+| REQ-005 | Derived from the 36243-byte baseline forcing a new module | `.github/workflows/backward-compat-check.yml` | 2 | AC-5 | `tools/check_tool_descriptions_sync.py` | Derived from confirmed evidence |
 | REQ-006 | Required Changes 4; `TOOL_DESCRIPTIONS.md:83,178` | `tools/TOOL_DESCRIPTIONS.md` | 3 | AC-6 | `tools/check_tool_descriptions_sync.py` | Explicit in issue |
 | REQ-006 | Constraints (lighter tool validation) | `tools/_compat_leftover_phrases.py` | 3 | AC-6 | ruff, mypy, bandit, size gates | Explicit in issue |
 | REQ-007 | Acceptance Criteria 3; Testing Expectations smoke run | `tools/check_compat_shims.py` | 4 | AC-7 | smoke run on live data | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261114-083958 -->
