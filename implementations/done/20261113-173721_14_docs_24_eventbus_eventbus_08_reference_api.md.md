@@ -20,7 +20,7 @@ Regenerate the guarded reference-API block so the `sweep_orphans`/`promote_singl
 
 ### Procedure
 1. Run `uv run python tools/generate_reference_table.py --type eventbus` after rows 01-08 have been executed (the two signatures change with row 01 `dlq.py`; the `RequeueResult` row is affected by row 04 `dlq_repo.py` only in that it must remain unchanged — see step 2).
-2. Confirm the regenerated rows: `sweep_orphans` without `deadletter_dir` and `promote_single` without `deadletter_dir` are the only expected changes. The `RequeueResult` row must stay unchanged: the generator emits only the class signature line (`class RequeueResult`) and the class docstring's first line ("Typed result of a redeliver_event() call..."), and row 04 removes the `original_event_exists` and `already_redelivered` dataclass fields while keeping both of those intact (verification pass 2026-11-13: row 04 edits two field declarations, neither is the class signature line or the docstring; the status vocabulary, including `"already_redelivered"`, survives per REQ-003). A changed `RequeueResult` row would indicate the docstring was edited out of scope.
+2. Confirm the regenerated rows: `sweep_orphans` without `deadletter_dir` and `promote_single` without `deadletter_dir` are the only expected changes. The `RequeueResult` row must stay unchanged: the generator emits only the class signature line (`class RequeueResult`) and the class docstring's first line ("Typed result of a redeliver_event() call..."), and row 04's dataclass-field removal (two fields, removed when row 04 executed) left both of those intact (verification pass 2026-11-13: row 04 edits two field declarations, neither is the class signature line or the docstring; the status vocabulary, including `"already_redelivered"`, survives per REQ-003). A changed `RequeueResult` row would indicate the docstring was edited out of scope.
 3. (rmcompat007 handoff) Re-run the same command after rmcompat007's code rows are applied, so the block reflects both plans' final source state.
 
 ### Method
@@ -55,10 +55,10 @@ N/A: revert the commit (or re-run the generator against reverted sources).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261114-003506 | guarded block regenerated via --manifests --type eventbus in the row-09 cycle (single shared invocation per Compatibility) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261114-003506 | no test changes (generated doc row) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261114-003507 | --check No drift found; stale_detector no findings; regenerated delta was exactly the two dlq.py signature rows; RequeueResult row verified unchanged (class line + docstring first line only) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261114-003515 | the target is the generated documentation itself (regenerated in step 1) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

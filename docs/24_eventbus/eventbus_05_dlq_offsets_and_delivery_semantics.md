@@ -228,7 +228,6 @@ DLQ promotion is gated on the per-consumer `consumer_delivery_failure_count`. Pr
 1. Inserts a new row into the `events` table with:
    - A fresh UUID v4 `event_id`
    - `redelivered_from` set to the original `event_id`
-2. Increments `dlq_requeue_count` on the original row as audit trail.
 
 The original row keeps its `dlq_at`, so only one requeue succeeds per original event; a second requeue returns HTTP 409. The requeue handler does not archive the DLQ JSON file and does not publish to `EventBroker`. Subscribers receive the new row through the existing `seq > since_seq` replay path in the subscribe endpoint.
 

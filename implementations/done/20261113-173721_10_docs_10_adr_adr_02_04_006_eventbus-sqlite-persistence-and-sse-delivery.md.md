@@ -56,10 +56,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261114-003059 | INV-08 verification row reworded+cited renamed test; events column list trimmed |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261114-003100 | no test changes (docs row) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261114-003100 | check_adr_preservation/structure/reference/known_deviation_sync no findings; rg dlq_requeue_count no match; preservation gate needed the docs commit (ran vs HEAD), green after commit 22d02ae29 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261114-003114 | the target is the documentation itself (applied in step 1); no further docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

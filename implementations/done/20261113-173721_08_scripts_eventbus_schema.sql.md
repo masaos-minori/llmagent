@@ -41,6 +41,7 @@ Remove the `dlq_requeue_count` and `consumer_id` columns from the `events` table
 
 ### Execution notes (2026-11-14)
 - The DDL edit alone produced 4 failures + 25 setup errors in `tests/eventbus`. Second root cause: the fingerprint gate correctly rejecting persistent `/tmp` scratch databases created by earlier runs under the old DDL (fixed-path fixtures, e.g. `/tmp/test-no-double-auth/eventbus.sqlite` dated 2026-11-07). Cleared 11 stale test scratch sqlite files under the tests' fixed `/tmp/test-*` paths; no production DB touched. This is the archive-and-recreate behavior the gate documents; after cleanup 524 tests passed, then the relaxed plan assertion closed the last failure.
+- Third missed Impact Scope item found at the final full-suite run: `tests/db/test_create_schema.py::TestEventbusSchemaFingerprint::test_extra_column_raises` used the DDL anchor `"    consumer_id            TEXT\n);"` from the live `eventbus_schema_sql()` output; after the column removal the replace became a no-op and the extra-column refusal never fired (silent-pass risk in the replace-anchor pattern of this class). Fixed by re-anchoring on `dlq_at` (the new last column) and adding `assert ddl != _CANONICAL_EVENTBUS_DDL` so future anchor drift fails loudly. `tests/db/test_create_schema.py`: 71 passed.
 
 ## Compatibility considerations
 - This is the High-blast-radius row (Affected areas table): every pre-change `eventbus.sqlite` fails `open_db()` until the operator recreates it (Plan Risks row 1, UNK-01 — deployment hand-off).

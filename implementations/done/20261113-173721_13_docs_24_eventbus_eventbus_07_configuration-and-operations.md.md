@@ -60,10 +60,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261114-003424 | DLQ File Creation subsection rewritten (DB-only promotion + outbox worker); Requeue sentence lineage-only |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261114-003424 | no test changes (docs row) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261114-003424 | rg dlq_requeue_count no match; check_docs_consistency --domain eventbus No issues; stale_detector reports only the pre-existing /admin/* endpoint-path false positive (identical on the HEAD version) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261114-003424 | the target is the documentation itself (applied in step 1) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
