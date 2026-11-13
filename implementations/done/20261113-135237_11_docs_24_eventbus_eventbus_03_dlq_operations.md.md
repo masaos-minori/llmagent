@@ -22,7 +22,7 @@ Edit the allowlist sentence.
 ### Method
 One-sentence edit.
 ### Details
-- Line 108: "The allowlist comes from `consumer_authorization` in `config/eventbus.toml`, and applies to the CONSUMER-role token only." — delete the `topic_authorization` name; keep the fail-closed and 403 statements unchanged.
+- Line 108: verified 2026-11-13 — the current sentence reads "The allowlist comes from `consumer_authorization` and `topic_authorization` in `config/eventbus.toml`, and applies to the CONSUMER-role token only."; delete the `topic_authorization` name (and its conjunction), keep the fail-closed, deny-all, and 403 statements unchanged. The surrounding 106 sentence names no removed format and stays.
 
 ## Compatibility considerations
 - None beyond wording; no route or DLQ behavior changes in this Plan.
@@ -48,10 +48,10 @@ One-sentence edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-13 | 2026-11-13 | — |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-13 | 2026-11-13 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-13 | 2026-11-13 | eventbus-domain docs checkers clean; whole-tree structure findings in unrelated files (adr_012 size, deployment_01/security_01 duplicate links) are pre-existing HEAD drift, out of this Plan's scope |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-13 | 2026-11-13 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

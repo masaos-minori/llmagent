@@ -23,8 +23,8 @@ Rewrite the TOML fixture string and keep the assertions meaningful under the sin
 ### Method
 One fixture edit; verify dependent assertions still describe the same allow/deny behavior.
 ### Details
-- Line 303: replace `'topic_authorization = { "topicA" = ["c1"] }\n'` with the equivalent `consumer_authorization` entry (or delete the line if the adjacent `consumer_authorization` fixture already grants `c1` -> `topicA`).
-- Re-read the surrounding test (the file also carries class-level `REQ-007`/`REQ-008` labels near lines 84, 146, 182, 222; those labels are outside this row's scope and stay for the rmcompat007 Plan) before editing.
+- Line 303: replace `'topic_authorization = { "topicA" = ["c1"] }\n'` with the equivalent `consumer_authorization` entry — verified 2026-11-13: the adjacent line 302 already carries `consumer_authorization = { "c1" = ["topicA"] }`, so line 303 can simply be deleted; the assertion at 306 then locks the single mapping.
+- Verified 2026-11-13: the original claim that this file "carries class-level `REQ-007`/`REQ-008` labels near lines 84, 146, 182, 222" is false — `rg "REQ-"` finds no label in this file; nothing in this row touches rmcompat007 label scope.
 
 ## Compatibility considerations
 - Land in the same unit as row 01; otherwise the suite is red between the key removal and this fixture.
@@ -43,17 +43,17 @@ One fixture edit; verify dependent assertions still describe the same allow/deny
 - The fixture carries no removed-format key and the suite passes against the post-change `config.py`/`auth.py`.
 
 ## Out of Scope
-- `REQ-` class labels in this file (rmcompat007).
+- `REQ-` labels in `scripts/eventbus/` test/docstring locations generally (rmcompat007); this file itself carries none (verified 2026-11-13).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-13 | 2026-11-13 | TOML fixture line removed; targeted tests green |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-13 | 2026-11-13 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-13 | 2026-11-13 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-13 | 2026-11-13 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -22,7 +22,7 @@ Re-run the generator after the manifest refresh (row 08), then verify.
 ### Method
 Tool-driven regeneration; no manual text edits inside the guarded block.
 ### Details
-- Run `uv run python tools/generate_reference_table.py --type eventbus`; row 53's summary becomes the updated `admin_route.py` docstring (names `consumer_authorization` only), and the audit function rows (56-57) reflect `log_authorization_change` and the trimmed `log_privileged_action` from row 03.
+- Run `uv run python tools/generate_reference_table.py --type eventbus`; row 53's summary becomes the updated `admin_route.py` docstring (names `consumer_authorization` only), and the audit function rows (56-57) reflect `log_authorization_change` and the trimmed `log_privileged_action` from row 03. Verified 2026-11-13: the generator emits one row per public audit function, so expect a new `log_authorization_change` row to be added (the row count in the block grows; rows 56-57 alone do not capture the final shape — re-count after regeneration).
 - Re-read the file first if rmcompat005 or rmcompat007 procedures have regenerated it in the meantime (Plan Risks/Dependencies).
 
 ## Compatibility considerations
@@ -49,10 +49,10 @@ Tool-driven regeneration; no manual text edits inside the guarded block.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-13 | 2026-11-13 | — |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-13 | 2026-11-13 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-13 | 2026-11-13 | eventbus-domain docs checkers clean; whole-tree structure findings in unrelated files (adr_012 size, deployment_01/security_01 duplicate links) are pre-existing HEAD drift, out of this Plan's scope |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-13 | 2026-11-13 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

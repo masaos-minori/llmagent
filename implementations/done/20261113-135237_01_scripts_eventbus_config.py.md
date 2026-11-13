@@ -24,16 +24,17 @@ Delete the three cross-check functions and the load-time empty check, reword the
 ### Method
 Text deletion and one message reword within the module; no new function or import.
 ### Details
-- Delete `_validate_cross_field` (lines 40-43), `_validate_token_combinations` (46-61), `_validate_deployment_mode` (63-71), and the `_validate_cross_field(cfg)` call in `load_config` (424). Keep `_is_public_host` (35).
-- Delete the `load_config` empty check at 378-379 (`"eventbus config 'auth_token' must not be empty."`).
+- Delete `_validate_cross_field` (lines 40-43), `_validate_token_combinations` (46-59; the procedure's original 46-61 range was re-verified 2026-11-13 — the function ends at 59), `_validate_deployment_mode` (62-70; original 63-71 — it starts at 62), and the `_validate_cross_field(cfg)` call in `load_config` (424). Keep `_is_public_host` (35).
+- Delete the `load_config` empty check at 378-379 (`"eventbus config 'auth_token' must not be empty."`). Verified: no test asserts the deleted `_validate_token_combinations` message "At least one authentication token must be configured"; `test_load_config_requires_at_least_one_token` (test_eventbus_config.py:477) matches `auth_token` and stays green on the `__post_init__` message.
+- Delete the `topic_authorization` plumbing in `authorization_baseline_hash` (verified 2026-11-13; required for AC-2 and because the field deletion makes the loop an AttributeError): the docstring phrase at line 77 ("consumer_authorization and topic_authorization") and the pair-expansion loop at 84-85. Keep the function itself and the consumer part (82-83).
 - Reword the bind error in `__post_init__` (145-148): keep the prefix `Event Bus bound to non-loopback address {host}` and state that only loopback addresses are allowed; drop the misleading `set auth_token` advice (REQ-001).
 - Keep the `auth_token is required but not configured` check in `__post_init__` (150) as the single required-token message (REQ-001).
-- Remove `topic_authorization`: the dataclass field (121), its shape validation block in `__post_init__` (222-237), the entry in the allowed-key list (266), the load-time set conversion (382-390), and the constructor argument (409). After this, a config carrying the key fails load with the unknown-key error (REQ-002).
+- Remove `topic_authorization`: the dataclass field (121), its shape validation block in `__post_init__` (222-237), the entry in the allowed-key list (266), the load-time set conversion code (386-390), and the constructor argument (409). Rewrite the normalization comment at 381-384 so it names only `consumer_authorization` (the comment text at 382 currently names `topic_authorization` and would fail the AC-2 search; keep the `(REQ-002)` label in it — config.py labels are outside this row's scope and stay for the rmcompat007 Plan). Keep `consumer_authorization = data.get(...)` at 385 and the constructor use at 408. After this, a config carrying the key fails load with the unknown-key error (REQ-002).
 - Keep `consumer_authorization` and its list-only shape validation (205-219) unchanged.
 
 ### Companion test files
 - `tests/eventbus/test_eventbus_config.py`
-  - Procedure: move the `test_eventbus_config.py` line 619 expectation from the load message to the `__post_init__` message; delete the `topic_authorization` load tests (698-722); add one test per remaining message (empty token, bind) keeping the `non-loopback` match used by `test_eventbus_startup.py`; add a load test asserting a TOML with `topic_authorization` fails with the unknown-key error.
+  - Procedure (claims re-verified 2026-11-13): move the expectation at line 619 (`match="must not be empty"`, inside `test_load_config_shared_token_env_reference_empty_hits_non_empty_check` at 604) to the `__post_init__` message `auth_token is required but not configured`; delete the `topic_authorization` fixture lines and assertions in `test_load_config_surfaces_authorization_mappings` (fixture 698, assertion 702) and `test_load_config_normalizes_mapping_types` (fixture 717, assertions 720-722) — rewrite both tests for `consumer_authorization` only (the tests at 686 and 705 must not be deleted whole, only their topic-side parts); add one test per remaining message (empty token, bind); keep the existing bind tests (181-195, `match="non-loopback"`) and keep the startup test's `Event Bus bound to non-loopback address` match in `test_eventbus_startup.py` — the reworded message keeps that prefix; add a load test asserting a TOML with `topic_authorization` fails with the unknown-key error (`test_load_config_rejects_unknown_key` at 207 shows the pattern).
   - Validation: `uv run pytest tests/eventbus/test_eventbus_config.py tests/eventbus/test_eventbus_startup.py`
 
 ## Compatibility considerations
@@ -63,10 +64,10 @@ Text deletion and one message reword within the module; no new function or impor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-13 | 2026-11-13 | REQ-001 part (Phase 1) + REQ-002 part both landed; targeted tests green |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-13 | 2026-11-13 | both REQ parts landed; targeted tests green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-13 | 2026-11-13 | unit-2 targeted+full suites green; diff-cover 100% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-13 | 2026-11-13 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -76,7 +77,7 @@ Text deletion and one message reword within the module; no new function or impor
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| WI-01 | 3 | docs-fix | Resolved | agent | 2026-11-13 | adr_02_04_006 lines 84/349 reworded to `EventBusConfig.__post_init__`; `tools/check_compat_shims.py` green |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
