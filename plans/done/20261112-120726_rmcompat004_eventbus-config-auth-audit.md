@@ -7,11 +7,11 @@ Medium
 ## Scope
 - **In-Scope**: a single required-token and loopback-bind check in `EventBusConfig.__post_init__`; removal of `topic_authorization` from the server, the TTL sweep, the agent-side admin client, and the configuration comments; strict attribute reads in `scripts/eventbus/auth.py`; deletion of `_CONSUMER_ID_ALLOWLIST`; a dedicated authorization-change audit function with required generation fields and no `gen:` suffix; `error_type` constants; removal of "Precedent", "Mirrors", and `REQ-` comments in the three named files; the documents and the generated manifest that describe these.
 - **Out-of-Scope**: merging `auth_token` and `admin_token`; authorization generation persistence across restarts and the no-op contract of the admin endpoint; DLQ and delivery code (rmcompat005); replacing `json` with `orjson` in the baseline hash; `getattr` reads outside `auth.py` (`subscribe_route.py`, `app.py`); deleting `_ROUTE_ROLE_MAP` (see Background); the history-comment sweep (rmcompat007); aliases or compatibility parsing for the removed format (`compatrm001`).
-- **Dependencies**: None open. The adrrev010 Issue is closed (its Plan, a docs-only ADR-013 correction, is archived in `plans/done/`); it recorded the token merge as an undecided maintainer item, so the token key names used here (`auth_token`, `admin_token`) stay. The adrrev014 Issue is closed but its open procedures edit `eventbus_08` and `eventbus_03`. The history-comment sweep (rmcompat007) follows this Plan.
+- **Dependencies**: None open. The adrrev010 Issue is closed (its Plan, a docs-only ADR-013 correction, is archived in `plans/done/`); it recorded the token merge as an undecided maintainer item, so the token key names used here (`auth_token`, `admin_token`) stay. The adrrev014, adrrev016, adrrev017, and adrrev019 Plans are archived in `plans/done/` and their procedure documents are completed under `implementations/done/` (verified 2026-11-13; adrrev014's only open step is its deployment gate), so no open procedure edits `eventbus_08` or `eventbus_03`; their text is however already changed, so re-read each document before editing it. This Plan runs before the history-comment sweep (`plans/20261112-122030_rmcompat007_history-comment-sweep.md`), which sweeps the comments this Plan leaves in `scripts/eventbus/`. `plans/20261112-121134_rmcompat005_eventbus-dlq-leftovers.md` regenerates `docs/24_eventbus/eventbus_08_reference_api.md` and `registry/manifests/eventbus_api.yaml` and edits `docs/24_eventbus/eventbus_07_configuration-and-operations.md`; sequencing only, run this Plan first.
 
 ## Background
-Re-verified 2026-11-12 (Step 2 and Step 3):
-- `config.py`: the required `auth_token` check appears in `EventBusConfig.__post_init__` (line 150), `_validate_deployment_mode` (line 69), and `load_config` (line 377); `_validate_cross_field` (called only at line 424, after the dataclass is built) runs `_validate_token_combinations`, which cannot fail because `auth_token` is non-empty by then, and `_validate_deployment_mode`, which repeats both `__post_init__` checks. The bind error (lines 66-67 and 147-148) says "set auth_token or bind to loopback" although every non-loopback host raises regardless of tokens.
+Re-verified 2026-11-12 (Step 2 and Step 3), re-checked 2026-11-13 (this cycle, `rg` plus Read over the target files, and `git log --all -S` for every symbol this Plan deletes):
+- `config.py`: the required `auth_token` check appears in `EventBusConfig.__post_init__` (line 150), `_validate_deployment_mode` (line 69), and `load_config` (lines 378-379); `_validate_cross_field` (called only at line 424, after the dataclass is built) runs `_validate_token_combinations`, which cannot fail because `auth_token` is non-empty by then, and `_validate_deployment_mode`, which repeats both `__post_init__` checks. The bind error (lines 66-67 and 147-148) says "set auth_token or bind to loopback" although every non-loopback host raises regardless of tokens.
 - `topic_authorization` exists in `config.py` (field, validation, key lists, load conversion, `authorization_baseline_hash`), `auth.py:185-201`, `admin_route.py` (validator, request key, counts, replacements, `_authorization_pairs`), `authz_ttl.py` (`_removal_config`, removal counts), `config/eventbus.toml` (comments), the agent client `scripts/agent/eventbus_topic_admin_client.py`, the manifest `registry/manifests/eventbus_api.yaml`, and tests and documents.
 - `auth.py` reads config through `getattr`/`hasattr` at lines 156, 174, 185-188, 207, 217, and 270; `_CONSUMER_ID_ALLOWLIST` (line 90) has no reference anywhere in `scripts`, `tests`, `tools`, or `docs`.
 - `audit.py`: `previous_generation` and `new_generation` are `NotRequired` and added only when not `None`; `admin_route.py:264-276` and `authz_ttl.py:128-140` also append `gen:<prev>-><new>` to `detail`; `log_privileged_action` is also used by the startup baseline record, DLQ requeue, and replay, which have no generation. The module docstring copies the mdq and web_search vocabularies and starts with "Mirrors scripts/mcp_servers/audit.py".
@@ -24,7 +24,9 @@ Corrections found against the Issue's claims:
 - The unknown-key rejection in `load_config` already fails a configuration that carries a key not in the allowed list, so removing `topic_authorization` from the lists yields the explicit load error without new parsing.
 - `rg -n "REQ-[0-9]+" scripts/eventbus/audit.py scripts/eventbus/auth.py config/eventbus.toml` matches `auth.py:144` and `eventbus.toml:47,53` only.
 - The test at `tests/eventbus/test_eventbus_config.py:619` expects the `load_config` message "must not be empty"; it moves to the `__post_init__` message.
-- The repository `config/eventbus.toml` carries `topic_authorization` only in comments (an example), so a deployed file that copies it as an active key would be rejected at startup (UNK-03).
+- The repository `config/eventbus.toml` carries `topic_authorization` only in comments (lines 29, 42, 45), so a deployed file that copies it as an active key would be rejected at startup (UNK-03).
+- The load-time unknown-key rejection is `config.py:346-351`. `_CONFIG_KEY_TYPES` (`config.py:286-312`) holds no entry for `consumer_authorization` or `topic_authorization`, so the shape of either mapping is checked only in `__post_init__`.
+- The agent client sends no `expected_generation` while `admin_route.py:144-146` requires it, so a request from `EventBusTopicAdminClient.update_topics_authorization` is rejected with 422 today; `rg` finds no caller outside `tests/agent/test_eventbus_topic_admin_client.py`. Recorded as UNK-06: repairing that call is a separate scope decision, not part of this Plan's rows.
 
 ## Problem
 Three copies of one check can drift, and two of the functions are dead; the bind error tells operators to set a token for a bind that no token permits; two formats for one fact allow contradictory configurations; tolerant reads accept a missing or misspelled attribute silently in the module that enforces authorization; generation fields that appear only sometimes and a duplicate `detail` suffix make admin audit records ambiguous; copied vocabulary and "Precedent" notes describe other servers and how the code was written.
@@ -45,7 +47,7 @@ The current-only policy (`compatrm001`) forbids tolerant fallbacks and duplicate
 - `REQ-004`: Admin authorization audit records (admin update and TTL sweep) contain `previous_generation` and `new_generation`, required by the function that writes them, and `detail` has no `gen:` suffix; the startup, DLQ, and replay records are unchanged.
 - `REQ-005`: `audit.py` documents only the `error_type` values the EventBus emits, defined as constants used by `auth.py`.
 - `REQ-006`: `rg -n "Precedent|Mirrors scripts/|REQ-[0-9]+" scripts/eventbus/audit.py scripts/eventbus/auth.py config/eventbus.toml` returns nothing.
-- `REQ-007`: Documents and the generated manifest describe the single authorization format, the bind rule, and the audit record; the ADR-013 edit carries an approval record that stays `Pending maintainer statement`.
+- `REQ-007`: Documents and the generated manifest describe the single authorization format, the bind rule, and the audit record; ADR-013's `Approval Record` section (lines 289-297) already records the task-level approval as acceptance evidence, so no new record is added; individual maintainer statements remain governed by UNK-05.
 - `REQ-008`: Tests cover the single required-token message, the bind message, the rejected removed format, and the generation fields on every admin authorization record.
 
 ## Implementation Target Files
@@ -55,7 +57,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/eventbus/config.py` | Config validation and format | Delete the three cross-checks and the load empty check; reword the bind error; remove `topic_authorization` (field, validation, key lists, load conversion, hash) | REQ-001, REQ-002 / AC-1, AC-2 | lines 40-70, 73-87, 117-121, 145-151, 222-236, 265-266, 377-390, 408-409, 424 (checked in Step 2) | `tests/eventbus/test_eventbus_config.py` | Verified |
+| `scripts/eventbus/config.py` | Config validation and format | Delete the three cross-checks and the load empty check; reword the bind error; remove `topic_authorization` (field, validation, key lists, load conversion, hash) | REQ-001, REQ-002 / AC-1, AC-2 | lines 40-70, 73-87, 118-121, 145-151, 222-237, 265-266, 346-351, 378-390, 408-409, 424 (re-checked 2026-11-13) | `tests/eventbus/test_eventbus_config.py` | Verified |
 | `scripts/eventbus/auth.py` | Principal map and middleware | Remove `topic_authorization` pairs; replace `getattr`/`hasattr` reads; delete `_CONSUMER_ID_ALLOWLIST`; remove "Precedent" and `REQ-003` comments; use the `error_type` constants | REQ-002, REQ-003, REQ-005, REQ-006 / AC-2, AC-3, AC-5, AC-6 | lines 22-23, 90, 144, 156, 174, 185-201, 207, 217, 270, 312, 349, 381, 399, 421 (checked in Step 2) | `tests/eventbus/test_eventbus_auth.py` | Verified |
 | `scripts/eventbus/audit.py` | Audit records | Add the `error_type` constants, the authorization-change record and function with required generation fields; drop the generation parameters from `log_privileged_action`; replace the copied docstring | REQ-004, REQ-005, REQ-006 / AC-4, AC-5, AC-6 | lines 1-34, 47-62, 134-177 (checked in Step 2) | `tests/eventbus/test_eventbus_auth.py` | Verified |
 | `scripts/eventbus/admin_route.py` | Admin endpoint | Remove `topic_authorization` handling; call the authorization-change function; drop the `gen:` suffix | REQ-002, REQ-004 / AC-2, AC-4 | lines 64-99, 107, 128-140, 190-212, 264-276 (checked in Step 2) | `tests/eventbus/test_admin_topics_authorization.py` | Verified |
@@ -102,14 +104,14 @@ This table is the canonical, frozen source of implementation scope for this Plan
 - REQ-005: the `topic_authorization_rejected` audit test uses the constant.
 
 ## Documentation Impact
-- Documentation must be updated (REQ-007): ADR-013 (decision text and a pending approval record), the EventBus configuration and operations document, the DLQ operations document, and the reference API document, located through `docs/00_index.md` "Document References by Task". Describe intent, boundaries, and failure behavior only. Run the `routing.md` checkers, `check_docs_consistency.py --domain eventbus`, and the ADR checkers.
+- Documentation must be updated (REQ-007): ADR-013 (decision text; its `Approval Record` section at lines 289-297 already records the task-level approval as acceptance evidence, and individual maintainer statements remain governed by UNK-05), the EventBus configuration and operations document, the DLQ operations document, and the reference API document, located through `docs/00_index.md` "Document References by Task". Describe intent, boundaries, and failure behavior only. Run the `routing.md` checkers, `check_docs_consistency.py --domain eventbus`, and the ADR checkers.
 
 ## Assumptions
 - `__post_init__` is the right single place: every construction path (load, `dataclasses.replace` in the admin route and TTL sweep) passes through it. The load-time message for an empty referenced environment value becomes the `__post_init__` message; the existing test only changes its expected text.
 - A new `log_authorization_change` function plus an `AuthzChangeRecord` type keeps `log_privileged_action` unchanged for records that have no generation, rather than making the generation fields required for every privileged action (DLQ requeue and replay have no generation).
 - `_ROUTE_ROLE_MAP` is kept because the reference generator reads it; removing it would need a separate generator change (UNK-02).
 - The audit `error_type` values are unchanged strings, so existing log queries and tests keep working.
-- Step 8b overlap judgements (`tools/check_plan_target_overlaps.py`), all compatible: `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` with `plans/20261111-104605_adrrev016_adr-authority-format.md` (that Plan adds an Implementation column to the Automated Tests table from line 242; this Plan edits the decision text and the line 247 row text, so re-read the table before editing) and with `plans/20261111-110144_adrrev017_docs-history-wording.md` (that Plan edits Decision Detail 12 at line 95; this Plan edits lines 93, 193, 247, 268); `scripts/eventbus/auth.py` with `plans/20261111-112439_adrrev019_docs-stale-statements.md` (that Plan edits only the `attach_auth_middleware` docstring near line 454). Open implementation procedures of `plans/done/20261111-103238_adrrev014_eventbus-spec-gaps.md` edit `eventbus_08` (reference rows) and `eventbus_03` (DLQ prose); re-read both documents before editing and edit different sentences.
+- Overlap judgements (`tools/check_plan_target_overlaps.py`, re-run 2026-11-13; report-only candidates, judged here): `plans/20261112-122030_rmcompat007_history-comment-sweep.md` names `scripts/eventbus/config.py`, `auth.py`, `audit.py`, `admin_route.py`, `authz_ttl.py`, `config/eventbus.toml`, `docs/24_eventbus/eventbus_08_reference_api.md`, and `registry/manifests/eventbus_api.yaml` — compatible, sequencing only: rmcompat007 sweeps the `REQ-`/`EBAUTHGEN`/`ADR-` label comments this Plan leaves behind (for example `config.py:382`, `admin_route.py:114,143,171,238`, `authz_ttl.py:4`), so this Plan runs first and must not delete labels outside its own row scope. `plans/20261112-121134_rmcompat005_eventbus-dlq-leftovers.md` names `docs/24_eventbus/eventbus_07_configuration-and-operations.md`, `docs/24_eventbus/eventbus_08_reference_api.md`, and `registry/manifests/eventbus_api.yaml` — compatible, sequencing only: that Plan edits DLQ sentences and regenerates the same guarded blocks; run this Plan first and regenerate rather than hand-edit. The adrrev014, adrrev016, adrrev017, and adrrev019 Plans are archived in `plans/done/` with completed procedures, so their edits are already applied: `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` now carries an `Implementation` column in the Automated Tests table (rows 242-262) and Decision Detail 12 sits at line 103, and `scripts/eventbus/auth.py` `attach_auth_middleware` (line 454) already has its corrected docstring — re-read each location before editing, and edit different sentences than those documents changed.
 - The `getattr` reads in `subscribe_route.py` and `app.py` are out of scope; `auth.py` is the only module named.
 
 ## Unknowns
@@ -119,7 +121,8 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | UNK-02 | Whether `_ROUTE_ROLE_MAP` should be removed together with a change to the reference generator | Maintainer decision | Kept here; file a separate Issue if wanted | False |
 | UNK-03 | Whether the deployed `/opt/llm/config/eventbus.toml` carries an active `topic_authorization` key | Read access to production configuration | Operator checks before deploy; an active key stops startup with the unknown-key error | False |
 | UNK-04 | Whether an operator script calls `POST /admin/topics/authorization` with `topic_authorization` | Operator knowledge | No caller in the repository besides the agent client; ask before deploy | False |
-| UNK-05 | The maintainer's approval statement for the ADR-013 decision record | The statement | Maintainer writes it per `governance_05`; not written here | False |
+| UNK-05 | Whether individual maintainer approval statements are required for ADR-013: the `Approval Record` section (ADR-013:289-297) already records the task-level approval as acceptance evidence and states that no individual-name record exists | The statement | Maintainer writes individual statements per `governance_05` if required; not written here | False |
+| UNK-06 | Whether `EventBusTopicAdminClient` should send `expected_generation`, which `admin_route.py:144-146` requires and the client does not send today | Maintainer decision on the client contract | Out of scope here (row 7 removes `topic_authorization` only); file a separate Issue if the client is meant to work against the endpoint | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -172,7 +175,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 6. **Phase 6: Audit tests**
    - [ ] Update the generation-field and `gen:` assertions and add the every-record test (REQ-004, REQ-005, REQ-008; `tests/eventbus/test_admin_topics_authorization.py`, `tests/eventbus/test_authz_generation_ttl.py`, `tests/eventbus/test_eventbus_auth.py`)
 7. **Phase 7: Documents and manifest**
-   - [ ] Update the decision text and add the pending approval record (REQ-007; `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`)
+   - [ ] Update the decision text where this Plan changes behavior; the `Approval Record` section (lines 289-297) already records the task-level approval, so no new record is added (REQ-007; `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`)
    - [ ] Update the three EventBus documents (REQ-007; `docs/24_eventbus/eventbus_07_configuration-and-operations.md`, `docs/24_eventbus/eventbus_03_dlq_operations.md`, `docs/24_eventbus/eventbus_08_reference_api.md`) and regenerate the manifest (REQ-007; `registry/manifests/eventbus_api.yaml`)
 8. **Phase 8: Deployment and verification**
    - [ ] Hand off to `skills/deploy/SKILL.md` after the change is committed and pushed; deploying is the user's decision (approval gate). Prerequisite: the operator confirms the deployed `config/eventbus.toml` has no active `topic_authorization` key (UNK-03). Run the acceptance searches, the validation sequence, and the docs and ADR checkers (REQ-001 to REQ-008)
@@ -196,7 +199,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 - **Risk**: A deployed `eventbus.toml` still has an active `topic_authorization` key and the Event Bus stops at startup → **Mitigation**: UNK-03 and the Phase 8 prerequisite; the repository copy has the key only in comments.
 - **Risk**: An operator script sends `topic_authorization` to the admin endpoint → **Mitigation**: UNK-04; the server ignores unknown body keys, and an empty effective body returns the existing 422.
 - **Risk**: Deleting `_ROUTE_ROLE_MAP` as the Issue says breaks the reference generator and the generated docs → **Mitigation**: it is kept; only `_CONSUMER_ID_ALLOWLIST` goes.
-- **Risk**: An open adrrev014 procedure edits `eventbus_08` or `eventbus_03` at the same time → **Mitigation**: re-read before editing; regenerate the guarded block with the tool rather than by hand.
+- **Risk**: An open rmcompat005 or rmcompat007 procedure edits `eventbus_08` or the manifest at the same time → **Mitigation**: re-read before editing; regenerate the guarded block with the tool rather than by hand.
 - **Risk**: Moving the empty-token check changes the message an operator sees at load → **Mitigation**: the `__post_init__` message is the existing one used on every other path; the test and the documents carry the new text.
 
 ## Execution Status
@@ -204,14 +207,14 @@ This table is the canonical, frozen source of implementation scope for this Plan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Single validation in `__post_init__` and its tests | Pending | — | — | |
-| 2 | Remove `topic_authorization` from the server code and `eventbus.toml` | Pending | — | — | Release unit single-authorization-format with step 3 |
-| 3 | Remove it from the client and update tests | Pending | — | — | Release unit single-authorization-format with step 2 |
-| 4 | Strict attribute reads and dead table in `auth.py` | Pending | — | — | |
-| 5 | Authorization-change audit function, constants, call sites | Pending | — | — | Release unit authorization-audit-record with step 6 |
-| 6 | Audit tests | Pending | — | — | Release unit authorization-audit-record with step 5 |
-| 7 | Documents and generated manifest | Pending | — | — | |
-| 8 | Deployment hand-off and verification | Pending | — | — | |
+| 1 | Single validation in `__post_init__` and its tests | In Progress | — | — |  |
+| 2 | Remove `topic_authorization` from the server code and `eventbus.toml` | In Progress | — | — | Release unit single-authorization-format with step 3 |
+| 3 | Remove it from the client and update tests | In Progress | — | — | Release unit single-authorization-format with step 2 |
+| 4 | Strict attribute reads and dead table in `auth.py` | In Progress | — | — |  |
+| 5 | Authorization-change audit function, constants, call sites | In Progress | — | — | Release unit authorization-audit-record with step 6 |
+| 6 | Audit tests | In Progress | — | — | Release unit authorization-audit-record with step 5 |
+| 7 | Documents and generated manifest | In Progress | — | — |  |
+| 8 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -221,11 +224,24 @@ This table is the canonical, frozen source of implementation scope for this Plan
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261113-135237_01_scripts_eventbus_config.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_02_scripts_eventbus_auth.py.md` | 2, 4, 5 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_03_scripts_eventbus_audit.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_04_scripts_eventbus_admin_route.py.md` | 2, 5 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_05_scripts_eventbus_authz_ttl.py.md` | 2, 5 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_06_config_eventbus.toml.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_07_scripts_agent_eventbus_topic_admin_client.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_08_registry_manifests_eventbus_api.yaml.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_09_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_10_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_11_docs_24_eventbus_eventbus_03_dlq_operations.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_12_docs_24_eventbus_eventbus_08_reference_api.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_14_tests_eventbus_test_eventbus_auth.py.md` | 3, 6 | Procedure | Pending | — | — |
+| `implementations/20261113-135237_17_tests_eventbus_test_eventbus_consumer_authorization.py.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
-- **Source issue**: issues/20261110-170832_rmcompat004_eventbus-config-auth-audit.md
+- **Source issue**: issues/done/20261110-170832_rmcompat004_eventbus-config-auth-audit.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
@@ -265,3 +281,5 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | REQ-007 | Documentation Impact; `eventbus_08:53,56-57` | `docs/24_eventbus/eventbus_08_reference_api.md` | 7 | AC-7 | `generate_reference_table.py --check` | Derived from confirmed evidence |
 | REQ-007 | Derived from `eventbus_api.yaml:25` | `registry/manifests/eventbus_api.yaml` | 7 | AC-7 | `generate_reference_table.py --check` | Derived from confirmed evidence |
 | REQ-008 | Testing Expectations; the new config-message and rejected-format tests | `tests/eventbus/test_eventbus_config.py` | 1 | AC-8 | `tests/eventbus` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261113-135237 -->
