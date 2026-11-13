@@ -38,7 +38,7 @@ stage-populated field is written by a specific pipeline stage:
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
-Field definitions: `SearchDiagnostics` in `scripts/rag/models_result.py` (summary in [rag_04_dto-models-types.md](rag_04_dto-models-types.md)). Its fields are the local-execution counters (`embed_ok`, `embed_failed`, `fts_errors`, `degraded`), `fallback_reason`, and `corpus_generation`.
+Field definitions: `SearchDiagnostics` in `scripts/rag/models_result.py` (summary in [rag_04_dto-models-types.md](rag_04_dto-models-types.md)). Its fields are the local-execution counters (`embed_ok`, `embed_failed`, `fts_errors`, `degraded`) and `fallback_reason`.
 
 ### 4.3 get_diagnostics() Return Value (`RagPipeline.get_diagnostics()`)
 

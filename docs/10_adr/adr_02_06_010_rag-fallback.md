@@ -241,7 +241,7 @@ Withdrawn: the integration and unit tests that verified this decision exercised 
 
 ## Implementation Notes
 
-- Withdrawn: the remote delegation code (the HTTP augment stage, the remote call function, and the result source and HTTP result kind diagnostics) and the fallback identity gate were removed. `RagPipeline.augment()` now runs the in-process pipeline only, and the rag_pipeline MCP server is the only access path to RAG.
+- Withdrawn: the remote delegation code (the HTTP augment stage, the remote call function, and the result source and HTTP result kind diagnostics) and the fallback identity gate were removed. `RagPipeline.augment()` now runs the in-process pipeline only, and the rag_pipeline MCP server is the only access path to RAG. The corpus identity contract introduced by the RAGCORPUS001 amendment was also removed under Option B: the single-row `rag_corpus_meta` table, the identity reader module, the rag_pipeline MCP `corpus_identity` wire field, and the `SearchDiagnostics.corpus_generation` field are no longer part of this design.
 
 See Implementation References for the current file/symbol list.
 

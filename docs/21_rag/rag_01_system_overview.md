@@ -177,7 +177,7 @@ Chunk-size, chunk-overlap, crawl-depth, and max-pages bounds exist to keep chunk
 
 The interaction flow is: MCP client → HTTP routing → service orchestration → pipeline execution. For details see `docs/21_rag/rag_03_01_query_pipeline-overview.md`.
 
-Note: The rag-pipeline MCP server reads the corpus database through `rag_db_path` in `config/rag_pipeline_mcp_server.toml`, and the Agent reaches the same database only for admin-only maintenance through `rag_db_path` in `config/agent.toml`. HTTP delegation (`rag_query_service_url`) is not used in production (ADR-010). Both files are configured with the same path by convention, not by an enforced invariant, so a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` is a configuration risk worth detecting. Divergence is detected: the corpus identity is computed from the canonical corpus database and its corpus-shaping configuration, and the `augment()` fallback path compares the remote-side identity against the local identity before accepting a fallback ([RAG Index Consistency Checks](rag_05_07-rag-index-consistency-checks.md)); a mismatch is rejected by default and otherwise handled per `rag_identity_mismatch_policy` ([Configuration Reference](rag_05_01-configuration-reference.md), `reject` by default), and an unverifiable identity preserves the fallback while recording the unverifiable state. The startup RAG index consistency check additionally reports a fatal corpus-corruption finding that aborts startup ([RAG Index Consistency Checks](rag_05_07-rag-index-consistency-checks.md)).
+Note: The rag-pipeline MCP server reads the corpus database through `rag_db_path` in `config/rag_pipeline_mcp_server.toml`, and the Agent reaches the same database only for admin-only maintenance through `rag_db_path` in `config/agent.toml`. HTTP delegation (`rag_query_service_url`) is not used in production (ADR-010). Both files are configured with the same path by convention, not by an enforced invariant, so a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` is a configuration risk worth detecting. The startup RAG index consistency check additionally reports a fatal corpus-corruption finding that aborts startup ([RAG Index Consistency Checks](rag_05_07-rag-index-consistency-checks.md)).
 
 ## Chapter Map
 
@@ -186,7 +186,6 @@ See the reading order and routing table in [rag_00_document-guide.md](rag_00_doc
 ## Keywords
 
 - rag
-- corpus identity
 - system
 - overview
 - architecture

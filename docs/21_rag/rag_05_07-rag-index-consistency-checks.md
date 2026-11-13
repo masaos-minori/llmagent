@@ -22,16 +22,12 @@ The RAG index requires synchronization between the following tables:
 On every agent startup, a read-only RAG consistency check runs via `check_rag_consistency()` (`scripts/db/rag_consistency.py`). Each finding carries a fixed severity (`FindingSeverity.DEGRADED` or `FindingSeverity.FATAL`, `db.models`), and startup routes on it (`scripts/agent/startup_validation.py`):
 
 - **Degraded findings** (FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency) print a console warning per finding with its repair action; startup proceeds.
-- **Fatal findings** (duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema, unverifiable corpus generation) register a `rag_consistency` fatal finding and abort startup, with the repair action in the message. No config path may downgrade a fatal finding (AC-4).
+- **Fatal findings** (duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema) register a `rag_consistency` fatal finding and abort startup, with the repair action in the message. No config path may downgrade a fatal finding (AC-4).
 - **Ingest-time embedding-dimension mismatch** (outside the startup check): ingestion skips the affected chunk and logs a WARNING; the same mismatch at startup is the Fatal finding listed above.
-- **A failed or timed-out check** prints an identity-unverified warning and lets startup continue. The local corpus identity is read from the local corpus metadata per request and surfaces as the `corpus_generation` diagnostic; an unreadable identity is reported as unverified.
+- **A failed or timed-out check** prints a warning marking RAG consistency unverified and lets startup continue.
 
 ```text
 [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Affected doc_ids: [1, 2, 3]. Run '/session rag-rebuild-fts' to repair. Repair action: rebuild_fts
-```
-
-```text
-[CRITICAL] Unverifiable corpus generation detected (corpus_meta_verified=0). Repair action: restore_from_backup
 ```
 
 If the index is healthy, no warning is shown (`logger.info("RAG consistency: OK")` is logged instead).
@@ -43,7 +39,7 @@ Classification is fixed in code, not configuration. Degraded findings are repair
 | Class | Findings | Startup consequence | Repair |
 |---|---|---|---|
 | Degraded | FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency | Warn per finding; proceed | `rebuild_fts`, `rebuild_vec`, or `reconcile_url` (see below) |
-| Fatal | Duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema, unverifiable corpus generation | Abort, with repair action in the message | Restore from a verified backup or re-ingest; the rebuild commands do not repair these |
+| Fatal | Duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema | Abort, with repair action in the message | Restore from a verified backup or re-ingest; the rebuild commands do not repair these |
 
 
 ## `/session rag-rebuild-fts` Command
@@ -101,7 +97,6 @@ Use `/session rag-consistency` to detect issues. The report includes identifiers
 | FK inconsistency | Fatal | `restore_from_backup` | Restore from a verified backup; a chunk references a missing document. |
 | embedding-dimension mismatch | Fatal | `restore_from_backup` | Restore from a verified backup; stored vectors do not match the configured dimension. |
 | unknown schema | Fatal | `restore_from_backup` | Restore from a verified backup; a required table is missing. |
-| unverifiable corpus generation | Fatal | `restore_from_backup` | Restore from a verified backup; the single-row `rag_corpus_meta` table is missing or malformed. |
 
 The `repair_action` value is appended to the console message at startup (`... Repair action: <value>`). The rebuild commands (`rebuild_fts`, `rebuild_vec`) repair degraded findings only; fatal findings require restore-from-backup or re-ingest.
 

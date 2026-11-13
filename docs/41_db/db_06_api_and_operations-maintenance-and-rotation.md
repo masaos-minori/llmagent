@@ -47,7 +47,7 @@ The archive directory is read from `agent.toml::sqlite_archive_dir`, with a code
 
 `check_rag_consistency(db, embed_failed=0) -> RagConsistencyReport`: A read-only report containing chunk/FTS/vec row counts and orphan detection. Note that `embed_failed` (the number of embedding failures known by the caller) is passed in but not detected by this function itself.
 
-`is_consistent(report) -> bool`: Returns `True` when every rule in the module's `_CHECKS` group is clean: `fts_gap == 0`, `fts_orphan_count == 0`, `orphan_vec_count == 0`, `vec == chunks`, `documents_without_chunks_count == 0`, `chunks_without_vec_count == 0`, `duplicate_chunk_index_count == 0`, no `url_level_mismatches`, `fk_inconsistency_count == 0`, `dimension_mismatch == 0`, `unknown_schema == 0`, `corpus_meta_verified`, no `diagnostic_errors`, `read_smoke_test_ok`, and no unverified-dimension flags (section 8.1).
+`is_consistent(report) -> bool`: Returns `True` when every rule in the module's `_CHECKS` group is clean: `fts_gap == 0`, `fts_orphan_count == 0`, `orphan_vec_count == 0`, `vec == chunks`, `documents_without_chunks_count == 0`, `chunks_without_vec_count == 0`, `duplicate_chunk_index_count == 0`, no `url_level_mismatches`, `fk_inconsistency_count == 0`, `dimension_mismatch == 0`, `unknown_schema == 0`, no `diagnostic_errors`, `read_smoke_test_ok`, and no unverified-dimension flags (section 8.1).
 
 `summarize_issues(report) -> list[str]`: Provides human-readable issue descriptions for the `_CHECKS` rules that are not clean, in tuple order.
 

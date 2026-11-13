@@ -109,7 +109,6 @@ MCP server's `/v1/tools` over HTTP; the import statements under
 the Shared/DB dependencies; `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`
 imports `rag.pipeline`):
 - Agent → MCP
-- Agent → RAG
 - Agent → Shared/DB
 - MCP → Shared/DB
 - MCP → RAG
@@ -121,10 +120,10 @@ wrapper around `scripts/rag/`'s `RagPipeline` (`RagPipelineMCPService.start()`
 imports and instantiates it; no other file under `scripts/mcp_servers/rag_pipeline/`
 duplicates RAG pipeline logic).
 
-The `Agent → RAG` edge exists only through
-`scripts/agent/services/rag_maintenance_service.py` importing `rag.corpus_identity`
-(the only import of `scripts/rag/` under `scripts/agent/`); RAG search and ingestion
-otherwise reach the Agent only through the generic `Agent → MCP` edge.
+Not an edge: `Agent → RAG`. `scripts/agent/services/rag_maintenance_service.py` maintains
+`rag.sqlite` through the `db` layer and imports nothing from `scripts/rag/`; its former
+`rag.corpus_identity` import was removed with RAGCORPUS001 Option B. RAG search and
+ingestion reach the Agent only through the generic `Agent → MCP` edge.
 
 Not represented as an edge:
 - Agent, RAG or MCP → EventBus: no runtime component calls the Event Bus. The
