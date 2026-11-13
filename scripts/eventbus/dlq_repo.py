@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 # Shared column constants
 from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus._constants
     _COL_DLQ_AT,
-    _COL_DLQ_REQUEUE_COUNT,
     _COL_EVENT_ID,
 )
 from eventbus.event_repo import get_seq
@@ -35,8 +34,6 @@ class RequeueResult:
     """
 
     status: str
-    original_event_exists: bool
-    already_redelivered: bool
     new_event_id: str | None
     new_seq: int | None
 
@@ -57,12 +54,13 @@ def redeliver_event(
     index and is mapped to the same "already_redelivered" status after a
     rollback, so callers cannot produce duplicate descendants either way.
 
-    Performs a conditional-update guard on the original row
-    (WHERE event_id = ? AND dlq_at IS NOT NULL), then inserts a new row with a
-    fresh UUID v4 event_id, no event-level failure counters (the per-consumer
-    model is authoritative), and redelivered_from set to the original event_id.
+    Inserts a new row guarded by the conditional SELECT source on the original
+    row (WHERE event_id = ? AND dlq_at IS NOT NULL): the INSERT itself refuses
+    non-DLQ targets, with a fresh UUID v4 event_id, no event-level failure
+    counters (the per-consumer model is authoritative), and redelivered_from
+    set to the original event_id.
     The requeue timestamp is computed in Python (now_iso()) and bound as a SQL
-    parameter. Update + insert + seq lookup run in one transaction: every failure
+    parameter. Insert + seq lookup run in one transaction: every failure
     path calls conn.rollback() so no partial state can be committed by a later
     request on the shared connection; an IntegrityError naming the
     events.redelivered_from index is rolled back and returned as
@@ -79,19 +77,23 @@ def redeliver_event(
         (event_id,),
     ).fetchone()
     if existing_redelivery:
-        return RequeueResult("already_redelivered", True, True, None, None)
+        return RequeueResult("already_redelivered", None, None)
 
     # Timestamp computed in Python and bound as data (no f-string interpolation).
     ts = now if now is not None else now_iso()
     new_event_id = uuid.uuid4().hex
     try:
+        # The conditional SELECT source (WHERE event_id = ? AND dlq_at IS NOT
+        # NULL) is the guard: the INSERT itself refuses non-DLQ targets.
         cur = conn.execute(
-            f"UPDATE events SET {_COL_DLQ_REQUEUE_COUNT} = {_COL_DLQ_REQUEUE_COUNT} + 1 WHERE {_COL_EVENT_ID} = ? AND {_COL_DLQ_AT} IS NOT NULL",  # nosec B608 — column names are module-level constants, values parameterized
-            (event_id,),
+            f"INSERT INTO events ({_COL_EVENT_ID}, topic, payload, producer, published_at, redelivered_from) "
+            f"SELECT ?, topic, payload, producer, ?, ? "
+            f"FROM events WHERE {_COL_EVENT_ID} = ? AND {_COL_DLQ_AT} IS NOT NULL",  # nosec B608 — column names are module-level constants, values parameterized
+            (new_event_id, ts, event_id, event_id),
         )
         if cur.rowcount == 0:
             conn.rollback()
-            # Single existence read classifies the no-match UPDATE: the row
+            # Single existence read classifies the no-match INSERT: the row
             # exists but dlq_at IS NULL ("not_in_dlq"), or it never existed
             # ("not_found").
             row = conn.execute(
@@ -99,14 +101,8 @@ def redeliver_event(
                 (event_id,),
             ).fetchone()
             if row is not None:
-                return RequeueResult("not_in_dlq", True, False, None, None)
-            return RequeueResult("not_found", False, False, None, None)
-        conn.execute(
-            f"INSERT INTO events ({_COL_EVENT_ID}, topic, payload, producer, published_at, redelivered_from) "
-            f"SELECT ?, topic, payload, producer, ?, ? "
-            f"FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
-            (new_event_id, ts, event_id, event_id),
-        )
+                return RequeueResult("not_in_dlq", None, None)
+            return RequeueResult("not_found", None, None)
         new_seq = get_seq(conn, new_event_id)
         conn.commit()
     except sqlite3.IntegrityError as exc:
@@ -116,12 +112,12 @@ def redeliver_event(
         # any other integrity error keeps the raise path so the existing
         # event_id-collision and injected-failure regression anchors hold.
         if "events.redelivered_from" in str(exc):
-            return RequeueResult("already_redelivered", True, True, None, None)
+            return RequeueResult("already_redelivered", None, None)
         raise
     except sqlite3.Error:
         conn.rollback()
         raise
-    return RequeueResult("success", True, False, new_event_id, new_seq)
+    return RequeueResult("success", new_event_id, new_seq)
 
 
 # -- dlq_outbox row operations (dlqbox001) ------------------------------------

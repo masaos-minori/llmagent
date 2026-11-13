@@ -173,7 +173,7 @@ async def _dlq_loop(app: FastAPI) -> None:
 
             def _sweep() -> int:
                 """Sweep orphaned events from the DLQ table into the dead-letter directory."""
-                result: int = sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry)
+                result: int = sweep_orphans(db, cfg.max_retry)
                 return result
 
             n = await run_with_db_lock(_sweep)

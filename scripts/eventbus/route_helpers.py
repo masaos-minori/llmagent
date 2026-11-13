@@ -1,4 +1,3 @@
-# /usr/bin/env python3
 """scripts/eventbus/route_helpers.py — Shared helpers for route handlers."""
 
 import asyncio
@@ -63,7 +62,7 @@ def get_counter_value(counter: Counter) -> int:
             return 0
         for metric in metrics:
             for sample in metric.samples:
-                if sample.name == counter._name + "_total":
+                if sample.name == metric.name + "_total":
                     return int(sample.value)
         return 0
     except (AttributeError, TypeError, ValueError):

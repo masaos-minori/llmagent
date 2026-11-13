@@ -8,9 +8,7 @@ CREATE TABLE IF NOT EXISTS events (
     producer               TEXT    NOT NULL,
     published_at           TEXT    NOT NULL,
     redelivered_from       TEXT,
-    dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
-    dlq_at                 TEXT,
-    consumer_id            TEXT
+    dlq_at                 TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);

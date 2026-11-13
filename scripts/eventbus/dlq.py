@@ -112,7 +112,7 @@ def is_promotable(db: sqlite3.Connection, event_id: str, max_retry: int) -> bool
     return row is not None
 
 
-def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int) -> int:
+def _shared_promote(db: sqlite3.Connection, max_retry: int) -> int:
     """Shared promotion logic for the sweep path. DB-only since dlqbox001 (REQ-003).
 
     REQ-002 and ADR-006 INV-13: promotes events where every consumer with a delivery
@@ -120,9 +120,6 @@ def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int)
     the dlq_at stamp together with its dlq_outbox request row in one transaction; the
     rowcount guard means a racing promotion never duplicates the request row. File
     generation belongs to the outbox worker (process_outbox), never to this path.
-
-    The deadletter_dir parameter is kept for call-site signature stability; the
-    promotion path itself does not touch the filesystem.
     """
     now = now_iso()
     rows = db.execute(
@@ -150,7 +147,6 @@ def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int)
 
 def _shared_promote_single(
     db: sqlite3.Connection,
-    deadletter_dir: str,
     event_id: str,
     consumer_failure_count: int | None = None,
 ) -> bool:
@@ -163,7 +159,6 @@ def _shared_promote_single(
 
     Args:
         db: Database connection.
-        deadletter_dir: Kept for call-site signature stability; unused here.
         event_id: Event identifier.
         consumer_failure_count: Per-consumer failure count (REQ-002), logged only.
     """
@@ -186,7 +181,6 @@ def _shared_promote_single(
 
 def sweep_orphans(
     db: sqlite3.Connection,
-    deadletter_dir: str,
     max_retry: int,
 ) -> int:
     """Sweep events that meet the promotion rule but were not promoted inline.
@@ -198,7 +192,7 @@ def sweep_orphans(
     always carries its dlq_outbox request row in the same commit, so the sweep also
     re-drives generation for events whose artifact was never generated.
     """
-    return _shared_promote(db, deadletter_dir, max_retry)
+    return _shared_promote(db, max_retry)
 
 
 def reconcile_missing_dlq_files(
@@ -327,7 +321,6 @@ def _count_orphan_dlq_files(db: sqlite3.Connection, deadletter_dir: str) -> int:
 
 def promote_single(
     db: sqlite3.Connection,
-    deadletter_dir: str,
     event_id: str,
     consumer_failure_count: int | None = None,
 ) -> bool:
@@ -340,11 +333,10 @@ def promote_single(
 
     Args:
         db: Database connection.
-        deadletter_dir: Kept for call-site signature stability; unused here.
         event_id: Event identifier.
         consumer_failure_count: Per-consumer failure count (REQ-002).
     """
-    return _shared_promote_single(db, deadletter_dir, event_id, consumer_failure_count)
+    return _shared_promote_single(db, event_id, consumer_failure_count)
 
 
 def _atomic_write(deadletter_dir: str, event_id: str, record: DlqEventRecord) -> None:

@@ -10,21 +10,15 @@ _COL_SEQ = "seq"
 _COL_DLQ_AT = "dlq_at"
 
 # Shared column constants — used by all layers
-_COL_DLQ_REQUEUE_COUNT = "dlq_requeue_count"
-_COL_REDISTRIBUTED_FROM = "redelivered_from"
 _COL_CONSUMER_DELIVERY_FAILURE_COUNT = "consumer_delivery_failure_count"
 _COL_CONSUMER_LAST_NACK_ATTEMPT = "consumer_last_nack_attempt"
-_COL_CONSUMER_ID = "consumer_id"
 _COL_OFFSET = "offset"
 
 __all__ = [
     "_COL_EVENT_ID",
     "_COL_SEQ",
     "_COL_DLQ_AT",
-    "_COL_DLQ_REQUEUE_COUNT",
-    "_COL_REDISTRIBUTED_FROM",
     "_COL_CONSUMER_DELIVERY_FAILURE_COUNT",
     "_COL_CONSUMER_LAST_NACK_ATTEMPT",
-    "_COL_CONSUMER_ID",
     "_COL_OFFSET",
 ]
