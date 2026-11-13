@@ -147,7 +147,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # pending approval lines; the ceiling equals the accepted size.
     # Re-accepted at 29504 (2026-11-12): adrrev015 doc 04 re-mapped three verification rows,
     # reworded INV-13, named the requeue error text, and added one pending approval line.
-    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 29504,
+    # Re-accepted at 30064 (2026-11-13): the authority-model batch (a66077b4f) grew the file to
+    # 30060 without re-recording the ceiling, a gate drift; rmcompat004 WI-01 then reworded the
+    # two `_validate_deployment_mode()` references to `EventBusConfig.__post_init__`. The ceiling
+    # equals the accepted size. Any further growth fails.
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 30064,
     # The generated agent-class reference table was already 24961 bytes (2026-10-24), over
     # MAX_SIZE before any new plan touched it. `plans/20261023-072425_plan.md` REQ-005
     # regenerates it with a longer `mask_args` summary row, which lands at 24972 bytes. The
@@ -227,7 +231,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # rationale in single-operator terms, and dropped the "proper identity store" recommendation;
     # the file sat exactly at the 28097 ceiling, so the necessary 550-byte growth raises it to the
     # accepted size. Any further growth fails.
-    "adr_02_04_013_eventbus-authentication-authorization.md": 28647,
+    # Re-accepted at 31478 (2026-11-13): the authority-model batch (a66077b4f) grew the file to
+    # 31504 without re-recording the ceiling, a gate drift; rmcompat004 row 09 then updated the
+    # single-format authorization decisions and the audit-record shape, netting 31478. The ceiling
+    # equals the accepted size. Any further growth fails.
+    "adr_02_04_013_eventbus-authentication-authorization.md": 31478,
 }
 
 
