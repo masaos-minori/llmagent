@@ -142,5 +142,9 @@ def test_dlq_index_plan_matches_production_sql(client: TestClient) -> None:
     count_text = " ".join(" ".join(str(v) for v in row) for row in count_plan)
     page_text = " ".join(" ".join(str(v) for v in row) for row in page_plan)
 
-    assert "idx_events_dlq_seq" in count_text, count_plan
+    # rmcompat005: after dlq_requeue_count/consumer_id left the events DDL, the
+    # planner counts via the narrower covering idx_events_dlq_at instead of
+    # idx_events_dlq_seq. The invariant this test guards is "the count uses a
+    # covering DLQ index, not a table scan"; accept either canonical DLQ index.
+    assert "USING COVERING INDEX idx_events_dlq_" in count_text, count_plan
     assert "sort" not in page_text.lower(), page_plan

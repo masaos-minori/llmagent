@@ -2,7 +2,7 @@
 DLQ promotion semantics regression tests for Event Bus.
 
 Tests that DLQ promotion uses consumer_delivery_failure_count (not retry_count),
-that dlq_requeue_count increments on requeue, and that requeue succeeds when
+that requeue records lineage on the new event, and that requeue succeeds when
 consumer_delivery_failure_count >= max_retry.
 """
 
@@ -161,7 +161,7 @@ class TestDLQPromotionSemantics:
         db.commit()
 
         # Promote via the DLQ function
-        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        n = sweep_orphans(db, max_retry=2)
         assert n == 1
         _drain_outbox(db, str(tmp_path / "deadletter"))
 
@@ -192,7 +192,7 @@ class TestDLQPromotionSemantics:
             ("consumer-A", body["event_id"]),
         )
         db.commit()
-        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, max_retry=2)
 
         # Requeue the event — succeeds (no dlq_imminent field: that field was
         # removed from the response)
@@ -202,10 +202,10 @@ class TestDLQPromotionSemantics:
         )
         assert resp.status_code == 200
 
-    def test_dlq_requeue_increments_dlq_requeue_count_not_consumer_delivery_failure_count(
+    def test_dlq_requeue_records_lineage_not_consumer_delivery_failure_count(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """DLQ requeue increments dlq_requeue_count but does NOT modify consumer_delivery_failure_count."""
+        """DLQ requeue records lineage on the new event but does NOT modify consumer_delivery_failure_count."""
         from eventbus.db_conn import open_db
         from eventbus.dlq import sweep_orphans
 
@@ -226,7 +226,7 @@ class TestDLQPromotionSemantics:
             ("consumer-A", body["event_id"]),
         )
         db.commit()
-        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, max_retry=2)
 
         cdfc_before = db.execute(
             "SELECT consumer_delivery_failure_count FROM consumer_delivery "
@@ -250,10 +250,15 @@ class TestDLQPromotionSemantics:
             "consumer_delivery_failure_count should not change on requeue"
         )
 
-        dlq_requeue_count = _get_field(client, body["event_id"], "dlq_requeue_count")
-        assert dlq_requeue_count == 1, (
-            "dlq_requeue_count should be incremented on requeue"
+        requeue_body = resp.json()
+        assert "new_event_id" in requeue_body, (
+            "requeue response must expose new_event_id"
         )
+        new_row = db.execute(
+            "SELECT redelivered_from FROM events WHERE event_id = ?",
+            (requeue_body["new_event_id"],),
+        ).fetchone()
+        assert new_row["redelivered_from"] == body["event_id"]
 
     def test_dlq_loop_promotes_after_requeue_if_consumer_delivery_failure_count_still_gte_max_retry(
         self, client: TestClient, tmp_path: Path
@@ -273,7 +278,7 @@ class TestDLQPromotionSemantics:
             ("consumer-A", body["event_id"]),
         )
         db.commit()
-        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, max_retry=2)
         _drain_outbox(db, str(tmp_path / "deadletter"))
 
         dlq_file_1 = tmp_path / "deadletter" / f"{body['event_id']}.json"
@@ -297,7 +302,7 @@ class TestDLQPromotionSemantics:
         db.commit()
 
         # Next DLQ loop tick should re-promote
-        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        n = sweep_orphans(db, max_retry=2)
         assert n == 1
 
         dlq_file_2 = tmp_path / "deadletter" / f"{body['event_id']}.json"
@@ -328,7 +333,7 @@ class TestDLQPromotionSemantics:
                     (event_id,),
                 )
                 db.commit()
-                sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+                sweep_orphans(db, max_retry=2)
             finally:
                 db.close()
 
@@ -397,7 +402,7 @@ class TestMultiConsumerPromotion:
         _seed_delivery(db, "consumer-A", event_id, 0, 2)
         _seed_delivery(db, "consumer-B", event_id, 0, 1)
 
-        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0
+        assert sweep_orphans(db, max_retry=2) == 0
         assert not (tmp_path / "deadletter" / f"{event_id}.json").exists()
         assert _get_field(client, event_id, "dlq_at") is None
 
@@ -412,7 +417,7 @@ class TestMultiConsumerPromotion:
         _seed_delivery(db, "consumer-A", event_id, 0, 2)
         _seed_delivery(db, "consumer-B", event_id, 1, 0)
 
-        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0
+        assert sweep_orphans(db, max_retry=2) == 0
         assert _get_field(client, event_id, "dlq_at") is None
 
     def test_sweep_promotes_when_all_consumers_exhausted(
@@ -426,7 +431,7 @@ class TestMultiConsumerPromotion:
         _seed_delivery(db, "consumer-A", event_id, 0, 2)
         _seed_delivery(db, "consumer-B", event_id, 0, 3)
 
-        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 1
+        assert sweep_orphans(db, max_retry=2) == 1
         _drain_outbox(db, str(tmp_path / "deadletter"))
         assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
         assert _get_field(client, event_id, "dlq_at") is not None
@@ -440,7 +445,7 @@ class TestMultiConsumerPromotion:
         event_id = self._publish(client)
         db = open_db(str(tmp_path / "eventbus.sqlite"))
 
-        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0
+        assert sweep_orphans(db, max_retry=2) == 0
         assert _get_field(client, event_id, "dlq_at") is None
 
     def test_inline_does_not_promote_when_other_consumer_below_limit(
@@ -698,4 +703,4 @@ class TestPromotionFailurePaths:
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         _drain_outbox(db, str(tmp_path / "deadletter"))
         assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
-        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0
+        assert sweep_orphans(db, max_retry=2) == 0

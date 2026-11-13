@@ -142,7 +142,7 @@ class TestRequeueEdgeCases:
             (body["event_id"],),
         )
         db.commit()
-        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, max_retry=2)
 
         # Requeue should succeed
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
@@ -154,11 +154,10 @@ class TestRequeueEdgeCases:
 
         # Original event remains in DLQ (lineage model: original row's dlq_at IS NOT NULL)
         orig_row = db.execute(
-            "SELECT dlq_at, dlq_requeue_count FROM events WHERE event_id = ?",
+            "SELECT dlq_at FROM events WHERE event_id = ?",
             (body["event_id"],),
         ).fetchone()
         assert orig_row["dlq_at"] is not None
-        assert orig_row["dlq_requeue_count"] == 1
 
         # New event exists with redelivered_from set
         new_row = db.execute(
@@ -203,19 +202,18 @@ class TestRequeueEdgeCases:
             (body["event_id"],),
         )
         db.commit()
-        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, max_retry=2)
 
-        # First requeue — succeeds: new descendant row inserted, original
-        # row's dlq_requeue_count incremented
+        # First requeue — succeeds: new descendant row inserted
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
         data = resp.json()
         assert "new_event_id" in data
-        orig_row = db.execute(
-            "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
+        desc = db.execute(
+            "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
             (body["event_id"],),
-        ).fetchone()
-        assert orig_row["dlq_requeue_count"] == 1
+        ).fetchone()[0]
+        assert desc == 1
 
         # The descendant's own dlq_at starts NULL, so it (not the original)
         # becomes the next sweep's promotion candidate — the original's dlq_at
@@ -229,7 +227,7 @@ class TestRequeueEdgeCases:
             (data["new_event_id"],),
         )
         db.commit()
-        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        n = sweep_orphans(db, max_retry=2)
         assert n == 1
 
         # Second requeue of the SAME original event_id is rejected: a
@@ -239,8 +237,12 @@ class TestRequeueEdgeCases:
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 409
 
-        # dlq_requeue_count is not incremented further by the rejected attempt
-        assert _get_field(client, body["event_id"], "dlq_requeue_count") == 1
+        # The rejected attempt did not create a second descendant
+        desc = db.execute(
+            "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
+            (body["event_id"],),
+        ).fetchone()[0]
+        assert desc == 1
 
     def test_requeue_event_at_max_retry_then_re_promoted(
         self, client: TestClient, tmp_path: Path
@@ -273,7 +275,7 @@ class TestRequeueEdgeCases:
             (body["event_id"],),
         )
         db.commit()
-        sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        sweep_orphans(db, max_retry=2)
         _drain_outbox(db, str(tmp_path / "deadletter"))
 
         dlq_file_1 = tmp_path / "deadletter" / f"{body['event_id']}.json"
@@ -304,7 +306,7 @@ class TestRequeueEdgeCases:
             (data["new_event_id"],),
         )
         db.commit()
-        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        n = sweep_orphans(db, max_retry=2)
         assert n == 1
 
         # This path coincides with dlq_file_1 above (same original event_id),
@@ -379,12 +381,13 @@ class _FailingConn:
 class _RacingConn:
     """Delegate connection wrapper that injects a competing redelivery INSERT.
 
-    On the first UPDATE the delegate would run (the point where redeliver_event
-    opens its transaction), a second open_db connection to the same file inserts
-    a descendant row with redelivered_from = original_event_id and commits. The
-    wrapped connection's own redelivery INSERT then hits the
-    idx_events_redelivered_from unique index — the deterministic form of the
-    concurrent double-redelivery race the index is designed to close.
+    On the first INSERT INTO events the delegate would run (the point where
+    redeliver_event opens its transaction), a second open_db connection to the
+    same file inserts a descendant row with redelivered_from =
+    original_event_id and commits. The wrapped connection's own redelivery
+    INSERT then hits the idx_events_redelivered_from unique index — the
+    deterministic form of the concurrent double-redelivery race the index is
+    designed to close.
     """
 
     def __init__(self, real: Any, *, racer: Any, original_event_id: str) -> None:
@@ -394,7 +397,9 @@ class _RacingConn:
         self._injected = False
 
     def execute(self, sql: Any, *args: Any, **kwargs: Any) -> Any:
-        if not self._injected and str(sql).strip().upper().startswith("UPDATE"):
+        if not self._injected and str(sql).strip().upper().startswith(
+            "INSERT INTO EVENTS"
+        ):
             self._injected = True
             self._racer.execute(
                 "INSERT INTO events "
@@ -420,8 +425,8 @@ class TestRequeueFailureInjection:
     def test_requeue_insert_failure_rolls_back_and_keeps_connection_usable(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Redelivery INSERT fails after the original-row UPDATE ran: the error
-        propagates, no transaction stays open, and the connection is reusable."""
+        """Redelivery INSERT fails on its own: the error propagates, no
+        transaction stays open, and the connection is reusable."""
         import sqlite3
 
         import eventbus.app as eb_app
@@ -446,8 +451,7 @@ class TestRequeueFailureInjection:
 
         # No dangling implicit transaction on the shared connection.
         assert shared.in_transaction is False
-        # The UPDATE increment was rolled back with the failed INSERT (atomic).
-        assert _get_field(client, event_id, "dlq_requeue_count") == 0
+        # The failed requeue was rolled back atomically (descendant INSERT below).
         n = shared.execute(
             "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
             (event_id,),
@@ -486,7 +490,11 @@ class TestRequeueFailureInjection:
         monkeypatch.undo()
 
         assert shared.in_transaction is False
-        assert _get_field(client, event_id, "dlq_requeue_count") == 0
+        n = shared.execute(
+            "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
+            (event_id,),
+        ).fetchone()[0]
+        assert n == 0
 
         resp = client.post(f"/dlq/{event_id}/requeue")
         assert resp.status_code == 200
@@ -533,8 +541,9 @@ def _seed_dlq_event(conn: Any, topic: str) -> str:
     """Insert one event with dlq_at set directly into the events table.
 
     Satisfies the NOT NULL columns (published_at is passed explicitly; the
-    schema default was removed in v3) so the redeliver_event UPDATE guard
-    (dlq_at IS NOT NULL) matches without any sweep or nack choreography.
+    schema default was removed in v3) so the redeliver_event INSERT guard
+    (WHERE event_id = ? AND dlq_at IS NOT NULL) matches without any sweep or
+    nack choreography.
     Returns the event_id.
     """
     event_id = uuid.uuid4().hex
@@ -571,16 +580,10 @@ def test_redelivered_from_violation_maps_to_already_redelivered(tmp_path: Path) 
         result = dlq_repo.redeliver_event(wrapper, event_id)
 
         assert result.status == "already_redelivered"
-        assert result.already_redelivered is True
         assert result.new_event_id is None
         assert result.new_seq is None
-        # Clean rollback: no transaction left open, UPDATE increment undone.
+        # Clean rollback: no transaction left open, our INSERT rolled back.
         assert conn.in_transaction is False
-        count = conn.execute(
-            "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
-            (event_id,),
-        ).fetchone()[0]
-        assert count == 0
         # Exactly one descendant: the competitor's row.
         n = conn.execute(
             "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
@@ -642,10 +645,5 @@ def test_two_connections_requeue_same_original_exactly_once(tmp_path: Path) -> N
             (event_id,),
         ).fetchone()[0]
         assert n == 1
-        count = check.execute(
-            "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
-            (event_id,),
-        ).fetchone()[0]
-        assert count == 1
     finally:
         check.close()

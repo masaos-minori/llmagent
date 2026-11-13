@@ -64,7 +64,7 @@ async def test_shutdown_waits_for_inflight_sweep_before_closing_db(
     sweep_started = threading.Event()
     release_sweep = threading.Event()
 
-    def blocking_sweep_orphans(db: Any, deadletter_dir: str, max_retry: int) -> int:
+    def blocking_sweep_orphans(db: Any, max_retry: int) -> int:
         sweep_started.set()
         # Hold the worker thread (and, via run_with_db_lock, get_db_lock())
         # until the test explicitly releases it, simulating a sweep that is
@@ -118,7 +118,7 @@ async def test_shutdown_raises_when_lock_timeout_exceeded(
     sweep_started = threading.Event()
     release_sweep = threading.Event()
 
-    def blocking_sweep_orphans(db: Any, deadletter_dir: str, max_retry: int) -> int:
+    def blocking_sweep_orphans(db: Any, max_retry: int) -> int:
         sweep_started.set()
         # Hold the lock (via run_with_db_lock) so the shutdown lock-acquire
         # cannot succeed within the bound, exercising the refuse-to-close path.

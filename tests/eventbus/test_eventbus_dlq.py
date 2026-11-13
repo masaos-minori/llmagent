@@ -126,7 +126,7 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
     )
     db.commit()
 
-    n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    n = sweep_orphans(db, max_retry=2)
     assert n == 1
     # Sweep is DB-only (dlqbox001); the outbox worker materializes the file.
     _drain_outbox(db, str(tmp_path / "deadletter"))
@@ -151,7 +151,7 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
     )
     db.commit()
 
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
 
     r = client.get("/dlq", headers=eventbus_auth_headers("operator"))
     assert r.status_code == 200
@@ -213,7 +213,7 @@ def test_sweep_promotion_inserts_outbox_rows(
     client.post("/publish", json=ev)
     _make_promotable(db, ev["event_id"])
 
-    assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 1
+    assert sweep_orphans(db, max_retry=2) == 1
 
     outbox = db.execute(
         "SELECT status, requested_at FROM dlq_outbox WHERE event_id = ?",
@@ -237,11 +237,11 @@ def test_racing_promotion_inserts_single_outbox_row(
     client.post("/publish", json=ev)
     _make_promotable(db, ev["event_id"])
 
-    assert dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"]) is True
+    assert dlq.promote_single(db, ev["event_id"]) is True
     # A racing second attempt sees dlq_at already set: rowcount 0, no second row.
-    assert dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"]) is False
+    assert dlq.promote_single(db, ev["event_id"]) is False
     # The sweep likewise finds nothing left to promote.
-    assert dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0
+    assert dlq.sweep_orphans(db, max_retry=2) == 0
 
     count = db.execute(
         "SELECT COUNT(*) AS c FROM dlq_outbox WHERE event_id = ?", (ev["event_id"],)
@@ -265,7 +265,7 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     )
     db.commit()
 
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
 
     r = client.post(
         f"/dlq/{ev['event_id']}/requeue", headers=eventbus_auth_headers("operator")
@@ -298,7 +298,7 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     assert new_row["redelivered_from"] == ev["event_id"]
 
 
-def test_requeue_increments_dlq_requeue_count(
+def test_requeue_records_lineage_on_new_event(
     client: TestClient, tmp_path: Path
 ) -> None:
     from eventbus.db_conn import open_db
@@ -314,7 +314,7 @@ def test_requeue_increments_dlq_requeue_count(
     )
     db.commit()
 
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
 
     # Requeue once — new row inserted with redelivered_from
     r = client.post(
@@ -325,12 +325,11 @@ def test_requeue_increments_dlq_requeue_count(
     assert body["requeued"] is True
     new_event_id = body["new_event_id"]
 
-    # Original row's dlq_requeue_count incremented
+    # Original DLQ row retains its dlq_at lineage marker
     orig_row = db.execute(
-        "SELECT dlq_requeue_count, dlq_at FROM events WHERE event_id = ?",
+        "SELECT dlq_at FROM events WHERE event_id = ?",
         (ev["event_id"],),
     ).fetchone()
-    assert orig_row["dlq_requeue_count"] == 1
     assert orig_row["dlq_at"] is not None
 
     # New row has redelivered_from set
@@ -349,7 +348,7 @@ def test_requeue_increments_dlq_requeue_count(
     )
     db.commit()
 
-    n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    n = sweep_orphans(db, max_retry=2)
     assert n == 1
     _drain_outbox(db, str(tmp_path / "deadletter"))
     dlq_file = tmp_path / "deadletter" / f"{new_event_id}.json"
@@ -455,7 +454,7 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     )
     db.commit()
 
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
     _drain_outbox(db, str(tmp_path / "deadletter"))
 
     # Nack an already-DLQ'd event — should return 409 Conflict, not increment count
@@ -485,12 +484,12 @@ def test_requeue_non_dlq_event_fails(client: TestClient, tmp_path: Path) -> None
     )
     assert r.status_code == 409, f"Expected 409, got {r.status_code}: {r.text}"
 
-    # Verify dlq_requeue_count is NOT incremented
-    row = db.execute(
-        "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
+    # No lineage row is created for a non-DLQ event
+    desc = db.execute(
+        "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
         (ev["event_id"],),
-    ).fetchone()
-    assert row["dlq_requeue_count"] == 0
+    ).fetchone()[0]
+    assert desc == 0
 
 
 def test_requeue_unknown_event_returns_404(client: TestClient) -> None:
@@ -549,7 +548,7 @@ def test_promotion_commit_precedes_artifact_generation(
 
     monkeypatch.setattr(dlq, "_atomic_write", _raise)
 
-    promoted = dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"])
+    promoted = dlq.promote_single(db, ev["event_id"])
     assert promoted is True
     row = db.execute(
         "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
@@ -588,7 +587,7 @@ def test_outbox_write_failure_meters_counter_and_records_attempt(
     ev = _event("dlq-inline-io")
     client.post("/publish", json=ev)
     _make_promotable(db, ev["event_id"])
-    dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    dlq.sweep_orphans(db, max_retry=2)
 
     def _raise(*_args: object, **_kwargs: object) -> None:
         raise OSError("disk full")
@@ -646,7 +645,7 @@ def test_outbox_continues_after_one_event_write_failure(
 
     before = _dlq_failure_counter()
     # Sweep is DB-only: the flaky artifact write cannot make it skip a promotion.
-    promoted = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    promoted = dlq.sweep_orphans(db, max_retry=2)
     assert promoted == 2
 
     report = _drain_outbox(db, str(tmp_path / "deadletter"))
@@ -731,7 +730,6 @@ def test_db_failure_during_promotion_is_repaired_by_next_sweep(
     with pytest.raises(sqlite3.OperationalError, match="disk I/O error"):
         dlq.promote_single(
             _CommitFailingConn(db),  # type: ignore[arg-type]  # — test-only: proxy connection stand-in
-            str(tmp_path / "deadletter"),
             ev["event_id"],
         )
 
@@ -753,7 +751,7 @@ def test_db_failure_during_promotion_is_repaired_by_next_sweep(
     ).fetchone()["c"]
     assert count == 0
 
-    promoted = dlq.sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    promoted = dlq.sweep_orphans(db, max_retry=2)
     assert promoted == 1
     row = db.execute(
         "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
@@ -787,7 +785,7 @@ async def test_concurrent_requeue_same_event(
     )
     db.commit()
 
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
 
     from httpx import ASGITransport, AsyncClient
 
@@ -855,7 +853,7 @@ async def test_concurrent_requeue_different_events(
     )
     db.commit()
 
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
 
     async def requeue(event_id: str) -> dict[str, Any]:
         async with AsyncClient(
@@ -912,7 +910,7 @@ def test_reconciliation_orphan_file(client: TestClient, tmp_path: Path) -> None:
     dlq_file.write_bytes(orjson.dumps(ev))
 
     # Sweep should promote the event (file exists, so write succeeds)
-    promoted = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    promoted = sweep_orphans(db, max_retry=2)
     assert promoted == 1
 
     # Verify the event was promoted (dlq_at set)
@@ -939,7 +937,7 @@ def test_reconciliation_missing_file(client: TestClient, tmp_path: Path) -> None
     import orjson
 
     dlq_file.write_bytes(orjson.dumps(ev))
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
 
     # Now delete the DLQ file (simulating loss)
     dlq_file.unlink()
@@ -954,7 +952,7 @@ def test_reconciliation_missing_file(client: TestClient, tmp_path: Path) -> None
     db.commit()
 
     # Sweep should not fail even though the first event's file is missing
-    promoted = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    promoted = sweep_orphans(db, max_retry=2)
     assert promoted == 1  # Only ev2 should be promoted
 
 
@@ -976,7 +974,7 @@ def test_reconcile_rebuilds_full_record_from_db(
 
     # Promote via sweep so the event has a DLQ record, then delete the file.
     _make_promotable(db, ev["event_id"])
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
     _drain_outbox(db, str(tmp_path / "deadletter"))
 
     original_bytes = (tmp_path / "deadletter" / f"{ev['event_id']}.json").read_bytes()
@@ -1034,7 +1032,7 @@ def test_reconcile_is_idempotent_and_preserves_existing_file(
 
     # Promote via sweep; do NOT delete the file, so reconcile must skip it.
     _make_promotable(db, ev["event_id"])
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
     _drain_outbox(db, str(tmp_path / "deadletter"))
 
     target = tmp_path / "deadletter" / f"{ev['event_id']}.json"
@@ -1072,7 +1070,7 @@ def test_reconcile_isolates_single_event_write_failure(
 
     for ev in (ev1, ev2):
         _make_promotable(db, ev["event_id"])
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
     _drain_outbox(db, str(tmp_path / "deadletter"))
 
     # Delete both files; both are now reconcile targets.
@@ -1134,7 +1132,7 @@ def test_reconcile_concurrent_callers_under_db_lock(
 
     for ev in (ev_a, ev_b):
         _make_promotable(db, ev["event_id"])
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
     _drain_outbox(db, str(tmp_path / "deadletter"))
 
     # Delete both files; both are now reconcile targets.
@@ -1224,7 +1222,7 @@ def test_reconcile_counts_mismatch_without_rewrite(
     ev = _event()
     client.post("/publish", json=ev)
     _make_promotable(db, ev["event_id"])
-    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    sweep_orphans(db, max_retry=2)
     _drain_outbox(db, str(tmp_path / "deadletter"))
 
     target = tmp_path / "deadletter" / f"{ev['event_id']}.json"

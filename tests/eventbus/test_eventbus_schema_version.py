@@ -100,7 +100,7 @@ def test_malformed_shape_is_refused_and_left_unchanged(tmp_path: Path) -> None:
     path = tmp_path / "eventbus.sqlite"
     open_db(str(path)).close()
     raw = sqlite3.connect(path)
-    raw.execute("ALTER TABLE events DROP COLUMN consumer_id")  # nosec B608 — fixed test DDL
+    raw.execute("ALTER TABLE events DROP COLUMN published_at")  # nosec B608 — fixed test DDL
     raw.commit()
     raw.close()
     _refused_unchanged(path, "columns differ")
@@ -109,7 +109,7 @@ def test_malformed_shape_is_refused_and_left_unchanged(tmp_path: Path) -> None:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(events)")}
     finally:
         conn.close()
-    assert "consumer_id" not in columns  # deviation preserved, nothing repaired
+    assert "published_at" not in columns  # deviation preserved, nothing repaired
 
 
 def test_extra_table_is_refused(tmp_path: Path) -> None:

@@ -94,11 +94,11 @@ def _worker(db: Any, deadletter_dir: str, cfg: Any = None) -> dict[str, int]:
     return result
 
 
-def _promote(db: Any, deadletter_dir: str, event_id: str) -> None:
+def _promote(db: Any, event_id: str) -> None:
     """Promote an event via the DB-only promotion path (gating already seeded)."""
     from eventbus.dlq import promote_single
 
-    assert promote_single(db, deadletter_dir, event_id) is True
+    assert promote_single(db, event_id) is True
 
 
 def _make_promotable(db: Any, event_id: str) -> None:
@@ -213,7 +213,7 @@ def test_crash_during_tmp_write_leaves_interrupted_tmp(
     ev = _event()
     assert client.post("/publish", json=ev).status_code == 200
     _make_promotable(db, ev["event_id"])
-    _promote(db, deadletter, ev["event_id"])
+    _promote(db, ev["event_id"])
 
     original_replace = os.replace
     original_unlink = os.unlink
@@ -265,7 +265,7 @@ def test_one_failing_artifact_does_not_block_others(
     for ev in (ev_a, ev_b):
         assert client.post("/publish", json=ev).status_code == 200
         _make_promotable(db, ev["event_id"])
-        _promote(db, deadletter, ev["event_id"])
+        _promote(db, ev["event_id"])
 
     original_replace = os.replace
 
@@ -307,7 +307,7 @@ def test_terminal_failed_after_bound(
     ev = _event()
     assert client.post("/publish", json=ev).status_code == 200
     _make_promotable(db, ev["event_id"])
-    _promote(db, deadletter, ev["event_id"])
+    _promote(db, ev["event_id"])
 
     original_replace = os.replace
 
@@ -383,7 +383,7 @@ def test_restart_with_pending_rows(
         ]
         assert c1.post("/publish", json=ev).status_code == 200
         _make_promotable(db1, ev["event_id"])
-        _promote(db1, str(tmp_path / "deadletter"), ev["event_id"])
+        _promote(db1, ev["event_id"])
         assert _outbox_row(db1, ev["event_id"])["status"] == "pending"
 
     # Shut down (dlq_task is joined on lifespan shutdown) and start a new lifespan:
@@ -409,7 +409,7 @@ def test_idempotent_reprocessing_no_rewrite(client: TestClient, tmp_path: Path) 
     ev = _event()
     assert client.post("/publish", json=ev).status_code == 200
     _make_promotable(db, ev["event_id"])
-    _promote(db, deadletter, ev["event_id"])
+    _promote(db, ev["event_id"])
 
     report = _worker(db, deadletter)
     assert report["generated"] == 1
@@ -451,7 +451,7 @@ def test_failed_row_never_undoes_committed_dlq_state(
     ev = _event()
     assert client.post("/publish", json=ev).status_code == 200
     _make_promotable(db, ev["event_id"])
-    _promote(db, deadletter, ev["event_id"])
+    _promote(db, ev["event_id"])
 
     original_replace = os.replace
 
@@ -496,7 +496,7 @@ def test_outbox_retry_backoff_delays_next_attempt(
     ev = _event()
     assert client.post("/publish", json=ev).status_code == 200
     _make_promotable(db, ev["event_id"])
-    _promote(db, deadletter, ev["event_id"])
+    _promote(db, ev["event_id"])
 
     def _always_fail(src: str, dst: str) -> None:
         raise OSError("transient failure")
@@ -616,7 +616,7 @@ def test_reconcile_counts_corrupt_or_non_object_pair_as_mismatch(
     for ev in (ev_a, ev_b):
         assert client.post("/publish", json=ev).status_code == 200
         _make_promotable(db, ev["event_id"])
-        _promote(db, deadletter, ev["event_id"])
+        _promote(db, ev["event_id"])
     report = _worker(db, deadletter)
     assert report["generated"] == 2
 
