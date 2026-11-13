@@ -58,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-132935 | 20261113-133709 | Changed skills/code-implementation/workflow.md Step 4: the --testmon-forceselect command that determines the targeted scope now ends its -m expression with and not repo_scan (one line, wrapping style kept). The full-suite wording, the coverage command (no -m), and the other bullets are unchanged; the existing reference to skills/python-test-and-fix/workflow.md Step 10 already points at the rule. |
+| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Completed | 20261113-133709 | 20261113-133709 | check_skills_references and check_skills_heading_cycles: No issues found; run_validation_gates exit 0 with no Fail or Blocked. Full suite serial 12151 passed, 3 failed: the known mdq cases (unrelated, Plan testspeed004); diff-cover N/A: no source file changed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -173,8 +173,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: register and apply the marker (pyproject.toml, tests/tools/test_check_compat_shims.py, tests/tools/test_no_compatibility_policy_gate.py, tests/tools/test_check_docs_quality.py) | In Progress | — | — |  |
-| 2 | Phase 2: skill text (skills/python-test-and-fix/workflow.md, skills/python-test-and-fix/SKILL.md, skills/code-implementation/workflow.md) | In Progress | — | — |  |
+| 1 | Phase 1: register and apply the marker (pyproject.toml, tests/tools/test_check_compat_shims.py, tests/tools/test_no_compatibility_policy_gate.py, tests/tools/test_check_docs_quality.py) | Completed | — | 20261113-133722 |  |
+| 2 | Phase 2: skill text (skills/python-test-and-fix/workflow.md, skills/python-test-and-fix/SKILL.md, skills/code-implementation/workflow.md) | Completed | — | 20261113-133722 |  |
 | 3 | Phase 3: verification and change record (pyproject.toml and all touched files) | Pending | — | — |  |
 
 ### Blocker Log
@@ -185,13 +185,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261113-102218_01_pyproject.toml.md | 1 | Procedure | Pending | — | — |
-| implementations/20261113-102218_02_tests_tools_test_check_compat_shims.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261113-102218_03_tests_tools_test_no_compatibility_policy_gate.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261113-102218_04_tests_tools_test_check_docs_quality.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261113-102218_05_skills_python-test-and-fix_workflow.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261113-102218_06_skills_python-test-and-fix_SKILL.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261113-102218_07_skills_code-implementation_workflow.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261113-102218_01_pyproject.toml.md | 1 | Procedure | Completed | — | — |
+| implementations/20261113-102218_02_tests_tools_test_check_compat_shims.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261113-102218_03_tests_tools_test_no_compatibility_policy_gate.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261113-102218_04_tests_tools_test_check_docs_quality.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261113-102218_05_skills_python-test-and-fix_workflow.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261113-102218_06_skills_python-test-and-fix_SKILL.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261113-102218_07_skills_code-implementation_workflow.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

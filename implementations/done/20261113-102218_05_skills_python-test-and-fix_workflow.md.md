@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-131334 | 20261113-132133 | Changed skills/python-test-and-fix/workflow.md Step 10: the --testmon-forceselect command now ends its -m expression with and not repo_scan, and one new paragraph states the rule once (what the marker means; iteration runs deselect it; the final full run, Step 11's coverage run, pre-commit, and CI still run it; per-test-path flaky and bisect commands must not carry the exclusion). Numstat: 7 insertions, 1 deletion; every other command carrying the -m expression is unchanged. |
+| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Completed | 20261113-132133 | 20261113-132133 | check_skills_references and check_skills_heading_cycles: No issues found; run_validation_gates exit 0 with no Fail or Blocked. Full suite serial 12151 passed, 3 failed: the known mdq cases (unrelated, Plan testspeed004); diff-cover N/A: no source file changed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
