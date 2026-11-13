@@ -157,8 +157,8 @@ cycle.
 | Row | Description (template) | In Progress when | Completed when |
 |---|---|---|---|
 | 1 | Implement the change | Step 3d starts | Step 3d's change is applied and its file list recorded |
-| 2 | Add or update tests | tests are first written or run (Step 3d or 4) | targeted tests pass (Step 4); `N/A: no test change needed` in Notes if none |
-| 3 | Run the validation sequence | Step 3e starts | Step 3e passes and Step 4's full-suite run passes |
+| 2 | Add or update tests | tests are first written or run (Step 3d or 4) | targeted tests pass (Step 4); `N/A: no test change needed` in Notes if none, or the documentation-only case of Step 4 applies (Notes as there) |
+| 3 | Run the validation sequence | Step 3e starts | Step 3e passes and Step 4's full-suite run passes, or, in the documentation-only case, the replacement checkers pass |
 | 4 | Update documentation | Step 5 starts | Step 6 passes, or `N/A` in Notes when no row matched |
 
 Steps 1, 2, and 7 have no procedure row; the Final Report's seven-row table records them.
@@ -418,6 +418,16 @@ Apply the guidance from `skills/python-test-and-fix/SKILL.md` (loaded in Step 0)
 failure's cause is not immediately obvious, load and apply
 `skills/python-debug-root-cause/SKILL.md` now.
 
+- **Documentation-only case.** When every file this cycle changed (Step 3d's file list
+  plus the files Step 5 edits) lies under `docs/`, `issues/`, `plans/`, or
+  `implementations/`, and no file under `scripts/`, `tests/`, `tools/`, `config/`, or any
+  other path changed, no test run applies: the 0-collected rule, the targeted run, the
+  once-per-cycle full-suite run, and the coverage gate (recorded `N/A`) are skipped. Run
+  instead, for each file Step 3d changed, the checkers `routing.md` Tools "When to run
+  which tool" requires for that file (Step 6 applies the same list to the files Step 5
+  edits, so a checker is not run twice for one file), and record `N/A: documentation-only
+  change; replaced by {checkers run}` in the Notes of procedure row 3. A cycle whose
+  changed files include any other path follows the bullets below unchanged.
 - Determine the targeted test scope via `uv run pytest --testmon-forceselect -m "not
   integration and not production_paths_allowed and not repo_scan" tests/` (impact-based selection that
   survives the `-m` filter, see `skills/python-test-and-fix/workflow.md` Step 10). Only
@@ -455,7 +465,8 @@ failure's cause is not immediately obvious, load and apply
   `tests/tools/`) under the same Plan, with no `scripts/` change, the full-suite run is
   shared: one run at the end of the batch instead of one per cycle. Targeted tests still
   run per cycle, and this shared run feeds the coverage gate. This is a fourth exception to
-  "exactly once per cycle", scoped to a single-directory batch.
+  "exactly once per cycle", scoped to a single-directory batch. The documentation-only
+  case above runs no full suite at all; it is a fifth scoped exception.
 - Run the test commands the procedure's `## Validation plan` lists too (a listed test
   that cannot be run is `Not run: {reason}` in Notes).
 - Make the full-suite run feed the coverage gate, so the suite still runs once:
@@ -681,7 +692,7 @@ that completed as expected — fill it only for a deviation (skipped step, no-ma
 1. Identify the target implementation procedure file(s)
 2. Read the current implementation procedure file
 3. Implement the feature and pass code validation
-4. Test the feature and pass required tests/coverage
+4. Test the feature and pass required tests/coverage (or the documentation-only replacement checkers)
 5. Update documentation per `docs/00_index.md` task-scope mapping
 6. Validate documentation updates
 7. Move the implementation procedure file to `implementations/done/`

@@ -28,7 +28,7 @@ upstream phases, this phase legitimately modifies source code and `docs/*.md`.
 | 1 | Identify the target implementation procedure file(s) | Confirm every specified `implementations/{filename}.md` path exists before processing. |
 | 2 | Read the current implementation procedure file | Read in full; extract its Traceability values for reuse in the Final Report. Then run pre-execution stale detection: verify the procedure's referenced code constructs still exist in current source; abort if stale. |
 | 3 | Implement the feature | Apply `python-implementation` + `python-lint-typecheck` guidance; fix all validation errors. |
-| 4 | Test the feature | Determine targeted test scope, run it, then run the full suite once (retry on failure within Attempt Limit). |
+| 4 | Test the feature | Determine targeted test scope, run it, then run the full suite once (retry on failure within Attempt Limit); a documentation-only cycle follows `workflow.md` Step 4 instead. |
 | 5 | Update documentation | Update only `docs/*.md` sections matched by `docs/00_index.md`'s Document References by Task table. |
 | 6 | Validate documentation | Check the sections edited in Step 5, or skip if none were edited. |
 | 7 | Move the completed implementation procedure file | `git mv` only, once Step 2 (stale detection) and Steps 3/4/5/6 pass; no human approval required. |
@@ -47,7 +47,8 @@ structure.
   `docs/00_index.md`'s "Document References by Task" table maps a changed file to. A
   changed file with no matching row is a normal, non-blocking outcome.
 - Run the repository-defined full test suite once per cycle after targeted tests
-  pass; a failure may be fixed and re-run within Attempt Limit (3 attempts) (`workflow.md` Step 4).
+  pass; a failure may be fixed and re-run within Attempt Limit (3 attempts) (`workflow.md` Step 4);
+  the documentation-only case is defined in `workflow.md` Step 4.
 - Process one procedure file at a time. See `workflow.md` Multi-file processing. A
   `Blocked` cycle stops the remaining procedures of the same Plan until the user decides
   (Dependency order).
