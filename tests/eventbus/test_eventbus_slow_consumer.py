@@ -22,6 +22,26 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         yield c
 
 
+@pytest.fixture
+def small_queue_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Client whose broker queues hold 20 events, so an overflow needs few publishes.
+
+    The broker copies these values from the config when the app starts, so they are
+    set before the client is entered. The config validation in ``__post_init__`` is
+    bypassed by ``object.__setattr__``, so the three values are kept consistent here:
+    the slow-consumer threshold below the queue size, the backlog threshold within it.
+    """
+    from eventbus import app as eb_app
+
+    c = make_eventbus_client(tmp_path, monkeypatch)
+    cfg = eb_app.load_config()
+    object.__setattr__(cfg, "subscriber_queue_maxsize", 20)
+    object.__setattr__(cfg, "slow_consumer_threshold", 10)
+    object.__setattr__(cfg, "backlog_health_threshold", 20)
+    with c:
+        yield c
+
+
 def _event(topic: str = "slow") -> dict[str, Any]:
     return {
         "event_id": str(uuid.uuid4()),
@@ -127,17 +147,20 @@ class TestSlowConsumer:
         finally:
             eb_app.app.state.broker.unsubscribe(sub)
 
-    def test_overflow_disconnects_subscriber(self, client: TestClient) -> None:
+    def test_overflow_disconnects_subscriber(
+        self, small_queue_client: TestClient
+    ) -> None:
         """Overflowing a subscriber's queue triggers a disconnect signal and ends the SSE stream."""
         from eventbus import app as eb_app
 
         # Subscribe with a consumer_id so we can track it
         sub = eb_app.app.state.broker.subscribe([], consumer_id="overflow-test")
         try:
-            # Fill the subscriber's queue to capacity (maxsize=1000)
-            bodies = [_event("slow") for _ in range(1001)]
+            # Fill the subscriber's queue to capacity, then publish one more
+            maxsize = eb_app.app.state.config.subscriber_queue_maxsize
+            bodies = [_event("slow") for _ in range(maxsize + 1)]
             for body in bodies:
-                resp = client.post("/publish", json=body)
+                resp = small_queue_client.post("/publish", json=body)
                 assert resp.status_code == 200
             # The subscriber's queue should now be full
             assert sub.queue.full()
@@ -149,7 +172,7 @@ class TestSlowConsumer:
             eb_app.app.state.broker.unsubscribe(sub)
 
     def test_reconnect_after_overflow_disconnect_resumes_from_offset(
-        self, client: TestClient
+        self, small_queue_client: TestClient
     ) -> None:
         """After an overflow-disconnect, reconnecting with the same consumer_id resumes from the last offset."""
         from eventbus import app as eb_app
@@ -157,16 +180,17 @@ class TestSlowConsumer:
         # First connection — subscribe and publish events
         sub1 = eb_app.app.state.broker.subscribe([], consumer_id="reconnect-test")
         try:
-            # Publish exactly 1000 events (fills the queue to capacity)
-            bodies = [_event("reconnect") for _ in range(1000)]
+            # Publish exactly maxsize events (fills the queue to capacity)
+            maxsize = eb_app.app.state.config.subscriber_queue_maxsize
+            bodies = [_event("reconnect") for _ in range(maxsize)]
             for body in bodies:
-                resp = client.post("/publish", json=body)
+                resp = small_queue_client.post("/publish", json=body)
                 assert resp.status_code == 200
             # Queue should be full; next publish triggers disconnect
             assert sub1.queue.full()
             # Publish one more to trigger overflow disconnect
             extra_body = _event("reconnect")
-            resp = client.post("/publish", json=extra_body)
+            resp = small_queue_client.post("/publish", json=extra_body)
             assert resp.status_code == 200
             assert eb_app.app.state.broker.overflow_disconnect_count() >= 1
             assert sub1.disconnect.is_set()

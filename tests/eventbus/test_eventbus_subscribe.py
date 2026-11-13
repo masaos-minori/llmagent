@@ -302,7 +302,11 @@ def test_multi_batch_replay_no_duplicates(operator_client: TestClient) -> None:
 
     cfg = eb_app.app.state.config
     assert cfg is not None
+    # A small batch keeps the publish volume low; the event count still exceeds one
+    # page, so the pagination below reads several pages.
+    object.__setattr__(cfg, "replay_batch_size", 20)
     batch_size = cfg.replay_batch_size
+    page_size = 10
 
     pub = _pub_client(operator_client)
     bodies = [_event("multi") for _ in range(batch_size + 5)]
@@ -310,12 +314,12 @@ def test_multi_batch_replay_no_duplicates(operator_client: TestClient) -> None:
         resp = pub.post("/publish", json=body)
         assert resp.status_code == 200
 
-    # Paginate through /replay to collect all events (default limit=100)
+    # Paginate through /replay to collect all events
     all_items: list[dict] = []
     offset = 0
     while True:
         resp = operator_client.get(
-            f"/replay?since_seq=0&format=json&limit=100&offset={offset}"
+            f"/replay?since_seq=0&format=json&limit={page_size}&offset={offset}"
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -323,9 +327,9 @@ def test_multi_batch_replay_no_duplicates(operator_client: TestClient) -> None:
         if not items:
             break
         all_items.extend(items)
-        if len(items) < 100:
+        if len(items) < page_size:
             break
-        offset += 100
+        offset += page_size
 
     event_ids = {item["seq"] for item in all_items}
 

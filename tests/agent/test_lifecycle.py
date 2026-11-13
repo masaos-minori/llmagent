@@ -241,10 +241,16 @@ class TestStartHttpSubprocess:
             await mgr.start_http_subprocess("s", cfg)
 
     @pytest.mark.asyncio
-    async def test_raises_on_timeout(self) -> None:
+    async def test_raises_on_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The mocked process never exits and os.killpg is mocked, so both the SIGTERM
+        # wait and the post-SIGKILL confirmation window would run to full length.
+        monkeypatch.setattr("agent.http_lifecycle.TERMINATE_TIMEOUT_SEC", 0.05)
         cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, timeout=1)
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
+        mgr._subprocess_mgr._http_mgr._process_terminator = ProcessTerminator(
+            terminate_poll_interval_sec=0.01, kill_confirm_timeout_sec=0.05
+        )
 
         mock_proc = _make_mock_proc()
 

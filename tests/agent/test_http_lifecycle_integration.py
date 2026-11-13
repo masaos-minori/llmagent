@@ -500,7 +500,9 @@ class TestSubprocessLifecycle:
             patch.object(asyncio, "sleep", return_value=None),
         ):
             with pytest.raises(HttpStartupError):
-                await mgr.restart("test", _make_cfg())
+                # A 1 s deadline still reaches the timeout path; the patched
+                # asyncio.sleep makes the poll loop spin until the deadline.
+                await mgr.restart("test", _make_cfg(startup_timeout_sec=1))
 
         assert mgr._stderr_files.get("test") is None
         assert mgr._stderr_log_manager.get_log_path("test") is None

@@ -137,7 +137,11 @@ def _seed_eventbus_db(sb: pathlib.Path, *, malformed: bool) -> None:
     conn.close()
 
 
-def _run_setup(sb: pathlib.Path, health_url: str) -> subprocess.CompletedProcess[str]:
+def _run_setup(
+    sb: pathlib.Path, health_url: str, retries: int = 15
+) -> subprocess.CompletedProcess[str]:
+    # The interval must stay an integer: the script multiplies it by the retry count in
+    # bash arithmetic under `set -euo pipefail`, so a decimal breaks its FATAL message.
     env: dict[str, str] = {
         "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
         "HOME": os.environ.get("HOME", str(pathlib.Path.home())),
@@ -151,7 +155,7 @@ def _run_setup(sb: pathlib.Path, health_url: str) -> subprocess.CompletedProcess
         "EVENTBUS_SCHEMA_PATH": str(_REPO_ROOT / "schemas" / "event_envelope.json"),
         "EVENTBUS_HEALTH_URL": health_url,
         "EVENTBUS_AUTH_TOKEN": _TOKEN,
-        "LLM_HEALTH_RETRIES": "15",
+        "LLM_HEALTH_RETRIES": str(retries),
         "LLM_HEALTH_INTERVAL": "1",
     }
     return subprocess.run(
@@ -234,7 +238,7 @@ def test_setup_services_connection_failure_aborts(tmp_path: pathlib.Path) -> Non
     sb, _port, mocks = _prepare(tmp_path, malformed=False)
     unreachable = _free_port()  # bound then released: nothing listens here
     try:
-        result = _run_setup(sb, f"http://127.0.0.1:{unreachable}/health")
+        result = _run_setup(sb, f"http://127.0.0.1:{unreachable}/health", retries=3)
         assert result.returncode == 1
         assert "[FATAL] Event Bus" in result.stderr
         assert "000" in result.stdout  # the retried connection-failure branch
