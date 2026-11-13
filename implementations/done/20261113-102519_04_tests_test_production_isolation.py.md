@@ -25,9 +25,9 @@ N/A: a test that runs under real xdist would only be meaningful in parallel runs
 
 ### Procedure
 1. Add the test after `test_conftest_imports_on_host_without_production_db_dir`.
-2. In it, run a child with `sys.executable -I -c` and `cwd` set to the repository, with an environment that sets PYTEST_XDIST_WORKER to `gw7` and `LLMAGENT_TEST_ROOT` to the current process's isolation root (the test already has the module `tests/conftest.py` available as `tests.conftest`).
-3. The child runs `runpy.run_path('tests/conftest.py', run_name='conftest_probe')`, prints `os.environ['LLMAGENT_TEST_ROOT']`, then runs a grandchild with the same code and `env=os.environ` that prints it again, and exits after the grandchild finished.
-4. Assert that the first printed path differs from the parent's root, that the second equals the first, and that both lie under the temporary directory, not under `/opt/llm`.
+2. In it, build a child code string (mirroring the neighbouring test's style) that: imports `os`, `runpy`, `subprocess`, `sys`; runs `runpy.run_path('tests/conftest.py', run_name='conftest_probe')` in the child; prints `os.environ['LLMAGENT_TEST_ROOT']`; then defines a grandchild code string that repeats the same two lines under `run_name='grandchild_probe'`, launches it with `subprocess.run([sys.executable, '-I', '-c', gc], env=os.environ, capture_output=True, text=True, timeout=120)` (the grandchild inherits the child's cwd, the repository, so no cwd is passed), and forwards the grandchild's captured stdout with `print(r.stdout.strip())` so the parent observes both printed roots.
+3. Launch the child with `[sys.executable, '-I', '-c', code]`, `cwd=repo`, `timeout=120`, `check=False`, capturing output. Build the child environment as `{**os.environ, "PYTEST_XDIST_WORKER": "gw7", "LLMAGENT_TEST_ROOT": str(_root())}`. Crucially, do **not** set `LLMAGENT_TEST_ROOT_OWNER`: it stays at the parent's value (`""` in a serial run, `"gw0"` in a parallel run), which differs from the injected `gw7`. This reproduces REQ-003: the child sees an existing root whose recorded owner is not its own worker id, so `_setup_isolation` builds a fresh root instead of reusing the parent's. The child forwards the grandchild's captured stdout (`print(r.stdout.strip())`) so the parent observes both printed roots; the grandchild inherits the child's cwd (the repository) so no cwd is passed.
+4. Assert `result.returncode == 0` (stderr tail as message); split stdout into the child's line and the grandchild's line; assert the child's path differs from the parent's `_root()`, the grandchild's path equals the child's path, both start with `llmagent-test-` (fresh mkdtemp isolation roots), and neither is under `/opt/llm`.
 5. Run `uv run pytest tests/test_production_isolation.py -o addopts=""` serially and with `-n auto`.
 
 ### Method
@@ -61,10 +61,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A expected: no `docs/` change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-185322 | 20261113-185322 | Implemented the descendant-reuse test. Three adversarial findings fixed during implementation: (1) child subprocess.run with capture_output swallowed the grandchild stdout so the parent saw one line only -> forward with print(r.stdout.strip()); (2) initial assertions used full-path startswith of llmagent-test- which fails since mkdtemp paths begin with /tmp/ -> use Path name startswith; (3) injected worker id gw7 collides with a real xdist worker on eight-or-more CPU hosts making the test flaky -> use synthetic gw999 xdist never assigns. Verified empirically. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-185322 | 20261113-185322 | Test test_xdist_worker_builds_its_own_root_and_children_reuse_it added after test_conftest_imports_on_host_without_production_db_dir. Passes serial three times and -n auto three times. Full file 21/21 serial and 21/21 parallel. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-185322 | 20261113-185322 | ruff check and ruff format --check pass. mypy success except pre-existing firejail-shim error at conftest.py:356 (untouched, out of scope). Falsifier: removing the owner==worker_id rule makes the child reuse the parent root and the test fails, proving it validates REQ-003 (AC-003). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-185322 | 20261113-185322 | N/A expected: no docs/ change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

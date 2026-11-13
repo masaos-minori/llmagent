@@ -445,7 +445,7 @@ failure's cause is not immediately obvious, load and apply
   Step 3e as satisfied by its earlier pass.
 - Run the repository-defined full test suite exactly once per cycle, after targeted
   tests pass and confirmed to have collected at least one test — the only full-suite
-  run for this cycle; Step 6 MUST NOT run tests again. If it fails, fixing and re-running
+  run for this cycle, using the parallel command of `rules/toolchain.md` section 6 (`-n auto`); Step 6 MUST NOT run tests again. If it fails, fixing and re-running
   the full suite is subject to the same Attempt Limit (3 attempts) and Failure Log as
   targeted tests — this re-run is the one exception to "exactly once" for an
   ordinary failure; reaching the Attempt Limit without a passing full-suite run means
@@ -469,7 +469,7 @@ failure's cause is not immediately obvious, load and apply
   case above runs no full suite at all; it is a fifth scoped exception.
 - Run the test commands the procedure's `## Validation plan` lists too (a listed test
   that cannot be run is `Not run: {reason}` in Notes).
-- Make the full-suite run feed the coverage gate, so the suite still runs once:
+- Make the full-suite run feed the coverage gate, so the suite still runs once, serial (no `-n`), because `coverage run` does not measure code run in worker processes; one cycle's full run is the serial coverage run or the parallel run, not both:
   `uv run coverage run -m pytest tests/`, then `uv run coverage xml` and
   `uv run diff-cover coverage.xml --compare-branch=master --fail-under=90`
   (`rules/toolchain.md` section 7). diff-cover reads the report; it does not run tests.

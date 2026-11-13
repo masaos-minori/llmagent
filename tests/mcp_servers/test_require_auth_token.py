@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import ast
 import glob
-import os
 import re
 import subprocess  # nosec B404 — fresh-interpreter import checks use a fixed argv
 import sys
 import tomllib
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -95,14 +95,17 @@ class TestRequireAuthToken:
 
 
 def _import_in_fresh_interpreter(
-    module: str, empty_var: str | None, log_dir: Path
+    module: str,
+    empty_var: str | None,
+    log_dir: Path,
+    build_env: Callable[..., dict[str, str]],
 ) -> subprocess.CompletedProcess[str]:
-    env = {key: os.environ[key] for key in ("PATH", "HOME") if key in os.environ}
-    env.update({var: "test-token" for var in _ALL_TOKEN_VARS})
+    extra: dict[str, str] = {var: "test-token" for var in _ALL_TOKEN_VARS}
     if empty_var is not None:
-        env[empty_var] = ""
-    env["PYTHONPATH"] = str(_SCRIPTS)
-    env["LLMAGENT_LOG_DIR"] = str(log_dir)
+        extra[empty_var] = ""
+    env = build_env(
+        {**extra, "PYTHONPATH": str(_SCRIPTS), "LLMAGENT_LOG_DIR": str(log_dir)}
+    )
     return subprocess.run(  # nosec B603 — fixed argv, no shell
         [sys.executable, "-c", f"import {module}"],
         env=env,
@@ -115,15 +118,24 @@ def _import_in_fresh_interpreter(
 
 @pytest.mark.parametrize(("module", "env_var"), _SERVERS)
 def test_empty_token_prevents_every_server_from_importing(
-    module: str, env_var: str, tmp_path: Path
+    module: str,
+    env_var: str,
+    tmp_path: Path,
+    isolated_subprocess_env: Callable[..., dict[str, str]],
 ) -> None:
-    result = _import_in_fresh_interpreter(module, env_var, tmp_path)
+    result = _import_in_fresh_interpreter(
+        module, env_var, tmp_path, isolated_subprocess_env
+    )
     assert result.returncode != 0
     assert "auth_token is empty" in result.stderr
 
 
-def test_non_empty_tokens_let_a_server_import(tmp_path: Path) -> None:
-    result = _import_in_fresh_interpreter("mcp_servers.git.git_server", None, tmp_path)
+def test_non_empty_tokens_let_a_server_import(
+    tmp_path: Path, isolated_subprocess_env: Callable[..., dict[str, str]]
+) -> None:
+    result = _import_in_fresh_interpreter(
+        "mcp_servers.git.git_server", None, tmp_path, isolated_subprocess_env
+    )
     assert result.returncode == 0, result.stderr
 
 

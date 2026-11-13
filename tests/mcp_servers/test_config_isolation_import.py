@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import importlib
 import json
-import os
 import re
 import subprocess  # nosec B404 — fresh-interpreter import checks use a fixed argv
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
@@ -60,12 +59,18 @@ print(json.dumps({{"loaded": sorted(set(loaded)), "modules": sorted(m for m in s
 
 
 def _run(
-    script: str, log_dir: Path, args: Sequence[str] | None = None
+    script: str,
+    log_dir: Path,
+    build_env: Callable[..., dict[str, str]],
+    args: Sequence[str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    env = {key: os.environ[key] for key in ("PATH", "HOME") if key in os.environ}
-    env.update({var: "test-token" for var in _TOKEN_VARS})
-    env["PYTHONPATH"] = str(_SCRIPTS)
-    env["LLMAGENT_LOG_DIR"] = str(log_dir)
+    env = build_env(
+        {
+            **{var: "test-token" for var in _TOKEN_VARS},
+            "PYTHONPATH": str(_SCRIPTS),
+            "LLMAGENT_LOG_DIR": str(log_dir),
+        }
+    )
     cmd = [sys.executable, "-c", script]
     if args:
         cmd += args
@@ -173,8 +178,17 @@ _ONCE_SERVERS: list[tuple[str, str, str]] = [
 ]
 
 
-def _record(prelude: str, body: str, log_dir: Path) -> dict[str, list[str]]:
-    result = _run(_RECORD_SCRIPT.format(prelude=prelude, body=body), log_dir)
+def _record(
+    prelude: str,
+    body: str,
+    log_dir: Path,
+    build_env: Callable[..., dict[str, str]],
+) -> dict[str, list[str]]:
+    result = _run(
+        _RECORD_SCRIPT.format(prelude=prelude, body=body),
+        log_dir,
+        build_env=build_env,
+    )
     assert result.returncode == 0, result.stderr
     parsed: dict[str, list[str]] = json.loads(result.stdout.strip().splitlines()[-1])
     return parsed
@@ -182,18 +196,30 @@ def _record(prelude: str, body: str, log_dir: Path) -> dict[str, list[str]]:
 
 @pytest.mark.parametrize(("module", "config_file"), _SERVERS)
 def test_restrict_first_import_loads_only_the_own_config(
-    module: str, config_file: str, tmp_path: Path
+    module: str,
+    config_file: str,
+    tmp_path: Path,
+    isolated_subprocess_env: Callable[..., dict[str, str]],
 ) -> None:
     recorded = _record(
-        f"ConfigLoader.restrict_to({config_file!r})", f"import {module}", tmp_path
+        f"ConfigLoader.restrict_to({config_file!r})",
+        f"import {module}",
+        tmp_path,
+        isolated_subprocess_env,
     )
     assert recorded["loaded"] == [config_file]
 
 
 def test_importing_one_file_server_does_not_import_its_siblings(
     tmp_path: Path,
+    isolated_subprocess_env: Callable[..., dict[str, str]],
 ) -> None:
-    recorded = _record("", "import mcp_servers.file.read_server", tmp_path)
+    recorded = _record(
+        "",
+        "import mcp_servers.file.read_server",
+        tmp_path,
+        isolated_subprocess_env,
+    )
     assert recorded["loaded"] == ["file_read_mcp_server.toml"]
     assert "mcp_servers.file.delete_server" not in recorded["modules"]
     assert "mcp_servers.file.write_server" not in recorded["modules"]
@@ -227,7 +253,11 @@ def test_unknown_package_attribute_raises() -> None:
 
 @pytest.mark.parametrize(("entry", "target", "config_file"), _ONCE_SERVERS)
 def test_a_server_module_executes_once_under_python_m(
-    entry: str, target: str, config_file: str, tmp_path: Path
+    entry: str,
+    target: str,
+    config_file: str,
+    tmp_path: Path,
+    isolated_subprocess_env: Callable[..., dict[str, str]],
 ) -> None:
     """Run the real run_http() (only uvicorn.Config stubbed) and assert the server
     module body executes exactly once under `python -m` / runpy.
@@ -238,7 +268,12 @@ def test_a_server_module_executes_once_under_python_m(
     server.py fix (gate resolves the already-running instance). Also asserts only
     the server's own config file is loaded (REQ-001, REQ-004).
     """
-    result = _run(_ONCE_RECORD, tmp_path, [entry, target])
+    result = _run(
+        _ONCE_RECORD,
+        tmp_path,
+        build_env=isolated_subprocess_env,
+        args=[entry, target],
+    )
     assert result.returncode == 0, result.stderr
     parsed = json.loads(result.stdout.strip().splitlines()[-1])
     assert parsed["second_imports"] == 0, (

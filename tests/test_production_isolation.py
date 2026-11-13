@@ -141,6 +141,64 @@ def test_conftest_imports_on_host_without_production_db_dir() -> None:
     assert "/opt/llm" not in result.stdout, result.stdout
 
 
+def test_xdist_worker_builds_its_own_root_and_children_reuse_it() -> None:
+    """A worker builds its own root; a process it spawns reuses it (REQ-003).
+
+    Inject a worker id that does not match the parent's recorded owner, so the
+    child must build a fresh root rather than reuse the parent's. The child then
+    records itself as owner and its grandchild, inheriting both variables, reuses
+    the child's root.
+    """
+    repo = Path(__file__).resolve().parent.parent
+    # xdist names workers gw0..gw(N-1); "gw999" can never equal a real parent
+    # owner for any realistic worker count, so the child's owner mismatch is
+    # deterministic and the test is not flaky on an 8-CPU host.
+    FOREIGN_WORKER = "gw999"
+    grandchild_code = (
+        "import os, runpy\n"
+        "runpy.run_path('tests/conftest.py', run_name='grandchild_probe')\n"
+        "print(os.environ['LLMAGENT_TEST_ROOT'])\n"
+    )
+    code = (
+        "import os, runpy, subprocess, sys\n"
+        "runpy.run_path('tests/conftest.py', run_name='conftest_probe')\n"
+        "print(os.environ['LLMAGENT_TEST_ROOT'])\n"
+        f"gc = {grandchild_code!r}\n"
+        "r = subprocess.run([sys.executable, '-I', '-c', gc], env=os.environ, "
+        "capture_output=True, text=True, timeout=120)\n"
+        "print(r.stdout.strip())\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", code],
+        cwd=repo,
+        env={
+            **os.environ,
+            "PYTEST_XDIST_WORKER": FOREIGN_WORKER,
+            "LLMAGENT_TEST_ROOT": str(_root()),
+        },
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr[-800:]
+    lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
+    assert len(lines) == 2, result.stdout
+    child_root = Path(lines[0])
+    grandchild_root = Path(lines[1])
+    parent_root = _root()
+    # The parent itself runs inside an isolation root created by mkdtemp.
+    assert Path(parent_root).name.startswith("llmagent-test-")
+    # The child's worker id does not match the parent's owner, so it builds
+    # a fresh root distinct from the parent's.
+    assert child_root != parent_root
+    assert Path(child_root).name.startswith("llmagent-test-")
+    assert not str(child_root).startswith(_PRODUCTION)
+    # The grandchild inherits owner == worker_id and reuses the child's root.
+    assert grandchild_root == child_root
+    assert not str(grandchild_root).startswith(_PRODUCTION)
+
+
 def _stand_in(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Point the session check at a temporary directory holding two stand-in files."""
     from tests import conftest as conftest_module

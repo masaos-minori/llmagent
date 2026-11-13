@@ -61,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the skill and rule checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-195509 | 20261113-195509 |  |
+| 2 | Run the skill and rule checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Completed | 20261113-195509 | 20261113-195509 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

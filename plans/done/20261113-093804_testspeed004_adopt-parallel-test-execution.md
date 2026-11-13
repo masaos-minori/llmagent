@@ -199,9 +199,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 | implementations/20261113-102519_02_tests_mcp_servers_test_require_auth_token.py.md | 1 | Procedure | Pending | — | — |
 | implementations/20261113-102519_03_tests_conftest.py.md | 2 | Procedure | Pending | — | — |
 | implementations/20261113-102519_04_tests_test_production_isolation.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261113-102519_05_rules_toolchain.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261113-102519_06_skills_python-test-and-fix_workflow.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261113-102519_07_skills_code-implementation_workflow.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261113-102519_05_rules_toolchain.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261113-102519_06_skills_python-test-and-fix_workflow.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261113-102519_07_skills_code-implementation_workflow.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

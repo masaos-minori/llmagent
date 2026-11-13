@@ -156,13 +156,24 @@ def _isolate_db_config(root: Path) -> None:
 
 
 def _setup_isolation() -> Path:
-    """Create the isolation root once per process tree and set the environment."""
+    """Create the isolation root once per process tree and worker and set the environment.
+
+    A process reuses an inherited root only when the directory exists and its recorded
+    owner (``LLMAGENT_TEST_ROOT_OWNER``) equals this process's worker id
+    (``PYTEST_XDIST_WORKER``, empty when unset); otherwise it builds a root and records
+    itself as owner. A serial run has both values empty and reuses as before; a worker
+    builds its own root and its descendants, which inherit the worker id and owner, reuse
+    it. This is once per process tree and worker under xdist instead of once per tree.
+    """
     global _CREATED_ROOT
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "")
     existing = os.environ.get("LLMAGENT_TEST_ROOT")
-    created = not (existing and Path(existing).is_dir())
+    owner = os.environ.get("LLMAGENT_TEST_ROOT_OWNER", "")
+    created = not (existing and Path(existing).is_dir() and owner == worker_id)
     if created:
         root = _build_isolated_root()
         os.environ["LLMAGENT_TEST_ROOT"] = str(root)
+        os.environ["LLMAGENT_TEST_ROOT_OWNER"] = worker_id
         _CREATED_ROOT = root
         atexit.register(_cleanup_isolated_root, root)
     else:
@@ -184,6 +195,10 @@ _ISOLATION_ENV_VARS = (
     "EVENTBUS_SCHEMA_PATH",
     "LLMAGENT_LOG_DIR",
     "LLMAGENT_TEST_ROOT",
+    # Forwarded together so a worker's descendants keep ``owner == worker_id`` and reuse
+    # the worker's root; in a serial run PYTEST_XDIST_WORKER is unset and not forwarded.
+    "LLMAGENT_TEST_ROOT_OWNER",
+    "PYTEST_XDIST_WORKER",
 )
 
 
