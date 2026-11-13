@@ -10,7 +10,7 @@ Medium
 - **Dependencies**: None open. The schema-fingerprint Plan (adrrev005) has landed (its steps 1-6 are `Completed`; only its deployment step is pending), so the schema edits here use the generalized fingerprint gate. The history-comment sweep (rmcompat007) follows this Plan.
 
 ## Background
-Re-verified 2026-11-12 (Step 2 and Step 3):
+Re-verified 2026-11-12 (Step 2 and Step 3). Revalidated 2026-11-13 (plan-to-implementation-procedure Step 2 and adversarial row re-check): all 20 target rows confirmed against current source unchanged — `dlq.py` defs at lines 115, 151, 187, 328; `ack_route.py` `except OSError` at 216-221; `dlq_repo.py:16,24-39,82-124`; `event_repo.py` `fetch_dlq` select at 126; `_constants.py:13-17,24-28`; `route_helpers.py:1,66`; `schema.sql:11,13`; manifest `sweep_orphans`/`promote_single` entries at 284-294; `test_eventbus_dlq.py` 25 call sites and the `dlq_requeue_count` assertions at 301-333 and 488-493; `test_eventbus_dlq_promotion.py` requeue test at 205-255 and the `OSError` patch test at 550-585 (`raise OSError` at 567); `test_eventbus_requeue_edge_cases.py:574`; `test_eventbus_dlq_outbox.py:101`; `test_eventbus_shutdown.py` fake `sweep_orphans` signatures at 67 and 121; `test_eventbus_schema_version.py:97-112`. The `test_eventbus_dlq_promotion.py` patch test still asserts `dlq_promoted is True`, confirming the patch has no effect on the DB-only path:
 - `scripts/eventbus/dlq.py`: `_shared_promote` (line 115), `_shared_promote_single`, `promote_single` (line 330), and `sweep_orphans` (line 189) take `deadletter_dir`; their docstrings say it is "Kept for call-site signature stability; unused here" (lines 124, 166, 343). `reconcile_missing_dlq_files`, `process_outbox`, `archive_dlq_record`, and `_count_orphan_dlq_files` use it and keep it.
 - `scripts/eventbus/ack_route.py:208-221`: `is_promotable()` and `promote_single()` are wrapped in `except OSError` that logs "deferred to sweep"; both touch only SQLite, so the handler cannot run. The test that exercises it (`tests/eventbus/test_eventbus_dlq_promotion.py` around line 555) patches `dlq._atomic_write` to raise, which promotion never calls, so the patch has no effect.
 - `RequeueResult` (`dlq_repo.py:24-39`) carries `original_event_exists` and `already_redelivered`, determined by `status` (`dlq_repo.py:82,102,103,119,124`). Only `tests/eventbus/test_eventbus_requeue_edge_cases.py:574` reads `already_redelivered`; `dlq_route.py` has no reference to either field.
@@ -105,7 +105,8 @@ This table is the canonical, frozen source of implementation scope for this Plan
 - Deleting unused constants is the same intent as the requested rename (names match the schema) and removes the stale name entirely.
 - Step 8b overlap judgements (`tools/check_plan_target_overlaps.py`): `docs/24_eventbus/eventbus_07_configuration-and-operations.md`, `docs/24_eventbus/eventbus_08_reference_api.md`, and `registry/manifests/eventbus_api.yaml` with `plans/20261112-120726_rmcompat004_eventbus-config-auth-audit.md` are compatible (that Plan edits the authorization and audit sentences and regenerates the same generated artifacts; the second regeneration includes the first's change, so regenerate with the tool after both code changes rather than editing by hand).
 - Step 8b overlap judgements, all compatible: `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` with `plans/20261111-104147_adrrev015_adr-index-matrix.md` (that Plan edits INV-13 wording at line 186, the INV-04/INV-07 rows at lines 232 and 240, and the requeue paragraph at line 276; this Plan edits the INV-08 row at line 241 and the column list at line 334, so re-read the table first) and with `plans/20261111-104605_adrrev016_adr-authority-format.md` (front matter, Related ADRs, and INV-15 ownership only); `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` with `plans/20261111-112439_adrrev019_docs-stale-statements.md` (that Plan adds an `events.jsonl` note to the Cleanup Procedure at lines 177-193; this Plan edits line 227).
-- Open implementation procedures of `plans/done/20261111-103238_adrrev014_eventbus-spec-gaps.md` edit `dlq_repo.py` (adds a read-only terminal-failure count), `app.py`, `eventbus_05` (cleanup procedure, lines 177-193), ADR-006 (outbox and replay sections), and `eventbus_12`; they touch different regions, so re-read each file before editing.
+- Implementation procedures of `plans/done/20261111-103238_adrrev014_eventbus-spec-gaps.md` (edit `dlq_repo.py` (adds a read-only terminal-failure count), `app.py`, `eventbus_05` (cleanup procedure, lines 177-193), ADR-006 (outbox and replay sections), and `eventbus_12`) are now all archived under `implementations/done/` (all ten `20261112-072954_*` documents, checked 2026-11-13): their edits are already reflected in the current source and no concurrent edit from that Plan is pending; re-read each file before editing anyway.
+- Step 8b overlap judgement (2026-11-13, `tools/check_plan_target_overlaps.py`): `scripts/eventbus/dlq.py`, `scripts/eventbus/ack_route.py`, `scripts/eventbus/app.py`, `scripts/eventbus/dlq_repo.py`, `scripts/eventbus/route_helpers.py`, `docs/24_eventbus/eventbus_08_reference_api.md`, and `registry/manifests/eventbus_api.yaml` are also targeted by `plans/20261112-122030_rmcompat007_history-comment-sweep.md` — compatible: that Plan only deletes stale history comments and regenerates the same generated artifacts; this Plan runs first (`tools/plan_dependency_order.py` recommends it and rmcompat007 records that it follows this Plan), and each Plan regenerates `eventbus_08` and the manifest with the tool in its own cycle, so the last regeneration includes both changes.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -183,7 +184,7 @@ N/A: no release unit
 ## Risks
 - **Risk**: The deployed `eventbus.sqlite` fails the gate after the schema change and undelivered events in it are lost on recreate → **Mitigation**: UNK-01 and the Phase 6 prerequisite; the file already differs from the current schema, so recreate is needed regardless; the operator chooses the timing.
 - **Risk**: An external reader depends on `dlq_requeue_count` in the `/dlq` response → **Mitigation**: UNK-02; the response change is documented in `eventbus_04`.
-- **Risk**: Open adrrev014 procedures edit `dlq_repo.py`, `app.py`, `eventbus_05`, ADR-006, or `eventbus_12` first → **Mitigation**: re-read before editing; regenerate generated artifacts with the tool; `eventbus_12` is left to its procedure.
+- **Risk**: adrrev014 edits to `dlq_repo.py`, `app.py`, `eventbus_05`, ADR-006, or `eventbus_12` interact with this Plan's edits → **Mitigation**: its procedures are archived in `implementations/done/` (checked 2026-11-13), so their edits are already in the source; re-read before editing; regenerate generated artifacts with the tool; `eventbus_12` is left to its procedure.
 - **Risk**: Removing `consumer_id` is wrong if a reader exists outside the searched trees → **Mitigation**: the Issue instructs re-running the zero-reference search before deleting; the procedure repeats it (`scripts`, `tests`, `tools`, `docs`, `registry`, `deploy`).
 - **Risk**: Replacing the `OSError` test removes the only coverage of `/nack` promotion failure → **Mitigation**: the replacement asserts the DB-only transaction, which is the real behavior.
 
@@ -192,12 +193,12 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove `deadletter_dir` from promotion and sweep, remove the unreachable handler, update tests | Pending | — | — | |
-| 2 | Reduce `RequeueResult` and its test assertions | Pending | — | — | |
-| 3 | Remove `dlq_requeue_count` and `consumer_id` (schema, writes, reads, constants, tests) | Pending | — | — | |
-| 4 | Use the public Counter API and fix the shebang | Pending | — | — | |
-| 5 | Update the documents, regenerate the reference block and manifest | Pending | — | — | |
-| 6 | Deployment hand-off and verification | Pending | — | — | |
+| 1 | Remove `deadletter_dir` from promotion and sweep, remove the unreachable handler, update tests | In Progress | — | — |  |
+| 2 | Reduce `RequeueResult` and its test assertions | In Progress | — | — |  |
+| 3 | Remove `dlq_requeue_count` and `consumer_id` (schema, writes, reads, constants, tests) | In Progress | — | — |  |
+| 4 | Use the public Counter API and fix the shebang | In Progress | — | — |  |
+| 5 | Update the documents, regenerate the reference block and manifest | In Progress | — | — |  |
+| 6 | Deployment hand-off and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -207,7 +208,24 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261113-173721_01_scripts_eventbus_dlq.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261113-173721_02_scripts_eventbus_ack_route.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261113-173721_03_scripts_eventbus_app.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261113-173721_04_scripts_eventbus_dlq_repo.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261113-173721_05_scripts_eventbus_event_repo.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261113-173721_06_scripts_eventbus__constants.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261113-173721_07_scripts_eventbus_route_helpers.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261113-173721_08_scripts_eventbus_schema.sql.md | 3 | Procedure | Pending | — | — |
+| implementations/20261113-173721_09_registry_manifests_eventbus_api.yaml.md | 5 | Procedure | Pending | — | — |
+| implementations/20261113-173721_10_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261113-173721_11_docs_24_eventbus_eventbus_04_dlq_endpoint.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261113-173721_12_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261113-173721_13_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261113-173721_14_docs_24_eventbus_eventbus_08_reference_api.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261113-173721_15_tests_eventbus_test_eventbus_dlq.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261113-173721_16_tests_eventbus_test_eventbus_dlq_promotion.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261113-173721_17_tests_eventbus_test_eventbus_requeue_edge_cases.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261113-173721_18_tests_eventbus_test_eventbus_dlq_outbox.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -249,3 +267,5 @@ N/A: no release unit
 | REQ-006 | Derived from `eventbus_07:198,202` | `docs/24_eventbus/eventbus_07_configuration-and-operations.md` | 5 | AC-6 | docs checkers | Derived from confirmed evidence |
 | REQ-006 | Derived from `eventbus_08:103-108` | `docs/24_eventbus/eventbus_08_reference_api.md` | 5 | AC-6 | `generate_reference_table.py --check` | Derived from confirmed evidence |
 | REQ-006 | Derived from `eventbus_api.yaml:284-294` | `registry/manifests/eventbus_api.yaml` | 5 | AC-6 | `generate_reference_table.py --check` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261113-173721 -->
