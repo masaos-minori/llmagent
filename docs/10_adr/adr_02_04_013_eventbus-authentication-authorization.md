@@ -80,7 +80,7 @@ The EventBus is intentionally kept in service (keep decision recorded in `adr_02
    - 403: the token is valid but lacks the Consumer role, lacks a consumer or topic authorization, or the requested `consumer_id` or topic is not authorized.
 4. DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay (`/replay`) require operator permission.
 5. Audit logging of authorization failures and privileged actions, with no secret/token values recorded.
-6. Fail-closed rejection of unknown, missing, and incorrectly-typed EventBus configuration keys in `load_config()` — implemented locally, not via `ConfigLoader`. The same fail-closed posture rejects duplicate credentials: building the authorization principal map fails at startup when distinct token fields share one non-empty token value, so distinct token roles never resolve to the same bearer token. Consumer principals take their `consumer_id` and topic authorizations only from the TOML `consumer_authorization`/`topic_authorization` mappings and admin updates built on top of them.
+6. Fail-closed rejection of unknown, missing, and incorrectly-typed EventBus configuration keys in `load_config()` — implemented locally, not via `ConfigLoader`. The same fail-closed posture rejects duplicate credentials: building the authorization principal map fails at startup when distinct token fields share one non-empty token value, so distinct token roles never resolve to the same bearer token. Consumer principals take their `consumer_id` and topic authorizations only from the TOML `consumer_authorization` mapping and admin updates built on top of it.
 7. A missing or empty `auth_token` in `config/eventbus.toml` must fail closed at startup, not silently start unauthenticated.
 8. EventBus configuration is not loaded through `ConfigLoader` for key validation (ADR-002 documents the local-invariant exception).
 
@@ -90,13 +90,13 @@ The EventBus is intentionally kept in service (keep decision recorded in `adr_02
 
 ### Persistence semantics
 
-10. **Runtime-only default.** The admin endpoint (`POST /admin/topics/authorization`) updates `consumer_authorization`/`topic_authorization` at runtime only — no config file write. The response includes `persistent: false` and `changed: <bool>` indicating whether the config actually changed. A restart loses the runtime change unless made in `config/eventbus.toml`.
+10. **Runtime-only default.** The admin endpoint (`POST /admin/topics/authorization`) updates `consumer_authorization` at runtime only — no config file write. The response includes `persistent: false` and `changed: <bool>` indicating whether the config actually changed. A restart loses the runtime change unless made in `config/eventbus.toml`.
 
     Optimistic concurrency: every request MUST carry `expected_generation` equal to the generation number in force. A mismatch is rejected with HTTP 409 `{"error": "generation_conflict", "expected_generation": <n>, "current_generation": <m>}` before any state is touched — no config replacement, no publication, no audit record. A missing or non-integer `expected_generation` is rejected with HTTP 422, so callers that omit the field are rejected. An accepted update publishes `generation + 1` and its response carries the additive fields `previous_generation`, `new_generation`, `changed_count`, `effective_at`, and `baseline_hash`.
 
 ### Audit record
 
-11. **Privileged-action audit.** Every effective change to topics authorization emits a redacted `log_privileged_action` record with `target="topics_authorization"` and a `detail` of the form `detail="<name>:<changed_count>[;<name>:<changed_count>];persistent:false;gen:<previous>-><new>"`. The record also carries the additive fields `previous_generation` and `new_generation`. A no-op emits none. No token values are included in the audit record (INV-05); generation numbers and baseline hashes obey the same rule — a hash is an opaque fingerprint, not config content.
+11. **Privileged-action audit.** Every effective change to topics authorization emits a redacted `log_authorization_change` record with `target="topics_authorization"`, a `detail` of the form `detail="<name>:<changed_count>[;<name>:<changed_count>];persistent:false"`, and the required fields `previous_generation` and `new_generation` (the record keeps the `privileged_action` event type). A no-op emits none. No token values are included in the audit record (INV-05); generation numbers and baseline hashes obey the same rule — a hash is an opaque fingerprint, not config content.
 
 ### Empty / no-op update
 
@@ -106,7 +106,7 @@ The EventBus is intentionally kept in service (keep decision recorded in `adr_02
 
 13. **TTL semantics.** An admin update may carry an optional `ttl_seconds`, valid only for pairs the accepted update newly grants; it must satisfy `0 < ttl_seconds <= authz_max_ttl_seconds` (`authz_max_ttl_seconds` is configured in `config/eventbus.toml`), otherwise the request is rejected with HTTP 422 before any state is touched. Carried-over pairs keep their previous expiry. A request whose `ttl_seconds` is invalid is rejected before the `expected_generation` comparison is acted on.
 
-14. **Expiry sweep.** A periodic lifespan task removes expired grants by building and publishing an atomic removal generation under the same one-generation invariant (compare-and-swap: a concurrent admin update that bumps the generation aborts the cycle, retried on the next interval) and emits a `log_privileged_action` audit record with `target="ttl_expiry"`. The sweep interval is configured by `authz_sweep_interval_seconds` in `config/eventbus.toml`.
+14. **Expiry sweep.** A periodic lifespan task removes expired grants by building and publishing an atomic removal generation under the same one-generation invariant (compare-and-swap: a concurrent admin update that bumps the generation aborts the cycle, retried on the next interval) and emits a `log_authorization_change` audit record with `target="ttl_expiry"` and both generation fields. The sweep interval is configured by `authz_sweep_interval_seconds` in `config/eventbus.toml`.
 
 ### Restart semantics
 
@@ -190,7 +190,7 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 ### Operational Consequences
 
 - Operators must populate `auth_token` in `config/eventbus.toml` before starting; an empty/missing token causes startup failure (see Failure Policy).
-- Operators configure a per-role token for each caller (see Decision Details #1); a Consumer process uses a `consumer_token` with explicit `consumer_authorization` and `topic_authorization` mappings, and a Publisher process uses a `publisher_token`.
+- Operators configure a per-role token for each caller (see Decision Details #1); a Consumer process uses a `consumer_token` with an explicit `consumer_authorization` mapping, and a Publisher process uses a `publisher_token`.
 
 ### Security Consequences
 
@@ -244,7 +244,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 | Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) | INV-01 | Integration | Yes (the fixture-app tests are complemented by `TestProductionRouteWiring`, which checks the production app's route dependencies and the 401/403/200 behavior of `/health` and `/publish`) | `tests/eventbus/test_eventbus_auth.py::TestPublishAuth::test_publish_without_token`, `tests/eventbus/test_eventbus_auth.py::TestSubscribeAuth::test_subscribe_without_token`, `tests/eventbus/test_eventbus_auth.py::TestProductionRouteWiring` |
 | Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) | INV-03 (operator-gated routes) | Integration | Yes | `tests/eventbus/test_eventbus_auth.py::TestSubscribeAuth::test_subscribe_as_wrong_role`, `tests/eventbus/test_eventbus_auth.py::TestNackAuth::test_nack_with_publisher_token_is_rejected`, `tests/eventbus/test_eventbus_auth.py::TestDlqListAuth::test_dlq_list_with_publisher_token_is_rejected`, `tests/eventbus/test_eventbus_auth.py::TestDlqRequeueAuth::test_dlq_requeue_with_publisher_token_is_rejected`, `tests/eventbus/test_eventbus_auth.py::TestReplayAuth::test_replay_with_publisher_token_is_rejected` |
 | consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`) | INV-02 (topic access) | Unit | Yes | `tests/eventbus/test_eventbus_auth.py::TestRequireConsumerIdentityTopicSemantics::test_non_empty_topic_restriction_is_enforced_and_returned` |
-| empty `consumer_authorization`/`topic_authorization` mappings resolve to deny-all and reject every `consumer_id` (`test_empty_mappings_deny_all_consumers`) | INV-02 empty-mapping case | Unit | Yes | `tests/eventbus/test_eventbus_auth.py::TestFailClosedConsumerAuthorization::test_empty_mappings_deny_all_consumers` |
+| empty `consumer_authorization` mapping resolves to deny-all and reject every `consumer_id` (`test_empty_mappings_deny_all_consumers`) | INV-02 empty-mapping case | Unit | Yes | `tests/eventbus/test_eventbus_auth.py::TestFailClosedConsumerAuthorization::test_empty_mappings_deny_all_consumers` |
 | `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) | Decision Details #7 | Unit | Yes | `tests/eventbus/test_eventbus_config.py::test_load_config_rejects_empty_auth_token` |
 | `load_config()` rejects unknown TOML keys (`test_load_config_rejects_unknown_key`) | INV-04 | Unit | Yes | `tests/eventbus/test_eventbus_config.py::test_load_config_rejects_unknown_key` |
 | `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) | INV-04 | Unit | Yes | `tests/eventbus/test_eventbus_config.py::test_load_config_rejects_wrong_type` |
@@ -265,7 +265,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 See Implementation References for the current file/symbol list.
 
-A Consumer principal holds explicit (consumer_id, topic) grants built from `consumer_authorization` and `topic_authorization`; a pair that is not listed is rejected with HTTP 403. A subscribe request without `topic` is narrowed to the topics granted to its `consumer_id`.
+A Consumer principal holds explicit (consumer_id, topic) grants built from `consumer_authorization`; a pair that is not listed is rejected with HTTP 403. A subscribe request without `topic` is narrowed to the topics granted to its `consumer_id`.
 
 ## Known Deviations
 
@@ -304,7 +304,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ## Implementation References
 
 - `scripts/eventbus/auth.py` — `attach_auth_middleware()`, `require_role()`, `require_consumer_identity()`
-- `scripts/eventbus/audit.py` — `AuditRecord`, `log_auth_failure()`, `log_privileged_action()`
+- `scripts/eventbus/audit.py` — `AuditRecord`, `AuthzChangeRecord`, `log_auth_failure()`, `log_privileged_action()`, `log_authorization_change()`
 - `scripts/mcp_servers/server.py` — `attach_auth_middleware()` (precedent pattern)
 - `scripts/mcp_servers/audit.py` — `AuditRecord` (precedent pattern)
 - `scripts/eventbus/app.py` — request-ID middleware registration and route dependencies

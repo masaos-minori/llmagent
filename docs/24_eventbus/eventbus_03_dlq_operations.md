@@ -105,7 +105,7 @@ Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Q
 
 `consumer_id` is validated against the caller's token before `/subscribe`, `/events/{event_id}/ack`, and `/nack` accept it: a request is rejected (HTTP 403) unless the token is a CONSUMER-role token with explicit authorizations covering the presented `consumer_id` and topics.
 
-The allowlist comes from `consumer_authorization` and `topic_authorization` in `config/eventbus.toml`, and applies to the CONSUMER-role token only. Startup rejects a `consumer_token` when `consumer_authorization` is absent (fail-closed). An empty `consumer_authorization` mapping resolves to deny-all, so a `consumer_token` with an empty mapping rejects every `consumer_id`. The shared `auth_token` and the `admin_token` hold no CONSUMER role, so they are rejected (HTTP 403) on these routes; there is no bypass.
+The allowlist comes from `consumer_authorization` in `config/eventbus.toml`, and applies to the CONSUMER-role token only. Startup rejects a `consumer_token` when `consumer_authorization` is absent (fail-closed). An empty `consumer_authorization` mapping resolves to deny-all, so a `consumer_token` with an empty mapping rejects every `consumer_id`. The shared `auth_token` and the `admin_token` hold no CONSUMER role, so they are rejected (HTTP 403) on these routes; there is no bypass.
 
 ---
 

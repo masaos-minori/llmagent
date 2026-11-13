@@ -81,7 +81,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive) with different rol
     - 11c. When ACK persistence fails, an error response is returned and neither the delivery state nor the offset advances; the event therefore remains eligible for redelivery (At-Least-Once).
     - 11d. DLQ promotion paths are unified: inline promotion is prioritized and the background loop supplements it.
     - 11e. On the Replay-to-Live switch, Consumers must process idempotently by `event_id`.
-12. Authentication and authorization of EventBus callers follow ADR-013. Independently of authentication, the EventBus accepts only a loopback bind address; a non-loopback host fails configuration validation. (Explicit in code — `scripts/eventbus/config.py` `_validate_deployment_mode()`)
+12. Authentication and authorization of EventBus callers follow ADR-013. Independently of authentication, the EventBus accepts only a loopback bind address; a non-loopback host fails configuration validation. (Explicit in code — `scripts/eventbus/config.py` `EventBusConfig.__post_init__`)
 13. The ACK Offset is a high-water mark of acknowledged `seq` values, not a contiguous low-water mark. On resume, the position is the lowest unacknowledged `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1`; no unacknowledged event is skipped, and already-acknowledged events are fast-forwarded. Consumers need not ACK in strict `seq` order.
 14. The EventBus service is kept (planned future integration), per the repository owner instruction of 2026-11-09; it currently has no defined producers or consumers, and that absence is intentional. The producer and consumer model is not yet defined (UNK-01): the defining component and integration timing are left as a marked pending item for the maintainer to complete through `governance_03_issue-and-uncertainty-management.md`.
 
@@ -346,7 +346,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/event_repo.py` — `insert_event()`
 - `scripts/eventbus/db.py` — facade that re-exports the functions above
 - `scripts/eventbus/dlq.py` — `promote_single()`, `sweep_orphans()`
-- `scripts/eventbus/config.py` — `_validate_deployment_mode()`
+- `scripts/eventbus/config.py` — `EventBusConfig.__post_init__()`
 - `events` table — `seq`, `event_id`, `topic`, `payload`, `producer`, `published_at`, `redelivered_from`, `dlq_requeue_count`, `dlq_at`, `consumer_id` (no event-level `acked_at` column; ACK state is per-consumer in `consumer_delivery`)
 - `consumer_delivery` table — `consumer_id`, `event_id`, `acked`, `consumer_delivery_failure_count`, `consumer_last_nack_attempt`, PRIMARY KEY `(consumer_id, event_id)`
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
