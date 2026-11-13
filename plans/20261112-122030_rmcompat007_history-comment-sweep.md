@@ -18,8 +18,10 @@ Low
 ## Background
 Measured 2026-11-12 (Step 2 and Step 3) by `rg -l "Extracted from|Refactored:|RAGCORPUS001|EBAUTHGEN001|crawl003|REQ-[0-9]+" scripts config` and a token-level classification of each match (comment, docstring, TOML comment, or inside a string literal): 138 files, 429 matching lines before the two files deleted by rmcompat003 are removed; after excluding those two, 136 files and 423 lines remain. Per pattern (lines): `REQ-<n>` 375, "Extracted from" 44, "Refactored:" 2, `RAGCORPUS001` 8, `EBAUTHGEN001` 5, `crawl003` 1. By directory: 55 files in agent, 24 files in mcp_servers, 22 files in shared, db, config, 19 files in rag, 16 files in eventbus. `user-approved` no longer appears (already removed).
 
+Revalidated 2026-11-14 (`plan-to-implementation-procedure` Step 2): the same searches now return 408 matching lines in 130 files (`REQ-<n>` 362; the five legacy-marker patterns 52 combined). No file outside this table matches. Six table files already have no match — `scripts/agent/services/rag_maintenance_service.py`, `scripts/rag/ingestion/ingester.py`, `scripts/rag/models_result.py`, and `scripts/rag/pipeline.py` (markers removed by the rmcompat003 commit `ad8120ebf`), and `config/eventbus.toml` and `scripts/eventbus/audit.py` (removed by the rmcompat004 commit `798e85761`); per Assumptions these rows close by recording the search, not by editing. Nine rows' cited line numbers shifted as the six earlier Plans landed; their Evidence cells were re-anchored to the current lines on 2026-11-14.
+
 Corrections found against the Issue's claims:
-- The comment-only constraint has four exceptions in string literals, none of which is a comment in the Python sense: the two warning messages in `scripts/agent/startup_validation.py` (`REQ-007`, removed by rmcompat001), the pydantic field description in `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py` (`RAGCORPUS001`, removed with the field by rmcompat003), and an SQL comment line in `scripts/db/schema_sql.py` (line 223, before a `CREATE TABLE`). The schema fingerprint strips comments before comparing (`_normalize_ddl` in `scripts/shared/schema_fingerprint.py`), so the SQL comment edit is safe; the procedure verifies it with the fingerprint tests.
+- The comment-only constraint has four exceptions in string literals, none of which is a comment in the Python sense: the two warning messages in `scripts/agent/startup_validation.py` (`REQ-007`, removed by rmcompat001), the pydantic field description in `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py` (`RAGCORPUS001`, removed with the field by rmcompat003), and an SQL comment line in `scripts/db/schema_sql.py` (line 213 before the 2026-11-14 revalidation, before a `CREATE TABLE`). The schema fingerprint strips comments before comparing (`_normalize_ddl` in `scripts/shared/schema_fingerprint.py`), so the SQL comment edit is safe; the procedure verifies it with the fingerprint tests.
 - A docstring rewrite can change generated documents: `tools/generate_reference_table.py` copies the first docstring line of each public top-level class and function in `scripts/agent/*.py`, `scripts/eventbus/*.py`, and `scripts/agent/memory/*.py` into `registry/manifests/*.yaml` and the guarded blocks of the reference documents. A check of all 136 files found exactly one match on such a line: `AuthzGeneration` in `scripts/eventbus/auth.py` ("Immutable authorization generation snapshot (EBAUTHGEN001)."). The manifest `registry/manifests/eventbus_api.yaml` and `docs/24_eventbus/eventbus_08_reference_api.md` are therefore regenerated (the Issue says not to touch `docs/`; the guarded block is generated, not hand-edited, and `generate_reference_table.py --check` runs in CI).
 - Eight matching lines sit on suppression comments (`# noqa`, `# type: ignore`, `# nosec`); each keeps its error code and its justification text (`tools/check_suppression_justification.py`).
 - `tools/_docs_consistency_lib.py` mentions two of the patterns; it is a checker for documents, not a source of these comments, and is untouched.
@@ -75,7 +77,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `scripts/agent/services/mcp_status.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-001 / AC-1 | Extracted from: 1 docstring (lines 5) (checked in Step 2) | `tests/agent` | Verified |
 | `scripts/agent/services/models.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-001 / AC-1 | REQ-N: 1 docstring (lines 141) (checked in Step 2) | `tests/agent` | Verified |
 | `scripts/agent/services/posture_validator.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-001 / AC-1 | REQ-N: 2 docstring (lines 122,192) (checked in Step 2) | `tests/agent` | Verified |
-| `scripts/agent/services/rag_maintenance_service.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-001 / AC-1 | RAGCORPUS001: 1 comment (lines 60) (checked in Step 2) | `tests/agent` | Verified |
+| `scripts/agent/services/rag_maintenance_service.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-001 / AC-1 | Step 2 revalidation 20261114: the search returns no match; the marker was removed earlier by rmcompat003 (`ad8120ebf`); the row closes by recording the search | `tests/agent` | Verified |
 | `scripts/agent/services/session_restore.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-001 / AC-1 | Extracted from/REQ-N: 5 docstring, 3 comment (lines 5,46,50,51,117,123...) (checked in Step 2) | `tests/agent` | Verified |
 | `scripts/agent/services/session_title.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-001 / AC-1 | Extracted from: 1 docstring (lines 5) (checked in Step 2) | `tests/agent` | Verified |
 | `scripts/agent/services/tool_validation.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-001 / AC-1 | Extracted from: 1 docstring (lines 5) (checked in Step 2) | `tests/agent` | Verified |
@@ -122,27 +124,27 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `scripts/mcp_servers/github/github_service_security.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | REQ-N: 1 comment (lines 121) (checked in Step 2) | `tests/mcp_servers` | Verified |
 | `scripts/mcp_servers/github/mapper.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | Extracted from: 1 docstring (lines 5) (checked in Step 2) | `tests/mcp_servers` | Verified |
 | `scripts/mcp_servers/mdq/mdq_server.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | REQ-N: 1 docstring, 1 comment (lines 90,489) (checked in Step 2) | `tests/mcp_servers` | Verified |
-| `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | RAGCORPUS001/REQ-N: 1 docstring, 1 in a string literal (lines 120,261); the string-literal line is removed by rmcompat003 (checked in Step 2) | `tests/mcp_servers` | Verified |
+| `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | REQ-N: 1 docstring (line 120, inside `non_secret_view()`); revalidated 20261114: the `RAGCORPUS001` field description (old line 261) is already removed (rmcompat003); the remaining match is the `REQ-002` mention in that docstring | `tests/mcp_servers` | Verified |
 | `scripts/mcp_servers/rag_pipeline/rag_pipeline_security.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | REQ-N: 1 docstring (lines 41) (checked in Step 2) | `tests/mcp_servers` | Verified |
-| `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | RAGCORPUS001/REQ-N: 4 docstring (lines 74,122,367,373) (checked in Step 2) | `tests/mcp_servers` | Verified |
+| `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | REQ-N: 3 docstring (lines 78,333,339) (revalidated 20261114; old lines 74,122,367,373 shifted and one match removed as rmcompat003 and rmcompat005 edits landed) | `tests/mcp_servers` | Verified |
 | `scripts/mcp_servers/shell/shell_server.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | REQ-N: 2 docstring (lines 70,252) (checked in Step 2) | `tests/mcp_servers` | Verified |
 | `scripts/mcp_servers/web_search/web_search_models.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | REQ-N: 1 docstring, 1 comment (lines 64,143) (checked in Step 2) | `tests/mcp_servers` | Verified |
 | `scripts/mcp_servers/web_search/web_search_security_checks.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | Extracted from/REQ-N: 2 docstring (lines 4,12) (checked in Step 2) | `tests/mcp_servers` | Verified |
 | `scripts/mcp_servers/web_search/web_search_server.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-002 / AC-2 | REQ-N: 2 docstring (lines 341,346) (checked in Step 2) | `tests/mcp_servers` | Verified |
-| `config/eventbus.toml` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 2 TOML comment (lines 47,53) (checked in Step 2) | `tests/eventbus` | Verified |
+| `config/eventbus.toml` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | Step 2 revalidation 20261114: the search returns no match; the two labels (old lines 47,53) were removed earlier by rmcompat004 (`798e85761`); the row closes by recording the search | `tests/eventbus` | Verified |
 | `scripts/eventbus/ack_route.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 1 docstring, 10 comment (lines 58,67,126,141,151,173...) (checked in Step 2) | `tests/eventbus` | Verified |
-| `scripts/eventbus/admin_route.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | EBAUTHGEN001/REQ-N: 2 docstring, 3 comment (lines 108,114,143,171,238) (checked in Step 2) | `tests/eventbus` | Verified |
+| `scripts/eventbus/admin_route.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | EBAUTHGEN001/REQ-N: 2 docstring, 3 comment (lines 78,84,107,135,193) (re-anchored 2026-11-14, Step 2 revalidation) | `tests/eventbus` | Verified |
 | `scripts/eventbus/app.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 2 docstring, 5 comment (lines 20,21,75,114,115,119...) (checked in Step 2) | `tests/eventbus` | Verified |
-| `scripts/eventbus/audit.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | EBAUTHGEN001: 1 docstring (lines 155) (checked in Step 2) | `tests/eventbus` | Verified |
-| `scripts/eventbus/auth.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | EBAUTHGEN001/REQ-N: 1 docstring, 1 comment (lines 56,144) (checked in Step 2) | `tests/eventbus` | Verified |
+| `scripts/eventbus/audit.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | Step 2 revalidation 20261114: the search returns no match; the marker (old line 155) was removed earlier by rmcompat004 (`798e85761`); the row closes by recording the search | `tests/eventbus` | Verified |
+| `scripts/eventbus/auth.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | EBAUTHGEN001: 1 docstring (line 59); the REQ-N guard comment (old line 144) was rewritten without its label by rmcompat004 (`798e85761`) (Step 2 revalidation 2026-11-14) | `tests/eventbus` | Verified |
 | `scripts/eventbus/authz_ttl.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | EBAUTHGEN001/REQ-N: 1 docstring (lines 4) (checked in Step 2) | `tests/eventbus` | Verified |
-| `scripts/eventbus/config.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | EBAUTHGEN001/REQ-N: 1 docstring, 1 comment (lines 79,382) (checked in Step 2) | `tests/eventbus` | Verified |
+| `scripts/eventbus/config.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | EBAUTHGEN001/REQ-N: 1 docstring, 1 comment (lines 46,324) (re-anchored 2026-11-14, Step 2 revalidation) | `tests/eventbus` | Verified |
 | `scripts/eventbus/db_conn.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 1 docstring (lines 39) (checked in Step 2) | `tests/eventbus` | Verified |
 | `scripts/eventbus/delivery_repo.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 4 comment (lines 41,177,186,202) (checked in Step 2) | `tests/eventbus` | Verified |
 | `scripts/eventbus/dlq.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 14 docstring, 2 comment (lines 66,116,118,168,210,216...) (checked in Step 2) | `tests/eventbus` | Verified |
-| `scripts/eventbus/dlq_repo.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 2 docstring (lines 136,150) (checked in Step 2) | `tests/eventbus` | Verified |
-| `scripts/eventbus/health_route.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 1 comment (lines 107) (checked in Step 2) | `tests/eventbus` | Verified |
-| `scripts/eventbus/route_helpers.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 1 comment (lines 164) (checked in Step 2) | `tests/eventbus` | Verified |
+| `scripts/eventbus/dlq_repo.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 2 docstring (lines 132,146) (re-anchored 2026-11-14, Step 2 revalidation) | `tests/eventbus` | Verified |
+| `scripts/eventbus/health_route.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 1 comment (lines 127) (re-anchored 2026-11-14, Step 2 revalidation) | `tests/eventbus` | Verified |
+| `scripts/eventbus/route_helpers.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 1 comment (lines 163) (re-anchored 2026-11-14, Step 2 revalidation) | `tests/eventbus` | Verified |
 | `scripts/eventbus/schema.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 1 docstring (lines 34) (checked in Step 2) | `tests/eventbus` | Verified |
 | `scripts/eventbus/subscribe_route.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-003 / AC-3 | REQ-N: 13 comment (lines 82,91,106,120,174,189...) (checked in Step 2) | `tests/eventbus` | Verified |
 | `scripts/rag/config_resolution.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from: 1 docstring (lines 3) (checked in Step 2) | `tests/rag` | Verified |
@@ -150,18 +152,18 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `scripts/rag/diagnostics.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from: 1 docstring (lines 3) (checked in Step 2) | `tests/rag` | Verified |
 | `scripts/rag/ingestion/content_extractor.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from: 1 docstring (lines 6) (checked in Step 2) | `tests/rag` | Verified |
 | `scripts/rag/ingestion/crawl_persister.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from: 1 docstring (lines 6) (checked in Step 2) | `tests/rag` | Verified |
-| `scripts/rag/ingestion/crawler.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Refactored:/crawl003: 2 docstring (lines 12,156) (checked in Step 2) | `tests/rag` | Verified |
+| `scripts/rag/ingestion/crawler.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Refactored:/crawl003: 2 docstring (lines 12,157) (re-anchored 2026-11-14, Step 2 revalidation) | `tests/rag` | Verified |
 | `scripts/rag/ingestion/crawler_utils.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from/REQ-N: 2 docstring (lines 6,8) (checked in Step 2) | `tests/rag` | Verified |
 | `scripts/rag/ingestion/document_manager.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | REQ-N: 1 comment (lines 106) (checked in Step 2) | `tests/rag` | Verified |
-| `scripts/rag/ingestion/http_fetcher.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from/REQ-N: 3 docstring, 1 comment (lines 6,33,87,163) (checked in Step 2) | `tests/rag` | Verified |
-| `scripts/rag/ingestion/ingester.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | RAGCORPUS001/REQ-N: 1 comment (lines 184) (checked in Step 2) | `tests/rag` | Verified |
+| `scripts/rag/ingestion/http_fetcher.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from/REQ-N: 3 docstring, 1 comment (lines 6,35,89,165) (re-anchored 2026-11-14, Step 2 revalidation) | `tests/rag` | Verified |
+| `scripts/rag/ingestion/ingester.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Step 2 revalidation 20261114: the search returns no match; the marker (old line 184) was removed earlier by rmcompat003 (`ad8120ebf`); the row closes by recording the search | `tests/rag` | Verified |
 | `scripts/rag/ingestion/language_resolver.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from: 1 docstring (lines 6) (checked in Step 2) | `tests/rag` | Verified |
 | `scripts/rag/ingestion/link_discovery.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from: 1 docstring (lines 6) (checked in Step 2) | `tests/rag` | Verified |
 | `scripts/rag/ingestion/orchestrator.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from/REQ-N: 2 docstring (lines 6,264) (checked in Step 2) | `tests/rag` | Verified |
 | `scripts/rag/ingestion/robots.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | REQ-N: 4 docstring, 1 comment (lines 7,12,25,45,48) (checked in Step 2) | `tests/rag` | Verified |
 | `scripts/rag/llm_client.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | REQ-N: 1 comment (lines 148) (checked in Step 2) | `tests/rag` | Verified |
-| `scripts/rag/models_result.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | RAGCORPUS001/REQ-N: 1 comment (lines 90) (checked in Step 2) | `tests/rag` | Verified |
-| `scripts/rag/pipeline.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | RAGCORPUS001/REQ-N: 3 comment (lines 90,200,257) (checked in Step 2) | `tests/rag` | Verified |
+| `scripts/rag/models_result.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Step 2 revalidation 20261114: the search returns no match; the marker (old line 90) was removed earlier by rmcompat003 (`ad8120ebf`); the row closes by recording the search | `tests/rag` | Verified |
+| `scripts/rag/pipeline.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Step 2 revalidation 20261114: the search returns no match; the markers (old lines 90,200,257) were removed earlier by merged rmcompat batch commits (latest `RAGCORPUS001` change: rmcompat003 `ad8120ebf`); the row closes by recording the search | `tests/rag` | Verified |
 | `scripts/rag/repository.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from: 1 docstring (lines 6) (checked in Step 2) | `tests/rag` | Verified |
 | `scripts/rag/stage_lifecycle.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-004 / AC-4 | Extracted from: 1 docstring (lines 3) (checked in Step 2) | `tests/rag` | Verified |
 | `config/agent.toml` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-005 / AC-5 | REQ-N: 1 TOML comment (lines 20) (checked in Step 2) | `tests/shared tests/db` | Verified |
@@ -173,7 +175,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `scripts/db/recovery_restore.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-005 / AC-5 | REQ-N: 5 docstring, 1 comment (lines 6,25,27,44,85,103) (checked in Step 2) | `tests/shared tests/db` | Verified |
 | `scripts/db/recovery_verification.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-005 / AC-5 | REQ-N: 4 docstring, 1 comment (lines 6,34,68,128,147) (checked in Step 2) | `tests/shared tests/db` | Verified |
 | `scripts/db/rotation.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-005 / AC-5 | REQ-N: 1 docstring (lines 36) (checked in Step 2) | `tests/shared tests/db` | Verified |
-| `scripts/db/schema_sql.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-005 / AC-5 | REQ-N: 1 in a string literal (lines 223); the string-literal line is an SQL comment before a `CREATE TABLE` (fingerprint normalization strips comments) (checked in Step 2) | `tests/shared tests/db` | Verified |
+| `scripts/db/schema_sql.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-005 / AC-5 | REQ-N: 1 in a string literal (line 213); the string-literal line is an SQL comment before a `CREATE TABLE` (fingerprint normalization strips comments) (re-anchored 2026-11-14, Step 2 revalidation) | `tests/shared tests/db` | Verified |
 | `scripts/db/session_consistency.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-005 / AC-5 | REQ-N: 1 docstring, 1 comment (lines 80,107) (checked in Step 2) | `tests/shared tests/db` | Verified |
 | `scripts/shared/component_mandatoriness.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-005 / AC-5 | REQ-N: 1 docstring (lines 3) (checked in Step 2) | `tests/shared tests/db` | Verified |
 | `scripts/shared/execution_snapshot.py` | Comment and docstring cleanup | Rewrite the history or plan-identifier text as current-tense behavior, or remove it | REQ-005 / AC-5 | REQ-N: 1 docstring (lines 5) (checked in Step 2) | `tests/shared tests/db` | Verified |
@@ -421,12 +423,12 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Sweep `scripts/agent/` | Pending | — | — | |
-| 2 | Sweep `scripts/mcp_servers/` | Pending | — | — | |
-| 3 | Sweep `scripts/eventbus/` and `config/eventbus.toml`, regenerate references | Pending | — | — | |
-| 4 | Sweep `scripts/rag/` | Pending | — | — | |
-| 5 | Sweep `scripts/shared/`, `scripts/db/`, and the two other config files | Pending | — | — | |
-| 6 | Whole-tree verification and deployment hand-off | Pending | — | — | |
+| 1 | Sweep `scripts/agent/` | In Progress | 20261114-082757 | — | procedures seq 01-55 generated 2026-11-14 (pass 20261114-081724); execution pending |
+| 2 | Sweep `scripts/mcp_servers/` | In Progress | 20261114-082757 | — | procedures seq 56-79 generated 2026-11-14 (pass 20261114-081724); execution pending |
+| 3 | Sweep `scripts/eventbus/` and `config/eventbus.toml`, regenerate references | In Progress | 20261114-082757 | — | procedures seq 80-95 plus regeneration rows 137-138 generated 2026-11-14 (pass 20261114-081724); execution pending |
+| 4 | Sweep `scripts/rag/` | In Progress | 20261114-082757 | — | procedures seq 96-114 generated 2026-11-14 (pass 20261114-081724); execution pending |
+| 5 | Sweep `scripts/shared/`, `scripts/db/`, and the two other config files | In Progress | 20261114-082757 | — | procedures seq 115-136 generated 2026-11-14 (pass 20261114-081724); execution pending |
+| 6 | Whole-tree verification and deployment hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -437,6 +439,144 @@ N/A: no release unit
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
+| `implementations/20261114-081724_01_scripts_agent_audit_event_emitter.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_02_scripts_agent_bg_task_monitor.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_03_scripts_agent_commands_memory_data_ops.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_04_scripts_agent_commands_memory_rebuild_ops.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_05_scripts_agent_context.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_06_scripts_agent_conversation_state_manager.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_07_scripts_agent_history_selection_policy.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_08_scripts_agent_http_lifecycle.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_09_scripts_agent_http_lifecycle_errors.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_10_scripts_agent_http_lifecycle_health_checker.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_11_scripts_agent_lifecycle.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_12_scripts_agent_lifecycle_router.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_13_scripts_agent_llm_turn_executor.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_14_scripts_agent_llm_turn_runner.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_15_scripts_agent_memory_import_ops.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_16_scripts_agent_memory_pin_ops.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_17_scripts_agent_memory_write_ops.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_18_scripts_agent_orchestrator.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_19_scripts_agent_production_config_validator.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_20_scripts_agent_services_context_view.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_21_scripts_agent_services_db_maintenance_service.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_22_scripts_agent_services_export_formatter.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_23_scripts_agent_services_mcp_status.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_24_scripts_agent_services_models.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_25_scripts_agent_services_posture_validator.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_26_scripts_agent_services_rag_maintenance_service.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_27_scripts_agent_services_session_restore.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_28_scripts_agent_services_session_title.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_29_scripts_agent_services_tool_validation.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_30_scripts_agent_services_undo_service.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_31_scripts_agent_services_workflow_schema.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_32_scripts_agent_session.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_33_scripts_agent_session_message_repo.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_34_scripts_agent_shared_retry_helper.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_35_scripts_agent_startup.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_36_scripts_agent_startup_component_init.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_37_scripts_agent_startup_mcp_starter.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_38_scripts_agent_startup_prompt_setup.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_39_scripts_agent_startup_reporter.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_40_scripts_agent_startup_validation.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_41_scripts_agent_tool_approval.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_42_scripts_agent_tool_audit.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_43_scripts_agent_tool_loop_guard.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_44_scripts_agent_tool_policy.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_45_scripts_agent_tool_preparation.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_46_scripts_agent_tool_round_completion.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_47_scripts_agent_tool_run_recorder.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_48_scripts_agent_tool_runner.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_49_scripts_agent_turn_persistence.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_50_scripts_agent_workflow_idempotency_ops.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_51_scripts_agent_workflow_state_store.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_52_scripts_agent_workflow_tool_call_state_ops.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_53_scripts_agent_workflow_workflow_engine.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_54_scripts_agent_workflow_workflow_loader.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_55_scripts_agent_workflow_engine_adapter.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_56_scripts_mcp_servers_cicd_cicd_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_57_scripts_mcp_servers_dispatch.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_58_scripts_mcp_servers_file_delete_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_59_scripts_mcp_servers_file_delete_service.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_60_scripts_mcp_servers_file_read_security.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_61_scripts_mcp_servers_file_read_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_62_scripts_mcp_servers_file_write_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_63_scripts_mcp_servers_git_format_output.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_64_scripts_mcp_servers_git_git_models.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_65_scripts_mcp_servers_git_git_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_66_scripts_mcp_servers_git_git_service.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_67_scripts_mcp_servers_git_repository_state.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_68_scripts_mcp_servers_git_write_protection_pipeline.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_69_scripts_mcp_servers_github_github_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_70_scripts_mcp_servers_github_github_service_security.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_71_scripts_mcp_servers_github_mapper.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_72_scripts_mcp_servers_mdq_mdq_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_73_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_74_scripts_mcp_servers_rag_pipeline_rag_pipeline_security.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_75_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_76_scripts_mcp_servers_shell_shell_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_77_scripts_mcp_servers_web_search_web_search_models.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_78_scripts_mcp_servers_web_search_web_search_security_checks.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_79_scripts_mcp_servers_web_search_web_search_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_80_config_eventbus.toml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_81_scripts_eventbus_ack_route.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_82_scripts_eventbus_admin_route.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_83_scripts_eventbus_app.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_84_scripts_eventbus_audit.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_85_scripts_eventbus_auth.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_86_scripts_eventbus_authz_ttl.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_87_scripts_eventbus_config.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_88_scripts_eventbus_db_conn.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_89_scripts_eventbus_delivery_repo.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_90_scripts_eventbus_dlq.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_91_scripts_eventbus_dlq_repo.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_92_scripts_eventbus_health_route.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_93_scripts_eventbus_route_helpers.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_94_scripts_eventbus_schema.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_95_scripts_eventbus_subscribe_route.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_96_scripts_rag_config_resolution.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_97_scripts_rag_db_connection.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_98_scripts_rag_diagnostics.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_99_scripts_rag_ingestion_content_extractor.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_100_scripts_rag_ingestion_crawl_persister.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_101_scripts_rag_ingestion_crawler.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_102_scripts_rag_ingestion_crawler_utils.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_103_scripts_rag_ingestion_document_manager.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_104_scripts_rag_ingestion_http_fetcher.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_105_scripts_rag_ingestion_ingester.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_106_scripts_rag_ingestion_language_resolver.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_107_scripts_rag_ingestion_link_discovery.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_108_scripts_rag_ingestion_orchestrator.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_109_scripts_rag_ingestion_robots.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_110_scripts_rag_llm_client.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_111_scripts_rag_models_result.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_112_scripts_rag_pipeline.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_113_scripts_rag_repository.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_114_scripts_rag_stage_lifecycle.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_115_config_agent.toml.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_116_config_mcp_dedup.toml.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_117_scripts_db_create_schema.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_118_scripts_db_rag_consistency_queries.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_119_scripts_db_recovery.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_120_scripts_db_recovery_drill.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_121_scripts_db_recovery_restore.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_122_scripts_db_recovery_verification.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_123_scripts_db_rotation.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_124_scripts_db_schema_sql.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_125_scripts_db_session_consistency.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_126_scripts_shared_component_mandatoriness.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_127_scripts_shared_execution_snapshot.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_128_scripts_shared_http_transport.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_129_scripts_shared_mcp_config.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_130_scripts_shared_mcp_dedup.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_131_scripts_shared_runtime_paths.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_132_scripts_shared_runtime_tool_registry.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_133_scripts_shared_security_shadow_validation.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_134_scripts_shared_security_startup_flow.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_135_scripts_shared_tool_constants.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_136_scripts_shared_tool_transport_invoker.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_137_registry_manifests_eventbus_api.yaml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_138_docs_24_eventbus_eventbus_08_reference_api.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -589,3 +729,5 @@ N/A: no release unit
 | REQ-003 | Derived from `scripts/eventbus/auth.py` first docstring line | `registry/manifests/eventbus_api.yaml` | 3 | AC-3 | `generate_reference_table.py --check` | Derived from confirmed evidence |
 | REQ-003 | Derived from `scripts/eventbus/auth.py` first docstring line | `docs/24_eventbus/eventbus_08_reference_api.md` | 3 | AC-3 | `generate_reference_table.py --check` | Derived from confirmed evidence |
 | REQ-006 | Constraints and Acceptance Criteria 3-4 | `scripts/db/schema_sql.py` | 5 | AC-6 | `tests/shared/test_schema_fingerprint.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261114-081724 -->
