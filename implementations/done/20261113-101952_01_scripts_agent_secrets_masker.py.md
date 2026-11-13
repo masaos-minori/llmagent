@@ -67,10 +67,10 @@ N/A: revert the commit (the only runtime effect is the scrub cost).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Parity and scaling tests come from the sibling procedure for `tests/agent/test_secrets_masker.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A expected: no docs state masking performance |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-114308 | 20261113-115354 | Changed scripts/agent/secrets_masker.py (URL userinfo entry of SECRET_PATTERNS anchored to the start of a scheme-character run; pattern count stays 14, signatures and docstrings untouched). Profile before (letters, 20,000 chars): worst pattern index 13 at 2.8 s (10,000: 0.72 s, so quadratic; dots the same, digits and spaces fast). After (100,000 chars, all four shapes): all 14 patterns together 0.057 s. Root cause: repeated start-position scanning by the scheme class, not backtracking. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-115354 | 20261113-115354 | Tests come from the sibling procedure for tests/agent/test_secrets_masker.py. Existing: test_secrets_masker, test_tool_result_formatter, test_diagnostic_store_security 159 passed; test_large_string_terminates about 65 s to 0.06 s. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-115354 | 20261113-115354 | ruff, mypy (562 files), lint-imports, bandit (-ll, only nosec warnings), generate_reference_table --check, check_module_size clean. Full suite under coverage, serial: 12159 passed, 3 failed, the known mdq cases (unrelated, Plan testspeed004). diff-cover exit 0 but vacuous: the edit lies inside the multi-line SECRET_PATTERNS statement that coverage reports as one line (line 14, hit), so no changed line is measurable; the file is in the report at line-rate 1. Deploy hand-off recorded: commit and push first, then skills/deploy/SKILL.md at the user's request. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-115354 | 20261113-115354 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/secrets_masker.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

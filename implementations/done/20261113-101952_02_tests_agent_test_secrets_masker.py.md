@@ -66,10 +66,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A expected: test-only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-115420 | 20261113-120518 | Changed tests/agent/test_secrets_masker.py: imports random, re, time and SECRET_PATTERNS; new classes TestUrlUserinfoParity (13 fixed forms, a masked-output check, a seeded corpus of 20,000 strings compared with the retained pre-fix pattern) and TestUrlUserinfoScaling (10,000 versus 20,000 characters for x, 1, and a. runs: t_large <= 3 * t_small + 0.05 and t_large < 2.0). The pattern under test is found by the :// in its text, not by list position. |
+| 2 | Add or update tests per Validation plan | Completed | 20261113-120518 | 20261113-120518 | Red shown once and reverted (not committed): with the helper pointed at the pre-fix pattern, the scaling cases x and a. fail on the ratio and the digit case passes, as digits never matched the scheme start. File plus formatter tests: 133 passed in three random-order serial runs and three -n auto runs; existing tests unchanged. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261113-120518 | 20261113-120518 | ruff and mypy clean. Full suite serial 12177 passed (18 new), 3 failed: the known mdq cases (unrelated, Plan testspeed004). diff-cover N/A: no source file changed in this procedure. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261113-120518 | 20261113-120518 | N/A: no docs/00_index.md task-scope mapping for tests/agent/test_secrets_masker.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

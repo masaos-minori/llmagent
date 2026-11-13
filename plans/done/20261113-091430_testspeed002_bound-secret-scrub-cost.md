@@ -152,8 +152,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add the parity tests against the pre-fix pattern (tests/agent/test_secrets_masker.py) | In Progress | — | — |  |
-| 2 | Phase 2: scaling regression check, then rewrite `SECRET_PATTERNS[13]` (tests/agent/test_secrets_masker.py, scripts/agent/secrets_masker.py) | In Progress | — | — |  |
+| 1 | Phase 1: add the parity tests against the pre-fix pattern (tests/agent/test_secrets_masker.py) | Completed | — | 20261113-120527 |  |
+| 2 | Phase 2: scaling regression check, then rewrite `SECRET_PATTERNS[13]` (tests/agent/test_secrets_masker.py, scripts/agent/secrets_masker.py) | Completed | — | 20261113-120527 |  |
 | 3 | Phase 3: profile, validation sequence, full suite, deploy hand-off (scripts/agent/secrets_masker.py, tests/agent/test_secrets_masker.py) | Pending | — | — |  |
 
 ### Blocker Log
@@ -164,8 +164,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261113-101952_01_scripts_agent_secrets_masker.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261113-101952_02_tests_agent_test_secrets_masker.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261113-101952_01_scripts_agent_secrets_masker.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261113-101952_02_tests_agent_test_secrets_masker.py.md | 1, 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

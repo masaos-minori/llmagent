@@ -151,8 +151,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: merge the CI test steps (.github/workflows/ci.yml) | In Progress | — | — |  |
-| 2 | Phase 2: keep the skill sentence true (skills/test-audit/workflow.md) | In Progress | — | — |  |
+| 1 | Phase 1: merge the CI test steps (.github/workflows/ci.yml) | Completed | — | 20261113-122331 |  |
+| 2 | Phase 2: keep the skill sentence true (skills/test-audit/workflow.md) | Completed | — | 20261113-122331 |  |
 | 3 | Phase 3: verification and duration record (.github/workflows/ci.yml, skills/test-audit/workflow.md) | Pending | — | — |  |
 
 ### Blocker Log
@@ -163,8 +163,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261113-102111_01_.github_workflows_ci.yml.md | 1 | Procedure | Pending | — | — |
-| implementations/20261113-102111_02_skills_test-audit_workflow.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261113-102111_01_.github_workflows_ci.yml.md | 1 | Procedure | Completed | — | — |
+| implementations/20261113-102111_02_skills_test-audit_workflow.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

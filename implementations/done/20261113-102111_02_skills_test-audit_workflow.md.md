@@ -58,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261113-121534 | 20261113-122323 | Changed skills/test-audit/workflow.md: the sentence 'Run pytest the way CI does' now names the single merged CI command (uv run coverage run -m pytest -v tests/, which also collects coverage), the same command as .github/workflows/ci.yml after the sibling procedure; the rest of the sentence and the no -n rule are unchanged. The command is kept on one line. |
+| 2 | Run the skill checkers named in Validation plan (`routing.md` Tools "When to run which tool") | Completed | 20261113-122323 | 20261113-122323 | check_skills_references and check_skills_heading_cycles: No issues found; run_validation_gates exit 0 with no Fail or Blocked. Full suite serial 12177 passed, 3 failed: the known mdq cases (unrelated, Plan testspeed004); diff-cover N/A: no source file changed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
