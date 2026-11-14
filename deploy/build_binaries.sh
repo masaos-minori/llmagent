@@ -199,14 +199,26 @@ else
     echo "[WARN] patchelf not found; nuitka --onefile が失敗する可能性がある。" >&2
 fi
 # ccache: nuitka の Scons は ccache を使う。CCACHE_DIR が読み取り専用だと
-# "ccache: error: Permission denied" で C ビルドが中断する。書けない場合のみ無効化。
+# "ccache: error: Permission denied" で C ビルドが中断する。
 # ディレクトリ未作成は「書けない」ではない (初回は ccache が作る) ため、先に作成を試みる。
+# 書けない場合は、無効化する前にユーザー用の既定ディレクトリへ切り替える。Gentoo の
+# CCACHE_DIR=/var/tmp/ccache (root:portage) では無効化すると全 C ファイルが毎回再コンパイルされる。
+# 切替先も書けない場合のみ無効化する。
+_ccache_dir_writable() {
+    mkdir -p "$1" 2>/dev/null || true
+    [[ -w "$1" ]]
+}
 if [[ -z "${CCACHE_DISABLE:-}" ]] && command -v ccache >/dev/null 2>&1; then
     _cc_dir="${CCACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/ccache}"
-    mkdir -p "${_cc_dir}" 2>/dev/null || true
-    if [[ ! -w "${_cc_dir}" ]]; then
-        echo "[WARN] ccache dir '${_cc_dir}' is not writable; setting CCACHE_DISABLE=1." >&2
-        export CCACHE_DISABLE=1
+    if ! _ccache_dir_writable "${_cc_dir}"; then
+        _cc_user_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/ccache"
+        if [[ "${_cc_user_dir}" != "${_cc_dir}" ]] && _ccache_dir_writable "${_cc_user_dir}"; then
+            echo "[WARN] ccache dir '${_cc_dir}' is not writable; using '${_cc_user_dir}'." >&2
+            export CCACHE_DIR="${_cc_user_dir}"
+        else
+            echo "[WARN] ccache dir '${_cc_dir}' is not writable; setting CCACHE_DISABLE=1." >&2
+            export CCACHE_DISABLE=1
+        fi
     fi
 fi
 
