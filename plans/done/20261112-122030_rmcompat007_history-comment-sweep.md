@@ -482,7 +482,7 @@ N/A: no release unit
 | `implementations/20261114-081724_41_scripts_agent_tool_approval.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_42_scripts_agent_tool_audit.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_43_scripts_agent_tool_loop_guard.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261114-081724_44_scripts_agent_tool_policy.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_44_scripts_agent_tool_policy.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_45_scripts_agent_tool_preparation.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_46_scripts_agent_tool_round_completion.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_47_scripts_agent_tool_run_recorder.py.md` | 1 | Procedure | Pending | — | — |
