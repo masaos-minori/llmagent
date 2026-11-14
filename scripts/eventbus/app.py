@@ -17,8 +17,8 @@ from eventbus.ack_route import router as ack_router
 from eventbus.admin_route import router as admin_router
 from eventbus.audit import log_privileged_action
 from eventbus.auth import (
-    attach_auth_middleware,  # noqa: PLC0415 — new module, REQ-002
-    build_and_publish_generation,  # noqa: PLC0415 — new module, REQ-004
+    attach_auth_middleware,  # noqa: PLC0415 — new module
+    build_and_publish_generation,  # noqa: PLC0415 — new module
     current_generation,
 )
 from eventbus.authz_ttl import authz_sweep_loop

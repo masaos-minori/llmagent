@@ -113,7 +113,7 @@ class ToolLoopGuard:
                     logger.warning("%s startup diagnostic: %s", __name__, state)
                 else:
                     logger.info("%s startup diagnostic: %s", __name__, state)
-            except Exception:  # noqa: BLE001 — emit must never propagate a logging failure (REQ-003)
+            except Exception:  # noqa: BLE001 — emit must never propagate a logging failure
                 # an unavailable logger must not fail startup.
                 pass
         self._empty_result_counts: dict[str, int] = {}

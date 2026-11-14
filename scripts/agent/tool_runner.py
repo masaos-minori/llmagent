@@ -89,7 +89,7 @@ async def _recorded_call(
     try:
         dispatched.add(pc.call_id)
         result = await execute_one_tool_call(ctx, pc, guard)
-    except Exception as exc:  # noqa: BLE001 — per-call boundary: one raising call must not abort its siblings; CancelledError (BaseException) intentionally propagates (REQ-002, AC-5)
+    except Exception as exc:  # noqa: BLE001 — per-call boundary: one raising call must not abort its siblings; CancelledError (BaseException) intentionally propagates (AC-5)
         logger.exception(
             "tool execution failed tool=%r call_id=%s", pc.name, pc.call_id
         )
@@ -186,7 +186,7 @@ def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None
     key = _state_key(ctx, pc)
     try:
         recorder.record_tool_call(task_id, key, pc.name, _classify_retry_class(pc.name))
-    except Exception as exc:  # noqa: BLE001 — recording failure must not break tool execution (REQ-007); args are never logged
+    except Exception as exc:  # noqa: BLE001 — recording failure must not break tool execution; args are never logged
         logger.warning("tool-call state record failed tool=%r: %s", pc.name, exc)
         return None
     return key
@@ -206,7 +206,7 @@ def _finalize_state(ctx: AgentContext, state_key: str | None, state: str) -> Non
         return
     try:
         recorder.finalize_tool_call(state_key, state)
-    except Exception as exc:  # noqa: BLE001 — recording failure must not break tool execution (REQ-007)
+    except Exception as exc:  # noqa: BLE001 — recording failure must not break tool execution
         logger.warning("tool-call state finalize failed key=%s: %s", state_key, exc)
 
 
