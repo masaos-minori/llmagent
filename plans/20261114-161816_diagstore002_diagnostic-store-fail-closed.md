@@ -65,6 +65,8 @@ This is a data-protection defect on a persistence path that stores model output 
 
 ## Implementation Target Files
 **Freeze status**: Frozen (all rows `Verified`; `issue-to-plan` Step 8's Implementation Target Files Validation passed — see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze)).
+Amended 2026-11-14 (fallout): added tests/agent/test_session_persister.py — REQ-001 deletes _load_diagnostics_config and makes diagnostics_cfg a required __init__ argument; these tests construct DiagnosticStore() with no config and mock the removed method
+Amended 2026-11-14 (fallout): added tests/agent/test_regression_diagnostic_persist.py — REQ-001 makes diagnostics_cfg a required __init__ argument; these tests construct DiagnosticStore(session_id=...) with no config
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
@@ -83,6 +85,8 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `tests/agent/test_config_dataclasses.py` | Modify | Update `DiagnosticsConfig` assertions for the new validated fields / `__post_init__`. | REQ-002 | assertions at lines 242, 278-283 | this file | Verified |
 | `tests/agent/test_llm_turn_runner.py` | Modify | Update references to the sensitive-data refusal message if the message text changes. | REQ-004 | message string referenced at lines 393, 396, 421 | this file | Verified |
 | `docs/23_agent/agent_09_01_data-layer-session-db.md` | Modify | Document the fail-closed persistence policy, the stored-format states, and the resolved production-encryption decision. | REQ-005, REQ-006 | "Accepted storage posture" lines 70-76, decryption-failure handling line 61 | N/A | Verified |
+| `tests/agent/test_session_persister.py` | Update DiagnosticStore() constructions to inject the validated DiagnosticsConfig snapshot; drop the removed _load_diagnostics_config mock | REQ-001 deletes _load_diagnostics_config and makes diagnostics_cfg a required __init__ argument; these tests construct DiagnosticStore() with no config and mock the removed method | REQ-001 / N/A: none cites REQ-001 | test_session_persister.py lines 72-73 patch DiagnosticStore._load_diagnostics_config; lines 101,112,121,125,136,146,172,256,275 construct DiagnosticStore() with no argument (125 is DiagnosticStore().save(...)) | tests/agent/test_session_persister.py | Verified |
+| `tests/agent/test_regression_diagnostic_persist.py` | Update DiagnosticStore(session_id=...) constructions to inject the validated DiagnosticsConfig snapshot | REQ-001 makes diagnostics_cfg a required __init__ argument; these tests construct DiagnosticStore(session_id=...) with no config | REQ-001 / N/A: none cites REQ-001 | test_regression_diagnostic_persist.py lines 79,91 construct DiagnosticStore(session_id=1); lines 104,105 construct DiagnosticStore(session_id=1/2); line 117 constructs DiagnosticStore(session_id=None) | tests/agent/test_regression_diagnostic_persist.py | Verified |
 
 Rules:
 - One row per file. No directory, glob, component, file group, or vague phrase appears as a row.
@@ -157,6 +161,8 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | `tests/agent/test_config_dataclasses.py` | modify | config dataclass tests | N/A | N/A | not applicable (rsynced) |
 | `tests/agent/test_llm_turn_runner.py` | modify | LLM turn runner tests | N/A | N/A | not applicable (rsynced) |
 | `docs/23_agent/agent_09_01_data-layer-session-db.md` | modify | diagnostics documentation | N/A | N/A | N/A |
+| `tests/agent/test_session_persister.py` | Modify | Not assessed (amendment 2026-11-14) | N/A | N/A | Not assessed (amendment 2026-11-14) |
+| `tests/agent/test_regression_diagnostic_persist.py` | Modify | Not assessed (amendment 2026-11-14) | N/A | N/A | Not assessed (amendment 2026-11-14) |
 
 `deploy.sh Impact`: `deploy/deploy.sh` rsyncs `scripts/` wholesale, so Python file changes need no `deploy.sh` update; no new `config/*.toml` is introduced.
 
@@ -183,6 +189,9 @@ Each step cites the exact file paths from `Implementation Target Files`.
    - [ ] Remove the `encrypt` argument; encrypt by policy when a key is configured; always filter + secret-check without a key; reject or marker on filter failure. [`scripts/agent/diagnostic_store.py`]
    - [ ] Wire the single shared instance: pass `ctx.cfg.diagnostics` in `orchestrator.py` and `self._ctx.cfg.diagnostics` in `repl.py`; resolve `session.py` wiring. [`scripts/agent/orchestrator.py`, `scripts/agent/repl.py`, `scripts/agent/session.py`]
    - [ ] Regress `test_diagnostic_store_security.py` (fail-open carve-out, `encrypt=` expectations) and `test_diagnostic_store.py` (`encrypt`/`_load_diagnostics_config` round-trips). [`tests/agent/test_diagnostic_store_security.py`, `tests/agent/test_diagnostic_store.py`]
+   - [ ] Update DiagnosticStore() constructions to inject the validated DiagnosticsConfig snapshot; drop the removed _load_diagnostics_config mock (REQ-001; `tests/agent/test_session_persister.py`) — amendment 2026-11-14
+   - [ ] Update DiagnosticStore(session_id=...) constructions to inject the validated DiagnosticsConfig snapshot (REQ-001; `tests/agent/test_regression_diagnostic_persist.py`) — amendment 2026-11-14
+    - [ ] Update references to the sensitive-data refusal message if the message text changes (REQ-004). [`tests/agent/test_llm_turn_runner.py`]
 3. **Phase 3: Storage format + retrieval** (`REQ-006`) — release unit with Phase 2's write path
    - [ ] Add `storage_format` column to the `session_diagnostics` DDL. [`scripts/db/schema_sql.py`]
    - [ ] Populate `storage_format` in `save()`; classify rows and never return ciphertext in `fetch()`. [`scripts/agent/diagnostic_store.py`]
@@ -218,14 +227,11 @@ Each step cites the exact file paths from `Implementation Target Files`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1–2 | Identify target issue; assess current issue against source | Completed | — | 2026-11-14 | All claims confirmed; Path B; baseline recorded |
-| 3 | Inspect related files — task-size classification | Completed | — | 2026-11-14 | Full Path B inspection; consumer scan done |
-| 4–7 | Map issue to plan; create plan; analyze unknowns/risks; add traceability | Completed | — | 2026-11-14 | Plan written; 3 non-blocking Unknowns; risks mitigated |
-| 8a | Verify information completeness and traceability | Completed | — | 2026-11-14 | Structure checker: No findings; all info present & traceable |
-| 8b | Validate and freeze Implementation Target Files | Completed | — | 2026-11-14 | All rows Verified; section Frozen; 3 overlaps compatible with rmcompat007 |
-| 8c | Report outcome | Completed | — | 2026-11-14 | Pass |
-| 9 | Final validation | Pending | — | — | After maintainer Unknown resolution |
-| 10 | Move the issue | Pending | — | — | After Step 9 |
+| 1 | Config validation layer (REQ-002) | In Progress | — | — | Procedures 20261114-170132_03 (config_validators.py), _02 (config_dataclasses.py), _04 (config_section_builders.py) generated; test_config_dataclasses.py companion covered by _01; stale_detector clean |
+| 2 | Store injection + fail-closed persistence (REQ-001, REQ-003, REQ-004, REQ-005, REQ-009) | In Progress | — | — | Procedures _01 (diagnostic_store.py), _06 (orchestrator.py), _07 (repl.py), _08 (session.py), _14 (test_session_persister.py), _15 (test_regression_diagnostic_persist.py) generated; test_diagnostic_store_security.py/_diagnostic_store.py companions covered by _01; stale_detector clean |
+| 3 | Storage format + retrieval (REQ-006) | In Progress | — | — | Procedures _05 (schema_sql.py storage_format column), _01 (diagnostic_store.py save()/fetch() write-and-read path) generated; release unit Phase 2+3 |
+| 4 | Transport-error sanitization + docs (REQ-007) | In Progress | — | — | Procedures _01 (diagnostic_store.py transport-error bound), _13 (agent_09_01_data-layer-session-db.md) generated |
+| 5 | Validation suite | Pending | — | — | code-implementation Step 5: run the full validation sequence (rules/toolchain.md) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -235,7 +241,18 @@ Each step cites the exact file paths from `Implementation Target Files`.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261114-170132_01_scripts_agent_diagnostic_store.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_02_scripts_agent_config_dataclasses.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_03_scripts_agent_services_config_validators.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_04_scripts_agent_config_section_builders.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_05_scripts_db_schema_sql.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_06_scripts_agent_orchestrator.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_07_scripts_agent_repl.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_08_scripts_agent_session.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_12_tests_agent_test_llm_turn_runner.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_13_docs_23_agent_agent_09_01_data-layer-session-db.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_14_tests_agent_test_session_persister.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-170132_15_tests_agent_test_regression_diagnostic_persist.py.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -244,7 +261,7 @@ Each step cites the exact file paths from `Implementation Target Files`.
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261114-161816
-- **Related target files**: `scripts/agent/diagnostic_store.py`, `scripts/agent/config_dataclasses.py`, `scripts/agent/services/config_validators.py`, `scripts/agent/config_section_builders.py`, `scripts/db/schema_sql.py`, `scripts/agent/orchestrator.py`, `scripts/agent/repl.py`, `scripts/agent/session.py`, `tests/agent/test_diagnostic_store_security.py`, `tests/agent/test_diagnostic_store.py`, `tests/agent/test_config_dataclasses.py`, `tests/agent/test_llm_turn_runner.py`, `docs/23_agent/agent_09_01_data-layer-session-db.md`
+- **Related target files**: `scripts/agent/diagnostic_store.py`, `scripts/agent/config_dataclasses.py`, `scripts/agent/services/config_validators.py`, `scripts/agent/config_section_builders.py`, `scripts/db/schema_sql.py`, `scripts/agent/orchestrator.py`, `scripts/agent/repl.py`, `scripts/agent/session.py`, `tests/agent/test_diagnostic_store_security.py`, `tests/agent/test_diagnostic_store.py`, `tests/agent/test_config_dataclasses.py`, `tests/agent/test_llm_turn_runner.py`, `docs/23_agent/agent_09_01_data-layer-session-db.md`, `tests/agent/test_session_persister.py`, `tests/agent/test_regression_diagnostic_persist.py`
 
 ### Requirement Traceability
 
@@ -268,3 +285,7 @@ Each step cites the exact file paths from `Implementation Target Files`.
 | REQ-008 | Required Changes (single shared store) | `scripts/agent/orchestrator.py` | Phase 2 | N/A: no dedicated AC | producer-wiring test | Confirmed by repository evidence |
 | REQ-008 | Required Changes (single shared store) | `scripts/agent/session.py` | Phase 2 | N/A: no dedicated AC | producer-wiring test | Confirmed by repository evidence |
 | REQ-009 | Explicit in code (`session_persister.py` catches `RuntimeError`/`sqlite3.Error`); Dependencies | `scripts/agent/diagnostic_store.py` | Phase 2 | AC-5 | `session_persister.py` non-fatal behavior | Confirmed by repository evidence |
+| REQ-001 | Amendment 2026-11-14: REQ-001 deletes _load_diagnostics_config and makes diagnostics_cfg a required __init__ argument; these tests construct DiagnosticStore() with no config and mock the removed method | tests/agent/test_session_persister.py | Phase 2 | N/A: none cites REQ-001 | tests/agent/test_session_persister.py | Confirmed by repository evidence |
+| REQ-001 | Amendment 2026-11-14: REQ-001 makes diagnostics_cfg a required __init__ argument; these tests construct DiagnosticStore(session_id=...) with no config | tests/agent/test_regression_diagnostic_persist.py | Phase 2 | N/A: none cites REQ-001 | tests/agent/test_regression_diagnostic_persist.py | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261114-170132 -->
