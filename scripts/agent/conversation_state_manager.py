@@ -3,9 +3,6 @@
 
 Conversation history manipulation: ephemeral cleanup, system prompt sync,
 user message append, memory injection, and history compression.
-
-Extracted from orchestrator.py (_append_user_message, _sync_system_prompt,
-_clear_previous_turn_ephemeral_messages, _process_turn).
 """
 
 from __future__ import annotations

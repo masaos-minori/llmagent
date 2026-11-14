@@ -1,9 +1,6 @@
 """scripts/agent/services/db_maintenance_service.py
 
 DbMaintenanceService — maintenance operations on session.sqlite only.
-
-Extracted from cmd_db._DbMixin so the DB logic can be tested
-independently of the REPL command layer.
 """
 
 from __future__ import annotations

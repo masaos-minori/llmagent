@@ -2,8 +2,6 @@
 
 Readiness reporter: pipeline result display and aggregated readiness status.
 
-Extracted from scripts/agent/startup.py (REQ-004).
-
 Replaces the repeated per-source/per-status counting blocks with
 one shared _count_by_status() helper.
 """

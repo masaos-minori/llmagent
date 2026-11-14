@@ -61,7 +61,7 @@ HARD_SEARCH_TIMEOUT_SEC_LIMIT: float = 60.0
 # Safety ceilings on the browser_fetch settings, mirroring the two ceilings above.
 HARD_BROWSER_TIMEOUT_SEC_LIMIT: int = 120
 HARD_BROWSER_MAX_RESPONSE_KB: int = 4096
-# The one config file this server reads; the posture fingerprint names it (REQ-017).
+# The one config file this server reads; the posture fingerprint names it.
 WEB_SEARCH_OWN_CONFIG_FILE: str = "web_search_mcp_server.toml"
 
 
@@ -140,7 +140,7 @@ class WebSearchConfig:
 
         Scalars, one list count, and one presence boolean: `auth_token` is a Secret and
         every `browser_allowed_domains` entry is an allowlist value, so neither is carried
-        by value (REQ-002, REQ-009). A new dict is built instead of exposing the list.
+        by value. A new dict is built instead of exposing the list.
         """
         return {
             "own_config_file": WEB_SEARCH_OWN_CONFIG_FILE,

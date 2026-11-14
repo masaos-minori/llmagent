@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
     attempt_number INTEGER
 );
 
--- Tool-call lifecycle table (toolexec001 REQ-007). Keyed on the tool-call
+-- Tool-call lifecycle table (toolexec001). Keyed on the tool-call
 -- idempotency key, which is the only idempotency_key column in the workflow
 -- database (wftaskapi001 renamed the task-side column to task_nonce).
 -- This file is its single canonical definition; fresh-created databases are

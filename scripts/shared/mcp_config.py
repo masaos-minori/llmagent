@@ -186,7 +186,7 @@ class McpServerConfig:
                 f"{key_prefix}: auth_token must be str, got {type(self.auth_token).__name__}"
             )
         if not self.auth_token and not self.is_disabled:
-            # Disabled servers do not require unused connection credentials (REQ-004)
+            # Disabled servers do not require unused connection credentials
             raise ValueError(f"{key_prefix}: auth_token must not be empty")
 
     def _validate_env(self, key_prefix: str) -> None:

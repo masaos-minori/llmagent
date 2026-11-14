@@ -62,7 +62,7 @@ def _synthesize_cancelled_rows(
     dispatched_ids: set[str],
     reason: ToolCallStopReason,
 ) -> tuple[list[Any], list[tuple[str, str, None, str]]]:
-    """Answer a cancelled round's unanswered ids by dispatch state (REQ-002).
+    """Answer a cancelled round's unanswered ids by dispatch state.
 
     Dispatched-but-unanswered ids get the outcome-unknown text (their transport
     state is not observable here); never-dispatched ids get the not-executed
@@ -111,7 +111,7 @@ async def complete_round(
     if reason is ToolCallStopReason.ROUND_NOT_COMPLETED:
         # A cancelled round answers in-flight ids (dispatched, no result) with the
         # outcome-unknown text and never-dispatched ids with the not-executed text
-        # (REQ-002), via the dispatch-state partition.
+        # via the dispatch-state partition.
         pair_history, pair_msgs = _synthesize_cancelled_rows(
             state.declared_ids,
             answered,

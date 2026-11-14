@@ -57,7 +57,7 @@ class GitConfig:
     # Per-operation network timeouts (seconds) for the blocking pull/push
     # writes. Enforced at the async boundary in GitService (_run_tool) via
     # asyncio.wait_for; None disables enforcement. See Plan
-    # plans/20261008-160546_plan.md REQ-003.
+    # plans/20261008-160546_plan.md.
     push_timeout: float | None = None
     pull_timeout: float | None = None
 

@@ -2,8 +2,6 @@
 
 Component initializer: DI wiring, command registry, orchestrator, and
 workflow preflight checks.
-
-Extracted from scripts/agent/startup.py (REQ-001).
 """
 
 from __future__ import annotations
@@ -84,7 +82,7 @@ class ComponentInitializer:
 
         Only closes when ctx.services was never assigned (the leaked window) and
         a client was captured; a second cancellation propagates instead of being
-        swallowed (REQ-002, REQ-003).
+        swallowed.
         """
         if self._ctx.services is not None or self._exposed_http is None:
             return

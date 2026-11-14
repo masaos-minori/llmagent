@@ -33,7 +33,7 @@ from agent.workflow.tool_call_state_ops import ToolCallState
 logger = logging.getLogger(__name__)
 
 # Retention horizon for processed_events rows of terminal tasks (wfaudit001
-# REQ-003; the 30-day value is the plan UNK-01 choice, not the dedup default).
+# the 30-day value is the plan UNK-01 choice, not the dedup default).
 _EVENT_RETENTION_SEC = 30 * 24 * 3600
 # Terminal subset of TASK_STATUSES whose processed_events rows are purged;
 # keep in sync with agent.workflow.models.TASK_STATUSES.
@@ -228,25 +228,23 @@ class StateStore:
         Always operates on the store's own connection; callers pass no arguments.
 
         An attempt is stale when its ``lease_expires_at`` is in the past. The
-        lease-less legacy age rule was removed (adrrev005 REQ-004): the sole
+        lease-less legacy age rule was removed (adrrev005): the sole
         attempts writer always stamps a lease, so a lease-less row has no
         expiry evidence and stays live, and legacy databases that carry such
         rows are refused earlier by the workflow fingerprint gate. A live lease
-        is never recovered, including by another process (REQ-006 / AC-4). This
+        is never recovered, including by another process (AC-4). This
         method is called once during process initialization before any turn
         processing begins.
 
         Takeover is a conditional compare-and-swap UPDATE pinned to the exact
-        ``owner_id``/``lease_expires_at`` values seen by the classify pass
-        (REQ-007): ``rowcount == 0`` means another recoverer won the race and
+        ``owner_id``/``lease_expires_at`` values seen by the classify pass: ``rowcount == 0`` means another recoverer won the race and
         the row is skipped. Every claimed attempt also deletes the
         ``processed_events`` rows of its (``task_id``, ``stage_id``) pair in the
         same transaction, so a resumed stage re-executes instead of being
-        permanently skipped (REQ-001). After the loop, every claimed task with
+        permanently skipped. After the loop, every claimed task with
         no remaining live attempt is reconciled from ``running`` to ``failed``
         through the validated ops helper (still one transaction); tasks that
-        keep a live-leased or terminal-status attempt are never touched
-        (REQ-002). The classification and reconciliation counts land in
+        keep a live-leased or terminal-status attempt are never touched. The classification and reconciliation counts land in
         ``last_recovery_report``; the return value stays the recovered count.
         """
         db = self._db
@@ -281,7 +279,7 @@ class StateStore:
                 reconciled_candidates.add(item["task_id"])
                 # A claimed (orphaned) attempt's stage must be re-executable on
                 # resume: clear the whole (task_id, stage_id) event pair in the
-                # same transaction as the attempt failover (REQ-001).
+                # same transaction as the attempt failover.
                 db.execute(
                     "DELETE FROM processed_events WHERE task_id=? AND stage_id=?",
                     (item["task_id"], item["stage_id"]),
@@ -295,11 +293,11 @@ class StateStore:
 
         tasks_reconciled = 0
         if stale:
-            # Parent-task reconciliation (wfaudit007 REQ-001): a claimed task
+            # Parent-task reconciliation (wfaudit007): a claimed task
             # whose attempts are now all terminal moves running -> failed in
             # this same transaction. The status check mirrors a guarded UPDATE
             # (only a still-running task is written); tasks with a live
-            # attempt are skipped outright (REQ-002).
+            # attempt are skipped outright.
             for task_id in reconciled_candidates:
                 live = db.fetchall(
                     "SELECT 1 FROM attempts WHERE task_id=? AND status='running' LIMIT 1",
@@ -336,7 +334,7 @@ class StateStore:
 
         Always operates on the store's own connection; callers pass no arguments.
 
-        Startup-only retention purge (REQ-003): tasks whose status is terminal
+        Startup-only retention purge: tasks whose status is terminal
         (``_TERMINAL_TASK_STATUSES``) with ``updated_at`` older than
         ``_EVENT_RETENTION_SEC`` lose their event rows; running/pending tasks
         and the ``tasks``/``attempts`` rows themselves are never touched. The
@@ -369,12 +367,12 @@ def _classify_running_attempts(db: SQLiteHelper) -> list[dict]:
 
     Staleness is decided from ``lease_expires_at`` when present (expired =
     stale). Lease-less rows stay live: the lease-less legacy age rule was
-    removed (adrrev005 REQ-004) and the sole attempts writer always stamps a
+    removed (adrrev005) and the sole attempts writer always stamps a
     lease. All comparisons use aware UTC datetimes via ``parse_iso_utc`` — no
-    host-local time anywhere (REQ-002 / AC-2). Unparseable ``started_at`` or
+    host-local time anywhere (AC-2). Unparseable ``started_at`` or
     ``lease_expires_at`` values are logged with the attempt id and raw value
     and classified ``unparseable`` — the row is neither recovered nor silently
-    skipped (REQ-003 / AC-3).
+    skipped (AC-3).
     """
     rows = db.fetchall(
         "SELECT attempt_id, task_id, stage_id, started_at, owner_id, lease_expires_at "
@@ -418,7 +416,7 @@ def _classify_running_attempts(db: SQLiteHelper) -> list[dict]:
                 continue
             stale = lease_dt < now_utc
         else:
-            # adrrev005 REQ-004: no lease means no expiry evidence; the row
+            # adrrev005 no lease means no expiry evidence; the row
             # stays live instead of falling back to a legacy age threshold.
             stale = False
         classified.append({**entry, "classification": "stale" if stale else "live"})

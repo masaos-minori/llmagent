@@ -2,9 +2,6 @@
 
 Startup orchestration for AgentREPL.
 
-Extracted from agent/repl.py so that AgentREPL contains only input loop,
-command dispatch, and output display logic.
-
 ADR-004 Decision #14: Safety/integrity failures route through unconditional
 FATAL paths in the validation pipeline; environment name must not weaken them.
 """

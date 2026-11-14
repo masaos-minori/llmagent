@@ -38,7 +38,7 @@ def nack_event(
     conn: sqlite3.Connection,
     event_id: str,
     consumer_id: str,
-    last_nack_attempt: str | None = None,  # REQ-001: idempotency key for NACK
+    last_nack_attempt: str | None = None,  # idempotency key for NACK
 ) -> NackResult:
     """Record a per-consumer NACK failure for an event.
 
@@ -174,7 +174,7 @@ def ack_event_for_consumer(
     seq: int | None = None
 
     try:
-        # REQ-005: Verify event existence BEFORE writing consumer_delivery
+        # Verify event existence BEFORE writing consumer_delivery
         # This prevents orphan rows in consumer_delivery for nonexistent events
         event_exists = conn.execute(
             f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
@@ -183,7 +183,7 @@ def ack_event_for_consumer(
         if not event_exists:
             return False, False, None
 
-        # REQ-005: Reject ACK for DLQ events
+        # Reject ACK for DLQ events
         dlq_row = conn.execute(
             f"SELECT {_COL_DLQ_AT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
             (event_id,),
@@ -199,7 +199,7 @@ def ack_event_for_consumer(
         # Pending delivery (acked = 0) counts as newly_acked
         newly_acked = existing is None or existing["acked"] == 0
 
-        # REQ-005: Mark the delivery acked. A pending (acked = 0) delivery becomes
+        # Mark the delivery acked. A pending (acked = 0) delivery becomes
         # acked on the first ACK; an already-acked row stays acked (idempotent).
         # MAX keeps the higher of the two so an ack never downgrades a prior ack.
         conn.execute(

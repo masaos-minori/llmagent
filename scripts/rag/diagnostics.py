@@ -1,8 +1,4 @@
-"""scripts/rag/diagnostics.py
-
-Extracted from scripts/rag/pipeline.py — get_diagnostics().
-
-Provides PipelineDiagnostics dataclass holding its structured diagnostics
+"""scripts/rag/diagnostics.py — Provides PipelineDiagnostics dataclass holding its structured diagnostics
 keys, reducing pipeline.py complexity and providing typed diagnostics access.
 """
 

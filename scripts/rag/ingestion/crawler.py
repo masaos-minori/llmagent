@@ -8,10 +8,6 @@ Output: rag-src/{timestamp}-{slug}.json — JSON payload (not plain text).
 Fields: url, title, lang, fetched_at, content, code_blocks, etag, last_modified.
 
 Pipeline position: crawler → chunk_splitter → ingester
-
-Refactored: WebCrawler reduced to thin composition facade delegating to
-HttpFetcher, ContentExtractor, LinkDiscovery, LanguageResolver, and
-CrawlPersister components.
 """
 
 import argparse
@@ -154,7 +150,7 @@ class WebCrawler:
         HTTP crawls consult the conditional-header cache, which requires a
         configured rag_db_path. file:// targets never reach that cache, so they
         are exempt. This converts a silent per-URL collapse into one loud startup
-        error (see crawl003).
+        error (see).
         """
         urls = [url for url, _ in (targets or self._target_urls)]
         if any(url.startswith(("http://", "https://")) for url in urls):

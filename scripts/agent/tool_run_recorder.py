@@ -8,10 +8,6 @@ owns:
   _record_round_serialization_events: ctx.stats entries plus the diagnostics write
   _scheduling_mode and _record_round_exec: the round record /mcp stats reads back
 
-Extracted from tool_runner.py so tool_runner keeps single call dispatch, DAG/serial
-ordering, and result collection only. No scheduling decision is made here: every value
-recorded here is produced by agent/tool_scheduler.py's ExecutionPlan.
-
 Dependency direction: tool_run_recorder -> tool_audit, tool_preparation, tool_scheduler
 """
 

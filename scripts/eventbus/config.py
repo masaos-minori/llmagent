@@ -43,7 +43,7 @@ def authorization_baseline_hash(cfg: EventBusConfig) -> str:
     The digest covers only the union of (consumer_id, topic) pairs derived from
     consumer_authorization, never the whole config. Pairs are canonically sorted
     before hashing, so the digest is invariant under any permutation of the
-    mapping (EBAUTHGEN001 AC-2).
+    mapping (AC-2).
     """
     pairs: set[tuple[str, str]] = set()
     for consumer_id, consumer_topics in (cfg.consumer_authorization or {}).items():
@@ -321,7 +321,7 @@ def load_config(path: Path | None = None) -> EventBusConfig:
             data[key] = resolve_env_ref(value)
 
     # Normalize authorization-mapping value types to the EventBusConfig annotations
-    # (REQ-002): consumer_authorization values stay list[str]. A missing key stays
+    # consumer_authorization values stay list[str]. A missing key stays
     # None so the empty-vs-missing distinction build_and_publish_generation()
     # depends on is preserved.
     consumer_authorization = data.get("consumer_authorization")

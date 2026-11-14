@@ -3,8 +3,6 @@
 
 LLM streaming and result processing: turn execution, callback invocation,
 result handling.
-
-Extracted from orchestrator.py (_process_turn).
 """
 
 from __future__ import annotations
@@ -87,7 +85,7 @@ class LlmTurnExecutor:
         LLMTurnRunner unchanged; this module does not interpret it.
         """
         # defer_hints=True: hint writes queue at event time; LLMTurnRunner.run() flushes
-        # them off the event loop (blockio001 REQ-002).
+        # them off the event loop (blockio001).
         guard = ToolLoopGuard(self._ctx, defer_hints=True)
         runner = LLMTurnRunner(
             self._ctx,

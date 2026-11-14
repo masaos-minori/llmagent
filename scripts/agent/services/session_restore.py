@@ -1,9 +1,6 @@
 """scripts/agent/services/session_restore.py
 
 Session restore service — rebuild history and switch the active session.
-
-Extracted from cmd_session._SessionMixin so the restore logic can be
-tested independently of the REPL.
 """
 
 from __future__ import annotations
@@ -43,12 +40,12 @@ def repair_orphan_tool_calls(
     ids get a synthesized tool row (marker constant content) appended right
     after the run, mirroring ``tool_preparation._reject`` synthetic failures.
     Pure function over the fetched list: no DB write, so a second load
-    reproduces identical output (REQ-004).
+    reproduces identical output.
 
     Returns the repaired list and the number of synthesized rows that landed
     at or before ``boundary_index`` (the pre-repair snapshot count), so the
-    caller can shift the undo_floor consistently (REQ-005). Logs one warning
-    with the session id and total synthesized count when nonzero (REQ-003).
+    caller can shift the undo_floor consistently. Logs one warning
+    with the session id and total synthesized count when nonzero.
     """
     repaired: list[LLMMessage] = []
     synthesized_before = 0
@@ -114,13 +111,13 @@ def _boundary_to_index(
     compression path (rows 02/04). Returns 0 when the snapshot is empty.
     ``insertions`` is the number of rows synthesized by
     ``repair_orphan_tool_calls`` at or before the snapshot, added so the floor
-    lands on the same turn as before repair (REQ-005).
+    lands on the same turn as before repair.
     """
     if not n_snapshot:
         return 0
     snapshot_msgs = messages[:n_snapshot]
     # The restored canonical summary row is re-inserted by restore_session, so it
-    # counts as present in the rebuilt history instead of a dropped system row (REQ-003).
+    # counts as present in the rebuilt history instead of a dropped system row.
     system_count = sum(
         1
         for m in snapshot_msgs
@@ -167,13 +164,13 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
     if not messages:
         raise SessionNoMessagesError(f"Session {session_id} has no messages.")
     # Compute the persisted boundary index BEFORE any session state is mutated
-    # (REQ-001): a raised count_messages_up_to() must propagate with history,
+    # a raised count_messages_up_to() must propagate with history,
     # session_id, and stats all left exactly as they were.
     n_snapshot: int | None = None
     if undo_floor_id:
         n_snapshot = ctx.session.count_messages_up_to(session_id, undo_floor_id)
     # Pair orphaned tool_calls rows BEFORE the boundary computation and
-    # replace_history so the restored history is always well-formed (REQ-001).
+    # replace_history so the restored history is always well-formed.
     repaired, synthesized_before = repair_orphan_tool_calls(
         messages, session_id, boundary_index=n_snapshot
     )

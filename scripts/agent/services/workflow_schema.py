@@ -1,9 +1,6 @@
 """scripts/agent/services/workflow_schema.py
 
 Workflow schema validation functions.
-
-Extracted from agent/repl_health.py to allow targeted loading when modifying
-health check behaviour.
 """
 
 from __future__ import annotations
@@ -78,7 +75,7 @@ def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
     try:
         from db.schema_sql import build_workflow_schema_sql
 
-        # adrrev005 REQ-003/REQ-004: full-shape fingerprint gate. Legacy marker
+        # adrrev005 full-shape fingerprint gate. Legacy marker
         # tables (schema_migrations, workflow_schema_version) and any other
         # deviation are refused here as unexpected/unexpectedly-shaped tables,
         # with the shared archive-and-recreate refusal text.

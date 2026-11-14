@@ -2,9 +2,6 @@
 
 Tool-loop guard: duplicate call detection, cycle detection, retry suppression,
 and consecutive error limiting.
-
-Extracted from orchestrator.py. ToolLoopGuard encapsulates per-turn mutable
-state and the guard rules applied each time the LLM returns tool_calls.
 """
 
 from __future__ import annotations
@@ -117,7 +114,7 @@ class ToolLoopGuard:
                 else:
                     logger.info("%s startup diagnostic: %s", __name__, state)
             except Exception:  # noqa: BLE001 — emit must never propagate a logging failure (REQ-003)
-                # REQ-003: an unavailable logger must not fail startup.
+                # an unavailable logger must not fail startup.
                 pass
         self._empty_result_counts: dict[str, int] = {}
         self._unavailable_counts: dict[str, int] = {}

@@ -288,7 +288,7 @@ def _activate_candidate(
 
     Single atomic os.replace of the database, then a move of each staged sidecar
     to its final db_path.name + suffix location. Fail-closed: a move failure
-    raises for the caller's OSError handler (REQ-002).
+    raises for the caller's OSError handler.
     """
     os.replace(temp_restore, db_path)
     for suffix, staged_path in staged.items():
@@ -342,7 +342,7 @@ def _restore_from_backup(
     """Restore DB from backup; returns RecoveryResult.
 
     The candidate is staged, verified physically and logically, and only then
-    activated (REQ-003): a candidate that fails verification never touches the
+    activated: a candidate that fails verification never touches the
     live database, which is reported with active_db_state "preserved_original".
     """
     backup, detail = _resolve_backup(backup_path)

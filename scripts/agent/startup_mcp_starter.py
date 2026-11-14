@@ -1,8 +1,6 @@
 """scripts/agent/startup_mcp_starter.py
 
 MCP server starter: subprocess startup, health verification, and retry-once-with-delay.
-
-Extracted from scripts/agent/startup.py (REQ-002).
 """
 
 from __future__ import annotations

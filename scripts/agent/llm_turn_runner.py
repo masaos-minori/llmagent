@@ -1,8 +1,6 @@
 """scripts/agent/llm_turn_runner.py
 
 LLM streaming and inner tool-call loop for one agent turn.
-
-Extracted from orchestrator.py. LLMTurnRunner.run() replaces _run_turn().
 """
 
 from __future__ import annotations
@@ -144,7 +142,7 @@ class LLMTurnRunner:
                 state.failed_calls,
                 message,
             )
-            # blockio001 REQ-002: drain deferred guard hints before any return or continue.
+            # blockio001 drain deferred guard hints before any return or continue.
             await self._guard.flush_guard_hints()
             if msg:
                 return await self._finalize_after_guard()

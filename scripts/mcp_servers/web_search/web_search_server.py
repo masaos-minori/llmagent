@@ -338,12 +338,12 @@ class WebSearchMCPServer(MCPServer):
 
 
 def _enforce_posture_gate() -> None:
-    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+    """Refuse HTTP bind when the posture is not validated (AC-003).
 
     The gate reads only `validated`: the payload `ready` is derived in
     `make_health_response()` from dependencies plus `validated`, so this module never
     invents its own Ready rule. The log line carries check ids and reason codes only;
-    auth tokens and browser_allowed_domains entries are excluded (REQ-002, REQ-004).
+    auth tokens and browser_allowed_domains entries are excluded.
     """
     if _security_posture.validated:
         return

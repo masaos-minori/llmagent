@@ -42,7 +42,7 @@ _VALID_TRANSITIONS: dict[LifecycleState, frozenset[LifecycleState]] = {
     LifecycleState.UNKNOWN: frozenset(LifecycleState),
 }
 
-# Same-state STOPPED->STOPPED is valid (e.g., during shutdown); REQ-001.
+# Same-state STOPPED->STOPPED is valid (e.g., during shutdown).
 _VALID_TRANSITIONS[LifecycleState.STOPPED] |= frozenset({LifecycleState.STOPPED})
 
 

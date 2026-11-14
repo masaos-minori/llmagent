@@ -135,8 +135,7 @@ class AgentSession:
         Captures the turn-start ``message_id`` marker (``MAX(message_id)``,
         ``0`` when the session has no rows yet) and takes a memory snapshot via
         :meth:`ConversationState.snapshot_messages`, then returns the
-        :class:`TurnPersistence` boundary that owns every write of the turn
-        (REQ-001).
+        :class:`TurnPersistence` boundary that owns every write of the turn.
         """
         marker = SessionMessageRepository.turn_start_marker(self.session_id)
         snapshot = await conv.snapshot_messages()
@@ -236,8 +235,7 @@ class AgentSession:
         (message_id >= last_user_id) in one transaction, returning those rows
         ascending by message_id. Returns [] when nothing is undoable (no user
         message, or the last user turn is at/before the boundary). The deleted-row
-        identity crosses to the service layer so memory trims to the same set
-        (REQ-001, REQ-005).
+        identity crosses to the service layer so memory trims to the same set.
         """
         if self.session_id is None:
             return []

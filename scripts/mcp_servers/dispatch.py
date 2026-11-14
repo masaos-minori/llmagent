@@ -56,7 +56,7 @@ _write_tools = (
 
 @dataclass(frozen=True)
 class DispatchResult:
-    """Typed result from MCPServer.dispatch() and dispatch_tool().
+    """Typed result from MCPServer.dispatch() and dispatch_tool.
 
     Error classification taxonomy (when is_error=True):
     - ``validation_error``: input validation failure (ValueError from handler)
@@ -67,7 +67,7 @@ class DispatchResult:
     - ``dedup_store_error``: durable dedup store unavailable for a non-retryable tool
     - ``dispatch_error``: generic dispatch failure (no specific category)
 
-    ``dedup_state`` carries the durable-dedup branch taken (REQ-005): ``""`` (no dedup
+    ``dedup_state`` carries the durable-dedup branch taken: ``""`` (no dedup
     branch), ``duplicate_hit``, ``snapshot_mismatch``, ``replayed``, ``result_truncated``,
     ``unreplayable``, ``store_error``.
     """
@@ -83,7 +83,7 @@ class DispatchResult:
         return "error" if self.is_error else "ok"
 
 
-# --- Idempotency cache (REQ-001..REQ-004) ---------------------------------
+# --- Idempotency cache ---------------------------------
 #
 # The caller (Agent) owns key generation: one UUID per logical call, reused
 # across retries of that call. A call without a key is never cached and always
@@ -145,7 +145,7 @@ def _idem_evict() -> None:
 
 
 def _idem_store(key: str, name: str, args_hash: str, result: DispatchResult) -> None:
-    """Store a successful result with TTL bookkeeping and eviction (REQ-003)."""
+    """Store a successful result with TTL bookkeeping and eviction."""
     _idem_evict()
     _duplicate_cache[key] = _CacheEntry(
         tool_name=name,
@@ -160,11 +160,11 @@ def _is_side_effecting(tool_name: str) -> bool:
     return tool_name in _write_tools
 
 
-# --- Durable dedup store (REQ-003) -------------------------------------------
+# --- Durable dedup store -------------------------------------------
 #
 # Lazily opened process-wide singleton. If the config or store cannot be
 # opened, durable dedup is disabled and behavior falls back to the in-process
-# overlay (the pre-REQ-003 shape). Tests replace the three globals below.
+# overlay (the original shape). Tests replace the three globals below.
 
 _dedup_store: DedupStore | None = None
 _dedup_config: DedupConfig | None = None
@@ -195,7 +195,7 @@ def _dedup_context() -> tuple[DedupStore | None, DedupConfig | None]:
 
 
 def _purge_once(store: DedupStore, config: DedupConfig) -> None:
-    """Run the retention sweep at most once per process (REQ-009)."""
+    """Run the retention sweep at most once per process."""
     global _purge_done
     if _purge_done:
         return
@@ -239,7 +239,7 @@ async def dispatch_tool(
     call is deduplicated: a matching prior call is served, a reused key with
     different content is rejected, and a keyless call always executes. Error and
     dry-run results are never cached. When the durable store is available the
-    same contract holds across processes (REQ-003): completed results with a
+    same contract holds across processes: completed results with a
     matching execution snapshot are served from the store, pending/interrupted
     rows replay for retryable tools and are refused as dedup_unreplayable for
     non-retryable ones, and the branch taken is reported in dedup_state.
@@ -259,9 +259,9 @@ async def dispatch_tool(
             output=f"Unknown tool: {name}", is_error=True, error_type="unknown_tool"
         )
 
-    # duplicate-check for side-effecting tools (REQ-001: a non-empty key is
+    # duplicate-check for side-effecting tools (a non-empty key is
     # required; a keyless call never touches the cache or the store and always
-    # executes). The durable store is the truth (REQ-003); the overlay is a
+    # executes). The durable store is the truth; the overlay is a
     # completed-only fast path fed from it.
     key = idempotency_key
     side_effecting = _is_side_effecting(name)
@@ -283,10 +283,10 @@ async def dispatch_tool(
                         idempotency_key,
                     )
                     return entry.result
-                # Expired: drop it; the store lookup below decides (REQ-003).
+                # Expired: drop it; the store lookup below decides.
                 _duplicate_cache.pop(key, None)
             else:
-                # REQ-002: same key reused with different content -> reject.
+                # same key reused with different content -> reject.
                 logger.warning(
                     "Idempotency key reused with different content: key=%s tool=%s",
                     idempotency_key,
@@ -303,7 +303,7 @@ async def dispatch_tool(
 
         store, config = _dedup_context()
         if store is not None and config is not None:
-            # REQ-001/REQ-002: a store that was lost or recreated cannot prove a
+            # a store that was lost or recreated cannot prove a
             # prior non-retryable call completed. Refuse until an operator resolves
             # the sentinel (resolve_lost_store); retryable tools degrade to the
             # audited overlay-only store_error marker and proceed.
@@ -346,7 +346,7 @@ async def dispatch_tool(
             if row is not None and (
                 row.args_hash != args_hash or row.tool_name != name
             ):
-                # REQ-002/REQ-010: durable rows honor the same reuse rejection.
+                # durable rows honor the same reuse rejection.
                 logger.warning(
                     "Idempotency key reused with different content: key=%s tool=%s",
                     idempotency_key,
@@ -385,7 +385,7 @@ async def dispatch_tool(
                         )
                         return served
                     # completed + snapshot mismatch (or a truncated stored payload):
-                    # fresh audited attempt under the same key (REQ-005).
+                    # fresh audited attempt under the same key.
                     dedup_state = (
                         "result_truncated" if truncated else "snapshot_mismatch"
                     )
@@ -424,7 +424,7 @@ async def dispatch_tool(
                         dedup_state="unreplayable",
                     )
             else:
-                # REQ-002: a failed pre-execution write leaves no proof the call
+                # a failed pre-execution write leaves no proof the call
                 # completed. Fail closed for non-retryable tools until an operator
                 # resolves it; retryable tools degrade to the overlay (warning only).
                 wrote_pending = _store_op(
@@ -451,7 +451,7 @@ async def dispatch_tool(
                     )
         else:
             # Init failure / disabled: reconcile with the
-            # lookup-failure asymmetry (REQ-001/REQ-002/REQ-003).
+            # lookup-failure asymmetry.
             # Non-retryable tools fail closed; retryable tools
             # degrade to overlay-only store_error.
             try:
@@ -472,7 +472,7 @@ async def dispatch_tool(
         dispatched_result = DispatchResult(
             output=result, is_error=False, dedup_state=dedup_state
         )
-        # Cache only real, successful, non-dry-run results (REQ-004).
+        # Cache only real, successful, non-dry-run results.
         if key and side_effecting and not dispatched_result.is_error:
             if _is_dry_run_output(result):
                 # A dry-run outcome leaves no replayable state behind.
@@ -489,7 +489,7 @@ async def dispatch_tool(
         return dispatched_result
     except ValueError as e:
         logger.warning("Tool '%s' validation error: %s", name, e)
-        # REQ-004: error results are never cached, but the durable row must not
+        # error results are never cached, but the durable row must not
         # stay pending: pending -> failed.
         if store is not None:
             _store_op(

@@ -36,7 +36,7 @@ def set_shutdown_flag() -> None:
 
     Called by the shared cleanup helper (app.py) before closing the shared
     connection. Makes run_with_db_lock() refuse new work for any thread still queued
-    on the lock (REQ-004). Idempotent.
+    on the lock. Idempotent.
 
     run_with_db_lock() refuses twice: before queueing, and again after a queued
     worker acquires the lock. Shutdown serializes behind any running worker by

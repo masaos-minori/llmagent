@@ -107,7 +107,7 @@ class RuntimeToolRegistry:
     def posture_excluded_servers(self) -> frozenset[str]:
         """Return the server keys excluded by the posture gate, kept separate from availability.
 
-        `REQ-013` classifies the two causes differently, so a posture exclusion never appears in
+        `` classifies the two causes differently, so a posture exclusion never appears in
         `unavailable_servers` and the "Unreachable servers" report stays truthful.
         """
         return frozenset(self._posture_excluded)

@@ -36,16 +36,16 @@ def begin_stage_if_new(
 
     With ``lease_duration_sec`` set, the attempt row is stamped with this
     process's ``owner_id`` and a ``lease_expires_at`` derived from
-    ``started_at`` inside the same transaction (REQ-005). With ``None``,
+    ``started_at`` inside the same transaction. With ``None``,
     both lease columns stay NULL for legacy callers.
     """
     # processed_events semantics:
     # - Contains event IDs for attempts that have been STARTED (not necessarily completed)
     # - A running attempt's event ID will be in processed_events even though the attempt
-    #   is still in progress
+    # is still in progress
     # - Startup recovery marks stale running attempts as failed and deletes the
-    #   processed_events rows for their (task_id, stage_id) pair, so a resumed
-    #   stage runs again
+    # processed_events rows for their (task_id, stage_id) pair, so a resumed
+    # stage runs again
     attempt_id = str(uuid.uuid4())
     now = _now()
     owner_id: str | None = None

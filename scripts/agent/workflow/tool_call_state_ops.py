@@ -2,7 +2,7 @@
 """scripts/agent/workflow/tool_call_state_ops.py — Tool-call state operations for workflow.sqlite.
 
 Task-scoped read/write helpers over the ``tool_call_state`` table (toolexec001
-REQ-007/REQ-008). The agent's view of a tool call lives here, written by the executor
+). The agent's view of a tool call lives here, written by the executor
 path; the durable dedup store stays behind the dispatcher boundary (ADR-008), so these
 helpers never touch ``mcp_dedup.sqlite``.
 

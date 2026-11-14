@@ -6,7 +6,7 @@ config directory and (b) the Sudachi dictionary path so both resolve correctly
 inside a Nuitka ``--onefile`` binary while remaining backward compatible with
 ``uv run``.
 
-Implements REQ-001 (config-dir resolver) and REQ-003 (Sudachi-dict resolver).
+Implements (config-dir resolver) and (Sudachi-dict resolver).
 Callers import both symbols::
 
     from shared.runtime_paths import resolve_config_dir, resolve_sudachi_dict_path

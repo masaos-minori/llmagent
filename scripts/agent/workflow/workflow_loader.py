@@ -24,7 +24,7 @@ class _RetryPolicyJson(TypedDict, total=False):
     """JSON representation of a workflow retry policy.
 
     max_attempts and retry_wait_sec are required at runtime, enforced by
-    _REQUIRED_POLICY_KEYS in _validate; retry_on is optional (REQ-001).
+    _REQUIRED_POLICY_KEYS in _validate; retry_on is optional.
     """
 
     max_attempts: int

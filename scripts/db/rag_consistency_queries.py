@@ -9,12 +9,7 @@ report is built from:
   _collect_affected_identifiers: the affected-identifier set for each consistency rule
   _check_read_smoke_test: one COUNT(*) read per required RAG table
   _check_fk_consistency / _check_embedding_dimension / _check_schema_recognition: the
-  fatal-class probes added for RAGCORPUS001
-
-Extracted from rag_consistency.py so that module keeps report assembly, the `_CHECKS`
-rule registry, and issue rendering only. Each query is read-only: it returns None or an
-empty mapping when the guard says the issue is absent, and sqlite3.Error is left for
-check_rag_consistency() to record as a diagnostic error.
+  fatal-class probes added for
 """
 
 import sqlite3
@@ -263,7 +258,7 @@ def _check_schema_recognition(db: SQLiteHelper) -> bool:
 
     A database without the ``documents`` table is not a rag database: it stays
     the unrecognised-schema fatal class (return False). Once ``documents`` is
-    present, the shared fingerprint (REQ-003) compares every table shape against
+    present, the shared fingerprint compares every table shape against
     the canonical rag DDL; any deviation raises the archive-and-recreate
     refusal. FTS5/vec virtual tables (``chunks_fts``, ``chunks_vec``) are
     required by name only and their shadows are excluded (UNK-01).

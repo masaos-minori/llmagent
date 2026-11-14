@@ -45,7 +45,7 @@ _PRIMARY_TABLES: dict[str, str] = {
 def _refuse_existing_drift(
     db: SQLiteHelper, domain: str, canonical_ddl: str, label: str
 ) -> None:
-    """Validate-first gate (REQ-003): fingerprint an existing database before
+    """Validate-first gate: fingerprint an existing database before
     executing any DDL.
 
     If the domain's primary table already exists the file is an existing

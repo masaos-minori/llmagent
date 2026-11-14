@@ -145,7 +145,7 @@ class RagLLM:
         paraphrases.
         """
         # Built outside the try: a config defect must not be disguised as an
-        # LLM failure (ragrev001 REQ-002).
+        # LLM failure (ragrev001).
         prompt = _mqe_prompt(query, context, cast(RagConfig, self._cfg))
         try:
             raw = await self._call_llm(

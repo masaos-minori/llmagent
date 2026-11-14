@@ -154,10 +154,10 @@ class GitService:
         if tool_name in GIT_READ_TOOLS:
             return self._wrap_git_op(tool_name, lambda: op(state.repo, state))
         pipeline = WriteProtectionPipeline(state)
-        # REQ-001: run the write pipeline on a worker thread so the blocking
+        # run the write pipeline on a worker thread so the blocking
         # GitPython call (and the per-repo lock it acquires) never blocks the
         # event loop; /health and read tools stay responsive during a push/pull.
-        # REQ-003: enforce a per-operation timeout at this async boundary via
+        # enforce a per-operation timeout at this async boundary via
         # asyncio.wait_for. The blocking call is synchronous, so the deadline
         # cannot be applied inside format_pull/format_push (see their docstrings).
         timeout = self._write_timeout(tool_name)
@@ -193,7 +193,7 @@ class GitService:
     def _write_timeout(self, tool_name: str) -> float | None:
         """Return the network-write timeout (seconds) for a tool, or None.
 
-        REQ-003: only network writes (pull/push) carry a configured deadline;
+        only network writes (pull/push) carry a configured deadline;
         local writes (add/commit/checkout) run without one.
         """
         if self._config is None:

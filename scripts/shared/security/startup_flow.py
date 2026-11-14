@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 class StartupStage(StrEnum):
-    """The REQ-003 stages, in the order every MCP server must run them."""
+    """The stages, in the order every MCP server must run them."""
 
     CONFIG_LOAD = "config_load"
     SCHEMA_VALIDATION = "schema_validation"
@@ -64,7 +64,7 @@ EXECUTED_STAGES: tuple[StartupStage, ...] = (
 )
 
 # For each stage the flow may be given a callable for: the check-id namespace a raised stage
-# reports under, and the reason code it maps to (REQ-004).
+# reports under, and the reason code it maps to.
 _STAGE_FAILURE_SHAPE: Mapping[StartupStage, tuple[str, str]] = {
     StartupStage.SCHEMA_VALIDATION: ("schema", REASON_CONFIG_INVALID),
     StartupStage.COMMON_SECURITY_VALIDATION: ("common", REASON_CONFIG_INVALID),
@@ -161,7 +161,7 @@ def check_published_tools_declared(
 def _run_stage(
     stage: StartupStage, stage_callable: StageCallable
 ) -> list[SecurityCheckResult]:
-    """Run one server-supplied stage, turning a raise into a FAILED check (REQ-004)."""
+    """Run one server-supplied stage, turning a raise into a FAILED check."""
     namespace, reason = _STAGE_FAILURE_SHAPE[stage]
     try:
         return list(stage_callable())
@@ -183,7 +183,7 @@ def run_startup_validation(
     tool_capability_checks: StageCallable | None = None,
     policy_version: str = DEFAULT_POLICY_VERSION,
 ) -> SecurityPosture:
-    """Run the REQ-003 stages in order and return the posture; never raises, never binds HTTP.
+    """Run the stages in order and return the posture; never raises, never binds HTTP.
 
     The caller binds only when the returned posture has validated=True and ready=True. The flow
     stops at the first stage that yields a FAILED check, so a partially validated server can
@@ -235,7 +235,7 @@ def run_startup_validation(
 def _log_fatal_stage(
     stage: StartupStage, checks: Iterable[SecurityCheckResult]
 ) -> None:
-    """Record which checks failed, by id and reason code only (REQ-004)."""
+    """Record which checks failed, by id and reason code only."""
     failed = ", ".join(
         f"{check.check_id}:{check.reason_code}"
         for check in checks

@@ -12,3 +12,4 @@ generate_workitem.py	28930
 manage_frontmatter.py	31201
 manage_workitem_stage.py	39685
 stale_detector.py	41036
+sweep_history_comments.py	28421

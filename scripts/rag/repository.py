@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/rag/repository.py
-
-RAG data-access layer: FTS5/vector search, RRF merge, and document fetching.
-
-Extracted from rag/pipeline.py.  Contains:
-  - Japanese FTS5 tokenization helpers (Sudachi)
-  - RagRepository  — all SQL confined here
-  - RagScorer      — Reciprocal Rank Fusion (RRF)
-  - Standalone helper functions: vector_search, fts_search, fetch_full_document,
-    deduplicate_chunks, _dedup_hits
-"""
+"""scripts/rag/repository.py — RAG data-access layer: FTS5/vector search, RRF merge, and document fetching."""
 
 import logging
 import re

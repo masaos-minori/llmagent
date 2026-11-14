@@ -2,8 +2,6 @@
 """scripts/rag/ingestion/link_discovery.py
 
 LinkDiscovery: owns outbound link filtering concern.
-
-Extracted from WebCrawler to separate link discovery from BFS orchestration.
 """
 
 from __future__ import annotations

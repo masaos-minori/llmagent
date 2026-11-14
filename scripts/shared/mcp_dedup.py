@@ -65,7 +65,7 @@ _INDEXES = (
 # for open-time validation (ADR-008; no stamping, no automatic migration).
 _CANONICAL_DDL = _SCHEMA + ";\n" + ";\n".join(_INDEXES) + ";"
 
-# Out-of-band marker for REQ-003/REQ-001. Co-located with the DB file (outside it)
+# Out-of-band marker. Co-located with the DB file (outside it)
 # so it survives a DB-file loss: its presence while the DB file is absent proves a
 # prior store existed and the store was lost or recreated. A genuine first run finds
 # neither, so fail-closed cannot fire before an operator acknowledges the deployment.
@@ -269,7 +269,7 @@ class DedupStore:
     def lost_or_recreated(self) -> bool:
         """True when the DB file was absent at open time but the operator
         acknowledgement sentinel exists — the store was lost or recreated, not a
-        genuine first run (REQ-003)."""
+        genuine first run."""
         return self._lost_or_recreated
 
     def close(self) -> None:
@@ -301,7 +301,7 @@ class DedupStore:
         Without force, completed/failed rows are left untouched (terminal states
         never regress). With force=True the row is reset to pending regardless
         of its prior status; the dispatcher uses this only for the policy-
-        allowed fresh attempt on a snapshot-mismatched completed row (REQ-005).
+        allowed fresh attempt on a snapshot-mismatched completed row.
         """
         now = time.time() if now_epoch is None else now_epoch
         self._write(
@@ -431,7 +431,7 @@ def open_dedup_store(
 
 
 def resolve_lost_store(db_path: str | Path) -> None:
-    """Operator-resolution step for a lost or recreated store (REQ-001).
+    """Operator-resolution step for a lost or recreated store.
 
     Creates the out-of-band acknowledgement sentinel alongside the DB file and
     ensures the store file exists so the store is usable again. Call this only

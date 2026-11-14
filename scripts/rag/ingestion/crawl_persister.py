@@ -2,8 +2,6 @@
 """scripts/rag/ingestion/crawl_persister.py
 
 CrawlPersister: owns JSON payload construction and write concern.
-
-Extracted from WebCrawler to separate persistence from BFS orchestration.
 """
 
 from __future__ import annotations

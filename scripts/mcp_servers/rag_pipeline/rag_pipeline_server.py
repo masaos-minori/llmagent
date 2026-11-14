@@ -75,7 +75,7 @@ def _rag_security_view(cfg: RagPipelineConfig) -> dict[str, object]:
     """Build the non-secret view the posture fingerprint is computed from.
 
     Path- and host-valued fields are carried as presence booleans only, and
-    `auth_token` / `mqe_prompt_template` are excluded (REQ-002, REQ-009).
+    `auth_token` / `mqe_prompt_template` are excluded.
     """
     return {
         "own_config_file": RAG_PIPELINE_OWN_CONFIG_FILE,
@@ -330,13 +330,12 @@ class RagPipelineMCPServer(MCPServer):
 
 
 def _enforce_posture_gate() -> None:
-    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+    """Refuse HTTP bind when the posture is not validated (AC-003).
 
     The gate reads only `validated`: the payload `ready` is derived in
     `make_health_response()` from dependencies plus `validated`, so this module never
     invents its own Ready rule. The log line carries check ids and reason codes only;
-    database paths, the extension path, and the internal service hosts are excluded
-    (REQ-002, REQ-004).
+    database paths, the extension path, and the internal service hosts are excluded.
     """
     if _security_posture.validated:
         return

@@ -2,8 +2,6 @@
 """scripts/rag/ingestion/content_extractor.py
 
 ContentExtractor: owns HTML content extraction concern.
-
-Extracted from WebCrawler to separate HTML parsing from BFS orchestration.
 """
 
 from __future__ import annotations

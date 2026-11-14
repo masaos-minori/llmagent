@@ -118,7 +118,7 @@ class GitHubSecurityGuards:
             return
         ts = now_iso_raw()
         fields = " ".join(f"{k}={v!r}" for k, v in kwargs.items())
-        # REQ-004 before/after + approval correlation. GitHub operations are API
+        # before/after + approval correlation. GitHub operations are API
         # calls, so the target identity (repo plus any operation-specific
         # identifier) is known both before and after the operation; emit it once
         # as before/after and flag the record as an approved operation (it

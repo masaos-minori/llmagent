@@ -1,8 +1,6 @@
 """scripts/agent/startup_prompt_setup.py
 
 Prompt/memory setup: inject semantic memories into the initial system prompt.
-
-Extracted from scripts/agent/startup.py (REQ-006).
 """
 
 from __future__ import annotations

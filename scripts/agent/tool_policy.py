@@ -45,14 +45,14 @@ _METACHAR_RE = re.compile(r"[;|&]|&&|\|\||`|\$\(|<\(|>\(|>>|<<|[<>]|[\r\n]")
 
 @dataclass(frozen=True)
 class _ShellShapeRule:
-    """REQ-007: read-only-by-construction shape rule for one shell executable."""
+    """read-only-by-construction shape rule for one shell executable."""
 
     allowed_subcommands: frozenset[str] | None = None
     deny_flags: frozenset[str] = frozenset()
     deny_flag_prefixes: frozenset[str] = frozenset()
 
 
-# REQ-006: an executable absent from this table is never auto-approved, even when a
+# an executable absent from this table is never auto-approved, even when a
 # config approval_shell_safe_prefixes entry gates it. Interpreters and test runners
 # (python, python3, pytest, uv) have no entry by design — absence is the denial.
 _SAFE_SHELL_SHAPES: dict[str, _ShellShapeRule] = {
@@ -146,7 +146,7 @@ def _iter_string_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[s
 
 
 class _NotInspectablePathValueError(ValueError):
-    """Raised when a path-argument value is neither `str` nor `list[str]` (REQ-002).
+    """Raised when a path-argument value is neither `str` nor `list[str]`.
 
     Module-private signal: the callers in this file convert it into the unchanged
     deny/escalate outcomes (`denied_root_jail` / `RiskLevel.HIGH`); it never escapes
@@ -160,12 +160,12 @@ def _resolve_path_keys(
     registry: RuntimeToolRegistry | None,
 ) -> list[str] | None:
     """Return the checked path argument names: configured path_keys unioned with the
-    registered tool's declared resource_scope_keys (REQ-001).
+    registered tool's declared resource_scope_keys.
 
     `registry=None` returns the configured keys only (optional-registry callers/tests
     keep configured-key behavior). A supplied registry whose tool is unregistered
     (`KeyError`) returns `None` so the caller fails closed; no lookup error escapes the
-    policy (REQ-003). Order is stable: configured keys first.
+    policy. Order is stable: configured keys first.
     """
     keys = list(cfg.approval.approval_resource_keys.get("path_keys", []))
     if registry is None:
@@ -188,7 +188,7 @@ def _configured_path_keys(cfg: AgentConfig) -> list[str]:
 
 
 def _iter_path_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[str]:
-    """Yield each inspectable path value under the given keys (REQ-002).
+    """Yield each inspectable path value under the given keys.
 
     A non-empty `str` value yields as today; a `list` value yields each non-empty
     `str` element. A value that is neither, or a `list` containing a non-string
@@ -248,7 +248,7 @@ def _match_executable_identity(
 
 
 def _iter_path_candidates(argv: list[str]) -> list[str]:
-    """REQ-001: tokens whose value must be routed through the path checks.
+    """tokens whose value must be routed through the path checks.
 
     A bare token is a candidate; a `--flag=value` token contributes the text after its
     first equals sign. Long flags without a value, the end-of-options marker, short
@@ -274,7 +274,7 @@ def _check_positional_args(
     """Route positional and flag-value args through protected-path and allowed-root checks."""
     if base == RiskLevel.HIGH:
         return None
-    # REQ-001: bare tokens and --flag=value values are path candidates
+    # bare tokens and --flag=value values are path candidates
     positional = _iter_path_candidates(argv)
     if not positional:
         return None
@@ -299,7 +299,7 @@ def _check_positional_args(
 def _safe_shape_violation(exe: str, argv: list[str]) -> bool:
     """Return True when the argument tail violates, or has no, safe-shape rule for exe.
 
-    REQ-006: rule absence is the denial mechanism (deny-by-default). REQ-007: allowed
+    rule absence is the denial mechanism (deny-by-default). allowed
     subcommands and denied flags are per-executable. `argv` is the tail after the
     executable token.
     """
@@ -380,10 +380,10 @@ def _special_case_risk(
         cmd = args.get("command")
         if not isinstance(cmd, str):
             return RiskLevel.HIGH
-        # REQ-002: fail closed on any shell metacharacter in raw command
+        # fail closed on any shell metacharacter in raw command
         if _has_metacharacters(cmd):
             return RiskLevel.HIGH
-        # REQ-001: parsed identity match replaces startswith below
+        # parsed identity match replaces startswith below
         try:
             argv = shlex.split(cmd)
         except ValueError:
@@ -393,13 +393,13 @@ def _special_case_risk(
         if match := _match_executable_identity(
             argv, cfg.approval.approval_shell_safe_prefixes
         ):
-            # REQ-003: route positional args through path/argument checks
+            # route positional args through path/argument checks
             if escalated := _check_positional_args(cfg, argv, match):
                 return escalated
-            # REQ-008: one normalized executable name gates both the prefix match
+            # one normalized executable name gates both the prefix match
             # (basename-matched in _match_executable_identity) and this rule lookup
             exe = os.path.basename(argv[0])
-            # REQ-006/REQ-007: safe-shape rule decides auto-approval; deny by default
+            # safe-shape rule decides auto-approval; deny by default
             if _safe_shape_violation(exe, argv[1:]):
                 return RiskLevel.HIGH
             return match
@@ -536,7 +536,7 @@ def check_preflight(
     """Raise PolicyViolationError when a pre-flight check denies the tool call.
 
     Does nothing when all checks pass. The optional registry makes the registered
-    tool's declared scope keys available to the root-jail check (REQ-003).
+    tool's declared scope keys available to the root-jail check.
     """
     if tool_name not in cfg.tool.allowed_tools:
         raise PolicyViolationError(

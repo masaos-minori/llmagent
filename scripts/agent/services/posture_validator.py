@@ -119,7 +119,7 @@ def validate_posture(
 ) -> PostureValidationResult:
     """Check a posture against the shared contract, in the fixed order the contract names.
 
-    Never raises: every violation is a rejection with a reason code, because REQ-013 classifies on
+    Never raises: every violation is a rejection with a reason code, because it classifies on
     the reason and not on an exception.
     """
     if posture.server_key != expected_server_key:
@@ -189,7 +189,7 @@ def compare_fingerprint(
     """Report whether a server's fingerprint changed since the last posture seen for that key.
 
     The Agent never recomputes a fingerprint: doing so means reading the server's own config file,
-    which REQ-017 removes. The first posture seen for a key is accepted and remembered, so drift is
+    which removes it. The first posture seen for a key is accepted and remembered, so drift is
     reported from the second posture onward. Returns a verdict rather than a bool for the same reason
     the validator does: the reason code has to reach the classifier.
     """

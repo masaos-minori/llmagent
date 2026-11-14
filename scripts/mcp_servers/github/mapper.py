@@ -1,8 +1,6 @@
 """scripts/mcp_servers/github/mapper.py
 
 Mapper functions: convert PyGithub objects to Pydantic response models.
-
-Extracted from service.py to separate conversion responsibility from business logic.
 """
 
 from typing import Protocol

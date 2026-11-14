@@ -71,7 +71,7 @@ entries:
   kind: class
   name: AuthzGeneration
   signature: class AuthzGeneration
-  summary: Immutable authorization generation snapshot (EBAUTHGEN001).
+  summary: Immutable authorization generation snapshot.
 - file: scripts/eventbus/auth.py
   kind: function
   name: unauthorized_response

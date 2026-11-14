@@ -6,9 +6,6 @@ HistorySelectionPolicy — whole-turn-unit compression candidate selection.
 Turn units open at each user message and absorb the following assistant and
 tool rows; selection compresses whole oldest units in chronological order and
 never splits a unit. Importance scores only order the fallback path.
-
-Extracted from HistoryManager so the selection logic can be tested and
-configured independently of the HTTP/LLM compression pipeline.
 """
 
 from __future__ import annotations

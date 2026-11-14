@@ -62,7 +62,7 @@ _AMBIGUOUS_RETRY_STATUSES: frozenset[int] = frozenset({502, 503, 504})
 def derive_idempotency_key(
     method: str, tool_name: str, args: dict[str, Any], uid: str
 ) -> str:
-    """Derive a deterministic idempotency key for one logical tool call (REQ-001).
+    """Derive a deterministic idempotency key for one logical tool call.
 
     ``sha256(method \\n tool_name \\n canonical-JSON(args) \\n uid)``: an identical
     logical call re-derives the byte-identical key across retries, processes, and
@@ -151,7 +151,7 @@ class HttpTransport:
 
         Tolerant parsing: any body parse failure falls back to the first 512 chars
         of the raw text; a malformed body at a tool-level status must not re-enter
-        the transport path (healthcascade001 REQ-003).
+        the transport path (healthcascade001).
         """
         try:
             data = parse_http_json(resp)
@@ -203,12 +203,12 @@ class HttpTransport:
         """POST to /v1/call_tool and return ToolCallResult.
 
         Raises TransportError on transport-level failures (network errors,
-        timeouts, invalid responses).  Tool-level errors from the MCP server
+        timeouts, invalid responses). Tool-level errors from the MCP server
         are returned as-is with is_error=True in the result.
         """
         # One idempotency key per logical call, derived deterministically from
-        # (method, tool name, canonical args, uid) and reused across every retry
-        # (REQ-001 + REQ-005). uid is the transport's own identity: _session_id,
+        # (method, tool name, canonical args, uid) and reused across every retry.
+        # uid is the transport's own identity: _session_id,
         # falling back to the auth-token hash when no session id is set. Sent as
         # a header so the server can deduplicate a re-sent write via dispatch.py's
         # _duplicate_cache.
@@ -232,7 +232,7 @@ class HttpTransport:
         # attempt reuses the single idempotency key above and does NOT re-enter
         # the pre-call gates. The health/lifecycle/semaphore gates run once per
         # logical call in ToolTransportInvoker._run_precall_gates; they are not
-        # re-evaluated between these attempts. See REQ-002.
+        # re-evaluated between these attempts.
         for attempt in range(self._RETRY_MAX):
             try:
                 resp = await self._http.post(
@@ -291,7 +291,7 @@ class HttpTransport:
                     name, f"[{type(e).__name__}]", str(e), break_flag=True
                 )
             except httpx.RequestError as e:
-                # REQ-006 classification gate (ADR-004): for write tools, only
+                # classification gate (ADR-004): for write tools, only
                 # pre-send errors (_PRESEND_SAFE_ERRORS) keep the retry path —
                 # the connection was never established, so nothing executed
                 # server-side. Any other RequestError is post-send ambiguous

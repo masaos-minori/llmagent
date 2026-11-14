@@ -62,9 +62,7 @@ class DlqEventRecord:
     producer: str
     published_at: str
     dlq_at: str
-    consumer_delivery_failure_count: int | None = (
-        None  # REQ-002: per-consumer failure count
-    )
+    consumer_delivery_failure_count: int | None = None  # per-consumer failure count
 
 
 def _build_dlq_record(
@@ -113,9 +111,9 @@ def is_promotable(db: sqlite3.Connection, event_id: str, max_retry: int) -> bool
 
 
 def _shared_promote(db: sqlite3.Connection, max_retry: int) -> int:
-    """Shared promotion logic for the sweep path. DB-only since dlqbox001 (REQ-003).
+    """Shared promotion logic for the sweep path. DB-only since dlqbox001.
 
-    REQ-002 and ADR-006 INV-13: promotes events where every consumer with a delivery
+    ADR-006 INV-13: promotes events where every consumer with a delivery
     record has reached the retry threshold and none has ACKed. Each promotion commits
     the dlq_at stamp together with its dlq_outbox request row in one transaction; the
     rowcount guard means a racing promotion never duplicates the request row. File
@@ -160,7 +158,7 @@ def _shared_promote_single(
     Args:
         db: Database connection.
         event_id: Event identifier.
-        consumer_failure_count: Per-consumer failure count (REQ-002), logged only.
+        consumer_failure_count: Per-consumer failure count, logged only.
     """
     now = now_iso()
     cur = db.execute(
@@ -201,13 +199,13 @@ def reconcile_missing_dlq_files(
 ) -> dict[str, int]:
     """Detect and rebuild lost DLQ files, and classify outbox inconsistencies.
 
-    REQ-001, REQ-002, REQ-003: lists promoted events (dlq_at IS NOT NULL) whose
+    This path lists promoted events (dlq_at IS NOT NULL) whose
     {event_id}.json file is absent and rebuilds each through _atomic_write, reusing
     the sweep's failure metering. Lock-free by design: the caller holds
     run_with_db_lock, exactly as it does for sweep_orphans. Idempotent — an existing
     file is never rewritten.
 
-    dlqbox001 (REQ-007) adds three report-only classifications: ``orphans`` —
+    dlqbox001 adds three report-only classifications: ``orphans`` —
     *.json files directly in deadletter_dir (the requeued/ subdirectory used by
     archive_dlq_record is not scanned) whose event_id has neither a promoted event
     row nor a done dlq_outbox row; ``interrupted_tmp`` — lingering .dlq_tmp_*
@@ -274,7 +272,7 @@ def reconcile_missing_dlq_files(
 
 
 def _existing_file_mismatches(dst: Path, row: sqlite3.Row) -> bool:
-    """True when an existing DLQ file differs from the canonical DB state (REQ-007).
+    """True when an existing DLQ file differs from the canonical DB state.
 
     Compares seq, event_id, topic, payload, producer, published_at and dlq_at. A
     file that does not parse as a canonical JSON object is also a mismatch: it
@@ -299,7 +297,7 @@ def _existing_file_mismatches(dst: Path, row: sqlite3.Row) -> bool:
 
 
 def _count_orphan_dlq_files(db: sqlite3.Connection, deadletter_dir: str) -> int:
-    """Count DLQ files with no promoted event row and no done outbox row (REQ-007).
+    """Count DLQ files with no promoted event row and no done outbox row.
 
     Report-only: orphan files are never deleted here. The requeued/ subdirectory is
     not scanned — only *.json files directly in deadletter_dir are candidates.
@@ -327,14 +325,14 @@ def promote_single(
     """Promote one event to DLQ immediately (inline on nack threshold).
 
     Returns True if promoted, False if already in DLQ or not found.
-    DB-only since dlqbox001 (REQ-003): the dlq_at stamp and the dlq_outbox request
+    DB-only since dlqbox001: the dlq_at stamp and the dlq_outbox request
     row commit in one transaction, and the artifact is generated durably by the
     outbox worker (process_outbox) — this call never touches the filesystem.
 
     Args:
         db: Database connection.
         event_id: Event identifier.
-        consumer_failure_count: Per-consumer failure count (REQ-002).
+        consumer_failure_count: Per-consumer failure count.
     """
     return _shared_promote_single(db, event_id, consumer_failure_count)
 
@@ -426,11 +424,11 @@ async def _register_failed_attempt(
     """Persist one failed outbox generation attempt; return True when the row is terminal.
 
     attempts+1, last_error=error_text, and next_attempt_at = now +
-    min(base * 2**(attempt-1), cap_seconds) with base/cap from cfg (REQ-005).
+    min(base * 2**(attempt-1), cap_seconds) with base/cap from cfg.
     When the new attempt count reaches cfg.outbox_max_attempts the row becomes
     'failed' and is never fetched again. The write runs in its own locked
     transaction; a DB error there propagates to the cycle caller and the row
-    stays pending for the next cycle (REQ-006).
+    stays pending for the next cycle.
     """
     new_attempts = attempts + 1
     terminal = new_attempts >= cfg.outbox_max_attempts
@@ -451,7 +449,7 @@ async def _register_failed_attempt(
 
 
 def _complete_outbox_row(db: sqlite3.Connection, event_id: str) -> None:
-    """Locked completion write: mark the outbox row done and commit (REQ-004)."""
+    """Locked completion write: mark the outbox row done and commit."""
     mark_done(db, event_id, now_iso())
     db.commit()
 
@@ -464,8 +462,8 @@ async def process_outbox(
 ) -> dict[str, int]:
     """Consume due dlq_outbox rows and durably generate their DLQ artifacts.
 
-    REQ-004: called once per dlq_loop cycle; a pending row is simply due again on
-    the next cycle after a crash or restart (REQ-006). REQ-005: a failing artifact
+    Runs once per dlq_loop cycle; a pending row is simply due again on
+    the next cycle after a crash or restart. A failing artifact
     records a bounded, persisted attempt (exponential backoff, terminal 'failed' at
     cfg.outbox_max_attempts) and never aborts the loop — per-event isolation.
     A destination file that already holds byte-identical canonical content is
@@ -495,7 +493,7 @@ async def process_outbox(
         )
         if record is None:
             # FK guarantees this event_id existed at insert time; a missing row is
-            # defensive-only. Record a bounded failed attempt and continue (REQ-005).
+            # defensive-only. Record a bounded failed attempt and continue.
             logger.error("dlq outbox: event row missing event_id=%s", event_id)
             report["failed_attempts"] += 1
             if await _register_failed_attempt(

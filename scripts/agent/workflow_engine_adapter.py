@@ -3,9 +3,6 @@
 
 Workflow engine integration: task creation, activation/deactivation,
 halt handling.
-
-Extracted from orchestrator.py (_init_workflow_task, _activate_workflow,
-deactivate_workflow, _handle_workflow_halt).
 """
 
 # ADR-014: adapter between the Orchestrator and the WorkflowEngine that owns persistent state
@@ -62,7 +59,7 @@ def _status_for_exit(exit_reason: str) -> str | None:
     `exit_reason` is one of "not-started" (the engine call was never reached),
     "engine-started" (engine.run raised or is still unwound), "halted", "cancelled" or
     "completed". `None` covers every exit the workflow engine already recorded: the
-    engine writes the task status exactly once per turn (REQ-008), so a completed
+    engine writes the task status exactly once per turn, so a completed
     exit does not trigger a second write here — the engine already wrote the
     terminal stage failure status itself.
     """
@@ -150,7 +147,7 @@ class WorkflowEngineAdapter:
             async def execute_fn() -> str | None:
                 """Run one execute-stage attempt and return its result."""
                 nonlocal answer, error_kind, is_partial
-                # Per-attempt side-effect flag reset (REQ-006): TurnState is not
+                # Per-attempt side-effect flag reset: TurnState is not
                 # recreated per attempt, so the adapter clears it at attempt start.
                 self._ctx.turn.attempt_side_effect = False
                 try:
@@ -164,14 +161,14 @@ class WorkflowEngineAdapter:
                 except Exception as exc:
                     if self._ctx.turn.attempt_side_effect:
                         # A failed attempt that already attempted a side effect is
-                        # terminal regardless of retry_on (REQ-006 / AC-6).
+                        # terminal regardless of retry_on (AC-6).
                         raise WorkflowHaltError(
                             "stage execute halted: side effect attempted"
                         ) from exc
                     raise
                 if error_kind is not None:
                     # LLM-level failure results enter the engine as typed stage
-                    # failures of kind llm_failure (REQ-005 / AC-5).
+                    # failures of kind llm_failure (AC-5).
                     raise WorkflowStageFailure(
                         f"stage execute failed: {error_kind}",
                         answer=answer,
@@ -192,7 +189,7 @@ class WorkflowEngineAdapter:
                     raise
                 except Exception as prepared_exc:
                     # A turn-entry failure must surface exactly as a stage failure
-                    # does today (REQ-003): mark the task halted and route it
+                    # does today: mark the task halted and route it
                     # through the existing halt handler so on_error receives a
                     # WorkflowHaltError — identical end state to a stage halt.
                     if task is not None and task.task_id:
@@ -212,7 +209,7 @@ class WorkflowEngineAdapter:
             self._handle_workflow_halt(exc)
         except WorkflowStageFailure as exc:
             # Terminal stage failure: the engine already wrote the task status once;
-            # restore the outward typed tuple from the error attributes (REQ-004/005/008).
+            # restore the outward typed tuple from the error attributes.
             exit_reason = "halted"
             answer = exc.answer or ""
             error_kind = exc.error_kind or "llm_failure"
@@ -296,7 +293,7 @@ class WorkflowEngineAdapter:
     def _activate_workflow(self, ctx: AgentContext, task: TaskRecord) -> None:
         """Set workflow state to active."""
         ctx.workflow.current_task_id = task.task_id
-        # Producer wiring (plans/20261101-105136_toolstate001 plan.md REQ-005):
+        # Producer wiring (plans/20261101-105136_toolstate001 plan.md):
         # tool_runner records tool_call_state through this facade while active.
         ctx.workflow.tool_call_recorder = self._state_store
         ctx.workflow.workflow_id = task.workflow_id
@@ -323,10 +320,10 @@ class WorkflowEngineAdapter:
 
         Clears the previous turn's ephemeral messages, injects memory, classifies
         the turn mode, appends the user message, and compresses history. Runs once
-        per execute_turn() regardless of execute-stage retries (REQ-001). Called
+        per execute_turn() regardless of execute-stage retries. Called
         from execute_turn() inside the single self._tool_override scope that also
         wraps engine.run(), so the mode-classified allowed_tools is in force for
-        the LLM stage (REQ-004).
+        the LLM stage.
         """
         self._conversation_manager.clear_previous_turn_ephemeral_messages()
         await self._conversation_manager.handle_memory_injection(line)
@@ -345,8 +342,8 @@ class WorkflowEngineAdapter:
         """Perform one execute-stage attempt: LLM/tool execution, error and
         partial-answer classification, assistant persistence, and
         audit_stage_completed. Per-attempt only; turn-entry preparation lives in
-        _prepare_turn_input (REQ-002). Returns (answer, error_kind, is_partial)
-        with the same contract as the removed _process_turn().
+        _prepare_turn_input. Returns (answer, error_kind, is_partial)
+        with the same contract as the removed _process_turn.
         """
         # Turn-entry replay detection (toolexec001 row 08): the engine owns the
         # decision; the adapter only carries the constructed message to the runner.

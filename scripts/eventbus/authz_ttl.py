@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/eventbus/authz_ttl.py — TTL expiry sweep for authorization generations.
 
-EBAUTHGEN001 REQ-005: pairs granted with ttl_seconds carry expiry entries in the
+    pairs granted with ttl_seconds carry expiry entries in the
 generation snapshot. This module detects expired pairs with an injectable clock
 and removes them as one atomic generation update through the same
 build-first-then-publish path the admin endpoint uses, auditing each removal.

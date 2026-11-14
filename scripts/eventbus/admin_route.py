@@ -75,13 +75,13 @@ async def update_topics_authorization(
     principal: Principal = Depends(require_role(Role.ADMIN)),
 ) -> dict[str, Any] | JSONResponse:
     """Update `consumer_authorization` at runtime and
-    publish the result as a new AuthzGeneration (EBAUTHGEN001).
+    publish the result as a new AuthzGeneration.
 
     Validates the request body fully before mutating any state, so an
     invalid request never leaves `app.state.config` partially updated. The
     mandatory `expected_generation` is compared against the generation in
     force BEFORE change detection: a stale value is rejected with 409 even
-    for a would-be no-op (REQ-007).
+    for a would-be no-op.
 
     Returns ``{"status": "ok", "persistent": false, "changed": <bool>,
     "previous_generation", "new_generation", "changed_count", "effective_at",
@@ -104,7 +104,7 @@ async def update_topics_authorization(
             body["consumer_authorization"]
         )
 
-    # expected_generation is mandatory and must be a plain integer (REQ-002)
+    # expected_generation is mandatory and must be a plain integer
     expected_generation = body.get("expected_generation")
     if expected_generation is None:
         raise HTTPException(status_code=422, detail="expected_generation is required")
@@ -132,7 +132,7 @@ async def update_topics_authorization(
             },
         )
 
-    # ttl_seconds is optional; valid only for a newly published generation (REQ-005)
+    # ttl_seconds is optional; valid only for a newly published generation
     ttl_seconds: int | float | None = body.get("ttl_seconds")
     if ttl_seconds is not None:
         if not isinstance(ttl_seconds, (int, float)) or isinstance(ttl_seconds, bool):
@@ -190,7 +190,7 @@ async def update_topics_authorization(
     effective_at = time.time()
     new_pairs = _authorization_pairs(new_config)
     # Expiry entries for pairs this update newly grants get effective_at + ttl;
-    # pairs carried over keep their previous expiry entries (REQ-005).
+    # pairs carried over keep their previous expiry entries.
     expiries: set[tuple[str, str, float]] = {
         entry for entry in current_gen.expiries if (entry[0], entry[1]) in new_pairs
     }

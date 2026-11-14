@@ -56,7 +56,7 @@ class Principal:
 
 @dataclass(frozen=True)
 class AuthzGeneration:
-    """Immutable authorization generation snapshot (EBAUTHGEN001).
+    """Immutable authorization generation snapshot.
 
     One generation is in force at a time. Every effective authorization update
     publishes a new generation with generation+1; a failed rebuild publishes

@@ -2,18 +2,6 @@
 
 HTTP subprocess MCP server lifecycle: start, health-poll, restart, shutdown.
 
-Extracted from lifecycle.py. _ServerLifecycleRouter in lifecycle_router.py delegates
-to HttpServerLifecycleManager for all HTTP subprocess operations.
-
-Refactored: HttpServerLifecycleManager is a composition facade that delegates
-concern-specific work to six modules:
-- CommandValidator: command allowlist and symlink resolution checks
-- StderrLogManager: stderr log file creation, appending, and tail retrieval
-- ProcessTerminator: graceful and forced process termination
-- HealthChecker: HTTP health check polling, including the startup readiness poll loop
-- ShutdownCoordinator: coordinated shutdown of all managed processes
-- SubprocessLauncher: subprocess spawn, pgid capture, and startup failure cleanup
-
 Two methods delegate with arguments rather than forwarding the call unchanged:
 shutdown_all passes the manager to ShutdownCoordinator, and
 _health_poll_until_ready passes the manager and this module's poll timings to

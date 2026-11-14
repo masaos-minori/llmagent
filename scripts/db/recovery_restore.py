@@ -3,12 +3,12 @@
 
 Owns the file operations a restore performs: resolve the backup candidate, quarantine
 and stage the -wal/-shm sidecars, and archive the corrupt DB. Staging is separate from
-activation (REQ-003): db.recovery verifies the staged candidate before swapping it into
+activation: db.recovery verifies the staged candidate before swapping it into
 place. Condition classification, the physical integrity check, and the RecoveryResult
 policy stay in db.recovery, which calls these helpers; the logical consistency checks
 that run after a restore live in db.recovery_verification.
 
-ADR-008 recovery policy: restore file staging used by db.recovery.recover_corruption().
+ADR-008 recovery policy: restore file staging used by db.recovery.recover_corruption.
 """
 
 import logging
@@ -22,9 +22,8 @@ logger = logging.getLogger(__name__)
 def _quarantine_sidecar_files(db_path: Path, quarantine_dir: Path) -> None:
     """Quarantine pre-existing -wal/-shm sidecar files associated with db_path.
 
-    Sidecar names resolve from the full database filename (REQ-001):
-    ``rag.sqlite`` -> ``rag.sqlite-wal`` / ``rag.sqlite-shm``. Fail-closed
-    (REQ-002): a quarantine copy/unlink failure raises OSError so the caller
+    Sidecar names resolve from the full database filename:
+    ``rag.sqlite`` -> ``rag.sqlite-wal`` / ``rag.sqlite-shm``. Fail-closed: a quarantine copy/unlink failure raises OSError so the caller
     reports a failed recovery instead of proceeding without the sidecar.
     """
     ts = int(time.time())
@@ -41,7 +40,7 @@ def _stage_backup_sidecars(
 ) -> dict[str, Path]:
     """Stage -wal/-shm sidecars from backup_path alongside temp_restore.
 
-    Sidecar names resolve from the full backup filename (REQ-001):
+    Sidecar names resolve from the full backup filename:
     ``backup.sqlite`` -> ``backup.sqlite-wal`` / ``backup.sqlite-shm``.
     """
     staged: dict[str, Path] = {}
@@ -82,7 +81,7 @@ def _stage_restore(
 ) -> dict[str, Path]:
     """Quarantine sidecars, archive the corrupt DB, and stage the candidate unit.
 
-    Steps 2-4 of the restore. Staging only (REQ-003): the candidate — the backup
+    Steps 2-4 of the restore. Staging only: the candidate — the backup
     plus its -wal/-shm sidecars named after temp_restore — is staged but NOT
     activated; db.recovery verifies it before swapping it into place. Returns the
     staged sidecar paths keyed by suffix for the caller's activation step.
@@ -100,7 +99,7 @@ def _stage_restore(
 
     # 4. Stage the candidate unit: copy the backup and move its sidecars under
     # the temp_restore names so verification sees the complete unit.
-    # Fail-closed (REQ-002): a move failure raises; the caller's OSError
+    # Fail-closed: a move failure raises; the caller's OSError
     # handler reports the failed recovery.
     shutil.copy2(backup, temp_restore)
     staged: dict[str, Path] = {}

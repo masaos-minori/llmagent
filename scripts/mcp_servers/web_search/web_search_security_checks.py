@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
 """scripts/mcp_servers/web_search/web_search_security_checks.py — Web Search config posture checks.
 
-Self-validation layer for the Web Search MCP server (REQ-015). This module owns every
+Self-validation layer for the Web Search MCP server. This module owns every
 SecurityCheckResult the server reports about its own configuration:
   _numeric_checks: the four numeric invariants, in posture order
   _allowlist_check: browser_allowed_domains as NOT_APPLICABLE, WARNING, or OK
   _is_hostname_shape: the posture-time mirror of search_provider._check_domain()
   _result / _invariant_result: SecurityCheckResult construction
   validate_web_search_security: the ordered five-element list server.py reports
-
-Extracted from web_search_models.py, whose declared scope is config loading, Pydantic
-models, and domain exceptions. Every check is pure: no network call is issued, and each
-message names a setting and its state rather than an allowlist entry.
 """
 
 from __future__ import annotations

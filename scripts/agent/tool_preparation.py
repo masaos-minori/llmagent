@@ -150,7 +150,7 @@ def _move_duplicate_ids(
     prepared: list[PreparedToolCall],
 ) -> tuple[list[PreparedToolCall], list[_PrepFailure]]:
     """Move every prepared call whose `call_id` occurs more than once in the batch
-    out of `prepared`, as a `duplicate_id` rejection (REQ-001, AC-001, AC-002).
+    out of `prepared`, as a `duplicate_id` rejection (AC-001, AC-002).
 
     Batch-level post-pass over the `_prepare_one` results. Counting sees only
     `prepared` entries: the misexecution hazard is two same-id calls surviving

@@ -164,9 +164,9 @@ def format_checkout(
 
 
 def _authorize_remote(state: RepositoryState, remote_name: str, cfg: GitConfig) -> None:
-    """REQ-004: reject a remote whose current URL is not in
+    """reject a remote whose current URL is not in
     ``cfg.allowed_remote_urls`` — must run before any mutating GitPython call.
-    Raises GitServiceError with the redacted (never raw) resolved URL (REQ-003)."""
+    Raises GitServiceError with the redacted (never raw) resolved URL."""
     assert state._repo is not None
     url = _resolve_remote_url(state._repo, remote_name)
     redacted = _redact_remote_url(url) if url is not None else "(unknown remote)"

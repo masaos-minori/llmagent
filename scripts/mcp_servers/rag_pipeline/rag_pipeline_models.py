@@ -117,7 +117,7 @@ class RagPipelineConfig:
         only as presence booleans: compute_config_fingerprint() rejects an absolute path, a
         credential-shaped value, and a config section header, so a view carrying rag_db_path or
         sqlite_vec_so by value would make common.own_config_only FAILED and stop this server from
-        starting. auth_token is a Secret under REQ-002 and never appears at all.
+        starting. auth_token is a Secret and never appears at all.
 
         A new dict is built on every call because RagPipelineConfig is a mutable dataclass and the
         view must not track later mutations of the config object.

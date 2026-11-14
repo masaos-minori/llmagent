@@ -83,7 +83,7 @@ def _github_security_view(cfg: GitHubConfig) -> dict[str, object]:
 
     Only scalars and counts are carried: `auth_token`, `audit_log_path`, `llm_url`, and
     every `allowed_repos` / `path_denylist` / `protected_branches` value are never hashed
-    by value (REQ-002, REQ-009).
+    by value.
     """
     return {
         "own_config_file": GITHUB_OWN_CONFIG_FILE,
@@ -268,12 +268,12 @@ class GithubMCPServer(MCPServer):
 
 
 def _enforce_posture_gate() -> None:
-    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+    """Refuse HTTP bind when the posture is not validated (AC-003).
 
     The gate reads only `validated`: the payload `ready` is derived in
     `make_health_response()` from dependencies plus `validated`, so this module never
     invents its own Ready rule. The log line carries check ids and reason codes only;
-    repository names are allowlist entries (REQ-002).
+    repository names are allowlist entries.
     """
     if _security_posture.validated:
         return

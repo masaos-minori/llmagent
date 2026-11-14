@@ -59,7 +59,7 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `log_authorization_change` | `def log_authorization_change(consumer_id, request_id, route, target, detail, actor, *, previous_generation, new_generation) -> None` | Emit one JSON-lines audit record for an authorization change. |
 | `scripts/eventbus/auth.py` | `Role` | `class Role` | — |
 |  | `Principal` | `class Principal` | Authenticated identity carrying roles, consumer grants, and token fingerprint. |
-|  | `AuthzGeneration` | `class AuthzGeneration` | Immutable authorization generation snapshot (EBAUTHGEN001). |
+|  | `AuthzGeneration` | `class AuthzGeneration` | Immutable authorization generation snapshot. |
 |  | `unauthorized_response` | `def unauthorized_response(detail) -> JSONResponse` | Return a standardized HTTP 401 Unauthorized response. |
 |  | `build_and_publish_generation` | `def build_and_publish_generation(config) -> None` | Build the principals map and publish it as a new AuthzGeneration. |
 |  | `publish_generation` | `def publish_generation(new_generation) -> None` | Atomically publish a fully built AuthzGeneration. |

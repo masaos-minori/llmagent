@@ -137,7 +137,7 @@ class RepositoryState:
         The protected-branch decision is evaluated against the branch the
         operation actually changes (the destination), not always the current
         HEAD: commit/add change the current HEAD; pull/push/checkout change the
-        requested branch. This is REQ-002 (destination-based) and REQ-003
+        requested branch. This is (destination-based) and
         (checkout away from a protected branch is allowed).
         """
         # Destination = the branch the operation actually changes.
@@ -184,7 +184,7 @@ class RepositoryState:
         git_checkout is intentionally NOT branch-checked here: the real
         postcondition (that the checkout landed on the requested branch) is
         enforced inside ``format_checkout`` (which refreshes its own snapshot
-        after the mutating Git call). With the single shared snapshot (REQ-006)
+        after the mutating Git call). With the single shared snapshot
         this method only holds the *pre*-checkout state, so comparing
         ``post_state.active_branch`` against the requested branch would falsely
         reject every successful checkout. pull/push have no such in-op check, so
@@ -302,7 +302,7 @@ def _validate_ref(ref: str, active_branch: str | None = None) -> bool:
         # and the implicit target is the current branch.
         return active_branch is not None and bool(active_branch.strip())
     if stripped.startswith("-"):
-        # Ref looks like a CLI option — reject immediately per REQ-008.
+        # Ref looks like a CLI option — reject immediately.
         return False
     # Check for malformed ref patterns (e.g., containing null bytes, control chars).
     if any(c in stripped for c in ("\x00", "\n", "\r")):
@@ -321,5 +321,5 @@ def _resolve_remote_url(repo: git.Repo, remote_name: str) -> str | None:
 
 def _redact_remote_url(url: str) -> str:
     """Strip an embedded credential (user[:token]@) from a remote URL before
-    it appears in any log or audit field (REQ-003)."""
+    it appears in any log or audit field."""
     return re.sub(r"://[^@/]+@", "://***@", url)

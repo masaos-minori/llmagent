@@ -5,10 +5,8 @@ Posture validation, tool definitions, routing drift/safety tiers, and RAG
 consistency.
 
 Security input is the posture each MCP server publishes, validated in
-``agent.services.mcp_health.check_readiness()`` (REQ-017). This module assembles
+``agent.services.mcp_health.check_readiness()``. This module assembles
 the pipeline; it validates no configuration of another module.
-
-Extracted from scripts/agent/startup.py (REQ-003).
 """
 
 from __future__ import annotations
@@ -76,7 +74,7 @@ def _check_component_mandatoriness(
     the ``component_mandatoriness`` source label. A missing or unparsable
     registry is also fatal (ADR-004 Fail-Fast). Synchronous; reads no network
     state. Callers must run this before MCP tool discovery so ``runtime_tools``
-    is never published when the gate fails (REQ-004, AC-3).
+    is never published when the gate fails (AC-3).
     """
     try:
         registry = load_component_mandatoriness()
@@ -133,7 +131,7 @@ class StartupValidationPipeline:
         else:
             pipeline.add_ok("mcp_auth")
 
-        # 3. Component mandatoriness cross-check (REQ-004)
+        # 3. Component mandatoriness cross-check
         # Runs before discovery publication: a registry conflict or an unknown
         # server aborts startup so runtime_tools is never published (AC-3).
         # Synchronous; reads no network state, so it costs nothing here.
@@ -192,7 +190,7 @@ class StartupValidationPipeline:
         # The Security Posture gate is collected here rather than read from the
         # readiness step: check_readiness() raises when a posture error exists, and
         # this step still runs after that except, so the gate must be available on
-        # exactly that failure path (REQ-014).
+        # exactly that failure path.
         try:
             posture_gates = await collect_server_postures(ctx)
             discovery = await McpToolDiscoveryService(

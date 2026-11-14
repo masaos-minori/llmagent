@@ -301,7 +301,7 @@ class ToolTransportInvoker:
             return health_err
 
         try:
-            # REQ-004: reject disabled servers at the shared invocation boundary
+            # reject disabled servers at the shared invocation boundary
             cfg = self._server_configs.get(server_key)
             if cfg is not None and cfg.startup_mode == StartupMode.NONE:
                 msg = (

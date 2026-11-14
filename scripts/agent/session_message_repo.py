@@ -32,7 +32,7 @@ _INSERT_MESSAGE_SQL_WITH_IDS = (
 )
 
 # Pre-image row captured by capture_session_image: the columns the restore
-# re-inserts verbatim, ordered by message_id (REQ-001).
+# re-inserts verbatim, ordered by message_id.
 type SessionImageRow = tuple[int, str, str, str | None, str | None, str]
 # Captured session pre-image: (rows ordered by message_id, persisted undo floor).
 type SessionImage = tuple[list[SessionImageRow], int]
@@ -178,7 +178,7 @@ class SessionMessageRepository:
             rows.append((session_id, role, content, tc_json, tool_call_id))
         if not rows:
             # Nothing to persist: clear nothing and report None, matching
-            # save_many's guard (REQ-004 "nothing persisted" contract).
+            # save_many's guard ("nothing persisted" contract).
             return None
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
@@ -220,7 +220,7 @@ class SessionMessageRepository:
         marker is ``MAX(message_id)`` at turn start, so ``> marker`` deletes
         exactly this turn's rows and never a prior turn's row. Raises
         ``sqlite3.Error`` on DB failure; the boundary wraps it into
-        ``ConversationPersistenceError`` and compensates (REQ-002).
+        ``ConversationPersistenceError`` and compensates.
         """
         if session_id is None:
             return 0
@@ -241,7 +241,7 @@ class SessionMessageRepository:
         ``content``, ``tool_calls``, ``tool_call_id``, ``created_at``) ordered
         by ``message_id``, and the persisted ``undo_floor_message_id``. The
         boundary captures this image immediately before a compression rewrite so
-        the compensation can restore the turn-start state (REQ-001). Raises
+        the compensation can restore the turn-start state. Raises
         ``sqlite3.Error`` on DB failure.
         """
         if session_id is None:
@@ -271,7 +271,7 @@ class SessionMessageRepository:
         Deletes every row of the session, re-inserts the captured rows whose
         ``message_id`` is at or below ``marker`` with their original
         ``message_id`` and ``created_at``, and resets
-        ``sessions.undo_floor_message_id`` to ``undo_floor`` (REQ-001, REQ-004).
+        ``sessions.undo_floor_message_id`` to ``undo_floor``.
         Rows above ``marker`` (this turn's partial rows) are discarded; rows at
         or below it are restored, so the turn-start content survives even when
         ``replace_messages`` rewrote the session earlier in the turn. Returns
@@ -313,7 +313,7 @@ class SessionMessageRepository:
         return int(deleted)
 
     def undo_deleted_rows(self, session_id: int | None) -> list[DeletedRow]:
-        """Return the rows deleted by a /undo, ascending message_id (REQ-001).
+        """Return the rows deleted by a /undo, ascending message_id.
 
         One transaction: read the /undo boundary, find the last user row, gate on
         `last_user_id > undo_floor`, then SELECT and DELETE every row at/after it.
@@ -370,10 +370,10 @@ class SessionMessageRepository:
         Unlike :meth:`save_many` (implicit autocommit per call), this runs the
         whole group in a single ``begin_immediate`` transaction on a single
         connection, so a single injected failure leaves either all or none of
-        the round's rows (REQ-005, AC-005). Invalid roles are skipped. The
+        the round's rows (AC-005). Invalid roles are skipped. The
         ``begin_immediate`` block rolls back on failure and re-raises
         ``sqlite3.Error``; the boundary wraps it into
-        ``ConversationPersistenceError`` and compensates (REQ-002).
+        ``ConversationPersistenceError`` and compensates.
         """
         if self.session_id is None or not messages:
             return

@@ -12,7 +12,7 @@ window, runs per-domain verification through the helpers exposed by
 The live databases are never mutated: the recovery point is a WAL-consistent
 SQLite backup-API copy and every check runs against the isolated copy only.
 
-REQ-007 drill tooling.
+drill tooling.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ def _canonical_ddl(domain: str) -> str:
 
 
 def _schema_drift_error(domain: str, isolated: Path) -> str | None:
-    """Fingerprint the restored copy against the canonical DDL (REQ-003/REQ-004).
+    """Fingerprint the restored copy against the canonical DDL.
 
     Returns None when the copy matches the current schema, or the fingerprint
     refusal text (which already carries the archive-and-recreate guidance) on
@@ -211,7 +211,7 @@ def _drill_one_domain(
             verification = _verify_workflow(isolated)
     except (sqlite3.Error, RuntimeError) as exc:
         # RuntimeError: the consistency layer's fingerprint refusal (session
-        # REQ-003). Recorded here; the shape gate below names the drift.
+        # scope) is recorded here; the shape gate below names the drift.
         logger.error("drill %s: restore read failed: %s", domain, exc)
         verification = {"integrity": False, "restore_error": False}
     finally:
@@ -223,13 +223,13 @@ def _drill_one_domain(
     artifact["backup_duration_seconds"] = round(backup_duration_seconds, 6)
     # RPO = recovery-point age at the assumed failure time. The assumed-failure
     # event defaults to the moment the restored copy became ready (a documented
-    # operational decision, REQ-005): a measurement, not an objective RPO.
+    # operational decision): a measurement, not an objective RPO.
     # Non-negative by construction (archive precedes restore completion).
     assumed_failure_ts = restore_end_epoch
     artifact["rpo_seconds"] = round(assumed_failure_ts - archive_ts_epoch, 6)
     artifact["verification"] = verification
 
-    # Shape gate on the restored copy (REQ-003/REQ-004): the archived copy must
+    # Shape gate on the restored copy: the archived copy must
     # match the current canonical schema. Any drift — a legacy extra table, a
     # missing table, a column or index difference — is one audited finding via
     # the fingerprint refusal, and the operator follows the archive-and-recreate

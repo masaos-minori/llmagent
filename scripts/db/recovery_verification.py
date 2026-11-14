@@ -3,7 +3,7 @@
 
 Owns the logical half of recovery verification: dispatch a target to the consistency
 contract defined for its domain, and summarize an inconsistent report as
-counts/identifiers only (REQ-010/AC-7). Condition classification, the physical
+counts/identifiers only (AC-7). Condition classification, the physical
 integrity check, and the RecoveryResult policy stay in db.recovery, which calls
 these helpers.
 """
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 def _rag_inconsistency_detail(report: RagConsistencyReport) -> str:
-    """Summarize a rag report's inconsistencies as counts/identifiers only (REQ-010/AC-7).
+    """Summarize a rag report's inconsistencies as counts/identifiers only (AC-7).
 
     Entries are listed in the order `check_rag_consistency` computes them: the
     unverified-dimension names come first (probe-class failures), then the count-based
@@ -65,7 +65,7 @@ def _rag_inconsistency_detail(report: RagConsistencyReport) -> str:
 
 
 def _session_inconsistency_detail(report: SessionConsistencyReport) -> str:
-    """Summarize a session report's inconsistencies as counts/identifiers only (REQ-010/AC-7).
+    """Summarize a session report's inconsistencies as counts/identifiers only (AC-7).
 
     Entries are included only when they indicate an inconsistency: orphan counts above
     zero, an unreadable diagnostics table, a failed read smoke test, or non-empty
@@ -125,7 +125,7 @@ def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | N
     """Run logical consistency verification on the restored database.
 
     Returns (consistent, detail_string) — detail contains a short summary
-    of counts/identifiers only (no row content), matching REQ-010/AC-7.
+    of counts/identifiers only (no row content), matching AC-7.
 
     An unknown mandatory target, or a database this stage cannot open, fails
     closed as (False, "verification_unavailable"): a verification gap must never
@@ -144,7 +144,7 @@ def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | N
         logger.error("Logical verification could not open DB: %s", e)
         return False, "verification_unavailable"
     except RuntimeError as e:
-        # Fingerprint refusal from the consistency layer (session REQ-003):
+        # Fingerprint refusal from the consistency layer (session):
         # a fail-closed verification failure, quoted verbatim for the operator.
         logger.error("Logical verification refused DB schema: %s", e)
         return False, str(e)

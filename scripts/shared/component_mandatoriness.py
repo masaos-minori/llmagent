@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """scripts/shared/component_mandatoriness.py — Leaf-safe loader for the MCP
-component-mandatoriness registry (REQ-003, REQ-007).
+component-mandatoriness registry.
 
 Encodes ADR-004 Decision Group 3 item 13: each MCP server's approved
 required/non-required classification lives in one machine-readable registry that

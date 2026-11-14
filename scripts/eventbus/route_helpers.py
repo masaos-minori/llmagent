@@ -160,7 +160,7 @@ async def run_with_db_lock(func: Any) -> Any:
                 release_active_db_user()
                 _db_query_duration.observe(time.monotonic() - acquired)
 
-    # REQ-004 fail-fast: refuse new work once shutdown has begun so a thread
+    # fail-fast: refuse new work once shutdown has begun so a thread
     # queued on the lock never runs SQL against the closed connection.
     if is_shutting_down():
         raise RuntimeError("eventbus shutting down: refusing new DB work")

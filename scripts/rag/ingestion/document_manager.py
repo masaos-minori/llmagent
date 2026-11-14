@@ -103,7 +103,7 @@ class DocumentManager:
             return existing_doc_id, True, False
 
         # No freshness write here: freshness lands atomically in
-        # TransactionManager.commit's replace branch (raging002 REQ-001/003).
+        # TransactionManager.commit's replace branch (raging002).
         return existing_doc_id, False, True
 
     @staticmethod

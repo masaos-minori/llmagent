@@ -170,7 +170,7 @@ class MemoryDataOps:
         Returns ``(memory_id, "")`` for a full or unambiguous short ID. Returns
         ``("", "ambiguous")`` when the prefix matches more than one entry and
         ``("", "unknown")`` when it matches none. Uses ``startswith`` on loaded
-        ids (no SQL injection); REQ-009.
+        ids (no SQL injection).
         """
         store = mem.store
         if store.get_by_id(token) is not None:
@@ -184,7 +184,7 @@ class MemoryDataOps:
         return "", "ambiguous" if matches else "unknown"
 
     def _count_pinned(self) -> int:
-        """Return the number of currently pinned memories (SQLite-first, REQ-006)."""
+        """Return the number of currently pinned memories (SQLite-first)."""
         from db.helper import SQLiteHelper
 
         with SQLiteHelper("session").open() as db:

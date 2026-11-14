@@ -87,7 +87,7 @@ def _load_auth_token() -> str:
 _AUTH_TOKEN: str = _load_auth_token()
 _service: MdqService = MdqService()
 
-# Build the MDQ security posture once at import (REQ-002). `_collect_dependencies()`
+# Build the MDQ security posture once at import. `_collect_dependencies()`
 # records config-read errors (ConfigMissingError / ConfigParseError / ConfigReadError)
 # and probe-side PermissionError / KeyError / TypeError under deps["config"] and
 # returns an empty config view; it swallows no other exceptions. The gate below fails
@@ -486,7 +486,7 @@ attach_auth_middleware(cast(_FastAPIApp, app), _AUTH_TOKEN)
 
 
 def _enforce_posture_gate() -> None:
-    """Refuse HTTP bind when the MDQ posture is not validated (fail-closed, REQ-003).
+    """Refuse HTTP bind when the MDQ posture is not validated (fail-closed).
 
     Reads only `_security_posture.validated`; the payload `ready` is derived in
     `make_health_response()` from dependencies plus `validated`, so this module never

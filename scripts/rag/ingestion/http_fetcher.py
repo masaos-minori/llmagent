@@ -2,8 +2,6 @@
 """scripts/rag/ingestion/http_fetcher.py
 
 HttpFetcher: owns HTTP fetching concern (retry, conditional headers, redirect hops).
-
-Extracted from WebCrawler to separate HTTP fetching from BFS orchestration.
 """
 
 from __future__ import annotations
@@ -32,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Status codes that represent a redirect the hop loop must resolve itself.
 _REDIRECT_STATUS: frozenset[int] = frozenset({301, 302, 303, 307, 308})
-# Hard bound on redirect hops (REQ-001); a loop or an over-long chain past this
+# Hard bound on redirect hops; a loop or an over-long chain past this
 # returns the failed outcome with a distinct log.
 _MAX_REDIRECT_HOPS = 8
 
@@ -86,7 +84,7 @@ class HttpFetcher:
         """Fetch HTML and follow redirects hop by hop until a non-redirect response or a refusal.
 
         ``origin`` is the crawl start URL (``scheme://netloc``); each redirect hop
-        is validated against it before it is requested (REQ-001/REQ-002). Returns
+        is validated against it before it is requested. Returns
         ``Fetched`` (with the final accepted URL) on a 200, ``NotModified`` on a
         304, and ``FetchFailed`` on retry exhaustion, a missing Location header, a
         refused hop, or a chain longer than :data:`_MAX_REDIRECT_HOPS`.
@@ -162,7 +160,7 @@ class HttpFetcher:
         (same scheme or an http-to-https upgrade allowed, a downgrade refused); a
         hop to any other host is allowed only when every resolved address is public
         (:func:`host_is_public`, fail closed). A configured robots cache then
-        disallows a hop path for a host whose parser is loaded (REQ-003).
+        disallows a hop path for a host whose parser is loaded.
         """
         origin_host = urlparse(origin).hostname if origin else None
         url_host = urlparse(url).hostname

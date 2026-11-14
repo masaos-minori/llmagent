@@ -17,7 +17,7 @@ sqlite_archive_dir = "/opt/llm/db/archive"
 sqlite_corrupt_archive_max_files = 10
 sqlite_corrupt_archive_max_age_days = 30
 # Moved from config/mcp_dedup.toml [dedup].pending_timeout_minutes (adrrev008,
-# REQ-004 per-process config isolation). Agent-side stale-pending timeout window;
+# per-process config isolation). Agent-side stale-pending timeout window;
 # read by workflow_engine.py via AgentConfig.pending_timeout_minutes.
 pending_timeout_minutes = 10
 

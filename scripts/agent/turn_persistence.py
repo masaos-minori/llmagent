@@ -2,15 +2,14 @@
 """scripts/agent/turn_persistence.py
 
 Turn-persistence boundary — makes one agent turn's session-DB persistence
-all-or-nothing (REQ-001). On any persistence failure inside a turn the
+all-or-nothing. On any persistence failure inside a turn the
 boundary compensates (restores the captured pre-rewrite row image when the
 turn's compression rewrite succeeded, otherwise deletes the turn's partial
 DB rows via the repository's compensation delete), restores
 ``ConversationState`` memory to its turn-start snapshot, and raises
-:class:`ConversationPersistenceError` wrapping the underlying ``sqlite3.Error``
-(REQ-002, REQ-003, REQ-004).
+:class:`ConversationPersistenceError` wrapping the underlying ``sqlite3.Error``.
 
-Write routing (REQ-005) is realized at the repository: each phase-group (e.g. a
+Write routing is realized at the repository: each phase-group (e.g. a
 tool round's assistant + tool-result messages) is persisted in a single
 ``begin_immediate`` transaction on a single connection via
 :meth:`SessionMessageRepository.save_phase_grouped`. The boundary delegates its
@@ -18,8 +17,7 @@ writes to the repository so every turn write flows through one object; no
 turn-path component may call ``ctx.session.save*`` directly (AC-001).
 
 The boundary itself never touches SQLite: it offloads every repository write
-(and the compensation delete) to a worker thread with :func:`asyncio.to_thread`
-(REQ-005). Each repository call opens its own short-lived connection, so the
+(and the compensation delete) to a worker thread with :func:`asyncio.to_thread`. Each repository call opens its own short-lived connection, so the
 connection is used exclusively inside one worker thread; the loop-thread SQLite
 usage (``session_message_repo.read*``, snapshot queries) is unaffected.
 """
@@ -44,8 +42,7 @@ class ConversationPersistenceError(Exception):
     """Raised when a turn's session-DB persistence fails and is compensated.
 
     Wraps the underlying ``sqlite3.Error``; the original is preserved on both
-    ``__cause__`` (via ``raise ... from``) and the public ``cause`` attribute
-    (REQ-003). Subclasses the plain ``Exception`` base, matching the
+    ``__cause__`` (via ``raise... from``) and the public ``cause`` attribute. Subclasses the plain ``Exception`` base, matching the
     subsystem-local error placement of ``shared.llm_exceptions.LLMTransportError``.
     """
 
@@ -100,7 +97,7 @@ class TurnPersistence:
     ) -> None:
         """Persist a single turn message (one phase transaction).
 
-        The repository call runs on a worker thread (REQ-005); its
+        The repository call runs on a worker thread; its
         ``sqlite3.Error`` propagates back to the caller unchanged.
         """
         try:
@@ -116,7 +113,7 @@ class TurnPersistence:
     ) -> None:
         """Persist several turn messages in one repository transaction.
 
-        The repository call runs on a worker thread (REQ-005); its
+        The repository call runs on a worker thread; its
         ``sqlite3.Error`` propagates back to the caller unchanged.
         """
         try:
@@ -132,8 +129,7 @@ class TurnPersistence:
 
         Runs in a single ``begin_immediate`` transaction on a single connection,
         so a single injected failure leaves either all or none of the round's
-        rows (REQ-005, AC-005). The repository call runs on a worker thread
-        (REQ-005); its ``sqlite3.Error`` propagates back to the caller unchanged.
+        rows (AC-005). The repository call runs on a worker thread; its ``sqlite3.Error`` propagates back to the caller unchanged.
         """
         try:
             await asyncio.to_thread(
@@ -143,12 +139,12 @@ class TurnPersistence:
             await self._fail_from_error(exc)
 
     async def replace_messages(self, messages: list[LLMMessage]) -> int | None:
-        """Persist a compressed snapshot back to DB (REQ-006).
+        """Persist a compressed snapshot back to DB.
 
         Captures the session's pre-rewrite row image on the worker thread before
         the rewrite, so a later failure in the same turn can restore the
-        turn-start rows instead of only deleting rows above the marker (REQ-001).
-        The repository call runs on a worker thread (REQ-005); its
+        turn-start rows instead of only deleting rows above the marker.
+        The repository call runs on a worker thread; its
         ``sqlite3.Error`` propagates back to the caller unchanged.
         """
         if self.session_id is None:
@@ -169,7 +165,7 @@ class TurnPersistence:
         compensation keeps the delete-above-marker path (its transaction already
         rolled back atomically). First-image-only: a second rewrite in the same
         turn reuses the first image and cannot move the restored state past the
-        turn-start image (REQ-001, REQ-004). A capture failure propagates
+        turn-start image. A capture failure propagates
         before any rewrite happens.
         """
         if self.session_id is None:
@@ -182,14 +178,14 @@ class TurnPersistence:
         return result
 
     async def _compensate(self) -> int:
-        """Undo the turn's DB changes in one transaction (REQ-001, REQ-004).
+        """Undo the turn's DB changes in one transaction.
 
         When the turn rewrote the session (a compression) a captured pre-rewrite
         image exists: restore it with :meth:`restore_session_image`, so the
         turn-start rows and the persisted ``/undo`` boundary come back even
         though ``replace_messages`` succeeded earlier. Without an image the
         append-only path keeps deleting rows strictly above the marker.
-        Offloaded to a worker thread like the writes (REQ-005).
+        Offloaded to a worker thread like the writes.
         """
         if self.session_id is None:
             return 0
@@ -213,8 +209,7 @@ class TurnPersistence:
 
         Deletes the turn's partial rows, restores ``conv.history`` to the
         turn-start snapshot element-wise, then raises
-        :class:`ConversationPersistenceError` chaining ``exc`` (REQ-002, REQ-003,
-        REQ-004). A compensation-delete failure is logged and does not mask the
+        :class:`ConversationPersistenceError` chaining ``exc``. A compensation-delete failure is logged and does not mask the
         original error.
         """
         try:

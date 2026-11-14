@@ -79,7 +79,7 @@ async def subscribe(
         if not topic:
             raise HTTPException(status_code=403, detail="Forbidden: no topics granted")
 
-    # REQ-003: Read Last-Event-ID header as additional resume-position input
+    # Read Last-Event-ID header as additional resume-position input
     last_event_id_str = request.headers.get("last-event-id", "")
     last_event_id: int | None = None
     if last_event_id_str:
@@ -88,7 +88,7 @@ async def subscribe(
         except ValueError:
             logger.warning("Invalid Last-Event-ID header: %r", last_event_id_str)
 
-    # REQ-003: Stale reconnect rejection
+    # Stale reconnect rejection
     if last_event_id is not None:
 
         def _get_max_seq() -> int:
@@ -103,7 +103,7 @@ async def subscribe(
                 detail=f"Last-Event-ID ({last_event_id}) exceeds current max seq ({max_seq})",
             )
 
-    # REQ-004: Implement precedence: since_seq > resume position > Last-Event-ID.
+    # Implement precedence: since_seq > resume position > Last-Event-ID.
     # Replay delivers events with seq greater than an exclusive lower bound
     # (after_seq). The resume position is the first seq to deliver (the lowest
     # unacked seq at or below the stored offset, else stored offset + 1), so it
@@ -117,7 +117,7 @@ async def subscribe(
         if resume_position > 0:
             after_seq = resume_position - 1
 
-    # REQ-003: Fallback to Last-Event-ID only if both since_seq and consumer
+    # Fallback to Last-Event-ID only if both since_seq and consumer
     # offset are unavailable; Last-Event-ID L resumes with event L + 1.
     if after_seq == 0 and last_event_id is not None:
         after_seq = last_event_id
@@ -171,7 +171,7 @@ async def subscribe(
 
                 for row in rows:
                     data = json_dumps(_row_to_dict(row))
-                    # REQ-002: Emit id: field alongside data: field
+                    # Emit id: field alongside data: field
                     yield f"id:{row['seq']}\ndata:{data}\n\n"
                     last_replayed = row["seq"]
 
@@ -186,11 +186,11 @@ async def subscribe(
             # on a timeout to avoid leaking this generator (and its
             # subscriber registration) forever when a client goes away
             # without ever overflowing its queue.
-            # REQ-001: Heartbeat tracking for idle connection keepalive
+            # Heartbeat tracking for idle connection keepalive
             last_heartbeat_time = time.time()
             heartbeat_interval = cfg.sse_heartbeat_interval
 
-            # REQ-001: Timeout-based disconnect detection as fallback
+            # Timeout-based disconnect detection as fallback
             # when is_disconnected() doesn't fire under certain transports
             # (e.g., TestClient). Track last event arrival time and break
             # if no events arrive within the configured idle timeout window.
@@ -212,17 +212,17 @@ async def subscribe(
                 if not done:
                     if await request.is_disconnected():
                         break
-                    # REQ-004: Evaluate heartbeat deadline in timeout branch
+                    # Evaluate heartbeat deadline in timeout branch
                     now = time.time()
                     elapsed_since_heartbeat = now - last_heartbeat_time
                     elapsed_since_event = now - last_event_time
 
-                    # REQ-005: Emit heartbeat if deadline reached (independent of event arrival)
+                    # Emit heartbeat if deadline reached (independent of event arrival)
                     if elapsed_since_heartbeat >= heartbeat_interval:
                         yield ": heartbeat\n\n"
                         last_heartbeat_time = now
 
-                    # REQ-006: Heartbeat activity resets idle timeout
+                    # Heartbeat activity resets idle timeout
                     # Use the later of last_event_time and last_heartbeat_time as the effective last activity time
                     _last_activity_time = max(last_event_time, last_heartbeat_time)
                     if elapsed_since_event > idle_timeout:
@@ -239,11 +239,11 @@ async def subscribe(
                 if event["seq"] <= last_replayed:
                     continue  # duplicate from replay; discard
                 data = json_dumps(event)
-                # REQ-002: Emit id: field alongside data: field
+                # Emit id: field alongside data: field
                 yield f"id:{event['seq']}\ndata:{data}\n\n"
-                # REQ-001: Update last event time after successful delivery
+                # Update last event time after successful delivery
                 last_event_time = time.time()
-                # REQ-001: Periodic heartbeat during active delivery
+                # Periodic heartbeat during active delivery
                 now = time.time()
                 if now - last_heartbeat_time >= heartbeat_interval:
                     yield ": heartbeat\n\n"

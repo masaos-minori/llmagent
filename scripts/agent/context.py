@@ -202,7 +202,7 @@ class ConversationState:
 
         Trusts its argument (the boundary's own turn-start snapshot) and does not
         re-validate, so the restored history equals the snapshot exactly
-        (REQ-004, AC-004). Untrusted DB restores keep using ``replace_history``.
+        (AC-004). Untrusted DB restores keep using ``replace_history``.
         """
         async with self._ensure_lock:
             self.history.clear()
@@ -251,9 +251,9 @@ class TurnState:
     # The atomic turn-persistence boundary for the running turn (see
     # scripts/agent/turn_persistence.py). Set by Orchestrator._execute_turn at turn
     # start; the write-routing callers route every session-DB write through it so a
-    # turn is persisted all-or-nothing (REQ-001, AC-001). None between turns.
+    # turn is persisted all-or-nothing (AC-001). None between turns.
     persistence_boundary: TurnPersistence | None = None
-    # Per-attempt side-effect flag (wfretry001 REQ-006): set by tool_runner before a
+    # Per-attempt side-effect flag (wfretry001): set by tool_runner before a
     # non-READ tool call, cleared at each attempt start by the workflow adapter, read
     # by the adapter's failure wrap to make side-effect-flagged failures terminal.
     # Transient process state: no DB column, no persistence-boundary write.
@@ -337,7 +337,7 @@ class AppServices:
         runtime_tools: RuntimeToolRegistry | None = None,
     ) -> None:
         """Initialize all required service references for the agent runtime."""
-        # REQ-001: enforce invariant — all required services must be non-None
+        # enforce invariant — all required services must be non-None
         for _name, _value in [
             ("http", http),
             ("llm", llm),
@@ -383,7 +383,7 @@ class AgentContext:
         self.turn = TurnState()
         self.stats = RuntimeStats()
         self.workflow = WorkflowState()
-        # REQ-001: unconditional restriction, matching every other process entry point
+        # unconditional restriction, matching every other process entry point
         ConfigLoader.restrict_to("agent.toml")
         try:
             self.cfg = build_agent_config()

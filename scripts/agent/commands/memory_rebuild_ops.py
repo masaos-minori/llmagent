@@ -49,7 +49,7 @@ class MemoryRebuildOps:
         Default is dry-run. Pass ``--confirm`` to perform the actual rebuild; a
         confirmed run backs up the current SQLite memories first (aborting on
         backup failure) and refuses to drop SQLite-only memories unless
-        ``--allow-loss`` is given (REQ-007).
+        ``--allow-loss`` is given.
         """
         confirm = "--confirm" in args
         allow_loss = "--allow-loss" in args
@@ -145,7 +145,7 @@ class MemoryRebuildOps:
         )
 
     def reindex(self, mem: MemoryServices, args: list[str]) -> None:
-        """Rebuild only the requested FTS or vec index (REQ-008).
+        """Rebuild only the requested FTS or vec index.
 
         ``/memory reindex [--fts|--vec]`` rebuilds the selected index in place;
         ``memories`` and the JSONL archive are unchanged.

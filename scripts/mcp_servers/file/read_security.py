@@ -3,8 +3,6 @@
 
 ReadSecurityGuards mixin for read-only filesystem operations — path validation and size limits.
 
-Extracted from read_business.py to reduce file size.
-
 validate_file_read_security() is the startup-time entry point: it reports this server's own
 configuration as a Security Posture, so file-read-mcp validates itself before HTTP bind instead of
 being audited by the Agent.

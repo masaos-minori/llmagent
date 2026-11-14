@@ -33,7 +33,7 @@ def _archive_db_file(
     The SQLite online backup API produces the copy; the archive then passes the
     domain integrity and identity checks before it is returned as a recovery
     point. A failing archive raises and is left in place for forensics
-    (REQ-002 verified recovery points).
+    (verified recovery points).
     """
     if not db_path.exists():
         raise FileNotFoundError(f"DB file not found: {db_path}")

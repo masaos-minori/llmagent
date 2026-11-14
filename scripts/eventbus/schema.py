@@ -31,7 +31,7 @@ def _init_schema(conn: Connection) -> None:
     A newly created database is created from schema.sql; an existing database is
     accepted only when its whole schema matches the shared fingerprint of that
     DDL. A mismatch raises before any write or DDL executes. Automatic migration
-    and version stamping are not supported (REQ-003/REQ-004), the operator
+    and version stamping are not supported, the operator
     archives and recreates a mismatching database.
     """
     sql = _SCHEMA_PATH.read_text()

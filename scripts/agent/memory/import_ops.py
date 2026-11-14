@@ -36,7 +36,7 @@ def import_from_jsonl(
     seen, ``inserted_count`` counts rows written. When ``dry_run=True`` the tables
     are left untouched and (jsonl_count, 0) is returned.
 
-    ``backup`` / ``allow_loss`` (REQ-007): a no-loss ``backup`` cannot proceed past
+    ``backup`` / ``allow_loss``: a no-loss ``backup`` cannot proceed past
     records that cannot be reconstructed from the archive alone; ``allow_loss`` opts
     out. Faithful-reconstruction (SQLite-only) detection lives in the rebuild row;
     here the guard refuses when a backup is requested without ``allow_loss`` and
@@ -79,7 +79,7 @@ def import_from_jsonl(
     if dry_run:
         return jsonl_count, 0
 
-    # REQ-007: a no-loss backup must not silently drop records that cannot be
+    # a no-loss backup must not silently drop records that cannot be
     # reconstructed from the archive. The precise SQLite-only detection lives in
     # the rebuild row; refuse here when a backup is requested without allow_loss
     # and unparsable (unreconstructable) records were encountered.

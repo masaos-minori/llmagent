@@ -3,9 +3,7 @@
 
 Pure-function utilities for WebCrawler: URL helpers, content extraction,
 language detection, target URL parsing, and the redirect trust-boundary policy
-helpers (REQ-002).
-
-Extracted from web_crawler.py to keep WebCrawler under 400 lines.
+helpers.
 """
 
 from __future__ import annotations
@@ -21,6 +19,7 @@ from urllib.parse import urldefrag, urlparse
 
 import trafilatura
 from bs4 import BeautifulSoup
+
 from rag.utils import MIN_TEXT_LENGTH_FOR_DETECTION, validate_url
 
 logger = logging.getLogger(__name__)

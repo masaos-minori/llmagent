@@ -39,7 +39,7 @@ def pin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
 
     Emits a ``pin`` change event to the JSONL archive after the SQLite write
     (SQLite-first) on the main path (no injected ``conn``); a no-op of a missing
-    id emits nothing. REQ-001.
+    id emits nothing.
     """
     ok = _set_pinned(memory_id, 1, conn)
     if ok and conn is None:
@@ -52,7 +52,7 @@ def unpin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
 
     Emits an ``unpin`` change event to the JSONL archive after the SQLite write
     (SQLite-first) on the main path (no injected ``conn``); a no-op of a missing
-    id emits nothing. REQ-001.
+    id emits nothing.
     """
     ok = _set_pinned(memory_id, 0, conn)
     if ok and conn is None:

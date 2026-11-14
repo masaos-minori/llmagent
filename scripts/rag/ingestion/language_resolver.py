@@ -2,8 +2,6 @@
 """scripts/rag/ingestion/language_resolver.py
 
 LanguageResolver: owns CJK-ratio-based language detection concern.
-
-Extracted from WebCrawler to separate language resolution from BFS orchestration.
 """
 
 from __future__ import annotations

@@ -184,8 +184,8 @@ class Orchestrator:
             # boundary.fail_from_error() already compensated (deleted the turn's
             # partial DB rows) and restored history to its turn-start snapshot; the
             # narrow branch records a distinct error_kind so the REPL surfaces a
-            # dedicated message (REQ-007). Nothing was persisted, so is_partial stays
-            # False. Re-raise so the failure is observable end-to-end (REQ-004).
+            # dedicated message. Nothing was persisted, so is_partial stays
+            # False. Re-raise so the failure is observable end-to-end.
             error_kind = "persistence"
             is_partial = False
             raise

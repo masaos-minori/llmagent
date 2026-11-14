@@ -3,8 +3,6 @@
 
 Background task failure tracking: consecutive failure counting, threshold breach
 notification, and pause state management.
-
-Extracted from orchestrator.py (_discard_and_log, _notify_bg_failure_threshold).
 """
 
 from __future__ import annotations

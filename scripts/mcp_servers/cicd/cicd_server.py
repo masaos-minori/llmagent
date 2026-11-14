@@ -70,7 +70,7 @@ def _cicd_security_view(cfg: CicdConfig) -> dict[str, object]:
 
     Only scalars and counts are carried: `auth_token` and `github_token` are Secrets and
     every `repo_allowlist` / `workflow_allowlist` value is an allowlist entry, so none of
-    them is hashed by value (REQ-002, REQ-009).
+    them is hashed by value.
     """
     return {
         "own_config_file": CICD_OWN_CONFIG_FILE,
@@ -224,12 +224,12 @@ class CiCdMCPServer(MCPServer):
 
 
 def _enforce_posture_gate() -> None:
-    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+    """Refuse HTTP bind when the posture is not validated (AC-003).
 
     The gate reads only `validated`: the payload `ready` is derived in
     `make_health_response()` from dependencies plus `validated`, so this module never
     invents its own Ready rule. The log line carries check ids and reason codes only;
-    repository and workflow names are allowlist entries (REQ-002).
+    repository and workflow names are allowlist entries.
     """
     if _security_posture.validated:
         return

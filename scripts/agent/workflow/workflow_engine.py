@@ -25,7 +25,7 @@ _ERROR_KIND_EXCEPTION = "exception"
 _ERROR_KIND_LLM_FAILURE = "llm_failure"
 
 # Lease horizon added on top of a stage's enforced timeout (wflease001
-# REQ-005, Plan UNK-03: named constant, not configuration). A normal stage
+# Plan UNK-03: named constant, not configuration). A normal stage
 # is bounded by the asyncio.timeout deadline, so the lease only outlives the
 # stage by this margin; no heartbeat renewal exists (Plan UNK-02).
 _LEASE_MARGIN_SEC = 30
@@ -33,7 +33,7 @@ _LEASE_MARGIN_SEC = 30
 # Default stale-pending timeout window (minutes) when no Agent-config value is
 # supplied. Mirrors shared.mcp_dedup.DEFAULT_PENDING_TIMEOUT_MINUTES (10) and
 # config/agent.toml's pending_timeout_minutes default; kept local so this module
-# never imports the dispatcher's dedup config (REQ-004). orchestrator.py supplies
+# never imports the dispatcher's dedup config. orchestrator.py supplies
 # the real value via AgentConfig.pending_timeout_minutes in production.
 _DEFAULT_PENDING_TIMEOUT_MINUTES = 10
 
@@ -98,7 +98,7 @@ class WorkflowStageFailure(Exception):
     Carries the (answer, error_kind, is_partial) values so the adapter can convert
     the failure back to the outward typed tuple at its boundary. Outward kinds
     (workflow_timeout, workflow_halted) are turn-level and are never persisted
-    to attempts.error_kind (REQ-007 / AC-7).
+    to attempts.error_kind (AC-7).
     """
 
     def __init__(
@@ -139,8 +139,7 @@ class WorkflowEngine:
     ) -> None:
         """Initialize the workflow engine with its definition, state store, and optional tracer.
 
-        *pending_timeout_minutes* is the Agent-side stale-pending timeout window
-        (REQ-004): sourced from AgentConfig, never from the dispatcher's
+        *pending_timeout_minutes* is the Agent-side stale-pending timeout window: sourced from AgentConfig, never from the dispatcher's
         mcp_dedup.toml. Defaults to 10 so direct constructions in tests stay green;
         orchestrator.py passes the real config value.
         """
@@ -163,7 +162,7 @@ class WorkflowEngine:
     def build_turn_control_message(self, task_id: str) -> str | None:
         """Build the replay control message for a task's interrupted tool calls.
 
-        Turn-entry detection (toolexec001 REQ-008): stale pending rows are first
+        Turn-entry detection (toolexec001): stale pending rows are first
         classified to 'interrupted' (timeout from the dispatcher-side dedup config),
         then interrupted rows are listed — retryable ones with a re-issue instruction,
         non-retryable ones as unreplayable status text the LLM must report rather than
@@ -172,7 +171,7 @@ class WorkflowEngine:
         Detection must not raise into the turn path: on store or config errors the
         turn proceeds with no control message (the dispatcher's own dedup still
         guards execution). No interrupted rows -> None -> byte-identical turn
-        behavior (REQ-010). Fresh pending rows (within the timeout window) are not
+        behavior. Fresh pending rows (within the timeout window) are not
         listed: they may still belong to a call in flight, and re-issuing them could
         duplicate live work.
         """
@@ -259,7 +258,7 @@ class WorkflowEngine:
                 await self._run_stage(task, stage_id, fn, attempt=attempt)
                 return
             except WorkflowHaltError:
-                # Halts raised by the stage callback itself are terminal (REQ-006 / AC-6).
+                # Halts raised by the stage callback itself are terminal (AC-6).
                 raise
             except Exception as exc:  # noqa: BLE001 — catch-all to apply retry/halt logic before re-raising
                 if isinstance(exc, WorkflowTimeoutError):
@@ -270,7 +269,7 @@ class WorkflowEngine:
                     kind = _ERROR_KIND_EXCEPTION
                 if kind not in policy.retry_on:
                     # Terminal kind: propagate the original exception at once;
-                    # run() writes the task status (REQ-003 / AC-3).
+                    # run() writes the task status (AC-3).
                     raise
                 if attempt >= policy.max_attempts:
                     logger.error(
@@ -357,7 +356,7 @@ class WorkflowEngine:
             except TimeoutError as exc:
                 if not deadline.expired():
                     # TimeoutError raised by the callback itself, not by the stage
-                    # deadline: kind exception, propagated unchanged (REQ-002 / AC-2).
+                    # deadline: kind exception, propagated unchanged (AC-2).
                     self._store.finish_attempt(
                         attempt_rec.attempt_id,
                         "failed",

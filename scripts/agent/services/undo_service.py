@@ -2,14 +2,11 @@
 
 Undo service — rolls back the last user+assistant turn.
 
-Extracted from cmd_context._ContextMixin so the rollback logic can be
-tested independently of the REPL.
-
-Parity contract (REQ-007): memory history is trimmed to exactly the rows the
+Parity contract: memory history is trimmed to exactly the rows the
 DB deletes. The DB delete runs first; the remaining memory tail is matched
 against the deleted rows and trimmed by identity. When the match is ambiguous
 (orphan DB rows absent from memory) the remaining conversation is reloaded
-from the DB so memory and DB converge (REQ-003).
+from the DB so memory and DB converge.
 """
 
 from __future__ import annotations
@@ -38,7 +35,7 @@ def _match_deleted_tail(
     NULL. Memory-only _memory_injected/_ephemeral artifacts are tolerated
     (skipped). Returns the index at which the matched suffix begins (after
     stripping any trailing artifacts), or None when the deleted rows do not
-    form a contiguous matchable tail (ambiguous -> caller reloads, REQ-003).
+    form a contiguous matchable tail (ambiguous -> caller reloads).
     """
     if not deleted_rows:
         return None
@@ -94,7 +91,7 @@ def undo_last_turn(ctx: AgentContext) -> UndoResult:
     cut = _match_deleted_tail(ctx.conv.history, deleted_rows)
     if cut is None:
         # Ambiguous match (e.g. orphan DB rows absent from memory): reload the
-        # remaining conversation from the DB and log the decision (REQ-003).
+        # remaining conversation from the DB and log the decision.
         # deleted_rows is non-empty, so the DB delete succeeded and session_id is set.
         remaining, _found, _floor = ctx.session.fetch_messages(
             cast(int, ctx.session.session_id)

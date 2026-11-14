@@ -124,7 +124,7 @@ async def health_check(
     if last_result == "failed":
         degraded_reasons.append("dlq_sweep_failing")
 
-    # Tiered health checks (REQ-005): the deployment gate is is_ready(liveness, readiness)
+    # Tiered health checks: the deployment gate is is_ready(liveness, readiness)
     liveness = dlq_task_status == "running"
     readiness = db_ok
 

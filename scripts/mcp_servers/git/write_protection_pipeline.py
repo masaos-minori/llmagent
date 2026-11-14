@@ -5,9 +5,6 @@ Runs the guard stages around one mutating Git call using the single RepositorySt
 snapshot captured by mcp_servers/git/repository_state.py, serializes concurrent
 writes to the same canonical repository path, and re-checks the live HEAD identity
 immediately before the mutating call.
-
-Extracted from mcp_servers/git/repository_state.py so that module holds the
-snapshot model and its guard helpers only.
 """
 
 from __future__ import annotations
@@ -25,10 +22,10 @@ from mcp_servers.git.repository_state import RepositoryState
 
 logger = logging.getLogger(__name__)
 
-# ── Per-repository-path write-serialization lock registry (REQ-005) ───────────
+# ── Per-repository-path write-serialization lock registry ───────────
 # This lock is process-local: it does not constrain a `git` process running
 # outside this MCP server (e.g. a human's local `git` CLI) — see Plan
-# plans/20260904-192131_plan.md REQ-007.
+# plans/20260904-192131_plan.md.
 _repo_locks: dict[str, threading.Lock] = {}
 _registry_guard = threading.Lock()
 
@@ -165,7 +162,7 @@ class WriteProtectionPipeline:
     ) -> PipelineResult:
         """Execute the pipeline: precondition check → operation → postcondition check."""
         # Stage 3: Common authorization check (protected branch / ref validity)
-        # Destination-aware (REQ-002/003): pass the operation context so the
+        # Destination-aware: pass the operation context so the
         # protected-branch decision targets the branch the op actually changes.
         rejected = self._record_or_reject(
             "Stage 3",
@@ -186,16 +183,16 @@ class WriteProtectionPipeline:
         if rejected is not None:
             return rejected
 
-        # Serialize concurrent writes to the same canonical repo path (REQ-005)
+        # Serialize concurrent writes to the same canonical repo path
         # from immediately before the mutating Git call through postcondition
         # verification; independent repo paths acquire distinct locks and
         # proceed unserialized. Scoped to start here (not from Stage 3) so a
         # request rejected at Stage 3/5 never needs `self._state.path` — the
-        # only guarantee this pipeline made about that field before REQ-005/006
+        # only guarantee this pipeline made about that field before
         # landed.
         with _get_repo_lock(self._state.path):
             # Stage 5b: Re-check HEAD identity immediately before the mutating
-            # Git call (REQ-006) — reject if it drifted since authorization.
+            # Git call — reject if it drifted since authorization.
             if self._head_identity_drifted():
                 return PipelineResult.reject(
                     self._state,
@@ -210,7 +207,7 @@ class WriteProtectionPipeline:
             output = self._execute(tool_name, op)
 
             # Stage 7: Verify postcondition against the single shared snapshot
-            # (REQ-006). No separate post-state snapshot is taken — the pipeline
+            # No separate post-state snapshot is taken — the pipeline
             # captures exactly one snapshot per request.
             rejected = self._record_or_reject(
                 "Stage 7",

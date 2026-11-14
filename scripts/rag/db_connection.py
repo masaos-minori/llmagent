@@ -1,8 +1,4 @@
-"""scripts/rag/db_connection.py
-
-Extracted from scripts/rag/pipeline.py — augment() DB connection management.
-
-Provides RagDatabaseConnection context manager wrapping the SQLiteHelper
+"""scripts/rag/db_connection.py — Provides RagDatabaseConnection context manager wrapping the SQLiteHelper
 open/close lifecycle currently inline in augment(), reducing pipeline.py
 complexity and isolating database connection handling.
 """

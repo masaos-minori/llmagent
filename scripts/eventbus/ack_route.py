@@ -55,7 +55,7 @@ async def _do_ack(
     db: Any,
     cfg: Any,
     event_id: str,
-    consumer_id: str,  # Required — no default (REQ-004)
+    consumer_id: str,  # Required — no default
     *,
     request: Request,
     _principal: Principal | None = None,  # injected by the route dependency
@@ -64,7 +64,7 @@ async def _do_ack(
     if not event_id:
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
-    # REQ-004: consumer_id is mandatory for consumer ACK
+    # consumer_id is mandatory for consumer ACK
     if not consumer_id:
         raise HTTPException(
             status_code=400, detail="consumer_id is required for consumer ACK"
@@ -123,7 +123,7 @@ async def _do_ack(
 async def ack_event(
     request: Request,
     event_id: str,
-    consumer_id: str = Query(...),  # Required — no default (REQ-004)
+    consumer_id: str = Query(...),  # Required — no default
     _principal: Principal = Depends(require_role(Role.CONSUMER)),
 ) -> dict[str, Any]:
     """Acknowledge an event as successfully processed by a consumer."""
@@ -138,7 +138,7 @@ async def ack_event(
 async def nack(
     request: Request,
     event_id: str = Query(default=""),
-    consumer_id: str = Query(...),  # Required — no default (REQ-007)
+    consumer_id: str = Query(...),  # Required — no default
     idempotency_key: str = Query(
         default=""
     ),  # (new) caller-supplied NACK idempotency key
@@ -148,7 +148,7 @@ async def nack(
     if not event_id:
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
-    # REQ-007: consumer_id is mandatory for NACK
+    # consumer_id is mandatory for NACK
     if not consumer_id:
         raise HTTPException(status_code=400, detail="consumer_id is required for NACK")
 
@@ -170,9 +170,9 @@ async def nack(
         """Nack an event and promote to DLQ if max retries exceeded.
 
         DLQ promotion is gated on consumer_failure_count (the per-consumer
-        failure counter), not the shared per-event counter — see REQ-002.
+        failure counter), not the shared per-event counter.
         """
-        # REQ-002: use the caller-supplied idempotency key, not a per-request UUID
+        # use the caller-supplied idempotency key, not a per-request UUID
         nack_result = _nack_event(
             db, event_id, consumer_id, last_nack_attempt=_idempotency_key
         )
@@ -180,8 +180,8 @@ async def nack(
         if status == "not_found":
             return ("not_found", None, False)
         if status == "invalid_state":
-            # REQ-003: Determine the invalid-state atomically within the same
-            # transaction. Check per-consumer ACK first (REQ-001, REQ-003)
+            # Determine the invalid-state atomically within the same
+            # transaction. Check per-consumer ACK first
             consumer_row = db.execute(
                 "SELECT acked FROM consumer_delivery "
                 "WHERE consumer_id = ? AND event_id = ?",
@@ -189,7 +189,7 @@ async def nack(
             ).fetchone()
             if consumer_row and consumer_row["acked"] == 1:
                 raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
-            # Then check events-level DLQ state only (REQ-004: dlq_at is the authoritative DLQ indicator)
+            # Then check events-level DLQ state only (dlq_at is the authoritative DLQ indicator)
             row = db.execute(
                 "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
             ).fetchone()
@@ -197,7 +197,7 @@ async def nack(
                 raise HTTPException(status_code=409, detail=ERR_EVENT_IN_DLQ)
             raise HTTPException(status_code=409, detail="invalid NACK transition")
         promoted = False
-        # REQ-002: Use per-consumer failure count for DLQ promotion. ADR-006 INV-13:
+        # Use per-consumer failure count for DLQ promotion. ADR-006 INV-13:
         # promote only when every attempting consumer has exhausted its retries and
         # none has ACKed, so one consumer's NACKs never promote a shared event.
         consumer_failure_count = nack_result.consumer_failure_count

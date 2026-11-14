@@ -1,9 +1,6 @@
 """scripts/agent/services/context_view.py
 
 Context state aggregation service for /context command.
-
-Extracted from cmd_context._ContextMixin so the data collection logic
-can be tested independently of the REPL.
 """
 
 from __future__ import annotations

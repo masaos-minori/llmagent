@@ -115,7 +115,7 @@ def delete(memory_id: str) -> bool:
     column within the same transaction (SQLite foreign keys are off, so cascade
     cannot be relied on), and appends a ``delete`` change event to the JSONL
     archive after the commit (SQLite-first; a failed append propagates so the
-    caller can surface M-07 while the SQLite change stands). REQ-001, REQ-004.
+    caller can surface M-07 while the SQLite change stands).
     """
     with SQLiteHelper("session").open(write_mode=True) as db:
         cur = db.execute("DELETE FROM memories WHERE memory_id = ?", (memory_id,))

@@ -19,7 +19,7 @@ _UNNAMED_SERVER = "unknown"
 
 
 class ShadowOutcome(StrEnum):
-    """The six comparison outcomes the Plan fixes for Shadow Validation (REQ-016)."""
+    """The six comparison outcomes the Plan fixes for Shadow Validation."""
 
     MATCH_PASS = "match_pass"
     MATCH_FAIL = "match_fail"
@@ -67,7 +67,7 @@ def compare_shadow_results(
     posture: SecurityPosture,
     audit_check_ids: Mapping[str, str],
 ) -> ShadowComparison:
-    """Compare one old-audit outcome list with one server posture (REQ-016).
+    """Compare one old-audit outcome list with one server posture.
 
     `audit_check_ids` maps each old-audit warning text to the check id the new side uses for the
     same rule. The mapping lives in the driving test and is retired together with the audit.

@@ -76,7 +76,7 @@ def _write_security_view(cfg: FileWriteConfig) -> dict[str, object]:
     """Build the non-secret view the posture fingerprint is computed from.
 
     Only scalars and counts are carried: `auth_token` is a Secret and every
-    `allowed_dirs` value is a path (REQ-002, REQ-009).
+    `allowed_dirs` value is a path.
     """
     return {
         "own_config_file": FILE_WRITE_OWN_CONFIG_FILE,
@@ -334,12 +334,12 @@ class FileWriteMCPServer(MCPServer):
 
 
 def _enforce_posture_gate() -> None:
-    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+    """Refuse HTTP bind when the posture is not validated (AC-003).
 
     The gate reads only `validated`: the payload `ready` is derived in
     `make_health_response()` from dependencies plus `validated`, so this module never
     invents its own Ready rule. The log line carries check ids and reason codes only;
-    allowed directory paths are excluded (REQ-002, REQ-004).
+    allowed directory paths are excluded.
     """
     if _security_posture.validated:
         return

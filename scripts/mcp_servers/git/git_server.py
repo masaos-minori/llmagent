@@ -73,8 +73,7 @@ def _git_security_view(cfg: GitConfig) -> dict[str, object]:
     """Build the non-secret view the posture fingerprint is computed from.
 
     Only scalars and counts are carried: `auth_token`, `audit_log_path`, and every
-    `allowed_repo_paths` / `allowed_remote_urls` value are never hashed by value
-    (REQ-002, REQ-009).
+    `allowed_repo_paths` / `allowed_remote_urls` value are never hashed by value.
     """
     return {
         "own_config_file": GIT_OWN_CONFIG_FILE,
@@ -303,7 +302,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             post_condition=None,
         )
         return CallToolResponse(result=deny_err, is_error=True)
-    # Reject missing/inaccessible/non-repository paths before snapshot (REQ-003).
+    # Reject missing/inaccessible/non-repository paths before snapshot.
     ok, err = await _validate_pre_snapshot_async(resolved)
     if not ok:
         logger.info(
@@ -418,12 +417,12 @@ class GitMCPServer(MCPServer):
 
 
 def _enforce_posture_gate() -> None:
-    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+    """Refuse HTTP bind when the posture is not validated (AC-003).
 
     The gate reads only `validated`: the payload `ready` is derived in
     `make_health_response()` from dependencies plus `validated`, so this module never
     invents its own Ready rule. The log line carries check ids and reason codes only;
-    configured repository roots are sensitive paths (REQ-002).
+    configured repository roots are sensitive paths.
     """
     if _security_posture.validated:
         return

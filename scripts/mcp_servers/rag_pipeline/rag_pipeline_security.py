@@ -38,8 +38,8 @@ def validate_rag_pipeline_security(cfg: RagPipelineConfig) -> list[SecurityCheck
     never raises for a policy violation.
 
     No check inspects or reports a token value. Token presence is enforced by the server's auth
-    middleware and by the Agent's mcp_auth check, and REQ-002 forbids carrying Secret values in the
-    posture. URLs and paths are reported as configured or not configured, never by value.
+    middleware and by the Agent's mcp_auth check; carrying Secret values in the
+    posture is forbidden. URLs and paths are reported as configured or not configured, never by value.
     """
     return [
         _configured_check(

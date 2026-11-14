@@ -138,7 +138,7 @@ class UndoResult:
     before the compression boundary; otherwise it is `None`.
 
     `deleted_rows` carries the exact rows the DB deleted (ascending `message_id`);
-    the memory side trims to this set to converge memory/DB to parity (REQ-001, REQ-005).
+    the memory side trims to this set to converge memory/DB to parity.
     """
 
     n_removed: int

@@ -1,8 +1,4 @@
-"""scripts/rag/stage_lifecycle.py
-
-Extracted from scripts/rag/pipeline.py — stage lifecycle management.
-
-Provides RagPipelineStageLifecycle class that encapsulates the entire
+"""scripts/rag/stage_lifecycle.py — Provides RagPipelineStageLifecycle class that encapsulates the entire
 stage execution loop including stage creation, execution, status tracking,
 and fallback detection.
 """

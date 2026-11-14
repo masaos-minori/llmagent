@@ -2,7 +2,7 @@
 """scripts/shared/execution_snapshot.py — Execution-snapshot builder/comparator.
 
 Captures a component-keyed fingerprint of the running deployment at call start
-(toolexec001 REQ-004; input to the REQ-005 replay-equality decision):
+(toolexec001 input to the replay-equality decision):
 
 - ``deployed_rev``: SHA-256 of the raw ``/opt/llm/DEPLOYED_REV`` bytes, computed
   only when the file parses as JSON (producer: ``tools/manage_binaries.py

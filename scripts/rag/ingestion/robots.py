@@ -3,13 +3,12 @@
 
 Isolated component for the opt-in robots.txt policy (crawl005). Fetches and parses
 ``robots.txt`` once per host, caches the parsed ``RobotFileParser``, and answers
-``can_fetch(user_agent, url)`` queries so external crawling respects Disallow rules
-(REQ-003).
+``can_fetch(user_agent, url)`` queries so external crawling respects Disallow rules.
 
 ragrev014: ``ensure_host`` is the async entry point with an explicit outcome
 table (200 parses; 404 and other 4xx except 401/403 allow all; 401/403, 5xx and
 network errors disallow all, fail-closed) and a per-request ``follow_redirects``
-flag (REQ-004). ``fetch_host`` delegates to it and keeps its signature.
+flag. ``fetch_host`` delegates to it and keeps its signature.
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Statuses whose fetch failure must block the whole host (REQ-001).
+# Statuses whose fetch failure must block the whole host.
 _DISALLOW_ALL_STATUSES = frozenset({401, 403})
 
 
@@ -42,10 +41,10 @@ class RobotsCache:
     async def ensure_host(self, origin: str, client: httpx.AsyncClient) -> None:
         """Fetch and cache robots.txt for one host at most once (idempotent).
 
-        Outcome table (REQ-001): 200 parses the body; 404 and any other 4xx
+        Outcome table: 200 parses the body; 404 and any other 4xx
         except 401/403 allow all; 401, 403, 5xx and transport errors disallow
         all (fail-closed). A malformed robots.txt (ValueError) keeps the old
-        allow-all fallback. No timeout mechanism is added here (REQ-006): the
+        allow-all fallback. No timeout mechanism is added here: the
         caller-supplied client carries the fetch timeout unchanged.
         """
         parsed = urlparse(origin)

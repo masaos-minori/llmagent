@@ -214,9 +214,8 @@ def audit_tool_exec(
     """Write a tool_exec event with mcp_request_id to the audit log.
 
     Every record carries ``execution_snapshot_json`` (canonical JSON of the
-    deployment fingerprint captured at call time, toolexec001 REQ-004);
-    ``dedup_state`` is serialized only when non-empty (dispatcher dedup outcome,
-    REQ-005; empty for non-dispatch-originated or freshly executed calls).
+    deployment fingerprint captured at call time, toolexec001);
+    ``dedup_state`` is serialized only when non-empty (dispatcher dedup outcome, empty for non-dispatch-originated or freshly executed calls).
     """
     if ctx.services_required.audit_logger is None:
         return

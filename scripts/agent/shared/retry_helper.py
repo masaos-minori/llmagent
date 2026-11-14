@@ -1,6 +1,6 @@
 """scripts/agent/shared/retry_helper.py
 
-Shared retry-once-with-delay helper for startup.py refactor (REQ-002).
+Shared retry-once-with-delay helper for startup.py refactor.
 
 Consolidates duplicated retry logic from _start_servers/_start_http_subprocess_once
 and _verify_mcp_health into a single parameterized function.

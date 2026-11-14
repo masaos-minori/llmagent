@@ -1,9 +1,5 @@
-"""scripts/rag/config_resolution.py
-
-Extracted from scripts/rag/pipeline.py — resolve_rag_config().
-
-Provides configuration resolution with priority ordering:
-  CLI args > env vars > YAML config > defaults.
+"""scripts/rag/config_resolution.py — Provides configuration resolution with priority ordering:
+CLI args > env vars > YAML config > defaults.
 """
 
 import logging

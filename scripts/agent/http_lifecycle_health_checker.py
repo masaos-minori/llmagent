@@ -70,7 +70,7 @@ async def _terminate_for_startup_failure(
     """Terminate the live child on a startup-failure path, proving or disproving its exit.
 
     A terminator exception is logged and classified EXIT_UNCONFIRMED so it never
-    masks the HttpStartupError the caller raises next (REQ-005 no-masking).
+    masks the HttpStartupError the caller raises next (no-masking).
     """
     try:
         return await manager.process_terminator.terminate_with_timeout(

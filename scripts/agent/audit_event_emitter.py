@@ -2,9 +2,6 @@
 """scripts/agent/audit_event_emitter.py
 
 Audit event construction and emission for turn lifecycle events.
-
-Extracted from orchestrator.py (_format_session_id, _build_turn_end_event,
-_build_turn_end_metadata, _build_turn_end_llm_stats, _handle_turn_start).
 """
 
 from __future__ import annotations

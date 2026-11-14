@@ -77,7 +77,7 @@ def _check_read_smoke_test(db: SQLiteHelper) -> bool:
 
 
 def _check_schema_fingerprint(db: SQLiteHelper) -> None:
-    """Assert the live schema matches the canonical session DDL (REQ-003).
+    """Assert the live schema matches the canonical session DDL.
 
     Replaces the existence-only required_tables check: any column, index,
     constraint, foreign-key, or trigger deviation raises the fingerprint
@@ -104,7 +104,7 @@ def check_session_consistency(db: SQLiteHelper) -> SessionConsistencyReport:
     """
     diagnostic_errors: list[str] = []
 
-    # Shape gate first (REQ-003): drift raises, it is not reportable.
+    # Shape gate first: drift raises, it is not reportable.
     _check_schema_fingerprint(db)
 
     # Initialize default values

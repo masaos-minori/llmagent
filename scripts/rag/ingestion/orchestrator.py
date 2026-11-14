@@ -2,8 +2,6 @@
 """scripts/rag/ingestion/orchestrator.py
 
 CrawlOrchestrator: owns BFS queue/semaphore loop concern.
-
-Extracted from WebCrawler to separate BFS orchestration from component concerns.
 """
 
 from __future__ import annotations
@@ -261,7 +259,7 @@ class CrawlOrchestrator:
     ) -> None:
         """Fetch, extract, save one URL and enqueue its outbound links; counts the saved page against the persisted budget.
 
-        A not-modified page is re-fetched for link discovery only: it is not extracted, saved, or counted. A failed fetch enqueues nothing. The page is persisted and discovered under its final accepted URL (REQ-004).
+        A not-modified page is re-fetched for link discovery only: it is not extracted, saved, or counted. A failed fetch enqueues nothing. The page is persisted and discovered under its final accepted URL.
         """
         async with sem:
             # ragrev014: fetch-time robots guard. ensure_host is idempotent per

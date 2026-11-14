@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.db = open_db(app.state.config.db_path)
     # Publish the baseline authorization generation from config
     build_and_publish_generation(app.state.config)
-    # Restart-baseline audit record (REQ-006): documents the baseline generation
+    # Restart-baseline audit record: documents the baseline generation
     # hash in force and that any prior runtime overrides were removed.
     baseline_gen = current_generation()
     log_privileged_action(
@@ -116,12 +116,12 @@ async def _shutdown_lifespan(app: FastAPI) -> None:
     prove exclusive ownership of the shared connection, then close it.
 
     Delegated to by both lifespan() (production) and the tests/eventbus/ suite
-    so they exercise one lifecycle sequence (REQ-005). Never closes a connection
-    another worker may still own (REQ-001); the close-on-timeout fallback is gone.
+    so they exercise one lifecycle sequence. Never closes a connection
+    another worker may still own; the close-on-timeout fallback is gone.
     """
     # 1. Stop scheduling new sweep cycles and await the in-flight sweep.
-    #    set_shutdown_flag() makes run_with_db_lock() refuse new DB work from
-    #    this point on (REQ-004, seq 03).
+    # set_shutdown_flag() makes run_with_db_lock() refuse new DB work from
+    # this point on (seq 03).
     set_shutdown_flag()
     if app.state.dlq_task:
         app.state.dlq_task.cancel()
@@ -195,7 +195,7 @@ async def _dlq_loop(app: FastAPI) -> None:
                     outbox["terminal_failed"],
                 )
 
-            # Repair lost artifacts and report outbox inconsistencies (REQ-007).
+            # Repair lost artifacts and report outbox inconsistencies.
             reconciled = await run_with_db_lock(
                 lambda: reconcile_missing_dlq_files(db, cfg.deadletter_dir)
             )

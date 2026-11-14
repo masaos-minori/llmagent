@@ -66,8 +66,7 @@ def _shell_security_view(cfg: ShellConfig) -> dict[str, object]:
     """Build the non-secret view the posture fingerprint is computed from.
 
     Only scalars and counts are carried: allowlist entries, cwd values, the audit log
-    path, the execution user, the shell path, and auth_token are never hashed by value
-    (REQ-002, REQ-009).
+    path, the execution user, the shell path, and auth_token are never hashed by value.
     """
     return {
         "own_config_file": SHELL_OWN_CONFIG_FILE,
@@ -249,7 +248,7 @@ class ShellMCPServer(MCPServer):
 
 
 def _enforce_posture_gate() -> None:
-    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+    """Refuse HTTP bind when the posture is not validated (AC-003).
 
     The gate reads only `validated`: the payload `ready` is derived in
     `make_health_response()` from dependencies plus `validated`, so this module never

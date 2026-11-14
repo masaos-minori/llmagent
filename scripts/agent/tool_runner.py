@@ -76,13 +76,12 @@ async def _recorded_call(
     A call that raises during execution is converted into the same six-field
     error row the preparation phase produces
     (scripts/agent/tool_preparation.py:37), so a sibling in the same group still
-    completes and the round stays total (plans/20261023-004538_plan.md, REQ-001/
-    REQ-007). Only *this* call's Exception is converted; BaseException (e.g.
-    asyncio.CancelledError) keeps propagating (REQ-002/AC-5), so a cancelled
+    completes and the round stays total (plans/20261023-004538_plan.md). Only *this* call's Exception is converted; BaseException (e.g.
+    asyncio.CancelledError) keeps propagating (AC-5), so a cancelled
     round still raises out of execute_all_tool_calls.
 
     This is also the single writer of the agent-side tool_call_state rows
-    (plans/20261101-105136_toolstate001 plan.md, REQ-001..REQ-004): pending is
+    (plans/20261101-105136_toolstate001 plan.md): pending is
     recorded before dispatch, finalized completed/failed after the result row
     exists; a propagating BaseException leaves the row pending.
     """
@@ -151,9 +150,9 @@ def _state_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
 
     Same function and uid the MCP transport sends as X-Idempotency-Key, with
     the current ``task_id`` appended so identical call content in different
-    tasks gets its own lifecycle row (wfaudit002 REQ-001). The wire key the
-    transport sends stays the unscoped transport key (REQ-002); the audit-only
-    _idempotency_key above stays separate (REQ-009).
+    tasks gets its own lifecycle row (wfaudit002). The wire key the
+    transport sends stays the unscoped transport key; the audit-only
+    _idempotency_key above stays separate.
     """
     transport_key = derive_idempotency_key(
         "call_tool", pc.name, pc.args, str(ctx.session.session_id)
@@ -164,21 +163,20 @@ def _state_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
 def _classify_retry_class(tool_name: str) -> str:
     """Return the retry classification for a tool using the Agent's canonical set.
 
-    Single source of truth is shared.tool_constants.RETRYABLE_TOOLS (REQ-006 /
-    ADR-008): dispatch-capable tools are 'retryable'; every other tool — including
+    Single source of truth is shared.tool_constants.RETRYABLE_TOOLS (ADR-008): dispatch-capable tools are 'retryable'; every other tool — including
     unknown ones — is 'non_retryable' (fail-safe). Resolving locally here (rather
     than importing shared.mcp_dedup) keeps the Agent process from reading the
-    dispatcher's config/mcp_dedup.toml (REQ-004). Mirrors the dispatcher's own
+    dispatcher's config/mcp_dedup.toml. Mirrors the dispatcher's own
     [retry_class] map; keep the two consistent.
     """
     return "retryable" if tool_name in RETRYABLE_TOOLS else "non_retryable"
 
 
 def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None:
-    """Write the pending tool_call_state row before dispatch (REQ-001/REQ-008).
+    """Write the pending tool_call_state row before dispatch.
 
     Returns the state key when the row was written, else None: recorder or
-    task context unwired, or the write failed (REQ-007: recording failure is
+    task context unwired, or the write failed (recording failure is
     logged, never fatal).
     """
     recorder = ctx.workflow.tool_call_recorder
@@ -195,11 +193,11 @@ def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None
 
 
 def _finalize_state(ctx: AgentContext, state_key: str | None, state: str) -> None:
-    """Move the tool_call_state row to its terminal state (REQ-002/REQ-003).
+    """Move the tool_call_state row to its terminal state.
 
     No-op when no pending row was written (state_key is None) or the recorder
     was unwired. BaseException paths never reach this call, leaving the row
-    pending for classify_stale_pending (REQ-004).
+    pending for classify_stale_pending.
     """
     if state_key is None:
         return
@@ -230,7 +228,7 @@ async def _execute_prepared_call(
     during AppServices construction, so this branch should never execute.
     """
     gateway = ctx.services_required.gateway
-    # Classify once before execution (REQ-006): non-READ (incl. UNKNOWN) calls
+    # Classify once before execution: non-READ (incl. UNKNOWN) calls
     # set the per-attempt side-effect flag before running, so a failed side-effect
     # call also blocks retry (adapter consumes the flag; records attempts, not success).
     op = classify_operation_type(name, ctx.services_required.runtime_tools)

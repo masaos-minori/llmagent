@@ -129,7 +129,7 @@ def redeliver_event(
 def insert_outbox_row(db: sqlite3.Connection, event_id: str, requested_at: str) -> None:
     """Insert a pending dlq_outbox row inside the caller's promotion transaction.
 
-    REQ-002: the dlq_at UPDATE and this INSERT share one transaction so a committed
+    the dlq_at UPDATE and this INSERT share one transaction so a committed
     promotion always carries its durable generation request.
     """
     db.execute(
@@ -143,7 +143,7 @@ def fetch_due_pending(db: sqlite3.Connection, now: str) -> list[sqlite3.Row]:
     """Return pending outbox rows due now, oldest request first.
 
     A row is due when next_attempt_at is NULL (never attempted) or <= now.
-    REQ-004/REQ-005: the worker consumes exactly these rows each cycle. Whole rows
+    the worker consumes exactly these rows each cycle. Whole rows
     are returned so the worker reads event_id and attempts without a second query.
 
     ``now`` is an ISO timestamp string; the name avoids shadowing the now_iso()

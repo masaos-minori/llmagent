@@ -1,9 +1,6 @@
 """scripts/agent/http_lifecycle_errors.py
 
 Exceptions and dataclasses for HTTP subprocess MCP server startup failures.
-
-Extracted from http_lifecycle.py to break circular imports between
-http_lifecycle.py and http_lifecycle_command_validator.py.
 """
 
 from __future__ import annotations

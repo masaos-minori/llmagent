@@ -4,8 +4,6 @@ Coordinating layer between ToolExecutor and agent/http_lifecycle.py:
   _ServerLifecycleRouter: coordinator (state tracking, cooldown, shutdown guard)
   _SubprocessLifecycleManager: subprocess operations (start/restart/shutdown)
 Both implement LifecycleManagerProtocol.
-
-Extracted from agent/factory.py so that factory.py holds AgentContext assembly only.
 """
 
 from __future__ import annotations
