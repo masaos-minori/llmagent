@@ -1,12 +1,13 @@
 ## Goal
 
-Remove the 5 remaining historical comment and docstring reference(s) in `scripts/db/recovery_drill.py` (REQ-005 / AC-5).
+Remove the 1 remaining historical comment and docstring reference(s) in `scripts/db/schema_sql.py` (REQ-005 / AC-5).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
 - Comment-only change: no code, import, or behavior edit; the rewrite keeps the information and changes only tense and identifiers (Plan Assumptions).
+- The single SQL comment inside a string literal is editable under the comment-only rule: the schema fingerprint strips comments (`_normalize_ddl` in `scripts/shared/schema_fingerprint.py`); UNK-03 was resolved as allowed (keep it unchanged if the user objects).
 
 ## Design decisions
 - N/A: comment-only change (Plan Design rewrite rules).
@@ -16,18 +17,14 @@ Remove the 5 remaining historical comment and docstring reference(s) in `scripts
 
 ## Implementation
 ### Target file
-`scripts/db/recovery_drill.py`
+`scripts/db/schema_sql.py`
 ### Procedure
 Re-run the pattern searches for this file, then remove or rewrite every match listed in Details.
 ### Method
 Comment and docstring edits only; no code change.
 ### Details
 Current matches (live sweep 2026-11-14):
-- Line 15: "REQ-007 drill tooling." -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
-- Line 72: """"Fingerprint the restored copy against the canonical DDL (REQ-003/REQ-004)." -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
-- Line 214: "# REQ-003). Recorded here; the shape gate below names the drift." -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
-- Line 226: "# operational decision, REQ-005): a measurement, not an objective RPO." -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
-- Line 232: "# Shape gate on the restored copy (REQ-003/REQ-004): the archived copy must" -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
+- Line 213: "-- Tool-call lifecycle table (toolexec001 REQ-007). Keyed on the tool-call" -- SQL comment line inside a string literal (before a `CREATE TABLE`): rewrite in current tense and drop the plan identifier; do not touch the DDL statement itself.
 - Keep each module docstring's first line (the path header verified by `check_docstrings.py`) and all ADR markers unchanged.
 
 ## Compatibility considerations
@@ -40,9 +37,10 @@ Current matches (live sweep 2026-11-14):
 - Revert the comment and docstring edits; there is no code change to roll back.
 
 ## Validation plan
-- `rg -n "Extracted from|Refactored:|RAGCORPUS001|EBAUTHGEN001|crawl003|REQ-[0-9]+" scripts/db/recovery_drill.py` returns nothing.
+- `rg -n "Extracted from|Refactored:|RAGCORPUS001|EBAUTHGEN001|crawl003|REQ-[0-9]+" scripts/db/schema_sql.py` returns nothing.
 - `uv run pytest tests/shared tests/db` continues to pass.
 - Comment-only guarantee: `git diff -U0` shows no changed line other than comment and docstring lines.
+- `uv run pytest tests/shared/test_schema_fingerprint.py` passes after the edit.
 
 ## Completion criteria
 - The file-level acceptance search is clean and the phase test directory passes.
@@ -55,10 +53,10 @@ Current matches (live sweep 2026-11-14):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114-200529 | 20261114-200529 | changed: scripts/db/schema_sql.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261114-200529 | 20261114-200529 | N/A: no test change needed; targeted tests pass (tests/shared tests/db: 1649 passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114-200529 | 20261114-200529 | 3e: ruff/mypy/bandit(0 High/Med)/gates Pass; lint-imports skipped (no import change); full suite skipped per memo3 directive |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114-200529 | 20261114-200529 | N/A: no docs/00_index.md task-scope mapping for scripts/db/schema_sql.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -78,4 +76,4 @@ Current matches (live sweep 2026-11-14):
 - **Source plan**: plans/20261112-122030_rmcompat007_history-comment-sweep.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261114-081724
-- **Related target files**: `scripts/db/recovery_drill.py`
+- **Related target files**: `scripts/db/schema_sql.py`

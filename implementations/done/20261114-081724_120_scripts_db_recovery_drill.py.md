@@ -1,6 +1,6 @@
 ## Goal
 
-Remove the 6 remaining historical comment and docstring reference(s) in `scripts/db/recovery_restore.py` (REQ-005 / AC-5).
+Remove the 5 remaining historical comment and docstring reference(s) in `scripts/db/recovery_drill.py` (REQ-005 / AC-5).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
@@ -16,19 +16,18 @@ Remove the 6 remaining historical comment and docstring reference(s) in `scripts
 
 ## Implementation
 ### Target file
-`scripts/db/recovery_restore.py`
+`scripts/db/recovery_drill.py`
 ### Procedure
 Re-run the pattern searches for this file, then remove or rewrite every match listed in Details.
 ### Method
 Comment and docstring edits only; no code change.
 ### Details
 Current matches (live sweep 2026-11-14):
-- Line 6: "activation (REQ-003): db.recovery verifies the staged candidate before swapping it into" -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
-- Line 25: "Sidecar names resolve from the full database filename (REQ-001):" -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
-- Line 27: "(REQ-002): a quarantine copy/unlink failure raises OSError so the caller" -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
-- Line 44: "Sidecar names resolve from the full backup filename (REQ-001):" -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
-- Line 85: "Steps 2-4 of the restore. Staging only (REQ-003): the candidate — the backup" -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
-- Line 103: "# Fail-closed (REQ-002): a move failure raises; the caller's OSError" -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
+- Line 15: "REQ-007 drill tooling." -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
+- Line 72: """"Fingerprint the restored copy against the canonical DDL (REQ-003/REQ-004)." -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
+- Line 214: "# REQ-003). Recorded here; the shape gate below names the drift." -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
+- Line 226: "# operational decision, REQ-005): a measurement, not an objective RPO." -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
+- Line 232: "# Shape gate on the restored copy (REQ-003/REQ-004): the archived copy must" -- remove the plan/requirement identifier reference and rewrite the remaining comment or docstring text in current tense.
 - Keep each module docstring's first line (the path header verified by `check_docstrings.py`) and all ADR markers unchanged.
 
 ## Compatibility considerations
@@ -41,7 +40,7 @@ Current matches (live sweep 2026-11-14):
 - Revert the comment and docstring edits; there is no code change to roll back.
 
 ## Validation plan
-- `rg -n "Extracted from|Refactored:|RAGCORPUS001|EBAUTHGEN001|crawl003|REQ-[0-9]+" scripts/db/recovery_restore.py` returns nothing.
+- `rg -n "Extracted from|Refactored:|RAGCORPUS001|EBAUTHGEN001|crawl003|REQ-[0-9]+" scripts/db/recovery_drill.py` returns nothing.
 - `uv run pytest tests/shared tests/db` continues to pass.
 - Comment-only guarantee: `git diff -U0` shows no changed line other than comment and docstring lines.
 
@@ -56,10 +55,10 @@ Current matches (live sweep 2026-11-14):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114-200529 | 20261114-200529 | changed: scripts/db/recovery_drill.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261114-200529 | 20261114-200529 | N/A: no test change needed; targeted tests pass (tests/shared tests/db: 1649 passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114-200529 | 20261114-200529 | 3e: ruff/mypy/bandit(0 High/Med)/gates Pass; lint-imports skipped (no import change); full suite skipped per memo3 directive |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114-200529 | 20261114-200529 | N/A: no docs/00_index.md task-scope mapping for scripts/db/recovery_drill.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -79,4 +78,4 @@ Current matches (live sweep 2026-11-14):
 - **Source plan**: plans/20261112-122030_rmcompat007_history-comment-sweep.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261114-081724
-- **Related target files**: `scripts/db/recovery_restore.py`
+- **Related target files**: `scripts/db/recovery_drill.py`
