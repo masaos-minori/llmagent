@@ -96,7 +96,7 @@ class ComponentInitializer:
         """
         try:
             await client.aclose()
-        except Exception:  # noqa: BLE001 — an aclose() failure during startup-failure cleanup must never mask the original exception (REQ-002); a second cancellation propagates instead
+        except Exception:  # noqa: BLE001 — an aclose() failure during startup-failure cleanup must never mask the original exception; a second cancellation propagates instead
             logger.warning(
                 "Failed to close the httpx client exposed during a failed "
                 "startup initialization",
