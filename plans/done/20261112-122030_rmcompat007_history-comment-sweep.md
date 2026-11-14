@@ -450,7 +450,7 @@ N/A: no release unit
 | `implementations/20261114-081724_09_scripts_agent_http_lifecycle_errors.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_10_scripts_agent_http_lifecycle_health_checker.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_11_scripts_agent_lifecycle.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261114-081724_12_scripts_agent_lifecycle_router.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_12_scripts_agent_lifecycle_router.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_13_scripts_agent_llm_turn_executor.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_14_scripts_agent_llm_turn_runner.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_15_scripts_agent_memory_import_ops.py.md` | 1 | Procedure | Pending | — | — |
