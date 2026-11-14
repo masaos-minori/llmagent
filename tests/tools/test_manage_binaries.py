@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -403,3 +404,121 @@ def test_build_binaries_keeps_explicit_system_certs(tmp_path: Path) -> None:
     code, values, _ = _run_build_with_stub_uv(tmp_path, {"UV_SYSTEM_CERTS": "false"})
     assert code != 0
     assert values == {"false"}
+
+
+def _mcp_servers_closure(entry: str) -> set[str]:
+    """Return the ``mcp_servers`` modules reachable from ``entry`` by static imports."""
+    scripts = REPO_ROOT / "scripts"
+    seen: set[str] = set()
+
+    def source_of(module: str) -> Path | None:
+        base = scripts / module.replace(".", "/")
+        for candidate in (base.with_suffix(".py"), base / "__init__.py"):
+            if candidate.is_file():
+                return candidate
+        return None
+
+    def visit(module: str) -> None:
+        source = source_of(module)
+        if module in seen or source is None:
+            return
+        seen.add(module)
+        for node in ast.walk(ast.parse(source.read_text())):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module] + [f"{node.module}.{a.name}" for a in node.names]
+            for name in names:
+                parts = name.split(".")
+                for end in range(1, len(parts) + 1):
+                    visit(".".join(parts[:end]))
+
+    visit(entry)
+    return {m for m in seen if m.split(".")[0] == "mcp_servers"}
+
+
+def test_agent_embeds_only_top_level_mcp_servers_modules() -> None:
+    reached = _mcp_servers_closure("agent.repl")
+    assert "mcp_servers.server" in reached
+    nested = sorted(m for m in reached if m.count(".") > 1)
+    assert not nested, (
+        f"agent imports {nested}: widen the agent entry for scripts/mcp_servers/ "
+        "in BINARY_SOURCES"
+    )
+
+
+def test_agent_ignores_mcp_server_package_change_but_not_top_level(
+    built: tuple[Path, Path, str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo, bin_dir, _ = built
+    _commit_file(repo, "scripts/mcp_servers/shell/x.py", "x = 1\n")
+    assert _check(bin_dir, repo) == 0
+    assert "agent: ok" in capsys.readouterr().out
+    _commit_file(repo, "scripts/mcp_servers/dispatch.py", "x = 1\n")
+    assert _check(bin_dir, repo) == 0
+    assert "agent: stale" in capsys.readouterr().out
+
+
+def _run_build_recording_ccache_env(
+    tmp_path: Path, ccache_dir: Path | None, xdg_cache_home: Path
+) -> list[str]:
+    """Run build_binaries.sh with stub uv/ccache and return the env at each uv call.
+
+    Each recorded line is ``CCACHE_DIR|CCACHE_DISABLE``. The stub never produces a
+    binary, so the script stops at its first build, after the ccache setup.
+    """
+    stub_dir = tmp_path / "stub"
+    stub_dir.mkdir()
+    seen = tmp_path / "seen"
+    for name, body in (
+        ("uv", f'echo "${{CCACHE_DIR:-}}|${{CCACHE_DISABLE:-}}" >> "{seen}"'),
+        ("ccache", "true"),
+    ):
+        stub = stub_dir / name
+        stub.write_text(f"#!/bin/sh\n{body}\nexit 0\n")
+        stub.chmod(0o755)
+    env = {
+        "PATH": f"{stub_dir}:/usr/bin:/bin",
+        "BIN_DIR": str(tmp_path / "bin"),
+        "OUTPUT_DIR": str(tmp_path / "dist"),
+        "BUILD_ONLY": "agent",
+        "XDG_CACHE_HOME": str(xdg_cache_home),
+    }
+    if ccache_dir is not None:
+        env["CCACHE_DIR"] = str(ccache_dir)
+    subprocess.run(
+        ["bash", str(REPO_ROOT / "deploy" / "build_binaries.sh")],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    return seen.read_text().splitlines()
+
+
+def _unwritable_dir(path: Path) -> Path:
+    path.mkdir()
+    path.chmod(0o500)
+    return path
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root can write to any directory")
+def test_build_binaries_falls_back_when_ccache_dir_unwritable(tmp_path: Path) -> None:
+    blocked = _unwritable_dir(tmp_path / "blocked")
+    xdg = tmp_path / "xdg"
+    last = _run_build_recording_ccache_env(tmp_path, blocked / "ccache", xdg)[-1]
+    assert last == f"{xdg}/ccache|"
+
+
+def test_build_binaries_keeps_writable_ccache_dir(tmp_path: Path) -> None:
+    chosen = tmp_path / "chosen"
+    last = _run_build_recording_ccache_env(tmp_path, chosen, tmp_path / "xdg")[-1]
+    assert last == f"{chosen}|"
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root can write to any directory")
+def test_build_binaries_disables_ccache_when_no_dir_writable(tmp_path: Path) -> None:
+    blocked = _unwritable_dir(tmp_path / "blocked")
+    last = _run_build_recording_ccache_env(tmp_path, blocked / "a", blocked / "b")[-1]
+    assert last.endswith("|1")
