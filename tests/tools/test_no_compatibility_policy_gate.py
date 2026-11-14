@@ -160,6 +160,12 @@ class TestCheckerBlocking:
         (tmp_path / "tools").mkdir(parents=True, exist_ok=True)
         (tmp_path / "docs").mkdir(parents=True, exist_ok=True)
         shutil.copy(REPO_ROOT / "tools" / "check_compat_shims.py", tmp_path / "tools")
+        # check_compat_shims.py imports the leftover-phrase helper at module load,
+        # so the copied tools/ dir must carry it too (plan 20261112-122408).
+        shutil.copy(
+            REPO_ROOT / "tools" / "_compat_leftover_phrases.py",
+            tmp_path / "tools",
+        )
         shutil.copy(MANIFEST, tmp_path / "tools" / "compat_exceptions.toml")
         fixture_doc = tmp_path / "docs" / "sandbox_fixture.md"
         fixture_doc.write_text(self._SENTENCE)

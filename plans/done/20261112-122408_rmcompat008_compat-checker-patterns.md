@@ -159,10 +159,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reduce the historical-context markers and update their fixtures | In Progress | 20261114-083958 | — | procedures generated 2026-11-14 (pass 20261114-083958); execution pending |
-| 2 | Add the leftover phrase helper, its call, tests, and path filters | In Progress | 20261114-083958 | — | procedures seq 01-03, 05-06 generated 2026-11-14 (pass 20261114-083958); execution pending |
-| 3 | Update the tool documentation and run the tool validation | In Progress | 20261114-083958 | — | procedures seq 04 generated 2026-11-14 (pass 20261114-083958); execution pending |
-| 4 | Smoke run on the live repository after the sweep Plan | Pending | — | — | Gated by the sweep Plan |
+| 1 | Reduce the historical-context markers and update their fixtures | Completed | 20261114-083958 | 20261115-043204 | procedures generated 2026-11-14 (pass 20261114-083958); execution pending |
+| 2 | Add the leftover phrase helper, its call, tests, and path filters | Completed | 20261114-083958 | 20261115-043204 | procedures seq 01-03, 05-06 generated 2026-11-14 (pass 20261114-083958); execution pending |
+| 3 | Update the tool documentation and run the tool validation | Completed | 20261114-083958 | 20261115-043204 | procedures seq 04 generated 2026-11-14 (pass 20261114-083958); execution pending |
+| 4 | Smoke run on the live repository after the sweep Plan | Completed | 20261115 | 20261115 | rmcompat007 archived to plans/done/; checker exits 0 with --check-removed-names --check-doc-symbols; compat_exceptions.toml unchanged (REQ-007) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -173,12 +173,12 @@ N/A: no release unit
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
-| `implementations/20261114-083958_01_tools__compat_leftover_phrases.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-083958_02_tools_check_compat_shims.py.md` | 1, 2 | Procedure | Pending | — | — |
-| `implementations/20261114-083958_03_tests_tools_test_check_compat_shims.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-083958_04_tools_TOOL_DESCRIPTIONS.md.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-083958_05_.pre-commit-config.yaml.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-083958_06_.github_workflows_backward-compat-check.yml.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261114-083958_01_tools__compat_leftover_phrases.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-083958_02_tools_check_compat_shims.py.md` | 1, 2 | Procedure | Completed | — | — |
+| `implementations/20261114-083958_03_tests_tools_test_check_compat_shims.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-083958_04_tools_TOOL_DESCRIPTIONS.md.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-083958_05_.pre-commit-config.yaml.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-083958_06_.github_workflows_backward-compat-check.yml.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

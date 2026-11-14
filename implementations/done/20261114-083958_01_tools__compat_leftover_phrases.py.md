@@ -67,10 +67,10 @@ The module docstring states the Plan id and that entries are self-safe by constr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-031704 | 20261115-031704 | STEP 1: helper created; ruff/mypy/bandit/size gate clean; smoke-verified. Full-suite+coverage deferred to single-directory batch end (procedure 03). |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Tests consolidated in the single-directory batch (procedure 03) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115 | 20261115 | ruff format/check, mypy, bandit, and the tools size gate clean; smoke-verified; full-suite + coverage ran once at the batch end (procedure 03) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation handled by procedure 04 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

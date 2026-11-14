@@ -35,6 +35,8 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from tools._compat_leftover_phrases import check_leftover_phrases
+
 # Patterns that should not appear in active source code or docs
 COMPAT_PATTERNS = {
     "backward compatibility layer": r"backward[ _]compatibility\s+(?:layer|stub|re-export)",
@@ -341,26 +343,10 @@ def check_doc_symbols(
 # documentation claims, not source code, which is where check_compat_patterns
 # above already looks for the removed identifiers themselves).
 
-_HISTORICAL_CONTEXT_MARKERS: frozenset[str] = frozenset(
-    {
-        "legacy",
-        "historical",
-        "archive only",
-        "resolved",
-        "was:",
-        "removed",
-        # Japanese equivalents — this repository's docs mix English and
-        # Japanese prose, and the English-only marker set above previously
-        # produced false positives on Japanese-language historical/resolved
-        # notes (found while extending _REMOVED_NAME_PATTERNS below).
-        "解消",
-        "解決",
-        "廃止",
-        "撤廃",
-        "削除済み",
-        "確認済み",
-    }
-)
+_HISTORICAL_CONTEXT_MARKERS: frozenset[str] = frozenset({"legacy", "removed"})
+# Only `legacy` and `removed` still report a live finding after the migration
+# and sweep cleanups (plan 20261112-122408); keep the set minimal so a note
+# needing another marker fails instead of passing silently.
 
 
 def _removed_slash_command(name: str) -> re.Pattern[str]:
@@ -675,13 +661,16 @@ def check_all(
 
     Two syntax-tree rules are always on: a Health-name import from the removed
     `shared.mcp_config` re-export, and a `McpToolDiscoveryService` construction
-    without `posture_gates`.
+    without `posture_gates`. Eleven path-scoped leftover phrases from
+    `tools._compat_leftover_phrases` are always on too; re-adding any phrase in
+    its scope makes `main()` exit non-zero by default.
     """
     if is_allowlisted(filepath, allowlist):
         return []
     issues = check_compat_patterns(
         content, filepath, allowlist
     ) + check_adr_prohibited_patterns(content, filepath, allowlist)
+    issues += check_leftover_phrases(content, filepath, allowlist)
     issues += check_mcp_health_reexport_import(content, filepath)
     issues += check_gateless_discovery_construction(content, filepath)
     if include_removed_names:

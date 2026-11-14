@@ -8,6 +8,7 @@ on:
       - "tests/**/*.py"
       - "tools/check_compat_shims.py"
       - "tools/compat_exceptions.toml"
+      - "tools/_compat_leftover_phrases.py"
   pull_request:
     paths:
       - "scripts/**/*.py"
@@ -15,6 +16,7 @@ on:
       - "tests/**/*.py"
       - "tools/check_compat_shims.py"
       - "tools/compat_exceptions.toml"
+      - "tools/_compat_leftover_phrases.py"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:

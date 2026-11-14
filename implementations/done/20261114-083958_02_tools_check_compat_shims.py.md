@@ -54,10 +54,10 @@ Add `from tools._compat_leftover_phrases import check_leftover_phrases (new)` to
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115 | 20261115 | Import moved into the tools. import block; _HISTORICAL_CONTEXT_MARKERS reduced to {legacy, removed}; wired into check_all; sys.path insert block kept before the new import |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Tests consolidated in the single-directory batch (procedure 03) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115 | 20261115 | ruff check and mypy clean; file at 36241 B ≤ 36243 ceiling; removed-name smoke run reports no finding; full suite 12199 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation handled by procedure 04 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

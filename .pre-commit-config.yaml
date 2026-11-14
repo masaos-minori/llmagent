@@ -38,7 +38,7 @@ repos:
         entry: uv run python -m tools.check_compat_shims --check-removed-names --check-doc-symbols
         language: system
         pass_filenames: false
-        files: ^(scripts/.*\.py|docs/.*\.md|tests/.*\.py|tools/(check_compat_shims\.py|compat_exceptions\.toml))$
+        files: ^(scripts/.*\.py|docs/.*\.md|tests/.*\.py|tools/(check_compat_shims\.py|_compat_leftover_phrases\.py|compat_exceptions\.toml))$
       - id: check-suppression-justification
         name: Check noqa/type:ignore/nosec suppression justifications
         entry: uv run python -m tools.check_suppression_justification

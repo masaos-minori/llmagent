@@ -54,10 +54,10 @@ Extend the existing test-file style (`tmp_path` fixtures, `check_all` assertions
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115 | 20261115 | Fixture re-points (3 retired-marker fixtures) applied |
+| 2 | Add or update tests per Validation plan | Completed | 20261115 | 20261115 | TestLeftoverPhrases (+14 net; 163 total, all pass); test_claim_phrase_exempted_with_marker_above parametrization trimmed to the two surviving markers; subprocess test also copies the helper module |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115 | 20261115 | ruff/mypy/bandit/size clean; smoke run exits 0 (REQ-007); compat_exceptions.toml unchanged; full suite 12199 passed (149 original + 18 new − 4 trimmed parametrization); diff-cover exits 0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation handled by procedure 04 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

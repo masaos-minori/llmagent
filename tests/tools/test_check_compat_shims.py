@@ -13,7 +13,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from tools._compat_leftover_phrases import LEFTOVER_PHRASES
 from tools.check_compat_shims import (
+    _HISTORICAL_CONTEXT_MARKERS,
     ADR_PROHIBITED_PATTERNS,
     COMPAT_PATTERNS,
     ROOT_DIR,
@@ -399,7 +401,7 @@ class TestRemovedNameReintroduction:
     ) -> None:
         doc = tmp_path / "example.md"
         doc.write_text(
-            "**Status**: resolved\n\n"
+            "**Status**: removed\n\n"
             "This entry records that `_update_null_fill()` was removed.\n"
         )
         issues = check_removed_name_reintroduction(doc.read_text(), doc)
@@ -429,7 +431,7 @@ class TestRemovedNameReintroduction:
     ) -> None:
         doc = tmp_path / "example.md"
         doc.write_text(
-            "## ToolRouteResolver (historical)\n\n"
+            "## ToolRouteResolver (removed)\n\n"
             "- **Removed:** previously accepted `server_configs`.\n"
         )
         issues = check_removed_name_reintroduction(doc.read_text(), doc)
@@ -511,7 +513,7 @@ class TestRemovedCommandNamePatterns:
     def test_removed_names_exempted_in_historical_context(self, tmp_path: Path) -> None:
         doc = tmp_path / "example.md"
         doc.write_text(
-            "**Status**: resolved\n\n"
+            "**Status**: removed\n\n"
             "Previously you could run /diff, /system, /audit, and /workflow.\n"
         )
         issues = check_removed_name_reintroduction(doc.read_text(), doc)
@@ -543,6 +545,122 @@ class TestRemovedCommandNamePatterns:
         doc.write_text(f"{text}\n")
         issues = check_removed_name_reintroduction(doc.read_text(), doc)
         assert (len(issues) > 0) == should_match
+
+
+class TestLeftoverPhrases:
+    """REQ-003 / REQ-002 positive, negative, scope, and two-line coverage for the
+    eleven path-scoped leftover phrases in
+    tools/_compat_leftover_phrases.LEFTOVER_PHRASES. Fixture phrases are built by
+    concatenating two halves at runtime so no full leftover phrase appears as a
+    single literal in this scanned test file (REQ-003 keeps
+    compat_exceptions.toml unchanged)."""
+
+    # name -- (first half, second half): the halves concatenate to a string that
+    # matches the pattern. Split mid-phrase so neither half is itself a leftover
+    # phrase literal.
+    _LEFTOVER_EXAMPLE_HALVES: dict[str, tuple[str, str]] = {
+        "Extracted from": ("Extracted from the retired", " loader."),
+        "Refactored:": ("Refactored: now delegates", " to the new module."),
+        "Precedent:": ("Precedent: an earlier", " version did this."),
+        "signature stability": (
+            "We preserve signature",
+            " stability across releases.",
+        ),
+        "re-exported for": ("re-exported for older", " callers."),
+        "predates": ("This predates the", " migration."),
+        "user-approved": ("user-approved", " fallback"),
+        "pre-migration gate|database": ("pre-migration", " gate check"),
+        "additive (wire) field": ("additive wire", " field"),
+        "bypass(es) build_db_config": ("bypasses build_db_config", " here"),
+        "mirror... exactly": ("mirror the contract", " exactly"),
+    }
+
+    def _write_in_scope(self, tmp_path: Path, name: str) -> Path:
+        first, second = self._LEFTOVER_EXAMPLE_HALVES[name]
+        example = first + second
+        prefix = LEFTOVER_PHRASES[name][1][0]  # first path prefix, e.g. "scripts/"
+        scope_dir = tmp_path / prefix.strip("/")
+        scope_dir.mkdir(parents=True, exist_ok=True)
+        doc = scope_dir / "note.md"
+        doc.write_text(example + "\n")
+        return doc
+
+    @pytest.mark.parametrize("name", sorted(LEFTOVER_PHRASES))
+    def test_leftover_phrase_flagged_in_scope(self, tmp_path: Path, name: str) -> None:
+        """AC-1: every leftover phrase is flagged when written inside its scope."""
+        doc = self._write_in_scope(tmp_path, name)
+        issues = check_all(doc.read_text(), doc, allowlist=set())
+        assert any(name in issue for issue in issues), (name, issues)
+
+    def test_leftover_phrase_main_exits_nonzero(self, tmp_path: Path) -> None:
+        """AC-1: main() exits 1 on such a file (end-to-end via subprocess)."""
+        tools_dir = tmp_path / "tools"
+        tools_dir.mkdir()
+        shutil.copy(
+            ROOT_DIR / "tools" / "check_compat_shims.py",
+            tools_dir / "check_compat_shims.py",
+        )
+        shutil.copy(
+            ROOT_DIR / "tools" / "_compat_leftover_phrases.py",
+            tools_dir / "_compat_leftover_phrases.py",
+        )
+        doc = self._write_in_scope(tmp_path, "Extracted from")
+        result = subprocess.run(
+            [sys.executable, str(tools_dir / "check_compat_shims.py"), str(doc)],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 1
+
+    def test_two_line_mirror_split_flagged(self, tmp_path: Path) -> None:
+        """AC-2: `mirror... exactly` split across adjacent lines is flagged."""
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        doc = scripts_dir / "note.md"
+        doc.write_text("We mirror\nthe interface exactly\n")
+        issues = check_all(doc.read_text(), doc, allowlist=set())
+        assert any("mirror... exactly" in issue for issue in issues)
+
+    def test_bare_bypass_outside_rag_scope_not_flagged(self, tmp_path: Path) -> None:
+        """`bypass build_db_config` is scoped to scripts/rag/; under scripts/ only
+        (not rag/) it is outside its prefix and must not be flagged."""
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        doc = scripts_dir / "note.md"
+        doc.write_text("This bypasses build_db_config during setup.\n")
+        assert check_all(doc.read_text(), doc, allowlist=set()) == []
+
+    def test_replaces_oldest_turns_not_flagged(self, tmp_path: Path) -> None:
+        """Prose that is not one of the eleven phrases produces no issue."""
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        doc = scripts_dir / "note.md"
+        doc.write_text("replaces the oldest turns in the queue.\n")
+        assert check_all(doc.read_text(), doc, allowlist=set()) == []
+
+    def test_unrelated_additive_prose_not_flagged(self, tmp_path: Path) -> None:
+        """`additive` without the `field` tail (out of scope for its pattern) is
+        not flagged."""
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        doc = scripts_dir / "note.md"
+        doc.write_text("The additive process improved throughput.\n")
+        assert check_all(doc.read_text(), doc, allowlist=set()) == []
+
+    def test_in_scope_phrase_outside_prefix_not_flagged(self, tmp_path: Path) -> None:
+        """`Extracted from` is scoped to scripts/; the same phrase under docs/ is
+        outside its prefix and must not be flagged."""
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+        doc = docs_dir / "note.md"
+        doc.write_text("Extracted from the retired loader.\n")
+        assert check_all(doc.read_text(), doc, allowlist=set()) == []
+
+    def test_historical_marker_set_is_minimal(self) -> None:
+        """AC-4: the reduced historical-context marker set is exactly
+        {legacy, removed}."""
+        assert _HISTORICAL_CONTEXT_MARKERS == frozenset({"legacy", "removed"})
 
 
 class TestCheckAllRemovedNamesGating:
@@ -754,6 +872,12 @@ class TestProductionCategoryZero:
         self._manifest(tmp_path, "migration")
         checker = tmp_path / "tools" / "check_compat_shims.py"
         shutil.copy(ROOT_DIR / "tools" / "check_compat_shims.py", checker)
+        # The checker imports the leftover-phrase helper at module load, so the
+        # copied tools/ dir must carry it too (plan 20261112-122408).
+        shutil.copy(
+            ROOT_DIR / "tools" / "_compat_leftover_phrases.py",
+            tmp_path / "tools" / "_compat_leftover_phrases.py",
+        )
         docs_dir = tmp_path / "docs"
         docs_dir.mkdir(exist_ok=True)
         (docs_dir / "x.md").write_text("nothing here\n")
@@ -808,7 +932,7 @@ class TestDocClaimPatterns:
 
     @pytest.mark.parametrize(
         "marker",
-        ["Historical:", "legacy", "was:", "removed", "archive only", "resolved"],
+        ["legacy", "removed"],
     )
     def test_claim_phrase_exempted_with_marker_above(
         self, tmp_path: Path, marker: str

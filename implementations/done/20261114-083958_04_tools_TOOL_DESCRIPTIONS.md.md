@@ -51,10 +51,10 @@ Markdown table row edits.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115 | 20261115 | Two check_compat_shims.py rows updated; one quick-reference and one detailed helper row added; re-read file to locate rows (adrrev018 shifted positions) |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only; validated by the sync checker, not unit tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115 | 20261115 | check_tool_descriptions_sync.py reports no findings; exactly one quick-reference and one detailed row per tool confirmed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This procedure is the documentation change; governance_04 stays unchanged (REQ-006) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
