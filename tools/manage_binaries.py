@@ -74,7 +74,8 @@ BINARY_SOURCES: dict[str, tuple[str, ...]] = {
         "scripts/db/",
         "scripts/shared/",
         "scripts/rag/",
-        "scripts/mcp_servers/",
+        # agent imports only the top-level mcp_servers modules, never a server package.
+        "scripts/mcp_servers/*.py",
         "pyproject.toml",
         "uv.lock",
     ),
