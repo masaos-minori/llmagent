@@ -79,6 +79,10 @@ builds every binary). The Event Bus and ingestion run from the deployed `scripts
 
 The build exports `UV_SYSTEM_CERTS=true` by default (for hosts whose certificates are only in the system store); set `UV_SYSTEM_CERTS=false` to turn it off.
 
+Build speed (all optional; the defaults are correct for a normal rebuild):
+- `NUTKA_PARALLEL=N` builds N binaries at once (default 2; `1` is sequential). `--jobs` per binary follows from it unless `NUTKA_JOBS` is set. Parallel output goes to `<OUTPUT_DIR>/logs/<binary>.log`; a failed binary prints the tail of its log and leaves `/opt/llm/bin/` untouched.
+- ccache is used from `CCACHE_DIR`; when that directory is not writable the build switches to `${XDG_CACHE_HOME:-$HOME/.cache}/ccache` instead of disabling ccache. `NUTKA_HELPERS_CANON=0` turns off the `__helpers.h` canonicalization (`deploy/nuitka_ccache_wrapper.sh`) that lets binaries share cached third-party objects.
+
 **Completed when**: `check` lists no stale or unknown binary.
 **Stop and report to the user when**: a build fails; do not retry the same build a third time (`AGENTS.md`
 Loop Prevention > Attempt Limit). The build host must have the Nuitka prerequisites described in

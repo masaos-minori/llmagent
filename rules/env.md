@@ -120,7 +120,7 @@ agent.toml の全設定項目・ホットリロード可否・分類: `docs/23_a
 
 ```bash
 bash deploy/build_sqlite_vec.sh   # 初回のみ
-bash deploy/build_binaries.sh     # stale なバイナリを再ビルド (BUILD_ONLY="agent" で1本のみ)
+bash deploy/build_binaries.sh     # stale なバイナリを再ビルド (BUILD_ONLY="agent" で1本のみ, NUTKA_PARALLEL=N で同時ビルド数)
 bash deploy/deploy.sh
 bash deploy/init_db.sh
 bash deploy/setup_services.sh
