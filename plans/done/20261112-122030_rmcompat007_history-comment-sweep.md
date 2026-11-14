@@ -445,7 +445,7 @@ N/A: no release unit
 | `implementations/20261114-081724_04_scripts_agent_commands_memory_rebuild_ops.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_05_scripts_agent_context.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_06_scripts_agent_conversation_state_manager.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261114-081724_07_scripts_agent_history_selection_policy.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_07_scripts_agent_history_selection_policy.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_08_scripts_agent_http_lifecycle.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_09_scripts_agent_http_lifecycle_errors.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_10_scripts_agent_http_lifecycle_health_checker.py.md` | 1 | Procedure | Pending | — | — |
