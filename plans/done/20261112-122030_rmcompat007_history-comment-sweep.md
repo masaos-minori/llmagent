@@ -467,7 +467,7 @@ N/A: no release unit
 | `implementations/20261114-081724_26_scripts_agent_services_rag_maintenance_service.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_27_scripts_agent_services_session_restore.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_28_scripts_agent_services_session_title.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261114-081724_29_scripts_agent_services_tool_validation.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_29_scripts_agent_services_tool_validation.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_30_scripts_agent_services_undo_service.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_31_scripts_agent_services_workflow_schema.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_32_scripts_agent_session.py.md` | 1 | Procedure | Pending | — | — |
