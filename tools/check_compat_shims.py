@@ -35,7 +35,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from tools._compat_leftover_phrases import check_leftover_phrases
+from tools._compat_leftover_phrases import check_leftover_phrases, python_nodes
 
 # Patterns that should not appear in active source code or docs
 COMPAT_PATTERNS = {
@@ -140,6 +140,9 @@ COMPAT_PATTERNS = {
     "migrate_db.py reference": r"\bmigrate_db\.py\b",
     "nack_event two-argument call form": r"nack_event\(\s*[\w.\[\]\"']+\s*,\s*[\w.\[\]\"']+\s*\)",
 }
+_COMPAT_RE = [
+    (name, re.compile(p, re.IGNORECASE)) for name, p in COMPAT_PATTERNS.items()
+]
 
 # Patterns an Accepted ADR phrases as an explicit prohibition, keyed by name,
 # each mapped to (adr_id, regex). Seeded only from a prohibition an
@@ -155,6 +158,10 @@ ADR_PROHIBITED_PATTERNS: dict[str, tuple[str, str]] = {
         r"\b(?:disable_workflow|workflow_disabled|bypass_workflow|skip_workflow)\b",
     ),
 }
+_ADR_RE = [
+    (name, adr_id, re.compile(p))
+    for name, (adr_id, p) in ADR_PROHIBITED_PATTERNS.items()
+]
 
 # ---------------------------------------------------------------------------
 # Compatibility-exceptions manifest (replaces the former static DEFAULT_ALLOWLIST)
@@ -497,12 +504,8 @@ def check_mcp_health_reexport_import(content: str, filepath: Path) -> list[str]:
     """Flag an import of a Health name from the removed shared.mcp_config re-export."""
     if filepath.suffix != ".py":
         return []
-    try:
-        tree = ast.parse(content)
-    except SyntaxError:
-        return []
     issues: list[str] = []
-    for node in ast.walk(tree):
+    for node in python_nodes(content):
         if isinstance(node, ast.ImportFrom) and node.module == "shared.mcp_config":
             for alias in node.names:
                 if alias.name in _MCP_HEALTH_REEXPORT_NAMES:
@@ -518,12 +521,8 @@ def check_gateless_discovery_construction(content: str, filepath: Path) -> list[
     """Flag a McpToolDiscoveryService construction that omits posture_gates."""
     if filepath.suffix != ".py":
         return []
-    try:
-        tree = ast.parse(content)
-    except SyntaxError:
-        return []
     issues: list[str] = []
-    for node in ast.walk(tree):
+    for node in python_nodes(content):
         if (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
@@ -613,8 +612,8 @@ def check_compat_patterns(
     lines = content.split("\n")
     for i, line in enumerate(lines, 1):
         stripped = line.strip()
-        for pattern_name, pattern in COMPAT_PATTERNS.items():
-            if re.search(pattern, stripped, re.IGNORECASE):
+        for pattern_name, regex in _COMPAT_RE:
+            if regex.search(stripped):
                 issues.append(
                     f"{filepath}:{i}: backward compatibility leftover — '{pattern_name}': {stripped}"
                 )
@@ -632,8 +631,8 @@ def check_adr_prohibited_patterns(
     lines = content.split("\n")
     for i, line in enumerate(lines, 1):
         stripped = line.strip()
-        for pattern_name, (adr_id, pattern) in ADR_PROHIBITED_PATTERNS.items():
-            if re.search(pattern, stripped):
+        for pattern_name, adr_id, regex in _ADR_RE:
+            if regex.search(stripped):
                 issues.append(
                     f"{filepath}:{i}: {adr_id} prohibited pattern — '{pattern_name}': {stripped}"
                 )

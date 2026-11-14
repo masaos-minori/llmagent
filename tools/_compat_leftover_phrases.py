@@ -3,8 +3,9 @@
 
 Path-scoped leftover-phrase patterns for ``tools/check_compat_shims.py``.
 
-Owns the eleven ``LEFTOVER_PHRASES`` entries and ``check_leftover_phrases``,
-which returns issue strings in the same shape as
+Owns the eleven ``LEFTOVER_PHRASES`` entries, ``check_leftover_phrases``, and
+``python_nodes`` (the parse the AST checkers share), and
+``check_leftover_phrases`` returns issue strings in the same shape as
 ``check_compat_patterns`` in ``tools/check_compat_shims.py``. Called from
 ``check_all`` by plan 20261112-122408 (rmcompat008).
 
@@ -19,7 +20,9 @@ the ``[checker_self_reference]`` allowance in
 
 from __future__ import annotations
 
+import ast
 import re
+from functools import cache, lru_cache
 from pathlib import Path
 
 # Skip the helper's own source: its pattern-name labels are the leftover
@@ -69,6 +72,24 @@ LEFTOVER_PHRASES: dict[str, tuple[re.Pattern[str], tuple[str, ...], bool]] = {
 }
 
 
+@lru_cache(maxsize=1)
+def python_nodes(content: str) -> tuple[ast.AST, ...]:
+    """Parse *content* once and return every node; empty on a syntax error.
+
+    ``check_all`` runs several AST checkers over the same file in a row, so a
+    one-entry cache lets them share one parse and one tree walk.
+    """
+    try:
+        return tuple(ast.walk(ast.parse(content)))
+    except SyntaxError:
+        return ()
+
+
+@cache
+def _resolved(path: Path) -> Path:
+    return path.resolve()
+
+
 def _in_scope(file_posix: str, prefix: str) -> bool:
     """True when *file_posix* is under directory *prefix* (segment-aware).
 
@@ -77,6 +98,17 @@ def _in_scope(file_posix: str, prefix: str) -> bool:
     ``/scripts/``), while rejecting look-alikes such as ``/x/myscripts/x.py``.
     """
     return file_posix.startswith(prefix) or f"/{prefix}" in file_posix
+
+
+def _applicable_phrases(
+    file_posix: str,
+) -> list[tuple[str, re.Pattern[str], bool]]:
+    """The (name, regex, multiline) entries whose path prefixes cover the file."""
+    return [
+        (name, pattern, multiline)
+        for name, (pattern, prefixes, multiline) in LEFTOVER_PHRASES.items()
+        if any(_in_scope(file_posix, p) for p in prefixes)
+    ]
 
 
 def check_leftover_phrases(
@@ -92,19 +124,19 @@ def check_leftover_phrases(
     """
     issues: list[str] = []
     resolved = filepath.resolve()
-    if resolved in {p.resolve() for p in allowlist}:
+    if resolved in {_resolved(p) for p in allowlist}:
         return issues
     if resolved == _SELF_PATH:
         return issues
 
-    posix = resolved.as_posix()
+    applicable = _applicable_phrases(resolved.as_posix())
+    if not applicable:
+        return issues
     lines = content.split("\n")
     for idx, raw_line in enumerate(lines):
         lineno = idx + 1
         stripped = raw_line.strip()
-        for name, (pattern, pat_prefixes, multiline) in LEFTOVER_PHRASES.items():
-            if not any(_in_scope(posix, p) for p in pat_prefixes):
-                continue
+        for name, pattern, multiline in applicable:
             if multiline:
                 candidate = stripped
                 if idx + 1 < len(lines):
