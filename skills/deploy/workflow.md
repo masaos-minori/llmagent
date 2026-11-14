@@ -148,7 +148,7 @@ Restart **only** the services whose code or config changed. Sub-steps: identify 
 ### Step 3a: Identify affected services (decision criteria)
 
 Restart `llama-agent` ONLY if:
-- the `agent` binary was rebuilt in Phase 1b (it embeds `scripts/agent/`, `scripts/db/`, `scripts/shared/`, and `scripts/mcp_servers/`)
+- the `agent` binary was rebuilt in Phase 1b (it embeds `scripts/agent/`, `scripts/db/`, `scripts/shared/`, `scripts/rag/`, and the top-level `scripts/mcp_servers/*.py` modules, not the server packages)
 - `config/agent.toml` with a new `mcp_servers` entry (requires full restart)
 - `config/agent.toml` with an existing `[mcp_servers.*]` entry's `cmd`/`url`/`transport`/
   `startup_mode`/`env` value changed (e.g. package rename affecting launch paths) —
