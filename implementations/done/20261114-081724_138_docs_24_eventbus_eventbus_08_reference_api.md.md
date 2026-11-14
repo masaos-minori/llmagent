@@ -50,10 +50,10 @@ Run `uv run python tools/generate_reference_table.py --manifests --type eventbus
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Executed 2026-11-14; validated per procedure Validation plan |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Executed 2026-11-14; validated per procedure Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | Executed 2026-11-14; validated per procedure Validation plan |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Executed 2026-11-14; validated per procedure Validation plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

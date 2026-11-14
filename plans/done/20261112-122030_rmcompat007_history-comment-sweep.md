@@ -425,9 +425,9 @@ N/A: no release unit
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Sweep `scripts/agent/` | Completed | 20261114-082757 | 20261114-161636 | procedures seq 01-55 generated 2026-11-14 (pass 20261114-081724); execution pending procedures seq 01-55 archived; scripts/agent sweep complete |
 | 2 | Sweep `scripts/mcp_servers/` | Completed | 20261114-082757 | 20261114-174954 | procedures seq 56-79 generated 2026-11-14 (pass 20261114-081724); execution pending |
-| 3 | Sweep `scripts/eventbus/` and `config/eventbus.toml`, regenerate references | In Progress | 20261114-082757 | — | procedures seq 80-95 plus regeneration rows 137-138 generated 2026-11-14 (pass 20261114-081724); execution pending procedures seq 80-95 executed and archived 2026-11-14; scripts/eventbus + config/eventbus.toml sweep clean; regeneration rows 137-138 (manifest + reference doc) still pending |
+| 3 | Sweep `scripts/eventbus/` and `config/eventbus.toml`, regenerate references | Completed | 20261114-082757 | 20261114-202112 | procedures seq 80-95 executed and archived 2026-11-14; scripts/eventbus + config/eventbus.toml sweep clean; regeneration rows 137-138 executed 2026-11-14: single `generate_reference_table.py --manifests --type eventbus` run refreshed manifest line 74 and the docs guarded block (EBAUTHGEN001 removed, 2-line diff), `--check` no drift, `tests/eventbus` 525 passed |
 | 4 | Sweep `scripts/rag/` | Completed | 20261114-082757 | 20261114-194028 | procedures seq 96-114 generated 2026-11-14 (pass 20261114-081724); execution pending procedures seq 96-114 executed and archived 2026-11-14; scripts/rag sweep clean (rg rc=1 whole directory) |
-| 5 | Sweep `scripts/shared/`, `scripts/db/`, and the two other config files | In Progress | 20261114-082757 | — | procedures seq 115-136 generated 2026-11-14 (pass 20261114-081724); execution pending procedures seq 115-119 executed and archived 2026-11-14; config/agent.toml and config/mcp_dedup.toml sweep clean; rows 120-136 (scripts/db + scripts/shared) still pending |
+| 5 | Sweep `scripts/shared/`, `scripts/db/`, and the two other config files | Completed | 20261114-082757 | 20261114-201028 | procedures seq 115-136 generated 2026-11-14 (pass 20261114-081724); procedures seq 115-136 executed and archived 2026-11-14; scripts/shared + scripts/db + config/agent.toml + config/mcp_dedup.toml sweeps clean (rg whole directories rc=1) |
 | 6 | Whole-tree verification and deployment hand-off | Pending | — | — |  |
 
 ### Blocker Log
@@ -564,19 +564,19 @@ N/A: no release unit
 | `implementations/20261114-081724_123_scripts_db_rotation.py.md` | 5 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_124_scripts_db_schema_sql.py.md` | 5 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_125_scripts_db_session_consistency.py.md` | 5 | Procedure | Completed | — | — |
-| `implementations/20261114-081724_126_scripts_shared_component_mandatoriness.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_127_scripts_shared_execution_snapshot.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_128_scripts_shared_http_transport.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_129_scripts_shared_mcp_config.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_130_scripts_shared_mcp_dedup.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_131_scripts_shared_runtime_paths.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_132_scripts_shared_runtime_tool_registry.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_133_scripts_shared_security_shadow_validation.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_134_scripts_shared_security_startup_flow.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_135_scripts_shared_tool_constants.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_136_scripts_shared_tool_transport_invoker.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_137_registry_manifests_eventbus_api.yaml.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_138_docs_24_eventbus_eventbus_08_reference_api.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_126_scripts_shared_component_mandatoriness.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_127_scripts_shared_execution_snapshot.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_128_scripts_shared_http_transport.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_129_scripts_shared_mcp_config.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_130_scripts_shared_mcp_dedup.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_131_scripts_shared_runtime_paths.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_132_scripts_shared_runtime_tool_registry.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_133_scripts_shared_security_shadow_validation.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_134_scripts_shared_security_startup_flow.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_135_scripts_shared_tool_constants.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_136_scripts_shared_tool_transport_invoker.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_137_registry_manifests_eventbus_api.yaml.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_138_docs_24_eventbus_eventbus_08_reference_api.md.md` | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
