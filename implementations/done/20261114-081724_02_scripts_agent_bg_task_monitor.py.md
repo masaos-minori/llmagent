@@ -51,10 +51,10 @@ Current matches (live sweep 2026-11-14):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114-092839 | 20261114-092902 | changed: scripts/agent/bg_task_monitor.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261114-093000 | 20261114-093100 | N/A: no test change needed; targeted runs pass (testmon 17, tests/agent 4257) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114-093000 | 20261114-094223 | 3e: ruff/mypy/bandit/gates Pass, lint-imports skipped (no import change); full suite serial-coverage pass, diff-cover N/A-comment lines only |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114-093100 | 20261114-093100 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/bg_task_monitor.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
