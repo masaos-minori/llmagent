@@ -485,7 +485,7 @@ N/A: no release unit
 | `implementations/20261114-081724_44_scripts_agent_tool_policy.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_45_scripts_agent_tool_preparation.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_46_scripts_agent_tool_round_completion.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261114-081724_47_scripts_agent_tool_run_recorder.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_47_scripts_agent_tool_run_recorder.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_48_scripts_agent_tool_runner.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_49_scripts_agent_turn_persistence.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_50_scripts_agent_workflow_idempotency_ops.py.md` | 1 | Procedure | Pending | — | — |
