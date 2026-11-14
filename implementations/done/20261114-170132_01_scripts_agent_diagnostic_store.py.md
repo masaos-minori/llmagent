@@ -29,7 +29,7 @@ Make `DiagnosticStore` consume a validated, injected `DiagnosticsConfig` snapsho
 4. `fetch()`: use `self.diagnostics_cfg`; read `storage_format`(new); classify each row and never return ciphertext as `content`.
 ### Method
 - **`__init__`** (current lines 33-35):
-  - Change signature to `def __init__(self, session_id: int | None = None, diagnostics_cfg: DiagnosticsConfig) -> None:`.
+  - Change signature to `def __init__(self, diagnostics_cfg: DiagnosticsConfig, session_id: int | None = None) -> None:`. The originally drafted order (`session_id=None, diagnostics_cfg`) is invalid Python (a non-default argument cannot follow a default); the required `diagnostics_cfg` leads and `session_id` keeps its `None` default.
   - Set `self.diagnostics_cfg = diagnostics_cfg` alongside `self.session_id = session_id`.
 - **Delete** the `_load_diagnostics_config` method (lines 37-61) and its two call sites in `save()` (line 148) and `fetch()` (line 183).
 - **`save()`** (current lines 132-179):
@@ -94,6 +94,7 @@ Make `DiagnosticStore` consume a validated, injected `DiagnosticsConfig` snapsho
 - `tests/agent/test_diagnostic_store.py`
   - Procedure: convert `TestEncryption` (~354-440), `test_save_rejects_sensitive_data_without_encryption` (~552), `TestFetchEncryptedRoundTrip` (~746) to injection + fail-closed behavior; replace direct `store._load_diagnostics_config()` calls (lines 302, 311, 319, 326, 334) with an injected `DiagnosticsConfig`.
   - Validation: `uv run pytest tests/agent/test_diagnostic_store.py` passes.
+- **Adversarial-verification addendum (Step 3a):** `__init__` gains a required `diagnostics_cfg` and `save()` loses `encrypt`; rewrite BOTH companion files accordingly, not only the named sites: (a) every `DiagnosticStore()` construction must pass a `DiagnosticsConfig` (e.g. `DiagnosticStore(diagnostics_cfg=DiagnosticsConfig())` or with `session_id=`); (b) every `save(...)` call site must drop the `encrypt=` keyword; (c) `test_diagnostic_store.py`'s module-level `_SCHEMA` must gain `storage_format TEXT NOT NULL DEFAULT 'plaintext'` so the new INSERT column exists; (d) `test_diagnostic_store_security.py` uses a `MockConnection` (no real schema) so no `_SCHEMA` change there, but its `_save_with_empty_key` helper and every `save(...)` call must drop `encrypt=` and inject the config via the constructor instead of patching `_load_diagnostics_config`.
 
 ## Compatibility considerations
 Removing the public `encrypt` argument changes `DiagnosticStore.save()`'s signature. No production caller passes `encrypt=True` (verified: only a docstring and a comment mention it). External callers are test files covered by the companions above plus the fallout rows that construct `DiagnosticStore()` without the new required argument.
@@ -125,10 +126,10 @@ Revert the commit to `scripts/agent/diagnostic_store.py` (and its companion test
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companions cover this |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Compatibility notes only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114 | 20261114 | Signature reordered to `diagnostics_cfg, session_id=None`; fail-closed + encrypt-by-policy + `storage_format` in INSERT; `_load_diagnostics_config` deleted |
+| 2 | Add or update tests per Validation plan | Completed | 20261114 | 20261114 | Both companions rewritten to injected-config + fail-closed; removed invented tests that did not match source (`test_save_without_content_raises`, wrong-key round-trip that actually decrypted, no-key-plaintext that passed a key) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114 | 20261114 | ruff/mypy/bandit/lint-imports/ast-grep clean on changed files; 80 companion tests pass. KNOWN: mypy reports 3 call-arg errors in `session.py:62` / `orchestrator.py:89` / `repl.py:80` — production callers build `DiagnosticStore()` without the new required arg; wired by procedures 06/07/08 (out of scope here) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114 | 20261114 | Compatibility notes only; no doc change in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

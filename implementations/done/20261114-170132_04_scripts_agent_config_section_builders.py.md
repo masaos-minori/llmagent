@@ -54,10 +54,10 @@ Revert the commit (`N/A: revert the commit`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | No body edit required |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114 | 20261114 | No body edit required. Verified `_build_diagnostics_config` (lines 322-335) constructs `DiagnosticsConfig` exclusively via `_build_model` (330-335); grep shows no direct `DiagnosticsConfig(...)` call. `_build_model` (106-116) wraps `ValueError` → `ConfigReloadValidationError`. |
+| 2 | Add or update tests per Validation plan | Completed | 20261114 | 20261114 | Added 2 regression tests to `TestBuildDiagnosticsConfig` in `test_config_builders.py`: invalid Fernet key and wrong-typed retention_days each raise `ConfigReloadValidationError`. 71 pass (was 68). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114 | 20261114 | Isolated validation. Inline e2e confirmed: non-Fernet key → `ConfigReloadValidationError: encryption_key is not a valid Fernet key`; valid key builds cleanly. ruff format/check clean. mypy: only the 3 KNOWN pre-existing errors from procedure 01; no new. diff-cover 100% on test additions (9 lines, 0 missing). pre-commit: all hooks pass except the 3 known mypy errors. Full-suite green deferred to final stage. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Not in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

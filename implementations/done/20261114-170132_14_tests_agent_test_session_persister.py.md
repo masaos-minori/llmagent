@@ -40,6 +40,7 @@ Update `tests/agent/test_session_persister.py` so every `DiagnosticStore()` cons
 ### Details
 - After removing the fixture's `_load_diagnostics_config` patch, NO remaining code in the file references that method (verified: only lines 17 and 72-73 did).
 - `DiagnosticsConfig()` matches the old mock's no-key behavior (`encryption_key=""`), so the redaction/secret-check path these tests exercise is unchanged.
+- **Adversarial-verification addition:** the test's local `_SCHEMA` (in `_MemDb`) must include `storage_format TEXT NOT NULL DEFAULT 'plaintext'`, matching the canonical DDL. `save()` always inserts `storage_format` (diagnostic_store.py:157); a schema without it makes every write in this file fail with "no column named storage_format". Added here even though the original procedure did not list it.
 
 ### Companion test files
 N/A.
@@ -70,10 +71,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Inject `DiagnosticsConfig()` at all 9 sites; drop the fixture patch |
-| 2 | Add or update tests per Validation plan | Pending | — | — | No new tests; existing tests updated in place |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261114 | 20261114 | Injected `DiagnosticsConfig()` at all 9 sites; dropped the fixture `_load_diagnostics_config` patch. **Deviation:** also added `storage_format TEXT NOT NULL DEFAULT 'plaintext'` to the test's local `_SCHEMA` — the store's `save()` INSERT now requires it (diagnostic_store.py:157); without it every write fails "no column named storage_format". Not in the original procedure. |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | No new tests; existing tests updated in place |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261114 | 20261114 | `tests/agent/test_session_persister.py` = 15 passed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

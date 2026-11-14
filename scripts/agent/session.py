@@ -13,12 +13,14 @@ from typing import TYPE_CHECKING
 from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
+from agent.config_builders import build_agent_config
 from agent.diagnostic_store import DiagnosticStore
 from agent.services.models import DeletedRow
 from agent.session_message_repo import SessionMessageRepository
 from agent.turn_persistence import TurnPersistence
 
 if TYPE_CHECKING:
+    from agent.config_dataclasses import DiagnosticsConfig
     from agent.context import ConversationState
 
 logger = logging.getLogger(__name__)
@@ -54,12 +56,26 @@ class AgentSession:
     def _message_repo(self, value: SessionMessageRepository) -> None:
         self._repo = value
 
-    def __init__(self, *, strict_mode: bool = False) -> None:
-        """Initialize the session manager with optional strict mode and message repository."""
+    def __init__(
+        self,
+        *,
+        strict_mode: bool = False,
+        diagnostics_cfg: DiagnosticsConfig | None = None,
+    ) -> None:
+        """Initialize the session manager with optional strict mode and message repository.
+
+        ``diagnostics_cfg`` is the validated snapshot owned by ``AgentContext``. When
+        omitted (the ``AgentSession()`` call in ``context.py`` does not pass it), the
+        validated config is built once here via ``build_agent_config()`` so the store
+        never reads ``agent.toml`` per operation (REQ-001 / AC-6). A malformed
+        ``[diagnostics]`` table fails closed during this build.
+        """
         self.session_id: int | None = None  # current session DB row ID
         self._strict_mode = strict_mode
         self._title_pending: bool = False
-        self._diagnostic_store = DiagnosticStore(self.session_id)
+        if diagnostics_cfg is None:
+            diagnostics_cfg = build_agent_config().diagnostics
+        self._diagnostic_store = DiagnosticStore(diagnostics_cfg=diagnostics_cfg)
 
     # ── SessionMessageRepository delegation ──────────────────────────────────
 

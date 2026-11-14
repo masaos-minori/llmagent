@@ -80,15 +80,15 @@ Revert the commit (`N/A: revert the commit`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion covers this |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114 | 20261114 | `DiagnosticsConfig.__post_init__` added; 3 aliased validator imports added. Diff vs master is exactly these additions. |
+| 2 | Add or update tests per Validation plan | Completed | 20261114 | 20261114 | Companion `test_config_dataclasses.py` (`TestDiagnosticsConfigValidation`) + `test_config_builders.py::test_overrides_are_applied` (generated Fernet key). 136 pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114 | 20261114 | Isolated validation (full-suite green deferred to final stage per user decision). ruff/bandit/lint-imports/ast-grep clean. mypy: only the 3 KNOWN pre-existing errors from procedure 01 (`session.py:62` / `orchestrator.py:89` / `repl.py:80`); no new errors. MDQ boundary 5 pass. diff-cover 100% on `config_dataclasses.py` (7 lines, 0 missing). pre-commit: all hooks pass except the 3 known mypy errors. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Not in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | Full-suite regression (168 failed) during `coverage run -m pytest tests/`. Root-caused: ALL failures are procedure 01 fallout (required `diagnostics_cfg` arg + deleted `_load_diagnostics_config`), NOT procedure 02. Only `test_session_persister.py` and `test_regression_diagnostic_persist.py` construct `DiagnosticStore()` without config; no test constructs a real `DiagnosticsConfig` with an invalid key, so `__post_init__` never fires in a failing test. Fixed by procedures 14/15 (test fixtures) and 06/07/08 (production callers) — out of procedure 02's scope. Validated in isolation per user decision. | Yes | 20261114 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

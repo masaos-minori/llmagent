@@ -36,6 +36,15 @@ from agent.services.config_validators import (
     validate_approval_risk_rules as _v_app_risk,
 )
 from agent.services.config_validators import (
+    validate_diagnostics_encryption_key as _v_diag_key,
+)
+from agent.services.config_validators import (
+    validate_diagnostics_retention_days as _v_diag_retention,
+)
+from agent.services.config_validators import (
+    validate_diagnostics_sensitive_fields as _v_diag_fields,
+)
+from agent.services.config_validators import (
     validate_llm_budget_warn_ratio as _v_llm_bwr,
 )
 from agent.services.config_validators import (
@@ -340,6 +349,12 @@ class DiagnosticsConfig:
     sensitive_fields: frozenset[str] = field(
         default_factory=lambda: frozenset(("artifacts", "rag_stage_outcomes"))
     )
+
+    def __post_init__(self) -> None:
+        """Validate diagnostics configuration fields after initialization."""
+        _v_diag_key(self)
+        _v_diag_retention(self)
+        _v_diag_fields(self)
 
 
 @dataclass

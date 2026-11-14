@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import orjson
 import pytest
+from agent.config_dataclasses import DiagnosticsConfig
 from agent.diagnostic_store import DiagnosticStore
 from agent.session_persister import SessionPersister
 from agent.workflow.state_store import StateStore
@@ -26,6 +27,7 @@ CREATE TABLE session_diagnostics (
     content     TEXT NOT NULL,
     workflow_id TEXT,
     task_id     TEXT,
+    storage_format TEXT NOT NULL DEFAULT 'plaintext',
     created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 """
@@ -68,13 +70,6 @@ def db():
     with (
         patch("agent.diagnostic_store.SQLiteHelper", return_value=mem),
         patch("agent.workflow.state_store.StateStore", side_effect=RuntimeError),
-        patch.object(
-            DiagnosticStore,
-            "_load_diagnostics_config",
-            return_value=MagicMock(
-                encryption_key="", retention_days=30, sensitive_fields=frozenset()
-            ),
-        ),
     ):
         yield mem
 
@@ -98,7 +93,9 @@ class TestPersistSessionDiagnosticsGate:
     @pytest.mark.asyncio
     async def test_skips_write_when_no_session(self, db, caplog) -> None:
         view = MagicMock()
-        persister = SessionPersister(_ctx(None), DiagnosticStore(), view)
+        persister = SessionPersister(
+            _ctx(None), DiagnosticStore(DiagnosticsConfig()), view
+        )
 
         with caplog.at_level(logging.INFO, logger="agent.session_persister"):
             await persister.persist_session_diagnostics()
@@ -109,7 +106,9 @@ class TestPersistSessionDiagnosticsGate:
 
     @pytest.mark.asyncio
     async def test_writes_row_when_session_exists(self, db) -> None:
-        persister = SessionPersister(_ctx(1), DiagnosticStore(), MagicMock())
+        persister = SessionPersister(
+            _ctx(1), DiagnosticStore(DiagnosticsConfig()), MagicMock()
+        )
 
         await persister.persist_session_diagnostics()
 
@@ -118,11 +117,15 @@ class TestPersistSessionDiagnosticsGate:
 
     @pytest.mark.asyncio
     async def test_store_accepts_null_session_id_directly(self, db) -> None:
-        persister = SessionPersister(_ctx(None), DiagnosticStore(), MagicMock())
+        persister = SessionPersister(
+            _ctx(None), DiagnosticStore(DiagnosticsConfig()), MagicMock()
+        )
         await persister.persist_session_diagnostics()
         assert db.count() == 0
 
-        DiagnosticStore().save(None, kind="session_summary", content="{}")
+        DiagnosticStore(DiagnosticsConfig()).save(
+            None, kind="session_summary", content="{}"
+        )
 
         assert db.count() == 1
 
@@ -133,7 +136,7 @@ class TestPersistSessionDiagnosticsContainment:
         ctx = _ctx(1)
         ctx.stats.stat_turns = MagicMock()  # not JSON serializable
         view = MagicMock()
-        persister = SessionPersister(ctx, DiagnosticStore(), view)
+        persister = SessionPersister(ctx, DiagnosticStore(DiagnosticsConfig()), view)
 
         await persister.persist_session_diagnostics()
 
@@ -143,7 +146,7 @@ class TestPersistSessionDiagnosticsContainment:
 
     @pytest.mark.asyncio
     async def test_store_failure_is_reported_and_does_not_escape(self, db) -> None:
-        store = DiagnosticStore()
+        store = DiagnosticStore(DiagnosticsConfig())
         view = MagicMock()
         persister = SessionPersister(_ctx(1), store, view)
 
@@ -169,7 +172,7 @@ class TestPersistSessionDiagnosticsStoreClose:
     @staticmethod
     async def _persist(db_session_id: int, store: MagicMock) -> None:
         persister = SessionPersister(
-            _ctx(db_session_id), DiagnosticStore(), MagicMock()
+            _ctx(db_session_id), DiagnosticStore(DiagnosticsConfig()), MagicMock()
         )
         with patch("agent.workflow.state_store.StateStore", return_value=store):
             await persister.persist_session_diagnostics()
@@ -253,7 +256,9 @@ class TestPersistSessionDiagnosticsRoundTrip:
         self, db
     ) -> None:
         ctx = _ctx(1)
-        persister = SessionPersister(ctx, DiagnosticStore(), MagicMock())
+        persister = SessionPersister(
+            ctx, DiagnosticStore(DiagnosticsConfig()), MagicMock()
+        )
 
         await persister.persist_session_diagnostics()
 
@@ -272,7 +277,9 @@ class TestPersistSessionDiagnosticsRoundTrip:
     async def test_latency_summary_floats_survive_round_trip(self, db) -> None:
         ctx = _ctx(1)
         ctx.stats.stat_latency = {"tool_a": [1.5, 0.5], "tool_b": [2.0]}
-        persister = SessionPersister(ctx, DiagnosticStore(), MagicMock())
+        persister = SessionPersister(
+            ctx, DiagnosticStore(DiagnosticsConfig()), MagicMock()
+        )
 
         await persister.persist_session_diagnostics()
 

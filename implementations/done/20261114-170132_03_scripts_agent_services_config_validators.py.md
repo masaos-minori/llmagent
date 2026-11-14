@@ -101,10 +101,10 @@ Revert the commit (`N/A: revert the commit`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | See Companion test files |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114 | 20261114 | Added `DiagnosticsConfig` to `TYPE_CHECKING` block; runtime `from cryptography.fernet import Fernet`; three validators inserted after `validate_memory_max_pinned`, before `validate_approval_risk_rules` |
+| 2 | Add or update tests per Validation plan | Completed | 20261114 | 20261114 | Direct-validator calls on bare `DiagnosticsConfig` (isolated from proc 02 `__post_init__`): empty key passes, valid Fernet key passes, non-Fernet key raises; int passes, float/bool raise; frozenset-of-strings passes, list/non-string members raise |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114 | 20261114 | ruff/format/check, lint-imports, ast-grep, bandit(-ll) clean on changed files; 64 companion tests pass. mypy shows only the 3 known proc-01 call-arg errors (`session.py:62`/`orchestrator.py:89`/`repl.py:80`); no new errors in `config_validators.py` or the test file |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114 | 20261114 | Compatibility/Security notes only; no doc change in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

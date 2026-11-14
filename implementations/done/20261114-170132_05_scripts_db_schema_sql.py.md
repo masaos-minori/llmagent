@@ -67,10 +67,10 @@ Revert the commit. Reverting this file restores the pre-change canonical DDL; on
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261114 | 20261114 | `storage_format TEXT NOT NULL DEFAULT 'plaintext'` added to `session_diagnostics` in `_SESSION_SCHEMA_TEMPLATE`. |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | No new test authored; existing schema-fingerprint + schema-gate suite covers the DDL. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261114 | 20261114 | `check_db_separation.py` = "No violations found"; `tests/shared/test_schema_fingerprint.py` + `tests/deploy/test_init_db_schema_gate.py` = 34 passed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope per procedure; doc updates covered by procedure 13. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -86,7 +86,7 @@ class Orchestrator:
         self._on_error = on_error
         self._tracer = tracer
         self._pause_on_critical_failure = pause_on_critical_failure
-        self._diagnostic_store = DiagnosticStore()
+        self._diagnostic_store = DiagnosticStore(diagnostics_cfg=ctx.cfg.diagnostics)
         ctx.diagnostics = self._diagnostic_store
         self._state_store = StateStore()
         self._state_store.recover_stale_attempts()

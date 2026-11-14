@@ -35,6 +35,7 @@ Update `tests/agent/test_regression_diagnostic_persist.py` so every `DiagnosticS
    Each becomes e.g. `DiagnosticStore(session_id=1, diagnostics_cfg=DiagnosticsConfig())`.
 ### Details
 - The tests patch `agent.diagnostic_store.SQLiteHelper` and call `save()`/`fetch()`; `save()` now reads the injected config (no per-op read). `DiagnosticsConfig()` matches the prior no-key behavior, so the plain-string contents ("session 1 entry", "conn error") filter and secret-check identically.
+- **Adversarial-verification addition:** the module-level `_SCHEMA` must include `storage_format TEXT NOT NULL DEFAULT 'plaintext'`, matching the canonical DDL. `save()` always inserts `storage_format` (diagnostic_store.py:157); a schema without it makes every `save()` in this file fail with "no column named storage_format". Added here even though the original procedure did not list it.
 
 ### Companion test files
 N/A.
@@ -64,10 +65,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Inject `diagnostics_cfg=DiagnosticsConfig()` at all 5 sites |
-| 2 | Add or update tests per Validation plan | Pending | — | — | No new tests; existing tests updated in place |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261114 | 20261114 | Injected `diagnostics_cfg=DiagnosticsConfig()` at all 5 sites. **Deviation:** also added `storage_format TEXT NOT NULL DEFAULT 'plaintext'` to the module-level `_SCHEMA` — the store's `save()` INSERT requires it (diagnostic_store.py:157); without it every write fails "no column named storage_format". Not in the original procedure. |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | No new tests; existing tests updated in place |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261114 | 20261114 | `tests/agent/test_regression_diagnostic_persist.py` = 6 passed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -77,7 +77,9 @@ class AgentREPL:
         """Initialize REPL agent with empty context and view."""
         self._ctx = AgentContext()
         self._view = CLIView(list(self.SLASH_COMMANDS))
-        self._diagnostic_store = DiagnosticStore()
+        self._diagnostic_store = DiagnosticStore(
+            diagnostics_cfg=self._ctx.cfg.diagnostics
+        )
         self._shutdown_event = asyncio.Event()
         # Wire extracted components via DI
         self._input_loop = ReplInputLoop(self._ctx, self._view, self._shutdown_event)

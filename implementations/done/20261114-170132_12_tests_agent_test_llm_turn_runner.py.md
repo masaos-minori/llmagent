@@ -6,7 +6,7 @@ Confirm the `tests/agent/test_llm_turn_runner.py` references to the sensitive-da
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- `REQ-004` keeps the no-key secret-refusal path: when no key is configured, `save()` raises `RuntimeError` with the fixed refusal message before persisting (`diagnostic_store.py` lines 162-167).
+- `REQ-004` keeps the no-key secret-refusal path: when no key is configured, `save()` raises `RuntimeError` with the fixed refusal message before persisting (`diagnostic_store.py` line 147).
 - `REQ-003` removes the `encrypt` argument and encrypts by policy (line 169); it does not touch the no-key refusal branch that emits the message.
 
 ## Design decisions
@@ -21,8 +21,8 @@ N/A: this row verifies an existing reference; it introduces no design decision.
 ### Procedure
 - Verify the refusal message text is unchanged by `REQ-003`/`REQ-004`; if unchanged, make no edit.
 ### Method
-- Confirm `diagnostic_store.py` still raises `"Sensitive information detected in diagnostic content without encryption enabled."` in the no-key branch (lines 162-167).
-- Confirm the three references in `test_llm_turn_runner.py` (lines 392-393, 395-396, 420-421) still match that exact string. If they do, this file needs no change.
+- Confirm `diagnostic_store.py` still raises `"Sensitive information detected in diagnostic content without encryption enabled."` in the no-key branch (line 147).
+- Confirm the three references in `test_llm_turn_runner.py` (lines 393, 396, 421) still match that exact string. If they do, this file needs no change.
 
 ### Companion test files
 N/A.
@@ -52,10 +52,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | No edit required if the refusal message is unchanged (verified) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261114 | 20261114 | No edit required. Refusal message unchanged at `diagnostic_store.py:147`; three `test_llm_turn_runner.py` refs (393, 396, 421) match exactly. |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | No new test authored; existing suite covers the guard. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261114 | 20261114 | `tests/agent/test_llm_turn_runner.py` = 47 passed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Out of scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

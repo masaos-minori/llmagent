@@ -18,6 +18,12 @@ from agent.config_dataclasses import (
     RAGConfig,
     ToolConfig,
 )
+from agent.services.config_validators import (
+    validate_diagnostics_encryption_key,
+    validate_diagnostics_retention_days,
+    validate_diagnostics_sensitive_fields,
+)
+from cryptography.fernet import Fernet
 
 # ── LLMConfig ─────────────────────────────────────────────────────────────────
 
@@ -279,9 +285,77 @@ class TestDiagnosticsConfigValidation:
         assert cfg.retention_days == 30
 
     def test_custom_values(self) -> None:
-        cfg = DiagnosticsConfig(encryption_key="some-key", retention_days=7)
-        assert cfg.encryption_key == "some-key"
+        cfg = DiagnosticsConfig(
+            encryption_key=Fernet.generate_key().decode(), retention_days=7
+        )
+        assert cfg.encryption_key != ""
         assert cfg.retention_days == 7
+
+    def test_construction_non_fernet_key_raises(self) -> None:
+        with pytest.raises(
+            ValueError, match="encryption_key is not a valid Fernet key"
+        ):
+            DiagnosticsConfig(encryption_key="not-a-valid-fernet-key")
+
+    def test_construction_wrong_typed_retention_raises(self) -> None:
+        with pytest.raises(
+            ValueError, match="retention_days must be an int, got float"
+        ):
+            DiagnosticsConfig(retention_days=30.0)
+
+    def test_construction_non_frozenset_fields_raises(self) -> None:
+        with pytest.raises(ValueError, match="sensitive_fields must be a frozenset"):
+            DiagnosticsConfig(sensitive_fields=["artifacts"])
+
+    def test_encryption_key_empty_passes(self) -> None:
+        cfg = DiagnosticsConfig(encryption_key="")
+        validate_diagnostics_encryption_key(cfg)
+
+    def test_encryption_key_valid_fernet_passes(self) -> None:
+        cfg = DiagnosticsConfig(encryption_key=Fernet.generate_key().decode())
+        validate_diagnostics_encryption_key(cfg)
+
+    def test_encryption_key_non_fernet_raises(self) -> None:
+        cfg = DiagnosticsConfig.__new__(DiagnosticsConfig)
+        cfg.encryption_key = "not-a-valid-fernet-key"
+        with pytest.raises(
+            ValueError, match="encryption_key is not a valid Fernet key"
+        ):
+            validate_diagnostics_encryption_key(cfg)
+
+    def test_retention_days_int_passes(self) -> None:
+        cfg = DiagnosticsConfig(retention_days=30)
+        validate_diagnostics_retention_days(cfg)
+
+    def test_retention_days_float_raises(self) -> None:
+        cfg = DiagnosticsConfig.__new__(DiagnosticsConfig)
+        cfg.retention_days = 30.0
+        with pytest.raises(
+            ValueError, match="retention_days must be an int, got float"
+        ):
+            validate_diagnostics_retention_days(cfg)
+
+    def test_retention_days_bool_raises(self) -> None:
+        cfg = DiagnosticsConfig.__new__(DiagnosticsConfig)
+        cfg.retention_days = True
+        with pytest.raises(ValueError, match="retention_days must be an int, got bool"):
+            validate_diagnostics_retention_days(cfg)
+
+    def test_sensitive_fields_frozenset_of_strings_passes(self) -> None:
+        cfg = DiagnosticsConfig(sensitive_fields=frozenset(("artifacts",)))
+        validate_diagnostics_sensitive_fields(cfg)
+
+    def test_sensitive_fields_non_frozenset_raises(self) -> None:
+        cfg = DiagnosticsConfig.__new__(DiagnosticsConfig)
+        cfg.sensitive_fields = ["artifacts"]
+        with pytest.raises(ValueError, match="sensitive_fields must be a frozenset"):
+            validate_diagnostics_sensitive_fields(cfg)
+
+    def test_sensitive_fields_non_string_members_raises(self) -> None:
+        cfg = DiagnosticsConfig.__new__(DiagnosticsConfig)
+        cfg.sensitive_fields = frozenset((1, 2))
+        with pytest.raises(ValueError, match="sensitive_fields must be a frozenset"):
+            validate_diagnostics_sensitive_fields(cfg)
 
 
 # ── MCPConfig removed-mode fields stay absent ─────────────────────────────────

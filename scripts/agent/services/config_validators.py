@@ -12,9 +12,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
+from cryptography.fernet import Fernet
+
 if TYPE_CHECKING:
     from agent.config_dataclasses import (
         ApprovalConfig,
+        DiagnosticsConfig,
         LLMConfig,
         MemoryConfig,
         ToolConfig,
@@ -175,6 +178,34 @@ def validate_memory_retention_days(cfg: MemoryConfig) -> None:
 def validate_memory_max_pinned(cfg: MemoryConfig) -> None:
     """Validate that memory_max_pinned is at least 1."""
     _require_at_least("memory_max_pinned", cfg.memory_max_pinned, 1)
+
+
+def validate_diagnostics_encryption_key(cfg: DiagnosticsConfig) -> None:
+    """Validate encryption_key is a valid Fernet key when configured (empty = disabled)."""
+    key = cfg.encryption_key
+    if not key:
+        return
+    try:
+        Fernet(key.encode("utf-8"))
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"encryption_key is not a valid Fernet key: {exc}") from exc
+
+
+def validate_diagnostics_retention_days(cfg: DiagnosticsConfig) -> None:
+    """Validate retention_days is an int (<= 0 disables purge; preserved per UNK-03)."""
+    if isinstance(cfg.retention_days, bool) or not isinstance(cfg.retention_days, int):
+        raise ValueError(
+            f"retention_days must be an int, got {type(cfg.retention_days).__name__}"
+        )
+
+
+def validate_diagnostics_sensitive_fields(cfg: DiagnosticsConfig) -> None:
+    """Validate sensitive_fields is a frozenset of strings."""
+    fields = cfg.sensitive_fields
+    if not isinstance(fields, frozenset) or not all(
+        isinstance(field, str) for field in fields
+    ):
+        raise ValueError("sensitive_fields must be a frozenset of strings")
 
 
 def validate_approval_risk_rules(cfg: ApprovalConfig) -> None:

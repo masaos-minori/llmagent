@@ -63,10 +63,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Edit the two existing sections; no concrete config values |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs consistency check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261114 | 20261114 | Edited both sections. Corrected to actual stored states `encrypted`/`plaintext`/`decrypt_failed` (code writes only `encrypted`/`plaintext`; `decrypt_failed` set at fetch). Removed stale `encrypt=True` references and the false filter-failure carve-out. |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | N/A: documentation change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261114 | 20261114 | `check_docs_consistency.py --domain agent` = "No issues found". |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 20261114 | 20261114 | This row. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

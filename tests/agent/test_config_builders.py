@@ -29,6 +29,7 @@ from agent.config_section_builders import (
 )
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import _get_int, _get_str
+from cryptography.fernet import Fernet
 
 # Minimal config satisfying _build_mcp_servers (needs at least one HTTP server with url) and
 # AgentConfig.__post_init__'s memory_embed_enabled cross-field check (now defaults to True,
@@ -388,10 +389,11 @@ class TestBuildDiagnosticsConfig:
         assert cfg.retention_days == 30
 
     def test_overrides_are_applied(self) -> None:
+        key = Fernet.generate_key().decode("utf-8")
         cfg = _build_diagnostics_config(
-            {"diagnostics": {"encryption_key": "abc123", "retention_days": 7}}
+            {"diagnostics": {"encryption_key": key, "retention_days": 7}}
         )
-        assert cfg.encryption_key == "abc123"
+        assert cfg.encryption_key == key
         assert cfg.retention_days == 7
 
     def test_missing_diagnostics_table_returns_defaults(self) -> None:
@@ -406,6 +408,18 @@ class TestBuildDiagnosticsConfig:
         # Union with defaults happens in _filter_sensitive_fields() at use time,
         # not in _build_diagnostics_config(). Assert raw configured value.
         assert cfg.sensitive_fields == frozenset(["custom_field", "another_field"])
+
+    def test_invalid_fernet_key_raises_config_reload_validation_error(self) -> None:
+        # REQ-002 / AC-3: a malformed DiagnosticsConfig value fails the build path
+        # with a named error (via _build_model wrapping __post_init__'s ValueError).
+        with pytest.raises(ConfigReloadValidationError, match="encryption_key"):
+            _build_diagnostics_config(
+                {"diagnostics": {"encryption_key": "not-a-valid-fernet-key"}}
+            )
+
+    def test_wrong_typed_retention_raises_config_reload_validation_error(self) -> None:
+        with pytest.raises(ConfigReloadValidationError, match="retention_days"):
+            _build_diagnostics_config({"diagnostics": {"retention_days": 30.0}})
 
 
 # ── build_agent_config ────────────────────────────────────────────────────────

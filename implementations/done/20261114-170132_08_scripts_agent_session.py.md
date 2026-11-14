@@ -25,12 +25,14 @@ Inject the validated `DiagnosticsConfig` snapshot into the `DiagnosticStore` tha
 ### Procedure
 - Supply the validated `DiagnosticsConfig` to the store constructed at line 62.
 ### Method
-- Line 62, resolve `<...>` by the chosen path (see Design decisions):
+- Line 62, resolved via path (a) variant (optional param + validated-config fallback):
   ```python
   -        self._diagnostic_store = DiagnosticStore(self.session_id)
-  +        self._diagnostic_store = DiagnosticStore(diagnostics_cfg=<cfg.diagnostics threaded via __init__>)   # path (a)
+  +        if diagnostics_cfg is None:
+  +            diagnostics_cfg = build_agent_config().diagnostics
+  +        self._diagnostic_store = DiagnosticStore(diagnostics_cfg=diagnostics_cfg)
   ```
-  or, path (b), receive the shared store handle and assign it here instead of constructing a new one. `session_id` stays `None` at construction and is passed to `save()` at call time (unchanged).
+  `session_id` stays `None` at construction and is passed to `save()` at call time (unchanged). `AgentContext.__init__` (context.py:395) is frozen and still calls `AgentSession()` with no args, so the `build_agent_config().diagnostics` fallback supplies the validated snapshot; a malformed `[diagnostics]` table fails closed during that build. Tests may inject `diagnostics_cfg=` directly.
 ### Details
 - `AgentSession.__init__` currently takes only `strict_mode`; any new parameter must be threaded from `AgentContext.__init__` (`context.py:395`) or supplied by the chosen path.
 - Both paths change `AgentSession`'s constructor. Audit `tests/agent/test_agent_session.py` and related fixtures; if any fixture outside the Plan's `Implementation Target Files` must change, that is an **additional target file discovery** — amend the Plan via `amend_plan.py` before committing that path (Plan Risk: 40+ `AgentSession()` call sites).
@@ -64,10 +66,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Path (a) vs (b) is an implementation-phase decision; audit AgentSession test fixtures before committing |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261114-204015 | 20261114-204015 | Path resolved: optional `diagnostics_cfg` param on `AgentSession.__init__` (path a variant). `context.py` is frozen, so config is threaded via a default param with a `build_agent_config().diagnostics` fallback. Fixed the buggy `DiagnosticStore(self.session_id)` (passed None as `diagnostics_cfg`). |
+| 2 | Add or update tests per Validation plan | Done | 20261114-204015 | 20261114-204015 | `test_agent_session.py` 53 passed (fallback build verified); `test_turn_persistence.py` passes. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261114-204015 | 20261114-204015 | ruff + mypy + lint-imports + bandit + ast-grep clean. Full agent suite: 4255 passed, 0 new failures (pre-existing procedure-01 fallout in test_session_persister.py/test_regression_diagnostic_persist.py is procedures 14/15). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 20261114-204015 | 20261114-204015 | No doc change in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

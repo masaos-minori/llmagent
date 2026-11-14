@@ -14,6 +14,7 @@ import sqlite3
 from unittest.mock import patch
 
 import pytest
+from agent.config_dataclasses import DiagnosticsConfig
 from agent.diagnostic_store import DiagnosticStore
 
 _SCHEMA = """
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS session_diagnostics (
     content     TEXT NOT NULL,
     workflow_id TEXT,
     task_id     TEXT,
+    storage_format TEXT NOT NULL DEFAULT 'plaintext',
     created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_diag_session ON session_diagnostics(session_id);
@@ -76,7 +78,7 @@ class TestDiagnosticCrossSessionIsolation:
     def test_fetch_excludes_different_session(self, fake_db: _FakeSQLiteHelper) -> None:
         """fetch(session_id=2) returns empty when only session_id=1 has diagnostics."""
         with patch("agent.diagnostic_store.SQLiteHelper", return_value=fake_db):
-            store = DiagnosticStore(session_id=1)
+            store = DiagnosticStore(session_id=1, diagnostics_cfg=DiagnosticsConfig())
             store.save(session_id=1, kind="session_summary", content="session 1 entry")
 
             results = store.fetch(session_id=2)
@@ -88,7 +90,7 @@ class TestDiagnosticCrossSessionIsolation:
     ) -> None:
         """fetch(session_id=1) returns entries saved for session_id=1."""
         with patch("agent.diagnostic_store.SQLiteHelper", return_value=fake_db):
-            store = DiagnosticStore(session_id=1)
+            store = DiagnosticStore(session_id=1, diagnostics_cfg=DiagnosticsConfig())
             store.save(session_id=1, kind="session_summary", content="session 1 entry")
 
             results = store.fetch(session_id=1)
@@ -101,8 +103,8 @@ class TestDiagnosticCrossSessionIsolation:
     ) -> None:
         """Two stores sharing DB: each sees only its own session's diagnostics."""
         with patch("agent.diagnostic_store.SQLiteHelper", return_value=fake_db):
-            store1 = DiagnosticStore(session_id=1)
-            store2 = DiagnosticStore(session_id=2)
+            store1 = DiagnosticStore(session_id=1, diagnostics_cfg=DiagnosticsConfig())
+            store2 = DiagnosticStore(session_id=2, diagnostics_cfg=DiagnosticsConfig())
 
             store1.save(session_id=1, kind="session_summary", content="for session 1")
 
@@ -114,7 +116,9 @@ class TestDiagnosticNullSessionId:
     def test_null_session_id_entry_stored(self, fake_db: _FakeSQLiteHelper) -> None:
         """Diagnostics saved with session_id=None are stored and retrievable."""
         with patch("agent.diagnostic_store.SQLiteHelper", return_value=fake_db):
-            store = DiagnosticStore(session_id=None)
+            store = DiagnosticStore(
+                session_id=None, diagnostics_cfg=DiagnosticsConfig()
+            )
             store.save(
                 kind="llm_transport_error", session_id=None, content="conn error"
             )

@@ -59,10 +59,10 @@ Revert the commit (`N/A: revert the commit`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261114-204015 | 20261114-204015 | Line 89 -> `DiagnosticStore(diagnostics_cfg=ctx.cfg.diagnostics)`. |
+| 2 | Add or update tests per Validation plan | Done | 20261114-204015 | 20261114-204015 | Producer-wiring covered by existing `test_orchestrator.py` (135 passed); no dedicated test-file row in the Plan. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261114-204015 | 20261114-204015 | ruff + mypy + lint-imports + bandit + ast-grep clean; `test_orchestrator.py` 135 passed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 20261114-204015 | 20261114-204015 | No doc change in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
