@@ -58,10 +58,10 @@ Current matches (live sweep 2026-11-14):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114-200956 | 20261114-200956 | changed: scripts/shared/tool_constants.py observation: the 'see implementation 20261111-111905_04' comment line does not match the Plan's search patterns; kept per frozen scope |
+| 2 | Add or update tests per Validation plan | Completed | 20261114-200956 | 20261114-200956 | N/A: no test change needed; targeted tests pass (tests/shared tests/db: 1649 passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114-200956 | 20261114-200956 | 3e: ruff/mypy/bandit(0 High/Med)/gates Pass; lint-imports skipped (no import change); full suite skipped per memo3 directive |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114-200956 | 20261114-200956 | N/A: no docs/00_index.md task-scope mapping for scripts/shared/tool_constants.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
