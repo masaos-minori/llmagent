@@ -51,10 +51,10 @@ Current matches (live sweep 2026-11-14):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114-113540 | 20261114-113552 | changed: scripts/agent/lifecycle.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261114-113700 | 20261114-113700 | N/A: no test change needed; targeted runs pass (testmon 0 selected, tests/agent 4257) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114-113700 | 20261114-113743 | 3e: ruff/mypy/bandit(0 High/Med)/gates Pass, lint-imports skipped (no import change); full suite skipped per memo3 directive |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114-113700 | 20261114-113700 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/lifecycle.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
