@@ -10,6 +10,13 @@ High
 - **Dependencies**: coordinate with `plans/20261115-035004_dbreview002_partial-activation-rollback.md` (same functions).
   - **Depends on**: plans/20261115-035004_dbreview002_partial-activation-rollback.md | phase all | 002 introduces the activation holder (swap-started + moved-sidecar record) and the extended `_rollback_or_non_serviceable`; this Plan's quarantine-back step is added on top of those shapes, so 003 lands after 002.
 
+## Plan-Document Correction (re-verification after Plans 001/002 closed)
+
+- All Background claims re-confirmed against the current tree this cycle: `recovery.py:361` `quarantine_dir` creation; `:374`/`:395` cleanup-only failure returns; `:415` success-path `shutil.rmtree` (plan cites `:414-415`; 414 is its comment); `:426` handler cleanup; `:431` main-only rollback; `recovery_restore.py:22-35` (`_quarantine_sidecar_files`, returns `None`) and `:75-112` (`_stage_restore` returns only the staged dict); test assertions `:834`, `:1063`, `:1436` (quarantine kept on OSError), `:1459`; helper tests at `:683`, `:717`, `:749`, `:769`; sole production caller `recovery.py:366`; no test caller of `_stage_restore` (grep).
+- Correction 1 (docs evidence): `db_07` has no line-77 claim — `grep "terminal path" docs/41_db/db_07_api_and_operations-recovery-and-reference.md` is empty. The text REQ-006 must edit is instead `db_07:34` (staging helper contract: "Staging is fail-closed... caller's cleanup handler") and `db_07:63` ("A candidate that fails verification is never activated: the live database is untouched" + "cleans up the half-written temp files and preserves the archive"). Target-file row evidence updated accordingly.
+- Correction 2 (REQ-004 dedup): Plan 002's REQ-004 (procedures `implementations/20261115-080732_1_scripts_db_recovery.py.md` step 6 and `implementations/20261115-080732_2_tests_db_test_db_recovery.py.md` step 5) implements exactly the `_cleanup_staged` failure-safe change and its forced-unlink test. Plan 003 lands after 002 (dependency row), so 003 re-verifies AC-5 against the landed 002 test; it does not re-implement `_cleanup_staged` or add a duplicate test.
+- Shapes Plan 003 builds on (from Plan 002's landed procedures): `_ActivationProgress` holder (`replaced` flag + moved-sidecar list) and `_rollback_or_non_serviceable(db_path, corrupt_archive, failure, dry_run, moved_sidecars kwarg)`. 003's quarantine-back step extends the same helper after the main-file replace and threads quarantine records through the pre-activation failure returns.
+
 ## Background
 From the Source Issue (F-003), re-verified line-by-line against the post-pull tree (2026-11-15). The Issue's claim that quarantine happens "before verification" is true in the current code but is no longer the defect: the upstream fix (commit `4543c2aa4`) deliberately quarantines the live `-wal`/`-shm` at staging time — `quarantine_dir` is created at `scripts/db/recovery.py:361`, `_stage_restore` (`scripts/db/recovery_restore.py:75-112`) calls `_quarantine_sidecar_files` (`:22-35`, copy2 + unlink per suffix) at `:91-93` before any swap. That part of the Issue is resolved; the Issue's Proposed Fix 1 ("run quarantine at the activation step") is superseded. The verified remaining defects:
 
@@ -34,7 +41,7 @@ Keep quarantine where the upstream fix put it (staging, before verification) and
 - `REQ-001`: `_quarantine_sidecar_files` and `_stage_restore` return the quarantine records (live name → quarantine path per suffix); `db.recovery` threads them through every terminal path. After any pre-activation failure (candidate integrity `recovery.py:373-386`, candidate logical `:387-402`), the live directory holds the original main file plus its original sidecars byte-identically (AC-1).
 - `REQ-002`: On post-activation rollback, quarantined originals are moved back to their live names after the archived original main is replaced (`:315`, `:431` paths); a partial quarantine (one suffix recorded) moves back only what was recorded (AC-1). Combined with Plan 002's candidate-sidecar removal, after rollback the live directory holds exactly the original unit and no candidate file at any name (AC-1, AC-2).
 - `REQ-003`: After a **successful** restore the quarantine directory and its copies are retained (maintainer decision recorded 2026-11-15: retain for forensics; the corrupt WAL may contain transactions the backup lacks). `recovery.py:414-415` `shutil.rmtree` is removed; the retained path is logged. Retention lifetime/cleanup is delegated to Issue 008 (AC-3).
-- `REQ-004`: `_cleanup_staged` (`recovery.py:298-302`) is made failure-safe (per-path try/except with logging) so a cleanup error cannot escape its call sites, including the `OSError` handler at `:426` (AC-5).
+- `REQ-004`: `_cleanup_staged` (`recovery.py:298-302`) is made failure-safe (per-path try/except with logging) so a cleanup error cannot escape its call sites, including the `OSError` handler at `:426` (AC-5). Landed by Plan 002's REQ-004 before this Plan (Correction 2); this Plan verifies the outcome, it does not re-implement it.
 - `REQ-005`: Tests assert the live file set and contents after each failure branch (pre-activation integrity failure, pre-activation logical failure, post-activation rollback, `OSError`-during-swap) and assert retention on success (AC-1, AC-2, AC-3).
 - `REQ-006`: `db_07` and ADR-008 state the whole-unit failure-path behavior and the retention decision in behavior/intent terms (AC-4).
 
@@ -46,7 +53,7 @@ Keep quarantine where the upstream fix put it (staging, before verification) and
 | scripts/db/recovery.py | Modify | Thread quarantine records through failure paths; add quarantine-back to `restore_verify_failed`/`logical_verify_failed`/`verification_unavailable` returns and to the rollback composition; success-path `rmtree` removal; `_cleanup_staged` made failure-safe | REQ-001..REQ-004 / AC-1, AC-2, AC-3, AC-5 | `recovery.py:361` `quarantine_dir` creation, `:374`/`:395` cleanup-only failure returns, `:404-405` activation, `:414-415` `shutil.rmtree(quarantine_dir...)`, `:424-443` OSError handler (`:426` cleanup, `:431` main-only rollback) (checked in Step 2, post-pull) | tests/db/test_db_recovery.py | Verified |
 | scripts/db/recovery_restore.py | Modify | `_quarantine_sidecar_files` returns the quarantine records; `_stage_restore` surfaces them to the caller; docstrings updated | REQ-001 / AC-1 | `recovery_restore.py:22-35` helper returns `None`; `:91-93` call site; `_stage_restore` currently returns only the staged dict (`:112`) (checked in Step 2) | tests/db/test_db_recovery.py | Verified |
 | tests/db/test_db_recovery.py | Modify | Add sidecar fixtures + failure-branch assertions; flip the three success-path "quarantine removed" assertions to retention; rename the retention test | REQ-003, REQ-005 / AC-1, AC-2, AC-3 | `:834`, `:1063`, `:1459` assert quarantine absent on success; `:1436` already asserts quarantine kept on OSError; no failure-branch test uses sidecar fixtures (`test_unverified_candidate_is_never_activated` `:897-931`, `test_post_activation_failure_rolls_back_the_original` `:933-963` have none) (checked in Step 3) | tests/db/test_db_recovery.py | Verified |
-| docs/41_db/db_07_api_and_operations-recovery-and-reference.md | Modify | Contract text (line 63) must state whole-unit restore semantics on failure paths; line 77 "Staged candidates are removed on every terminal path" must reflect the retention policy for quarantined copies | REQ-006 / AC-4 | `db_07:34` quarantine-at-staging description (accurate post-pull); `db_07:63` "the live database is untouched"; `db_07:77` terminal-path cleanup claim (checked in Step 3) | `tools/check_docs_consistency.py --domain db` | Verified |
+| docs/41_db/db_07_api_and_operations-recovery-and-reference.md | Modify | Contract text (line 63) must state whole-unit restore semantics on failure paths; the staging/cleanup claims at lines 34 and 63 must reflect the retention policy for quarantined copies | REQ-006 / AC-4 | `db_07:34` quarantine-at-staging description (accurate post-pull); `db_07:63` "the live database is untouched" and "cleans up the half-written temp files and preserves the archive" (checked in Step 3; the previously cited line-77 claim does not exist — see Correction 1) | `tools/check_docs_consistency.py --domain db` | Verified |
 | docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md | Modify | Issue Constraint: the retention behavior "must be an explicit decision recorded in ADR-008 terms"; add the retention decision and whole-unit rollback intent to the recovery policy section | REQ-006 / AC-4 | `adr_02_05_008...:403` lists the restore-file-staging API; retention decision currently absent (checked in Step 3) | `tools/check_docs_consistency.py --domain db` | Verified |
 
 ## Reference Files
@@ -124,11 +131,11 @@ Yes. `REQ-006` drives `docs/41_db/db_07_api_and_operations-recovery-and-referenc
    - [ ] Pre-activation failure returns (`:373-402`) move recorded quarantine pairs back before reporting (REQ-001, REQ-002)
    - [ ] Extend the rollback composition (Plan 002's holder + `_rollback_or_non_serviceable`) to move quarantined originals back after the main-file replace (REQ-002)
    - [ ] Remove the success-path `shutil.rmtree(quarantine_dir, ...)`; log the retained archive path (REQ-003)
-   - [ ] Make `_cleanup_staged` failure-safe with per-path logging (REQ-004)
+   - [ ] Verify the `_cleanup_staged` failure-safe behavior landed by Plan 002 (REQ-004; no re-implementation — Correction 2)
 3. **Phase 3: Failure-branch and retention tests** (REQ-005; `tests/db/test_db_recovery.py`)
    - [ ] Add sidecar-fixture failure tests: pre-activation integrity/logical failure, post-activation rollback, OSError-during-swap; assert whole-unit reassembly and no candidate sidecars (REQ-005)
    - [ ] Flip the three success-path quarantine assertions (`:834`, `:1063`, `:1459`) to retention; rename `:1438` test (REQ-003, REQ-005)
-   - [ ] Add `_cleanup_staged` forced-unlink-failure test (REQ-004, AC-5)
+   - [ ] Confirm the `_cleanup_staged` forced-unlink test landed by Plan 002 covers AC-5 (REQ-004; no duplicate test — Correction 2)
 4. **Phase 4: Documentation, validation & deployment hand-off** (REQ-006; `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`, `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`)
    - [ ] Update `db_07` whole-unit failure semantics and terminal-path cleanup text; record the explicit retention decision in ADR-008 (REQ-006)
    - [ ] Run `uv run pytest tests/db`, full suite `-n auto`, ruff, mypy (CI form), bandit `-ll`, `lint-imports`, `tools/check_docs_consistency.py --domain db` (AC-4)
@@ -159,10 +166,10 @@ Yes. `REQ-006` drives `docs/41_db/db_07_api_and_operations-recovery-and-referenc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Quarantine records (scripts/db/recovery_restore.py, scripts/db/recovery.py) | Pending | — | — | |
-| 2 | Whole-unit failure paths and retention (scripts/db/recovery.py) | Pending | — | — | |
-| 3 | Failure-branch and retention tests (tests/db/test_db_recovery.py) | Pending | — | — | |
-| 4 | Documentation, validation & deployment hand-off (docs/41_db/db_07..., docs/10_adr/adr_02_05_008...) | Pending | — | — | |
+| 1 | Quarantine records (scripts/db/recovery_restore.py, scripts/db/recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-082016_1 (records) and 20261115-082016_2 (caller threading) |
+| 2 | Whole-unit failure paths and retention (scripts/db/recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-082016_2 |
+| 3 | Failure-branch and retention tests (tests/db/test_db_recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-082016_3 |
+| 4 | Documentation, validation & deployment hand-off (docs/41_db/db_07..., docs/10_adr/adr_02_05_008...) | In Progress | — | — | Procedure generated: implementations/20261115-082016_4 and 20261115-082016_5 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -172,7 +179,11 @@ Yes. `REQ-006` drives `docs/41_db/db_07_api_and_operations-recovery-and-referenc
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261115-082016_1_scripts_db_recovery_restore.py.md | 1 | Procedure | Created | — | — |
+| implementations/20261115-082016_2_scripts_db_recovery.py.md | 2 | Procedure | Created | — | — |
+| implementations/20261115-082016_3_tests_db_test_db_recovery.py.md | 3 | Procedure | Created | — | — |
+| implementations/20261115-082016_4_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Created | — | — |
+| implementations/20261115-082016_5_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 4 | Procedure | Created | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -192,3 +203,5 @@ Yes. `REQ-006` drives `docs/41_db/db_07_api_and_operations-recovery-and-referenc
 | REQ-004 | Cleanup-safety gap found in Step 2 re-verification | scripts/db/recovery.py | Phase 2 | AC-5 | Phase 3 forced-unlink test | Explicit in code (Step 2) |
 | REQ-005 | Required Changes bullet 4; Testing Expectations | tests/db/test_db_recovery.py | Phase 3 | AC-1, AC-2, AC-3 | Phase 3 tests themselves | Verified by test (gap confirmed in Step 3) |
 | REQ-006 | Documentation Impact; Issue Constraint (ADR-008 terms) | docs/41_db/db_07_api_and_operations-recovery-and-reference.md, docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md | Phase 4 | AC-4 | `check_docs_consistency.py --domain db` | Explicit in code (Step 3) |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261115-082016 -->
