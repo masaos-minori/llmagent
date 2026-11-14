@@ -65,7 +65,7 @@ Track the swap at the moment it begins (inside `_activate_candidate`) rather tha
 - `REQ-005`: in `tests/db/test_db_recovery.py`, patch `shutil.move` to raise `OSError` after a real `os.replace` (workflow target, tmp dirs) and assert the live file bytes are the archived original and `active_db_state="preserved_original"` (AC-1); patch `os.replace` so the handler's rollback replace fails and assert `rollback_failed`/`non_serviceable` (AC-2).
 - `REQ-002`: sidecar variant — stage one sidecar, let the second `shutil.move` fail, assert the first moved sidecar is removed on rollback and candidate bytes never persist at live names (AC-4).
 - `REQ-004`: patch `Path.unlink` (or the staged path) to raise `OSError`; assert `_restore_from_backup` returns a result instead of raising (AC-3).
-- `REQ-003`: update the two existing tests asserting `action == "error"` for handler rollback failure to the new vocabulary (AC-2).
+- `REQ-003`: update the one existing test asserting `action == "error"` for handler rollback failure — `test_os_error_after_activation_with_failed_rollback_reports_non_serviceable` (`:996-1021`, assert at 1020) — to the new vocabulary (AC-2). The `action == "error"` assertions at 108, 120, 132 (condition dispatch), 1432 (`os.replace` itself fails: no swap, no rollback), and 1477 (dry_run dispatch) belong to non-rollback paths and stay unchanged (checked this cycle).
 - Suite gate: `uv run pytest tests/db`, then full suite `-n auto`.
 
 ## Documentation Impact
@@ -94,11 +94,12 @@ Track the swap at the moment it begins (inside `_activate_candidate`) rather tha
 - Result: 1 finding (`tools/check_plan_target_overlaps.py`, 2026-11-15): `tests/db/test_db_recovery.py` targeted by both this plan and `plans/20261115-033931_dbreview001_logical-verify-vec-extension.md`.
 - Re-run after Plan 003 was added (2026-11-15): 3 findings total — this plan + Plan 003 also share `scripts/db/recovery.py` and `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`. Judgment: **sequencing** — Plan 003 lands after this plan (its dependency row) and builds on the activation-holder shapes this plan introduces.
 - Judgment (vs Plan 001): **compatible**. Plan 001 edits the happy-path test (`test_recovery_backup_and_restore`, staging-dir/sidecar assertions); this plan edits the rollback-failure test (~lines 1010-1024, action vocabulary) and adds new test functions. Disjoint test functions, no contradicting designs. Note for the implementer: this plan's new failure tests need a WAL sidecar on the source DB — the same fixture pattern Plan 001 introduces for the happy path.
+- Update after Plan 001 procedures were generated (2026-11-15): Plan 001's actual test edits are **add-only** new functions appended after `test_wal_shm_sidecars_land_at_final_locations_after_activation` (its procedure `implementations/20261115-075008_2_...md`); it does not edit `test_recovery_backup_and_restore`. The disjoint-functions judgment is unchanged; 001's e2e vec fixtures run with `_run_logical_verification` unpatched, while 002's failure tests keep patching it — different fixtures, no conflict.
 - Update after Plan 009 froze (same tool, 2026-11-15): `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` is now shared by 4 plans (002+003+004+009). Judgment: **compatible sections** — 009 edits only section 12 (drill artifacts and the `rto_seconds` row); 002/003/004 own the restore/probe sections. Batch order 002 → 003 → 004 → 009; no contradiction.
 - Update after Plan 008 froze (same tool, 2026-11-15): `docs/41_db/db_07...` now 5 plans (002+003+004+009+008); `scripts/db/recovery.py` now 4 plans (002+003+004+008). Judgment: **compatible sections** — 008 edits only the name-construction lines (`recovery.py:359-361`) and section-12 lifecycle text; 002's holder/rollback region is untouched. 008 is last in the fixed batch order 001→008; no contradiction.
 
 ## Design
-- **Activation tracking**: replace the post-call `activated` flag with a mutable holder (small frozen-API dataclass or dict passed to `_activate_candidate`) that `_activate_candidate` flips **before** `os.replace` and appends each successfully moved sidecar to. Alternatives rejected: (a) setting a caller-side flag before calling `_activate_candidate` — would claim a swap that `os.replace` itself might not have performed, producing spurious rollbacks that also destroy the quarantine of the original's sidecars; (b) splitting `_activate_candidate` into replace + moves at the call site — enlarges `_restore_from_backup` and duplicates the swap contract.
+- **Activation tracking**: replace the post-call `activated` flag with a mutable holder (small dataclass or dict passed to `_activate_candidate`) that `_activate_candidate` flips **after `os.replace` returns and before the first sidecar move**, appending each successfully moved sidecar to. `os.replace` is atomic: if it raises, no swap happened and the holder stays unset, so the handler does not roll back and `corrupt_archive` is never consumed on a replace failure (existing test `:1424-1436` stays unchanged). The holder flip sits inside `_activate_candidate` between the replace and the moves, matching the Issue's Required Changes bullet 1 ("before or inside"). Alternatives rejected: (a) setting a caller-side flag before calling `_activate_candidate` — would claim a swap that `os.replace` itself might not have performed, producing spurious rollbacks that also destroy the quarantine of the original's sidecars; (b) splitting `_activate_candidate` into replace + moves at the call site — enlarges `_restore_from_backup` and duplicates the swap contract.
 - **Rollback reuse**: extend `_rollback_or_non_serviceable` with an optional `moved_sidecars` iterable (default empty keeps current behavior for post-activation verification failures) that unlinks moved sidecars (log-and-continue) before swapping the archived original back; the `except OSError` handler calls the same helper so both failure families report identical vocabulary (REQ-003), replacing the duplicated inline rollback in the handler (`recovery.py:427-442`).
 - **Action vocabulary**: `rollback_failed` already exists in the contract (ADR-008 test-citation table and `db_07` contract, per consumer scan); the handler path adopting it is a documented change (Issue Constraint honored: documented reason = consistent state reporting), and the Issue's AC-2 explicitly requires it.
 - **Consumer scan record** (`scan_change_consumers.py --seed rollback_failed`, Step 3): docs candidates → `docs/41_db/db_07` (target row REQ-006), `docs/10_adr/adr_02_05_008...` and `docs/10_adr/adr_01_index.md` (reference-only: test-citation tables, not invalidated); test candidates → `tests/db/test_db_recovery.py` (target row); services consumers of `recover_corruption` → `not affected: they branch on action/state strings that remain in the documented vocabulary, verified by reading both files in Step 3`.
@@ -114,7 +115,7 @@ Track the swap at the moment it begins (inside `_activate_candidate`) rather tha
    - [ ] Handler uses the helper for activation failures: `preserved_original` on success, `rollback_failed`/`non_serviceable` on rollback failure (REQ-003)
 3. **Phase 3: Fault-injection tests** (REQ-003, REQ-005; `tests/db/test_db_recovery.py`)
    - [ ] Add after-replace, after-first-sidecar-move, rollback-failure, and cleanup-failure injections asserting live bytes and reported state (REQ-005)
-   - [ ] Update the two existing tests asserting `action == "error"` on handler rollback failure to the new vocabulary (REQ-003)
+   - [ ] Update the one existing test asserting `action == "error"` on handler rollback failure (`:996-1021`) to the new vocabulary (REQ-003)
 4. **Phase 4: Documentation, validation & deployment hand-off** (REQ-006; `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`)
    - [ ] Update the recovery action/state mapping in `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` (REQ-006)
    - [ ] Run `uv run pytest tests/db`, full suite `-n auto`, ruff, mypy (CI form), bandit `-ll`, `lint-imports`, `tools/check_docs_consistency.py --domain db` (AC-4)
@@ -146,10 +147,10 @@ Track the swap at the moment it begins (inside `_activate_candidate`) rather tha
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Activation tracking and non-raising cleanup (scripts/db/recovery.py) | Pending | — | — | |
-| 2 | Unified rollback and reporting (scripts/db/recovery.py) | Pending | — | — | |
-| 3 | Fault-injection tests (tests/db/test_db_recovery.py) | Pending | — | — | |
-| 4 | Documentation, validation & deployment hand-off (docs/41_db/db_07_api_and_operations-recovery-and-reference.md) | Pending | — | — | |
+| 1 | Activation tracking and non-raising cleanup (scripts/db/recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-080732_1 |
+| 2 | Unified rollback and reporting (scripts/db/recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-080732_1 (Phases 1-2, same file) |
+| 3 | Fault-injection tests (tests/db/test_db_recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-080732_2 |
+| 4 | Documentation, validation & deployment hand-off (docs/41_db/db_07_api_and_operations-recovery-and-reference.md) | In Progress | — | — | Procedure generated: implementations/20261115-080732_3 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -159,7 +160,9 @@ Track the swap at the moment it begins (inside `_activate_candidate`) rather tha
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261115-080732_1_scripts_db_recovery.py.md | 1 | Procedure | Created | — | — |
+| implementations/20261115-080732_2_tests_db_test_db_recovery.py.md | 3 | Procedure | Created | — | — |
+| implementations/20261115-080732_3_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Created | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -179,3 +182,5 @@ Track the swap at the moment it begins (inside `_activate_candidate`) rather tha
 | REQ-004 | Problem bullet 4; Required Changes bullet 4 | scripts/db/recovery.py | Phase 1 | AC-3 | Phase 3 cleanup-failure injection | Explicit in code (Step 2) |
 | REQ-005 | Testing Expectations | tests/db/test_db_recovery.py | Phase 3 | AC-1, AC-2, AC-3, AC-4 | Phase 3 tests themselves | Verified by test (gap confirmed in Step 3) |
 | REQ-006 | Documentation Impact | docs/41_db/db_07_api_and_operations-recovery-and-reference.md | Phase 4 | AC-4 | `check_docs_consistency.py --domain db` | Explicit in code (Step 3 consumer scan) |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261115-080732 -->
