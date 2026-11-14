@@ -7,7 +7,7 @@ Medium
 `db.recovery_drill._drill_one_domain` promises to always write an audit artifact, but it handles only `FileNotFoundError` from the archive step. Its RTO measurement also starts after the restore copy, and the module carries an unused helper.
 
 ## Background
-Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-009). Evidence label: `Explicit in code`, confidence High for the exception path and Medium for the metric interpretation.
+Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-009). Evidence label: `Explicit in code`, confidence High for the exception path and Medium for the metric interpretation. Second pass: `_last_archive` has no caller in `scripts/`, `tests/` or `tools/` (re-searched). The `print` claim is `Needs confirmation`: `ast-grep` is not installed here, so the project constraint check could not run.
 
 ## Problem
 - `_archive_db_file` raises `RuntimeError` when `_verify_archive` fails and may raise `sqlite3.Error`. These propagate out of `_drill_one_domain` and `run_drill`: no artifact is written for that domain, and with `--domain all` the remaining domains are not drilled, contrary to the docstring ("always return its audit artifact").

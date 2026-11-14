@@ -7,7 +7,7 @@ High
 `db.recovery_verification._run_logical_verification` opens the database under verification through `SQLiteHelper(target, db_path=...)` without passing `sqlite_vec_so`. The vec0 virtual tables cannot be read, so a healthy rag or session database is always reported as inconsistent. The outcome is that automatic recovery of rag and session can never reach `restored`.
 
 ## Background
-Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-001, `python-code-review`). `db.recovery_drill._verify_rag_session` already documents this exact failure ("a helper without the extension path cannot read them (`no such module: vec0`)") and threads `sqlite_vec_so` from `DbConfig`; the recovery path does not. Evidence label: `Verified by test` (ad hoc reproduction, not a committed test), confidence High.
+Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-001, `python-code-review`). `db.recovery_drill._verify_rag_session` already documents this exact failure ("a helper without the extension path cannot read them (`no such module: vec0`)") and threads `sqlite_vec_so` from `DbConfig`; the recovery path does not. Evidence label: `Verified by test` (ad hoc reproduction, not a committed test), confidence High. Second adversarial pass (re-read of code plus new reproductions): claim re-confirmed; the test-coverage statement was narrowed to the directories actually searched.
 
 ## Problem
 - With an explicit `db_path` and no `sqlite_vec_so`, `SQLiteHelper` sets its default load_vec to `bool("")`, which is False, so the extension is never loaded.
@@ -16,7 +16,7 @@ Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding
   - `_run_logical_verification(session, "session")` returned `(False, 'read_smoke_fail')`
   - `run_integrity_check(rag, "rag")` returned HEALTHY, so only the logical stage fails.
 - `db.recovery._verify_candidate` and `db.recovery._post_restore_failure` both call this function, so `_restore_from_backup` always ends in `logical_verify_failed` for rag and session. The archived original is kept, but the corruption is never repaired.
-- `tests/db` replaces every vec0 virtual table with a plain-table stand-in (see the fixtures in `tests/db/test_recovery_drill.py`), so no committed test exercises a real vec0 table through the recovery path.
+- `tests/db/test_recovery_drill.py` replaces each vec0 virtual table with a plain-table stand-in, and `tests/db/test_db_recovery.py` has no real vec0 usage (it only sets report fields on mocks), so no test under `tests/db` exercises a real vec0 table through the recovery path. Only `tests/db` was searched; other test directories were not.
 
 ## Reason for Change
 Recovery is the last-resort path for corrupted rag/session data. A path that deterministically refuses every valid backup gives a false sense of recoverability, and the defect is invisible to the current test suite.

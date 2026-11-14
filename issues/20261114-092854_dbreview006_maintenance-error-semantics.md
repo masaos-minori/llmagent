@@ -7,12 +7,12 @@ Medium
 `db.maintenance` documents that BEST_EFFORT mode returns `MaintenanceResult(success=False)` instead of raising. Several error types escape, and `purge_old_sessions` runs two deletions without a transaction or rollback, so a failure leaves partial work pending on the connection.
 
 ## Background
-Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-006). Evidence label: `Explicit in code`, confidence High (code reading; not reproduced).
+Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-006). Evidence label: `Verified by test` (second pass, ad hoc reproduction) for the purge partial state and the `vacuum_db` escape; `Explicit in code` for the rest. Reproduced: with the count delete forced to fail in BEST_EFFORT, the result was `success=False` with `age_deleted=5`, the connection was still `in_transaction`, and the age delete was visible to later reads on that helper; `vacuum_db` on a corrupted file raised `DatabaseError: database disk image is malformed` in BEST_EFFORT mode. Confidence High.
 
 ## Problem
 - `purge_old_sessions` executes the age delete and the count delete, then commits. If the second statement raises `sqlite3.Error`, STRICT re-raises and BEST_EFFORT returns `success=False`, but the first delete stays in the open implicit transaction. Any later `commit()` on the same helper persists it, and the result reports `age_deleted=N` for rows that are not committed. `extra_data["kept_active_session"]` also reports the requested id, not the computed one.
 - `vacuum_db` catches only `OperationalError` and `RuntimeError`; a `sqlite3.DatabaseError` (corrupt file) escapes in BEST_EFFORT mode.
-- `RetentionConfig.from_config`, `CorruptArchiveRetentionConfig.from_config`, `build_db_config` and `checkpoint_wal` run before or outside the `try` blocks, so config errors (`ValueError`, load failures) raise even in BEST_EFFORT.
+- `RetentionConfig.from_config`, `CorruptArchiveRetentionConfig.from_config`, and `build_db_config` run before or outside the `try` blocks (`checkpoint_wal` has no mode parameter and is not part of this claim), so config errors (`ValueError`, load failures) raise even in BEST_EFFORT.
 - `_handle_maintenance_error` uses a bare `raise`, which only works while called from inside an `except` block; a future caller outside one raises `RuntimeError: No active exception`.
 - `prune_old_memories` collects the ids in `collect_prunable_ids` outside the transaction that `delete_memories_before` later opens, so the returned `pruned_ids` can differ from the rows actually deleted.
 

@@ -7,7 +7,7 @@ Medium
 `db.recovery._run_integrity_check`, `_verify_domain_identity` and the logical stage open files through `SQLiteHelper.open()`, which runs `PRAGMA journal_mode=WAL` and `sqlite3.connect` (creating a file when absent). The probes therefore modify backups and archives and turn a missing database into an empty "healthy" one.
 
 ## Background
-Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-004). Evidence label: `Verified by test` (ad hoc reproduction), confidence High.
+Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-004). Evidence label: `Verified by test` (ad hoc reproduction), confidence High. Second pass re-verified every bullet below: the fake `-wal` beside a backup was removed by one `run_integrity_check` call, and a `0444` backup (with or without a read-only directory) returned `PERMISSION_FAILURE` with `attempt to write a readonly database`.
 
 ## Problem
 - Missing path: `run_integrity_check(<nonexistent>.sqlite, "rag")` returned `(HEALTHY, None)` and the file now existed. In `recover_corruption` a vanished live database therefore takes the `vacuum` branch (also under `dry_run=True`, which then creates the file) instead of a restore or an error.

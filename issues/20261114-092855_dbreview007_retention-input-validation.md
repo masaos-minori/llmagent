@@ -7,11 +7,11 @@ Medium
 Session and memory retention functions accept values that silently change their meaning (negative, zero, non-integer), coerce config values with bare `int()`, and compare stored `T`/`Z` timestamps against `datetime('now', ...)` output in a different format.
 
 ## Background
-Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-007). Evidence label: `Verified by test` for the SQL behaviors (ad hoc), `Explicit in code` for the rest. Confidence High. `rules/coding.md` Type-coercion policy prohibits bare `int()` coercion of config values.
+Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-007). Evidence label: `Verified by test` (second pass) for the SQL and slicing behaviors, `Explicit in code` for the rest. Re-run result: `_delete_sessions_beyond_limit` with `max_sessions=0` left no sessions and with `-1` deleted only the oldest one (sessions 2-5 remained); a row stamped one minute ago in `T...Z` form did not compare as older than `datetime('now','-0 days')`. Confidence High. `rules/coding.md` Type-coercion policy prohibits bare `int()` coercion of config values.
 
 ## Problem
 - `_delete_sessions_beyond_limit` slices `rows[max_sessions:]`. `max_sessions=0` deletes every session except the exempted one; `max_sessions=-1` slices `rows[-1:]` and deletes only the oldest row, unrelated to any limit.
-- `SQLiteMemoryDeleteStore.delete_memories_before` and `_delete_sessions_by_age` build `f"-{n} days"`. With a negative `n` the modifier becomes `--5 days`, `datetime(...)` returns NULL, and nothing is deleted without any error (verified). With `n=0` every unpinned memory older than "now" is deleted.
+- `SQLiteMemoryDeleteStore.delete_memories_before` and `_delete_sessions_by_age` build `f"-{n} days"`. With a negative `n` the modifier becomes `--5 days`, `datetime(...)` returns NULL, and nothing is deleted without any error (verified). With `n=0` the cutoff is "now" in the space-separated format, so (because of the format mismatch below) only rows from earlier calendar days are matched, not every older row.
 - Stored timestamps use `strftime('%Y-%m-%dT%H:%M:%SZ')`, while `datetime('now', ...)` returns `YYYY-MM-DD HH:MM:SS`. Lexicographic comparison puts `T` after the space, so rows on the cutoff day never compare as older (verified: `'2026-11-14T00:00:00Z' < datetime('2026-11-14 12:00:00')` is false). Retention is off by up to one day.
 - `RetentionConfig.from_config`, `CorruptArchiveRetentionConfig.from_config` and `build_db_config` use `int(cfg.get(...))`, which accepts floats and booleans silently.
 - `_delete_sessions_beyond_limit` orders by `created_at` alone, so ties delete in an unspecified order.
@@ -29,7 +29,7 @@ Validate and type-check retention inputs at the boundary, use one timestamp form
 - `tests/db/test_db_maintenance.py`, `tests/db/test_db_store_impl.py`
 
 ## Required Changes
-- Reject negative values and define the meaning of `0` explicitly; use the `get_typed`-style helper for config values.
+- Reject negative values and define the meaning of `0` explicitly; use the `get_typed` helper (`shared.config_utils`) for config values.
 - Compare with `strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)` or an equivalent consistent format.
 - Add `session_id` as a tie-breaker in the ordering.
 - Add boundary tests (cutoff-day rows, zero, negative).
@@ -60,7 +60,7 @@ N/A: none
 - Is `max_sessions=0` meant to mean "unlimited" or "keep none"? Needs a maintainer decision.
 
 ## AI Implementation Instruction
-Follow `skills/python-implementation/SKILL.md`. Use the existing `get_typed` helper rather than adding a new coercion mechanism. English comments and logs.
+Follow `skills/python-implementation/SKILL.md`. Use the existing `get_typed` helper in `shared.config_utils` rather than adding a new coercion mechanism. English comments and logs.
 
 ## Traceability
 - **Workflow phase**: python-code-review

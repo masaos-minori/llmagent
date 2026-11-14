@@ -7,7 +7,7 @@ Medium
 Only `*_corrupt_*` archives for rag and session are purged. Rotation archives, drill outputs and the quarantine directories and temp files of failed restores accumulate without bound, and second-granularity names allow overwrites.
 
 ## Background
-Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-008). Evidence label: `Explicit in code` plus `Verified by test` (leftover quarantine directories observed in the reproduction), confidence Medium for the disk-exhaustion impact (not measured).
+Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-008). Evidence label: `Explicit in code` plus `Verified by test` (leftover quarantine directories observed in the reproduction), confidence Medium for the disk-exhaustion impact (not measured). Second pass: a reproduction showed the SQLite backup API silently overwrites an existing destination (an earlier backup's tables were replaced by the later one); no purge of rotation or drill output was found by `rg` in `scripts/`, `deploy/`, `init.d/`, `tools/` or `config/` (an external cron job cannot be excluded).
 
 ## Problem
 - `purge_corrupt_archives` matches only `<stem>_corrupt_*<suffix>` for rag and session. Files from `rotation._archive_db_file` (`<stem>_<ts><suffix>` under `sqlite_archive_dir`) are never pruned, including workflow archives.

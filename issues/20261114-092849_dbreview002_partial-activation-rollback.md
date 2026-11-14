@@ -7,7 +7,7 @@ High
 In `db.recovery._restore_from_backup`, the `activated` flag is set only after `_activate_candidate` returns. If `os.replace` succeeds and a later sidecar `shutil.move` raises `OSError`, the live path already holds the unverified candidate but the handler skips the rollback and reports a plain `error`.
 
 ## Background
-Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-002). The `except OSError` handler contains a rollback branch guarded by `activated and corrupt_archive.exists()` whose comment says the live path must never hold an unverified file; the flag ordering defeats that guarantee. Evidence label: `Verified by test` (ad hoc reproduction), confidence High.
+Second adversarial pass: claim re-confirmed against the code (the flag is assigned after the call returns) and the earlier reproduction. Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-002). The `except OSError` handler contains a rollback branch guarded by `activated and corrupt_archive.exists()` whose comment says the live path must never hold an unverified file; the flag ordering defeats that guarantee. Evidence label: `Verified by test` (ad hoc reproduction), confidence High.
 
 ## Problem
 - `_activate_candidate` performs `os.replace(temp_restore, db_path)` and then moves each staged sidecar. Any failure after the replace leaves the candidate live.

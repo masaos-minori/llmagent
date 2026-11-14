@@ -7,7 +7,7 @@ Medium
 `SQLiteHelper.open` can leave a raw connection open on several failure paths, overwrites an existing `self.conn` without closing it, and skips the vec extension silently when `load_vec=True` is requested but no library path is configured.
 
 ## Background
-Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-005). Evidence label: `Explicit in code`, confidence High for the leaks (code reading, not reproduced) and High for the silent skip.
+Found by an adversarial review of `scripts/db` at commit 0fe68d3 (Review finding F-005). Evidence label: `Verified by test` (second pass, ad hoc reproduction) for the leak when `_apply_connection_pragmas` raises (the captured connection stayed usable after `open` raised `database is locked`), for the leak on re-open (the first connection stayed open), and for the silent `load_vec=True` skip (no error with no library path). The `enable_load_extension` `AttributeError` leak is `Explicit in code` only (not reproduced). Confidence High.
 
 ## Problem
 - `open` assigns `self.conn` only at the end. If `_apply_connection_pragmas` raises (for example `PRAGMA journal_mode=WAL` on a locked or read-only file), the connection created by `_connect` is never closed.
