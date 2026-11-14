@@ -51,10 +51,10 @@ Current matches (live sweep 2026-11-14):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114-124725 | 20261114-124738 | changed: scripts/agent/startup_prompt_setup.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261114-125000 | 20261114-125000 | N/A: no test change needed; targeted runs pass (testmon 13, tests/agent 4257) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114-125000 | 20261114-124917 | 3e: ruff/mypy/bandit(0 High/Med)/gates Pass, lint-imports skipped (no import change); full suite skipped per memo3 directive |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114-125000 | 20261114-125000 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/startup_prompt_setup.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
