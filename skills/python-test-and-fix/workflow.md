@@ -5,7 +5,7 @@
 | Tool | Goal | Role |
 |---|---|---|
 | `pytest` | — | Test runner |
-| `pytest-xdist` | — | Parallel execution (`-n auto`) is the standard for local full-suite runs; each worker has its own isolation root (`tests/conftest.py`); `addopts` has no `-n`; do not use it for flaky investigation (Step 3), mutation runs, or coverage runs |
+| `pytest-xdist` | — | Parallel execution (`-n logical`) is the standard for local full-suite runs; each worker has its own isolation root (`tests/conftest.py`); `addopts` has no `-n`; do not use it for flaky investigation (Step 3), mutation runs, or coverage runs |
 | `pytest-cov` / `coverage` | regression quality analysis | Coverage measurement |
 | `pytest-mock` | boundary virtualization | `mocker` fixture for patching |
 | `pytest-randomly` | flaky detection | Randomize test order |
@@ -292,11 +292,11 @@ Add `@pytest.mark.timeout(5)` to individual tests that involve LLM calls or netw
 Use `pytest --testmon-forceselect` together with `-m` while iterating on a fix within this same session; run the
 repository's full, non-testmon suite once before considering the task complete
 (Step 11) regardless of testmon results — testmon narrows re-runs during iteration, it
-does not replace the final full run. The full run is `uv run pytest -n auto -m "not integration and not production_paths_allowed"` (the
+does not replace the final full run. The full run is `uv run pytest -n logical -m "not integration and not production_paths_allowed"` (the
 suite is large; its size was not measured when this was written, so expect a long run); run `-m integration` too only when the
 change touches code those tests cover or the user asks. Record the pass/fail counts. Run it in the background with the output redirected to a file in a temporary directory outside the repository (`mktemp -d`), and read only the summary line and the `FAIL`/`ERROR` lines.
 
-Full-suite runs use `-n auto` (`pytest-xdist`; each worker has its own isolation root). Serial execution (no `-n`, or `-n 0`) stays the mode for flaky-test investigation, mutation runs, and every coverage run, because `coverage run` does not measure code executed in worker processes and would report 0% for it.
+Full-suite runs use `-n logical` (`pytest-xdist`; the worker count is explained in `rules/toolchain.md` section 6; each worker has its own isolation root). Serial execution (no `-n`, or `-n 0`) stays the mode for flaky-test investigation, mutation runs, and every coverage run, because `coverage run` does not measure code executed in worker processes and would report 0% for it.
 
 Before a full run, a `mutmut` run, or a coverage run, check that no other session is using this checkout's artifacts: `pgrep -af "pytest|mutmut"`. `.testmondata`, `mutants/`, `.coverage`, and `coverage.xml` live in the repository root and are shared by every session (that concurrent runs corrupt them was not verified); wait or ask instead of running concurrently. Record `git rev-parse HEAD` and `git status --short` before the run and compare them after; a tracked file that changed during the run makes the result `Needs confirmation`.
 Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, MUST NOT re-run `pytest

@@ -89,11 +89,11 @@ Address high/medium severity findings before proceeding.
 
 ```bash
 uv run pytest tests/<package>/test_<affected_module>.py -v    # targeted (tests mirror scripts/; see skills/python-test-and-fix/workflow.md Test structure)
-uv run pytest -n auto -v                             # full suite (parallel)
+uv run pytest -n logical -v                          # full suite (parallel)
 uv run pytest tests/mcp_servers/mdq/test_mdq_rag_boundary.py -v     # boundary enforcement (MDQ/RAG cross-DB and agent-layer direct access)
 ```
 
-Full-suite runs use `-n auto` (`pytest-xdist`; each worker has its own isolation root). Serial execution (no `-n`, or `-n 0`) stays the mode for flaky-test investigation, mutation runs, and every coverage run, because `coverage run` does not measure code executed in worker processes and would report 0% for it.
+Full-suite runs use `-n logical` (`pytest-xdist`; each worker has its own isolation root). `-n auto` counts physical cores only, so on a hyper-threaded host it starts half as many workers; this suite spends much of its time waiting on timeouts, subprocesses, and I/O, so the extra threads pay off. Measured on a 2-core, 4-thread host: `-n logical` took about 20% less wall time than `-n auto`, and 8 workers was slower than 4. Serial execution (no `-n`, or `-n 0`) stays the mode for flaky-test investigation, mutation runs, and every coverage run, because `coverage run` does not measure code executed in worker processes and would report 0% for it.
 
 ### 7. Diff-scoped coverage (diff-cover)
 
