@@ -423,11 +423,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Sweep `scripts/agent/` | In Progress | 20261114-082757 | — | procedures seq 01-55 generated 2026-11-14 (pass 20261114-081724); execution pending |
-| 2 | Sweep `scripts/mcp_servers/` | In Progress | 20261114-082757 | — | procedures seq 56-79 generated 2026-11-14 (pass 20261114-081724); execution pending |
-| 3 | Sweep `scripts/eventbus/` and `config/eventbus.toml`, regenerate references | In Progress | 20261114-082757 | — | procedures seq 80-95 plus regeneration rows 137-138 generated 2026-11-14 (pass 20261114-081724); execution pending |
-| 4 | Sweep `scripts/rag/` | In Progress | 20261114-082757 | — | procedures seq 96-114 generated 2026-11-14 (pass 20261114-081724); execution pending |
-| 5 | Sweep `scripts/shared/`, `scripts/db/`, and the two other config files | In Progress | 20261114-082757 | — | procedures seq 115-136 generated 2026-11-14 (pass 20261114-081724); execution pending |
+| 1 | Sweep `scripts/agent/` | Completed | 20261114-082757 | 20261114-161636 | procedures seq 01-55 generated 2026-11-14 (pass 20261114-081724); execution pending procedures seq 01-55 archived; scripts/agent sweep complete |
+| 2 | Sweep `scripts/mcp_servers/` | Completed | 20261114-082757 | 20261114-174954 | procedures seq 56-79 generated 2026-11-14 (pass 20261114-081724); execution pending |
+| 3 | Sweep `scripts/eventbus/` and `config/eventbus.toml`, regenerate references | In Progress | 20261114-082757 | — | procedures seq 80-95 plus regeneration rows 137-138 generated 2026-11-14 (pass 20261114-081724); execution pending procedures seq 80-95 executed and archived 2026-11-14; scripts/eventbus + config/eventbus.toml sweep clean; regeneration rows 137-138 (manifest + reference doc) still pending |
+| 4 | Sweep `scripts/rag/` | Completed | 20261114-082757 | 20261114-194028 | procedures seq 96-114 generated 2026-11-14 (pass 20261114-081724); execution pending procedures seq 96-114 executed and archived 2026-11-14; scripts/rag sweep clean (rg rc=1 whole directory) |
+| 5 | Sweep `scripts/shared/`, `scripts/db/`, and the two other config files | In Progress | 20261114-082757 | — | procedures seq 115-136 generated 2026-11-14 (pass 20261114-081724); execution pending procedures seq 115-119 executed and archived 2026-11-14; config/agent.toml and config/mcp_dedup.toml sweep clean; rows 120-136 (scripts/db + scripts/shared) still pending |
 | 6 | Whole-tree verification and deployment hand-off | Pending | — | — |  |
 
 ### Blocker Log
@@ -488,76 +488,76 @@ N/A: no release unit
 | `implementations/20261114-081724_47_scripts_agent_tool_run_recorder.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_48_scripts_agent_tool_runner.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_49_scripts_agent_turn_persistence.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261114-081724_50_scripts_agent_workflow_idempotency_ops.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_51_scripts_agent_workflow_state_store.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_52_scripts_agent_workflow_tool_call_state_ops.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_53_scripts_agent_workflow_workflow_engine.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_54_scripts_agent_workflow_workflow_loader.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_55_scripts_agent_workflow_engine_adapter.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_56_scripts_mcp_servers_cicd_cicd_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_57_scripts_mcp_servers_dispatch.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_58_scripts_mcp_servers_file_delete_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_59_scripts_mcp_servers_file_delete_service.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_60_scripts_mcp_servers_file_read_security.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_61_scripts_mcp_servers_file_read_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_62_scripts_mcp_servers_file_write_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_63_scripts_mcp_servers_git_format_output.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_64_scripts_mcp_servers_git_git_models.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_65_scripts_mcp_servers_git_git_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_66_scripts_mcp_servers_git_git_service.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_67_scripts_mcp_servers_git_repository_state.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_68_scripts_mcp_servers_git_write_protection_pipeline.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_69_scripts_mcp_servers_github_github_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_70_scripts_mcp_servers_github_github_service_security.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_71_scripts_mcp_servers_github_mapper.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_72_scripts_mcp_servers_mdq_mdq_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_73_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_74_scripts_mcp_servers_rag_pipeline_rag_pipeline_security.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_75_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_76_scripts_mcp_servers_shell_shell_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_77_scripts_mcp_servers_web_search_web_search_models.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_78_scripts_mcp_servers_web_search_web_search_security_checks.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_79_scripts_mcp_servers_web_search_web_search_server.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_80_config_eventbus.toml.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_81_scripts_eventbus_ack_route.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_82_scripts_eventbus_admin_route.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_83_scripts_eventbus_app.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_84_scripts_eventbus_audit.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_85_scripts_eventbus_auth.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_86_scripts_eventbus_authz_ttl.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_87_scripts_eventbus_config.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_88_scripts_eventbus_db_conn.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_89_scripts_eventbus_delivery_repo.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_90_scripts_eventbus_dlq.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_91_scripts_eventbus_dlq_repo.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_92_scripts_eventbus_health_route.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_93_scripts_eventbus_route_helpers.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_94_scripts_eventbus_schema.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_95_scripts_eventbus_subscribe_route.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_96_scripts_rag_config_resolution.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_97_scripts_rag_db_connection.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_98_scripts_rag_diagnostics.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_99_scripts_rag_ingestion_content_extractor.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_100_scripts_rag_ingestion_crawl_persister.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_101_scripts_rag_ingestion_crawler.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_102_scripts_rag_ingestion_crawler_utils.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_103_scripts_rag_ingestion_document_manager.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_104_scripts_rag_ingestion_http_fetcher.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_105_scripts_rag_ingestion_ingester.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_106_scripts_rag_ingestion_language_resolver.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_107_scripts_rag_ingestion_link_discovery.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_108_scripts_rag_ingestion_orchestrator.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_109_scripts_rag_ingestion_robots.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_110_scripts_rag_llm_client.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_111_scripts_rag_models_result.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_112_scripts_rag_pipeline.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_113_scripts_rag_repository.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_114_scripts_rag_stage_lifecycle.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_115_config_agent.toml.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_116_config_mcp_dedup.toml.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_117_scripts_db_create_schema.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_118_scripts_db_rag_consistency_queries.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261114-081724_119_scripts_db_recovery.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_50_scripts_agent_workflow_idempotency_ops.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_51_scripts_agent_workflow_state_store.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_52_scripts_agent_workflow_tool_call_state_ops.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_53_scripts_agent_workflow_workflow_engine.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_54_scripts_agent_workflow_workflow_loader.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_55_scripts_agent_workflow_engine_adapter.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_56_scripts_mcp_servers_cicd_cicd_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_57_scripts_mcp_servers_dispatch.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_58_scripts_mcp_servers_file_delete_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_59_scripts_mcp_servers_file_delete_service.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_60_scripts_mcp_servers_file_read_security.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_61_scripts_mcp_servers_file_read_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_62_scripts_mcp_servers_file_write_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_63_scripts_mcp_servers_git_format_output.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_64_scripts_mcp_servers_git_git_models.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_65_scripts_mcp_servers_git_git_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_66_scripts_mcp_servers_git_git_service.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_67_scripts_mcp_servers_git_repository_state.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_68_scripts_mcp_servers_git_write_protection_pipeline.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_69_scripts_mcp_servers_github_github_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_70_scripts_mcp_servers_github_github_service_security.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_71_scripts_mcp_servers_github_mapper.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_72_scripts_mcp_servers_mdq_mdq_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_73_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_74_scripts_mcp_servers_rag_pipeline_rag_pipeline_security.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_75_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_76_scripts_mcp_servers_shell_shell_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_77_scripts_mcp_servers_web_search_web_search_models.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_78_scripts_mcp_servers_web_search_web_search_security_checks.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_79_scripts_mcp_servers_web_search_web_search_server.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_80_config_eventbus.toml.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_81_scripts_eventbus_ack_route.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_82_scripts_eventbus_admin_route.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_83_scripts_eventbus_app.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_84_scripts_eventbus_audit.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_85_scripts_eventbus_auth.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_86_scripts_eventbus_authz_ttl.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_87_scripts_eventbus_config.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_88_scripts_eventbus_db_conn.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_89_scripts_eventbus_delivery_repo.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_90_scripts_eventbus_dlq.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_91_scripts_eventbus_dlq_repo.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_92_scripts_eventbus_health_route.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_93_scripts_eventbus_route_helpers.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_94_scripts_eventbus_schema.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_95_scripts_eventbus_subscribe_route.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_96_scripts_rag_config_resolution.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_97_scripts_rag_db_connection.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_98_scripts_rag_diagnostics.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_99_scripts_rag_ingestion_content_extractor.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_100_scripts_rag_ingestion_crawl_persister.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_101_scripts_rag_ingestion_crawler.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_102_scripts_rag_ingestion_crawler_utils.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_103_scripts_rag_ingestion_document_manager.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_104_scripts_rag_ingestion_http_fetcher.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_105_scripts_rag_ingestion_ingester.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_106_scripts_rag_ingestion_language_resolver.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_107_scripts_rag_ingestion_link_discovery.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_108_scripts_rag_ingestion_orchestrator.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_109_scripts_rag_ingestion_robots.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_110_scripts_rag_llm_client.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_111_scripts_rag_models_result.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_112_scripts_rag_pipeline.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_113_scripts_rag_repository.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_114_scripts_rag_stage_lifecycle.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_115_config_agent.toml.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_116_config_mcp_dedup.toml.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_117_scripts_db_create_schema.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_118_scripts_db_rag_consistency_queries.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261114-081724_119_scripts_db_recovery.py.md` | 5 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_120_scripts_db_recovery_drill.py.md` | 5 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_121_scripts_db_recovery_restore.py.md` | 5 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_122_scripts_db_recovery_verification.py.md` | 5 | Procedure | Pending | — | — |
