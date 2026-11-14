@@ -68,10 +68,10 @@ Current matches (live sweep 2026-11-14):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114-131550 | 20261114-131703 | changed: scripts/agent/tool_runner.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261114-131900 | 20261114-131900 | N/A: no test change needed; targeted runs pass (testmon 6, tests/agent 4257) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114-131900 | 20261114-131839 | 3e: ruff/mypy/bandit(0 High/Med)/gates Pass, lint-imports skipped (no import change); lines 93/191/211 noqa pragmas+justifications kept with REQ refs stripped, ADR-008 marker kept; full suite skipped per memo3 directive |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114-131900 | 20261114-131900 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/tool_runner.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
