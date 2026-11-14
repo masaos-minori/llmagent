@@ -469,7 +469,7 @@ N/A: no release unit
 | `implementations/20261114-081724_28_scripts_agent_services_session_title.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_29_scripts_agent_services_tool_validation.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_30_scripts_agent_services_undo_service.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261114-081724_31_scripts_agent_services_workflow_schema.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_31_scripts_agent_services_workflow_schema.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_32_scripts_agent_session.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_33_scripts_agent_session_message_repo.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_34_scripts_agent_shared_retry_helper.py.md` | 1 | Procedure | Pending | — | — |
