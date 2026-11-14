@@ -54,10 +54,10 @@ Current matches (live sweep 2026-11-14):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261114-095734 | 20261114-095755 | changed: scripts/agent/commands/memory_rebuild_ops.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261114-095900 | 20261114-095900 | N/A: no test change needed; targeted runs pass (testmon 11, tests/agent 4257) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261114-095900 | 20261114-101011 | 3e: ruff/mypy/bandit/gates Pass; suppression pragma+justification kept on line 94, REQ ref only removed; lint-imports skipped (no import change); full suite serial-coverage 12166 passed, diff-cover 100% (line 94 trailing-comment-only change on a code line) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261114-095900 | 20261114-095900 | N/A: no docs/00_index.md task-scope mapping for scripts/agent/commands/memory_rebuild_ops.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

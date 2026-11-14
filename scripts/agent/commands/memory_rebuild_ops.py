@@ -91,7 +91,7 @@ class MemoryRebuildOps:
         # Pre-run backup (abort on failure)
         try:
             self._backup_memories_as_jsonl(mem)
-        except Exception as e:  # noqa: BLE001 — REQ-007: abort rebuild on ANY backup failure
+        except Exception as e:  # noqa: BLE001 — abort rebuild on ANY backup failure
             self._out.write(f"  [memory] Rebuild aborted: backup failed: {e}")
             return RebuildResult(
                 dry_run=False,
