@@ -475,7 +475,7 @@ N/A: no release unit
 | `implementations/20261114-081724_34_scripts_agent_shared_retry_helper.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_35_scripts_agent_startup.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_36_scripts_agent_startup_component_init.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261114-081724_37_scripts_agent_startup_mcp_starter.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261114-081724_37_scripts_agent_startup_mcp_starter.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261114-081724_38_scripts_agent_startup_prompt_setup.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_39_scripts_agent_startup_reporter.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261114-081724_40_scripts_agent_startup_validation.py.md` | 1 | Procedure | Pending | — | — |
