@@ -22,6 +22,10 @@
 #   BUILD_ONLY="agent" bash deploy/build_binaries.sh
 #   # 直前の swap 前のバイナリ一式へ戻す (Nuitka 不要。${BIN_DIR}.prev から復元):
 #   bash deploy/build_binaries.sh --rollback
+#   # 同時にビルドするバイナリ数 (既定 2。1 で直列)。1 本あたりの --jobs は自動で調整される:
+#   NUTKA_PARALLEL=4 bash deploy/build_binaries.sh
+#   # ccache 用の __helpers.h 共通化 (既定 有効) を無効化:
+#   NUTKA_HELPERS_CANON=0 bash deploy/build_binaries.sh
 #
 # ビルドは ${OUTPUT_DIR}/stage に出力し、要求した全バイナリが成功した後にだけ
 # tools/manage_binaries.py swap で ${BIN_DIR} へ入れ替える。各バイナリの横に
@@ -84,10 +88,21 @@ if [[ "${NUTKA_UNSTRIPPED:-0}" == "1" ]]; then
     BASE_NUTKA_ARGS+=(--unstripped)
 fi
 
-# C コンパイラの同時実行数 (--jobs)。既定は CPU スレッド数の半分 (最小 1)。
+# 同時にビルドするバイナリ数。ccache が温まると 1 本のビルドは Nuitka の Python 側処理
+# (単一スレッド) が支配的になり、並列化が効く。4 スレッド/RAM 7GB の実測では、2 並列で
+# 壁時間 1.6 倍速、4 並列で 2.0 倍速 (RAM の下限は約 2GB)。1 で従来どおりの直列。
+NUTKA_PARALLEL="${NUTKA_PARALLEL:-2}"
+if [[ ! "${NUTKA_PARALLEL}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[FATAL] NUTKA_PARALLEL must be a positive integer (got '${NUTKA_PARALLEL}')." >&2
+    exit 1
+fi
+
+# C コンパイラの同時実行数 (--jobs、1 バイナリあたり)。既定は CPU スレッド数を
+# max(NUTKA_PARALLEL, 2) で割った値 (最小 1)。直列と 2 並列は従来の「半分」と同じで、
 # 全 CPU を使うと LTO リンク時にメモリ不足になりやすいため。NUTKA_JOBS で上書き可能。
 _cpu_threads="$(nproc 2>/dev/null || echo 2)"
-NUTKA_JOBS="${NUTKA_JOBS:-$(( _cpu_threads / 2 > 0 ? _cpu_threads / 2 : 1 ))}"
+_jobs_divisor=$(( NUTKA_PARALLEL > 2 ? NUTKA_PARALLEL : 2 ))
+NUTKA_JOBS="${NUTKA_JOBS:-$(( _cpu_threads / _jobs_divisor > 0 ? _cpu_threads / _jobs_divisor : 1 ))}"
 BASE_NUTKA_ARGS+=(--jobs="${NUTKA_JOBS}")
 
 # ホスト固有のフラグ (空白区切り)。BASE の後に追加され、同一オプションは後勝ち。例: --lto=no (低メモリ用)。
@@ -109,6 +124,9 @@ NUTKA_VERSION="${NUTKA_VERSION:-4.2.2}"
 NUTKA_PRIMARY_CMD=( uv run --group build nuitka )
 # [onefile] extra は zstandard を含む。無いと onefile payload が非圧縮になり約2倍のサイズになる。
 NUTKA_FALLBACK_CMD=( uv run --with "nuitka[onefile]==${NUTKA_VERSION}" nuitka )
+# 同じ環境で Nuitka を import できる Python (tools/gen_nuitka_helpers_header.py 用)。
+NUTKA_PRIMARY_PY=( uv run --group build python )
+NUTKA_FALLBACK_PY=( uv run --with "nuitka[onefile]==${NUTKA_VERSION}" python )
 # dev 依存 (mypy 等) を build 環境に入れない。Nuitka が辿るファイルが約4割減り時間が半減する。
 export UV_NO_DEV="${UV_NO_DEV:-1}"
 
@@ -170,8 +188,10 @@ fi
 # `uv run --with nuitka` で都度解決する (フォールバック用。既定は build グループ)。
 if "${NUTKA_PRIMARY_CMD[@]}" --version >/dev/null 2>&1; then
     NUTKA_CMD=( "${NUTKA_PRIMARY_CMD[@]}" )
+    NUTKA_PY=( "${NUTKA_PRIMARY_PY[@]}" )
 elif "${NUTKA_FALLBACK_CMD[@]}" --version >/dev/null 2>&1; then
     NUTKA_CMD=( "${NUTKA_FALLBACK_CMD[@]}" )
+    NUTKA_PY=( "${NUTKA_FALLBACK_PY[@]}" )
 else
     echo "[INFO] fallback nuitka output (cause of failure):" >&2
     "${NUTKA_FALLBACK_CMD[@]}" --version 2>&1 | head -5 >&2 || true
@@ -231,12 +251,64 @@ if [[ "${FS_TYPE}" == *"tmpfs"* && "${ALLOW_TMPFS_OUTPUT:-0}" != "1" ]]; then
     exit 1
 fi
 
+# ── ccache 用の __helpers.h 共通化 ─────────────────────────────────────────────
+# Nuitka は binary ごとに異なる __helpers.h を生成し、全モジュールの C がこれを include する。
+# このため同一の third-party モジュールでも binary をまたぐと ccache が hit しない。
+# deploy/nuitka_ccache_wrapper.sh が、コンパイル直前にこのヘッダを宣言の上位集合
+# (tools/gen_nuitka_helpers_header.py の生成物) に置き換える。10 本の MCP サーバーが共有する
+# fastapi/pydantic/starlette 等を 1 回だけコンパイルすれば済む (cold の 2 本目以降が約 3 倍速)。
+#   * Nuitka が ccache を自分で注入する必要がある。Gentoo の /usr/lib/ccache/bin (gcc が ccache への
+#     symlink) では Nuitka が注入を行わず wrapper が呼ばれないため、PATH からその種のディレクトリを外す。
+#   * 無効化: NUTKA_HELPERS_CANON=0。ccache 無効時と NUITKA_CCACHE_BINARY 指定済みの場合は何もしない。
+_path_without_ccache_masquerade() {
+    local -a dirs
+    local dir tool target out=""
+    IFS=: read -ra dirs <<< "${PATH}"
+    for dir in "${dirs[@]}"; do
+        local skip=0
+        for tool in gcc cc clang; do
+            target="$(readlink -f -- "${dir}/${tool}" 2>/dev/null || true)"
+            if [[ "$(basename -- "${target:-x}")" == "ccache" ]]; then skip=1; fi
+        done
+        if (( skip == 0 )); then out="${out:+${out}:}${dir}"; fi
+    done
+    printf '%s' "${out}"
+}
+
+HELPERS_CANON_STATE="off"
+if [[ "${NUTKA_HELPERS_CANON:-1}" != "0" && -z "${CCACHE_DISABLE:-}" \
+        && -z "${NUITKA_CCACHE_BINARY:-}" ]]; then
+    if _real_ccache="$(command -v ccache 2>/dev/null)"; then
+        _canon_header="${OUTPUT_DIR}/helpers_canon.h"
+        _canon_path="$(_path_without_ccache_masquerade)"
+        if ! "${NUTKA_PY[@]}" "${REPO_ROOT}/tools/gen_nuitka_helpers_header.py" \
+                --out "${_canon_header}" >/dev/null; then
+            echo "[WARN] could not generate the canonical __helpers.h; ccache hits stay per binary." >&2
+            HELPERS_CANON_STATE="failed"
+        elif ! PATH="${_canon_path}" command -v gcc >/dev/null 2>&1; then
+            echo "[WARN] no real gcc outside the ccache masquerade directory; ccache hits stay per binary." >&2
+            HELPERS_CANON_STATE="no-gcc"
+        else
+            export NUITKA_REAL_CCACHE="${_real_ccache}"
+            export NUITKA_CANON_HELPERS="${_canon_header}"
+            export NUITKA_CCACHE_BINARY="${REPO_ROOT}/deploy/nuitka_ccache_wrapper.sh"
+            export PATH="${_canon_path}"
+            HELPERS_CANON_STATE="on"
+        fi
+    fi
+fi
+
 # 生成するランチャを置く一時ディレクトリ（ビルド後に削除）。
 LAUNCHER_DIR="${OUTPUT_DIR}/.launchers"
 # ビルド済みバイナリの一時置き場。全件成功後に swap で BIN_DIR へ入れ替える。
 STAGE_DIR="${OUTPUT_DIR}/stage"
 mkdir -p "${STAGE_DIR}"
 find "${STAGE_DIR}" -mindepth 1 -delete
+# 並列ビルドでは各ビルドが自分の結果ファイルとログだけを書く (配列や合計を共有しない)。
+RESULT_DIR="${OUTPUT_DIR}/.results"
+LOG_DIR="${OUTPUT_DIR}/logs"
+mkdir -p "${RESULT_DIR}" "${LOG_DIR}"
+find "${RESULT_DIR}" "${LOG_DIR}" -mindepth 1 -delete
 BUILT_NAMES=()
 mkdir -p "${LAUNCHER_DIR}"
 cleanup_launchers() { rm -rf "${LAUNCHER_DIR}"; }
@@ -280,6 +352,7 @@ EOF
 total_seconds=0
 total_bytes=0
 
+# 並列時は背景サブシェルで実行されるため、共有変数は更新せず結果ファイルに書く。
 build_one() {
     local module="$1" final_name="$2" cls="$3" cfg="$4"
     # The launcher is compiled as a top-level module named after its file, so its
@@ -331,16 +404,28 @@ build_one() {
     python3 "${REPO_ROOT}/tools/manage_binaries.py" write-info \
         --binary "${STAGE_DIR}/${final_name}" --module "${module}" \
         --repo "${REPO_ROOT}" > /dev/null
-    BUILT_NAMES+=("${final_name}")
 
     local size_bytes size_h
     size_bytes="$(du -sb "${STAGE_DIR}/${final_name}" | cut -f1)"
     size_h="$(du -h "${STAGE_DIR}/${final_name}" | cut -f1)"
-    total_bytes=$(( total_bytes + size_bytes ))
-    total_seconds=$(( total_seconds + elapsed ))
 
     printf '  OK  %-22s module=%-45s build=%4ds size=%s\n' \
         "${final_name}" "${module}" "${elapsed}" "${size_h}"
+    printf '%s %s\n' "${elapsed}" "${size_bytes}" > "${RESULT_DIR}/${final_name}.ok"
+}
+
+# ENTRIES の 1 行を module / final_name / cls / cfg に分解する。
+parse_entry() {
+    entry_module="${1%%:*}"
+    local rest="${1#*:}"
+    entry_name="${rest%%:*}"
+    rest="${rest#*:}"
+    entry_cls="${rest%%:*}"
+    entry_cfg="${rest#*:}"
+}
+
+selected() {
+    [[ -z "${BUILD_ONLY}" || " ${BUILD_ONLY} " == *" $1 "* ]]
 }
 
 # ── メイン ────────────────────────────────────────────────────────────────────
@@ -349,28 +434,63 @@ echo "  BIN_DIR     : ${BIN_DIR}"
 echo "  OUTPUT_DIR  : ${OUTPUT_DIR} (${FS_TYPE:-unknown})"
 echo "  NUTKA_CMD   : ${NUTKA_CMD[*]}"
 echo "  NUTKA_JOBS  : ${NUTKA_JOBS} (cpu threads: ${_cpu_threads})"
+echo "  NUTKA_PARALLEL: ${NUTKA_PARALLEL}"
+echo "  HELPERS_CANON: ${HELPERS_CANON_STATE}"
 [[ -n "${NUTKA_EXTRA_FLAGS}" ]] && echo "  EXTRA FLAGS : ${NUTKA_EXTRA_FLAGS}"
 echo "  エントリポイント数: ${#ENTRIES[@]}"
 echo ""
 
+wall_start=${SECONDS}
 built=0
+failed=0
 for entry in "${ENTRIES[@]}"; do
-    module="${entry%%:*}"
-    rest="${entry#*:}"
-    final_name="${rest%%:*}"
-    rest="${rest#*:}"
-    cls="${rest%%:*}"
-    cfg="${rest#*:}"
-    if [[ -n "${BUILD_ONLY}" && " ${BUILD_ONLY} " != *" ${final_name} "* ]]; then
+    parse_entry "${entry}"
+    selected "${entry_name}" || continue
+    built=$(( built + 1 ))
+    if (( NUTKA_PARALLEL == 1 )); then
+        build_one "${entry_module}" "${entry_name}" "${entry_cls}" "${entry_cfg}"
         continue
     fi
-    build_one "${module}" "${final_name}" "${cls}" "${cfg}"
-    built=$(( built + 1 ))
+    # 空きができるまで待つ。失敗したら新規には起動せず、実行中のものだけ待ち切る。
+    while (( $(jobs -rp | wc -l) >= NUTKA_PARALLEL )); do
+        wait -n || failed=1
+    done
+    (( failed == 0 )) || break
+    echo "--- ビルド開始: ${entry_name} (log: ${LOG_DIR}/${entry_name}.log) ---"
+    build_one "${entry_module}" "${entry_name}" "${entry_cls}" "${entry_cfg}" \
+        > "${LOG_DIR}/${entry_name}.log" 2>&1 &
 done
 if (( built == 0 )); then
     echo "[FATAL] BUILD_ONLY='${BUILD_ONLY}' matched no entry." >&2
     exit 1
 fi
+while (( $(jobs -rp | wc -l) > 0 )); do
+    wait -n || failed=1
+done
+
+# 結果を ENTRIES の順に集める。結果ファイルが無いビルドは失敗として扱う。
+for entry in "${ENTRIES[@]}"; do
+    parse_entry "${entry}"
+    selected "${entry_name}" || continue
+    if [[ -f "${RESULT_DIR}/${entry_name}.ok" ]]; then
+        read -r _elapsed _bytes < "${RESULT_DIR}/${entry_name}.ok"
+        BUILT_NAMES+=("${entry_name}")
+        total_seconds=$(( total_seconds + _elapsed ))
+        total_bytes=$(( total_bytes + _bytes ))
+        if (( NUTKA_PARALLEL > 1 )); then
+            grep -h '^  OK ' "${LOG_DIR}/${entry_name}.log" || true
+        fi
+    elif [[ -f "${LOG_DIR}/${entry_name}.log" ]]; then
+        echo "[FATAL] build failed: ${entry_name} (last lines of ${LOG_DIR}/${entry_name}.log)" >&2
+        tail -n 40 "${LOG_DIR}/${entry_name}.log" >&2
+        failed=1
+    fi
+done
+if (( failed != 0 )); then
+    echo "[FATAL] at least one binary failed to build; ${BIN_DIR} was not touched." >&2
+    exit 1
+fi
+wall_seconds=$(( SECONDS - wall_start ))
 
 # 要求した全バイナリが成功した後にだけ BIN_DIR へ入れ替える (途中失敗では BIN_DIR は不変)。
 echo "--- swap: ${STAGE_DIR} -> ${BIN_DIR} ---"
@@ -388,9 +508,10 @@ awk -v secs="${total_seconds}" -v bytes="${total_bytes}" 'BEGIN {
     split("B KiB MiB GiB TiB", u, " ");
     s = bytes; i = 1;
     while (s >= 1024 && i < 5) { s /= 1024; i++; }
-    printf "  総ビルド時間 : %d 秒\n", secs;
+    printf "  総ビルド時間 : %d 秒 (各バイナリの合計)\n", secs;
     printf "  総サイズ     : %.1f %s (%d バイト)\n", s, u[i], bytes;
 }'
+echo "  壁時間       : ${wall_seconds} 秒 (並列数 ${NUTKA_PARALLEL})"
 echo ""
 echo "配置先: ${BIN_DIR}/"
 echo "入れ替え前の一式: ${BIN_DIR}.prev (戻すには bash deploy/build_binaries.sh --rollback)"
