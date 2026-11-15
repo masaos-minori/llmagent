@@ -187,6 +187,8 @@ def _run_build(
     _executable(stub_dir / "uv", _STUB_UV)
     _executable(stub_dir / "ccache", "exit 0")
     _executable(stub_dir / "gcc", "exit 0")
+    # The script rejects patchelf < 0.19; do not depend on the host's version.
+    _executable(stub_dir / "patchelf", 'echo "patchelf 0.19.0"')
     path = f"{stub_dir}:/usr/bin:/bin"
     if masquerade:
         masq = tmp_path / "masq"

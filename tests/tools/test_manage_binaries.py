@@ -474,6 +474,8 @@ def _run_build_recording_ccache_env(
     for name, body in (
         ("uv", f'echo "${{CCACHE_DIR:-}}|${{CCACHE_DISABLE:-}}" >> "{seen}"'),
         ("ccache", "true"),
+        # The script rejects patchelf < 0.19; do not depend on the host's version.
+        ("patchelf", 'echo "patchelf 0.19.0"'),
     ):
         stub = stub_dir / name
         stub.write_text(f"#!/bin/sh\n{body}\nexit 0\n")
