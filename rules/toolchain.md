@@ -93,19 +93,19 @@ uv run pytest -n logical -m "not repo_scan" -v       # full suite (parallel); se
 uv run pytest tests/mcp_servers/mdq/test_mdq_rag_boundary.py -v     # boundary enforcement (MDQ/RAG cross-DB and agent-layer direct access)
 ```
 
-Full-suite runs use `-n logical` (`pytest-xdist`; each worker has its own isolation root). `-n auto` counts physical cores only, so on a hyper-threaded host it starts half as many workers; this suite spends much of its time waiting on timeouts, subprocesses, and I/O, so the extra threads pay off. Measured on a 2-core, 4-thread host: `-n logical` took about 20% less wall time than `-n auto`, and 8 workers was slower than 4. Serial execution (no `-n`, or `-n 0`) stays the mode for flaky-test investigation, mutation runs, and every coverage run, because `coverage run` does not measure code executed in worker processes and would report 0% for it.
+Full-suite runs use `-n logical` (`pytest-xdist`; each worker has its own isolation root). `-n auto` counts physical cores only, so on a hyper-threaded host it starts half as many workers; this suite spends much of its time waiting on timeouts, subprocesses, and I/O, so the extra threads pay off. Measured on a 2-core, 4-thread host: `-n logical` took about 20% less wall time than `-n auto`, and 8 workers was slower than 4. Serial execution (no `-n`, or `-n 0`) stays the mode for flaky-test investigation and mutation runs. Coverage runs are parallel too, through `pytest --cov` (section 7), which measures worker processes; plain `coverage run` does not.
 
 The `repo_scan` marker labels tests that scan the whole repository with a checker (the compatibility-checker scans and the docs-tree regression). Local full-suite runs deselect them with `-m "not repo_scan"`: the same checkers already run as pre-commit hooks, and CI runs every test, including these. Run them locally (`-m repo_scan`) when the change touches one of those checkers (`tools/check_compat_shims.py`, `tools/_compat_leftover_phrases.py`, `tools/check_docs_quality.py`) or its tests, or when the user asks.
 
 ### 7. Diff-scoped coverage (diff-cover)
 
 ```bash
-uv run coverage run -m pytest tests/
+uv run pytest tests/ -n logical --cov=scripts --cov-report= -m "not integration and not production_paths_allowed and not repo_scan"
 uv run coverage xml
   uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
-The coverage run is serial and must not take `-n`: `coverage run` does not measure code executed in worker processes (see section 6).
+The coverage run is parallel through `pytest-cov`, which measures and combines worker processes (measured on a 2-core, 4-thread host: 340 s serial, 165 s with `-n logical`, 139 s more with `repo_scan` deselected; the line coverage and the diff-cover result were the same). Do not use `coverage run -m pytest -n ...`: `coverage run` does not measure worker processes. The filter only removes tests, so it can miss coverage but never add it: a pass here also passes in CI, while a miss here may pass in CI (CI runs `coverage run -m pytest -v tests/` serially over all tests).
 
 ### 8. Pre-commit (final gate)
 

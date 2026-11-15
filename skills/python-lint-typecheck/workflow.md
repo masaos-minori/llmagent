@@ -256,7 +256,7 @@ or suppression change has no new behavior to cover: record `diff-cover: not appl
 add tests. When it applies, generate the report first, then check:
 
 ```bash
-uv run coverage run -m pytest tests/ -m "not integration and not production_paths_allowed"
+uv run pytest tests/ -n logical --cov=scripts --cov-report= -m "not integration and not production_paths_allowed and not repo_scan"
 uv run coverage xml
 uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```

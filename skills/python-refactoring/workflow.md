@@ -324,7 +324,7 @@ selects the gates the changed files need). At minimum:
   touches shared configuration or the user asks for a full-repo run.
 - Run `PYTHONPATH=scripts uv run lint-imports` (the exact form in `rules/toolchain.md`).
 - Generate `coverage.xml` the way `rules/toolchain.md` section 7 does
-  (`uv run coverage run -m pytest tests/`, then `uv run coverage xml`), then run
+  (the `pytest --cov` command there, then `uv run coverage xml`), then run
   `uv run diff-cover coverage.xml --compare-branch=master --fail-under=90`. It passes
   only at 90% on changed lines, and only when every changed source file appears in the
   diff-cover report. A `coverage.xml` from a scoped run may under-report or omit changed

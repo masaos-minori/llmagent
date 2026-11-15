@@ -5,7 +5,7 @@
 | Tool | Goal | Role |
 |---|---|---|
 | `pytest` | — | Test runner |
-| `pytest-xdist` | — | Parallel execution (`-n logical`) is the standard for local full-suite runs; each worker has its own isolation root (`tests/conftest.py`); `addopts` has no `-n`; do not use it for flaky investigation (Step 3), mutation runs, or coverage runs |
+| `pytest-xdist` | — | Parallel execution (`-n logical`) is the standard for local full-suite runs; each worker has its own isolation root (`tests/conftest.py`); `addopts` has no `-n`; do not use it for flaky investigation (Step 3) or mutation runs; coverage runs use it through `pytest --cov` (Step 11) |
 | `pytest-cov` / `coverage` | regression quality analysis | Coverage measurement |
 | `pytest-mock` | boundary virtualization | `mocker` fixture for patching |
 | `pytest-randomly` | flaky detection | Randomize test order |
@@ -296,7 +296,7 @@ does not replace the final full run. The full run is `uv run pytest -n logical -
 suite is large; its size was not measured when this was written, so expect a long run); run `-m integration` too only when the
 change touches code those tests cover or the user asks. Record the pass/fail counts. Run it in the background with the output redirected to a file in a temporary directory outside the repository (`mktemp -d`), and read only the summary line and the `FAIL`/`ERROR` lines.
 
-Full-suite runs use `-n logical` (`pytest-xdist`; the worker count is explained in `rules/toolchain.md` section 6; each worker has its own isolation root). Serial execution (no `-n`, or `-n 0`) stays the mode for flaky-test investigation, mutation runs, and every coverage run, because `coverage run` does not measure code executed in worker processes and would report 0% for it.
+Full-suite runs use `-n logical` (`pytest-xdist`; the worker count is explained in `rules/toolchain.md` section 6; each worker has its own isolation root). Serial execution (no `-n`, or `-n 0`) stays the mode for flaky-test investigation and mutation runs. The Step 11 coverage run is parallel through `pytest --cov`.
 
 Before a full run, a `mutmut` run, or a coverage run, check that no other session is using this checkout's artifacts: `pgrep -af "pytest|mutmut"`. `.testmondata`, `mutants/`, `.coverage`, and `coverage.xml` live in the repository root and are shared by every session (that concurrent runs corrupt them was not verified); wait or ask instead of running concurrently. Record `git rev-parse HEAD` and `git status --short` before the run and compare them after; a tracked file that changed during the run makes the result `Needs confirmation`.
 Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, MUST NOT re-run `pytest
@@ -318,7 +318,7 @@ The `repo_scan` marker labels tests that scan the whole repository, so their res
 on the repository and not on the change under test. Iteration runs deselect them with
 `and not repo_scan`, and so does the final full run above (the repo_scan rule is in
 `rules/toolchain.md` section 6: run them with `-m repo_scan` when the change touches a checker
-they exercise or its tests). The coverage run in Step 11, pre-commit, and CI still run them. A
+they exercise or its tests). Pre-commit and CI still run them; the Step 11 coverage run deselects them too (they scan `tools/`, outside the measured `scripts/`). A
 per-test-path command for flaky investigation or bisect must not carry the exclusion, so the
 test under investigation is not deselected.
 
@@ -328,14 +328,14 @@ See `rules/toolchain.md` section 7 for the diff-cover sequence, and Step 4 above
 commands. diff-cover needs a coverage report from a full run, which it takes from:
 
 ```bash
-uv run coverage run -m pytest tests/ -m "not integration and not production_paths_allowed"
+uv run pytest tests/ -n logical --cov=scripts --cov-report= -m "not integration and not production_paths_allowed and not repo_scan"
 uv run coverage xml
 uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
-The coverage run in Step 11 stays serial (no `-n`): `coverage run` does not measure code executed in worker processes and would report 0% for it.
+The Step 11 coverage run uses `pytest --cov` with `-n logical`; do not replace it with `coverage run -m pytest -n ...`, which does not measure worker processes and would report 0% for them.
 
-(Use the threshold in `rules/toolchain.md`; do not commit `coverage.xml` or `.coverage`.) `rules/toolchain.md` section 7 and CI measure without the marker filter. A filtered run can only miss coverage, never add it, so a pass here also passes in CI, while a miss here may pass in CI: report the result as `measured with the marker filter; CI measures all tests`. Target: 0 surviving mutants on the bug-fix code path (Path A) or on the new code
+(Use the threshold in `rules/toolchain.md`; do not commit `coverage.xml` or `.coverage`.) CI measures without the marker filter. A filtered run can only miss coverage, never add it, so a pass here also passes in CI, while a miss here may pass in CI: report the result as `measured with the marker filter; CI measures all tests`. Target: 0 surviving mutants on the bug-fix code path (Path A) or on the new code
 (Path B), counting only functions mutmut actually mutated. Paths C and D do not run Step 4;
 Path A/B record `Not run` when Step 4 could not run, and the target is then reported as
 unverified rather than met.

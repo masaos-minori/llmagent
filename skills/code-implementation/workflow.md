@@ -469,8 +469,8 @@ failure's cause is not immediately obvious, load and apply
   case above runs no full suite at all; it is a fifth scoped exception.
 - Run the test commands the procedure's `## Validation plan` lists too (a listed test
   that cannot be run is `Not run: {reason}` in Notes).
-- Make the full-suite run feed the coverage gate, so the suite still runs once, serial (no `-n`), because `coverage run` does not measure code run in worker processes; one cycle's full run is the serial coverage run or the parallel run, not both:
-  `uv run coverage run -m pytest tests/`, then `uv run coverage xml` and
+- Make the full-suite run feed the coverage gate, so the suite still runs once, parallel through `pytest --cov` (`coverage run` does not measure worker processes); one cycle's full run is the coverage run or the plain parallel run, not both:
+  `uv run pytest tests/ -n logical --cov=scripts --cov-report= -m "not integration and not production_paths_allowed and not repo_scan"`, then `uv run coverage xml` and
   `uv run diff-cover coverage.xml --compare-branch=master --fail-under=90`
   (`rules/toolchain.md` section 7). diff-cover reads the report; it does not run tests.
   It passes only at 90% on changed lines with every changed source file in the report;
