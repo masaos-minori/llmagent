@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from shared.tool_constants import (
+    ALL_SIDE_EFFECTING_TOOLS,
     CICD_WRITE_TOOLS,
     DELETE_TOOLS,
     GIT_WRITE_TOOLS,
@@ -79,9 +80,11 @@ _ALL_WRITE_TOOLS: frozenset[str] = (
     WRITE_TOOLS | MDQ_WRITE_TOOLS | RAG_WRITE_TOOLS | CICD_WRITE_TOOLS | GIT_WRITE_TOOLS
 )
 
-_STATIC_SIDE_EFFECT_TOOLS: frozenset[str] = (
-    _ALL_WRITE_TOOLS | DELETE_TOOLS | _EXEC_TOOLS | _GITHUB_MUTATION_TOOLS
-)
+# Side-effect membership delegated to the shared canonical set (ADR-004,
+# sideeffect001): identical members, now shared with dispatch dedup and the
+# HTTP fail-closed gate. The granular tier sets above stay the source for
+# WRITE/DELETE/EXECUTE/API_WRITE operation-type resolution.
+_STATIC_SIDE_EFFECT_TOOLS: frozenset[str] = ALL_SIDE_EFFECTING_TOOLS
 
 # Maps tool_safety_tiers tier → default approval risk level
 _TIER_TO_RISK: dict[str, RiskLevel] = {

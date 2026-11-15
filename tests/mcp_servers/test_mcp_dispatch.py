@@ -169,6 +169,26 @@ class TestDispatchIdempotencyCache:
         assert len(_duplicate_cache) == 1
 
     @pytest.mark.asyncio
+    async def test_keyed_mdq_duplicate_is_deduplicated(self) -> None:
+        """MDQ index_paths/refresh_index dedup via the canonical set (REQ-002)."""
+
+        calls: list[int] = []
+
+        async def handler(args: dict) -> str:
+            calls.append(1)
+            return "indexed"
+
+        for tool in ("index_paths", "refresh_index"):
+            assert _is_side_effecting(tool)
+            key = f"mdq-key-{tool}"
+            r1 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key=key)
+            r2 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key=key)
+            assert not r1.is_error and not r2.is_error
+            assert r1.output == r2.output == "indexed"
+        assert len(calls) == 2  # once per tool; both keyed duplicates served
+        assert len(_duplicate_cache) == 2
+
+    @pytest.mark.asyncio
     async def test_same_key_different_tool_rejected(self) -> None:
         """Same key reused for a different tool is rejected without a second execution (REQ-002)."""
 

@@ -25,16 +25,7 @@ from shared.mcp_dedup import (
     open_dedup_store,
     retry_class,
 )
-from shared.tool_constants import (
-    CICD_WRITE_TOOLS,
-    DELETE_TOOLS,
-    GIT_WRITE_TOOLS,
-    GITHUB_DANGEROUS_TOOLS,
-    GITHUB_WRITE_TOOLS,
-    RAG_WRITE_TOOLS,
-    SHELL_TOOLS,
-    WRITE_TOOLS,
-)
+from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
 
 from mcp_servers.models import CallToolResponse
 
@@ -42,16 +33,10 @@ logger = logging.getLogger(__name__)
 
 ToolArgs = dict[str, Any]
 
-_write_tools = (
-    set(WRITE_TOOLS)
-    | set(DELETE_TOOLS)
-    | set(GIT_WRITE_TOOLS)
-    | set(RAG_WRITE_TOOLS)
-    | set(CICD_WRITE_TOOLS)
-    | set(GITHUB_WRITE_TOOLS)
-    | set(GITHUB_DANGEROUS_TOOLS)
-    | set(SHELL_TOOLS)
-)
+# Canonical side-effect membership (ADR-004, sideeffect001): the single source
+# in shared.tool_constants, shared with the HTTP fail-closed gate, the
+# tool_policy static classification, and the server.py REQ-004 boundary.
+_write_tools = ALL_SIDE_EFFECTING_TOOLS
 
 
 @dataclass(frozen=True)

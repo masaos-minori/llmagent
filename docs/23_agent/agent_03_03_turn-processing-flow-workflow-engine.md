@@ -163,7 +163,7 @@ See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observabi
 
 ### Startup Recovery
 
-During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is called with no arguments; the store uses its own connection internally. It classifies every `running` attempt row and repairs attempt records only: it never changes the persisted task status, so a task left `running` or `halted` by an earlier process stays as it was.
+During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is called with no arguments; the store uses its own connection internally. It classifies every `running` attempt row and repairs attempt records; in the same transaction it also reconciles every claimed task whose last live attempt was just failed — still `running` with no remaining live attempt — from `running` to `failed`, counted in `StateStore.last_recovery_report.tasks_reconciled`. `halted` or `completed` tasks and tasks with a remaining live attempt are never reconciled.
 
 - Expired lease means stale. An attempt is stale when its `lease_expires_at` is in the past. The lease is stamped at attempt start as `started_at` plus the stage `timeout_sec` plus a 30 s margin (`workflow_engine._LEASE_MARGIN_SEC`), so a lease never expires while its own stage is still executing. A live lease is never recovered, even when `started_at` is hours old.
 - Lease-less (pre-migration) rows use the age rule: they are stale only when `started_at` is older than 3600 s.
@@ -194,7 +194,7 @@ Manual recovery for rows left `running` (unparseable or lease-less and young): i
 ## Known Limitations
 
 - Only "fixed" backoff strategy is implemented for retries.
-- A cancelled turn leaves its in-flight attempt open until the next process start, when startup recovery closes it after the attempt's lease expires. The task record itself is not repaired by that pass.
+- A cancelled turn leaves its in-flight attempt open until the next process start, when startup recovery closes it after the attempt's lease expires. Once that attempt is failed and no live attempt remains, the same pass reconciles the parent task from `running` to `failed`; `halted` or `completed` tasks are not reconciled.
 
 ---
 

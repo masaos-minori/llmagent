@@ -157,6 +157,29 @@ async def test_ambiguous_request_error_not_retried_for_write_tool() -> None:
 
 
 @pytest.mark.asyncio
+async def test_ambiguous_request_error_not_retried_for_mdq_write_tool() -> None:
+    """MDQ writes hit the fail-closed gate via the canonical set (REQ-003)."""
+    assert "index_paths" in _WRITE_TOOLS
+    assert "refresh_index" in _WRITE_TOOLS
+
+    transport = HttpTransport(
+        http=MagicMock(spec=httpx.AsyncClient),
+        base_url="http://127.0.0.1:8000",
+        server_key="srv",
+        cfg=_http_cfg(),
+    )
+    mock_post = AsyncMock()
+    transport._http.post = mock_post
+
+    # Post-send ambiguous error on an MDQ write -> single attempt, fail-closed,
+    # consistent with dispatch.py dedup membership.
+    mock_post.side_effect = httpx.ReadError("boom")
+    with pytest.raises(TransportError, match="index_paths"):
+        await transport.call("index_paths", {})
+    assert mock_post.call_count == 1
+
+
+@pytest.mark.asyncio
 async def test_post_send_request_error_retried_for_read_tool() -> None:
     assert "read_text_file" not in _WRITE_TOOLS
 

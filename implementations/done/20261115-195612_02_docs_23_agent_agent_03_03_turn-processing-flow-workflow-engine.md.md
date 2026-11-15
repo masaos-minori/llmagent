@@ -8,7 +8,7 @@ Correct the two contradictory recovery statements in `docs/23_agent/agent_03_03_
 - Covers `REQ-003`: this spec no longer claims recovery never changes task status; it states the guarded reconciliation.
 
 ## Assumptions
-- `db_07` line 90 already describes the reconciliation correctly; align this spec to it (and to `state_store.py`), not the reverse. (Verified: `state_store.py` lines 294-314 reconcile a claimed `running` task to `failed` when no live attempt remains; `db_07` line 90 states the same.)
+- `db_07` line 92 (verified 2026-11-15 re-verification; superseding the earlier "line 90" claim) already describes the reconciliation correctly; align this spec to it (and to `state_store.py`), not the reverse. (Verified: `state_store.py` lines 294-314 reconcile a claimed `running` task to `failed` when no live attempt remains; `db_07` line 92 states the same.)
 
 ## Design decisions
 - Rewrite only the two reconciliation claims (lines 166 and 197) into the guarded-reconciliation rule; keep the lease-based wording and the terminal/live-attempt guards explicit.
@@ -54,9 +54,9 @@ Correct the two contradictory recovery statements in `docs/23_agent/agent_03_03_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite Startup Recovery line 166 to the guarded reconciliation | Pending | — | — | REQ-003 |
-| 2 | Rewrite Known Limitations line 197 to state parent reconciliation | Pending | — | — | REQ-003 |
-| 3 | Run doc checkers (`check_docs_quality`, `check_docs_structure`, `check_docs_content_policy`, `check_docs_consistency --domain agent`) | Pending | — | — | Confirms agreement with `db_07` |
+| 1 | Rewrite Startup Recovery line 166 to the guarded reconciliation | Completed | 20261115 | 20261115 | REQ-003 REQ-003 Startup Recovery line 166 rewritten to guarded reconciliation (running->failed, tasks_reconciled, terminal/live-attempt guards) |
+| 2 | Rewrite Known Limitations line 197 to state parent reconciliation | Completed | — | 20261115 | REQ-003 REQ-003 Known Limitations line 197 rewritten: parent task reconciled to failed once no live attempt remains |
+| 3 | Run doc checkers (`check_docs_quality`, `check_docs_structure`, `check_docs_content_policy`, `check_docs_consistency --domain agent`) | Completed | 20261115 | 20261115 | Confirms agreement with `db_07` check_docs_quality/structure/content_policy clean; check_docs_consistency --domain agent reports no contradictions (agent_03_03 now agrees with db_07 line 92) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -57,10 +57,10 @@ Point `scripts/agent/tool_policy.py`'s static side-effect classification (`_STAT
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import `ALL_SIDE_EFFECTING_TOOLS`; re-point `_STATIC_SIDE_EFFECT_TOOLS` to it | Pending | — | — | REQ-004; keep tier sets |
-| 2 | Add/extend tool_policy test asserting classification membership unchanged | Pending | — | — | REQ-004, REQ-005 |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest + ruff + mypy + lint-imports |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc row in this Plan |
+| 1 | Import `ALL_SIDE_EFFECTING_TOOLS`; re-point `_STATIC_SIDE_EFFECT_TOOLS` to it | Completed | 20261115 | 20261115 | REQ-004; keep tier sets import added; _STATIC_SIDE_EFFECT_TOOLS = ALL_SIDE_EFFECTING_TOOLS; tier sets kept |
+| 2 | Add/extend tool_policy test asserting classification membership unchanged | Completed | — | 20261115 | REQ-004, REQ-005 test_static_side_effect_membership_is_canonical added |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | — | 20261115 | pytest + ruff + mypy + lint-imports 328 targeted pytest passed; ruff/lint-imports/mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261115 | N/A: no doc row in this Plan N/A: no doc row in this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

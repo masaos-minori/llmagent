@@ -119,11 +119,6 @@ GIT_TOOLS: frozenset[str] = GIT_READ_TOOLS | GIT_WRITE_TOOLS
 # Shell execution tools (shell-mcp)
 SHELL_TOOLS: frozenset[str] = frozenset({"shell_run"})
 
-# Seed data only; shared.tool_registry.ToolRegistry is the canonical/fallback
-# routing source (see tool_registry.py and route_resolver.py module docstrings
-# for the full routing-priority model). Live /v1/tools discovery
-# (agent.services.mcp_tool_discovery.McpToolDiscoveryService) is validation-only,
-# not a routing input.
 # Web search tools (web-search-mcp) — includes browser_fetch, the read-only
 # page fetch + render-to-text tool merged into web-search-mcp from the
 # retired standalone browser-mcp server.
@@ -215,6 +210,25 @@ RETRYABLE_TOOLS: frozenset[str] = frozenset(
         # rag_pipeline server (rag_pipeline)
         "rag_delete_document",
     }
+)
+
+# Canonical side-effect classification set (ADR-004, sideeffect001): the single
+# source of side-effect membership for the dispatch dedup gate, the HTTP
+# fail-closed write gate, the tool_policy static classification, and the
+# server.py REQ-004 idempotency-key boundary. Independent of the retry-class
+# dimension (RETRYABLE_TOOLS above) and of approval tiers; do not conflate
+# them. Routing authority remains this module's header (lines 4-21); this set
+# classifies tools, it does not route them.
+ALL_SIDE_EFFECTING_TOOLS: frozenset[str] = (
+    WRITE_TOOLS
+    | DELETE_TOOLS
+    | GIT_WRITE_TOOLS
+    | RAG_WRITE_TOOLS
+    | MDQ_WRITE_TOOLS
+    | CICD_WRITE_TOOLS
+    | GITHUB_WRITE_TOOLS
+    | GITHUB_DANGEROUS_TOOLS
+    | SHELL_TOOLS
 )
 
 

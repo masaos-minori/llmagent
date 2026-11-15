@@ -32,7 +32,7 @@ Define `ALL_SIDE_EFFECTING_TOOLS` (new) in `scripts/shared/tool_constants.py` as
 - Add one frozenset constant; no runtime logic changes in this file. Membership must reproduce `tool_policy._STATIC_SIDE_EFFECT_TOOLS` (verified equal, 25 members) so consumer delegation in sibling procedures is behavior-preserving.
 
 ### Details
-- The union intentionally differs from `RETRYABLE_TOOLS` (line 187): `RETRYABLE_TOOLS` is a retry-class dimension (18 members, excludes `shell_run`, `trigger_workflow`, and some GitHub tools); `ALL_SIDE_EFFECTING_TOOLS` is the side-effect and dedup dimension (25 members). Do not conflate them.
+- The union intentionally differs from `RETRYABLE_TOOLS` (line 187): `RETRYABLE_TOOLS` is a retry-class dimension (22 members; overlaps the side-effect set only partially — verified 2026-11-15 re-verification, superseding the earlier "18 members" claim); `ALL_SIDE_EFFECTING_TOOLS` is the side-effect and dedup dimension (25 members). Do not conflate them.
 - `MDQ_WRITE_TOOLS` (`index_paths`, `refresh_index`; line 94) must be included — they route through `dispatch_tool()` and are the tools the current dispatch/http unions wrongly omit.
 
 ### Companion test files
@@ -68,10 +68,10 @@ Define `ALL_SIDE_EFFECTING_TOOLS` (new) in `scripts/shared/tool_constants.py` as
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define `ALL_SIDE_EFFECTING_TOOLS` union with authority-pointing docstring | Pending | — | — | REQ-001 |
-| 2 | Delete contradictory routing-authority comment block (lines 122-126) | Pending | — | — | REQ-006; keep lines 127-129 |
-| 3 | Add companion parity test `test_side_effect_parity_matches_canonical` | Pending | — | — | REQ-005; companion test file |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest parity + lint-imports + ruff/mypy |
+| 1 | Define `ALL_SIDE_EFFECTING_TOOLS` union with authority-pointing docstring | Completed | 20261115 | 20261115 | REQ-001 ALL_SIDE_EFFECTING_TOOLS added after RETRYABLE_TOOLS; 25 members verified |
+| 2 | Delete contradictory routing-authority comment block (lines 122-126) | Completed | — | 20261115 | REQ-006; keep lines 127-129 lines 122-126 comment block removed; web-search note kept |
+| 3 | Add companion parity test `test_side_effect_parity_matches_canonical` | Completed | — | 20261115 | REQ-005; companion test file test_side_effect_parity_matches_canonical added; empty APPROVED_EXCEPTIONS |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | — | 20261115 | pytest parity + lint-imports + ruff/mypy 51 pytest passed (targeted); ruff/lint-imports/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

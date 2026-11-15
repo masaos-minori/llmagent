@@ -57,10 +57,10 @@ Replace `scripts/mcp_servers/dispatch.py`'s local `_write_tools` union with the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import `ALL_SIDE_EFFECTING_TOOLS`, drop unused category imports, set `_write_tools` to canonical | Pending | — | — | REQ-002 |
-| 2 | Add/extend dispatch dedup test covering MDQ `index_paths`/`refresh_index` keyed duplicate | Pending | — | — | REQ-002, REQ-005 |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest + ruff + mypy |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc row in this Plan |
+| 1 | Import `ALL_SIDE_EFFECTING_TOOLS`, drop unused category imports, set `_write_tools` to canonical | Completed | 20261115 | 20261115 | REQ-002 _write_tools = ALL_SIDE_EFFECTING_TOOLS; category imports dropped |
+| 2 | Add/extend dispatch dedup test covering MDQ `index_paths`/`refresh_index` keyed duplicate | Completed | — | 20261115 | REQ-002, REQ-005 test_keyed_mdq_duplicate_is_deduplicated added to test_mcp_dispatch.py |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | — | 20261115 | pytest + ruff + mypy 484 passed targeted; ruff/lint-imports/mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261115 | N/A: no doc row in this Plan N/A: no doc row in this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

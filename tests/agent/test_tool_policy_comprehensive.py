@@ -12,6 +12,7 @@ from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_exceptions import PolicyViolationError
 from agent.tool_policy import (
+    _STATIC_SIDE_EFFECT_TOOLS,
     _escalate_for_github_branch,
     _escalate_for_path,
     _special_case_risk,
@@ -230,6 +231,15 @@ class TestClassifyOperationType:
     def test_write_classification_clean_when_consistent(self) -> None:
         reg = self._registry_with("write_file", is_write=True)
         assert check_write_classification(reg) == []
+
+    def test_static_side_effect_membership_is_canonical(self) -> None:
+        """sideeffect001 REQ-004: static membership delegates to the canonical set."""
+        from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
+
+        assert _STATIC_SIDE_EFFECT_TOOLS == ALL_SIDE_EFFECTING_TOOLS
+        for name in ("index_paths", "refresh_index"):
+            assert name in _STATIC_SIDE_EFFECT_TOOLS
+            assert classify_operation_type(name, None) == "write"
 
     def test_write_tools(self) -> None:
         for name in ("write_file", "edit_file", "create_directory", "move_file"):

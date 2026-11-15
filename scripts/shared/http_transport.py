@@ -13,36 +13,19 @@ import httpx
 from shared.json_utils import parse_http_json
 from shared.logger import attach_redaction_filter, register_secret
 from shared.mcp_config import McpServerConfig
-from shared.tool_constants import (
-    CICD_WRITE_TOOLS,
-    DELETE_TOOLS,
-    GIT_WRITE_TOOLS,
-    GITHUB_DANGEROUS_TOOLS,
-    GITHUB_WRITE_TOOLS,
-    RAG_WRITE_TOOLS,
-    SHELL_TOOLS,
-    WRITE_TOOLS,
-)
+from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
 from shared.transport_dto import ToolCallResult
 
 logger = logging.getLogger(__name__)
 attach_redaction_filter(logger)
 
 
-# Write/state-mutating tools. Mirrors scripts/mcp_servers/dispatch.py's
-# `_write_tools` so the fail-closed failure-classification gate in `call()`
-# covers exactly the tools the dispatch layer deduplicates. See ADR-004
-# (fail-closed on writes).
-_WRITE_TOOLS: frozenset[str] = frozenset(
-    WRITE_TOOLS
-    | DELETE_TOOLS
-    | GIT_WRITE_TOOLS
-    | RAG_WRITE_TOOLS
-    | CICD_WRITE_TOOLS
-    | GITHUB_WRITE_TOOLS
-    | GITHUB_DANGEROUS_TOOLS
-    | SHELL_TOOLS
-)
+# Write/state-mutating tools: reads the shared canonical set in
+# shared.tool_constants (the same set dispatch.py deduplicates against and the
+# tool_policy classification uses), so the fail-closed failure-classification
+# gate in `call()` covers exactly the tools the dispatch layer deduplicates.
+# See ADR-004 (fail-closed on writes).
+_WRITE_TOOLS: frozenset[str] = ALL_SIDE_EFFECTING_TOOLS
 
 # Pre-send httpx errors: the connection was never established, so nothing can
 # have executed server-side and retry is safe for every tool, writes included.

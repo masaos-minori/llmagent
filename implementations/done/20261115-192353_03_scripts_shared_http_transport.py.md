@@ -57,10 +57,10 @@ Replace `scripts/shared/http_transport.py`'s local `_WRITE_TOOLS` union with the
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import `ALL_SIDE_EFFECTING_TOOLS`, drop unused category imports, set `_WRITE_TOOLS` to canonical | Pending | — | — | REQ-003 |
-| 2 | Add/extend transport test asserting MDQ write failure is fail-closed | Pending | — | — | REQ-003, REQ-005 |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest + ruff + mypy |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc row in this Plan |
+| 1 | Import `ALL_SIDE_EFFECTING_TOOLS`, drop unused category imports, set `_WRITE_TOOLS` to canonical | Completed | 20261115 | 20261115 | REQ-003 _WRITE_TOOLS = ALL_SIDE_EFFECTING_TOOLS; category imports dropped; comment updated |
+| 2 | Add/extend transport test asserting MDQ write failure is fail-closed | Completed | — | 20261115 | REQ-003, REQ-005 test_ambiguous_request_error_not_retried_for_mdq_write_tool added |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | — | 20261115 | pytest + ruff + mypy 30 targeted pytest passed incl. mirror test; ruff/mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261115 | N/A: no doc row in this Plan N/A: no doc row in this Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 from shared.resource_scope import validate_tool_schema_v2
-from shared.tool_constants import get_all_mcp_tool_names
+from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS, get_all_mcp_tool_names
 
 _TOOL_LIST_MODULES: list[tuple[str, str]] = [
     ("mcp_servers.file.read_tools", "TOOL_LIST"),
@@ -56,3 +56,21 @@ def test_tool_name_coverage_matches_tool_constants() -> None:
         found |= {t["name"] for t in getattr(mod, attr_name)}
     expected = get_all_mcp_tool_names()
     assert found == expected, f"mismatch: {found.symmetric_difference(expected)}"
+
+
+# Approved TOOL_LIST is_write=True names that are intentionally absent from
+# ALL_SIDE_EFFECTING_TOOLS. Must stay empty unless an approved exception is
+# recorded in the sideeffect001 plan; future drift fails in CI.
+APPROVED_EXCEPTIONS: frozenset[str] = frozenset()
+
+
+def test_side_effect_parity_matches_canonical() -> None:
+    """Assert TOOL_LIST is_write=True entries exactly equal ALL_SIDE_EFFECTING_TOOLS."""
+    found: set[str] = set()
+    for module_path, attr_name in _TOOL_LIST_MODULES:
+        mod = importlib.import_module(module_path)
+        found |= {t["name"] for t in getattr(mod, attr_name) if t["is_write"]}
+    expected = set(ALL_SIDE_EFFECTING_TOOLS)
+    assert found - set(APPROVED_EXCEPTIONS) == expected, (
+        f"drift: {found.symmetric_difference(expected)}"
+    )

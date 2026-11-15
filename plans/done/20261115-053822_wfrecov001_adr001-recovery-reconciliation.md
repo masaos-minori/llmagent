@@ -154,9 +154,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Amend ADR-001 INV-07, Decision Details item 11, and Verification | In Progress | — | — |  |
-| 2 | Align `agent_03_03` Startup Recovery and Known Limitations | In Progress | — | — |  |
-| 3 | Confirm `db_07` alignment and Known Deviations, run doc checkers | Pending | — | — |  |
+| 1 | Amend ADR-001 INV-07, Decision Details item 11, and Verification | Completed | — | 20261115 | Both procedures executed and archived to implementations/done/: ADR-001 INV-07/item 11/Verification row amended (evidence correction); agent_03_03 lines 166/197 aligned to guarded reconciliation. All doc checkers clean; db_07 confirmed aligned (reference, not edited). |
+| 2 | Align `agent_03_03` Startup Recovery and Known Limitations | Completed | — | 20261115 | Both procedures executed and archived to implementations/done/: ADR-001 INV-07/item 11/Verification row amended (evidence correction); agent_03_03 lines 166/197 aligned to guarded reconciliation. All doc checkers clean; db_07 confirmed aligned (reference, not edited). |
+| 3 | Confirm `db_07` alignment and Known Deviations, run doc checkers | Completed | — | 20261115 | Both procedures executed and archived to implementations/done/: ADR-001 INV-07/item 11/Verification row amended (evidence correction); agent_03_03 lines 166/197 aligned to guarded reconciliation. All doc checkers clean; db_07 confirmed aligned (reference, not edited). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -166,8 +166,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261115-195612_01_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261115-195612_02_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261115-195612_01_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 1 | Procedure | Completed | — | 20261115 |
+| `implementations/20261115-195612_02_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md` | 2 | Procedure | Completed | — | 20261115 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

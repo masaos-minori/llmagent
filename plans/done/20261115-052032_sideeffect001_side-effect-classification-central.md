@@ -183,9 +183,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define the canonical set and remove the contradictory comment | In Progress | — | — |  |
-| 2 | Wire dispatch, http_transport, and tool_policy to the canonical set | In Progress | — | — |  |
-| 3 | Parity tests and verification | In Progress | — | — |  |
+| 1 | Define the canonical set and remove the contradictory comment | Completed | — | 20261115 | Procedures 01-04 executed and archived 20261115; targeted tests green; ruff/mypy/lint-imports clean |
+| 2 | Wire dispatch, http_transport, and tool_policy to the canonical set | Completed | — | 20261115 | Procedures 01-04 executed and archived 20261115; targeted tests green; ruff/mypy/lint-imports clean |
+| 3 | Parity tests and verification | Completed | — | 20261115 | Procedures 01-04 executed and archived 20261115; targeted tests green; ruff/mypy/lint-imports clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -195,10 +195,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261115-192353_01_scripts_shared_tool_constants.py.md` | 1, 3 | Procedure | Pending | — | — |
-| `implementations/20261115-192353_02_scripts_mcp_servers_dispatch.py.md` | 2, 3 | Procedure | Pending | — | — |
-| `implementations/20261115-192353_03_scripts_shared_http_transport.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261115-192353_04_scripts_agent_tool_policy.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261115-192353_01_scripts_shared_tool_constants.py.md` | 1, 3 | Procedure | Completed | — | — |
+| `implementations/20261115-192353_02_scripts_mcp_servers_dispatch.py.md` | 2, 3 | Procedure | Completed | — | — |
+| `implementations/20261115-192353_03_scripts_shared_http_transport.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261115-192353_04_scripts_agent_tool_policy.py.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
