@@ -99,7 +99,6 @@ def _run_integrity_check(
     """Open DB and run PRAGMA integrity_check; returns (condition, error_detail).
 
     Returns (DbCondition.HEALTHY, None) if the DB is healthy.
-    read_only: every call site states probe mode explicitly (REQ-001/REQ-002/REQ-003).
     """
     if not db_path.exists():
         return DbCondition.MISSING, f"database file not found: {db_path}"
@@ -281,9 +280,9 @@ def _verify_candidate(
 
     Returns (condition, integrity_detail, logical_ok, logical_detail). logical_ok
     is False when the physical check already failed and the logical stage did not
-    run; it is the verifier's own verdict otherwise.
+    run. The integrity check runs read-write so candidate-side WAL recovery stays
+    possible.
     """
-    # Candidate stays read-write so candidate-side WAL recovery remains possible.
     condition, integrity_detail = _run_integrity_check(
         candidate, target, read_only=False
     )
@@ -316,14 +315,17 @@ def _activate_candidate(
     """Swap the verified candidate into the live path and move its sidecars.
 
     Single atomic os.replace of the database, then a move of each staged sidecar
-    to its final db_path.name + suffix location. Fail-closed: a move failure
-    raises for the caller's OSError handler. Each completed step is recorded in
-    progress, between the replace and after each move, so a mid-activation
-    failure can be rolled back (REQ-001).
+    that still exists (candidate-side WAL recovery replays a staged -wal into
+    the candidate; SQLite deletes it on close). Fail-closed: a move failure
+    raises for the caller's OSError handler; each completed step is recorded in
+    progress for mid-activation rollback (REQ-001).
     """
     os.replace(temp_restore, db_path)
     progress.replaced = True
     for suffix, staged_path in staged.items():
+        if not staged_path.exists():
+            logger.info("Staged sidecar consumed: %s", staged_path)
+            continue
         final = Path(str(db_path) + suffix)
         shutil.move(staged_path, final)
         progress.moved_sidecars.append(final)

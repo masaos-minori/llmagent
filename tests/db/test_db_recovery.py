@@ -2174,3 +2174,53 @@ def test_logical_verification_leaves_db_unchanged(tmp_path: Path) -> None:
     assert ok is True
     assert _sha256(db_file) == before_bytes
     assert sorted(_os.listdir(tmp_path)) == before_listing
+
+
+def test_restore_activates_after_verification_consumes_staged_wal(
+    tmp_path: Path,
+) -> None:
+    """Regression: candidate verification consumes the staged backup -wal.
+
+    The read-write candidate integrity check replays the staged WAL into the
+    candidate database and SQLite removes it on close. Activation must still
+    swap the candidate and report success; moving the already-consumed sidecar
+    raised FileNotFoundError (action="error") — the latent bug.
+    """
+    db_dir = tmp_path / "live"
+    db_dir.mkdir()
+    db_path = db_dir / "workflow.sqlite"
+    db_path.write_bytes(b"\x00" * 100)
+
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    src = src_dir / "workflow_src.sqlite"
+    conn = _sqlite3.connect(src)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("CREATE TABLE workflow_state (id INTEGER PRIMARY KEY)")
+    conn.execute("INSERT INTO workflow_state VALUES (1)")
+    conn.commit()
+    backup_dir = tmp_path / "backup"
+    backup_dir.mkdir()
+    backup = backup_dir / "backup.sqlite"
+    shutil.copy2(src, backup)
+    shutil.copy2(Path(str(src) + "-wal"), backup_dir / "backup.sqlite-wal")
+    conn.close()
+
+    result = _restore_from_backup(db_path, str(backup), target="workflow")
+
+    assert result.success is True
+    assert result.action == "restored"
+    assert result.active_db_state == "restored"
+    assert result.logical_ok is True
+
+    live = _sqlite3.connect(db_path)
+    try:
+        rows = live.execute("SELECT id FROM workflow_state").fetchall()
+    finally:
+        live.close()
+    assert rows == [(1,)]
+    # The consumed sidecars leave nothing at the live name, and staging leaves
+    # no temp residue behind.
+    assert not Path(str(db_path) + "-wal").exists()
+    assert not Path(str(db_path) + "-shm").exists()
+    assert not list(db_dir.glob("*.tmp_*"))
