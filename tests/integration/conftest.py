@@ -14,6 +14,25 @@ import pytest
 
 
 @pytest.fixture
+def http_retry_delays(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Skip the real HTTP retry backoff and return the delays it asked for.
+
+    The transport sleeps 1 s and then 2 s between attempts. The replacement still
+    yields to the event loop once, so code that relies on ``asyncio.sleep`` to
+    yield keeps working.
+    """
+    real_sleep = asyncio.sleep
+    delays: list[float] = []
+
+    async def _record_sleep(delay: float, result: object = None) -> object:
+        delays.append(delay)
+        return await real_sleep(0, result)
+
+    monkeypatch.setattr("shared.http_transport.asyncio.sleep", _record_sleep)
+    return delays
+
+
+@pytest.fixture
 async def stdio_echo_server():
     """Minimal stdio MCP server that echoes requests with ID field."""
     script = (

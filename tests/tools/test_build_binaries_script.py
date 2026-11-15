@@ -167,7 +167,7 @@ case "$*" in
     name="$(basename "$launcher" .py)"
     echo "$PATH|${NUITKA_CCACHE_BINARY:-}|${NUITKA_CANON_HELPERS:-}" >> "$STUB_LOG/env_build"
     echo "start $name $(date +%s%N)" >> "$STUB_LOG/events"
-    sleep 0.6
+    sleep 0.4
     if [ "$name" = "${FAIL_NAME:-}_launcher" ]; then echo "boom $name" >&2; exit 1; fi
     printf '\177ELF' > "$out_dir/$name.bin"
     echo "end $name $(date +%s%N)" >> "$STUB_LOG/events"
@@ -176,7 +176,7 @@ esac
 exit 0
 """
 
-_FOUR = "mcp_git mcp_shell mcp_cicd mcp_mdq"
+_BINARIES = "mcp_git mcp_shell mcp_cicd"
 
 
 def _run_build(
@@ -202,7 +202,7 @@ def _run_build(
         "BIN_DIR": str(tmp_path / "bin"),
         "OUTPUT_DIR": str(tmp_path / "dist"),
         "STUB_LOG": str(logs),
-        "BUILD_ONLY": _FOUR,
+        "BUILD_ONLY": _BINARIES,
         **extra_env,
     }
     result = subprocess.run(
@@ -233,7 +233,7 @@ def test_parallel_one_builds_sequentially(tmp_path: Path) -> None:
     assert _max_concurrency(logs / "events") == 1
     assert sorted(
         p.name for p in (tmp_path / "bin").iterdir() if "." not in p.name
-    ) == (sorted(_FOUR.split()))
+    ) == (sorted(_BINARIES.split()))
 
 
 def test_parallel_two_overlaps_builds_and_installs_every_binary(
@@ -245,8 +245,8 @@ def test_parallel_two_overlaps_builds_and_installs_every_binary(
     installed = sorted(
         p.name for p in (tmp_path / "bin").iterdir() if "." not in p.name
     )
-    assert installed == sorted(_FOUR.split())
-    assert result.stdout.count("  OK  ") == 4
+    assert installed == sorted(_BINARIES.split())
+    assert result.stdout.count("  OK  ") == 3
     assert "壁時間" in result.stdout
 
 

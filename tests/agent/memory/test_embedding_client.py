@@ -17,6 +17,9 @@ from agent.memory.embedding_client import (
 )
 from agent.memory.types import EmbeddingResult
 
+# The timeout tests stub a POST that sleeps 10 s, so any short timeout fires.
+_SHORT_TIMEOUT = 0.2
+
 
 @pytest.fixture()
 def config() -> EmbeddingClientConfig:
@@ -469,6 +472,7 @@ class TestTimeout:
     async def test_timeout_returns_timeout_error(
         self, config: EmbeddingClientConfig
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 0
         client = EmbeddingClient(config)
 
@@ -518,6 +522,7 @@ class TestRecordFailureCount:
     async def test_record_failure_called_on_timeout_retry(
         self, config: EmbeddingClientConfig
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 2
         client = EmbeddingClient(config)
         call_count = 0
@@ -576,6 +581,7 @@ class TestTimeoutRetry:
     async def test_all_timeout_retries_fail_returns_timeout(
         self, config: EmbeddingClientConfig
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 2
         client = EmbeddingClient(config)
         call_count = 0
@@ -600,6 +606,7 @@ class TestTimeoutRetry:
     async def test_timeout_then_success_on_retry(
         self, config: EmbeddingClientConfig
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 2
         client = EmbeddingClient(config)
         call_count = 0
@@ -628,6 +635,7 @@ class TestTimeoutRetry:
     async def test_max_retries_zero_timeout_single_attempt(
         self, config: EmbeddingClientConfig
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 0
         client = EmbeddingClient(config)
         call_count = 0
@@ -657,6 +665,7 @@ class TestMixedFailure:
     async def test_timeout_then_http_error_all_fail(
         self, config: EmbeddingClientConfig
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 2
         client = EmbeddingClient(config)
         call_count = 0
@@ -683,6 +692,7 @@ class TestMixedFailure:
     async def test_http_error_then_timeout_then_success(
         self, config: EmbeddingClientConfig
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 2
         client = EmbeddingClient(config)
         call_count = 0
@@ -716,6 +726,7 @@ class TestMixedFailure:
     async def test_mixed_failure_all_fail_returns_last_error(
         self, config: EmbeddingClientConfig
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 2
         client = EmbeddingClient(config)
         call_count = 0
@@ -772,6 +783,7 @@ class TestCircuitDuringRetry:
     async def test_circuit_opens_after_timeout_then_success_on_retry(
         self, config: EmbeddingClientConfig
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 2
         config.circuit_open_after = 1
         client = EmbeddingClient(config)
@@ -808,6 +820,7 @@ class TestTimeoutCircuit:
         self,
         config: EmbeddingClientConfig,
     ) -> None:
+        config.timeout = _SHORT_TIMEOUT
         config.max_retries = 0
         config.circuit_open_after = 2
         client = EmbeddingClient(config)

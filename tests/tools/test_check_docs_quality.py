@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -15,6 +17,7 @@ import pytest
 from tools import check_docs_quality as cdq
 from tools.check_docs_quality import (
     _compute_section_similarity,
+    _jaccard_similarity_above,
     check_content_similarity,
     check_duplicate_heading_numbers,
 )
@@ -41,6 +44,9 @@ _LONG_TEXT = (
 )
 
 
+_SCRATCH_DIRS: list[Path] = []
+
+
 def _make_doc_file(
     content: str, path: Path | None = None, tmp_name: str = ".tmp_test_doc.md"
 ) -> object:
@@ -53,7 +59,12 @@ def _make_doc_file(
                 self.path = path
                 self.rel_path = str(path.relative_to(_ROOT_DIR / "docs"))
             else:
-                tmp = _ROOT_DIR / tmp_name
+                # A directory of its own per call: parallel xdist workers must not
+                # share one scratch file (one test's write or cleanup would change
+                # what another test reads back from disk).
+                scratch = Path(tempfile.mkdtemp(prefix="docs_quality_"))
+                _SCRATCH_DIRS.append(scratch)
+                tmp = scratch / tmp_name
                 tmp.write_text(content, encoding="utf-8")
                 self.path = tmp
                 self.rel_path = tmp_name
@@ -63,15 +74,15 @@ def _make_doc_file(
 
 @pytest.fixture(autouse=True)
 def _cleanup_tmp_test_doc() -> Iterator[None]:
-    """Remove the .tmp_test_doc.md scratch file left by _make_doc_file after each test.
+    """Remove the scratch directories _make_doc_file created during the test.
 
-    _make_doc_file writes a scratch markdown file to the repo root when called
-    without an explicit path (the check functions read it back from disk). This
-    autouse fixture deletes the file once the test body finishes, so it never
-    lingers in the working tree between or across test runs.
+    _make_doc_file writes a scratch markdown file when called without an explicit
+    path (the check functions read it back from disk). This autouse fixture
+    deletes those directories once the test body finishes.
     """
     yield
-    (_ROOT_DIR / ".tmp_test_doc.md").unlink(missing_ok=True)
+    while _SCRATCH_DIRS:
+        shutil.rmtree(_SCRATCH_DIRS.pop(), ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
@@ -766,3 +777,33 @@ class TestCheckStalePatterns:
         issues = cdq.check_stale_patterns(_DOCS_DIR, [good, bad, present])
         assert len(issues) == 1
         assert issues[0].file == "22_mcp/bad.md"
+
+
+class TestJaccardSimilarityAbove:
+    """The size check must not change which pairs pass the threshold."""
+
+    def test_empty_sets_never_overlap(self) -> None:
+        assert _jaccard_similarity_above(set(), {"a"}) is False
+        assert _jaccard_similarity_above({"a"}, set()) is False
+        assert _jaccard_similarity_above(set(), set()) is False
+
+    def test_identical_sets_pass_at_any_threshold(self) -> None:
+        words = {"alpha", "beta", "gamma"}
+        assert _jaccard_similarity_above(words, set(words), threshold=1.0) is True
+
+    def test_lopsided_pair_fails_even_when_one_set_contains_the_other(self) -> None:
+        small = {f"w{i}" for i in range(5)}
+        large = {f"w{i}" for i in range(50)}
+        assert _jaccard_similarity_above(small, large) is False
+        assert _jaccard_similarity_above(large, small) is False
+
+    def test_overlap_exactly_at_the_threshold_passes(self) -> None:
+        a = {f"w{i}" for i in range(17)}
+        b = {f"w{i}" for i in range(20)}  # 17 shared of 20 in total: 0.85
+        assert _jaccard_similarity_above(a, b, threshold=0.85) is True
+        assert _jaccard_similarity_above(a, b, threshold=0.86) is False
+
+    def test_result_does_not_depend_on_argument_order(self) -> None:
+        a = {f"w{i}" for i in range(30)}
+        b = {f"w{i}" for i in range(2, 33)}
+        assert _jaccard_similarity_above(a, b) == _jaccard_similarity_above(b, a)

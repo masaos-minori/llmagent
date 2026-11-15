@@ -211,6 +211,21 @@ def _patch_workflow_loader():
         yield mock_loader
 
 
+@pytest.fixture
+def no_workflow_retry_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skip the real wait between WorkflowEngine retry attempts.
+
+    These tests run the real engine, which sleeps ``retry_wait_sec`` between
+    attempts. The replacement still yields to the event loop once.
+    """
+    real_sleep = asyncio.sleep
+
+    async def _yield_only(delay: float, result: object = None) -> object:
+        return await real_sleep(0, result)
+
+    monkeypatch.setattr("agent.workflow.workflow_engine.asyncio.sleep", _yield_only)
+
+
 def _make_orchestrator(
     ctx: MagicMock,
     on_error: Any = None,
@@ -327,7 +342,9 @@ class TestHandleTurnInvokesWorkflowEngine:
         assert str(exc_arg) == "stage timed out"
 
     @pytest.mark.asyncio
-    async def test_handle_turn_does_not_raise_on_workflow_timeout(self) -> None:
+    async def test_handle_turn_does_not_raise_on_workflow_timeout(
+        self, no_workflow_retry_wait: None
+    ) -> None:
         """handle_turn() must NOT re-raise WorkflowTimeoutError — it is handled internally."""
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
@@ -2766,7 +2783,9 @@ class TestHandleWorkflowEngineStatusPreservation:
     already persisted by WorkflowEngine.run() when an exception occurs."""
 
     @pytest.mark.asyncio
-    async def test_preserves_halted_status_via_halt_error(self) -> None:
+    async def test_preserves_halted_status_via_halt_error(
+        self, no_workflow_retry_wait: None
+    ) -> None:
         """When WorkflowEngine.run() raises WorkflowHaltError after persisting 'halted',
         the finally block must NOT overwrite it."""
         ctx = _make_ctx()
@@ -2809,7 +2828,9 @@ class TestHandleWorkflowEngineStatusPreservation:
         )
 
     @pytest.mark.asyncio
-    async def test_preserves_halted_status_via_timeout_error(self) -> None:
+    async def test_preserves_halted_status_via_timeout_error(
+        self, no_workflow_retry_wait: None
+    ) -> None:
         """When WorkflowEngine.run() raises WorkflowTimeoutError after persisting 'halted',
         the finally block must NOT overwrite it."""
         ctx = _make_ctx()

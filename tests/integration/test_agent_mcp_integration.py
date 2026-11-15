@@ -66,7 +66,7 @@ async def test_a01_http_tool_call_succeeds():
 
 
 @pytest.mark.asyncio
-async def test_a02_http_504_returns_transport_error():
+async def test_a02_http_504_returns_transport_error(http_retry_delays):
     with respx.mock(base_url=_TEST_URL, assert_all_called=False) as mock:
         mock.post("/v1/call_tool").respond(504)
         async with httpx.AsyncClient() as http:
@@ -97,7 +97,7 @@ async def test_a03_http_timeout_returns_transport_error():
 
 
 @pytest.mark.asyncio
-async def test_a04_http_503_retry_then_success():
+async def test_a04_http_503_retry_then_success(http_retry_delays):
     call_count = 0
 
     def _side_effect(request: httpx.Request) -> httpx.Response:
@@ -116,6 +116,7 @@ async def test_a04_http_503_retry_then_success():
     assert not result.is_error
     assert result.output == "recovered"
     assert executor.stat_transport_errors.get(_HTTP_KEY, 0) == 0
+    assert http_retry_delays == [1, 2]  # backoff before the second and third attempt
 
 
 # ── TC-A05: HTTP tool error (is_error=True) → stat_tool_errors incremented ──
@@ -181,7 +182,7 @@ async def test_a12_concurrent_http_calls_all_complete():
 
 
 @pytest.mark.asyncio
-async def test_a13_http_429_retry_then_transport_error():
+async def test_a13_http_429_retry_then_transport_error(http_retry_delays):
     call_count = 0
 
     def _side_effect(request: httpx.Request) -> httpx.Response:
@@ -198,13 +199,14 @@ async def test_a13_http_429_retry_then_transport_error():
     assert result.is_error
     assert result.error_type == "transport"
     assert call_count == 3  # 3 attempts before TransportError
+    assert http_retry_delays == [1, 2]  # no backoff after the last attempt
 
 
 # ── TC-A14: HTTP 502 → retry → TransportError after 3 attempts ───────────────
 
 
 @pytest.mark.asyncio
-async def test_a14_http_502_retry_then_transport_error():
+async def test_a14_http_502_retry_then_transport_error(http_retry_delays):
     call_count = 0
 
     def _side_effect(request: httpx.Request) -> httpx.Response:
@@ -221,6 +223,7 @@ async def test_a14_http_502_retry_then_transport_error():
     assert result.is_error
     assert result.error_type == "transport"
     assert call_count == 3
+    assert http_retry_delays == [1, 2]
 
 
 # ── TC-A15: HTTP 400 → tool-level error result, no retry (healthcascade001) ──
@@ -263,7 +266,7 @@ async def test_a16_http_500_non_retryable():
 
 
 @pytest.mark.asyncio
-async def test_a17_http_503_retry_then_success():
+async def test_a17_http_503_retry_then_success(http_retry_delays):
     call_count = 0
 
     def _side_effect(request: httpx.Request) -> httpx.Response:
@@ -282,3 +285,4 @@ async def test_a17_http_503_retry_then_success():
     assert not result.is_error
     assert result.output == "recovered"
     assert call_count == 2  # retry succeeded on 2nd attempt
+    assert http_retry_delays == [1]

@@ -171,7 +171,7 @@ class TestErrorInjectionChaos:
     """3B: Simulate injecting transport errors at specific rounds."""
 
     @pytest.mark.asyncio
-    async def test_3b1_transport_error_at_specific_round(self):
+    async def test_3b1_transport_error_at_specific_round(self, http_retry_delays):
         """Inject transport error → stat_transport_errors incremented."""
         from shared.mcp_config import McpServerConfig
         from shared.tool_executor import ToolExecutor
@@ -201,7 +201,7 @@ class TestErrorInjectionChaos:
         assert executor.stat_transport_errors.get("chaos_b1", 0) == 1
 
     @pytest.mark.asyncio
-    async def test_3b2_multiple_error_types_in_same_turn(self):
+    async def test_3b2_multiple_error_types_in_same_turn(self, http_retry_delays):
         """Different tools: one transport error, one tool error."""
         from shared.mcp_config import McpServerConfig
         from shared.tool_executor import ToolExecutor
@@ -358,7 +358,7 @@ class TestNetworkChaos:
     """3D: Network chaos scenarios for HTTP transport."""
 
     @pytest.mark.asyncio
-    async def test_3d1_intermittent_502s(self):
+    async def test_3d1_intermittent_502s(self, http_retry_delays):
         """Server alternates 502/200 → retry handles correctly."""
         from shared.mcp_config import McpServerConfig
         from shared.tool_executor import ToolExecutor
