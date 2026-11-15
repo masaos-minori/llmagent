@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -132,6 +133,7 @@ class TestCallToolDisabledGate:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "trigger_workflow", "args": {"repo": "a/b"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -205,7 +207,11 @@ class TestCallToolEndpoint:
                 "name": "trigger_workflow",
                 "args": {"repo": "acme/widgets", "workflow": "ci.yml"},
             },
-            headers={"x-session-id": "sess-ctx", "x-request-id": "req-ctx"},
+            headers={
+                "x-session-id": "sess-ctx",
+                "x-request-id": "req-ctx",
+                "x-idempotency-key": str(uuid.uuid4()),
+            },
         )
         assert resp.status_code == 200
         records = [

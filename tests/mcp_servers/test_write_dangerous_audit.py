@@ -25,6 +25,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import tomllib
+import uuid
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -215,7 +216,11 @@ def test_write_dangerous_tool_emits_audit_record(
     logger = _capture_logger(monkeypatch, module)
     client = TestClient(module.app, headers=MCP_TEST_AUTH_HEADERS)
 
-    resp = client.post("/v1/call_tool", json={"name": tool, "args": args})
+    resp = client.post(
+        "/v1/call_tool",
+        json={"name": tool, "args": args},
+        headers={"x-idempotency-key": str(uuid.uuid4())},
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body["is_error"] is False, body["result"]

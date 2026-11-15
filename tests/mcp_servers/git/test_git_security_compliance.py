@@ -4,6 +4,7 @@ import copy
 import logging
 import stat
 import tempfile
+import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -793,6 +794,7 @@ class TestPostConditionBypassPrevention:
                 "name": "git_checkout",
                 "args": {"repo_path": "/tmp/test-repo", "branch": "dev"},
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
 
         body = response.json()
@@ -827,6 +829,7 @@ class TestPostConditionBypassPrevention:
                     "branch": "main",
                 },
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
 
         body = response.json()
@@ -864,6 +867,7 @@ class TestPostConditionBypassPrevention:
                     "refspec": "main:main",
                 },
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
 
         body = response.json()
@@ -910,6 +914,7 @@ class TestCompletePipelineCoverage:
                 "name": "git_checkout",
                 "args": {"repo_path": "/tmp/test-repo", "branch": "main"},
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
 
         if len(recorded_stages) >= 4:
@@ -952,6 +957,7 @@ class TestCompletePipelineCoverage:
                     "branch": "main",
                 },
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
 
         if len(recorded_stages) >= 4:
@@ -994,6 +1000,7 @@ class TestCompletePipelineCoverage:
                     "refspec": "main:main",
                 },
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
 
         if len(recorded_stages) >= 4:
@@ -1173,6 +1180,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1217,6 +1225,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1262,6 +1271,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1306,6 +1316,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1350,6 +1361,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1394,6 +1406,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1436,6 +1449,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1483,6 +1497,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1529,6 +1544,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1583,6 +1599,7 @@ class TestLiveCallToolAuthorization:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()
@@ -1647,6 +1664,7 @@ class TestDryRunAndDetachedHeadLivePath:
                         "dry_run": True,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
         finally:
             git_server._cfg.allowed_repo_paths = original_paths
@@ -1684,6 +1702,7 @@ class TestDryRunAndDetachedHeadLivePath:
                         "dry_run": True,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
         finally:
             git_server._cfg.allowed_repo_paths = original_paths
@@ -1733,6 +1752,7 @@ class TestDryRunAndDetachedHeadLivePath:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
 
             git_server._cfg.allow_detached_head = True
@@ -1747,6 +1767,7 @@ class TestDryRunAndDetachedHeadLivePath:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
         finally:
             git_server._cfg.allowed_repo_paths = original_paths
@@ -1809,6 +1830,7 @@ class TestDryRunAndDetachedHeadLivePath:
                         "dry_run": True,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             push_response = client.post(
                 "/v1/call_tool",
@@ -1821,6 +1843,7 @@ class TestDryRunAndDetachedHeadLivePath:
                         "dry_run": True,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
         finally:
             git_server._cfg.allowed_repo_paths = original_paths
@@ -1919,6 +1942,7 @@ class TestNewlyReachableToolsViaHTTP:
                 "name": tool_name,
                 "args": {"repo_path": str(repo_dir), **extra_args},
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert response.json().get("result") != f"Unknown tool: {tool_name}"
 
@@ -1942,6 +1966,7 @@ class TestNewlyReachableToolsViaHTTP:
                 "name": tool_name,
                 "args": {"repo_path": str(repo_dir), **extra_args},
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert response.json().get("is_error") is True
 
@@ -2039,6 +2064,7 @@ class TestRemoteAuthorizationViaHTTP:
                         "branch": "develop",
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
         finally:
             git_server._cfg.allowed_remote_urls = original_allowed_remote_urls
@@ -2074,6 +2100,7 @@ class TestRemoteAuthorizationViaHTTP:
                         "branch": "develop",
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
         finally:
             git_server._cfg.allowed_remote_urls = original_allowed_remote_urls
@@ -2105,6 +2132,7 @@ class TestRemoteAuthorizationViaHTTP:
                         "branch": "develop",
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
         finally:
             git_server._cfg.allowed_remote_urls = original_allowed_remote_urls
@@ -2135,6 +2163,7 @@ class TestRemoteAuthorizationViaHTTP:
                     "name": "git_pull",
                     "args": {"repo_path": str(repo_dir), "branch": "develop"},
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
         finally:
             git_server._cfg.allowed_remote_urls = original_allowed_remote_urls
@@ -2224,6 +2253,7 @@ class TestGitServiceErrorHandlerIdentity:
                 "name": "git_checkout",
                 "args": {"repo_path": str(repo_dir), "branch": "develop"},
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
 
         assert response.status_code == 500
@@ -2339,6 +2369,7 @@ class TestGitServiceErrorHandlerIdentity:
                         "dry_run": False,
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             )
             assert resp.status_code == 200
             body = resp.json()

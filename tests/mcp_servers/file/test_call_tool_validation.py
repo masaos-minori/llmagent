@@ -6,6 +6,8 @@ file-read/write/delete and git servers.
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -73,6 +75,7 @@ class TestFileWriteCallToolDisabledGate:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "write_file", "args": {"path": "/tmp/x", "content": ""}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         data = resp.json()
         assert data["is_error"] is True
@@ -93,6 +96,7 @@ class TestFileWriteCallToolDisabledGate:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "write_file", "args": {"path": "/tmp/x", "content": ""}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         data = resp.json()
         assert data["is_error"] is True
@@ -110,6 +114,7 @@ class TestFileWriteCallToolDisabledGate:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "write_file", "args": {"path": "/tmp/x", "content": ""}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         data = resp.json()
         assert "Tool disabled" not in data.get("result", "")
@@ -125,7 +130,9 @@ class TestFileDeleteCallToolDisabledGate:
         monkeypatch.setattr(delete_server, "_cfg", FileDeleteConfig(allowed_dirs=[]))
         client = TestClient(delete_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
-            "/v1/call_tool", json={"name": "delete_file", "args": {"path": "/tmp/x"}}
+            "/v1/call_tool",
+            json={"name": "delete_file", "args": {"path": "/tmp/x"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         data = resp.json()
         assert data["is_error"] is True
@@ -144,7 +151,9 @@ class TestFileDeleteCallToolDisabledGate:
         monkeypatch.setattr(delete_server, "_dispatch_delete_tool", _spy)
         client = TestClient(delete_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
-            "/v1/call_tool", json={"name": "delete_file", "args": {"path": "/tmp/x"}}
+            "/v1/call_tool",
+            json={"name": "delete_file", "args": {"path": "/tmp/x"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         data = resp.json()
         assert data["is_error"] is True
@@ -160,7 +169,9 @@ class TestFileDeleteCallToolDisabledGate:
         )
         client = TestClient(delete_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
-            "/v1/call_tool", json={"name": "delete_file", "args": {"path": "/tmp/x"}}
+            "/v1/call_tool",
+            json={"name": "delete_file", "args": {"path": "/tmp/x"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         data = resp.json()
         assert "Tool disabled" not in data.get("result", "")
@@ -197,6 +208,7 @@ class TestGitCallToolDisabledGate:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "git_commit", "args": {"repo_path": "/tmp", "message": "x"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         data = resp.json()
         assert data["is_error"] is True
@@ -215,6 +227,7 @@ class TestGitCallToolDisabledGate:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "git_commit", "args": {"repo_path": "/tmp", "message": "x"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         data = resp.json()
         assert data["is_error"] is True
@@ -249,6 +262,7 @@ class TestGitCallToolDisabledGate:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "git_commit", "args": {"repo_path": "/tmp", "message": "x"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         data = resp.json()
         assert "Tool disabled:" not in data.get("result", "")

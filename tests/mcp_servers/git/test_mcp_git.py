@@ -4,6 +4,7 @@ Unit tests for mcp/git/service.py: GitService guards and dry_run.
 
 from __future__ import annotations
 
+import uuid
 from pathlib import PurePosixPath
 from unittest.mock import MagicMock, patch
 
@@ -431,6 +432,7 @@ class TestDispatchContract:
                         **extra_args.get(name, {}),
                     },
                 },
+                headers={"x-idempotency-key": str(uuid.uuid4())},
             ).json()["result"]
             != f"Unknown tool: {name}"
         }

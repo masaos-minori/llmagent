@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+import uuid
 from typing import Any
 from unittest.mock import AsyncMock, Mock
 
@@ -408,7 +409,7 @@ class TestCallToolEndpoint:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "rag_delete_document", "args": {"url": url}},
-            headers={"x-session-id": "sess-1"},
+            headers={"x-session-id": "sess-1", "x-idempotency-key": str(uuid.uuid4())},
         )
         assert resp.status_code == 200
         records = _audit_records(audit_logger)
@@ -434,7 +435,9 @@ class TestCallToolEndpoint:
         handler = AsyncMock(return_value=f"Deleted: {url}")
         fake_service._dispatch_table["rag_delete_document"] = handler
         client.post(
-            "/v1/call_tool", json={"name": "rag_delete_document", "args": {"url": url}}
+            "/v1/call_tool",
+            json={"name": "rag_delete_document", "args": {"url": url}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         records = _audit_records(audit_logger)
         assert len(records) == 1
@@ -451,7 +454,9 @@ class TestCallToolEndpoint:
         handler = AsyncMock(return_value=f"Not found: {url}")
         fake_service._dispatch_table["rag_delete_document"] = handler
         resp = client.post(
-            "/v1/call_tool", json={"name": "rag_delete_document", "args": {"url": url}}
+            "/v1/call_tool",
+            json={"name": "rag_delete_document", "args": {"url": url}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert resp.json()["is_error"] is False
         records = _audit_records(audit_logger)
@@ -471,6 +476,7 @@ class TestCallToolEndpoint:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "rag_delete_document", "args": {"url": "https://x"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert resp.json()["is_error"] is True
         records = _audit_records(audit_logger)
@@ -490,7 +496,9 @@ class TestCallToolEndpoint:
         handler = AsyncMock(return_value=f"Deleted: {url} {body_marker}")
         fake_service._dispatch_table["rag_delete_document"] = handler
         client.post(
-            "/v1/call_tool", json={"name": "rag_delete_document", "args": {"url": url}}
+            "/v1/call_tool",
+            json={"name": "rag_delete_document", "args": {"url": url}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         records = _audit_records(audit_logger)
         assert len(records) == 1

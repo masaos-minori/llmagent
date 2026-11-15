@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import uuid
 from pathlib import Path
 from tempfile import mkstemp
 from unittest.mock import AsyncMock, MagicMock
@@ -126,6 +127,7 @@ class TestIndexPathsAudit:
                 "name": "index_paths",
                 "args": {"paths": [str(valid_md), str(nonexistent), str(non_md)]},
             },
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert response.status_code == 200
         detail = mock_audit.call_args.kwargs["detail"]
@@ -148,6 +150,7 @@ class TestRefreshIndexAudit:
         response = client.post(
             "/v1/call_tool",
             json={"name": "refresh_index", "args": {"paths": [str(md_file)]}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert response.status_code == 200
         detail = mock_audit.call_args.kwargs["detail"]

@@ -16,6 +16,7 @@ file exists solely to close the coverage gap on shell_server.py's own route/disp
 from __future__ import annotations
 
 import json
+import uuid
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -97,6 +98,7 @@ class TestCallToolDisabledGate:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "shell_run", "args": {"command": "echo hi"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -156,7 +158,11 @@ class TestCallToolEndpoint:
         resp = client.post(
             "/v1/call_tool",
             json={"name": "shell_run", "args": {"command": "echo hi"}},
-            headers={"x-session-id": "sess-ctx", "x-request-id": "req-ctx"},
+            headers={
+                "x-session-id": "sess-ctx",
+                "x-request-id": "req-ctx",
+                "x-idempotency-key": str(uuid.uuid4()),
+            },
         )
         assert resp.status_code == 200
         records = [json.loads(call.args[0]) for call in logger.info.call_args_list]
