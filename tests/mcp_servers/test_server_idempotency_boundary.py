@@ -8,10 +8,13 @@ dispatch. The canonical side-effect set (``ALL_SIDE_EFFECTING_TOOLS`` from
 ``shared.tool_constants``, defined by ``sideeffect001``) is not present yet, so
 each test injects a controlled set via ``monkeypatch`` to exercise the mechanism;
 one test locks the inert (deferred) behavior until the canonical set lands.
+``TestBoundaryRegisteredOnEveryApp`` repeats the rejection and auth-first checks
+against every real production app to prove per-app registration.
 """
 
 from __future__ import annotations
 
+import importlib
 from typing import Any, cast
 
 import pytest
@@ -63,6 +66,20 @@ class TestKeylessSideEffectRejected:
         client = _client(_build_app())
         response = client.post("/v1/call_tool", json={"name": "delete_document"})
         assert "X-Idempotency-Key" in response.json()["error"]
+
+    @pytest.mark.parametrize("key", [" ", "  ", "\t", " \t "])
+    def test_whitespace_only_key_counts_as_missing(
+        self, monkeypatch: pytest.MonkeyPatch, key: str
+    ) -> None:
+        # A whitespace-only key carries no dedup identity: it is treated as missing.
+        monkeypatch.setattr(server_module, "ALL_SIDE_EFFECTING_TOOLS", _SIDE_EFFECTING)
+        client = _client(_build_app())
+        response = client.post(
+            "/v1/call_tool",
+            json={"name": "shell_run"},
+            headers={"X-Idempotency-Key": key},
+        )
+        assert response.status_code == 422
 
 
 class TestKeyedSideEffectDispatched:
@@ -209,3 +226,45 @@ class TestNonCallToolPathsUntouched:
         response = client.get("/health")
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
+
+
+# Every production MCP app. Keep in step with the apps in scripts/mcp_servers.
+_APP_MODULES = (
+    "mcp_servers.shell.shell_server",
+    "mcp_servers.git.git_server",
+    "mcp_servers.web_search.web_search_server",
+    "mcp_servers.file.delete_server",
+    "mcp_servers.file.write_server",
+    "mcp_servers.file.read_server",
+    "mcp_servers.github.github_server",
+    "mcp_servers.cicd.cicd_server",
+    "mcp_servers.rag_pipeline.rag_pipeline_server",
+    "mcp_servers.mdq.mdq_server",
+)
+
+
+class TestBoundaryRegisteredOnEveryApp:
+    """Per-app registration: each real app wires the boundary through
+    attach_auth_middleware, not just the synthetic app above. The rejected tool
+    name needs no registry entry — the boundary rejects on the injected set
+    before dispatch, so the 422 is proof of registration alone."""
+
+    @pytest.mark.parametrize("module_name", _APP_MODULES)
+    def test_keyless_side_effecting_call_rejected_on_every_app(
+        self, monkeypatch: pytest.MonkeyPatch, module_name: str
+    ) -> None:
+        monkeypatch.setattr(server_module, "ALL_SIDE_EFFECTING_TOOLS", _SIDE_EFFECTING)
+        module = importlib.import_module(module_name)
+        client = TestClient(module.app, headers=MCP_TEST_AUTH_HEADERS)
+        response = client.post("/v1/call_tool", json={"name": "shell_run"})
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize("module_name", _APP_MODULES)
+    def test_unauthorized_request_gets_401_before_boundary_on_every_app(
+        self, monkeypatch: pytest.MonkeyPatch, module_name: str
+    ) -> None:
+        monkeypatch.setattr(server_module, "ALL_SIDE_EFFECTING_TOOLS", _SIDE_EFFECTING)
+        module = importlib.import_module(module_name)
+        client = TestClient(module.app)
+        response = client.post("/v1/call_tool", json={"name": "shell_run"})
+        assert response.status_code == 401

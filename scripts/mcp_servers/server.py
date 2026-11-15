@@ -167,7 +167,8 @@ def attach_auth_middleware(
             "idempotency_key",
             request.headers.get("x-idempotency-key", ""),
         )
-        if idempotency_key:
+        if str(idempotency_key).strip():
+            # A whitespace-only key counts as missing: it carries no dedup identity.
             return await call_next(request)
         tool_body = await _read_call_tool_body(request)
         tool_name = tool_body.get("name")
