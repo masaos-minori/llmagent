@@ -14,6 +14,7 @@ import importlib
 from collections.abc import Sequence
 
 import pytest
+from fastapi import FastAPI
 
 from tests.mcp_servers._route_inventory import (
     DEFAULT_APPROVED_NON_EXECUTION_GET,
@@ -52,3 +53,44 @@ def test_route_inventory(module: str, approved_get: set[str]) -> None:
     assert_single_call_tool_post(
         server.app, label=module, approved_non_execution_get=approved_get
     )
+
+
+def test_helper_detects_reintroduced_direct_route() -> None:
+    """Negative self-check: a bare app with a direct POST route fails the
+    inventory assertion (the AC-5 regression mechanism itself)."""
+    app = FastAPI()
+
+    @app.post("/v1/call_tool")
+    async def _call_tool() -> dict[str, bool]:
+        return {"ok": True}
+
+    @app.post("/v1/shell_run")
+    async def _direct_route() -> dict[str, bool]:
+        return {"ok": True}
+
+    @app.get("/health")
+    async def _health() -> dict[str, bool]:
+        return {"ok": True}
+
+    @app.get("/v1/tools")
+    async def _tools() -> dict[str, bool]:
+        return {"ok": True}
+
+    with pytest.raises(AssertionError, match="/v1/shell_run"):
+        assert_single_call_tool_post(app)
+
+
+def test_helper_detects_unapproved_get_route() -> None:
+    """A GET diagnostic outside the app-declared approved set fails too."""
+    app = FastAPI()
+
+    @app.post("/v1/call_tool")
+    async def _call_tool() -> dict[str, bool]:
+        return {"ok": True}
+
+    @app.get("/v1/list_allowed_directories")
+    async def _diagnostic() -> dict[str, bool]:
+        return {"ok": True}
+
+    with pytest.raises(AssertionError, match="/v1/list_allowed_directories"):
+        assert_single_call_tool_post(app, approved_non_execution_get=set())
