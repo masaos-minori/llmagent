@@ -15,11 +15,13 @@ Medium (Issue Priority)
 ## Background
 From the Source Issue (F-006), re-verified against the post-pull tree (HEAD `edc79f698`, 2026-11-15). All five claims hold:
 
-- `purge_old_sessions` (`scripts/db/maintenance.py:242-298`) runs `_delete_sessions_by_age` and `_delete_sessions_beyond_limit` as raw `db.execute` calls and commits once at `:276`; a failure in the second rule leaves the first delete in an open implicit transaction on the shared connection, and the failure `extra_data` (`:292-297`) reports the attempted `age_deleted`/`count_deleted` and the requested `keep_session_id`, not what was committed.
+Adversarial re-verification 2026-11-16 (HEAD `8fc337615`): all five claims re-confirmed against current source; line-number citations drifted with upstream edits and have been corrected in this document (commit `:276`→`:275`, `extra_data` `:292-297`→`:291-295`, from_config `:259-260`/`:357-358`→`:259`/`:355`, `except OSError` `:383`→`:379`, `store_impl.py:191(-205)`→`:189(-205)`, `helper.py:242-261`→`helper._begin_transaction` `:362-389` / `begin_immediate` `:382`). Test-name correction: the `pruned_ids` assertion lives in `test_deletes_old_memories_and_fts` (`tests/db/test_db_maintenance.py:406`, assertion `:416`), not a `..._returns_ids_in_result_data` test (no such test exists). UNK-01 resolved statically (see Unknowns). REQ-005 blast radius confirmed: `delete_memories_before` has exactly one production caller (`maintenance.py:401`) plus `tests/db/test_db_store_impl.py`; `MemoryDeleteResult` consumers unchanged.
+
+- `purge_old_sessions` (`scripts/db/maintenance.py:242-298`) runs `_delete_sessions_by_age` and `_delete_sessions_beyond_limit` as raw `db.execute` calls and commits once at `:275`; a failure in the second rule leaves the first delete in an open implicit transaction on the shared connection, and the failure `extra_data` (`:291-295`) reports the attempted `age_deleted`/`count_deleted` and the requested `keep_session_id`, not what was committed.
 - `vacuum_db` (`:151-165`) catches `(sqlite3.OperationalError, RuntimeError)` at `:163`; `sqlite3.DatabaseError` (corrupt file) escapes BEST_EFFORT.
-- Config errors already propagate today: `RetentionConfig.from_config` / `CorruptArchiveRetentionConfig.from_config` are called outside the `try` (`:259-260`, `:357-358`), and `build_db_config` in `purge_corrupt_archives` is inside the `try` but the handler catches only `OSError` (`:383`). **Maintainer decision (2026-11-15): propagate — the Issue's Unresolved Question is resolved as "config-load failure is NOT absorbed in BEST_EFFORT"; the behavior is documented in docstrings and pinned by characterization tests.**
+- Config errors already propagate today: `RetentionConfig.from_config` / `CorruptArchiveRetentionConfig.from_config` are called outside the `try` (`:259`, `:355`), and `build_db_config` in `purge_corrupt_archives` is inside the `try` but the handler catches only `OSError` (`:379`). **Maintainer decision (2026-11-15): propagate — the Issue's Unresolved Question is resolved as "config-load failure is NOT absorbed in BEST_EFFORT"; the behavior is documented in docstrings and pinned by characterization tests.**
 - `_handle_maintenance_error` (`:65-85`) re-raises with a bare `raise` (`:79`), valid only inside an `except` block.
-- `prune_old_memories` (`:388-414`) calls `store.collect_prunable_ids` (`:400`) outside the transaction `delete_memories_before` later opens inside `SQLiteMemoryDeleteStore` (`scripts/db/store_impl.py:191-205`), so reported `pruned_ids` can diverge from rows actually deleted.
+- `prune_old_memories` (`:388-414`) calls `store.collect_prunable_ids` (`:400`) outside the transaction `delete_memories_before` later opens inside `SQLiteMemoryDeleteStore` (`scripts/db/store_impl.py:189-205`), so reported `pruned_ids` can diverge from rows actually deleted.
 
 Consumers: `agent.services.db_maintenance_service` / `rag_maintenance_service` rely on the mode contract; `scripts/agent/commands/memory_data_ops.py:402-403` reads `data["pruned_ids"]` to emit delete events (its own `collect_prunable_ids` call at `:371-373` is a dry-run/confirm count and is unaffected).
 
@@ -30,7 +32,7 @@ A BEST_EFFORT maintenance call can crash the agent (DatabaseError, config errors
 Callers rely on the documented mode contract to keep maintenance from crashing the agent, and on `MaintenanceResult.data` to describe what actually changed; both are currently broken on named paths.
 
 ## Implementation Intent
-Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any exception, `scripts/db/helper.py:242-261`) for the session purge; widen the vacuum handler to `sqlite3.Error`; document config-error propagation in both modes; re-raise the passed exception explicitly; make the delete transaction's `RETURNING` ids the only source of reported `pruned_ids`.
+Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any exception via `helper._begin_transaction`, `scripts/db/helper.py:362-389`) for the session purge; widen the vacuum handler to `sqlite3.Error`; document config-error propagation in both modes; re-raise the passed exception explicitly; make the delete transaction's `RETURNING` ids the only source of reported `pruned_ids`.
 
 ## Requirements
 - `REQ-001`: `purge_old_sessions` runs both delete rules inside one `db.begin_immediate()`; on failure nothing is committed and no transaction stays open; failure `data` reports `age_deleted=0`, `count_deleted=0`, `kept_active_session=None`; success `data` unchanged (AC-1).
@@ -45,7 +47,7 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/db/maintenance.py | Modify | `begin_immediate` wrap + honest failure data in `purge_old_sessions`; `sqlite3.Error` in `vacuum_db`; docstring propagation statements; `raise exc` in `_handle_maintenance_error`; `prune_old_memories` data from `delete_result.deleted_ids` | REQ-001..REQ-005 / AC-1..AC-5 | `maintenance.py:242-298` (no transaction, `extra_data` at `:292-297`), `:163`, `:79`, `:400` (checked Step 2, post-pull) | tests/db/test_db_maintenance.py | Verified |
+| scripts/db/maintenance.py | Modify | `begin_immediate` wrap + honest failure data in `purge_old_sessions`; `sqlite3.Error` in `vacuum_db`; docstring propagation statements; `raise exc` in `_handle_maintenance_error`; `prune_old_memories` data from `delete_result.deleted_ids` | REQ-001..REQ-005 / AC-1..AC-5 | `maintenance.py:242-298` (no transaction, `extra_data` at `:291-295`), `:163`, `:79`, `:400` (checked Step 2, post-pull) | tests/db/test_db_maintenance.py | Verified |
 | scripts/db/store_protocols.py | Modify | `MemoryDeleteResult` gains `deleted_ids: tuple[str, ...] = ()` (default keeps all existing constructions valid) | REQ-005 / AC-5 | `store_protocols.py:145-149` frozen dataclass with single field `deleted` (checked Step 2) | tests/db/test_db_maintenance.py | Verified |
 | scripts/db/store_impl.py | Modify | `delete_memories_before` returns `deleted_ids=tuple(deleted_ids)` from the RETURNING statement (`:196-205`) | REQ-005 / AC-5 | `store_impl.py:196-205`: `deleted_ids` already collected in the delete transaction but discarded into a count-only result (checked Step 2) | tests/db/test_db_maintenance.py | Verified |
 | tests/db/test_db_maintenance.py | Modify | Add rollback-atomicity, DatabaseError, config-propagation, helper-re-raise, and pruned-ids-source tests | REQ-006 / AC-1..AC-5 | `:941-1010` mode tests are all `OperationalError`-based mock tests; no rollback/`in_transaction` assertion exists (grep this cycle) | tests/db/test_db_maintenance.py | Verified |
@@ -72,7 +74,7 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 - `REQ-003` (AC-3): monkeypatch `db.maintenance.ConfigLoader.load` to raise `OSError` → `purge_old_sessions(..., mode=BEST_EFFORT)` raises; patch `db.maintenance.build_db_config` to raise `ValueError` → `purge_corrupt_archives(mode=BEST_EFFORT)` raises (characterization).
 - `REQ-004` (AC-4): call `_handle_maintenance_error(ValueError("x"), "op", STRICT)` outside any `except` → raises the same `ValueError` (no `RuntimeError: No active exception`).
 - `REQ-005` (AC-5): real-DB seed of pinned + unpinned memories; run `prune_old_memories`; assert `sorted(data["pruned_ids"])` equals the ids removed from the `memories` table (verified against post-run table state) and `data["deleted"] == len(data["pruned_ids"])`; with `collect_prunable_ids` patched via `patch.object(..., autospec=True)`, assert it is NOT called by `prune_old_memories`.
-- Regression watch (no assertion changes expected): `test_prune_best_effort_returns_failure_on_error` (`:992-1004`) — the mocked `fetchall`/`execute` flow still reaches the store's internal fast-path SELECT + failing DELETE → same result; `test_prune_returns_ids_in_result_data` (`:416`) — data key unchanged; `test_purge_best_effort_returns_partial_result_on_error` (`:963-980`) — no data-count assertions exist, assertions stay green (rename to `..._returns_failure_result_on_error` allowed as test-only cleanup); `tests/agent/commands/test_memory_data_ops.py:380-420` — re-run and adjust patch targets only if they depended on maintenance's removed `collect_prunable_ids` call.
+- Regression watch (no assertion changes expected): `test_prune_best_effort_returns_failure_on_error` (`:1000-1013`) — the mocked `fetchall`/`execute` flow still reaches the store's internal fast-path SELECT + failing DELETE → same result; `test_deletes_old_memories_and_fts` (`:406`; `pruned_ids` assertion at `:416`) — data key unchanged; `test_purge_best_effort_returns_partial_result_on_error` (`:973-987`) — no data-count assertions exist, assertions stay green (rename to `..._returns_failure_result_on_error` allowed as test-only cleanup); `tests/agent/commands/test_memory_data_ops.py:380-420` — re-run and adjust patch targets only if they depended on maintenance's removed `collect_prunable_ids` call.
 
 ## Documentation Impact
 - `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`: the mode bullets (`:29-30`) claim BEST_EFFORT catches "Exceptions" — correct this stale claim by stating config-load failures propagate in both modes; state that `purge_old_sessions` is one transaction (failure means no deletions) and that `prune_old_memories` reports the ids its delete transaction removed. The Issue permits this: the doc is the place where the per-mode config-error behavior is documented.
@@ -95,7 +97,7 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Whether `tests/agent/commands/test_memory_data_ops.py:380-420` assertions depend on `maintenance.prune_old_memories` calling `collect_prunable_ids` (they patch the store method) | Their dependence not provable without running them against the modified maintenance | Phase 2 runs that test file; adjust patch targets only if a failure appears | False |
+| UNK-01 | Whether `tests/agent/commands/test_memory_data_ops.py:380-420` assertions depend on `maintenance.prune_old_memories` calling `collect_prunable_ids` (they patch the store method) | Resolved 2026-11-16 (static check, HEAD `8fc337615`): they patch `SQLiteMemoryDeleteStore.collect_prunable_ids` (`:386-387`, `:418-419`), which the agent `memory_prune` path itself calls (`memory_data_ops.py:373`) — independent of `maintenance.py:400`; no dependence to adjust | Phase 2 still re-runs the file as regression confirmation | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -113,7 +115,7 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 
 ## Design
 - **Reuse, do not reimplement, transaction control**: `helper._begin_transaction` (`:242-258`) already rolls back on any normal exception and re-raises; `purge_old_sessions` gets `with db.begin_immediate():` around both delete calls and drops its manual `db.commit()`. Rejected alternative: adding rollback inside `_handle_maintenance_error` — the helper would need connection access and would still leave the first-delete ownership problem; the Issue's Required Change names `begin_immediate`.
-- **No outer transaction around `prune_old_memories`**: `delete_memories_before` already opens its own `BEGIN IMMEDIATE` (`store_impl.py:191`); an outer wrap would raise `OperationalError: cannot start a transaction within a transaction`. Identity-consistent reporting is instead achieved by returning the `RETURNING` ids (REQ-005). Rejected alternative: removing the store's inner transaction — it is what makes the cross-table delete atomic today.
+- **No outer transaction around `prune_old_memories`**: `delete_memories_before` already opens its own `BEGIN IMMEDIATE` (`store_impl.py:189`); an outer wrap would raise `OperationalError: cannot start a transaction within a transaction`. Identity-consistent reporting is instead achieved by returning the `RETURNING` ids (REQ-005). Rejected alternative: removing the store's inner transaction — it is what makes the cross-table delete atomic today.
 - **Honest failure data**: on failure the transaction has rolled back, so failure `extra_data` reports committed deletions: zeros and `kept_active_session=None` (fixes the "requested id, not the computed one" claim). Success-path `data` is unchanged (computed `kept`, `:271-273`).
 - **Config errors: documented propagation (maintainer decision)**: `from_config` calls stay outside the `try`; `build_db_config` stays inside `purge_corrupt_archives`'s `try` whose handler catches only `OSError` — `ValueError` propagates in both modes. Docstrings of `vacuum_db`, `purge_old_sessions`, `purge_corrupt_archives`, `prune_old_memories` state it explicitly (Issue AC-2 second branch). Rejected alternative: absorbing config errors — hides persistent misconfiguration behind per-run logs (maintainer choice: propagate).
 - **`raise exc` in the error helper**: makes `_handle_maintenance_error` context-independent (`:79`); traceback still chains the original frames via `exc.__traceback__`.
@@ -162,9 +164,9 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Purge transaction and error-handler fixes (scripts/db/maintenance.py) | Pending | — | — | |
-| 2 | Delete-transaction ids as the single source (store_protocols.py, store_impl.py, maintenance.py) | Pending | — | — | |
-| 3 | Tests, docs and validation | Pending | — | — | |
+| 1 | Purge transaction and error-handler fixes (scripts/db/maintenance.py) | In Progress | — | — | procedure doc 20261116-072110_01 generated |
+| 2 | Delete-transaction ids as the single source (store_protocols.py, store_impl.py, maintenance.py) | In Progress | — | — | procedure docs 20261116-072110_01/_02/_03 generated |
+| 3 | Tests, docs and validation | In Progress | — | — | procedure docs 20261116-072110_04/_05 generated; docs/41_db/db_06 update stays a plan-level step (not a target-file row) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -174,7 +176,11 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261116-072110_01_scripts_db_maintenance.py.md | 1 | Procedure | Created | — | — |
+| implementations/20261116-072110_02_scripts_db_store_protocols.py.md | 2 | Procedure | Created | — | — |
+| implementations/20261116-072110_03_scripts_db_store_impl.py.md | 2 | Procedure | Created | — | — |
+| implementations/20261116-072110_04_tests_db_test_db_maintenance.py.md | 3 | Procedure | Created | — | — |
+| implementations/20261116-072110_05_tests_agent_commands_test_memory_data_ops.py.md | 3 | Procedure | Created | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -190,7 +196,9 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 |---|---|---|---|---|---|---|
 | REQ-001 | Problem bullet 1; Required Changes bullet 1 | scripts/db/maintenance.py | Phase 1 | AC-1 | Real-DB rollback-atomicity test | Verified by test (Issue reproduction; re-verified Step 2 at `:242-298`) |
 | REQ-002 | Problem bullet 2; Required Changes bullet 2 | scripts/db/maintenance.py | Phase 1 | AC-2 | DatabaseError mode tests | Verified by test (Issue reproduction; `:163` checked Step 2) |
-| REQ-003 | Problem bullet 3; Required Changes bullet 2 second half; Unresolved Question answered 2026-11-15 (propagate) | scripts/db/maintenance.py | Phase 1 | AC-3 | Config-propagation characterization tests | Explicit in code (`:259-260`, `:357-358`, `:383`) |
+| REQ-003 | Problem bullet 3; Required Changes bullet 2 second half; Unresolved Question answered 2026-11-15 (propagate) | scripts/db/maintenance.py | Phase 1 | AC-3 | Config-propagation characterization tests | Explicit in code (`:259`, `:355`, `:379`) |
 | REQ-004 | Problem bullet 4; Required Changes bullet 3 | scripts/db/maintenance.py | Phase 1 | AC-4 | Direct-call re-raise test | Explicit in code (`:79`) |
 | REQ-005 | Problem bullet 5; Required Changes bullet 4 | scripts/db/store_protocols.py, scripts/db/store_impl.py, scripts/db/maintenance.py | Phase 2 | AC-5 | Id-source test + not-called spy | Explicit in code (`store_impl.py:196-205`, `maintenance.py:400`) |
 | REQ-006 | Testing Expectations | tests/db/test_db_maintenance.py | Phase 3 | AC-1..AC-5 | New tests | Verified by test (gap confirmed this cycle: mode tests are OperationalError-only) |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-072110 -->
