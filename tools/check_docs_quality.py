@@ -239,16 +239,11 @@ def _jaccard_similarity_above(
     set_a: set[str], set_b: set[str], *, threshold: float = 0.85
 ) -> bool:
     """Return True if the two pre-tokenized word sets overlap above threshold."""
-    if not set_a or not set_b:
+    lo, hi = sorted((len(set_a), len(set_b)))
+    if not lo or lo / hi < threshold:  # Jaccard <= lo / hi
         return False
-
-    intersection = len(set_a & set_b)
-    union = len(set_a | set_b)
-
-    if union == 0:
-        return False
-
-    return (intersection / union) >= threshold
+    both = len(set_a & set_b)
+    return both / (lo + hi - both) >= threshold
 
 
 def _compute_section_similarity(
