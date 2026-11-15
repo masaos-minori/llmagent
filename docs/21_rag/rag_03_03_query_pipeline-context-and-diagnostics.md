@@ -44,7 +44,7 @@ Field definitions: `SearchDiagnostics` in `scripts/rag/models_result.py` (summar
 
 `RagPipeline.get_diagnostics()` returns a dict that groups: per-stage results and timings (`stage_results`, `timings`), the fetch result (`fetch_result`), the fusion mode (`fusion_mode`: `"rrf"` or `"dedup_only"`), fallback counters (`fallback_count`, `fallback_reasons`), refiner counters (see [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md)), and the `search_diagnostics` summary including `degraded`. The authoritative key set is the method itself.
 
-> **Note:** `fetch_result` is populated by `RagPipeline.run()` only. The `POST /v1/call_tool` result of the rag-pipeline MCP server has only `result` and `is_error`; the structured `selected_hits` field exists only on the direct `POST /rag_run_pipeline` response (see `mcp_04_03_rag-pipeline-and-cicd.md`).
+> **Note:** `fetch_result` is populated by `RagPipeline.run()` only. The `POST /v1/call_tool` result of the rag-pipeline MCP server has only `result` and `is_error`; the structured `selected_hits` field is pipeline-internal and is not exposed on any HTTP endpoint (the direct `POST /rag_run_pipeline` route was removed; see `mcp_04_03_rag-pipeline-and-cicd.md`).
 
 **Safe to call before `run()` / `augment()`** — returns empty/zero values. Callers should serialize using `orjson.dumps(pipeline.get_diagnostics())`.
 

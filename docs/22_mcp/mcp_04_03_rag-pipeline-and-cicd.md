@@ -31,7 +31,7 @@ Tool output contract:
 - `rag_run_pipeline` returns plain text: the `augmented_text` context block, or a fixed no-results message when it is empty.
 - `rag_debug_pipeline` returns a JSON summary (query, expanded queries, per-stage hit counts, elapsed time, `augmented_text`).
 - `rag_list_documents` and `rag_delete_document` (by `url`) operate over the RAG database; no ingestion or indexing tool is exposed.
-- Tools return text through `POST /v1/call_tool`. The direct endpoints `POST /rag_run_pipeline` and `POST /rag_debug_pipeline` return structured models in which `selected_hits` (the final selected chunks) is a response field; `selected_hits` is not part of the `/v1/call_tool` result.
+- Tools return text through `POST /v1/call_tool`, the server's only execution path; the direct `POST /rag_run_pipeline` and `POST /rag_debug_pipeline` endpoints were removed. `selected_hits` (the final selected chunks) is a pipeline-internal diagnostics field and is not part of the `/v1/call_tool` result.
 
 Configuration notes:
 
