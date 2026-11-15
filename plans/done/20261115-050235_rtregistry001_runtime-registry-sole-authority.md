@@ -58,6 +58,7 @@ This is a wiring and correctness risk (the LLM can be offered tools that are una
 
 ## Implementation Target Files
 **Freeze status**: Frozen (all rows `Verified`; `issue-to-plan` Step 8's Implementation Target Files Validation passed — see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze)).
+Amended 2026-11-15 (scope): replaced the Agent/MCP docs group row with the concrete target `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` after adversarial verification found only that doc has a single-runtime-tool-authority/fail-closed gap; `agent_10_01` moved from Reference Files to Implementation Target Files.
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
@@ -70,7 +71,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `tests/agent/commands/test_cmd_mcp.py` | Modify | Update assertions that expect the static tool count; assert registry totals. | REQ-005 | existing `/mcp status` command test | this file | Verified |
 | `tests/agent/commands/test_command_registry_consistency.py` | Modify | Update any static-count assertion in the command-registry test. | REQ-005 | command consistency test | this file | Verified |
 | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | Modify | Add a Known Deviations entry for the residual static fallback/count until the fix lands. | REQ-006 | ADR-003 is the sole-routing-authority ADR (checked in Step 2/3) | `check_known_deviation_sync.py` | Verified |
-| Agent/MCP docs describing `/mcp status`, `/mcp tools`, `/help`, tool authority (per `docs/00_index.md` → task mapping) | Modify | Document the single-authority intent, fail-closed behavior, and Needs Confirmation items. | REQ-006 | per `docs/00_index.md` MCP/agent task mapping | `check_docs_consistency.py --domain agent` | Verified |
+| `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | Modify | Document the single-runtime-tool-authority intent and the typed fail-closed behavior when `RuntimeToolRegistry` is absent (REQ-006/AC-1/AC-3), which the current startup/health doc omits. | REQ-006 | current doc covers startup-validation stages, severity mapping, `tool_definitions` drift severity (line 70), ADR-004 posture fail-closed (line 74), but not runtime-tool-authority single-authority/fail-closed intent | `check_docs_consistency.py --domain agent` | Verified |
 
 Rules:
 - One row per file. No directory, glob pattern, component/module name, file group, or vague phrase appears as a row.
@@ -85,7 +86,6 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | `scripts/shared/runtime_tool_registry.py` | `diagnostics()` shape (LLM-visible/disabled/unavailable totals) the displays must report. | REQ-002, REQ-003 |
 | `scripts/shared/tool_constants.py` | The contradictory routing comment (lines 122-126); read to understand current state, edit assigned to `sideeffect001`. | REQ-004, Scope |
 | `scripts/services/tool_validation.py` | `_check_tool_definitions` drift validation still consumes `tool_definitions`; must remain intact. | REQ-004 |
-| `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | Startup/validation behavior the fail-closed change touches. | REQ-006 |
 | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` (Known Deviations section only) | Where the interim deviation is registered. | REQ-006 |
 
 ## Acceptance Criteria
@@ -128,7 +128,7 @@ Update ADR-003 Known Deviations and Verification, and the agent and MCP document
 | `tests/agent/commands/test_cmd_mcp.py` | Modify | command test suite | 3 | shared (test suite) | not applicable (rsynced) |
 | `tests/agent/commands/test_command_registry_consistency.py` | Modify | command test suite | 3 | shared (test suite) | not applicable (rsynced) |
 | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | Modify | ADR Known Deviations | 8 | N/A | N/A |
-| Agent/MCP docs (per docs/00_index.md) | Modify | operator/authorship docs | 5 | N/A | N/A |
+| `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | Modify | startup/observability doc | N/A | N/A | N/A |
 
 ## Design
 Path B: affects > 3 files and changes runtime tool-exposure behavior (introduces a typed fail-closed contract on the LLM tool list).
@@ -149,8 +149,9 @@ Each step cites the exact file path(s) it touches by referencing rows of `Implem
    - [ ] Read `/help` tool count from the registry in `scripts/agent/commands/registry.py`. [`scripts/agent/commands/registry.py`] (REQ-003)
 3. **Phase 3: Comment + tests + docs**
    - [ ] Revise `ToolConfig.tool_definitions` comment after the last runtime consumer is gone. [`scripts/agent/config_dataclasses.py`] (REQ-004)
+   - [ ] Register the interim deviation in ADR-003. [`docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`] (REQ-006)
+   - [ ] Document single-runtime-tool-authority intent and fail-closed behavior in the startup/health doc. [`docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`] (REQ-006)
    - [ ] Update static-count command tests; add registry-total and typed-error tests. [`tests/agent/commands/test_cmd_mcp.py`, `tests/agent/commands/test_command_registry_consistency.py`] (REQ-005)
-   - [ ] Register the interim deviation in ADR-003 and update the agent/MCP docs. [`docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, agent/MCP docs] (REQ-006)
 4. **Phase 4: Validation suite**
    - [ ] Run the full validation sequence (`rules/toolchain.md`): ruff, mypy, import-linter, bandit, targeted pytest, `check_known_deviation_sync.py`, `check_docs_consistency.py --domain agent`.
 
@@ -177,9 +178,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fail-closed LLM tool list (REQ-001) | Pending | — | — | `llm_turn_runner.py` |
-| 2 | Operator displays read the registry (REQ-002/003) | Pending | — | — | `cmd_mcp.py`, `registry.py` |
-| 3 | Comment + tests + docs (REQ-004/005/006) | Pending | — | — | `config_dataclasses.py`, tests, ADR-003, agent/MCP docs |
+| 1 | Fail-closed LLM tool list (REQ-001) | In Progress | — | — | `llm_turn_runner.py` |
+| 2 | Operator displays read the registry (REQ-002/003) | In Progress | — | — | `cmd_mcp.py`, `registry.py` |
+| 3 | Comment + tests + docs (REQ-004/005/006) | In Progress | — | — | `config_dataclasses.py`, tests, ADR-003, agent/MCP docs |
 | 4 | Validation suite | Pending | — | — | rules/toolchain.md |
 
 ### Blocker Log
@@ -190,7 +191,14 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261115-090843_01_scripts_agent_llm_turn_runner.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-090843_02_scripts_agent_commands_cmd_mcp.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261115-090843_03_scripts_agent_commands_registry.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261115-090843_04_scripts_agent_config_dataclasses.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261115-090843_05_tests_agent_commands_test_cmd_mcp.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261115-090843_06_tests_agent_commands_test_command_registry_consistency.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261115-090843_07_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261115-090843_08_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health_md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -199,7 +207,7 @@ N/A: no release unit
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261115-050235
-- **Related target files**: `scripts/agent/llm_turn_runner.py`, `scripts/agent/commands/cmd_mcp.py`, `scripts/agent/commands/registry.py`, `scripts/agent/config_dataclasses.py`, `tests/agent/commands/test_cmd_mcp.py`, `tests/agent/commands/test_command_registry_consistency.py`, `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`
+- **Related target files**: `scripts/agent/llm_turn_runner.py`, `scripts/agent/commands/cmd_mcp.py`, `scripts/agent/commands/registry.py`, `scripts/agent/config_dataclasses.py`, `tests/agent/commands/test_cmd_mcp.py`, `tests/agent/commands/test_command_registry_consistency.py`, `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`
 
 ### Requirement Traceability
 
@@ -210,4 +218,4 @@ N/A: no release unit
 | REQ-003 | Required Changes (/help reads static defs) | `scripts/agent/commands/registry.py` | Phase 2 | AC-2 | registry consistency test | Confirmed by repository evidence |
 | REQ-004 | Required Changes (revise ToolConfig comments) | `scripts/agent/config_dataclasses.py` | Phase 3 | AC-4 | comment review | Confirmed by repository evidence |
 | REQ-005 | Testing Expectations | `tests/agent/commands/test_cmd_mcp.py`, `test_command_registry_consistency.py` | Phase 3 | N/A: test-only | targeted pytest | Confirmed by repository evidence |
-| REQ-006 | Documentation Impact | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, agent/MCP docs | Phase 3 | AC-5 | check_known_deviation_sync, check_docs_consistency | Confirmed by repository evidence |
+| REQ-006 | Documentation Impact | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | Phase 3 | AC-5 | check_known_deviation_sync, check_docs_consistency | Confirmed by repository evidence |

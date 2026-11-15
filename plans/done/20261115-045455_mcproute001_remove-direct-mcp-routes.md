@@ -71,12 +71,12 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `scripts/mcp_servers/file/delete_server.py` | Modify | Delete the 2 direct POST execution route handlers (`/delete_file`, `/delete_directory`). | REQ-002 | `@app.post` handlers at lines 131-156 (checked in Step 2/3) | route-inventory test (REQ-007) | Verified |
 | `scripts/mcp_servers/shell/shell_server.py` | Modify | Delete the `/shell_run` direct POST execution route handler. | REQ-002 | `@app.post("/shell_run")` at line 143 calls `_service` directly (checked in Step 2/3) | `tests/mcp_servers/shell/test_shell_server_endpoints.py` (posts `/shell_run`) | Verified |
 | `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` | Modify | Delete the `/rag_run_pipeline` and `/rag_debug_pipeline` direct POST execution route handlers. | REQ-002 | `@app.post` handlers at lines 182-210 (checked in Step 2/3) | `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py` | Verified |
-| `scripts/mcp_servers/github/github_server_file.py` | Modify | Delete the 4 direct POST execution route handlers. | REQ-003 | `@router.post` at lines 29-110 (checked in Step 2/3) | `tests/mcp_servers/github/test_server_file.py` | Verified |
-| `scripts/mcp_servers/github/github_server_issues.py` | Modify | Delete the 5 direct POST execution route handlers. | REQ-003 | `@router.post` at lines 31-115 (checked in Step 2/3) | `tests/mcp_servers/github/test_server_issues.py` | Verified |
-| `scripts/mcp_servers/github/github_server_pull_requests.py` | Modify | Delete the 6 direct POST execution route handlers. | REQ-003 | `@router.post` at lines 33-160 (checked in Step 2/3) | `tests/mcp_servers/github/test_server_pull_requests.py` | Verified |
-| `scripts/mcp_servers/github/github_server_repository.py` | Modify | Delete the 6 direct POST execution route handlers. | REQ-003 | `@router.post` at lines 33-160 (checked in Step 2/3) | `tests/mcp_servers/github/test_server_repository.py` | Verified |
+| `scripts/mcp_servers/github/github_server_file.py` | Modify | Delete the 4 direct POST execution route handlers. | REQ-003 | `@router.post` decorators at lines 29, 46, 64, 82; handlers span 29-96 (re-checked 2026-11-15) | `tests/mcp_servers/github/test_server_file.py` | Verified |
+| `scripts/mcp_servers/github/github_server_issues.py` | Modify | Delete the 5 direct POST execution route handlers. | REQ-003 | `@router.post` decorators at lines 31, 49, 66, 83, 100; handlers span 31-114 (re-checked 2026-11-15) | `tests/mcp_servers/github/test_server_issues.py` | Verified |
+| `scripts/mcp_servers/github/github_server_pull_requests.py` | Modify | Delete the 6 direct POST execution route handlers. | REQ-003 | `@router.post` decorators at lines 33, 51, 68, 85, 102, 119; handlers span 33-134 (re-checked 2026-11-15) | `tests/mcp_servers/github/test_server_pull_requests.py` | Verified |
+| `scripts/mcp_servers/github/github_server_repository.py` | Modify | Delete the 6 direct POST execution route handlers. | REQ-003 | `@router.post` decorators at lines 33, 50, 67, 84, 101, 118; handlers span 33-132 (re-checked 2026-11-15) | `tests/mcp_servers/github/test_server_repository.py` | Verified |
 | `scripts/mcp_servers/server.py` | Modify | Add the shared request-boundary idempotency-key enforcement for side-effecting tools (candidate boundary where `extract_request_context` lives). | REQ-004 | `extract_request_context()` returns `idempotency_key=""` when header absent (lines 151-166) (checked in Step 2/3) | tests for keyless keyless side-effect rejection (REQ-007) | Verified |
-| `scripts/mcp_servers/models.py` | Verify/Modify | Confirm whether `/v1/call_tool` handlers reuse direct-route request/response models; delete unreused ones. | REQ-005 | `CallToolRequest`/`CallToolResponse` are shared (lines 15/40); route-specific models resolved during implementation | REQ-005 | Verified |
+| `scripts/mcp_servers/models.py` | Verify | Confirm `/v1/call_tool` handlers reuse only the shared models; confirm direct-route request/response models are NOT in this file (they live in per-domain `*_models.py`, consumed by the service/dispatch path, so they stay). No deletion required. | REQ-005 | `CallToolRequest`/`CallToolResponse`/`McpTool`/`McpToolProperty` are the only models here (lines 15/40/51/65); route-specific models (`ShellRunRequest`, `WriteFileRequest`, `GetFileContentsResponse`, ...) live in `shell/shell_models.py`, `file/{read,write}_models.py`, `github/github_models*.py` and are consumed by the service layer (checked in Step 3a) | REQ-005 | Verified |
 | `tests/mcp_servers/shell/test_shell_server_endpoints.py` | Modify | Update or remove tests that post to the removed `/shell_run` route. | REQ-006 | `client.post("/shell_run", ...)` at lines 73/86/94 (checked in Step 2/3) | this file | Verified |
 | `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py` | Modify | Update or remove tests that post to the removed RAG routes. | REQ-006 | route-level posts to `/rag_run_pipeline`/`/rag_debug_pipeline` (checked in Step 2/3) | this file | Verified |
 | `tests/mcp_servers/github/test_server_file.py` | Modify | Update or remove tests that post to the removed GitHub file routes. | REQ-006 | `client.post("/get_file_contents", ...)` etc. (checked in Step 2/3) | this file | Verified |
@@ -134,7 +134,7 @@ Update `docs/22_mcp/mcp_02_01_endpoints-and-transport.md` (identified via `docs/
 | `UNK-02` | Whether keyless read-only `/v1/call_tool` calls stay allowed (documented/tested) or require a key. | Maintainer policy decision. | Default: allow keyless read-only, documented and tested (`AC-3`). | False |
 | `UNK-03` | Rejection status code (400 vs 422) for a keyless side-effecting request. | Maintainer preference. | Choose 422 (validation error) unless the owner prefers 400. | False |
 | `UNK-04` | Disposition of `GET /list_allowed_directories`: keep (sensitive diagnostic, resolves allowlist paths) or remove. | Maintainer decision on path disclosure. | Record explicit decision; if kept, mark it as the sole retained non-execution diagnostic. | False |
-| `UNK-05` | Which direct-route request/response models are unreused by `/v1/call_tool` handlers. | Resolved during implementation by diffing route handlers against dispatch handlers. | Delete only confirmed-unused models; keep shared `CallToolRequest`/`CallToolResponse`. | False |
+| `UNK-05` | Which direct-route request/response models are unreused by `/v1/call_tool` handlers. | Route-specific models live in per-domain `*_models.py` (not `models.py`) and are consumed by the service/dispatch path. | Confirm `models.py` keeps only shared models; route-specific models stay because the service layer imports them. No deletion. | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor` columns. The `File` column here MUST be a subset of `Implementation Target Files`' rows.
@@ -202,10 +202,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove direct execution routes (file, shell, RAG, GitHub) | Pending | — | — | REQ-001/002/003 |
-| 2 | Shared idempotency-key enforcement + model cleanup | Pending | — | — | REQ-004/005 |
-| 3 | Caller migration + route-inventory tests | Pending | — | — | REQ-006/007 |
-| 4 | Documentation update | Pending | — | — | REQ-008 |
+| 1 | Remove direct execution routes (file, shell, RAG, GitHub) | In Progress | — | — | REQ-001/002/003 |
+| 2 | Shared idempotency-key enforcement + model cleanup | In Progress | — | — | REQ-004/005 |
+| 3 | Caller migration + route-inventory tests | In Progress | — | — | REQ-006/007 |
+| 4 | Documentation update | In Progress | — | — | REQ-008 |
 | 5 | Validation suite | Pending | — | — | rules/toolchain.md |
 
 ### Blocker Log
@@ -216,7 +216,19 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261115-084338_01_scripts_mcp_servers_file_read_server.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_02_scripts_mcp_servers_file_write_server.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_03_scripts_mcp_servers_file_delete_server.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_04_scripts_mcp_servers_shell_shell_server.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_05_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_06_scripts_mcp_servers_github_github_server_file.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_07_scripts_mcp_servers_github_github_server_issues.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_08_scripts_mcp_servers_github_github_server_pull_requests.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_09_scripts_mcp_servers_github_github_server_repository.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_10_scripts_mcp_servers_server.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_11_scripts_mcp_servers_models.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_18_tests_mcp_servers_conftest.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261115-084338_19_docs_22_mcp_mcp_02_01_endpoints-and-transport.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
