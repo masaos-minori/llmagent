@@ -78,7 +78,9 @@ jobs:
           # Pinned to the release production runs, so the extension does not drift.
           SQLITE_VEC_REF=v0.1.10-alpha.4 bash deploy/build_sqlite_vec.sh
       - name: Run tests
-        run: uv run coverage run -m pytest -v tests/
+        # pytest-cov measures and combines xdist worker processes; plain
+        # `coverage run -m pytest -n ...` would not. All tests run, none deselected.
+        run: uv run pytest -v -n logical --cov=scripts --cov-report= tests/
       - name: Coverage report
         run: |
           uv run coverage xml
