@@ -13,6 +13,13 @@ Medium (Issue Priority)
 ## Background
 From the Source Issue (F-004), re-verified against the post-pull tree: `apply_connection_pragmas` (`scripts/db/helper.py:30-42`) runs `PRAGMA journal_mode=WAL` and `PRAGMA synchronous=NORMAL` on **every** open (`write_mode` gates only `foreign_keys`); `SQLiteHelper._connect` uses a plain `sqlite3.connect` (`helper.py:145-149`) which **creates** a missing file. `_run_integrity_check` (`recovery.py:91-106`) and `_verify_domain_identity` (`recovery.py:157-176`) open their subject through that path, so: a missing path probes "healthy" and is created; a rollback-journal backup is converted to WAL and its bytes change; a `0444` backup fails the pragma with `attempt to write a readonly database` and is classified `PERMISSION_FAILURE` → `bad_backup`. Consumers that probe archives/backups: `rotation._verify_archive` (`rotation.py:72,78`), the drill (`recovery_drill.py:97-98,131`), `_backup_is_usable` (`recovery.py:180-188`). `docs/10_adr/adr_02_05_008...:308` even documents the mutation as a known gap ("a rollback-journal file is switched to WAL when opened and is not covered"). Adversarial finding: `run_integrity_check`'s docstring claims "Consumers are the migration gate (rows 01/06)" — no migration-gate consumer exists (grep: only `rotation.py` and `recovery_drill.py` import it); stale claim to fix in this Plan.
 
+## Plan-Document Correction (re-verification at procedure generation, 2026-11-15)
+
+- All Background and target-file claims re-verified this cycle against the current tree (no code changes have landed since the plan was frozen): `helper.py:38-42` unconditional `journal_mode=WAL`/`synchronous=NORMAL` (`:41-42` gate only `foreign_keys`); `helper.py:145-149` plain `sqlite3.connect` creates a missing file; `recovery.py` `DbCondition` enum `:31-36`, `_run_integrity_check` `:91-106` (open at `:99`), `_verify_domain_identity` `:157-176` (open at `:167`), `_backup_is_usable` `:180-188` (probe at `:187-188`), stale "migration gate" docstring claim `:214-216` (grep: `run_integrity_check`/`verify_domain_identity` consumers are only `rotation.py:72,78` and `recovery_drill.py:97-98,131` — the claim is confirmed stale); `_NO_RESTORE_CONDITIONS` `:447`; `_result_for_condition` `:456`; `recovery_verification.py:141` default open; drill's own ro reads at `recovery_drill.py:78`; ADR citations at `:123` (Decision Detail #14 enumeration), `:257` (INV-13), `:308` (dry-run test citation "a rollback-journal file is switched to WAL when opened and is not covered"); `db_07` enum text `:41`, diagnosis bullets `:45-52`, dry-run bullets `:75-76`, recovery-contract bullets `:65-66`. No claim disconfirmed. `test_recover_permission_failure` (`tests/db/test_db_recovery.py:112`) patches `_run_integrity_check` directly (not file permissions), so the read-only probe change does not break it; the `mock_sqlite_helper` fixture (`:32-40`) patches the helper class with MagicMock, which tolerates new kwargs.
+- Correction 1 (docs anchor drift): after Plan 003's docs procedures (`implementations/20261115-082016_4`/`_5`) land, the ADR line citations 123/257/308 shift (Decision Detail #21 and the new Recovery Policy Matrix row insert lines before them) and `db_07` lines 34/63 shift (retention text). Plan 004's docs procedures must anchor by content (Decision Detail #14 text, INV-13 text, the dry-run citation parenthetical, the `db_07` enum sentence at "The enum distinguishes:" and the recovery-contract bullets) and re-read the landed 003 wording before editing.
+- Correction 2 (overlap invisible to the scan): Plan 001's procedure `implementations/20261115-075008_1_scripts_db_recovery_verification.py.md` edits the same `recovery_verification.py:141` open call that REQ-005 makes `read_only` (it threads the `sqlite_vec_so` kwarg); `tools/check_plan_target_overlaps.py` no longer reports it because Plan 001 is archived. Judgment: **sequencing** 001 → 004, compatible — the landed call composes both kwargs (`load_vec` on a read-only connection is legal per Design). Overlap scan re-run this cycle: 10 findings; 004 rows match the recorded judgments (`helper.py`/`test_sqlite_helper.py` with Plan 005; `recovery.py` with Plan 008 name-construction lines only; `db_07` with Plans 008/009; `test_db_maintenance.py` with Plans 006/007/008).
+- Correction 3 (test-fake signature): `tests/db/test_sqlite_helper.py` defines a local fake helper (`_InMemoryHelper`, `:16`) whose `open` (`:23-25`) mirrors the current `SQLiteHelper.open` kwargs; the REQ-001 unit tests must extend this fake with the `read_only` kwarg, otherwise fake-based calls raise `TypeError`.
+
 ## Problem
 Verification mutates its subject (backup bytes, journal mode, sibling sidecars, created files) and reports a missing database as HEALTHY, sending `recover_corruption` down the vacuum/dry-run branch — under `dry_run=True` too.
 
@@ -158,10 +165,10 @@ Yes. `REQ-007` drives `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Helper read-only open (scripts/db/helper.py, tests/db/test_sqlite_helper.py) | Pending | — | — | |
-| 2 | Probe call sites and MISSING classification (scripts/db/recovery.py, scripts/db/recovery_verification.py) | Pending | — | — | |
-| 3 | Invariance and policy tests (tests/db/test_db_recovery.py, tests/db/test_db_maintenance.py) | Pending | — | — | |
-| 4 | Documentation, validation & deployment hand-off (docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md, docs/41_db/db_07_api_and_operations-recovery-and-reference.md) | Pending | — | — | |
+| 1 | Helper read-only open (scripts/db/helper.py, tests/db/test_sqlite_helper.py) | In Progress | — | — | Procedure generated: implementations/20261115-084603_1_scripts_db_helper.py.md, implementations/20261115-084603_4_tests_db_test_sqlite_helper.py.md |
+| 2 | Probe call sites and MISSING classification (scripts/db/recovery.py, scripts/db/recovery_verification.py) | In Progress | — | — | Procedure generated: implementations/20261115-084603_2_scripts_db_recovery.py.md, implementations/20261115-084603_3_scripts_db_recovery_verification.py.md |
+| 3 | Invariance and policy tests (tests/db/test_db_recovery.py, tests/db/test_db_maintenance.py) | In Progress | — | — | Procedure generated: implementations/20261115-084603_5_tests_db_test_db_recovery.py.md, implementations/20261115-084603_6_tests_db_test_db_maintenance.py.md |
+| 4 | Documentation, validation & deployment hand-off (docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md, docs/41_db/db_07_api_and_operations-recovery-and-reference.md) | In Progress | — | — | Procedure generated: implementations/20261115-084603_7_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md, implementations/20261115-084603_8_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -171,7 +178,14 @@ Yes. `REQ-007` drives `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (c
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261115-084603_1_scripts_db_helper.py.md | 1 | Procedure | Created | — | — |
+| implementations/20261115-084603_2_scripts_db_recovery.py.md | 2 | Procedure | Created | — | — |
+| implementations/20261115-084603_3_scripts_db_recovery_verification.py.md | 2 | Procedure | Created | — | — |
+| implementations/20261115-084603_4_tests_db_test_sqlite_helper.py.md | 1 | Procedure | Created | — | — |
+| implementations/20261115-084603_5_tests_db_test_db_recovery.py.md | 3 | Procedure | Created | — | — |
+| implementations/20261115-084603_6_tests_db_test_db_maintenance.py.md | 3 | Procedure | Created | — | — |
+| implementations/20261115-084603_7_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 4 | Procedure | Created | — | — |
+| implementations/20261115-084603_8_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Created | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -192,3 +206,5 @@ Yes. `REQ-007` drives `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (c
 | REQ-005 | Target Files list; probe semantics | scripts/db/recovery_verification.py | Phase 2 | AC-1 | dir-unchanged test for logical stage | Explicit in code (Step 2: recovery_verification.py:141) |
 | REQ-006 | Required Changes bullet 4; Testing Expectations | tests/db/test_db_recovery.py, tests/db/test_db_maintenance.py, tests/db/test_sqlite_helper.py | Phase 1, 3 | AC-1..AC-3 | New tests | Pending |
 | REQ-007 | Documentation Impact; adversarial finding F5 (stale docstring consumer claim) | scripts/db/recovery.py, docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md, docs/41_db/db_07_api_and_operations-recovery-and-reference.md | Phase 2, 4 | AC-4 | `check_docs_consistency.py --domain db` | Explicit in code (Step 2: recovery.py:214-216; ADR 123/257/308) |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261115-084603 -->
