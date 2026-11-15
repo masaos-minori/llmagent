@@ -176,6 +176,12 @@ Service checks accumulate results in `StartupValidationResult`, and startup is a
 
 Once shutdown has started, `ensure_ready` and `restart` are ignored, and `start_http_subprocess` raises a typed suppression error instead of returning silently.
 
+A failed HTTP subprocess start is recorded in router state per server key. While the cooldown window after that failure is open, `ensure_ready` raises `ServerCooldownError` reporting the remaining cooldown, and a manual `restart` is ignored until the window elapses; a successful start clears the recorded failure. Rejections are surfaced in operations: [agent_10_05](agent_10_05_operations-and-observability-monitoring.md) Troubleshooting.
+
+Transition validation in `_set_state` is advisory: an invalid transition attempt is logged as a warning and the requested state is still stored, so stored states alone do not imply that a legal transition occurred.
+
+Termination ownership is process-level: each HTTP subprocess is started in its own process group/session, and shutdown terminates it with `os.killpg` using the group ID recorded per server key in `_http_pgids`. This covers the subprocess only, not in-process threads or async tasks.
+
 ## Keywords
 
 - agent

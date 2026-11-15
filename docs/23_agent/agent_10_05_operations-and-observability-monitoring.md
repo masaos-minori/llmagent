@@ -27,6 +27,7 @@ related:
 | LLM Stream Interruption (Partial Completion) | `/stats` shows `partials > 0`. Agent log: `WARNING Partial LLM completion saved: {kind}` | Check details in `session_diagnostics` (`kind=partial_completion`). Verify LLM endpoint stability. |
 | Context Compression (HistoryManager) | `/stats` shows `Compress: N > 0`. Agent log: `INFO History compressed: %s messages summarized` | Increase `context_char_limit` or reduce context size. |
 | Max Tool Turns Reached | Agent log: `WARNING Reached max_tool_turns=%s` | Increase `max_tool_turns` in `config/agent.toml`. |
+| Dedup Protection Degraded (MCP dedup store) | Dispatcher WARNING-level log on any of: dedup store unavailable at init, dedup lookup failure, dedup store write failure. The tool-audit payload records `dedup_state="store_error"` when a degraded call carries the marker; refused calls report `error_type="dedup_store_error"`. | See the Replay Decision Table in [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md) for the retry-class-dependent degradation behavior, and the Recovery Policy Matrix in [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) for the `mcp_dedup.sqlite` disposable-cache classification. |
 
 For the formal partial completion model, see [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md).
 
