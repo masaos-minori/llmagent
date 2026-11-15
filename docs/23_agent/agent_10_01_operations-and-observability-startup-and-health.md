@@ -50,6 +50,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 - Workflow definition files must always be loaded at startup. If they are missing or invalid, startup fails. There is no fallback to direct execution.
 - Unreachable LLM/embedding health probes are treated as startup failure (FATAL). A failed embedding probe does not switch the memory layer to `fts-only`; that mode is selected only by configuration (see `agent_11_01_memory-overview-and-modes.md`).
 - Embedding dimension mismatches are treated as startup failures to prevent vector search data corruption.
+- LLM tool exposure reports a single runtime authority, `RuntimeToolRegistry` (ADR-003, sole routing authority). When the registry is absent after startup, `LLMTurnRunner._stream_llm()` fails closed by raising a typed configuration/wiring error instead of returning the static `ctx.cfg.tool.tool_definitions` list (`AC-1`, `AC-3`); an empty registry (constructed with zero tools) remains a valid no-tools surface where component mandatoriness permits (`UNK-01`).
 - During rolling upgrades for session startup, the new process's startup is verified before the old process is shut down; if issues arise, the old process is maintained.
 
 ## Operational Notes

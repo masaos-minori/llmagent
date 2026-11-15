@@ -123,10 +123,22 @@ class _McpMixin(MixinBase):
     async def _cmd_mcp_status(self) -> None:
         """Print MCP server status table."""
         ctx = self._ctx
+        tool_registry = ctx.services_required.runtime_tools
         svc = McpStatusService(ctx)
-        self._out.write(
-            f"  Tools       {len(ctx.cfg.tool.tool_definitions)} (from config/tools_definitions.toml)"
-        )
+        if tool_registry is None:
+            self._out.write("  Tools       — (no RuntimeToolRegistry available)")
+        else:
+            diag_rows = tool_registry.diagnostics()
+            llm_visible = sum(1 for r in diag_rows if r.get("enabled_for_llm"))
+            disabled = sum(1 for r in diag_rows if r.get("disabled_reason"))
+            unavailable = sum(
+                1 for r in diag_rows if r.get("disabled_reason") == "unavailable"
+            )
+            self._out.write(
+                f"  Tools       {llm_visible} LLM-visible / "
+                f"{disabled} disabled / {unavailable} unavailable "
+                "(from RuntimeToolRegistry)"
+            )
         self._out.write("")
         rows = await svc.probe_all()
         mcp_headers = [
@@ -240,7 +252,6 @@ class _McpMixin(MixinBase):
                 top_triggers = sorted(trigger_counts.items(), key=lambda x: -x[1])[:5]
                 trigger_str = ", ".join(f"{k} ({v})" for k, v in top_triggers)
                 self._out.write(f"    Top triggers: {trigger_str}")
-        tool_registry = ctx.services_required.runtime_tools
         if tool_registry is not None:
             diag_rows = tool_registry.diagnostics()
             if diag_rows:

@@ -360,11 +360,12 @@ class LLMTurnRunner:
         ctx = self._ctx
         logger.debug("_stream_llm: turn=%d url=%s", turn, llm_url)
         registry = ctx.services_required.runtime_tools
-        tool_defs = (
-            registry.llm_tool_definitions()
-            if registry is not None
-            else ctx.cfg.tool.tool_definitions
-        )
+        if registry is None:
+            raise RuntimeError(
+                "RuntimeToolRegistry is absent; the runtime tool registry is the "
+                "sole source of LLM-facing tool definitions (no config-driven fallback)."
+            )
+        tool_defs = registry.llm_tool_definitions()
         history = ctx.conv.history
         if self._control_entry is not None:
             # Per-request copy: the control entry reaches this turn's LLM calls

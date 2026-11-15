@@ -59,9 +59,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-185234 | 20261115-185234 | REQ-006: added single-runtime-tool-authority/fail-closed bullet under Key Constraints; check_known_deviation_sync N/A (ADR unchanged) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-185234 | 20261115-185234 | check_docs_consistency --domain agent, check_docs_quality/structure/content_policy/japanese all clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-185234 | 20261115-185234 | doc-only change; validation passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

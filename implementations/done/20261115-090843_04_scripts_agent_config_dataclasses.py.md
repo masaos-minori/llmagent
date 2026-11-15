@@ -58,8 +58,8 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Depends on REQ-001/002/003 removing the runtime readers |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-184507 | 20261115-184507 | Depends on REQ-001/002/003 removing the runtime readers REQ-004: tool_definitions comment no longer claims runtime readers; ruff clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-184507 | 20261115-184507 | comment-only; ruff format+check clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

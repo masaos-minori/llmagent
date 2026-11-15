@@ -84,6 +84,38 @@ def test_help_output_mentions_all_command_names() -> None:
     assert not missing, f"Commands missing from /help output: {missing}"
 
 
+def _help_footer(captured: list[str]) -> str:
+    """Return the 'Tools: ...' footer line from captured _out writes."""
+    return next(line for line in captured if line.startswith("Tools:"))
+
+
+def test_help_tools_count_reads_runtime_registry() -> None:
+    """The /help tool count is the LLM-visible total from
+    RuntimeToolRegistry.diagnostics(), not the static config list."""
+    registry = _make_registry()
+    mock_registry = MagicMock()
+    mock_registry.diagnostics.return_value = [
+        {"name": "a", "enabled_for_llm": True},
+        {"name": "b", "enabled_for_llm": True},
+        {"name": "c", "disabled_reason": "offline", "enabled_for_llm": False},
+    ]
+    registry._ctx.services_required.runtime_tools = mock_registry
+    captured: list[str] = []
+    registry._out.write.side_effect = lambda s: captured.append(str(s))
+    registry._cmd_help()
+    assert "Tools: 2" in _help_footer(captured)
+
+
+def test_help_tools_count_placeholder_when_registry_absent() -> None:
+    """The /help tool count shows a neutral placeholder when the registry is absent."""
+    registry = _make_registry()
+    registry._ctx.services_required.runtime_tools = None
+    captured: list[str] = []
+    registry._out.write.side_effect = lambda s: captured.append(str(s))
+    registry._cmd_help()
+    assert "Tools: N/A" in _help_footer(captured)
+
+
 # --- Handler lookup correctness ---
 
 

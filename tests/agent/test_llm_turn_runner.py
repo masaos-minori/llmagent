@@ -335,19 +335,18 @@ class TestStreamLlmToolDefs:
         assert tool_defs[0]["name"] == "live_tool"
 
     @pytest.mark.asyncio
-    async def test_registry_is_none_falls_back_to_static_config(
+    async def test_registry_is_none_raises_no_static_fallback(
         self, runner: LLMTurnRunner
     ) -> None:
-        """When registry is None, _stream_llm falls back to ctx.cfg.tool.tool_definitions."""
+        """When registry is None, _stream_llm raises instead of falling back to
+        ctx.cfg.tool.tool_definitions (runtime registry is the sole authority)."""
         runner._ctx.services_required.runtime_tools = None
-        static_tools = [{"name": "static_tool", "function": {"name": "static_tool"}}]
-        runner._ctx.cfg.tool.tool_definitions = static_tools
+        runner._ctx.cfg.tool.tool_definitions = [
+            {"name": "static_tool", "function": {"name": "static_tool"}},
+        ]
 
-        await runner._stream_llm("http://llm", 0)
-
-        tool_defs = runner._ctx.services_required.llm.stream.call_args.args[2]
-        assert len(tool_defs) == 1
-        assert tool_defs[0]["name"] == "static_tool"
+        with pytest.raises(RuntimeError):
+            await runner._stream_llm("http://llm", 0)
 
     @pytest.mark.asyncio
     async def test_registry_not_none_correct_shape(self, runner: LLMTurnRunner) -> None:

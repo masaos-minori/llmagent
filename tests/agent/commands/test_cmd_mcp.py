@@ -112,7 +112,7 @@ class TestCmdMcpStatus:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "2 (from config/tools_definitions.toml)" in out
+        assert "(no RuntimeToolRegistry available)" in out
         assert "OK" in out
         assert "svc" in out
 
@@ -643,8 +643,79 @@ class TestCmdMcpStatusToolDiagnostics:
         out = capsys.readouterr().out
         assert "Tools (RuntimeToolRegistry)" not in out
 
+    @pytest.mark.asyncio
+    async def test_status_line_reports_registry_totals(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """The Tools line reports LLM-visible / disabled / unavailable totals from
+        RuntimeToolRegistry.diagnostics(), not the static config count."""
+        ctx = _Ctx({"svc": _http()})
+        registry = _registry_with(
+            RuntimeTool(
+                name="read_file",
+                server_key="file_read",
+                server_url="http://127.0.0.1:8001",
+                description="Read a file",
+                input_schema={"type": "object"},
+                raw_definition={},
+                status="active",
+                is_write=False,
+                requires_serial=True,
+                resource_scope_kind="",
+                resource_scope_keys=(),
+                agent_safety_tier="READ_ONLY",
+                enabled_for_llm=True,
+                capabilities=(),
+            ),
+            RuntimeTool(
+                name="git_push",
+                server_key="git",
+                server_url="http://127.0.0.1:8002",
+                description="Push to git",
+                input_schema={"type": "object"},
+                raw_definition={},
+                status="inactive",
+                is_write=True,
+                requires_serial=True,
+                resource_scope_kind="",
+                resource_scope_keys=(),
+                agent_safety_tier="WRITE_DANGEROUS",
+                enabled_for_llm=False,
+                capabilities=(),
+            ),
+            RuntimeTool(
+                name="blocked_tool",
+                server_key="blocked",
+                server_url="http://127.0.0.1:8003",
+                description="Blocked tool",
+                input_schema={"type": "object"},
+                raw_definition={"disabled_reason": "unavailable"},
+                status="unavailable",
+                is_write=False,
+                requires_serial=True,
+                resource_scope_kind="",
+                resource_scope_keys=(),
+                agent_safety_tier="READ_ONLY",
+                enabled_for_llm=False,
+                capabilities=(),
+            ),
+        )
+        ctx.services_required.runtime_tools = registry
+        mcp = _Mcp(ctx)
 
-class TestAppServicesMemoryOptional:
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        # 1 LLM-visible (read_file), 2 disabled (git_push + blocked_tool),
+        # 1 unavailable (blocked_tool).
+        assert "1 LLM-visible / 2 disabled / 1 unavailable" in out
+        assert "config/tools_definitions.toml" not in out
+
     def test_memory_is_none_when_not_enabled(self) -> None:
         from unittest.mock import MagicMock
 

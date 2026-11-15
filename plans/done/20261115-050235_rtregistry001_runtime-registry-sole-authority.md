@@ -178,7 +178,7 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fail-closed LLM tool list (REQ-001) | In Progress | — | — | `llm_turn_runner.py` |
+| 1 | Fail-closed LLM tool list (REQ-001) | Completed | — | 20261115-174915 | `llm_turn_runner.py` |
 | 2 | Operator displays read the registry (REQ-002/003) | In Progress | — | — | `cmd_mcp.py`, `registry.py` |
 | 3 | Comment + tests + docs (REQ-004/005/006) | In Progress | — | — | `config_dataclasses.py`, tests, ADR-003, agent/MCP docs |
 | 4 | Validation suite | Pending | — | — | rules/toolchain.md |
@@ -191,8 +191,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261115-090843_01_scripts_agent_llm_turn_runner.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261115-090843_02_scripts_agent_commands_cmd_mcp.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261115-090843_01_scripts_agent_llm_turn_runner.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261115-090843_02_scripts_agent_commands_cmd_mcp.py.md` | 2 | Procedure | Completed | — | — |
 | `implementations/20261115-090843_03_scripts_agent_commands_registry.py.md` | 2 | Procedure | Pending | — | — |
 | `implementations/20261115-090843_04_scripts_agent_config_dataclasses.py.md` | 3 | Procedure | Pending | — | — |
 | `implementations/20261115-090843_05_tests_agent_commands_test_cmd_mcp.py.md` | 3 | Procedure | Pending | — | — |

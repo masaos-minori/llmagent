@@ -69,10 +69,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-174321 | 20261115-174805 | STEP 1: removed static fallback in _stream_llm(); raised RuntimeError when registry is None |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-174805 | 20261115-174805 | STEP 2: updated test_registry_is_none_falls_back_to_static_config -> test_registry_is_none_raises_no_static_fallback (fail-closed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-174805 | 20261115-174805 | STEP 3: ruff clean, mypy clean, lint-imports 6 kept, bandit no new, full suite 12245 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-174805 | 20261115-174805 | STEP 4: N/A no docs changed in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

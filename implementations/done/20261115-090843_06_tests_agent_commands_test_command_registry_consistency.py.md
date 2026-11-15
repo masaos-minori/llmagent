@@ -56,9 +56,9 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | See Assumptions: no static-count assertion currently exists |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-184611 | 20261115-184611 | See Assumptions: no static-count assertion currently exists REQ-005 guard: grep confirms no cfg.tool.tool_definitions count assertion; no change needed |
+| 2 | Add or update tests per Validation plan | Completed | — | — | N/A: no test change needed (guard-only, no static-count assertion exists) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-184611 | 20261115-184611 | no file changed; consistency test passes as-is |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

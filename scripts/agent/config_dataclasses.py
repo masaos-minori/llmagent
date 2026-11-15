@@ -204,13 +204,12 @@ class ToolConfig:
     # Compatibility-only static tool schema list; RuntimeToolRegistry
     # (shared/runtime_tool_registry.py), populated from live /v1/tools, is the sole
     # runtime authority for tool validation/scheduling/approval/execution (no fallback
-    # to this field remains in that path). Retained for: (a) startup drift validation
-    # against /v1/tools (agent/services/tool_validation.py::_check_tool_definitions)
-    # and (b) the shape template for test
-    # fixtures. Still read at runtime in two places:
-    # agent/llm_turn_runner.py::_stream_llm() as the LLM-facing tool list when the
-    # runtime registry is absent, and agent/commands/cmd_mcp.py +
-    # agent/commands/registry.py for the tool-count display they print.
+    # to this field remains in any runtime path). Retained for: (a) startup drift
+    # validation against /v1/tools (agent/services/tool_validation.py::_check_tool_definitions)
+    # and (b) the shape template for test fixtures. No longer read at runtime: the
+    # llm_turn_runner.py::_stream_llm() fallback to static tool_definitions and the
+    # cmd_mcp.py + registry.py tool-count displays were removed by rtregistry001, which reads the
+    # registry as the single runtime tool authority.
     tool_definitions: list[dict] = field(default_factory=list)
     system_prompts: dict[str, str] = field(default_factory=dict)
     system_prompt_tool: str = ""

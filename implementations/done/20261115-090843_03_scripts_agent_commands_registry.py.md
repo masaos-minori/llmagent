@@ -59,9 +59,9 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-184406 | 20261115-184406 | REQ-003: registry.py _cmd_help reads RuntimeToolRegistry totals; ruff/bandit/lint-imports/mypy pass; targeted tests pass |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-184406 | 20261115-184406 | targeted pytest pass (test_command_def_sync + test_cmd_mcp) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-184406 | 20261115-184406 | ruff format+check, bandit, lint-imports, mypy all clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

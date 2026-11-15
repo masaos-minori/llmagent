@@ -98,7 +98,17 @@ class CommandRegistry(
         """Print help and available tool count."""
 
         ctx = self._ctx
-        n_tools = len(ctx.cfg.tool.tool_definitions)
+        tool_registry = ctx.services_required.runtime_tools
+        if tool_registry is not None:
+            n_tools = str(
+                sum(
+                    1
+                    for row in tool_registry.diagnostics()
+                    if row.get("enabled_for_llm")
+                )
+            )
+        else:
+            n_tools = "N/A"
         sid = (
             f"session {ctx.session.session_id}"
             if ctx.session.session_id

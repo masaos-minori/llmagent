@@ -62,9 +62,9 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-175105 | 20261115-175917 | STEP 1: replaced static count with registry totals (LLM-visible/disabled/unavailable) from diagnostics(); placeholder when registry None |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-175917 | 20261115-175917 | STEP 2: updated test_http_ok placeholder assertion; added test_status_line_reports_registry_totals |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-175917 | 20261115-175917 | STEP 3: ruff/mypy/lint-imports/bandit clean; full suite 12246 passed (eventbus flake confirmed pre-existing) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
