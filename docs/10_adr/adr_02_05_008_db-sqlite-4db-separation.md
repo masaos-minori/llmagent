@@ -99,7 +99,8 @@ Without an explicit safety contract, recovery across several SQLite files is dan
 | Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | not applicable (no automated restore) | not applicable (no automated restore) | not applicable |
 | Database-specific logical verification | `check_rag_consistency()` post-restore | `check_session_consistency()` post-restore | none automated (manual operator handling) | none automated (manual operator handling) | none automated |
 | Service restart condition | Agent process, rag-pipeline-mcp, and any ingester restart after restore | Agent process restart after restore | Agent process restart after restore | EventBus process restart after restore | dispatcher restart after recreation |
-| Rollback condition | atomic replacement leaves the original intact if a restore fails | atomic replacement leaves the original intact if a restore fails | not applicable (no automated restore) | not applicable (no automated restore) | not applicable |
+| Rollback condition | atomic replacement leaves the original intact if a restore fails; a failure after the swap triggers whole-unit rollback via the quarantined original and its sidecars (Decision Detail #21) | same | not applicable (no automated restore) | not applicable (no automated restore) | not applicable |
+| Restore sidecar handling | quarantine-before-swap; candidate sidecars activated only with the swap; quarantine retained after a successful restore for operator manual judgment (Decision Detail #21) | same | not applicable (no automated restore) | not applicable (no automated restore) | not applicable |
 | Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | same | same | same | same |
 | Data-loss disclosure requirement | loss between backup point and failure time must be reported | same | same | same | not applicable (disposable; completed non-retryable replay is blocked, not restored) |
 
@@ -127,6 +128,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 18. Dry Run must not move, replace, Truncate, delete, or rewrite the target DB for any classification result.
 19. Corrupted DB is set aside as diagnostic copy before replacement. Retention/deletion left to operator manual judgment; no automatic deletion.
 20. Recovery policy defined per persistence domain: `rag.sqlite` derived indexes (FTS5, Vector Index) rebuilt from canonical data (`chunks` table), with canonical tables restored from a verified backup; `session.sqlite` restored from backup; `workflow.sqlite` and `eventbus.sqlite` prohibit automatic restore—manual operator handling only (no silent re-initialization).
+21. Restore-flow sidecar files (`-wal`/`-shm`) are handled as one unit with their main database file: at swap preparation the corrupt database's sidecars move into a quarantine directory, and staged candidate sidecars are activated only with the swap; a failure after the swap removes the swapped-in candidate and its sidecars and moves the quarantined original sidecars back to their database directory (whole-unit rollback); the quarantine directory and its contents are retained after a successful restore and never automatically deleted—removal is operator manual judgment, consistent with Decision Detail #19.
 
 ### Derived Stores Outside the Four Domains
 

@@ -63,10 +63,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-104412 | 20261115-104412 | Decision Detail #21 + 'Restore sidecar handling' matrix row + extended 'Rollback condition' row landed; wording aligned with landed db_07 text (step 4) |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-104412 | 20261115-104412 | N/A: docs-only validation plan (checkers) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-104412 | 20261115-104412 | structure (after ceiling re-record 37175), content-policy --strict, consistency --domain db all exit 0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-104412 | 20261115-104412 | N/A: this file is the documentation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

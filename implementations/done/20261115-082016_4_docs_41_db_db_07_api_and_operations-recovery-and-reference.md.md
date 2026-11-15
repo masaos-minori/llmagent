@@ -59,10 +59,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-104412 | 20261115-104412 | staging section (whole-unit staging, lazy mkdir dir <db-stem>_sidecar_quarantine_<ts>, retention, mid-quarantine rollback) + failure-semantics bullets (pre-activation quarantine-back, activation-failure whole-unit restore) landed |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-104412 | 20261115-104412 | N/A: docs-only validation plan (checkers) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-104412 | 20261115-104412 | check_docs_quality/structure/content-policy --strict/consistency --domain db all exit 0; ADR-008 size ceiling re-recorded 36570->37175 in check_docs_structure.py |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-104412 | 20261115-104412 | N/A: this file is the documentation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

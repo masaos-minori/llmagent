@@ -14,25 +14,94 @@ ADR-008 recovery policy: restore file staging used by db.recovery.recover_corrup
 import logging
 import shutil
 import time
+from collections.abc import Sequence
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
-def _quarantine_sidecar_files(db_path: Path, quarantine_dir: Path) -> None:
+def _quarantine_sidecar_files(
+    db_path: Path, quarantine_dir: Path
+) -> list[tuple[Path, Path]]:
     """Quarantine pre-existing -wal/-shm sidecar files associated with db_path.
 
     Sidecar names resolve from the full database filename:
     ``rag.sqlite`` -> ``rag.sqlite-wal`` / ``rag.sqlite-shm``. Fail-closed: a quarantine copy/unlink failure raises OSError so the caller
-    reports a failed recovery instead of proceeding without the sidecar.
+    reports a failed recovery instead of proceeding without the sidecar; a failure
+    partway through first moves the already-recorded sidecars back (see
+    `_restore_quarantine_sidecars`), so records are never lost mid-quarantine.
+
+    The directory is created only when a sidecar actually quarantines, so a
+    sidecar-free restore leaves no empty directory behind. Returns the quarantine
+    records (live name -> quarantine path) in quarantine order so a caller can
+    move each entry back byte-identically on a failure path (REQ-001).
     """
     ts = int(time.time())
-    for suffix in ("-wal", "-shm"):
-        sidecar = Path(str(db_path) + suffix)
-        if sidecar.exists():
-            quarantine_path = quarantine_dir / f"{db_path.name}{suffix}_corrupt_{ts}"
-            shutil.copy2(sidecar, quarantine_path)
-            sidecar.unlink()
+    records: list[tuple[Path, Path]] = []
+    try:
+        for suffix in ("-wal", "-shm"):
+            sidecar = Path(str(db_path) + suffix)
+            if sidecar.exists():
+                quarantine_dir.mkdir(parents=True, exist_ok=True)
+                quarantine_path = (
+                    quarantine_dir / f"{db_path.name}{suffix}_corrupt_{ts}"
+                )
+                shutil.copy2(sidecar, quarantine_path)
+                sidecar.unlink()
+                records.append((sidecar, quarantine_path))
+    except OSError:
+        # Mid-quarantine failure: move the already-recorded sidecars back before
+        # raising, so a staging failure never strands a recorded sidecar in the
+        # quarantine directory (the caller never sees records it cannot reassemble).
+        try:
+            _restore_quarantine_sidecars(records, quarantine_dir)
+        except OSError as restore_exc:
+            logger.error(
+                "Failed to restore quarantined sidecars after a mid-quarantine failure: %s",
+                restore_exc,
+            )
+        raise
+    return records
+
+
+def _restore_quarantine_sidecars(
+    records: Sequence[tuple[Path, Path]], quarantine_dir: Path | None
+) -> None:
+    """Move quarantined original sidecars back to their live names (AC-1).
+
+    Each recorded (live name -> quarantine path) pair is moved back with
+    shutil.move, byte-identically; a move failure propagates like staging, so a
+    partial reassembly never reports preserved_original. Once every recorded pair
+    is back, the emptied quarantine directory is rmdir'd (guarded and logged —
+    rmdir never deletes a non-empty directory), keeping the recorded invariant
+    that a quarantine directory exists only while it holds entries. Empty
+    records are a no-op, so sidecar-free restores pass quarantine_dir=None
+    safely.
+    """
+    if not records:
+        return
+    for live_path, quarantine_path in records:
+        shutil.move(str(quarantine_path), str(live_path))
+    if quarantine_dir is not None:
+        try:
+            quarantine_dir.rmdir()
+        except OSError as exc:
+            logger.error(
+                "Failed to remove emptied quarantine directory %s: %s",
+                quarantine_dir,
+                exc,
+            )
+
+
+def _retain_quarantine_archive(quarantine_dir: Path) -> None:
+    """Log the quarantine archive retained after a successful restore (REQ-003).
+
+    The directory and its copies stay as a forensic archive; removal is
+    delegated to the operator-side artifact retention issue. After the
+    deferred mkdir it only exists when something was quarantined.
+    """
+    if quarantine_dir.exists():
+        logger.info("Quarantine archive retained: %s", quarantine_dir)
 
 
 def _stage_backup_sidecars(
@@ -78,19 +147,20 @@ def _stage_restore(
     corrupt_archive: Path,
     temp_restore: Path,
     quarantine_dir: Path,
-) -> dict[str, Path]:
+) -> tuple[dict[str, Path], list[tuple[Path, Path]]]:
     """Quarantine sidecars, archive the corrupt DB, and stage the candidate unit.
 
     Steps 2-4 of the restore. Staging only: the candidate — the backup
     plus its -wal/-shm sidecars named after temp_restore — is staged but NOT
     activated; db.recovery verifies it before swapping it into place. Returns the
-    staged sidecar paths keyed by suffix for the caller's activation step.
+    staged sidecar paths keyed by suffix and the quarantine records (live name ->
+    quarantine path) for the caller's failure-path reassembly.
     Filesystem failures are raised for the caller's cleanup handler, which owns
     the half-written temp file.
     """
     # 2. Quarantine pre-existing -wal/-shm sidecar files on the target path
-    quarantine_dir.mkdir(exist_ok=True)
-    _quarantine_sidecar_files(db_path, quarantine_dir)
+    # (the helper creates the directory only when something quarantines).
+    quarantine_records = _quarantine_sidecar_files(db_path, quarantine_dir)
 
     # 3. Archive current corrupt DB (if it exists)
     if db_path.exists():
@@ -109,4 +179,4 @@ def _stage_restore(
         dest = Path(str(temp_restore) + suffix)
         shutil.move(staged_path, dest)
         staged[suffix] = dest
-    return staged
+    return staged, quarantine_records

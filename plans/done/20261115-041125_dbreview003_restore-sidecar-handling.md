@@ -166,10 +166,10 @@ Yes. `REQ-006` drives `docs/41_db/db_07_api_and_operations-recovery-and-referenc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Quarantine records (scripts/db/recovery_restore.py, scripts/db/recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-082016_1 (records) and 20261115-082016_2 (caller threading) |
-| 2 | Whole-unit failure paths and retention (scripts/db/recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-082016_2 |
-| 3 | Failure-branch and retention tests (tests/db/test_db_recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-082016_3 |
-| 4 | Documentation, validation & deployment hand-off (docs/41_db/db_07..., docs/10_adr/adr_02_05_008...) | In Progress | — | — | Procedure generated: implementations/20261115-082016_4 and 20261115-082016_5 |
+| 1 | Quarantine records (scripts/db/recovery_restore.py, scripts/db/recovery.py) | Completed | 20261115-104412 | 20261115-104412 | Procedure generated: implementations/20261115-082016_1 (records) and 20261115-082016_2 (caller threading) |
+| 2 | Whole-unit failure paths and retention (scripts/db/recovery.py) | Completed | 20261115-104412 | 20261115-104412 | Procedure generated: implementations/20261115-082016_2 |
+| 3 | Failure-branch and retention tests (tests/db/test_db_recovery.py) | Completed | 20261115-104412 | 20261115-104412 | Procedure generated: implementations/20261115-082016_3 |
+| 4 | Documentation, validation & deployment hand-off (docs/41_db/db_07..., docs/10_adr/adr_02_05_008...) | Completed | 20261115-104412 | 20261115-104412 | Procedure generated: implementations/20261115-082016_4 and 20261115-082016_5 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

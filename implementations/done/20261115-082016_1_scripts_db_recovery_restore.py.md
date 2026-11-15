@@ -13,7 +13,7 @@
 - `quarantine_dir.mkdir(exist_ok=True)` (`recovery_restore.py:91`) currently runs on every restore; deferral is a recorded behavior decision (Plan Assumption), not a silent side effect.
 
 ## Design decisions
-- Record type `list[tuple[Path, Path]]` (live name → quarantine path) — plain tuples, no new dataclass; only recorded pairs exist, so a partial quarantine is inherently safe (AC-1).
+- Record type `list[tuple[Path, Path]]` (live name → quarantine path) — plain tuples, no new dataclass. A failure partway through the suffix loop is rolled back by the helper itself (verification correction: an aborted loop used to discard the records it had already built), so the caller never receives a half-quarantined state.
 - `mkdir` moves inside `_quarantine_sidecar_files`, executed with `parents=True, exist_ok=True` before the first `copy2` only when a sidecar actually exists — the directory then always contains at least one entry whenever it exists (Plan Assumption).
 - `_stage_restore` returns a `tuple[dict[str, Path], list[tuple[Path, Path]]]` — staged dict first (existing caller usage), records second.
 
@@ -29,16 +29,18 @@
 1. Change `_quarantine_sidecar_files(db_path, quarantine_dir)` to return `list[tuple[Path, Path]]`: inside the suffix loop, when a sidecar exists, `quarantine_dir.mkdir(parents=True, exist_ok=True)` before `shutil.copy2` (execute once via a flag or call every time — `exist_ok` makes it idempotent); append `(sidecar, quarantine_path)` after the `unlink` completes. Fail-closed raise behavior unchanged (REQ-001).
 2. Remove `quarantine_dir.mkdir(exist_ok=True)` from `_stage_restore` (`recovery_restore.py:91`); pass `quarantine_dir` through to `_quarantine_sidecar_files` unchanged (Plan Assumption on deferral).
 3. `_stage_restore` captures the records returned by `_quarantine_sidecar_files` and returns `(staged, records)`; return-type annotation and docstring updated: "Returns the staged sidecar paths keyed by suffix and the quarantine records (live name → quarantine path) for the caller's failure-path reassembly" (REQ-001).
+4. Verification correction (landed during testing): wrap the `_quarantine_sidecar_files` suffix loop in `try/except OSError` — on a mid-quarantine failure, call `_restore_quarantine_sidecars(records, quarantine_dir)` (its own failure is logged and swallowed; the original error is re-raised), so a failure on the second sidecar never strands the already-recorded first sidecar in an entry-holding quarantine directory.
+5. Verification correction (placement): the quarantine lifecycle helpers live in this module — `_restore_quarantine_sidecars(records, quarantine_dir)` moves recorded pairs back byte-identically and rmdir's the emptied directory (guarded, logged); `_retain_quarantine_archive(quarantine_dir)` logs the retained archive on the success path. `db.recovery` imports both, keeping one move-back implementation and holding `recovery.py::_restore_from_backup` at its C(12) radon baseline.
 
 ### Method
-- Direct edit; no new imports.
+- Direct edit; one new stdlib import (`collections.abc.Sequence`, for the restore-back helper signature).
 
 ### Details
 - The quarantine file name format (`{db_path.name}{suffix}_corrupt_{ts}`) stays as-is; Plan 008 later wraps it in its planned unique-path resolver — this document must keep the construction on one line for that disjoint edit.
 
 ## Compatibility considerations
 - Sole production caller `recovery.py:366` must unpack the new tuple in the same implementation pass (companion document `_2` step 1 lands together; the unit red-gates otherwise).
-- Helper behavior otherwise unchanged (fail-closed copy/unlink).
+- Helper behavior otherwise unchanged (fail-closed copy/unlink; mid-loop failure self-rolls back recorded pairs).
 
 ## Security considerations
 - No new inputs; paths derived from existing db path only. Bandit baseline unchanged.
@@ -55,7 +57,7 @@
 - Records returned and surfaced; no empty quarantine directory after a sidecar-free restore; companion `_2` green against the new shape.
 
 ## Out of Scope
-- Moving records back on failure paths (companion document `_2`).
+- Calling the restore-back on failure paths (helper implemented here per step 5; call sites and policy in companion document `_2`).
 - Quarantine retention on success and the success-path `rmtree` removal (companion `_2`, REQ-003).
 - Name-construction change (planned unique-path resolver wrap) owned by Plan 008.
 
@@ -64,10 +66,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-104412 | 20261115-104412 | src+test landed; deferred mkdir; self-rollback on mid-quarantine failure added during testing (docs updated); targeted test green correction landed: quarantine self-rollback on mid-loop failure + lifecycle helpers (_restore_quarantine_sidecars, _retain_quarantine_archive) placed in recovery_restore.py; docs steps 4-5 updated |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-104412 | 20261115-104412 | radon scripts C-or-worse list unchanged (scripts/db/utils.py C(16) pre-existing); ruff/mypy clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-104412 | 20261115-104412 | tests/db 408 passed (full suite N/A: not run per user instruction); ruff/format/mypy clean; radon recovery_restore.py all A; lint-imports 6 kept; bandit clean; check_module_size ALL OK |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-104412 | 20261115-104412 | N/A for this file: docs handled by companion procedures _4/_5 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

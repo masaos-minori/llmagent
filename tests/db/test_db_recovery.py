@@ -701,7 +701,7 @@ def test_quarantine_sidecar_files():
         )
         quarantine_dir.mkdir(exist_ok=True)
 
-        _quarantine_sidecar_files(db_path, quarantine_dir)
+        records = _quarantine_sidecar_files(db_path, quarantine_dir)
 
         # Sidecars should be removed from original location
         assert not wal_path.exists()
@@ -710,6 +710,14 @@ def test_quarantine_sidecar_files():
         # Quarantined copies should exist under the full-filename form
         assert len(list(quarantine_dir.glob("test.sqlite-wal_corrupt_*"))) == 1
         assert len(list(quarantine_dir.glob("test.sqlite-shm_corrupt_*"))) == 1
+
+        # Returned records pair each live name with its quarantine copy (REQ-001)
+        assert [(live.name, q.parent) for live, q in records] == [
+            ("test.sqlite-wal", quarantine_dir),
+            ("test.sqlite-shm", quarantine_dir),
+        ]
+        assert records[0][1].name.startswith("test.sqlite-wal_corrupt_")
+        assert records[1][1].name.startswith("test.sqlite-shm_corrupt_")
 
         shutil.rmtree(quarantine_dir, ignore_errors=True)
 
@@ -764,6 +772,44 @@ def test_quarantine_sidecar_files_raises_on_copy_failure():
 
         # The sidecar stays in place: no silent removal without a quarantined copy.
         assert wal_path.exists()
+
+
+def test_quarantine_sidecar_files_self_rolls_back_mid_failure():
+    """Self-rollback (REQ-001): a second-sidecar failure restores the first pair.
+
+    If the quarantine copy fails on -shm after -wal was already recorded,
+    _quarantine_sidecar_files must move -wal back to its live name
+    byte-identically and remove the emptied quarantine directory before
+    raising, so the caller never loses a recorded pair.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.sqlite"
+        wal_path = db_path.parent / f"{db_path.name}-wal"
+        shm_path = db_path.parent / f"{db_path.name}-shm"
+        db_path.write_bytes(b"\x00" * 100)
+        wal_path.write_text("STALE_WAL_CONTENT")
+        shm_path.write_text("STALE_SHM_CONTENT")
+        quarantine_dir = db_path.parent / "quarantine"
+        quarantine_dir.mkdir()
+
+        real_copy2 = shutil.copy2
+
+        def _fail_on_shm(src, dst, *args, **kwargs):
+            if "-shm_corrupt_" in str(dst):
+                raise OSError("copy failed")
+            return real_copy2(src, dst, *args, **kwargs)
+
+        with patch("db.recovery_restore.shutil.copy2", side_effect=_fail_on_shm):
+            with pytest.raises(OSError):
+                _quarantine_sidecar_files(db_path, quarantine_dir)
+
+        # The recorded -wal pair is rolled back byte-identically to its live name.
+        assert wal_path.read_text() == "STALE_WAL_CONTENT"
+        # -shm was never removed: the failing copy left it in place.
+        assert shm_path.read_text() == "STALE_SHM_CONTENT"
+        # Empty after the restore-back: the quarantine directory is removed
+        # (exists only while non-empty).
+        assert not quarantine_dir.exists()
 
 
 def test_stage_backup_sidecars_raises_on_copy_failure():
@@ -829,9 +875,12 @@ def test_restore_with_stale_wal_shm_before_swap(mock_db_cfg, mock_sqlite_helper)
         assert not wal_path.exists()
         assert not shm_path.exists()
 
-        # Quarantine directory should have been cleaned up after success
+        # Retention policy (Plan 003 REQ-003): the quarantine archive stays after
+        # a successful restore, holding copies of the stale sidecars.
         quarantine_dirs = list(Path(tmpdir).glob("*_sidecar_quarantine_*"))
-        assert len(quarantine_dirs) == 0
+        assert len(quarantine_dirs) == 1
+        assert list(quarantine_dirs[0].glob("test.sqlite-wal_corrupt_*"))
+        assert list(quarantine_dirs[0].glob("test.sqlite-shm_corrupt_*"))
 
 
 def test_restore_with_backup_wal_shm_sidecars(mock_db_cfg, mock_sqlite_helper):
@@ -1063,7 +1112,11 @@ def test_wal_shm_sidecars_land_at_final_locations_after_activation(
         # ...and the sidecars end at their full-filename locations.
         assert (db_dir / "test.sqlite-wal").read_text() == "BACKUP_WAL_CONTENT"
         assert (db_dir / "test.sqlite-shm").read_text() == "BACKUP_SHM_CONTENT"
-        assert not list(db_dir.glob("*_sidecar_quarantine_*"))
+        # Retention policy (Plan 003 REQ-003): the stale sidecars stay archived.
+        quarantine_dirs = list(db_dir.glob("*_sidecar_quarantine_*"))
+        assert len(quarantine_dirs) == 1
+        assert list(quarantine_dirs[0].glob("test.sqlite-wal_corrupt_*"))
+        assert list(quarantine_dirs[0].glob("test.sqlite-shm_corrupt_*"))
 
 
 # --- In-activation failure injection (companion 20261115-080732_1) ---
@@ -1091,9 +1144,10 @@ def test_activation_failure_after_replace_rolls_back_original(
         live_wal = Path(str(db_path) + "-wal")
 
         def fail_on_live_move(src, dst, *args, **kwargs):
-            # Staging moves (backup sidecar -> staged name) run for real; only
-            # the activation move onto the live name is faulted.
-            if Path(dst) == live_wal:
+            # Fault only the activation move (staged temp file -> live name).
+            # Staging moves and the quarantine-back move (quarantine dir ->
+            # live name) must run for real, so they are keyed by source.
+            if Path(dst) == live_wal and Path(src).name.startswith("test.tmp_"):
                 raise OSError("sidecar move failed")
             return shutil_move_real(src, dst, *args, **kwargs)
 
@@ -1116,8 +1170,10 @@ def test_activation_failure_after_replace_rolls_back_original(
         # archive itself no longer exists as a separate *_corrupt_* file.
         assert db_path.read_bytes() == original_bytes
         assert not list(db_dir.glob("*_corrupt_*"))
-        # The candidate sidecar never reached the live name.
-        assert not live_wal.exists()
+        # Whole-unit reassembly (Plan 003): the candidate sidecar never reached
+        # the live name, and the quarantined original sidecar was moved back.
+        assert live_wal.read_text() == "STALE_WAL_CONTENT"
+        assert not list(db_dir.glob("*_sidecar_quarantine_*"))
 
 
 def test_partial_activation_removes_moved_sidecars_on_rollback(
@@ -1145,8 +1201,11 @@ def test_partial_activation_removes_moved_sidecars_on_rollback(
         live_moves = 0
 
         def fail_on_second_live_move(src, dst, *args, **kwargs):
+            # Activation moves only (staged temp file -> live name): the first
+            # runs for real, the second raises. The quarantine-back move is
+            # keyed out by its quarantine-directory source.
             nonlocal live_moves
-            if Path(dst) in live_names:
+            if Path(dst) in live_names and Path(src).name.startswith("test.tmp_"):
                 live_moves += 1
                 if live_moves == 2:
                     raise OSError("second sidecar move failed")
@@ -1167,12 +1226,15 @@ def test_partial_activation_removes_moved_sidecars_on_rollback(
         assert result.success is False
         assert result.action == "error"
         assert result.active_db_state == "preserved_original"
-        # The first sidecar had already reached its live name; the rollback removed
-        # it before moving the original back, so no candidate sidecar is left behind.
-        assert not Path(str(db_path) + "-wal").exists()
-        assert not Path(str(db_path) + "-shm").exists()
+        # The first candidate sidecar had already reached its live name; the
+        # rollback removed it before moving the original back. Whole-unit
+        # reassembly (Plan 003): both live sidecars hold the quarantined originals,
+        # and no candidate file is left at any live name.
+        assert Path(str(db_path) + "-wal").read_text() == "STALE_WAL_CONTENT"
+        assert Path(str(db_path) + "-shm").read_text() == "STALE_SHM_CONTENT"
         assert db_path.read_bytes() == original_bytes
         assert not list(db_dir.glob("*_corrupt_*"))
+        assert not list(db_dir.glob("*_sidecar_quarantine_*"))
 
 
 def test_cleanup_staged_unlink_failure_does_not_escape(
@@ -1219,6 +1281,157 @@ def test_cleanup_staged_unlink_failure_does_not_escape(
         assert list(db_dir.glob("test.tmp_*.sqlite"))
         assert not list(db_dir.glob("test.tmp_*.sqlite-wal"))
         assert db_path.read_bytes() == b"CORRUPT ORIGINAL CONTENT"
+
+
+# --- Whole-unit reassembly and quarantine retention (companion 20261115-082016_1/_2) ---
+
+
+def _write_stale_sidecars(db_dir: Path, db_name: str) -> None:
+    """Write distinct-content -wal/-shm fixtures next to db_name in db_dir."""
+    (db_dir / f"{db_name}-wal").write_text("STALE_WAL_CONTENT")
+    (db_dir / f"{db_name}-shm").write_text("STALE_SHM_CONTENT")
+
+
+def test_preactivation_integrity_failure_restores_whole_unit(
+    mock_db_cfg, mock_sqlite_helper
+) -> None:
+    """AC-1: a candidate integrity failure leaves the live unit byte-identical."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_dir = Path(tmpdir) / "db_dir"
+        db_dir.mkdir()
+        db_path = db_dir / "test.sqlite"
+        original_bytes = b"CORRUPT ORIGINAL CONTENT"
+        db_path.write_bytes(original_bytes)
+        _write_stale_sidecars(db_dir, "test.sqlite")
+
+        backup_path = Path(tmpdir) / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.CORRUPTION, "candidate is corrupt"),  # candidate
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "restore_verify_failed"
+        assert result.active_db_state == "preserved_original"
+        # The main file was never swapped and both sidecars were moved back.
+        assert db_path.read_bytes() == original_bytes
+        assert (db_dir / "test.sqlite-wal").read_text() == "STALE_WAL_CONTENT"
+        assert (db_dir / "test.sqlite-shm").read_text() == "STALE_SHM_CONTENT"
+        assert not list(db_dir.glob("*_sidecar_quarantine_*"))
+        assert not list(db_dir.glob("*.tmp_*"))
+
+
+def test_preactivation_logical_failure_restores_whole_unit(
+    mock_db_cfg, mock_sqlite_helper
+) -> None:
+    """AC-1: a candidate logical failure leaves the live unit byte-identical."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_dir = Path(tmpdir) / "db_dir"
+        db_dir.mkdir()
+        db_path = db_dir / "test.sqlite"
+        original_bytes = b"CORRUPT ORIGINAL CONTENT"
+        db_path.write_bytes(original_bytes)
+        _write_stale_sidecars(db_dir, "test.sqlite")
+
+        backup_path = Path(tmpdir) / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch(
+                "db.recovery._run_logical_verification",
+                return_value=(False, "counts mismatch"),
+            ),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "logical_verify_failed"
+        assert result.active_db_state == "preserved_original"
+        assert db_path.read_bytes() == original_bytes
+        assert (db_dir / "test.sqlite-wal").read_text() == "STALE_WAL_CONTENT"
+        assert (db_dir / "test.sqlite-shm").read_text() == "STALE_SHM_CONTENT"
+        assert not list(db_dir.glob("*_sidecar_quarantine_*"))
+
+
+def test_postactivation_rollback_reassembles_whole_unit(
+    mock_db_cfg, mock_sqlite_helper
+) -> None:
+    """AC-1/AC-2: post-activation rollback removes candidate sidecars and moves the originals back."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_dir = Path(tmpdir) / "db_dir"
+        db_dir.mkdir()
+        db_path = db_dir / "test.sqlite"
+        original_bytes = b"CORRUPT ORIGINAL CONTENT"
+        db_path.write_bytes(original_bytes)
+        _write_stale_sidecars(db_dir, "test.sqlite")
+
+        backup_dir = Path(tmpdir) / "backup_dir"
+        backup_dir.mkdir()
+        backup_path = backup_dir / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+        (backup_dir / "backup.sqlite-wal").write_text("BACKUP_WAL_CONTENT")
+        (backup_dir / "backup.sqlite-shm").write_text("BACKUP_SHM_CONTENT")
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+                (DbCondition.CORRUPTION, "post-activation check failed"),  # re-check
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "restore_verify_failed"
+        assert result.active_db_state == "preserved_original"
+        # Live main holds the archived original; live sidecars hold the quarantined
+        # originals, not the candidate's backup sidecars.
+        assert db_path.read_bytes() == original_bytes
+        assert (db_dir / "test.sqlite-wal").read_text() == "STALE_WAL_CONTENT"
+        assert (db_dir / "test.sqlite-shm").read_text() == "STALE_SHM_CONTENT"
+        # The quarantine directory was emptied by the move-back and removed.
+        assert not list(db_dir.glob("*_sidecar_quarantine_*"))
+
+
+def test_restore_without_sidecars_creates_no_quarantine_directory(
+    mock_db_cfg, mock_sqlite_helper
+) -> None:
+    """Plan Assumption: the deferred mkdir leaves no directory for sidecar-free restores."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.sqlite"
+        db_path.write_bytes(b"CORRUPT ORIGINAL CONTENT")
+        backup_path = Path(tmpdir) / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+            patch("os.replace"),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+                (DbCondition.HEALTHY, None),  # post-activation re-check
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is True
+        assert result.action == "restored"
+        assert not list(Path(tmpdir).glob("*_sidecar_quarantine_*"))
 
 
 # --- Real sqlite-vec restore verification (companion 20261115-075008_1) ---
@@ -1695,9 +1908,10 @@ class TestRestoreGuardCharacterization:
     def test_os_error_during_the_swap_removes_the_temp_restore_file(
         self, tmp_path: Path
     ) -> None:
-        """The OSError handler unlinks the half-written temp file and keeps the archive."""
+        """The OSError handler unlinks the temp file, keeps the archive, and reassembles the unit."""
         db_path = tmp_path / "rag.db"
         db_path.write_text("corrupt")
+        _write_stale_sidecars(tmp_path, "rag.db")
         backup = tmp_path / "backup.db"
         backup.write_text("good")
 
@@ -1719,13 +1933,18 @@ class TestRestoreGuardCharacterization:
         assert result.detail == "rename failed"
         assert not list(tmp_path.glob("*.tmp_*.db")), "temp restore must be removed"
         assert list(tmp_path.glob("rag_corrupt_*.db")), "corrupt archive must remain"
-        assert list(tmp_path.glob("*_sidecar_quarantine_*")), "quarantine dir is kept"
+        # The swap never completed: the quarantined sidecars are moved back and
+        # the emptied quarantine directory is removed (Plan 003 whole-unit AC-1).
+        assert (tmp_path / "rag.db-wal").read_text() == "STALE_WAL_CONTENT"
+        assert (tmp_path / "rag.db-shm").read_text() == "STALE_SHM_CONTENT"
+        assert not list(tmp_path.glob("*_sidecar_quarantine_*"))
 
-    def test_successful_restore_removes_the_quarantine_directory(
+    def test_successful_restore_retains_the_quarantine_directory(
         self, tmp_path: Path
     ) -> None:
         db_path = tmp_path / "rag.db"
         db_path.write_text("corrupt")
+        _write_stale_sidecars(tmp_path, "rag.db")
         backup = tmp_path / "backup.db"
         backup.write_text("good")
 
@@ -1742,7 +1961,12 @@ class TestRestoreGuardCharacterization:
         assert result.success is True
         assert result.action == "restored"
         assert result.detail == str(backup)
-        assert not list(tmp_path.glob("*_sidecar_quarantine_*"))
+        # Retention policy (Plan 003 REQ-003): the archive directory and its
+        # copies stay in place after a successful restore.
+        quarantine_dirs = list(tmp_path.glob("*_sidecar_quarantine_*"))
+        assert len(quarantine_dirs) == 1
+        assert list(quarantine_dirs[0].glob("rag.db-wal_corrupt_*"))
+        assert list(quarantine_dirs[0].glob("rag.db-shm_corrupt_*"))
 
 
 class TestRecoverCorruptionConditionDispatchCharacterization:

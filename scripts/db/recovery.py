@@ -20,6 +20,8 @@ from db.helper import SQLiteHelper
 from db.models import RecoveryResult
 from db.recovery_restore import (
     _resolve_backup,
+    _restore_quarantine_sidecars,
+    _retain_quarantine_archive,
     _stage_restore,
 )
 from db.recovery_verification import _run_logical_verification
@@ -340,17 +342,21 @@ def _rollback_or_non_serviceable(
     failure: RecoveryResult,
     dry_run: bool,
     moved_sidecars: Sequence[Path] = (),
+    quarantine_records: Sequence[tuple[Path, Path]] = (),
+    quarantine_dir: Path | None = None,
 ) -> RecoveryResult:
     """Restore the archived original after a post-activation failure.
 
     Reports action "rollback_failed" with active_db_state "non_serviceable" when
     the rollback itself fails, preserving every artifact (AC-004). On a successful
-    rollback the live path again holds the original database.
+    rollback the live path again holds the whole original unit.
 
     moved_sidecars carries the live-name sidecars an interrupted activation had
     already moved; they are unlinked (log-and-continue) before the original is
     moved back, so the reactivated database never has sidecars belonging to the
-    candidate (REQ-002).
+    candidate (REQ-002). After the main-file replace succeeds, quarantined
+    original sidecars are moved back to their live names (whole-unit reassembly,
+    REQ-002); on rollback failure no reassembly is attempted.
     """
     for moved in moved_sidecars:
         try:
@@ -371,6 +377,7 @@ def _rollback_or_non_serviceable(
             logical_ok=False,
             active_db_state="non_serviceable",
         )
+    _restore_quarantine_sidecars(quarantine_records, quarantine_dir)
     return RecoveryResult(
         success=False,
         action=failure.action,
@@ -409,9 +416,12 @@ def _restore_from_backup(
     quarantine_dir = db_path.parent / f"{db_path.stem}_sidecar_quarantine_{ts}"
 
     staged: dict[str, Path] = {}
+    # Bound before the try: a failure inside _stage_restore leaves the unpacking
+    # unexecuted, and the OSError handler below still references both names.
+    quarantine_records: list[tuple[Path, Path]] = []
     progress = _ActivationProgress()
     try:
-        staged = _stage_restore(
+        staged, quarantine_records = _stage_restore(
             db_path, backup, corrupt_archive, temp_restore, quarantine_dir
         )
 
@@ -420,6 +430,7 @@ def _restore_from_backup(
         )
         if condition != DbCondition.HEALTHY:
             _cleanup_staged(temp_restore, staged)
+            _restore_quarantine_sidecars(quarantine_records, quarantine_dir)
             msg = (
                 integrity_detail
                 or f"candidate integrity check failed: {condition.value}"
@@ -441,6 +452,7 @@ def _restore_from_backup(
             err_detail = logical_detail or f"logical verification failed: {target}"
             logger.error("Candidate logical verification failed: %s", err_detail)
             _cleanup_staged(temp_restore, staged)
+            _restore_quarantine_sidecars(quarantine_records, quarantine_dir)
             return _failure(
                 action_value,
                 err_detail,
@@ -454,12 +466,16 @@ def _restore_from_backup(
         failure = _post_restore_failure(db_path, target, dry_run)
         if failure is not None:
             return _rollback_or_non_serviceable(
-                db_path, corrupt_archive, failure, dry_run
+                db_path,
+                corrupt_archive,
+                failure,
+                dry_run,
+                quarantine_records=quarantine_records,
+                quarantine_dir=quarantine_dir,
             )
 
         logger.info("DB restored from backup: %s", backup)
-        # Cleanup quarantine directory after successful restore
-        shutil.rmtree(quarantine_dir, ignore_errors=True)
+        _retain_quarantine_archive(quarantine_dir)
         return RecoveryResult(
             success=True,
             action="restored",
@@ -482,7 +498,12 @@ def _restore_from_backup(
                 _failure("error", str(e), dry_run, logical_ok=False),
                 dry_run,
                 moved_sidecars=progress.moved_sidecars,
+                quarantine_records=quarantine_records,
+                quarantine_dir=quarantine_dir,
             )
+        # Swap never completed: the live main file is still in place, so moving
+        # the quarantined sidecars back reassembles the original unit (AC-1).
+        _restore_quarantine_sidecars(quarantine_records, quarantine_dir)
         return _failure("error", str(e), dry_run)
 
 

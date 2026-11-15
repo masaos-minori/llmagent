@@ -127,7 +127,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # forward-only migration contract in Context > Constraints plus an Amendment
     # subsection and a realized Revisit Trigger (2026-10-30); the ceiling is
     # re-recorded to the accepted size.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 36570,
+    "adr_02_05_008_db-sqlite-4db-separation.md": 37175,
+    # Re-accepted 37175 (2026-11-15): dbreview003 added Decision Detail #21 (restore-sidecar
+    # whole-unit handling and quarantine retention) plus the `Restore sidecar handling` matrix
+    # row and the extended `Rollback condition` row.
     # Re-accepted 2026-11-12, closing a pre-existing gap: the file had grown 34206 -> 36197
     # by 8ab061b3c (adrrev009 recovery alignment) without the ceiling being re-recorded.
     # Not part of adrrev011 scope; recorded here only to keep check_docs_structure.py green.
