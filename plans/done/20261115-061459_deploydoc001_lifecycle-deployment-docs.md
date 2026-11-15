@@ -164,8 +164,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document the failure cooldown and invalid-transition handling in `agent_02` | In Progress | — | — | Adds the cooldown definition, the log-and-store invalid-transition handling, and a PGID/shutdown note to the "Lifecycle Implementation" section (REQ-001). |
-| 2 | Run documentation and consistency checkers | Pending | — | — | `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py`, `check_docs_japanese.py`, `check_docs_consistency.py --domain agent` (REQ-001). |
+| 1 | Document the failure cooldown and invalid-transition handling in `agent_02` | Completed | — | 20261115-203721 | Adds the cooldown definition, the log-and-store invalid-transition handling, and a PGID/shutdown note to the "Lifecycle Implementation" section (REQ-001). |
+| 2 | Run documentation and consistency checkers | Completed | — | — | `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py`, `check_docs_japanese.py`, `check_docs_consistency.py --domain agent` (REQ-001). Docs-only cycle substitution per memo3: check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_japanese, check_docs_consistency --domain agent all Pass (20261115-203623). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -175,7 +175,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|---------|
-| `implementations/20261115-061459_01_docs_23_agent_agent_02_runtime-architecture.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-061459_01_docs_23_agent_agent_02_runtime-architecture.md.md` | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

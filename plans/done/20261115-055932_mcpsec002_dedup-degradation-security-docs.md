@@ -137,7 +137,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document the dedup-degradation operational signal | In Progress | — | — | REQ-001; single doc edit to `agent_10_05`; no code change. |
+| 1 | Document the dedup-degradation operational signal | Completed | — | 20261115-203139 | REQ-001; single doc edit to `agent_10_05`; no code change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -147,7 +147,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|---------|
-| `implementations/20261115-055932_01_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-055932_01_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md` | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
