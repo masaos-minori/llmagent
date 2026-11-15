@@ -14,12 +14,14 @@ Medium (Issue Priority)
 ## Background
 From the Source Issue (F-007, written at commit `0fe68d3`), re-verified against the post-pull tree (HEAD `edc79f698`, 2026-11-15):
 
+Adversarial re-verification 2026-11-16 (HEAD `8fc337615`): all "Claims that hold" re-confirmed against current source (no-guard behavior, `f"--5 days"` NULL no-op, `T/Z` vs space format mismatch at the six query sites, bare `int()` at the four `from_config` lines and `config.py:77-78`, `isinstance(True, int)` in `get_typed`, `ORDER BY created_at DESC` alone). Line-number citations corrected to current positions (`helper guards :172-173`→`:175`/`:304`, `_delete_sessions_beyond_limit :208-241`→`:206-240`, `ORDER BY :217`→`:216`, `get_typed :51-72`→`:54-76`, `_make_session_db :40-101`→ DDL `:40,48` + function `:93-101`); test count 57→58. Referenced test patterns all exist: `test_boundary_below/at/above_max_sessions` (`:189-215`), `ConfigLoader.load` monkeypatch (`:365`), `test_sqlite_helper.py` config-validation pattern (`:378-419`), `tests/shared/test_config_utils.py` contains only 5 `get_str` tests, `config/agent.toml:11-18` native TOML ints, `memory_data_ops.py:134-145` `--days >= 1` validation, `production_config_validator.py` lists the four retention keys, `git_models.py:25-43` local `_optional_real` untouched, docs `db_06` retention paragraphs at `:32`/`:42`. No contradicting findings.
+
 Claims that hold:
-- `_delete_sessions_beyond_limit` (`scripts/db/maintenance.py:208-241`) has no guard: `max_sessions=0` deletes every session (except the exempted one); `max_sessions=-1` slices `rows[-1:]` and deletes only the oldest row. Same shape in `_delete_corrupt_archives_beyond_limit` (`:321-342`): `max_files=0` deletes all archives. The two age helpers guard `<= 0` (`:172-173`, `:301-302`); negative age values currently disable the rule silently.
+- `_delete_sessions_beyond_limit` (`scripts/db/maintenance.py:206-240`) has no guard: `max_sessions=0` deletes every session (except the exempted one); `max_sessions=-1` slices `rows[-1:]` and deletes only the oldest row. Same shape in `_delete_corrupt_archives_beyond_limit` (`:321-342`): `max_files=0` deletes all archives. The two age helpers guard `<= 0` (`:175`, `:304`); negative age values currently disable the rule silently.
 - Negative `older_than_days` in `SQLiteMemoryDeleteStore.delete_memories_before`/`collect_prunable_ids` (`scripts/db/store_impl.py:177-214`, no guard) builds `f"--5 days"`, `datetime()` returns NULL, and the delete silently no-ops (confirmed live in Step 2).
 - Format mismatch confirmed live: stored defaults are `strftime('%Y-%m-%dT%H:%M:%SZ','now')` (`scripts/db/schema_sql.py:91,102,120-121,177-178`), while the cutoffs are `datetime('now', ?)` producing `YYYY-MM-DD HH:MM:SS` (space). Lexicographically `'...T...Z' < '... ...'` is false for same-cutoff-day rows, so retention is off by up to one day. Six affected queries: `maintenance.py:179,191,195` and `store_impl.py:182,192,211`.
-- Bare `int(cfg.get(...))` coercion at `maintenance.py:112-113,132-133` and `config.py:77-78` accepts bools (`int(True)=1`) and truncates floats; `get_typed` (`scripts/shared/config_utils.py:51-72`) now raises on type mismatch but bool still passes `isinstance(True, int)`. `rules/coding.md` type-coercion policy prohibits the bare `int()`.
-- `_delete_sessions_beyond_limit` orders by `created_at DESC` alone (`:217`); ties resolve in unspecified order.
+- Bare `int(cfg.get(...))` coercion at `maintenance.py:112-113,132-133` and `config.py:77-78` accepts bools (`int(True)=1`) and truncates floats; `get_typed` (`scripts/shared/config_utils.py:54-76`) now raises on type mismatch but bool still passes `isinstance(True, int)`. `rules/coding.md` type-coercion policy prohibits the bare `int()`.
+- `_delete_sessions_beyond_limit` orders by `created_at DESC` alone (`:216`); ties resolve in unspecified order.
 
 Claims retired by upstream work (post-pull tree): `get_typed` silent-default-on-type-mismatch (now raises `ValueError`); empty `sqlite_path`/`sqlite_vec_so` validation (implemented at `config.py:36-42,52,66-69`); `_parse_since` naive-datetime parsing (module gone — the store API takes an `int` `older_than_days`); the `scripts/utils` architecture-orphan question (the package no longer exists; `shared/config_utils.py` is a contract-consistent shared-layer leaf).
 
@@ -48,11 +50,11 @@ Validate at both boundaries: config load (`from_config`, `build_db_config`) via 
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/db/maintenance.py | Modify | Validated `from_config` parsing (REQ-001, REQ-003); helper guards `==0` disable / `<0` raise in the four purge helpers (REQ-001); cutoff rewrite in 3 queries (REQ-004); tie-breaker at `:217` (REQ-006) | REQ-001, REQ-003, REQ-004, REQ-006 / AC-1..AC-4 | `:112-113`, `:132-133`, `:172-173`, `:179`, `:191`, `:195`, `:208-241` (no guard), `:217`, `:301-302`, `:321-342` (checked Step 2, post-pull) | tests/db/test_db_maintenance.py | Verified |
-| scripts/db/store_impl.py | Modify | Negative-`older_than_days` guard in `delete_memories_before`/`collect_prunable_ids`; cutoff rewrite in 3 queries | REQ-004, REQ-005 / AC-1, AC-2 | `:177-214` no guard; `datetime('now', ?)` at `:182,192,211`; `f"--5 days"` NULL behavior confirmed live (Step 2) | tests/db/test_db_store_impl.py | Verified |
-| scripts/shared/config_utils.py | Modify | `get_typed` bool rejection for `int`/`float` expected types + docstring | REQ-002 / AC-3 | `:51-72` `isinstance(True, int)` passes (checked Step 2) | tests/shared/test_config_utils.py | Verified |
+| scripts/db/maintenance.py | Modify | Validated `from_config` parsing (REQ-001, REQ-003); helper guards `==0` disable / `<0` raise in the four purge helpers (REQ-001); cutoff rewrite in 3 queries (REQ-004); tie-breaker at `:216` (REQ-006) | REQ-001, REQ-003, REQ-004, REQ-006 / AC-1..AC-4 | `:112-113`, `:132-133`, `:175`, `:179`, `:191`, `:195`, `:206-240` (no guard), `:216`, `:304`, `:321-342` (checked Step 2, post-pull; line refs re-confirmed 2026-11-16) | tests/db/test_db_maintenance.py | Verified |
+| scripts/db/store_impl.py | Modify | Negative-`older_than_days` guard in `delete_memories_before`/`collect_prunable_ids`; cutoff rewrite in 3 queries | REQ-004, REQ-005 / AC-1, AC-2 | `:177-214` no guard; `datetime('now', ?)` at `:182,192,211`; `f"--5 days"` NULL behavior confirmed live (Step 2) | `tests/db/test_db_store_impl.py` | Verified |
+| scripts/shared/config_utils.py | Modify | `get_typed` bool rejection for `int`/`float` expected types + docstring | REQ-002 / AC-3 | `:54-76` `isinstance(True, int)` passes (checked Step 2) | `tests/shared/test_config_utils.py` | Verified |
 | scripts/db/config.py | Modify | `build_db_config`: `get_typed` for `sqlite_timeout`/`sqlite_busy_timeout_ms` instead of bare `int()` | REQ-003 / AC-3 | `:77-78` bare `int(cfg.get(...))` (checked Step 2) | tests/db/test_sqlite_helper.py (existing config-validation tests `:378-419` pattern) | Verified |
-| tests/db/test_db_maintenance.py | Modify | Boundary/negative/bool tests for both configs and both rules; cutoff-day 1-second regression test; tie-order test; align `_make_session_db` (`:40-101`) to the production `T/Z` format | REQ-007 / AC-1..AC-4 | 57 tests; zero/negative count-key coverage absent (grep this cycle); harness seeds space-format literals (`:146-163`) — mismatch invisible today | tests/db/test_db_maintenance.py | Verified |
+| tests/db/test_db_maintenance.py | Modify | Boundary/negative/bool tests for both configs and both rules; cutoff-day 1-second regression test; tie-order test; align `_make_session_db` (`:93-101`; harness DDL `:40,48`) to the production `T/Z` format | REQ-007 / AC-1..AC-4 | 58 tests; zero/negative count-key coverage absent (grep this cycle); harness seeds space-format literals (`:146-163`) — mismatch invisible today | tests/db/test_db_maintenance.py | Verified |
 | tests/db/test_db_store_impl.py | Modify | Negative-days `ValueError` tests; `days=0` cutoff-boundary test (older/newer rows) | REQ-007 / AC-1, AC-2 | Existing delete tests use `days=30/7` (`:401-627`); no negative or `days=0` case (grep this cycle) | tests/db/test_db_store_impl.py | Verified |
 | tests/shared/test_config_utils.py | Modify | Add `get_typed` test class: bool rejected for int/float, bool accepted for bool, non-matching types raise | REQ-002, REQ-007 / AC-3 | File contains only 5 `get_str` tests (read this cycle) | tests/shared/test_config_utils.py | Verified |
 
@@ -173,9 +175,9 @@ Validate at both boundaries: config load (`from_config`, `build_db_config`) via 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Shared accessor and config validation (config_utils.py, config.py, maintenance.py) | Pending | — | — | |
-| 2 | Purge/prune guards, cutoff rewrite, tie-breaker (maintenance.py, store_impl.py) | Pending | — | — | |
-| 3 | Tests, docs, validation | Pending | — | — | |
+| 1 | Shared accessor and config validation (config_utils.py, config.py, maintenance.py) | In Progress | — | — | procedure docs 20261116-073054_01/_03/_04 generated |
+| 2 | Purge/prune guards, cutoff rewrite, tie-breaker (maintenance.py, store_impl.py) | In Progress | — | — | procedure docs 20261116-073054_01/_02 generated |
+| 3 | Tests, docs, validation | In Progress | — | — | procedure doc 20261116-073054_05 generated; store/config tests are companions in _02/_03; docs/41_db/db_06 update stays a plan-level step (not a target-file row) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -186,6 +188,11 @@ Validate at both boundaries: config load (`from_config`, `build_db_config`) via 
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | WI-007-1 | Phase 3 | Follow-up candidate (issue filing): `scripts/agent/memory/count_ops.py:45` cutoff-format mismatch (UNK-02) | Open (planning record) | Maintainer | After Plan 007 lands |
+| implementations/20261116-073054_01_scripts_db_maintenance.py.md | 1 | Procedure | Created | — | — |
+| implementations/20261116-073054_02_scripts_db_store_impl.py.md | 2 | Procedure | Created | — | — |
+| implementations/20261116-073054_03_scripts_shared_config_utils.py.md | 1 | Procedure | Created | — | — |
+| implementations/20261116-073054_04_scripts_db_config.py.md | 1 | Procedure | Created | — | — |
+| implementations/20261116-073054_05_tests_db_test_db_maintenance.py.md | 3 | Procedure | Created | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -206,3 +213,5 @@ Validate at both boundaries: config load (`from_config`, `build_db_config`) via 
 | REQ-005 | Problem bullet 2 (NULL silent no-op) | scripts/db/store_impl.py | Phase 2 | AC-1 | Negative-days ValueError tests | Verified by test (Step 2 live confirmation) |
 | REQ-006 | Problem bullet 5; Required Changes bullet 3 | scripts/db/maintenance.py | Phase 2 | AC-4 | Tie-order determinism test | Explicit in code (`:217`) |
 | REQ-007 | Testing Expectations; Required Changes bullet 4 | tests/db/test_db_maintenance.py, tests/db/test_db_store_impl.py, tests/shared/test_config_utils.py | Phase 3 | AC-1..AC-4 | New tests + harness alignment | Verified by test (gaps confirmed this cycle) |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-073054 -->
