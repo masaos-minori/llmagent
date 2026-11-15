@@ -41,7 +41,7 @@ Edit the single function body; no new helpers, no signature or call-site changes
 ### Details
 - `SQLiteHelper` explicit-`db_path` branch: non-empty `sqlite_vec_so` sets `_default_load_vec=True`, so `open()` (no `load_vec` argument) loads the extension and disables further extension loading (`helper.py:155-167`).
 - The physical stage (`_run_integrity_check`) is proven to pass vec0-bearing DBs without the extension (probe `[1]`); only the logical stage changes.
-- Session candidates are fixed by the same edit: `check_session_consistency` requires `memories_vec` by name (`scripts/db/session_consistency_queries.py:69`, `85`).
+- Session candidates are fixed by the same edit: `check_session_consistency` requires `memories_vec` by name (`scripts/db/session_consistency.py:69`, `85`).
 
 ## Compatibility considerations
 - No caller, signature, or result-vocabulary change; `recovery.py` needs no edit (its `verification_unavailable` mapping at `394-408` already exists).
@@ -72,10 +72,10 @@ Edit the single function body; no new helpers, no signature or call-site changes
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests are owned by companion document 20261115-075008_2 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation Impact: None per Plan |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-095020 | 20261115-095020 | build_db_config resolution + sqlite_vec_so threaded at open; docstring states resolution point |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-095020 | 20261115-095020 | N/A: tests owned by companion document 20261115-075008_2 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-095020 | 20261115-095020 | pytest 74 passed; ruff/format/mypy pass; bandit 45L/0M/0H unchanged; lint-imports 6 kept; radon top A(5)→B(6) from the prescribed config-resolution branch (gate lists C-or-worse: pass); vulture none. Full suite and coverage N/A: not run per user instruction |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-095020 | 20261115-095020 | N/A: Documentation Impact None per Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -60,7 +60,7 @@ Add-only test edit appended after `test_wal_shm_sidecars_land_at_final_locations
 ## Validation plan
 - Targeted: `uv run pytest tests/db/test_db_recovery.py -v` → new tests pass (AC-2), all existing tests unchanged and green.
 - Regression: `uv run pytest tests/db -v`, then full suite `uv run pytest -n auto` (AC-3).
-- Static: `uv run radon cc tests/db/test_db_recovery.py -s` (baseline top B(12); keep added functions small), `uv run bandit -r tests/db/test_db_recovery.py` (test file; no new HIGH), per `rules/toolchain.md`.
+- Static: `uv run radon cc tests/db/test_db_recovery.py -s` (baseline top C(13), `test_restore_with_backup_wal_shm_sidecars`, pre-existing; keep added functions small), `uv run bandit -r tests/db/test_db_recovery.py` (test file; no new HIGH), per `rules/toolchain.md`.
 
 ## Completion criteria
 - Both e2e tests assert `action == "restored"`, `logical_ok is True`, `active_db_state == "restored"` with `_run_logical_verification` unpatched (AC-2).
@@ -75,10 +75,10 @@ Add-only test edit appended after `test_wal_shm_sidecars_land_at_final_locations
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land after procedure 20261115-075008_1 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document is the test work itself |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation Impact: None per Plan |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-095020 | 20261115-095020 | Land after procedure 20261115-075008_1 3 tests appended after the WAL test; landed after 075008_1 as planned |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-095020 | 20261115-095020 | This document is the test work itself N/A: this document is the test work itself |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-095020 | 20261115-095020 | pytest test_db_recovery 77 passed (74+3); tests/db 400 passed; ruff+format pass; radon: added functions all A, file top C(13) pre-existing; bandit no new findings vs HEAD. Full suite and coverage N/A: not run per user instruction |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-095020 | 20261115-095020 | Documentation Impact: None per Plan N/A: Documentation Impact None per Plan |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

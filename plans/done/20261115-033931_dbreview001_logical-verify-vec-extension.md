@@ -127,8 +127,8 @@ None. The `verification_unavailable` vocabulary is unchanged; `docs/41_db/db_07_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Production fix (scripts/db/recovery_verification.py) | In Progress | — | — | Procedure generated: implementations/20261115-075008_1 |
-| 2 | Regression tests (tests/db/test_db_recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-075008_2 |
+| 1 | Production fix (scripts/db/recovery_verification.py) | Completed | 20261115-095020 | 20261115-095020 | Procedure generated: implementations/20261115-075008_1 |
+| 2 | Regression tests (tests/db/test_db_recovery.py) | Completed | 20261115-095020 | 20261115-095020 | Procedure generated: implementations/20261115-075008_2 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -1063,6 +1063,134 @@ def test_wal_shm_sidecars_land_at_final_locations_after_activation(
         assert not list(db_dir.glob("*_sidecar_quarantine_*"))
 
 
+# --- Real sqlite-vec restore verification (companion 20261115-075008_1) ---
+#
+# These tests run the real extension load and the real logical verification:
+# a healthy vec0-bearing candidate must reach action="restored". They are
+# written against the fixed behavior of _run_logical_verification, which
+# resolves sqlite_vec_so via build_db_config() itself.
+
+from db.config import build_db_config
+from db.helper import SQLiteHelper
+from db.schema_sql import build_rag_schema_sql, build_session_schema_sql
+from db.store_protocols import get_embedding_bytes, get_embedding_dims
+
+VEC_SO = Path(build_db_config().sqlite_vec_so)
+vec0_available = VEC_SO.is_file()
+vec_required = pytest.mark.skipif(
+    not vec0_available, reason=f"sqlite-vec extension not available at {VEC_SO}"
+)
+
+
+def _make_vec_rag_db(path: Path) -> None:
+    """Build a minimal fully consistent rag candidate with real vec0 tables."""
+    zero_vec = b"\x00" * get_embedding_bytes()
+    with SQLiteHelper("rag", db_path=str(path), sqlite_vec_so=str(VEC_SO)).open(
+        write_mode=True
+    ) as db:
+        db.executescript(build_rag_schema_sql(get_embedding_dims()))
+        db.execute(
+            "INSERT INTO documents (url, lang, fetched_at) VALUES (?, ?, ?)",
+            ("test://doc1", "ja", "2026-01-01T00:00:00Z"),
+        )
+        db.execute(
+            "INSERT INTO chunks (doc_id, chunk_index, content) VALUES (?, ?, ?)",
+            (1, 0, "test chunk content"),
+        )
+        db.execute(
+            "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)", (1, zero_vec)
+        )
+        db.commit()
+
+
+def _make_vec_session_db(path: Path) -> None:
+    """Build a minimal fully consistent session candidate with real vec0 tables."""
+    zero_vec = b"\x00" * get_embedding_bytes()
+    with SQLiteHelper("session", db_path=str(path), sqlite_vec_so=str(VEC_SO)).open(
+        write_mode=True
+    ) as db:
+        db.executescript(build_session_schema_sql(get_embedding_dims()))
+        db.execute("INSERT INTO sessions DEFAULT VALUES")
+        db.execute(
+            "INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)",
+            (1, "user", "hello"),
+        )
+        db.execute(
+            "INSERT INTO memories (memory_id, memory_type, content) VALUES (?, ?, ?)",
+            ("m1", "semantic", "test memory"),
+        )
+        db.execute(
+            "INSERT INTO memories_vec (memory_id, embedding) VALUES (?, ?)",
+            ("m1", zero_vec),
+        )
+        db.commit()
+
+
+@vec_required
+def test_restore_rag_vec0_candidate_reaches_restored(tmp_path: Path) -> None:
+    """AC-2: a healthy real-vec0 rag candidate passes verification and activates."""
+    db_dir = tmp_path / "db_dir"
+    db_dir.mkdir()
+    db_path = db_dir / "rag.sqlite"
+    db_path.write_bytes(b"CORRUPT ORIGINAL CONTENT")
+    backup_path = tmp_path / "backup.sqlite"
+    _make_vec_rag_db(backup_path)
+
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
+        mock_integrity.side_effect = [
+            (DbCondition.HEALTHY, None),  # backup
+            (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+            (DbCondition.HEALTHY, None),  # post-activation re-check
+        ]
+        result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+    assert result.success is True
+    assert result.action == "restored"
+    assert result.logical_ok is True
+    assert result.active_db_state == "restored"
+    assert db_path.read_bytes() == backup_path.read_bytes()
+
+
+@vec_required
+def test_restore_session_vec0_candidate_reaches_restored(tmp_path: Path) -> None:
+    """AC-2: the memories_vec-requiring session stage passes with the extension."""
+    db_dir = tmp_path / "db_dir"
+    db_dir.mkdir()
+    db_path = db_dir / "session.sqlite"
+    db_path.write_bytes(b"CORRUPT ORIGINAL CONTENT")
+    backup_path = tmp_path / "backup.sqlite"
+    _make_vec_session_db(backup_path)
+
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
+        mock_integrity.side_effect = [
+            (DbCondition.HEALTHY, None),  # backup
+            (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+            (DbCondition.HEALTHY, None),  # post-activation re-check
+        ]
+        result = _restore_from_backup(db_path, str(backup_path), target="session")
+
+    assert result.success is True
+    assert result.action == "restored"
+    assert result.logical_ok is True
+    assert result.active_db_state == "restored"
+    assert db_path.read_bytes() == backup_path.read_bytes()
+
+
+def test_logical_verification_config_failure_is_verification_unavailable(
+    tmp_path: Path,
+) -> None:
+    """REQ-001 fail-closed: a config without sqlite_vec_so never reports success."""
+    db_file = tmp_path / "rag.sqlite"
+    db_file.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+    with patch(
+        "db.recovery_verification.build_db_config",
+        side_effect=ValueError("sqlite_vec_so is empty or absent in agent.toml"),
+    ):
+        consistent, detail = _run_logical_verification(db_file, "rag")
+    assert consistent is False
+    assert detail == "verification_unavailable"
+
+
 # --- Characterization tests for the recovery internals the suite left uncovered ---
 #
 # These lock behavior that the refactor of scripts/db/recovery.py must preserve

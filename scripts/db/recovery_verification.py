@@ -13,6 +13,7 @@ import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 
+from db.config import build_db_config
 from db.helper import SQLiteHelper
 from db.models import (
     RagConsistencyReport,
@@ -131,6 +132,11 @@ def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | N
     closed as (False, "verification_unavailable"): a verification gap must never
     be reported as success for a mandatory check. Non-mandatory targets
     (workflow) keep the skip result.
+
+    The sqlite-vec extension path is resolved here via build_db_config(): the
+    responsibility level where DbConfig owns the path, so callers do not each
+    thread it. A config that cannot supply sqlite_vec_so fails closed as
+    (False, "verification_unavailable") before the candidate is opened.
     """
     verify = _LOGICAL_VERIFIERS.get(target)
     if verify is None:
@@ -138,7 +144,14 @@ def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | N
             return False, "verification_unavailable"
         return True, None
     try:
-        with SQLiteHelper(target, db_path=str(db_path)).open() as db:
+        cfg = build_db_config()
+    except ValueError as e:
+        logger.error("Logical verification could not resolve DbConfig: %s", e)
+        return False, "verification_unavailable"
+    try:
+        with SQLiteHelper(
+            target, db_path=str(db_path), sqlite_vec_so=cfg.sqlite_vec_so
+        ).open() as db:
             return verify(db)
     except sqlite3.Error as e:
         logger.error("Logical verification could not open DB: %s", e)
