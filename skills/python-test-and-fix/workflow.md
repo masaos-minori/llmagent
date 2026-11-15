@@ -292,7 +292,7 @@ Add `@pytest.mark.timeout(5)` to individual tests that involve LLM calls or netw
 Use `pytest --testmon-forceselect` together with `-m` while iterating on a fix within this same session; run the
 repository's full, non-testmon suite once before considering the task complete
 (Step 11) regardless of testmon results — testmon narrows re-runs during iteration, it
-does not replace the final full run. The full run is `uv run pytest -n logical -m "not integration and not production_paths_allowed"` (the
+does not replace the final full run. The full run is `uv run pytest -n logical -m "not integration and not production_paths_allowed and not repo_scan"` (the
 suite is large; its size was not measured when this was written, so expect a long run); run `-m integration` too only when the
 change touches code those tests cover or the user asks. Record the pass/fail counts. Run it in the background with the output redirected to a file in a temporary directory outside the repository (`mktemp -d`), and read only the summary line and the `FAIL`/`ERROR` lines.
 
@@ -316,9 +316,11 @@ with `--testmon-forceselect`. `--testmon-noselect` is the testmon option that de
 
 The `repo_scan` marker labels tests that scan the whole repository, so their result depends
 on the repository and not on the change under test. Iteration runs deselect them with
-`and not repo_scan`; the final full run above, the coverage run in Step 11, pre-commit, and CI
-still run them. A per-test-path command for flaky investigation or bisect must not carry the
-exclusion, so the test under investigation is not deselected.
+`and not repo_scan`, and so does the final full run above (the repo_scan rule is in
+`rules/toolchain.md` section 6: run them with `-m repo_scan` when the change touches a checker
+they exercise or its tests). The coverage run in Step 11, pre-commit, and CI still run them. A
+per-test-path command for flaky investigation or bisect must not carry the exclusion, so the
+test under investigation is not deselected.
 
 ## Step 11: Regression Quality Analysis
 
@@ -404,7 +406,7 @@ Confirm against each Step's stated criteria above; MUST NOT re-derive them:
 - Step 2: production isolation confirmed before the first test run; no test was skipped, xfailed, or deleted to get a green run
 - Step 3 (Paths A, C, D): no flakiness introduced — the target passes under the seeds used and under `-p no:randomly`, and, where Step 3's full sequence applies, a 10-run loop of the same seed (without `--reruns`) shows no failure. Path B: the new test file passes in randomized order and with `-p no:randomly`
 - Step 6: mock only at true I/O boundaries, no `mocker.patch` on internal helpers
-- Step 10: the full non-testmon suite (`-m "not integration and not production_paths_allowed"`) ran once after the last change and passed, with its pass/fail counts recorded (and a re-run after any `conftest.py` change)
+- Step 10: the full non-testmon suite (`-m "not integration and not production_paths_allowed and not repo_scan"`, plus `-m repo_scan` when the change touches a checker or its tests) ran once after the last change and passed, with its pass/fail counts recorded (and a re-run after any `conftest.py` change)
 - Step 10 / 13: `.testmondata`, `coverage.xml`, and `.coverage` not committed
 - Step 11 target (Paths A and B): 0 surviving mutants on the fix/new code, or `Not run` recorded with the reason (then reported as unverified); Paths C and D: not applicable
 - Step 11 diff-scoped coverage: the `diff-cover` result meets the threshold in `rules/toolchain.md` §7 (Diff-scoped coverage), or is recorded as unmet with the lines it names
