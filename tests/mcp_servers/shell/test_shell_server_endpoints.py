@@ -1,7 +1,6 @@
 """tests/mcp_servers/shell/test_shell_server_endpoints.py
 
 Characterization tests for scripts/mcp_servers/shell/shell_server.py's FastAPI wiring:
-  - POST /shell_run (success path, and the two registered exception handlers)
   - GET  /v1/tools
   - POST /v1/call_tool (success and unknown-tool paths, and the audit record's
     session_id/request_id field order)
@@ -23,12 +22,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.shell import server as shell_server
-from mcp_servers.shell.shell_models import (
-    ShellAuthorizationError,
-    ShellConfig,
-    ShellRunResponse,
-    ShellValidationError,
-)
+from mcp_servers.shell.shell_models import ShellConfig
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
 
@@ -56,44 +50,6 @@ def fake_service(monkeypatch: pytest.MonkeyPatch) -> _FakeService:
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(shell_server.app, headers=MCP_TEST_AUTH_HEADERS)
-
-
-class TestShellRunEndpoint:
-    def test_success_returns_run_result(
-        self, client: TestClient, fake_service: _FakeService
-    ) -> None:
-        fake_service.run_command.return_value = ShellRunResponse(
-            stdout="hello\n",
-            stderr="",
-            exit_code=0,
-            timed_out=False,
-            truncated=False,
-            elapsed_sec=0.01,
-        )
-        resp = client.post("/shell_run", json={"command": "echo hello"})
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["stdout"] == "hello\n"
-        assert body["exit_code"] == 0
-        fake_service.run_command.assert_awaited_once()
-
-    def test_authorization_error_maps_to_403(
-        self, client: TestClient, fake_service: _FakeService
-    ) -> None:
-        fake_service.run_command.side_effect = ShellAuthorizationError(
-            "cmd not allowed"
-        )
-        resp = client.post("/shell_run", json={"command": "rm -rf /"})
-        assert resp.status_code == 403
-        assert resp.json()["detail"] == "cmd not allowed"
-
-    def test_validation_error_maps_to_422(
-        self, client: TestClient, fake_service: _FakeService
-    ) -> None:
-        fake_service.run_command.side_effect = ShellValidationError("bad cwd")
-        resp = client.post("/shell_run", json={"command": "ls", "cwd": "/nope"})
-        assert resp.status_code == 422
-        assert resp.json()["detail"] == "bad cwd"
 
 
 class TestToolsListEndpoint:

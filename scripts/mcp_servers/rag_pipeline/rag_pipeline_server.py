@@ -7,25 +7,19 @@ Wraps the six-step RagPipeline (MQE→Search→RRF→Rerank→Dedup→Augment) a
 HTTP MCP server.
 
 Provided endpoints:
-  POST /v1/call_tool        MCP tool dispatch
-  GET  /v1/tools            List RAG tools with server_key="rag_pipeline"
   GET  /health              Health check endpoint
-  POST /rag_debug_pipeline  Run pipeline returning all intermediate stage outputs
-  GET  /v1/tools            MCP tool list (minimal format)
+  GET  /v1/tools            List RAG tools with server_key="rag_pipeline"
   POST /v1/call_tool        MCP standard tool dispatch
-  GET  /health              Health check
 """
 
 from __future__ import annotations
 
-import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
@@ -36,11 +30,8 @@ from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatc
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.rag_pipeline.rag_pipeline_models import (
-    RagDebugResponse,
     RagPipelineConfig,
     RagPipelineServiceError,
-    RagRunRequest,
-    RagRunResponse,
 )
 from mcp_servers.rag_pipeline.rag_pipeline_security import (
     validate_rag_pipeline_security,
@@ -177,40 +168,6 @@ async def _handle_rag_service_error(
 # ──────────────────────────────────────────────────────────────────────────────
 # Direct HTTP endpoints
 # ──────────────────────────────────────────────────────────────────────────────
-
-
-@app.post("/rag_run_pipeline", response_model=RagRunResponse)
-async def rag_run_pipeline(req: RagRunRequest) -> RagRunResponse:
-    """Execute the full RAG pipeline with MQE→Search→RRF→Rerank→Dedup→Augment stages."""
-    t0 = time.perf_counter()
-    result = await _service.run_pipeline(req)
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(
-        fmt_kvlog(
-            "rag_run_pipeline",
-            hits=len(result.selected_hits),
-            augmented=bool(result.augmented_text),
-            ms=f"{ms:.0f}",
-        ),
-    )
-    return result
-
-
-@app.post("/rag_debug_pipeline", response_model=RagDebugResponse)
-async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
-    """Execute the RAG pipeline returning all intermediate stage outputs for debugging."""
-    t0 = time.perf_counter()
-    result = await _service.run_debug_pipeline(req)
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(
-        fmt_kvlog(
-            "rag_debug_pipeline",
-            queries=len(result.queries),
-            reranked=len(result.reranked_hits),
-            ms=f"{ms:.0f}",
-        ),
-    )
-    return result
 
 
 async def _check_health_deps() -> dict[str, str]:

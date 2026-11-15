@@ -12,17 +12,16 @@ Security:
   - Service runs as llm-agent (non-root) OS user
 
 Provided endpoints:
-  POST /shell_run   Execute a sandboxed shell command
   GET  /health      Health check
+  GET  /v1/tools    List available MCP tools
+  POST /v1/call_tool Dispatch an MCP tool call through the shared path
 """
 
 import shutil
-import time
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
@@ -44,8 +43,6 @@ from mcp_servers.server import (
 from mcp_servers.shell.shell_models import (
     ShellAuthorizationError,
     ShellConfig,
-    ShellRunRequest,
-    ShellRunResponse,
     ShellValidationError,
     load_shell_policy,
 )
@@ -138,25 +135,6 @@ async def _on_shell_validation_error(
 # ──────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────────────────────────────────────
-
-
-@app.post("/shell_run", response_model=ShellRunResponse)
-async def shell_run(req: ShellRunRequest) -> ShellRunResponse:
-    """Execute a sandboxed shell command via the shell service."""
-    t0 = time.perf_counter()
-    result = await _service.run_command(req)
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(
-        fmt_kvlog(
-            "shell_run",
-            cmd=req.command[:80],
-            exit=result.exit_code,
-            timed_out=result.timed_out,
-            truncated=result.truncated,
-            ms=f"{ms:.0f}",
-        ),
-    )
-    return result
 
 
 @app.get("/health")

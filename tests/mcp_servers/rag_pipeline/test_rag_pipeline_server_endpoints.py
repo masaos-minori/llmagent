@@ -3,9 +3,6 @@
 Characterization tests for scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py's
 FastAPI wiring:
   - lifespan start/stop delegation to the shared service
-  - RagPipelineServiceError exception handler (503)
-  - POST /rag_run_pipeline
-  - POST /rag_debug_pipeline
   - GET  /v1/tools
   - POST /v1/call_tool (known and unknown tool)
   - POST /v1/call_tool audit record emission (mcp_tool_exec)
@@ -31,12 +28,7 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.rag_pipeline import rag_pipeline_health_probe as probe
 from mcp_servers.rag_pipeline import rag_pipeline_server as server
-from mcp_servers.rag_pipeline.rag_pipeline_models import (
-    RagDebugResponse,
-    RagPipelineConfig,
-    RagPipelineServiceError,
-    RagRunResponse,
-)
+from mcp_servers.rag_pipeline.rag_pipeline_models import RagPipelineConfig
 
 
 class _FakeService:
@@ -46,8 +38,6 @@ class _FakeService:
     def __init__(self) -> None:
         self.start = AsyncMock()
         self.stop = AsyncMock()
-        self.run_pipeline = AsyncMock()
-        self.run_debug_pipeline = AsyncMock()
         self._dispatch_table: dict[str, Any] = {}
 
     def get_dispatch_table(self) -> dict[str, Any]:
@@ -170,55 +160,6 @@ class TestLifespan:
             fake_service.start.assert_awaited_once()
             fake_service.stop.assert_not_awaited()
         fake_service.stop.assert_awaited_once()
-
-
-class TestRagServiceErrorHandler:
-    def test_service_error_maps_to_503(
-        self, client: TestClient, fake_service: _FakeService
-    ) -> None:
-        fake_service.run_pipeline.side_effect = RagPipelineServiceError("not ready")
-        resp = client.post("/rag_run_pipeline", json={"query": "hello"})
-        assert resp.status_code == 503
-        assert resp.json() == {"error": "not ready"}
-
-
-class TestRagRunPipelineEndpoint:
-    def test_success_returns_run_result(
-        self, client: TestClient, fake_service: _FakeService
-    ) -> None:
-        fake_service.run_pipeline.return_value = RagRunResponse(
-            query="hello",
-            augmented_text="context block",
-            selected_hits=[{"id": 1}],
-        )
-        resp = client.post("/rag_run_pipeline", json={"query": "hello"})
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["query"] == "hello"
-        assert body["augmented_text"] == "context block"
-        assert body["selected_hits"] == [{"id": 1}]
-        fake_service.run_pipeline.assert_awaited_once()
-
-
-class TestRagDebugPipelineEndpoint:
-    def test_success_returns_debug_result(
-        self, client: TestClient, fake_service: _FakeService
-    ) -> None:
-        fake_service.run_debug_pipeline.return_value = RagDebugResponse(
-            query="hello",
-            augmented_text="context block",
-            selected_hits=[],
-            queries=["hello", "hello world"],
-            merged_hits=[{"id": 1}],
-            reranked_hits=[{"id": 1}],
-        )
-        resp = client.post("/rag_debug_pipeline", json={"query": "hello"})
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["queries"] == ["hello", "hello world"]
-        assert body["merged_hits"] == [{"id": 1}]
-        assert body["reranked_hits"] == [{"id": 1}]
-        fake_service.run_debug_pipeline.assert_awaited_once()
 
 
 class TestHealthEndpoint:

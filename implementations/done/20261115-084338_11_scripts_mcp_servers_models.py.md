@@ -58,10 +58,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-122517 | 20261115-122517 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-122517 | 20261115-122517 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-122517 | 20261115-122517 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-122517 | 20261115-122517 | STEP:4:N/A verify-only row; model layout confirmed correct, no deletion (AC-7 governs any future deletion) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import dataclasses
 import hmac
+import importlib
+import json
 import logging
 import sys
 import uuid
@@ -25,6 +27,22 @@ from mcp_servers.models import McpTool
 
 # Library module: use standard getLogger without a dedicated log file.
 logger = logging.getLogger(__name__)
+
+# REQ-004 (mcproute001): shared request-boundary check rejects a keyless
+# side-effecting /v1/call_tool before dispatch. The canonical side-effect tool
+# set is defined by the sibling issue sideeffect001 as ALL_SIDE_EFFECTING_TOOLS
+# in shared.tool_constants. Resolve it defensively: until that set exists the
+# boundary is wired in but inert (see the Blocker Log in the implementation
+# procedure). importlib+getattr keeps a missing symbol from breaking module
+# import and from tripping mypy's import-name check; never add a second
+# hardcoded list here.
+try:
+    _tool_constants = importlib.import_module("shared.tool_constants")
+    ALL_SIDE_EFFECTING_TOOLS = getattr(
+        _tool_constants, "ALL_SIDE_EFFECTING_TOOLS", None
+    )
+except ImportError:
+    ALL_SIDE_EFFECTING_TOOLS = None
 
 
 # Type alias for MCP tool argument dictionaries.
@@ -123,6 +141,56 @@ def attach_auth_middleware(
             presented.encode("utf-8"), f"Bearer {token}".encode()
         )
 
+    # REQ-004: middleware registered last is outermost and runs first, so the
+    # idempotency boundary is registered BEFORE auth and auth is registered LAST.
+    # An unauthorized request is therefore rejected by the bearer check before the
+    # idempotency boundary ever sees it.
+    @app.middleware("http")
+    async def _idempotency_key_middleware(  # noqa: ANN001,ANN202 — FastAPI middleware protocol
+        request: Request, call_next
+    ):
+        """Reject a keyless side-effecting POST /v1/call_tool before dispatch (REQ-004).
+
+        Registered before the bearer-auth middleware below, so auth is the
+        outermost middleware and runs first; this boundary runs after auth,
+        before dispatch. Only governs POST /v1/call_tool. Resolves the
+        idempotency key from the same headers/state as extract_request_context().
+        Consults the canonical side-effect set from shared.tool_constants; until
+        sideeffect001 defines ALL_SIDE_EFFECTING_TOOLS the boundary is inert.
+        """
+        if request.method != "POST" or request.url.path != "/v1/call_tool":
+            return await call_next(request)
+        if not ALL_SIDE_EFFECTING_TOOLS:
+            return await call_next(request)
+        idempotency_key = getattr(
+            request.state,
+            "idempotency_key",
+            request.headers.get("x-idempotency-key", ""),
+        )
+        if idempotency_key:
+            return await call_next(request)
+        tool_body = await _read_call_tool_body(request)
+        tool_name = tool_body.get("name")
+        if tool_name in ALL_SIDE_EFFECTING_TOOLS:
+            logger.warning(
+                "REQ-004 rejected keyless side-effecting /v1/call_tool for %r",
+                tool_name,
+            )
+            return JSONResponse(
+                {"error": "side-effecting tool requires X-Idempotency-Key"},
+                status_code=422,
+            )
+        return await call_next(request)
+
+    if not ALL_SIDE_EFFECTING_TOOLS:
+        # REQ-004: canonical side-effect set (sideeffect001) not defined yet.
+        # Boundary is wired in but inert; log once at startup, enforce nothing.
+        logger.warning(
+            "REQ-004 idempotency-key boundary inert: "
+            "ALL_SIDE_EFFECTING_TOOLS undefined in shared.tool_constants "
+            "(define via sideeffect001)"
+        )
+
     @app.middleware("http")
     async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
         """Authenticate requests by validating Bearer token header."""
@@ -133,6 +201,25 @@ def attach_auth_middleware(
         response = await call_next(request)
         response.headers["X-Request-Id"] = req_id
         return response
+
+
+async def _read_call_tool_body(request: Request) -> dict[str, Any]:
+    """Return the parsed JSON body of a /v1/call_tool request, or {} on failure.
+
+    Reads (and caches) the request body so downstream handlers still see the
+    original payload. Returns {} when the body is empty or not valid JSON.
+    """
+    try:
+        raw = await request.body()
+    except Exception:  # noqa: BLE001 — a boundary must never become a 500 vector
+        return {}
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def require_auth_token(label: str, env_var: str, token: str | None) -> str:

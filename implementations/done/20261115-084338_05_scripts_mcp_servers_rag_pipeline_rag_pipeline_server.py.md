@@ -22,7 +22,7 @@ Remove the `/rag_run_pipeline` and `/rag_debug_pipeline` direct POST execution r
 ### Procedure
 1. Delete the `/rag_run_pipeline` handler and registration at line 182 and the `/rag_debug_pipeline` handler at line 199.
 2. Keep `/health` (line 245), `/v1/tools` (line 261), `/v1/call_tool` (line 288) unchanged.
-3. Remove now-unused route-specific imports/response-model names (`RagRunResponse`, `RagDebugResponse`) if unused elsewhere.
+3. Remove now-unused route-specific imports/response-model names (`RagRunResponse`, `RagDebugResponse`) if unused elsewhere. NOTE (corrected during Step 3a adversarial verification): after deleting both handlers, `time`, `fmt_kvlog`, and `RagRunRequest` are also imported but no longer used in this module (their only usages were inside the two removed handlers), so all five names are removed together.
 
 ### Method
 `grep -n "@app.post" scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`; delete both decorators + handlers; confirm no `@app.post` execution route remains.
@@ -60,10 +60,10 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-112625 | 20261115-112625 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-112625 | 20261115-112625 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-112625 | 20261115-112625 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-112625 | 20261115-112625 | STEP:4:N/A no docs/00_index.md task-scope mapping for rag_pipeline_server.py; API reference update is REQ-008 (procedure 19) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

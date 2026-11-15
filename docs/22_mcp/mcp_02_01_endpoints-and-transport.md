@@ -32,6 +32,8 @@ To document the shared MCP protocol. It covers HTTP formats, common types, authe
 
 All servers expose these endpoints. The `/health` response varies by server (see [Server-specific health](./mcp_02_02_startup-modes-and-health.md)).
 
+Beyond these three, each server retains only non-execution diagnostics. The file-read server additionally exposes `GET /list_allowed_directories`, a diagnostic that returns resolved allowlist paths; it is retained as a sensitive diagnostic whose final disposition awaits a maintainer decision. No operation-specific execution route remains on any server — every tool runs through the single `POST /v1/call_tool` path below.
+
 ---
 
 ## HTTP Transport: `/v1/call_tool`
@@ -71,6 +73,10 @@ Every MCP server registers that middleware and enforces the `Authorization` head
 ```
 
 `is_error=true` indicates a tool-level error. Even in case of a tool error, the HTTP status remains 200. HTTP 4xx/5xx indicate transport-level errors.
+
+### Idempotency Key for Side-Effecting Calls
+
+`POST /v1/call_tool` is the single execution path for every tool. Side-effecting calls (operations that mutate state) must carry an `X-Idempotency-Key` request header. The shared request boundary rejects a keyless side-effecting call before dispatch; read-only keyless calls stay allowed. The set of side-effecting tools is defined centrally rather than per-server, so the same header requirement applies to every server.
 
 ---
 

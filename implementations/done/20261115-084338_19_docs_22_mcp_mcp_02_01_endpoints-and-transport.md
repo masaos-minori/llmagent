@@ -61,8 +61,8 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-123610 | 20261115-123610 | doc edit: idempotency-key requirement (REQ-004) + retained non-execution diagnostics incl. pending-AC-4 /list_allowed_directories |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-123610 | 20261115-123610 | check_docs_structure OK; check_docs_consistency --domain mcp OK; generate_reference_table --check no drift |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

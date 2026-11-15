@@ -8,18 +8,16 @@ Security: Only paths under directories listed in allowed_dirs are accessible.
 All operations are audit-logged to /opt/llm/logs/delete_audit.log.
 
 Provided endpoints:
-  POST /delete_file        Delete a file
-  POST /delete_directory   Delete a directory (recursive option available)
   GET  /health             Health check
+  GET  /v1/tools           List available MCP tools
+  POST /v1/call_tool       Dispatch an MCP tool call through the shared path
 """
 
 import logging
-import time
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
@@ -37,10 +35,6 @@ from mcp_servers.file.common import (
     availability_flags,
 )
 from mcp_servers.file.delete_models import (
-    DeleteDirectoryRequest,
-    DeleteDirectoryResponse,
-    DeleteFileRequest,
-    DeleteFileResponse,
     FileDeleteConfig,
 )
 from mcp_servers.file.delete_service import (
@@ -126,33 +120,6 @@ app.add_exception_handler(FileValidationError, _on_validation_error)
 # ──────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────────────────────────────────────
-
-
-@app.post("/delete_file", response_model=DeleteFileResponse)
-async def delete_file(req: DeleteFileRequest) -> DeleteFileResponse:
-    """Delete a single file from disk."""
-    t0 = time.perf_counter()
-    result = _service.delete_file(req)
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(fmt_kvlog("delete_file", path=result.path, ms=f"{ms:.0f}"))
-    return result
-
-
-@app.post("/delete_directory", response_model=DeleteDirectoryResponse)
-async def delete_directory(req: DeleteDirectoryRequest) -> DeleteDirectoryResponse:
-    """Delete a directory, optionally recursively."""
-    t0 = time.perf_counter()
-    result = _service.delete_directory(req)
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(
-        fmt_kvlog(
-            "delete_directory",
-            path=result.path,
-            recursive=req.recursive,
-            ms=f"{ms:.0f}",
-        ),
-    )
-    return result
 
 
 @app.get("/health")

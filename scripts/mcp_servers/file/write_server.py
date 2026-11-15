@@ -8,20 +8,16 @@ Security: Only paths under directories listed in allowed_dirs are accessible.
 Deletions are not provided; use file-delete-mcp for that.
 
 Provided endpoints:
-  POST /write_file         Create or overwrite a file
-  POST /edit_file          Diff-based editing via string replacement
-  POST /create_directory   Create a directory
-  POST /move_file          Move or rename a file/directory
   GET  /health             Health check
+  GET  /v1/tools           List available MCP tools
+  POST /v1/call_tool       Dispatch an MCP tool call through the shared path
 """
 
 import logging
-import time
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
@@ -39,15 +35,7 @@ from mcp_servers.file.common import (
     availability_flags,
 )
 from mcp_servers.file.write_models import (
-    CreateDirectoryRequest,
-    CreateDirectoryResponse,
-    EditFileRequest,
-    EditFileResponse,
     FileWriteConfig,
-    MoveFileRequest,
-    MoveFileResponse,
-    WriteFileRequest,
-    WriteFileResponse,
 )
 from mcp_servers.file.write_security_validation import validate_file_write_security
 from mcp_servers.file.write_service import WriteFileService, build_service
@@ -125,67 +113,6 @@ app.add_exception_handler(FileValidationError, _on_validation_error)
 # ──────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────────────────────────────────────
-
-
-@app.post("/write_file", response_model=WriteFileResponse)
-async def write_file(req: WriteFileRequest) -> WriteFileResponse:
-    """Create or overwrite a file on disk."""
-    t0 = time.perf_counter()
-    result = _service.write_file(req)
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(
-        fmt_kvlog("write_file", path=result.path, bytes=result.size, ms=f"{ms:.0f}"),
-    )
-    return result
-
-
-@app.post("/edit_file", response_model=EditFileResponse)
-async def edit_file(req: EditFileRequest) -> EditFileResponse:
-    """Apply diff-based edits to an existing file on disk."""
-    t0 = time.perf_counter()
-    result = _service.edit_file(req)
-    ms = (time.perf_counter() - t0) * 1000
-    action = "dry_run" if req.dry_run else "applied"
-    logger.info(
-        fmt_kvlog(
-            "edit_file",
-            path=result.path,
-            action=action,
-            n=len(req.edits),
-            ms=f"{ms:.0f}",
-        ),
-    )
-    return result
-
-
-@app.post("/create_directory", response_model=CreateDirectoryResponse)
-async def create_directory(req: CreateDirectoryRequest) -> CreateDirectoryResponse:
-    """Create a directory on disk."""
-    t0 = time.perf_counter()
-    result = _service.create_directory(req)
-    ms = (time.perf_counter() - t0) * 1000
-    created = "created" if result.created else "exists"
-    logger.info(
-        fmt_kvlog("create_directory", path=result.path, result=created, ms=f"{ms:.0f}"),
-    )
-    return result
-
-
-@app.post("/move_file", response_model=MoveFileResponse)
-async def move_file(req: MoveFileRequest) -> MoveFileResponse:
-    """Move or rename a file or directory on disk."""
-    t0 = time.perf_counter()
-    result = _service.move_file(req)
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(
-        fmt_kvlog(
-            "move_file",
-            src=result.source,
-            dst=result.destination,
-            ms=f"{ms:.0f}",
-        ),
-    )
-    return result
 
 
 @app.get("/health")
