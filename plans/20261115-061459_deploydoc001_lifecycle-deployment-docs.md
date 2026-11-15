@@ -50,11 +50,6 @@ This table is the canonical, frozen source of implementation scope for this Plan
 `plan-to-implementation-procedure` document MUST reference file paths only from this
 table — no other file may be treated as a modification target.
 
-This table is the canonical, frozen source of implementation scope for this Plan. Once
-`Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
-`plan-to-implementation-procedure` document MUST reference file paths only from this
-table — no other file may be treated as a modification target.
-
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|
 | `docs/23_agent/agent_02_runtime-architecture.md` | Modify | Define the two undocumented lifecycle behaviors (failure cooldown, invalid-transition log-and-store) and add a PID/process-group ownership note in the "Lifecycle Implementation" section, which already owns the state machine and shutdown suppression. | REQ-001 | `lifecycle_router.py` defines `_COOLDOWN_SECONDS`, `_failed_starts`, `_in_cooldown()` (throttles `ensure_ready`/`restart`), and `StartSuppressedError`; `_set_state` catches `assert_valid_transition`'s `ValueError`, logs a warning, and still sets the new state (log-and-store). `agent_10_05` L48 mentions "cooldown rejections" without definition; no doc defines the cooldown window, the invalid-transition handling, or the session/pgid model. | none (doc) | Verified |
@@ -169,7 +164,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document the failure cooldown and invalid-transition handling in `agent_02` | Pending | — | — | Adds the cooldown definition, the log-and-store invalid-transition handling, and a PGID/shutdown note to the "Lifecycle Implementation" section (REQ-001). |
+| 1 | Document the failure cooldown and invalid-transition handling in `agent_02` | In Progress | — | — | Adds the cooldown definition, the log-and-store invalid-transition handling, and a PGID/shutdown note to the "Lifecycle Implementation" section (REQ-001). |
 | 2 | Run documentation and consistency checkers | Pending | — | — | `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py`, `check_docs_japanese.py`, `check_docs_consistency.py --domain agent` (REQ-001). |
 
 ### Blocker Log
@@ -180,7 +175,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|---------|
-| — | — | — | — | — | — |
+| `implementations/20261115-061459_01_docs_23_agent_agent_02_runtime-architecture.md.md` | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
