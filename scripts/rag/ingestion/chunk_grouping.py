@@ -14,11 +14,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
+from shared.logger import Logger
+
 from rag.exceptions import ChunkFormatError, IngestionFailureReason
 from rag.ingestion.pipeline_utils import read_chunk_json
 from rag.models_data import ChunkDocument
 from rag.utils import validate_url
-from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 

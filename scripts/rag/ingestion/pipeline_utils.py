@@ -10,10 +10,11 @@ from pathlib import Path
 from typing import Any, NotRequired, TypedDict
 
 import orjson
+from shared.logger import Logger
+
 from rag.exceptions import ChunkFormatError
 from rag.models_data import ChunkDocument
 from rag.models_result import SkipInfo
-from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/pipeline.log")
 

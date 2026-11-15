@@ -12,12 +12,13 @@ from pathlib import Path
 
 import httpx
 from db.store_protocols import validate_embedding_blob
+from shared.json_utils import parse_http_json
+from shared.logger import Logger
+
 from rag.exceptions import ChunkFormatError, IngestionFailureReason
 from rag.ingestion.pipeline_utils import read_chunk_json
 from rag.models_data import PreparedChunk
 from rag.utils import floats_to_blob
-from shared.json_utils import parse_http_json
-from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 

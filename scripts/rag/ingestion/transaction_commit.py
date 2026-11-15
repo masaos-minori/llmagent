@@ -12,11 +12,12 @@ from dataclasses import replace as dataclasses_replace
 from pathlib import Path
 
 from db.helper import SQLiteHelper
+from shared.logger import Logger
+
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.document_persistence import DocumentStore
 from rag.ingestion.etag_manager import ETagManager
 from rag.models_data import PreparedChunk
-from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 
