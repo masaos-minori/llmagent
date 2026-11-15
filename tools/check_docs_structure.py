@@ -134,10 +134,19 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted 37291 (2026-11-15): dbreview004 added the `missing` condition to the
     # Decision Detail #14 and INV-13 enumerations and the MISSING/rollback-journal test
     # citations to the INV-13 and INV-16 rows.
-    "db_07_api_and_operations-recovery-and-reference.md": 25553,
+    "db_07_api_and_operations-recovery-and-reference.md": 25845,
     # Re-accepted 25553 (2026-11-15): dbreview004 added the MISSING enum member, the
     # missing-file diagnosis bullet, the probe-semantics bullet, and the
     # missing_database/active_db_state="missing" result-contract additions.
+    # Re-accepted 25845 (2026-11-15): the staged-WAL consumption fix extended the
+    # probe-semantics bullet (a staged -wal replayed by candidate verification is
+    # consumed) and the activation move contract (only staged sidecars that still
+    # exist are moved; consumed ones are skipped).
+    "adr_02_03_012_mcp-git-server-side-write-enforcement.md": 25253,
+    # Re-accepted 25253 (2026-11-15), closing gate drift: a66077b4f (the authority-model
+    # batch) grew the file 17842 -> 25253 past the default limit without a ceiling entry.
+    # Recorded only to keep check_docs_structure.py green; outside the staged-WAL
+    # consumption fix's scope.
     # Re-accepted 2026-11-12, closing a pre-existing gap: the file had grown 34206 -> 36197
     # by 8ab061b3c (adrrev009 recovery alignment) without the ceiling being re-recorded.
     # Not part of adrrev011 scope; recorded here only to keep check_docs_structure.py green.
@@ -161,7 +170,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # 30060 without re-recording the ceiling, a gate drift; rmcompat004 WI-01 then reworded the
     # two `_validate_deployment_mode()` references to `EventBusConfig.__post_init__`. The ceiling
     # equals the accepted size. Any further growth fails.
-    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 30064,
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 30069,
+    # Re-accepted 30069 (2026-11-15), closing gate drift: 23ca93846 (rmcompat005) grew
+    # the file 30064 -> 30069 (INV-08 verification row and events column list) without
+    # re-recording the ceiling. Recorded only to keep check_docs_structure.py green;
+    # outside the staged-WAL consumption fix's scope.
     # The generated agent-class reference table was already 24961 bytes (2026-10-24), over
     # MAX_SIZE before any new plan touched it. `plans/20261023-072425_plan.md` REQ-005
     # regenerates it with a longer `mask_args` summary row, which lands at 24972 bytes. The
