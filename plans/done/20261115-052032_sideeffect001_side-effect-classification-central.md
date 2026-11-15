@@ -183,9 +183,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define the canonical set and remove the contradictory comment | Completed | — | 20261115 | Procedures 01-04 executed and archived 20261115; targeted tests green; ruff/mypy/lint-imports clean |
-| 2 | Wire dispatch, http_transport, and tool_policy to the canonical set | Completed | — | 20261115 | Procedures 01-04 executed and archived 20261115; targeted tests green; ruff/mypy/lint-imports clean |
-| 3 | Parity tests and verification | Completed | — | 20261115 | Procedures 01-04 executed and archived 20261115; targeted tests green; ruff/mypy/lint-imports clean |
+| 1 | Define the canonical set and remove the contradictory comment | Completed | — | 20261116 | Procedures 01-13 executed and archived 20261116; targeted tests green; ruff/mypy/lint-imports clean |
+| 2 | Wire dispatch, http_transport, and tool_policy to the canonical set | Completed | — | 20261116 | Procedures 01-13 executed and archived 20261116; targeted tests green; ruff/mypy/lint-imports clean |
+| 3 | Parity tests and verification | Completed | — | 20261116 | Procedures 01-13 executed and archived 20261116; targeted tests green; ruff/mypy/lint-imports clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -195,10 +195,19 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261115-192353_01_scripts_shared_tool_constants.py.md` | 1, 3 | Procedure | Completed | — | — |
-| `implementations/20261115-192353_02_scripts_mcp_servers_dispatch.py.md` | 2, 3 | Procedure | Completed | — | — |
-| `implementations/20261115-192353_03_scripts_shared_http_transport.py.md` | 2 | Procedure | Completed | — | — |
-| `implementations/20261115-192353_04_scripts_agent_tool_policy.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_01_scripts_shared_tool_constants.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_02_scripts_mcp_servers_dispatch.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_03_shared_http_transport.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_04_agent_tool_policy.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_05_tests_mcp_servers_test_tool_schema_contract.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_06_tests_mcp_servers_cicd_test_cicd_server_endpoints.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_07_tests_mcp_servers_file_test_call_tool_validation.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_08_tests_mcp_servers_git_test_git_security_compliance.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_09_tests_mcp_servers_git_test_mcp_git.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_10_tests_mcp_servers_rag_pipeline_test_rag_pipeline_server_endpoints.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_11_tests_mcp_servers_shell_test_shell_server_endpoints.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_12_tests_mcp_servers_test_mdq_audit.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261115-220459_13_tests_mcp_servers_test_write_dangerous_audit.py.md` | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
