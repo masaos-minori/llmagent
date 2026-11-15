@@ -13,9 +13,10 @@ import datetime
 from pathlib import Path
 
 import orjson
+from shared.logger import Logger
+
 from rag.exceptions import ChunkFormatError, IngestionFailureReason
 from rag.ingestion.pipeline_utils import read_chunk_json
-from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 

@@ -10,6 +10,7 @@ these are persistence concerns.
 import sqlite3
 
 from db.helper import SQLiteHelper
+
 from rag.ingestion.document_manager import DocumentManager
 
 # Accepted lang values enforced by the documents.lang CHECK constraint
