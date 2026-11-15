@@ -27,8 +27,8 @@ Medium
   - No change to `scripts/`, tests, or `config/`.
   - The paused Plans `plans/20261111-104605_adrrev016_adr-authority-format.md` and
     `plans/20261111-110144_adrrev017_docs-history-wording.md`.
-  - ADR-013 (`adr_02_04_013`): its ceiling was re-accepted at 28647 on 2026-11-11 and must not
-    be changed here.
+  - ADR-013 (`adr_02_04_013`): its ceiling was re-accepted at 28647 on 2026-11-11 (since
+    re-accepted at 31478 by 2026-11-15) and must not be changed here.
 - **Dependencies**:
   - Sequencing note only (not a blocking dependency): `issues/20261111-163903_deploydoc001_lifecycle-deployment-docs.md`
     (active) also touches `docs/90_deployment/`. This Plan does not modify
@@ -43,6 +43,17 @@ the "further growth fails" contract stops being enforced at the intended size.
 `20261001-104656_docsize001` and `20261001-125058_adrsize001` (both in `issues/done/`) are the
 earlier lineage of the same gate; this Issue was filed 2026-11-11 to close three such drifts.
 adrrev014/adrrev015 re-recorded those three on 2026-11-12/13, after this Issue was opened.
+
+Adversarial-verification update (2026-11-15): both findings quoted in Problem are closed at
+HEAD by maintainer commit `bca9ec63f` ("chore(tools): re-record docs size ceilings for db_07
+fix and pre-existing ADR drift", 2026-11-15): the `adr_02_04_006` ceiling is re-recorded at
+30069 with a dated comment naming `23ca93846` (rmcompat005, INV-08 verification row + events
+column), and `adr_02_03_012` now carries a `SIZE_EXCEPTIONS` entry of 25253 with a dated
+comment closing the `a66077b4f` gate drift. `check_docs_structure.py` exits 0 with no size
+findings, and the `check_docs_structure.py` baseline row is 32352, matching the checker's
+current size. The condensation path chosen for `adr_02_03_012` is superseded by the maintainer's
+re-record decision (commit notes "closing gate drift only; no ADR content changed"); this Plan's
+remaining cycle is verification-only and edits no file.
 
 ## Problem
 `tools/check_docs_structure.py` exits 1 at HEAD with two size findings on files this Issue never
@@ -125,7 +136,7 @@ glob patterns, components, file groups, or vague phrases.
 |---|---|---|
 | `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` | Confirm current size (30069 B) and identify the +5 B grown content (rmcompat005 INV-08 verification-row + events column) before re-recording the ceiling. | `tools/check_docs_structure.py` (REQ-002) |
 | `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` | Confirm it remains at/below its ceiling (34555 == 34555) so the gate stays green after this Plan. | `tools/check_docs_structure.py` (REQ-001) |
-| `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` | Confirm it remains at/below its ceiling (36189 < 36570). | `tools/check_docs_structure.py` (REQ-001) |
+| `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` | Confirm it remains at/below its ceiling (37291 == 37291 as of 2026-11-15; re-recorded from 36189 < 36570 by later approved growth). | `tools/check_docs_structure.py` (REQ-001) |
 | `docs/90_deployment/deployment_01_deployment.md` | Confirm it remains at/below its ceiling (27339 == 27339). | `tools/check_docs_structure.py` (REQ-001) |
 | `skills/DESIGN.md` | Docs content policy ("Avoid implementation-reference duplication", "Docs content policy — remove") that bounds which `adr_02_03_012` prose may be trimmed. | `docs/10_adr/adr_02_03_012...` (REQ-003) |
 
@@ -266,9 +277,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-record the `adr_02_04_006` ceiling in `tools/check_docs_structure.py` (30064 -> 30069) with a dated comment. | Pending | — | — | touches `tools/check_docs_structure.py` |
-| 2 | Condense `adr_02_03_012` under 24576 B by trimming duplicate prose, preserving protected sections. | Pending | — | — | touches `docs/10_adr/adr_02_03_012...` |
-| 3 | Bump the tools baseline if the checker grew, re-run the gate, and run all docs checkers. | Pending | — | — | touches `tools/check_module_size_tools_baseline.txt`, `tools/check_docs_structure.py` |
+| 1 | Re-record the `adr_02_04_006` ceiling in `tools/check_docs_structure.py` (30064 -> 30069) with a dated comment. | Completed | — | 20261115 | Already done at HEAD by maintainer commit `bca9ec63f` (2026-11-15), whose dated comment names `23ca93846` (rmcompat005) and the INV-08 verification-row / events-column growth. Verified 20261115. |
+| 2 | Condense `adr_02_03_012` under 24576 B by trimming duplicate prose, preserving protected sections. | Completed | — | 20261115 | Superseded at HEAD: `bca9ec63f` instead re-recorded the ceiling to 25253 (dated comment closing the a66077b4f gate drift); the maintainer chose re-record over condensation, so no document edit is due. Verified: size 25253 == ceiling. |
+| 3 | Bump the tools baseline if the checker grew, re-run the gate, and run all docs checkers. | Completed | — | 20261115 | Gate verified at HEAD: `check_docs_structure.py` exits 0 with no size findings; checker 32352 B == baseline row 32352. Stale-at-plan-time figures (`adr_02_05_008` 36189, `adr_02_04_013` 28647, baseline 30619) were since re-recorded (37291 / 31478 / 32352); gate stays green. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -278,7 +289,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261115-201501_02_tools_check_docs_structure.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-201501_01_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261115-201501_03_tools_check_module_size_tools_baseline.txt.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -300,3 +313,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-002 | Background (adr_02_04_006 drift) | `tools/check_docs_structure.py` | 1 | AC-02 | `check_docs_structure.py` | Confirmed by repository evidence |
 | REQ-003 | Summary, AI Implementation Instruction | `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md` | 2 | AC-03, AC-04 | `check_adr_preservation.py`, `check_docs_quality.py`, `check_docs_consistency.py` | Confirmed by repository evidence |
 | REQ-004 | Background (baseline contract) | `tools/check_module_size_tools_baseline.txt` | 3 | AC-06 | `check_module_size.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261115-201501 -->
