@@ -443,10 +443,18 @@ class TestRecoverCorruption:
     def _patch_build_db_config(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Patch build_db_config so recover_corruption does not need real config."""
+        """Patch build_db_config so recover_corruption does not need real config.
+
+        dbreview004 churn: the existence-first probe gate runs before any
+        helper open, so the rag target file is created here. These tests mock
+        the helper wholesale; the placeholder only satisfies the gate — the
+        mocked helper still decides the probe result either way. Without it a
+        missing file would short-circuit every case into missing_database.
+        """
         monkeypatch.setattr(
             "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
+        (tmp_path / "rag.sqlite").write_bytes(b"placeholder for the existence gate")
 
     def test_db_conn_none_raises_runtime_error(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1208,3 +1216,39 @@ class TestArchiveVerification:
         assert any(n.startswith("session_") for n in archives)
         # ... workflow never reached.
         assert not any(n.startswith("workflow_") for n in archives)
+
+
+# ── Rotation archive invariance (dbreview004, REQ-006) ───────────────────────
+
+
+def test_verify_archive_leaves_archive_unchanged(tmp_path: Path) -> None:
+    """REQ-006/AC-1: rotation's archive verification is a pure read.
+
+    _verify_archive probes through the public run_integrity_check /
+    verify_domain_identity wrappers (dbreview004 made both read-only); the
+    archive's bytes, file mode, and directory listing must survive it
+    unchanged.
+    """
+    import hashlib
+    import os
+    import sqlite3
+
+    from db.rotation import _verify_archive
+
+    archive = tmp_path / "session_20260101.sqlite"
+    conn = sqlite3.connect(archive)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("CREATE TABLE sessions (session_id INTEGER PRIMARY KEY)")
+    conn.execute("INSERT INTO sessions DEFAULT VALUES")
+    conn.commit()
+    conn.close()
+
+    before_sha = hashlib.sha256(archive.read_bytes()).hexdigest()
+    before_listing = sorted(os.listdir(tmp_path))
+    before_mode = archive.stat().st_mode
+
+    _verify_archive(archive, "session")
+
+    assert hashlib.sha256(archive.read_bytes()).hexdigest() == before_sha
+    assert sorted(os.listdir(tmp_path)) == before_listing
+    assert archive.stat().st_mode == before_mode

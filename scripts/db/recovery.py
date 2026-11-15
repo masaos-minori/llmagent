@@ -38,6 +38,7 @@ class DbCondition(StrEnum):
     PERMISSION_FAILURE = "permission_failure"
     INVALID_FORMAT = "invalid_format"
     UNKNOWN = "unknown"
+    MISSING = "missing"
 
 
 # sqlite_errorcode -> condition for the failures SQLite identifies by code
@@ -93,14 +94,17 @@ def _classify_error(e: Exception) -> DbCondition:
 
 
 def _run_integrity_check(
-    db_path: Path, target: str = "rag"
+    db_path: Path, target: str = "rag", *, read_only: bool
 ) -> tuple[DbCondition, str | None]:
     """Open DB and run PRAGMA integrity_check; returns (condition, error_detail).
 
     Returns (DbCondition.HEALTHY, None) if the DB is healthy.
+    read_only: every call site states probe mode explicitly (REQ-001/REQ-002/REQ-003).
     """
+    if not db_path.exists():
+        return DbCondition.MISSING, f"database file not found: {db_path}"
     try:
-        with SQLiteHelper(target, db_path=str(db_path)).open() as db:
+        with SQLiteHelper(target, db_path=str(db_path)).open(read_only=read_only) as db:
             cursor = db.execute("PRAGMA integrity_check")
             result = str(cursor.fetchone()[0])
             if result == "ok":
@@ -168,7 +172,7 @@ def _verify_domain_identity(backup: Path, target: str) -> tuple[bool, str | None
     required_table = _REQUIRED_TABLE_BY_DOMAIN.get(target)
     if required_table is None:
         return True, None
-    with SQLiteHelper(target, db_path=str(backup)).open() as db:
+    with SQLiteHelper(target, db_path=str(backup)).open(read_only=True) as db:
         cursor = db.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
             (required_table,),
@@ -187,7 +191,9 @@ def _backup_is_usable(backup: Path, target: str) -> tuple[str | None, str]:
     (None, "") means the backup may replace the target database.
     """
     # 1. Verify backup integrity
-    integrity_condition, integrity_error = _run_integrity_check(backup, target)
+    integrity_condition, integrity_error = _run_integrity_check(
+        backup, target, read_only=True
+    )
     if integrity_condition != DbCondition.HEALTHY:
         err = integrity_error or f"backup integrity check failed: {integrity_condition}"
         logger.error("Backup is also corrupt: %s", err)
@@ -217,10 +223,9 @@ def run_integrity_check(
 
     Thin delegation over :func:`_run_integrity_check`; returns
     ``(DbCondition.HEALTHY, None)`` when the database is healthy. Consumers are
-    the migration gate (rows 01/06), the drill harness (row 11), and rotation
-    verification (row 12).
+    the drill harness (row 11) and rotation verification (row 12).
     """
-    return _run_integrity_check(db_path, target)
+    return _run_integrity_check(db_path, target, read_only=True)
 
 
 def verify_domain_identity(backup: Path, target: str) -> tuple[bool, str | None]:
@@ -251,7 +256,7 @@ def _post_restore_failure(
     order the restore reports them in. Runs on the live path after activation;
     candidate verification before activation lives in :func:`_verify_candidate`.
     """
-    post_condition, post_detail = _run_integrity_check(db_path, target)
+    post_condition, post_detail = _run_integrity_check(db_path, target, read_only=True)
     if post_condition != DbCondition.HEALTHY:
         detail = (
             post_detail
@@ -278,7 +283,10 @@ def _verify_candidate(
     is False when the physical check already failed and the logical stage did not
     run; it is the verifier's own verdict otherwise.
     """
-    condition, integrity_detail = _run_integrity_check(candidate, target)
+    # Candidate stays read-write so candidate-side WAL recovery remains possible.
+    condition, integrity_detail = _run_integrity_check(
+        candidate, target, read_only=False
+    )
     if condition != DbCondition.HEALTHY:
         return condition, integrity_detail, False, None
     logical_ok, logical_detail = _run_logical_verification(candidate, target)
@@ -529,6 +537,14 @@ def _result_for_condition(
             return _dry_run_integrity_ok()
         return _vacuum_db(target)
 
+    if condition == DbCondition.MISSING:
+        return _failure(
+            "missing_database",
+            f"{condition.value}: {detail}",
+            dry_run,
+            active_db_state="missing",
+        )
+
     if condition in _NO_RESTORE_CONDITIONS:
         return _failure("error", f"{condition.value}: {detail}", dry_run)
 
@@ -590,7 +606,7 @@ def recover_corruption(
         )
 
     db_path = Path(target_db_path)
-    condition, detail = _run_integrity_check(db_path, target)
+    condition, detail = _run_integrity_check(db_path, target, read_only=True)
 
     result = _result_for_condition(condition, detail, target, dry_run)
     if result is not None:

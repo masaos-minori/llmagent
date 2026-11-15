@@ -7,8 +7,7 @@
 - In scope: `scripts/db/recovery.py` — enum addition, existence-first integrity probe, read-only probe selection, missing_database result, docstring fix (REQ-002, REQ-003, REQ-004, REQ-007).
 
 ## Assumptions
-- Line citations are the current tree at generation time; Plans 001-003 land first in the batch, so citations past the restore region (the `_NO_RESTORE_CONDITIONS`/`_result_for_condition`/`recover_corruption` area, currently `:447-529`) shift after Plan 003's edits — re-read the landed file and anchor by content (`_result_for_condition` body, `DbCondition` enum block) at execution time.
-- `_failure` (`:120-127`) already carries `active_db_state` and `dry_run` — no signature change needed (checked this cycle).
+- Line citations are the current tree at generation time; Plans 001-003 landed first in the batch, so citations past the restore region shift after Plan 003's edits — re-read the landed file and anchor by content (`_result_for_condition` body, `DbCondition` enum block) at execution time. Re-anchored this cycle against the landed Plan 002/003 tree: enum `:31-40`, `_run_integrity_check` `:95-114` (open at `:103`), `_failure` `:120-135`, `_verify_domain_identity` `:161-180` (open `:171`), `_backup_is_usable` `:184` (probe `:190`), `run_integrity_check` `:213-223`, post-activation re-check `:254`, `_verify_candidate` integrity stage `:281`, `_NO_RESTORE_CONDITIONS` `:511-517`, `_result_for_condition` `:520-542`, `recover_corruption` main probe `:593`.
 - Consumers `db_maintenance_service.py`/`rag_maintenance_service.py` only branch on `action == "restored"` and otherwise log `action`/`detail` (Plan 002 cycle verification), so the new missing_database action needs no consumer edit.
 
 ## Design decisions
@@ -25,12 +24,12 @@
 `scripts/db/recovery.py`
 
 ### Procedure
-1. `DbCondition` enum (`:31-36`): append `MISSING = "missing"` (new) after `UNKNOWN` (REQ-002; StrEnum consumers compare by value).
-2. `_run_integrity_check` (`:91-116`): add keyword-only `read_only` (new); at the top, before any open, `if not db_path.exists(): return DbCondition.MISSING, f"database file not found: {db_path}"` (path-carrying detail, REQ-002/AC-2); pass the flag through the open call (`:99`) as `open(read_only=read_only)` — the `SQLiteHelper` kwarg landed by companion `20261115-084603_1` (REQ-001 dependency order within Plan 004).
-3. Call sites get explicit modes (REQ-003): `_backup_is_usable` (`:186`) → `read_only=True`; public `run_integrity_check` wrapper (`:219`) → `read_only=True`; post-activation live re-check (`:250`) → `read_only=True`; `recover_corruption` main probe (`:529`) → `read_only=True`; `_verify_candidate` integrity stage (`:277`) → `read_only=False` (Issue Constraint — candidate WAL recovery must stay possible; Plan 003's candidate tests stay green, AC-3).
-4. `_verify_domain_identity` (`:157-176`): open (`:167`) as `open(read_only=True)` (REQ-003).
-5. `_result_for_condition` (`:456-479`): add a `DbCondition.MISSING` branch before the `_NO_RESTORE_CONDITIONS` branch returning `_failure("missing_database", f"{condition.value}: {detail}", dry_run, active_db_state="missing")` — no vacuum, no restore attempt, identical under `dry_run=True` (REQ-004/AC-2). Keep `_NO_RESTORE_CONDITIONS` unchanged.
-6. Docstring fix in `run_integrity_check` (`:214-216`): replace "Consumers are the migration gate (rows 01/06), the drill harness (row 11), and rotation verification (row 12)." with the drill-harness-and-rotation wording only (grep-verified this cycle: no migration-gate consumer exists) (REQ-007).
+1. `DbCondition` enum (`:31-40`): append `MISSING` (new) `= "missing"` after `UNKNOWN` (REQ-002; StrEnum consumers compare by value).
+2. `_run_integrity_check` (`:95-114`): add keyword-only `read_only` (new) (no default); at the top, before any open, `if not db_path.exists(): return DbCondition.MISSING, f"database file not found: {db_path}"` (path-carrying detail, REQ-002/AC-2); pass the flag through the open call (`:103`) as `open(read_only=read_only)` — the `SQLiteHelper` kwarg landed by companion `20261115-084603_1` (REQ-001 dependency order within Plan 004).
+3. Call sites get explicit modes (REQ-003): `_backup_is_usable` (`:190`) → `read_only=True`; public `run_integrity_check` wrapper (`:223`) → `read_only=True`; post-activation live re-check (`:254`) → `read_only=True`; `recover_corruption` main probe (`:593`) → `read_only=True`; `_verify_candidate` integrity stage (`:281`) → `read_only=False` (Issue Constraint — candidate WAL recovery must stay possible; Plan 003's candidate tests stay green, AC-3).
+4. `_verify_domain_identity` (`:161-180`): open (`:171`) as `open(read_only=True)` (REQ-003).
+5. `_result_for_condition` (`:520-542`): add a `DbCondition.MISSING` branch before the `_NO_RESTORE_CONDITIONS` branch returning `_failure("missing_database", f"{condition.value}: {detail}", dry_run, active_db_state="missing")` — no vacuum, no restore attempt, identical under `dry_run=True` (REQ-004/AC-2). Keep `_NO_RESTORE_CONDITIONS` unchanged.
+6. Docstring fix in `run_integrity_check` (`:217-221`): replace "Consumers are the migration gate (rows 01/06), the drill harness (row 11), and rotation verification (row 12)." with the drill-harness-and-rotation wording only (grep-verified this cycle: consumers are only `rotation.py` and `recovery_drill.py`; no migration-gate consumer exists) (REQ-007).
 
 ### Method
 - Direct edits in the probe/classification region (`:31-235`) plus the two late-file changes (steps 5-6 semantics, content-anchored after 002/003 land).
@@ -70,10 +69,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-113615 | 20261115-113615 | recovery.py: MISSING: enum: read: only: probe: kwargs |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-113615 | 20261115-113615 | covered by companion test procedures |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-113615 | 20261115-113615 | targeted gates green (tests/db, ruff, mypy) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-113615 | 20261115-113615 | N/A: docs handled by companion procedures _7/_8 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -1661,34 +1661,51 @@ class TestClassifyErrorBranchBoundaries:
 
 
 class TestRunIntegrityCheckCharacterization:
-    """Characterization: `_run_integrity_check` had no direct coverage at all."""
+    """Characterization: `_run_integrity_check` had no direct coverage at all.
 
-    def test_ok_is_healthy(self, mock_recovery_db) -> None:
+    dbreview004 churn: every call site states the probe mode and the
+    existence-first gate needs a real file. The placeholder file only
+    satisfies the gate — the mocked helper decides the probe result either way.
+    """
+
+    @staticmethod
+    def _existing_db(tmp_path: Path) -> Path:
+        db_file = tmp_path / "rag.db"
+        db_file.write_bytes(b"placeholder for the existence gate")
+        return db_file
+
+    def test_ok_is_healthy(self, mock_recovery_db, tmp_path: Path) -> None:
         mock_recovery_db.execute.return_value.fetchone.return_value = ("ok",)
 
-        assert _run_integrity_check(Path("/tmp/rag.db"), "rag") == (
+        assert _run_integrity_check(
+            self._existing_db(tmp_path), "rag", read_only=True
+        ) == (
             DbCondition.HEALTHY,
             None,
         )
 
     def test_non_ok_result_is_corruption_with_the_raw_text(
-        self, mock_recovery_db
+        self, mock_recovery_db, tmp_path: Path
     ) -> None:
         mock_recovery_db.execute.return_value.fetchone.return_value = (
             "wrong number of entries in index",
         )
 
-        assert _run_integrity_check(Path("/tmp/rag.db"), "rag") == (
+        assert _run_integrity_check(
+            self._existing_db(tmp_path), "rag", read_only=True
+        ) == (
             DbCondition.CORRUPTION,
             "wrong number of entries in index",
         )
 
-    def test_open_failure_is_classified(self, mock_recovery_db) -> None:
+    def test_open_failure_is_classified(self, mock_recovery_db, tmp_path: Path) -> None:
         mock_recovery_db.execute.side_effect = _sqlite3.DatabaseError(
             "file is not a database"
         )
 
-        assert _run_integrity_check(Path("/tmp/rag.db"), "rag") == (
+        assert _run_integrity_check(
+            self._existing_db(tmp_path), "rag", read_only=True
+        ) == (
             DbCondition.INVALID_FORMAT,
             "file is not a database",
         )
@@ -2001,3 +2018,159 @@ class TestRecoverCorruptionConditionDispatchCharacterization:
             detail="integrity ok (dry run)",
             dry_run=True,
         )
+
+
+# ── Probe invariance and MISSING policy (dbreview004, REQ-002..REQ-006) ──────
+
+import hashlib
+import os as _os
+
+from db.recovery import _backup_is_usable, run_integrity_check
+
+
+def _sha256(path: Path) -> str:
+    """sha256 of the file bytes — the filesystem-observable invariant of AC-1."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_run_integrity_check_leaves_backup_unchanged(tmp_path: Path) -> None:
+    """REQ-006/AC-1: the public probe rewrites no bytes and creates no sidecars."""
+    db_file = tmp_path / "backup.db"
+    conn = _sqlite3.connect(db_file)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("CREATE TABLE documents (id INTEGER PRIMARY KEY)")
+    conn.execute("INSERT INTO documents VALUES (1)")
+    conn.commit()
+    conn.close()
+    before_bytes = _sha256(db_file)
+    before_listing = sorted(_os.listdir(tmp_path))
+
+    condition, detail = run_integrity_check(db_file, "rag")
+
+    assert (condition, detail) == (DbCondition.HEALTHY, None)
+    assert _sha256(db_file) == before_bytes
+    assert sorted(_os.listdir(tmp_path)) == before_listing
+
+
+def test_run_integrity_check_keeps_rollback_journal_mode(tmp_path: Path) -> None:
+    """REQ-003/AC-1: probing a rollback-journal database no longer switches it to WAL."""
+    db_file = tmp_path / "backup.db"
+    conn = _sqlite3.connect(db_file)
+    conn.execute("CREATE TABLE documents (id INTEGER PRIMARY KEY)")
+    conn.execute("INSERT INTO documents VALUES (1)")
+    conn.commit()
+    conn.close()
+    before_bytes = _sha256(db_file)
+
+    assert run_integrity_check(db_file, "rag")[0] == DbCondition.HEALTHY
+
+    probe_conn = _sqlite3.connect(db_file)
+    try:
+        mode = probe_conn.execute("PRAGMA journal_mode").fetchone()[0]
+    finally:
+        probe_conn.close()
+    assert mode == "delete"
+    assert _sha256(db_file) == before_bytes
+
+
+def test_backup_is_usable_leaves_backup_unchanged(tmp_path: Path) -> None:
+    """REQ-006/AC-1: the pre-restore gate is a pure read on a healthy backup."""
+    db_file = tmp_path / "backup.sqlite"
+    conn = _sqlite3.connect(db_file)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("CREATE TABLE documents (id INTEGER PRIMARY KEY)")
+    conn.execute("INSERT INTO documents VALUES (1)")
+    conn.commit()
+    conn.close()
+    before_bytes = _sha256(db_file)
+    before_listing = sorted(_os.listdir(tmp_path))
+
+    action, detail = _backup_is_usable(db_file, "rag")
+
+    assert (action, detail) == (None, "")
+    assert _sha256(db_file) == before_bytes
+    assert sorted(_os.listdir(tmp_path)) == before_listing
+
+
+def test_backup_is_usable_accepts_readonly_backup(tmp_path: Path) -> None:
+    """REQ-003/AC-3: a 0444 backup verifies successfully instead of bad_backup."""
+    db_file = tmp_path / "backup.sqlite"
+    conn = _sqlite3.connect(db_file)
+    conn.execute("CREATE TABLE documents (id INTEGER PRIMARY KEY)")
+    conn.execute("INSERT INTO documents VALUES (1)")
+    conn.commit()
+    conn.close()
+    db_file.chmod(0o444)
+
+    action, detail = _backup_is_usable(db_file, "rag")
+
+    assert (action, detail) == (None, "")
+
+
+def _patch_cfg_to(tmp_path: Path, rag_db_path: Path):
+    """Patch build_db_config so recover_corruption aims at tmp_path."""
+    patcher = patch("db.recovery.build_db_config")
+    mock_cfg = patcher.start()
+    instance = MagicMock(spec=DbConfig)
+    instance.rag_db_path = rag_db_path
+    mock_cfg.return_value = instance
+    return patcher
+
+
+def test_recover_missing_live_db_reports_missing_database(tmp_path: Path) -> None:
+    """REQ-002/REQ-004/AC-2: a vanished live DB reports missing_database, no restore."""
+    db_file = tmp_path / "rag.sqlite"
+    conn = _sqlite3.connect(db_file)
+    conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+    conn.commit()
+    conn.close()
+    db_file.unlink()
+
+    patcher = _patch_cfg_to(tmp_path, db_file)
+    try:
+        result = recover_corruption(target="rag")
+    finally:
+        patcher.stop()
+
+    assert result.success is False
+    assert result.action == "missing_database"
+    assert result.active_db_state == "missing"
+    assert str(db_file) in (result.detail or "")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_recover_missing_live_db_dry_run(tmp_path: Path) -> None:
+    """REQ-004/AC-2: the MISSING policy is identical under dry_run."""
+    db_file = tmp_path / "rag.sqlite"
+    conn = _sqlite3.connect(db_file)
+    conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+    conn.commit()
+    conn.close()
+    db_file.unlink()
+
+    patcher = _patch_cfg_to(tmp_path, db_file)
+    try:
+        result = recover_corruption(target="rag", dry_run=True)
+    finally:
+        patcher.stop()
+
+    assert result.success is False
+    assert result.action == "missing_database"
+    assert result.active_db_state == "missing"
+    assert result.dry_run is True
+    assert list(tmp_path.iterdir()) == []
+
+
+@vec_required
+def test_logical_verification_leaves_db_unchanged(tmp_path: Path) -> None:
+    """REQ-005/AC-1: the logical stage's read-only open leaves no write side effects."""
+    db_file = tmp_path / "rag.sqlite"
+    _make_vec_rag_db(db_file)
+    before_bytes = _sha256(db_file)
+    before_listing = sorted(_os.listdir(tmp_path))
+
+    ok, _detail = _run_logical_verification(db_file, "rag")
+
+    assert ok is True
+    assert _sha256(db_file) == before_bytes
+    assert sorted(_os.listdir(tmp_path)) == before_listing

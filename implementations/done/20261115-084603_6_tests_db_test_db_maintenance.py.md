@@ -9,6 +9,7 @@
 ## Assumptions
 - Rotation tests live in this file (`test_rotate_session_db_creates_archive` at `:319`, `test_rotate_all_dbs_archives_all_three` at `:1049`, etc.; no separate rotation test file — grep verified this cycle); `rotation._verify_archive(dest, target)` probes via `run_integrity_check` (`rotation.py:72`) and `verify_domain_identity` (`:78`), both public wrappers that become read-only via companion `20261115-084603_2`.
 - The file also carries Plan 006/007/008 test additions later in the batch (006/007 modify existing tests and 008 appends a retention test class — plan overlap record); 004 appends its test near the existing rotation tests and stays disjoint.
+- Verification correction (2026-11-15 execution): six `TestRecoverCorruption` tests (`test_dry_run_returns_recovery_result`, `test_dry_run_integrity_failure`, `test_vacuum_path`, `test_no_backup_path_returns_no_backup`, `test_backup_not_found_returns_no_backup`, `test_open_db_exception_returns_error`) mocked `SQLiteHelper` but never created the `tmp_path/rag.sqlite` file — the old write-mode connect silently created it. The existence-first gate now short-circuits all six into `missing_database`. Re-classified as contract churn: the class's autouse `_patch_build_db_config` fixture creates a placeholder rag file (Procedure step 2); each test's mocked-helper semantics are unchanged. Pre-existing mypy baseline on this test file: 7 errors at HEAD and after — unchanged by 004.
 
 ## Design decisions
 - Probe `_verify_archive` directly instead of a full `rotate_all_dbs` run: the invariance claim is about the probe mutating the archive, so the test isolates the probe on a real archive file without rotation's config/lock surface. The Plan's wording ("after `rotate`...") is satisfied because the archive bytes a rotation leaves behind are exactly the bytes `_verify_archive` sees.
@@ -21,7 +22,8 @@
 `tests/db/test_db_maintenance.py`
 
 ### Procedure
-1. Add `test_verify_archive_leaves_archive_unchanged` (new) in the rotation-test region (near the `:319` class): create a real WAL-mode archive file in `tmp_path`; snapshot `sha256` of its bytes, `os.listdir` of its directory, and `os.stat` mode; call `rotation._verify_archive(archive, "session")` (target matching the fixture's table set); assert sha256, directory listing (no `-wal`/`-shm` entries), and mode are unchanged (REQ-006/AC-1).
+1. Add `test_verify_archive_leaves_archive_unchanged` (new) in the rotation-test region (near the `:319` class): create a real WAL-mode archive file in `tmp_path`; snapshot `sha256` of its bytes, `os.listdir` of its directory, and `os.stat` mode; call `rotation._verify_archive(archive, "session")` (target matching the fixture's table set); assert sha256, directory listing (no `-wal`/`-shm` entries), and mode are unchanged (REQ-006/AC-1). Landed as an appended module-level test at the end of the file to stay disjoint from later plans' insertions.
+2. Re-classify the six `TestRecoverCorruption` mock tests (verification churn): the autouse `_patch_build_db_config` fixture writes a placeholder `rag.sqlite` so the existence-first gate is satisfied and each test reaches its intended mocked-helper path again; no test body or assertion changes.
 
 ### Method
 - Append one test; follow the file's existing tmp-path + monkeypatched-config fixture style used by the rotation tests.
@@ -55,10 +57,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-113615 | 20261115-113615 | test: db: maintenance.py: fixture: placeholder: and: archive: test |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-113615 | 20261115-113615 | covered by companion test procedures |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-113615 | 20261115-113615 | targeted gates green (tests/db, ruff, mypy) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-113615 | 20261115-113615 | N/A: docs handled by companion procedures _7/_8 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

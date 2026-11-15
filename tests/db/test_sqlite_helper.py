@@ -21,9 +21,14 @@ class _InMemoryHelper:
         self.conn = conn  # public attribute used by begin_* methods
 
     def open(
-        self, *, write_mode: bool = False, row_factory: bool = False
+        self,
+        *,
+        write_mode: bool = False,
+        row_factory: bool = False,
+        read_only: bool = False,
     ) -> _InMemoryHelper:
         self._conn.row_factory = sqlite3.Row if row_factory else None
+        self._read_only = read_only  # stored so tests can assert the kwarg reached
         return self
 
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
@@ -434,3 +439,107 @@ class TestBuildDbConfigVecSoRequirement:
         self._patch_loader(monkeypatch, {"sqlite_vec_so": ""})
         with pytest.raises(RuntimeError, match="DbConfig load failed"):
             SQLiteHelper("session")
+
+
+# ── read_only open mode (dbreview004, REQ-001/REQ-006) ────────────────────────
+
+
+class TestReadOnlyOpen:
+    """Unit coverage for SQLiteHelper.open(read_only=True) (REQ-001/AC-1, AC-2)."""
+
+    @staticmethod
+    def _make_db(path: Path, *, wal: bool = False) -> None:
+        conn = sqlite3.connect(path)
+        if wal:
+            conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+        conn.execute("INSERT INTO t VALUES (1)")
+        conn.commit()
+        conn.close()
+
+    def test_read_only_open_skips_write_pragmas(self, tmp_path: Path) -> None:
+        """REQ-001/AC-1: only busy_timeout is applied; journal_mode stays delete."""
+        db_file = tmp_path / "probe.sqlite"
+        self._make_db(db_file)
+
+        helper = SQLiteHelper(db_path=str(db_file), sqlite_busy_timeout_ms=12345)
+        with helper.open(read_only=True) as db:
+            assert db.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+            assert db.execute("PRAGMA busy_timeout").fetchone()[0] == 12345
+
+        assert sorted(p.name for p in tmp_path.iterdir()) == ["probe.sqlite"]
+        probe = sqlite3.connect(db_file)
+        try:
+            assert probe.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+        finally:
+            probe.close()
+
+    def test_read_only_open_missing_path_raises(self, tmp_path: Path) -> None:
+        """REQ-001/AC-2: a missing path raises and is never created."""
+        missing = tmp_path / "missing.sqlite"
+
+        with pytest.raises(sqlite3.OperationalError):
+            SQLiteHelper(db_path=str(missing)).open(read_only=True)
+
+        assert not missing.exists()
+
+    def test_default_open_unchanged(self, tmp_path: Path) -> None:
+        """REQ-001 default-invariance: the default open still applies WAL."""
+        db_file = tmp_path / "default.sqlite"
+
+        helper = SQLiteHelper(db_path=str(db_file), sqlite_vec_so="")
+        with helper.open() as db:
+            mode = db.execute("PRAGMA journal_mode").fetchone()[0]
+
+        assert mode == "wal"
+
+    def test_read_only_open_loads_vec_when_requested(self, tmp_path: Path) -> None:
+        """Vec loading on a read-only connection is legal (Plan Design assumption)."""
+        from db.config import build_db_config
+
+        vec_so = Path(build_db_config().sqlite_vec_so)
+        if not vec_so.is_file():
+            pytest.skip(f"sqlite-vec extension not available at {vec_so}")
+        db_file = tmp_path / "vec.sqlite"
+        self._make_db(db_file)
+
+        helper = SQLiteHelper(db_path=str(db_file), sqlite_vec_so=str(vec_so))
+        with helper.open(read_only=True, load_vec=True) as db:
+            assert db.execute("SELECT vec_version()").fetchone()[0]
+
+    def test_read_only_open_removes_sidecars_it_created(self, tmp_path: Path) -> None:
+        """REQ-006: a ro open of a WAL DB leaves no new -wal/-shm residue behind."""
+        db_file = tmp_path / "wal.sqlite"
+        helper = SQLiteHelper(db_path=str(db_file), sqlite_vec_so="")
+        with helper.open() as db:
+            db.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+            db.execute("INSERT INTO t VALUES (1)")
+            db.commit()
+        before_listing = sorted(p.name for p in tmp_path.iterdir())
+
+        with helper.open(read_only=True):
+            pass
+
+        assert sorted(p.name for p in tmp_path.iterdir()) == before_listing
+
+    def test_read_only_open_preserves_existing_sidecars(self, tmp_path: Path) -> None:
+        """REQ-006: sidecars that already exist (hot WAL) are never touched."""
+        db_file = tmp_path / "hot.sqlite"
+        conn = sqlite3.connect(db_file)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        other = sqlite3.connect(db_file)
+        other.execute("INSERT INTO t VALUES (1)")
+        other.commit()  # committed frames stay hot in -wal (well below autocheckpoint)
+        before_listing = sorted(p.name for p in tmp_path.iterdir())
+        assert any(name.endswith("-wal") for name in before_listing)
+
+        helper = SQLiteHelper(db_path=str(db_file), sqlite_vec_so="")
+        with helper.open(read_only=True) as db:
+            rows = db.execute("SELECT id FROM t").fetchall()
+        assert rows  # the hot WAL contents are visible to the probe
+
+        assert sorted(p.name for p in tmp_path.iterdir()) == before_listing
+        other.close()
+        conn.close()

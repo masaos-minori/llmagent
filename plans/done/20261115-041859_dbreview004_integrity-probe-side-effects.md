@@ -165,10 +165,10 @@ Yes. `REQ-007` drives `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Helper read-only open (scripts/db/helper.py, tests/db/test_sqlite_helper.py) | In Progress | — | — | Procedure generated: implementations/20261115-084603_1_scripts_db_helper.py.md, implementations/20261115-084603_4_tests_db_test_sqlite_helper.py.md |
-| 2 | Probe call sites and MISSING classification (scripts/db/recovery.py, scripts/db/recovery_verification.py) | In Progress | — | — | Procedure generated: implementations/20261115-084603_2_scripts_db_recovery.py.md, implementations/20261115-084603_3_scripts_db_recovery_verification.py.md |
-| 3 | Invariance and policy tests (tests/db/test_db_recovery.py, tests/db/test_db_maintenance.py) | In Progress | — | — | Procedure generated: implementations/20261115-084603_5_tests_db_test_db_recovery.py.md, implementations/20261115-084603_6_tests_db_test_db_maintenance.py.md |
-| 4 | Documentation, validation & deployment hand-off (docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md, docs/41_db/db_07_api_and_operations-recovery-and-reference.md) | In Progress | — | — | Procedure generated: implementations/20261115-084603_7_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md, implementations/20261115-084603_8_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md |
+| 1 | Helper read-only open (scripts/db/helper.py, tests/db/test_sqlite_helper.py) | Completed | 20261115-113615 | 20261115-113615 | Procedure generated: implementations/20261115-084603_1_scripts_db_helper.py.md, implementations/20261115-084603_4_tests_db_test_sqlite_helper.py.md |
+| 2 | Probe call sites and MISSING classification (scripts/db/recovery.py, scripts/db/recovery_verification.py) | Completed | 20261115-113615 | 20261115-113615 | Procedure generated: implementations/20261115-084603_2_scripts_db_recovery.py.md, implementations/20261115-084603_3_scripts_db_recovery_verification.py.md |
+| 3 | Invariance and policy tests (tests/db/test_db_recovery.py, tests/db/test_db_maintenance.py) | Completed | 20261115-113615 | 20261115-113615 | Procedure generated: implementations/20261115-084603_5_tests_db_test_db_recovery.py.md, implementations/20261115-084603_6_tests_db_test_db_maintenance.py.md |
+| 4 | Documentation, validation & deployment hand-off (docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md, docs/41_db/db_07_api_and_operations-recovery-and-reference.md) | Completed | 20261115-113615 | 20261115-113615 | Procedure generated: implementations/20261115-084603_7_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md, implementations/20261115-084603_8_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

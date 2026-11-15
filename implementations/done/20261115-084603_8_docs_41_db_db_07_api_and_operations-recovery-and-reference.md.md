@@ -58,10 +58,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-113615 | 20261115-113615 | 4 edits: MISSING enum, missing-file diagnosis bullet, probe-semantics bullet (incl. sidecar-residue cleanup landed by _1), missing_database/active_db_state=missing contract; db_07 ceiling entry added 24576->25553 |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-113615 | 20261115-113615 | N/A: docs-only; behavior asserted by companion _5/_6 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-113615 | 20261115-113615 | consistency clean, structure green after ceiling re-record, quality exit 0; stale_detector pre-existing '/session recover' false positive left untouched (present at HEAD) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-113615 | 20261115-113615 | N/A: this file is the documentation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

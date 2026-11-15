@@ -137,6 +137,10 @@ def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | N
     responsibility level where DbConfig owns the path, so callers do not each
     thread it. A config that cannot supply sqlite_vec_so fails closed as
     (False, "verification_unavailable") before the candidate is opened.
+
+    The open is read-only (REQ-005): verify(db) callbacks are pure reads, and
+    the candidate flow's read-write guarantee lives in the integrity stage,
+    which runs read-write before this one (Plan 003 flow preserved).
     """
     verify = _LOGICAL_VERIFIERS.get(target)
     if verify is None:
@@ -151,7 +155,7 @@ def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | N
     try:
         with SQLiteHelper(
             target, db_path=str(db_path), sqlite_vec_so=cfg.sqlite_vec_so
-        ).open() as db:
+        ).open(read_only=True) as db:
             return verify(db)
     except sqlite3.Error as e:
         logger.error("Logical verification could not open DB: %s", e)

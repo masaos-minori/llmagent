@@ -61,10 +61,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-113615 | 20261115-113615 | 4 edits: missing in #14/INV-13 enumerations, INV-13/INV-16 test citations, WAL caveat removed; ceiling 37175->37291; (new) markers omitted because tests already landed |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-113615 | 20261115-113615 | N/A: docs-only; cited tests landed via companion _5 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-113615 | 20261115-113615 | check_docs_consistency --domain db clean, structure green after ceiling re-record, quality exit 0, stale_detector clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-113615 | 20261115-113615 | N/A: this file is the documentation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
