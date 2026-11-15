@@ -72,3 +72,16 @@ def _reset_auth_state() -> Generator[None]:
         yield
     finally:
         auth._CURRENT_GENERATION = original_generation
+
+
+@pytest.fixture(autouse=True)
+def _fast_sse_poll(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Check SSE idle and heartbeat deadlines every 0.1 s instead of every 1 s.
+
+    A subscribe call that reads to the end of the stream waits for the idle
+    timeout, which can only fire on a poll tick, so the production 1 s tick made
+    every such call last at least 1 s whatever ``sse_idle_timeout`` was.
+    """
+    import eventbus.subscribe_route as subscribe_route
+
+    monkeypatch.setattr(subscribe_route, "SSE_POLL_INTERVAL_SEC", 0.1)
