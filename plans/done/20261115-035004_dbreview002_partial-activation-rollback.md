@@ -147,10 +147,10 @@ Track the swap at the moment it begins (inside `_activate_candidate`) rather tha
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Activation tracking and non-raising cleanup (scripts/db/recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-080732_1 |
-| 2 | Unified rollback and reporting (scripts/db/recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-080732_1 (Phases 1-2, same file) |
-| 3 | Fault-injection tests (tests/db/test_db_recovery.py) | In Progress | — | — | Procedure generated: implementations/20261115-080732_2 |
-| 4 | Documentation, validation & deployment hand-off (docs/41_db/db_07_api_and_operations-recovery-and-reference.md) | In Progress | — | — | Procedure generated: implementations/20261115-080732_3 |
+| 1 | Activation tracking and non-raising cleanup (scripts/db/recovery.py) | Completed | 20261115-100836 | 20261115-100836 | Procedure generated: implementations/20261115-080732_1 |
+| 2 | Unified rollback and reporting (scripts/db/recovery.py) | Completed | 20261115-100836 | 20261115-100836 | Procedure generated: implementations/20261115-080732_1 (Phases 1-2, same file) |
+| 3 | Fault-injection tests (tests/db/test_db_recovery.py) | Completed | 20261115-100836 | 20261115-100836 | Procedure generated: implementations/20261115-080732_2 |
+| 4 | Documentation, validation & deployment hand-off (docs/41_db/db_07_api_and_operations-recovery-and-reference.md) | Completed | 20261115-100836 | 20261115-100836 | Procedure generated: implementations/20261115-080732_3 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

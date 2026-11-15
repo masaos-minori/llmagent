@@ -60,10 +60,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-100836 | 20261115-100836 | failure paragraph and Result contract bullets extended |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-100836 | 20261115-100836 | N/A: docs-only cycle, no test changes in scope |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-100836 | 20261115-100836 | check_docs_quality/structure/content_policy/consistency --domain db all exit 0; read-back check: only existing vocabulary tokens |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-100836 | 20261115-100836 | N/A: this row is the docs edit itself, landed via row 1 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

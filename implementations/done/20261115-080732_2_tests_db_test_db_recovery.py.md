@@ -26,10 +26,11 @@
 
 ### Procedure
 1. Update `test_os_error_after_activation_with_failed_rollback_reports_non_serviceable` (`:996-1021`): assertion at 1020 changes from `result.action == "error"` to `result.action == "rollback_failed"`; `active_db_state == "non_serviceable"` unchanged (REQ-003, AC-2).
-2. Add `test_activation_failure_after_replace_rolls_back_original` (new): tmp dir, corrupt live DB + valid backup carrying a `-wal` sidecar (fixture pattern of `test_restore_with_backup_wal_shm_sidecars` `:837+`), integrity `[HEALTHY(backup), HEALTHY(candidate), HEALTHY(post)]`, logical patched `(True, None)`, `patch("shutil.move", side_effect=OSError("sidecar move failed"))` — the staged sidecar guarantees a real call after the completed `os.replace`, exercising the holder flip; assert `result.success is False`, `result.action == "error"`, `result.active_db_state == "preserved_original"`, live bytes equal the archived original content, and the corrupt archive remains (AC-1).
-3. Add `test_partial_activation_removes_moved_sidecars_on_rollback` (new): backup carries both `-wal` and `-shm` sidecars; `shutil.move` side_effect delegates the first move to the real function and raises `OSError` on the second; assert after rollback: no candidate sidecar exists at live names (`Path(str(db_path) + "-wal")` and `-shm` absent), live main bytes are the archived original, corrupt archive remains (AC-4, REQ-002).
+2. Add `test_activation_failure_after_replace_rolls_back_original` (new): tmp dir, corrupt live DB + valid backup carrying a `-wal` sidecar (fixture pattern of `test_restore_with_backup_wal_shm_sidecars` `:837+`), integrity `[HEALTHY(backup), HEALTHY(candidate), HEALTHY(post)]`, logical patched `(True, None)`, `shutil.move` patched with a **destination-selecting** side_effect that raises `OSError` only when the destination is the live-name sidecar and delegates every other call to the real `shutil.move` — the staged sidecar guarantees a real call after the completed `os.replace`, exercising the holder flip; assert `result.success is False`, `result.action == "error"`, `result.active_db_state == "preserved_original"`, live bytes equal the archived original content, and the corrupt archive glob `*_corrupt_*` is empty (the rollback consumes the archive via `os.replace(corrupt_archive, db_path)`, matching `test_post_activation_failure_rolls_back_the_original` `:962`) (AC-1).
+   Verification correction (this cycle): the draft's `patch("shutil.move", side_effect=OSError(...))` is unworkable — `_stage_restore` itself calls `shutil.move` (`recovery_restore.py:110`) to stage the backup sidecars, so an unconditional global raise fails during staging, before activation. Destination-selecting side_effect is required. The draft's "corrupt archive remains" is also wrong for a *successful* rollback: the helper moves the archive onto the live name, so the archive name disappears and its content is the live database.
+3. Add `test_partial_activation_removes_moved_sidecars_on_rollback` (new): backup carries both `-wal` and `-shm` sidecars; `shutil.move` side_effect delegates staging-destination calls to the real function, performs the first live-name move, and raises `OSError` on the second live-name move; assert after rollback: no candidate sidecar exists at live names (`Path(str(db_path) + "-wal")` and `-shm` absent), live main bytes are the archived original, and the corrupt archive glob `*_corrupt_*` is empty (consumed by the rollback replace) (AC-4, REQ-002).
 4. The rollback verification of step 2 is covered by its live-bytes assertion inside step 2's assertions (live bytes) — no separate function (keeps function count small; radon baseline top B(12)).
-5. Add `test_cleanup_staged_unlink_failure_does_not_escape` (new): no-sidecar fixture, integrity `[HEALTHY(backup), CORRUPTION(candidate)]` so the flow fails at candidate verification and calls `_cleanup_staged` (`recovery.py:395`); patch `pathlib.Path.unlink` with a small helper side_effect that raises `OSError` only for the staged temp file name and delegates every other call to the real unlink; assert `_restore_from_backup` returns a `RecoveryResult` (`action == "restore_verify_failed"`) instead of raising, and the blocked file still exists while the other staged paths are removed (AC-3, REQ-004).
+5. Add `test_cleanup_staged_unlink_failure_does_not_escape` (new): backup carries a `-wal` sidecar (so `staged` is non-empty and "the other staged paths removed" is a real assertion), integrity `[HEALTHY(backup), CORRUPTION(candidate)]` so the flow fails at candidate verification and calls `_cleanup_staged`; patch `pathlib.Path.unlink` with a small helper side_effect that raises `OSError` only for the staged temp file name and delegates every other call to the real unlink; assert `_restore_from_backup` returns a `RecoveryResult` (`action == "restore_verify_failed"`) instead of raising, and the blocked file still exists while the other staged paths are removed (AC-3, REQ-004).
 6. Append new tests after `test_wal_shm_sidecars_land_at_final_locations_after_activation` region, keeping existing fixtures/helpers reused; no changes to any other test function.
 
 ### Method
@@ -37,7 +38,7 @@
 
 ### Details
 - Step 2/3 must not patch `os.replace` globally where the real rollback replace must run; only `shutil.move` is faulted there (the holder flip runs inside the real `_activate_candidate`).
-- Step 3's delegating side_effect: `side_effect=[functools.partial(shutil_move_real), OSError("second move failed")]` with `shutil_move_real = shutil.move` captured before patching.
+- `shutil.move` side_effect is call-destination-keyed, not call-ordinal-keyed: staging (`recovery_restore.py:110`) performs real moves to staged names first, so a call-ordinal side_effect would fault the wrong call. Helper: capture `shutil_move_real = shutil.move` before patching; raise `OSError` only for destinations equal to a live-name sidecar (`str(db_path) + suffix`), delegate otherwise. Step 3 additionally counts live-name calls and raises on the second one.
 
 ## Compatibility considerations
 - Only one existing assertion line changes (1020); all other `action == "error"` assertions belong to non-rollback paths (verified line list above).
@@ -67,10 +68,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-100836 | 20261115-100836 | 1 existing assertion updated (error->rollback_failed), 3 new failure tests appended |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-100836 | 20261115-100836 | AC-1..AC-4 covered; targeted run 80 passed; shutil.move destination-keyed correction applied during verification |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-100836 | 20261115-100836 | tests/db regression 403 passed; radon top C(13) pre-existing (test_restore_with_backup_wal_shm_sidecars), new funcs B(8); bandit test file 33 Medium (B101) unchanged, no new High; full suite N/A: not run per user instruction |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-100836 | 20261115-100836 | N/A: docs edits land in companion 20261115-080732_3 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

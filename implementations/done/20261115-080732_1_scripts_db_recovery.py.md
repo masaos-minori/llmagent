@@ -26,7 +26,9 @@
 `scripts/db/recovery.py`
 
 ### Procedure
-1. Add `_ActivationProgress` (new) dataclass near `_cleanup_staged`: fields `replaced` (new) `bool = False` and `moved_sidecars` (new) `list[Path] = []` (REQ-001).
+1. Add `_ActivationProgress` (new) dataclass near `_cleanup_staged`: fields `replaced` (new) `bool = False` and
+   `moved_sidecars` (new) `list[Path] = field(default_factory=list)` (REQ-001). Verification note: a bare `= []`
+   default is rejected by `dataclasses` (mutable default), so `field(default_factory=list)` is used.
 2. Change `_activate_candidate(db_path, temp_restore, staged)` to `_activate_candidate(db_path, temp_restore, staged, progress)`: after `os.replace(temp_restore, db_path)` set `progress.replaced = True`; inside the `for` loop, after each `shutil.move(staged_path, final)` append `final` to `progress.moved_sidecars`. Docstring: record progress so a mid-activation failure is rolled back (REQ-001). Only call site is `_restore_from_backup` (`recovery.py:404`) (REQ-001).
 3. `_restore_from_backup`: replace `activated = False` (`recovery.py:364`) and the post-call `activated = True` (`404-405`) with `progress = _ActivationProgress()` before the try and pass it to `_activate_candidate` (REQ-001).
 4. Rewrite the `except OSError` handler (`recovery.py:424-443`): keep `_cleanup_staged(temp_restore, staged)`; replace the `if activated and corrupt_archive.exists():` inline rollback block (`427-442`) with a call to `_rollback_or_non_serviceable(db_path, corrupt_archive, _failure("error", str(e), dry_run, logical_ok=False), dry_run)`, passing the new keyword `moved_sidecars` (new) set to `progress.moved_sidecars`. Keep the trailing `return _failure("error", str(e), dry_run)` for non-activation OSErrors (REQ-003).
@@ -34,7 +36,10 @@
 6. `_cleanup_staged` (`recovery.py:298-302`): wrap each `path.unlink()` in `try/except OSError` with `logger.error("Failed to remove staged file %s: %s", path, exc)` (REQ-004); call sites 374, 395, 426 unchanged.
 
 ### Method
-- Direct edit; no new imports (dataclass already imported in the module).
+- Direct edit; add `from dataclasses import dataclass` to the module imports. Verification note: the
+  original draft claimed the dataclass import already existed; it does not — `class _BackupInfo` lives
+  in `scripts/db/recovery_restore.py`, and `recovery.py` imports no `dataclasses` today (confirmed this
+  cycle). The new dataclass is placed near `_cleanup_staged` per step 1.
 
 ### Details
 - radon guard: removing the inline rollback from `_restore_from_backup` must keep its CC at or below the recorded baseline C(13); the new helper parameter does not add branches to `_restore_from_backup`.
@@ -70,10 +75,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261115-100836 | 20261115-100836 | Steps 1-6 landed; dataclass import correction applied during verification |
+| 2 | Add or update tests per Validation plan | Completed | 20261115-100836 | 20261115-100836 | tests land in companion 20261115-080732_2; targeted run 80 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261115-100836 | 20261115-100836 | ruff/mypy clean; radon _restore_from_backup C(12) (improved from C(13)); bandit scripts 45L/0M/0H unchanged; lint-imports 6 kept; vulture no new; check_module_size OK; tests/db 403 passed; full suite N/A: not run per user instruction |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261115-100836 | 20261115-100836 | N/A: docs edits land in companion 20261115-080732_3 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -996,7 +996,7 @@ def test_failed_rollback_reports_non_serviceable(mock_db_cfg, mock_sqlite_helper
 def test_os_error_after_activation_with_failed_rollback_reports_non_serviceable(
     mock_db_cfg, mock_sqlite_helper
 ) -> None:
-    """REQ-002/AC-004: an OSError after activation whose rollback also fails is reported."""
+    """REQ-003/AC-004: an OSError after activation whose rollback also fails is reported."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "test.sqlite"
         db_path.write_bytes(b"CORRUPT ORIGINAL CONTENT")
@@ -1017,7 +1017,10 @@ def test_os_error_after_activation_with_failed_rollback_reports_non_serviceable(
             result = _restore_from_backup(db_path, str(backup_path), target="rag")
 
         assert result.success is False
-        assert result.action == "error"
+        # Unified vocabulary: the rollback helper reports the failed rollback itself
+        # as rollback_failed / non_serviceable (REQ-003), same as the post-activation
+        # verification-failure path.
+        assert result.action == "rollback_failed"
         assert result.active_db_state == "non_serviceable"
 
 
@@ -1061,6 +1064,161 @@ def test_wal_shm_sidecars_land_at_final_locations_after_activation(
         assert (db_dir / "test.sqlite-wal").read_text() == "BACKUP_WAL_CONTENT"
         assert (db_dir / "test.sqlite-shm").read_text() == "BACKUP_SHM_CONTENT"
         assert not list(db_dir.glob("*_sidecar_quarantine_*"))
+
+
+# --- In-activation failure injection (companion 20261115-080732_1) ---
+
+
+def test_activation_failure_after_replace_rolls_back_original(
+    mock_db_cfg, mock_sqlite_helper
+) -> None:
+    """AC-1: an OSError after os.replace but before the sidecar moves rolls back."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_dir = Path(tmpdir) / "db_dir"
+        db_dir.mkdir()
+        db_path = db_dir / "test.sqlite"
+        original_bytes = b"CORRUPT ORIGINAL CONTENT"
+        db_path.write_bytes(original_bytes)
+        (db_dir / "test.sqlite-wal").write_text("STALE_WAL_CONTENT")
+
+        backup_dir = Path(tmpdir) / "backup_dir"
+        backup_dir.mkdir()
+        backup_path = backup_dir / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+        (backup_dir / "backup.sqlite-wal").write_text("BACKUP_WAL_CONTENT")
+
+        shutil_move_real = shutil.move
+        live_wal = Path(str(db_path) + "-wal")
+
+        def fail_on_live_move(src, dst, *args, **kwargs):
+            # Staging moves (backup sidecar -> staged name) run for real; only
+            # the activation move onto the live name is faulted.
+            if Path(dst) == live_wal:
+                raise OSError("sidecar move failed")
+            return shutil_move_real(src, dst, *args, **kwargs)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+            patch("shutil.move", side_effect=fail_on_live_move),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+                (DbCondition.HEALTHY, None),  # post-activation re-check (not reached)
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "error"
+        assert result.active_db_state == "preserved_original"
+        # The rollback moved the archived original back onto the live name, so the
+        # archive itself no longer exists as a separate *_corrupt_* file.
+        assert db_path.read_bytes() == original_bytes
+        assert not list(db_dir.glob("*_corrupt_*"))
+        # The candidate sidecar never reached the live name.
+        assert not live_wal.exists()
+
+
+def test_partial_activation_removes_moved_sidecars_on_rollback(
+    mock_db_cfg, mock_sqlite_helper
+) -> None:
+    """AC-4/REQ-002: a failed second move unlinks the sidecar that already moved."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_dir = Path(tmpdir) / "db_dir"
+        db_dir.mkdir()
+        db_path = db_dir / "test.sqlite"
+        original_bytes = b"CORRUPT ORIGINAL CONTENT"
+        db_path.write_bytes(original_bytes)
+        (db_dir / "test.sqlite-wal").write_text("STALE_WAL_CONTENT")
+        (db_dir / "test.sqlite-shm").write_text("STALE_SHM_CONTENT")
+
+        backup_dir = Path(tmpdir) / "backup_dir"
+        backup_dir.mkdir()
+        backup_path = backup_dir / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+        (backup_dir / "backup.sqlite-wal").write_text("BACKUP_WAL_CONTENT")
+        (backup_dir / "backup.sqlite-shm").write_text("BACKUP_SHM_CONTENT")
+
+        shutil_move_real = shutil.move
+        live_names = {Path(str(db_path) + "-wal"), Path(str(db_path) + "-shm")}
+        live_moves = 0
+
+        def fail_on_second_live_move(src, dst, *args, **kwargs):
+            nonlocal live_moves
+            if Path(dst) in live_names:
+                live_moves += 1
+                if live_moves == 2:
+                    raise OSError("second sidecar move failed")
+            return shutil_move_real(src, dst, *args, **kwargs)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+            patch("shutil.move", side_effect=fail_on_second_live_move),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.HEALTHY, None),  # candidate (pre-activation)
+                (DbCondition.HEALTHY, None),  # post-activation re-check (not reached)
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "error"
+        assert result.active_db_state == "preserved_original"
+        # The first sidecar had already reached its live name; the rollback removed
+        # it before moving the original back, so no candidate sidecar is left behind.
+        assert not Path(str(db_path) + "-wal").exists()
+        assert not Path(str(db_path) + "-shm").exists()
+        assert db_path.read_bytes() == original_bytes
+        assert not list(db_dir.glob("*_corrupt_*"))
+
+
+def test_cleanup_staged_unlink_failure_does_not_escape(
+    mock_db_cfg, mock_sqlite_helper
+) -> None:
+    """AC-3/REQ-004: an unlink failure in _cleanup_staged is logged, not raised."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_dir = Path(tmpdir) / "db_dir"
+        db_dir.mkdir()
+        db_path = db_dir / "test.sqlite"
+        db_path.write_bytes(b"CORRUPT ORIGINAL CONTENT")
+
+        backup_dir = Path(tmpdir) / "backup_dir"
+        backup_dir.mkdir()
+        backup_path = backup_dir / "backup.sqlite"
+        backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
+        (backup_dir / "backup.sqlite-wal").write_text("BACKUP_WAL_CONTENT")
+
+        unlink_real = Path.unlink
+
+        def unlink_or_fail(self, *args, **kwargs):
+            # Only the staged temp main file is blocked; every other unlink
+            # (e.g. the staged sidecar) runs for real.
+            if self.name.startswith("test.tmp_") and self.suffix == ".sqlite":
+                raise OSError("unlink blocked")
+            return unlink_real(self, *args, **kwargs)
+
+        with (
+            patch("db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_logical_verification", return_value=(True, None)),
+            patch("pathlib.Path.unlink", autospec=True, side_effect=unlink_or_fail),
+        ):
+            mock_integrity.side_effect = [
+                (DbCondition.HEALTHY, None),  # backup
+                (DbCondition.CORRUPTION, "candidate is corrupt"),  # candidate
+            ]
+            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+
+        assert result.success is False
+        assert result.action == "restore_verify_failed"
+        assert result.active_db_state == "preserved_original"
+        # The blocked temp file leaked (logged, not raised); the staged sidecar was
+        # removed, and the live path still holds the original bytes.
+        assert list(db_dir.glob("test.tmp_*.sqlite"))
+        assert not list(db_dir.glob("test.tmp_*.sqlite-wal"))
+        assert db_path.read_bytes() == b"CORRUPT ORIGINAL CONTENT"
 
 
 # --- Real sqlite-vec restore verification (companion 20261115-075008_1) ---

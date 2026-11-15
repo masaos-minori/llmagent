@@ -10,6 +10,8 @@ import logging
 import os
 import shutil
 import sqlite3
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
@@ -281,36 +283,82 @@ def _verify_candidate(
     return condition, None, logical_ok, logical_detail
 
 
+@dataclass
+class _ActivationProgress:
+    """Mutable record of how far candidate activation reached before failing.
+
+    Passed to _activate_candidate by _restore_from_backup so an OSError in the
+    middle of activation can be rolled back: replaced records whether the
+    candidate DB reached the live name, moved_sidecars records each live-name
+    sidecar already moved there.
+    """
+
+    replaced: bool = False
+    moved_sidecars: list[Path] = field(default_factory=list)
+
+
 def _activate_candidate(
-    db_path: Path, temp_restore: Path, staged: dict[str, Path]
+    db_path: Path,
+    temp_restore: Path,
+    staged: dict[str, Path],
+    progress: _ActivationProgress,
 ) -> None:
     """Swap the verified candidate into the live path and move its sidecars.
 
     Single atomic os.replace of the database, then a move of each staged sidecar
     to its final db_path.name + suffix location. Fail-closed: a move failure
-    raises for the caller's OSError handler.
+    raises for the caller's OSError handler. Each completed step is recorded in
+    progress, between the replace and after each move, so a mid-activation
+    failure can be rolled back (REQ-001).
     """
     os.replace(temp_restore, db_path)
+    progress.replaced = True
     for suffix, staged_path in staged.items():
-        shutil.move(staged_path, Path(str(db_path) + suffix))
+        final = Path(str(db_path) + suffix)
+        shutil.move(staged_path, final)
+        progress.moved_sidecars.append(final)
 
 
 def _cleanup_staged(temp_restore: Path, staged: dict[str, Path]) -> None:
-    """Remove the staged candidate files; the live path and archives stay untouched."""
+    """Remove the staged candidate files; the live path and archives stay untouched.
+
+    An unlink failure is logged and skipped: the caller's failure reporting is the
+    authoritative result, and a leaked temp file is secondary information (REQ-004).
+    The next restore run truncates or replaces the staged paths.
+    """
     for path in (temp_restore, *staged.values()):
         if path.exists():
-            path.unlink()
+            try:
+                path.unlink()
+            except OSError as exc:
+                logger.error("Failed to remove staged file %s: %s", path, exc)
 
 
 def _rollback_or_non_serviceable(
-    db_path: Path, corrupt_archive: Path, failure: RecoveryResult, dry_run: bool
+    db_path: Path,
+    corrupt_archive: Path,
+    failure: RecoveryResult,
+    dry_run: bool,
+    moved_sidecars: Sequence[Path] = (),
 ) -> RecoveryResult:
-    """Restore the archived original after a post-activation verification failure.
+    """Restore the archived original after a post-activation failure.
 
     Reports action "rollback_failed" with active_db_state "non_serviceable" when
     the rollback itself fails, preserving every artifact (AC-004). On a successful
     rollback the live path again holds the original database.
+
+    moved_sidecars carries the live-name sidecars an interrupted activation had
+    already moved; they are unlinked (log-and-continue) before the original is
+    moved back, so the reactivated database never has sidecars belonging to the
+    candidate (REQ-002).
     """
+    for moved in moved_sidecars:
+        try:
+            moved.unlink()
+        except OSError as exc:
+            logger.error(
+                "Failed to remove moved sidecar %s during rollback: %s", moved, exc
+            )
     try:
         os.replace(corrupt_archive, db_path)
     except OSError as exc:
@@ -361,7 +409,7 @@ def _restore_from_backup(
     quarantine_dir = db_path.parent / f"{db_path.stem}_sidecar_quarantine_{ts}"
 
     staged: dict[str, Path] = {}
-    activated = False
+    progress = _ActivationProgress()
     try:
         staged = _stage_restore(
             db_path, backup, corrupt_archive, temp_restore, quarantine_dir
@@ -401,8 +449,7 @@ def _restore_from_backup(
                 active_db_state="preserved_original",
             )
 
-        _activate_candidate(db_path, temp_restore, staged)
-        activated = True
+        _activate_candidate(db_path, temp_restore, staged, progress)
 
         failure = _post_restore_failure(db_path, target, dry_run)
         if failure is not None:
@@ -424,22 +471,18 @@ def _restore_from_backup(
     except OSError as e:
         logger.error("Recovery failed: %s", e)
         _cleanup_staged(temp_restore, staged)
-        if activated and corrupt_archive.exists():
-            # The swap already happened when this failure hit: put the archived
-            # original back so the live path never holds an unverified file.
-            try:
-                os.replace(corrupt_archive, db_path)
-            except OSError as rollback_exc:
-                logger.error(
-                    "Rollback of the archived original failed: %s", rollback_exc
-                )
-                return _failure(
-                    "error",
-                    str(e),
-                    dry_run,
-                    logical_ok=False,
-                    active_db_state="non_serviceable",
-                )
+        if progress.replaced and corrupt_archive.exists():
+            # The swap already happened when this failure hit: the same rollback
+            # helper the post-activation branches use puts the archived original
+            # back, first removing any sidecar already moved onto the live name
+            # (REQ-002, REQ-003).
+            return _rollback_or_non_serviceable(
+                db_path,
+                corrupt_archive,
+                _failure("error", str(e), dry_run, logical_ok=False),
+                dry_run,
+                moved_sidecars=progress.moved_sidecars,
+            )
         return _failure("error", str(e), dry_run)
 
 
