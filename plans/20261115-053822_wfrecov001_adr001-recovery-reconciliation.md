@@ -154,9 +154,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Amend ADR-001 INV-07, Decision Details item 11, and Verification | Pending | — | — | |
-| 2 | Align `agent_03_03` Startup Recovery and Known Limitations | Pending | — | — | |
-| 3 | Confirm `db_07` alignment and Known Deviations, run doc checkers | Pending | — | — | |
+| 1 | Amend ADR-001 INV-07, Decision Details item 11, and Verification | In Progress | — | — |  |
+| 2 | Align `agent_03_03` Startup Recovery and Known Limitations | In Progress | — | — |  |
+| 3 | Confirm `db_07` alignment and Known Deviations, run doc checkers | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -166,7 +166,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261115-195612_01_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261115-195612_02_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -185,3 +186,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-003 | Problem; Required Changes | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` | Phase 2 | AC-002, AC-005 | `check_docs_consistency.py --domain agent` | Confirmed by repository evidence |
 | REQ-004 | Dependencies; Required Changes | `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` | Phase 3 | AC-005 | manual diff review | Confirmed by repository evidence |
 | REQ-005 | Constraints; Acceptance Criteria | `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` | Phase 3 | AC-005 | `check_known_deviation_sync.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261115-195612 -->
