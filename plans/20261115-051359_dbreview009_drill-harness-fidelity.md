@@ -10,7 +10,7 @@ Medium (Issue Priority)
 - **In-Scope**: archive-stage exception handling in `_drill_one_domain`; RTO clock placement; `_last_archive` removal; `print` → logging in `run_drill`/`main`; tests in `tests/db/test_recovery_drill.py`; the RTO/artifact-failure statements in `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` section 12.
 - **Out-of-Scope**: retention of drill outputs and archives (issue 008, `issues/20261114-092857_dbreview008_artifact-retention-gaps.md`); rotation behavior itself (`scripts/db/rotation.py` is not modified — the drill only catches what it raises).
 - **Dependencies**: none per the Issue.
-  - **Depends on**: plans/20261115-041859_dbreview004_integrity-probe-side-effects.md | phase all | sequencing only: 004 edits `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` and `scripts/db/recovery.py` and lands first; 009 edits the drill section of the same doc (`:156-189`) and does not touch `recovery.py`. No behavioral dependency.
+  - **Depends on**: plans/20261115-041859_dbreview004_integrity-probe-side-effects.md | phase all | sequencing only: 004 edits `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` and `scripts/db/recovery.py` and lands first; 009 edits the drill section of the same doc (`:156-191`) and does not touch `recovery.py`. No behavioral dependency.
 
 ## Background
 From the Source Issue (F-009, commit `0fe68d3`), re-verified against the post-pull tree (HEAD `edc79f698`, 2026-11-15). The harness was restructured upstream since the Issue was filed; the four Issue claims map onto the current file as follows:
@@ -21,6 +21,8 @@ From the Source Issue (F-009, commit `0fe68d3`), re-verified against the post-pu
 - Claim 4 (`print` in a library module): **Confirmed as a rule violation.** `run_drill` prints at `:300`; `rules/coding.md:84-85` states "no print() in library modules" with an ast-grep check over `scripts/`. `recovery_drill.py:300` is the only `print(` in `scripts/db/` (grep this cycle). CLI logging convention exists at `scripts/db/create_schema.py:127` (`logging.basicConfig(level=logging.INFO)` in `main`).
 
 Parts of the Issue text that were superseded by the upstream harness rewrite are treated as retired, not re-planned: there is no `DomainDrillResult` dataclass, no row-count-only `verified` flag (the current verification is integrity + per-domain consistency + schema fingerprint: `:97-125`, `:237-242`), no quarantine step, and no redundant success-path copy. Test coverage exists (`tests/db/test_recovery_drill.py`, 637 lines) — the Issue's "zero coverage" context no longer applies; only the Issue's *new* tests (archive-failure, timing boundary) are missing.
+
+Adversarial re-verification 2026-11-16 (HEAD `948d7b6d5`): all four Background claims re-confirmed against current source (`except FileNotFoundError` only at `recovery_drill.py:187`; `shutil.copy2` `:204`, `started` `:206`, `rto_seconds` `:222`; `_last_archive` `:248` is the sole `uv run vulture scripts/db/recovery_drill.py` finding at 60% confidence; `print` at `:300` is the only real `print(` in `scripts/db/`; `rotation.py` `RuntimeError` at `:74,80`, connect/backup errors `:50-53`; `create_schema.py:127` `basicConfig` pattern; `__main__` guard at `:337`). Regression-watch claims confirmed: no `capsys`/stdout assertion exists in `tests/db/test_recovery_drill.py`; `restore_start_ts` appears only at `:144` (required-keys list), `:278` (`>= archive_ts_epoch`, still satisfiable after the move), `:282` (`rto_seconds == restore_end_ts - restore_start_ts` tolerance check; both timestamps shift together, assertion stays exact). Docs anchors re-measured after plans 002-004 landed: section 12 `## 12. Recovery Drills` spans `:156-191` (artifact field table `:179-189`); the `rto_seconds` wording row moved `:182`→`:184` (citations corrected in the target-files table and Risks); the `error` row is at `:189` and already promises "the artifact is still written" — REQ-001 makes that promise true for the archive stage. No contradicting findings.
 
 ## Problem
 An archive verification failure crashes the whole drill with no artifact for the failing domain and no drill of the remaining domains; `rto_seconds` under-reports the recovery time it names; the module carries dead code and a rule-breaking `print`.
@@ -43,16 +45,16 @@ Catch the archive stage's full exception set per domain and persist a failed art
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/db/recovery_drill.py | Modify | Broaden the archive-stage `except` and persist a failed artifact (REQ-001); move `started` before the copy (REQ-002); delete `_last_archive` (REQ-003); `print` → `logger.info` + `basicConfig` in `main` (REQ-004) | REQ-001..REQ-004 / AC-1..AC-4 | `:185-192` FileNotFoundError-only; `:204/:206/:222` timing; `:248-263` dead helper; `:300` print (checked Step 2, post-pull) | tests/db/test_recovery_drill.py | Verified |
+| scripts/db/recovery_drill.py | Modify | Broaden the archive-stage `except` and persist a failed artifact (REQ-001); move `started` before the copy (REQ-002); delete `_last_archive` (REQ-003); `print` → `logger.info` + `basicConfig` in `main` (REQ-004) | REQ-001..REQ-004 / AC-1..AC-4 | `:185-192` FileNotFoundError-only; `:204/:206/:222` timing; `:248-263` dead helper; `:300` print (checked Step 2, post-pull) | `tests/db/test_recovery_drill.py` | Verified |
 | tests/db/test_recovery_drill.py | Modify | Add archive-failure continuation tests (`RuntimeError`, `sqlite3.Error`), timing-order test, logging-based status test | REQ-005 / AC-1, AC-2, AC-5 | 637 lines; no test patches `_archive_db_file` to raise (grep this cycle); CLI tests assert returncode and artifacts only, no stdout assertions (`:593-637`) | tests/db/test_recovery_drill.py | Verified |
-| docs/41_db/db_07_api_and_operations-recovery-and-reference.md | Modify | Section 12: state that archive-stage failures are recorded per domain and other domains still drill; state `rto_seconds` covers the isolated copy plus verification | REQ-001, REQ-002 / AC-1, AC-2 | `:156-189` drill section; `:182` "restore start to completion" wording becomes accurate only after REQ-002 (read this cycle) | N/A | Verified |
+| docs/41_db/db_07_api_and_operations-recovery-and-reference.md | Modify | Section 12: state that archive-stage failures are recorded per domain and other domains still drill; state `rto_seconds` covers the isolated copy plus verification | REQ-001, REQ-002 / AC-1, AC-2 | `:156-191` drill section; `:184` "restore start to completion" wording becomes accurate only after REQ-002 (read this cycle) | N/A | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
 | scripts/db/rotation.py `:25-81` | `_archive_db_file`/`_verify_archive` define the exact exception set the drill must catch (`RuntimeError` at `:74,80`; sqlite3 connect/backup errors) — **no edit required** | scripts/db/recovery_drill.py / REQ-001 |
 | scripts/db/create_schema.py `:127` | Existing CLI logging convention (`logging.basicConfig(level=logging.INFO)` in `main`) to copy | scripts/db/recovery_drill.py / REQ-004 |
-| docs/41_db/db_07_api_and_operations-recovery-and-reference.md `:156-189` | Section 12 is the current drill contract the tests must keep matching | docs/41_db/db_07_api_and_operations-recovery-and-reference.md / REQ-001, REQ-002 |
+| docs/41_db/db_07_api_and_operations-recovery-and-reference.md `:156-191` | Section 12 is the current drill contract the tests must keep matching | docs/41_db/db_07_api_and_operations-recovery-and-reference.md / REQ-001, REQ-002 |
 | plans/20261115-041859_dbreview004_integrity-probe-side-effects.md | Lands first in the same docs file and owns `scripts/db/recovery.py` probe-side-effect fixes; 009 re-reads the landed drill section before editing | docs/41_db/db_07_api_and_operations-recovery-and-reference.md / Documentation Impact |
 
 ## Acceptance Criteria
@@ -70,7 +72,7 @@ Catch the archive stage's full exception set per domain and persist a failed art
 - Regression watch (no assertion changes expected): `test_all_domains_drill_passes_and_live_dbs_untouched` (`:235-248`), the rag/session/workflow verdict tests (`:291-557`), and the CLI exit tests (`:593-637`) — none assert on stdout text or on `_last_archive`; `restore_start_ts` value shifts earlier, and no existing test asserts its exact value (grep this cycle).
 
 ## Documentation Impact
-- `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` section 12: (a) state that archive-stage failures (`FileNotFoundError`, integrity/identity `RuntimeError`, sqlite3 errors) are recorded in that domain's artifact and the remaining domains are still drilled; (b) `rto_seconds` row: measured time **of the isolated restore copy plus verification**, from restore start to completion. The existing `error` row (`:187`) already promises an artifact on failure — REQ-001 makes it true for the archive stage.
+- `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` section 12: (a) state that archive-stage failures (`FileNotFoundError`, integrity/identity `RuntimeError`, sqlite3 errors) are recorded in that domain's artifact and the remaining domains are still drilled; (b) `rto_seconds` row: measured time **of the isolated restore copy plus verification**, from restore start to completion. The existing `error` row (`:189`) already promises an artifact on failure — REQ-001 makes it true for the archive stage.
 
 ## Baseline Consistency (Step 5)
 | Dimension | Baseline Value | Source (exact command) | Recorded |
@@ -143,7 +145,7 @@ Catch the archive stage's full exception set per domain and persist a failed art
 
 ## Risks
 - **Risk**: broadening the `except` absorbs an `sqlite3.Error` that indicates a broader outage (disk full) → **Mitigation**: the error text is persisted in the artifact and logged, and `run_drill` still returns False (exit 1) so cron alerts fire; the drill's job is per-domain reporting, not triage suppression.
-- **Risk**: `rto_seconds` values grow (copy included) and a reader comparing against a historical threshold misreads the jump → **Mitigation**: docs `db_07:182` already states "Measurement semantics, not a threshold"; the docs update names the widened scope explicitly.
+- **Risk**: `rto_seconds` values grow (copy included) and a reader comparing against a historical threshold misreads the jump → **Mitigation**: docs `db_07:184` already states "Measurement semantics, not a threshold"; the docs update names the widened scope explicitly.
 - **Risk**: new `verification["archive_failed"]` key on failure paths breaks an unseen strict reader → **Mitigation**: UNK-01 fallback (express failure via existing `integrity`/`error` keys) decided before Phase 1 if the maintainer objects.
 - **Risk**: logging change alters cron output format → **Mitigation**: message text preserved verbatim (`[drill] <domain>: PASS/FAIL {...}`); cron captures stderr; CLI subprocess tests re-run unchanged.
 
@@ -152,9 +154,9 @@ Catch the archive stage's full exception set per domain and persist a failed art
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drill failure handling, clock, dead code, logging (scripts/db/recovery_drill.py) | Pending | — | — | |
-| 2 | Tests (tests/db/test_recovery_drill.py) | Pending | — | — | |
-| 3 | Docs and validation | Pending | — | — | |
+| 1 | Drill failure handling, clock, dead code, logging (scripts/db/recovery_drill.py) | In Progress | — | — | procedure doc 20261116-075258_01 generated |
+| 2 | Tests (tests/db/test_recovery_drill.py) | In Progress | — | — | covered as companion test file of 20261116-075258_01 |
+| 3 | Docs and validation | In Progress | — | — | procedure doc 20261116-075258_03 generated; validation commands live in the procedure docs' Validation plans |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -165,6 +167,8 @@ Catch the archive stage's full exception set per domain and persist a failed art
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | WI-009-1 | — | Follow-up (recorded at plan time) | Open | maintainer | — | RTO values in historical artifacts under `/opt/llm/data/archives/drills` (if any) are verification-only; post-change artifacts are copy+verification. No action unless a dashboard consumes them. |
+| implementations/20261116-075258_01_scripts_db_recovery_drill.py.md | 1, 2 | Procedure | Created | — | — |
+| implementations/20261116-075258_03_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 3 | Procedure | Created | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -183,3 +187,5 @@ Catch the archive stage's full exception set per domain and persist a failed art
 | REQ-003 | Problem bullet 3; Required Changes bullet 3 | scripts/db/recovery_drill.py | Phase 1 | AC-3 | vulture clean + suite green | Explicit in code (`:248-263`; grep + vulture this cycle) |
 | REQ-004 | Problem bullet 4 (Needs-confirmation resolved against `rules/coding.md:84-85` this cycle) | scripts/db/recovery_drill.py | Phase 1 | AC-4 | caplog test + print grep | Explicit in code (`:300`; only print in `scripts/db/`) |
 | REQ-005 | Testing Expectations | tests/db/test_recovery_drill.py | Phase 2 | AC-1, AC-2, AC-5 | New tests | Verified by test (gap confirmed this cycle: no `_archive_db_file` failure tests exist) |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-075258 -->
