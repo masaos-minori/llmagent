@@ -183,9 +183,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define the canonical set and remove the contradictory comment | Pending | — | — | |
-| 2 | Wire dispatch, http_transport, and tool_policy to the canonical set | Pending | — | — | |
-| 3 | Parity tests and verification | Pending | — | — | |
+| 1 | Define the canonical set and remove the contradictory comment | In Progress | — | — |  |
+| 2 | Wire dispatch, http_transport, and tool_policy to the canonical set | In Progress | — | — |  |
+| 3 | Parity tests and verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -195,7 +195,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261115-192353_01_scripts_shared_tool_constants.py.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261115-192353_02_scripts_mcp_servers_dispatch.py.md` | 2, 3 | Procedure | Pending | — | — |
+| `implementations/20261115-192353_03_scripts_shared_http_transport.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261115-192353_04_scripts_agent_tool_policy.py.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -215,3 +218,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-004 | Implementation Intent; Required Changes | `scripts/agent/tool_policy.py` | Phase 2 | AC-004 | tool_policy classification test | Confirmed by repository evidence |
 | REQ-005 | Testing Expectations | `tests/mcp_servers/test_tool_schema_contract.py` | Phase 3 | AC-005 | parity test | Confirmed by repository evidence |
 | REQ-006 | Required Changes; Out of Scope | `scripts/shared/tool_constants.py` | Phase 1 | AC-006 | import-layer + structure check | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261115-192353 -->
